@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- VaultEx Premium Palette -->
+    <color name="bg_primary">#1A1A2E</color>
+    <color name="bg_secondary">#16213E</color>
+    <color name="bg_tertiary">#0F3460</color>
+    <color name="surface">#1E2D45</color>
+
+    <color name="accent_gold">#C9A84C</color>
+    <color name="accent_gold_dark">#A88838</color>
+    <color name="accent_green">#00C896</color>
+    <color name="accent_red">#FF4D6D</color>
+    <color name="accent_orange">#FFA928</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B7C3</color>
+    <color name="text_muted">#6B7280</color>
+
+    <color name="border">#2A3F5F</color>
+
+    <!-- Network colors -->
+    <color name="network_btc">#F7931A</color>
+    <color name="network_eth">#627EEA</color>
+    <color name="network_bnb">#F0B90B</color>
+    <color name="network_sol">#9945FF</color>
+    <color name="network_trx">#FF060A</color>
+</resources>

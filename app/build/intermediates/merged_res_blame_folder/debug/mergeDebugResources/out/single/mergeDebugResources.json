@@ -1,0 +1,66 @@
+[
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-mdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "C:\\Users\\HP\\.gradle\\daemon\\8.7\\com.vaultex.app-debug-78:\\xml_data_extraction_rules.xml.flat",
+        "source": "C:\\Users\\HP\\.gradle\\daemon\\8.7\\com.vaultex.app-main-80:\\xml\\data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-mdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.vaultex.app-main-80:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\HP\\.gradle\\daemon\\8.7\\com.vaultex.app-debug-78:\\drawable_splash_background.xml.flat",
+        "source": "C:\\Users\\HP\\.gradle\\daemon\\8.7\\com.vaultex.app-main-80:\\drawable\\splash_background.xml"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.vaultex.app-main-80:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.vaultex.app-debug-78:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.vaultex.app-main-80:/mipmap-xxxhdpi/ic_launcher.webp"
+    }
+]
