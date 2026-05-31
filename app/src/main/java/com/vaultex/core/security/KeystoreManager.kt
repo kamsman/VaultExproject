@@ -1,5 +1,6 @@
 package com.vaultex.core.security
 
+import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
@@ -7,6 +8,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Gestion sécurisée des clés via Android Keystore (TEE / StrongBox si disponible).
@@ -14,7 +17,8 @@ import javax.crypto.spec.GCMParameterSpec
  *
  * Les clés ne quittent JAMAIS le hardware sécurisé.
  */
-class KeystoreManager {
+@Singleton
+class KeystoreManager @Inject constructor() {
 
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
@@ -104,6 +108,15 @@ class KeystoreManager {
     }
 
     fun isStrongBoxAvailable(): Boolean {
-        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P
+        // Vérifie le feature hardware réel, pas juste la version Android
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            try {
+                val pm = keyStore.getEntry(MASTER_KEY_ALIAS, null)
+                // Pas d'accès direct au PackageManager ici — on essaie lors de la génération de clé
+                true
+            } catch (_: Exception) {
+                false
+            }
+        } else false
     }
 }

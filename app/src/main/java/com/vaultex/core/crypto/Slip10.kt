@@ -31,8 +31,9 @@ object Slip10 {
 
         // Dérivation enfant pour chaque niveau du path
         for (index in path) {
-            require(index < 0 || index >= 0x80000000.toInt()) {
-                "ed25519 ne supporte que la dérivation hardened (index >= 2^31)"
+            // En signé 32-bit, les indices hardened ont le bit 31 positionné (valeur négative).
+            require(index and Int.MIN_VALUE != 0) {
+                "ed25519 ne supporte que la dérivation hardened (bit 31 requis)"
             }
             val data = ByteArray(37)
             data[0] = 0x00  // 0x00 prefix pour ed25519 hardened

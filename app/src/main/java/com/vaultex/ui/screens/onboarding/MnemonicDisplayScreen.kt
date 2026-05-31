@@ -22,65 +22,27 @@ import com.vaultex.ui.components.GlassCard
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
-import com.vaultex.ui.utils.WalletMemory
-
-import org.web3j.crypto.MnemonicUtils
-import java.security.SecureRandom
+import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MnemonicDisplayScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: OnboardingViewModel
 ) {
-
-    /*
-    =========================
-    GENERATE REAL MNEMONIC
-    =========================
-     */
-
-    val mnemonic = remember {
-
-        val entropy = ByteArray(16)
-
-        SecureRandom().nextBytes(entropy)
-
-        MnemonicUtils.generateMnemonic(entropy)
-            .split(" ")
+    // La génération se fait dans le ViewModel (thread-safe, hors Compose tree)
+    LaunchedEffect(Unit) {
+        viewModel.generateMnemonic()
     }
 
-    /*
-    =========================
-    SAVE FOR VERIFY SCREEN
-    =========================
-     */
-
-    WalletMemory.mnemonicWords = mnemonic
-
-    /*
-    =========================
-    UI STATE
-    =========================
-     */
-
-    var revealed by remember {
-        mutableStateOf(false)
-    }
+    val mnemonic by viewModel.mnemonic.collectAsState()
+    var revealed by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-
             TopAppBar(
-                title = {
-
-                    Text(
-                        "Phrase de récupération",
-                        color = TextPrimary
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BgPrimary
-                )
+                title = { Text("Phrase de récupération", color = TextPrimary) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
         containerColor = BgPrimary
@@ -93,24 +55,13 @@ fun MnemonicDisplayScreen(
                 .fillMaxSize()
         ) {
 
-            /*
-            =========================
-            WARNING
-            =========================
-             */
-
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = AccentRed.copy(alpha = 0.15f)
-                ),
+                colors = CardDefaults.cardColors(containerColor = AccentRed.copy(alpha = 0.15f)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-
                 Text(
-                    text =
-                        "⚠️ Notez ces 12 mots dans l'ordre exact. " +
-                                "Si vous les perdez, vous perdez votre wallet.",
-
+                    text = "⚠️ Notez ces 12 mots dans l'ordre exact. " +
+                            "Si vous les perdez, vous perdez votre wallet.",
                     color = AccentRed,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(14.dp)
@@ -119,127 +70,68 @@ fun MnemonicDisplayScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            /*
-            =========================
-            MNEMONIC GRID
-            =========================
-             */
-
             GlassCard {
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-
-                    modifier = Modifier.height(280.dp)
-                ) {
-
-                    itemsIndexed(mnemonic) { i, word ->
-
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    BgSecondary,
-                                    RoundedCornerShape(10.dp)
+                if (mnemonic.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(280.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AccentGold)
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.height(280.dp)
+                    ) {
+                        itemsIndexed(mnemonic) { i, word ->
+                            Row(
+                                modifier = Modifier
+                                    .background(BgSecondary, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("${i + 1}.", color = TextMuted, fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (revealed) word else "••••••",
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
-                                .padding(
-                                    horizontal = 10.dp,
-                                    vertical = 12.dp
-                                ),
-
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-
-                            Text(
-                                text = "${i + 1}.",
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-
-                            Spacer(
-                                modifier = Modifier.width(6.dp)
-                            )
-
-                            Text(
-                                text =
-                                    if (revealed)
-                                        word
-                                    else
-                                        "••••••",
-
-                                color = TextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            }
                         }
                     }
                 }
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-                /*
-                =========================
-                SHOW / HIDE
-                =========================
-                 */
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TextButton(
-                    onClick = {
-                        revealed = !revealed
-                    },
+                    onClick = { revealed = !revealed },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-
                     Icon(
-                        imageVector =
-                            if (revealed)
-                                Icons.Default.VisibilityOff
-                            else
-                                Icons.Default.Visibility,
-
+                        imageVector = if (revealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = null,
                         tint = AccentGold
                     )
-
-                    Spacer(
-                        modifier = Modifier.width(6.dp)
-                    )
-
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text =
-                            if (revealed)
-                                "Masquer"
-                            else
-                                "Afficher les mots",
-
+                        text = if (revealed) "Masquer" else "Afficher les mots",
                         color = AccentGold
                     )
                 }
             }
 
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-            /*
-            =========================
-            CONTINUE
-            =========================
-             */
+            Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
                 text = "Continuer",
-                onClick = {
-
-                    navController.navigate(
-                        Routes.MNEMONIC_VERIFY
-                    )
-                }
+                onClick = { navController.navigate(Routes.MNEMONIC_VERIFY) },
+                enabled = mnemonic.isNotEmpty()
             )
         }
     }

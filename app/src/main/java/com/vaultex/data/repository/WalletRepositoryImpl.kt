@@ -1,21 +1,18 @@
 package com.vaultex.data.repository
 
-import com.vaultex.domain.repository.WalletRepository
 import com.vaultex.core.crypto.WalletManager
-import org.web3j.crypto.Credentials
+import com.vaultex.domain.repository.WalletRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class WalletRepositoryImpl @Inject constructor() : WalletRepository {
 
-    override fun createWallet(): Credentials {
-        return WalletManager.createWallet()
-    }
+    override suspend fun deriveAddresses(mnemonic: String): WalletManager.WalletAddresses =
+        withContext(Dispatchers.Default) {
+            WalletManager.deriveAddresses(mnemonic)
+        }
 
-    override fun getAddress(credentials: Credentials): String {
-        return WalletManager.getAddress(credentials)
-    }
-
-    override fun getPrivateKey(credentials: Credentials): String {
-        return WalletManager.getPrivateKey(credentials)
-    }
+    override fun validateMnemonic(phrase: String): Boolean =
+        WalletManager.validateMnemonic(phrase)
 }

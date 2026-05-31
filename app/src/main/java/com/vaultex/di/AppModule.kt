@@ -14,7 +14,5 @@ abstract class AppModule {
 
     @Binds
     @Singleton
-    abstract fun bindWalletRepository(
-        impl: WalletRepositoryImpl
-    ): WalletRepository
+    abstract fun bindWalletRepository(impl: WalletRepositoryImpl): WalletRepository
 }

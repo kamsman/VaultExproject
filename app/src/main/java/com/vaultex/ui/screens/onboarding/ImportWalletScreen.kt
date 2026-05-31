@@ -16,36 +16,20 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
-import com.vaultex.ui.utils.WalletMemory
+import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportWalletScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: OnboardingViewModel
 ) {
-
-    /*
-    =========================
-    STATES
-    =========================
-     */
-
-    var mnemonic by remember {
-        mutableStateOf("")
-    }
-
-    var error by remember {
-        mutableStateOf("")
-    }
-
-    /*
-    =========================
-    CLEAN WORDS
-    =========================
-     */
+    var mnemonic by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
 
     val words = mnemonic
         .lowercase()
@@ -57,71 +41,26 @@ fun ImportWalletScreen(
         .filter { it.isNotBlank() }
 
     val wordCount = words.size
+    val isValidCount = wordCount == 12
 
-    /*
-    =========================
-    VALID
-    =========================
-     */
-
-    val isValid = wordCount == 12
-
-    /*
-    =========================
-    UI
-    =========================
-     */
-
-    Scaffold(
-        containerColor = BgPrimary
-    ) { padding ->
+    Scaffold(containerColor = BgPrimary) { padding ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            BgPrimary,
-                            BgSecondary
-                        )
-                    )
-                )
+                .background(Brush.verticalGradient(listOf(BgPrimary, BgSecondary)))
                 .padding(padding)
                 .imePadding()
-                .verticalScroll(
-                    rememberScrollState()
-                )
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Spacer(
-                modifier = Modifier.height(70.dp)
-            )
+            Spacer(modifier = Modifier.height(70.dp))
 
-            /*
-            =========================
-            ICON
-            =========================
-             */
+            Text(text = "📥", fontSize = 70.sp)
 
-            Text(
-                text = "📥",
-                fontSize = 70.sp
-            )
-
-            Spacer(
-                modifier = Modifier.height(28.dp)
-            )
-
-            /*
-            =========================
-            TITLE
-            =========================
-             */
+            Spacer(modifier = Modifier.height(28.dp))
 
             Text(
                 text = "Importer un wallet",
@@ -130,55 +69,23 @@ fun ImportWalletScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(
-                modifier = Modifier.height(14.dp)
-            )
-
-            /*
-            =========================
-            DESCRIPTION
-            =========================
-             */
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text =
-                    "Entrez votre phrase de récupération de 12 mots.",
-
+                text = "Entrez votre phrase de récupération de 12 mots.",
                 color = TextSecondary,
                 fontSize = 15.sp,
                 lineHeight = 24.sp
             )
 
-            Spacer(
-                modifier = Modifier.height(40.dp)
-            )
-
-            /*
-            =========================
-            CARD
-            =========================
-             */
+            Spacer(modifier = Modifier.height(40.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-
                 shape = RoundedCornerShape(30.dp),
-
-                colors = CardDefaults.cardColors(
-                    containerColor =
-                        BgSecondary.copy(alpha = 0.95f)
-                )
+                colors = CardDefaults.cardColors(containerColor = BgSecondary.copy(alpha = 0.95f))
             ) {
-
-                Column(
-                    modifier = Modifier.padding(22.dp)
-                ) {
-
-                    /*
-                    =========================
-                    LABEL
-                    =========================
-                     */
+                Column(modifier = Modifier.padding(22.dp)) {
 
                     Text(
                         text = "Phrase secrète",
@@ -187,21 +94,11 @@ fun ImportWalletScreen(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(14.dp)
-                    )
-
-                    /*
-                    =========================
-                    INPUT
-                    =========================
-                     */
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
                         value = mnemonic,
-
                         onValueChange = { input ->
-
                             mnemonic = input
                                 .lowercase()
                                 .replace("\n", " ")
@@ -209,189 +106,70 @@ fun ImportWalletScreen(
                                 .replace(";", " ")
                                 .replace(Regex("\\s+"), " ")
                                 .trimStart()
-
                             error = ""
                         },
-
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(170.dp),
-
-                        placeholder = {
-
-                            Text(
-                                text =
-                                    "word1 word2 word3 ...",
-
-                                color = TextSecondary
-                            )
-                        },
-
-                        keyboardOptions =
-                            KeyboardOptions(
-                                capitalization =
-                                    KeyboardCapitalization.None
-                            ),
-
+                        modifier = Modifier.fillMaxWidth().height(170.dp),
+                        placeholder = { Text("word1 word2 word3 ...", color = TextSecondary) },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                         shape = RoundedCornerShape(22.dp),
-
-                        colors =
-                            OutlinedTextFieldDefaults.colors(
-
-                                focusedBorderColor =
-                                    AccentGold,
-
-                                unfocusedBorderColor =
-                                    BgSecondary,
-
-                                focusedContainerColor =
-                                    BgPrimary,
-
-                                unfocusedContainerColor =
-                                    BgPrimary,
-
-                                cursorColor =
-                                    AccentGold
-                            )
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentGold,
+                            unfocusedBorderColor = BgSecondary,
+                            focusedContainerColor = BgPrimary,
+                            unfocusedContainerColor = BgPrimary,
+                            cursorColor = AccentGold
+                        )
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(18.dp)
-                    )
-
-                    /*
-                    =========================
-                    WORD COUNTER
-                    =========================
-                     */
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
                         text = "$wordCount / 12 mots",
-
-                        color =
-                            if (isValid)
-                                AccentGold
-                            else
-                                TextSecondary,
-
+                        color = if (isValidCount) AccentGold else TextSecondary,
                         fontSize = 14.sp
                     )
 
-                    /*
-                    =========================
-                    ERROR
-                    =========================
-                     */
-
                     if (error.isNotEmpty()) {
-
-                        Spacer(
-                            modifier = Modifier.height(14.dp)
-                        )
-
-                        Text(
-                            text = error,
-                            color = AccentRed,
-                            fontSize = 14.sp
-                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(text = error, color = AccentRed, fontSize = 14.sp)
                     }
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
-
-            /*
-            =========================
-            WARNING
-            =========================
-             */
+            Spacer(modifier = Modifier.height(30.dp))
 
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor =
-                        AccentRed.copy(alpha = 0.12f)
-                ),
-
+                colors = CardDefaults.cardColors(containerColor = AccentRed.copy(alpha = 0.12f)),
                 shape = RoundedCornerShape(18.dp)
             ) {
-
                 Text(
-                    text =
-                        "⚠️ Ne partagez jamais votre phrase secrète. Toute personne ayant accès à cette phrase peut contrôler votre wallet.",
-
+                    text = "⚠️ Ne partagez jamais votre phrase secrète. " +
+                            "Toute personne ayant accès à cette phrase peut contrôler votre wallet.",
                     color = AccentRed,
-
                     fontSize = 13.sp,
-
                     lineHeight = 22.sp,
-
                     modifier = Modifier.padding(18.dp)
                 )
             }
 
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-            /*
-            =========================
-            BUTTON
-            =========================
-             */
+            Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
                 text = "Continuer",
-
                 onClick = {
-
                     when {
-
-                        mnemonic.isBlank() -> {
-
-                            error =
-                                "Veuillez entrer votre phrase secrète"
-                        }
-
-                        wordCount != 12 -> {
-
-                            error =
-                                "La phrase doit contenir 12 mots"
-                        }
-
-                        else -> {
-
-                            /*
-                            =========================
-                            SAVE IMPORTED WORDS
-                            =========================
-                             */
-
-                            WalletMemory.mnemonicWords = words
-
-                            /*
-                            =========================
-                            GO TO PIN
-                            =========================
-                             */
-
-                            navController.navigate(
-                                Routes.PIN_SETUP
-                            ) {
-
-                                popUpTo(Routes.WELCOME) {
-                                    inclusive = true
-                                }
-                            }
+                        mnemonic.isBlank() -> error = "Veuillez entrer votre phrase secrète"
+                        wordCount != 12 -> error = "La phrase doit contenir 12 mots"
+                        !viewModel.setImportedMnemonic(words) ->
+                            error = "Phrase invalide — vérifiez l'orthographe des mots"
+                        else -> navController.navigate(Routes.PIN_SETUP) {
+                            popUpTo(Routes.WELCOME) { inclusive = true }
                         }
                     }
                 }
             )
 
-            Spacer(
-                modifier = Modifier.height(40.dp)
-            )
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

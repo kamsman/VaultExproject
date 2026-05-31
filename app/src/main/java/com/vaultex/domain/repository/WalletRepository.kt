@@ -1,12 +1,8 @@
 package com.vaultex.domain.repository
 
-import org.web3j.crypto.Credentials
+import com.vaultex.core.crypto.WalletManager
 
 interface WalletRepository {
-
-    fun createWallet(): Credentials
-
-    fun getAddress(credentials: Credentials): String
-
-    fun getPrivateKey(credentials: Credentials): String
+    suspend fun deriveAddresses(mnemonic: String): WalletManager.WalletAddresses
+    fun validateMnemonic(phrase: String): Boolean
 }
