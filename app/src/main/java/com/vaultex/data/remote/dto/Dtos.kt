@@ -145,3 +145,11 @@ data class TronUnsignedTxDto(
 
 // ─── SOLANA RPC ────────────────────────────────────────────────────
 data class SolanaBlockhashParams(val commitment: String = "finalized")
+
+// ─── TRON SINGLE TX ────────────────────────────────────────────────
+data class TronSingleTxListDto(val data: List<TronSingleTxData>)
+data class TronSingleTxData(
+    val txID: String,
+    @SerializedName("blockNumber") val blockNumber: Long? = null,
+    val ret: List<Map<String, String>>? = null
+)

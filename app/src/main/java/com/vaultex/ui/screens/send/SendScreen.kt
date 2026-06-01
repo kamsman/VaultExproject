@@ -20,11 +20,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.SendViewModel
+import io.github.g00fy2.quickie.QRResult
+import io.github.g00fy2.quickie.ScanQRCode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +43,10 @@ fun SendScreen(navController: NavHostController, preselectedSymbol: String = "")
     var amount by remember { mutableStateOf("") }
     var selectedChain by remember { mutableStateOf(initialChain) }
     var showConfirm by remember { mutableStateOf(false) }
+
+    val qrScanner = rememberLauncherForActivityResult(ScanQRCode()) { result ->
+        if (result is QRResult.QRSuccess) address = result.content.rawValue ?: address
+    }
 
     val feeLabel = when (selectedChain) {
         "BTC" -> "~sat/vbyte × 250 vbytes"
@@ -115,7 +122,7 @@ fun SendScreen(navController: NavHostController, preselectedSymbol: String = "")
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("0x… ou adresse $selectedChain", color = TextSecondary, fontSize = 13.sp) },
                         trailingIcon = {
-                            IconButton(onClick = { /* QR scan */ }) {
+                            IconButton(onClick = { qrScanner.launch(null) }) {
                                 Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = AccentGold)
                             }
                         },

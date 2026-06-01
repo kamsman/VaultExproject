@@ -101,7 +101,7 @@ dependencies {
 
     // SECURITY
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
 
     // CRYPTO (PROPRE)
     implementation("org.web3j:core:4.10.3")

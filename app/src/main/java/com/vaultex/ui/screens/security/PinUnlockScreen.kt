@@ -1,5 +1,8 @@
 package com.vaultex.ui.screens.security
 
+import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -8,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -16,12 +20,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 
@@ -38,19 +44,59 @@ fun PinUnlockScreen(
 ) {
     val viewModel: PinUnlockViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
 
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
+    var biometricError by remember { mutableStateOf<String?>(null) }
+
+    val biometricEnabled = viewModel.isBiometricEnabled
+    val biometricAvailable = remember {
+        BiometricManager.from(context).canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    // Build BiometricPrompt (requires ComponentActivity from biometric 1.2.0+)
+    val biometricPrompt = remember {
+        val activity = context as ComponentActivity
+        BiometricPrompt(activity, ContextCompat.getMainExecutor(context),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    navController.navigate(destination) { popBackStack() }
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                        errorCode != BiometricPrompt.ERROR_USER_CANCELED) {
+                        biometricError = errString.toString()
+                    }
+                }
+                override fun onAuthenticationFailed() {}
+            })
+    }
+
+    val promptInfo = remember {
+        BiometricPrompt.PromptInfo.Builder()
+            .setTitle("VaultEx")
+            .setSubtitle("Déverrouillez avec votre empreinte digitale")
+            .setNegativeButtonText("Utiliser le PIN")
+            .build()
+    }
+
+    // Auto-trigger biometric on screen open if enabled and available
+    LaunchedEffect(Unit) {
+        if (biometricEnabled && biometricAvailable) {
+            biometricPrompt.authenticate(promptInfo)
+        }
+    }
 
     LaunchedEffect(state.result) {
-        if (state.result is PinVerificationResult.Valid ||
-            state.result is PinVerificationResult.PanicTriggered) {
-            if (state.result is PinVerificationResult.Valid) {
+        when (state.result) {
+            is PinVerificationResult.Valid ->
                 navController.navigate(destination) { popBackStack() }
-            } else {
-                // Panic PIN → wallet effacé → retour welcome
+            is PinVerificationResult.PanicTriggered ->
                 navController.navigate("welcome") { popUpTo(0) }
-            }
+            else -> {}
         }
     }
 
@@ -115,7 +161,7 @@ fun PinUnlockScreen(
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Indicateur points
+                    // Dot indicator
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.align(Alignment.CenterHorizontally)) {
                         repeat(6) { i ->
@@ -125,13 +171,13 @@ fun PinUnlockScreen(
                         }
                     }
 
-                    // Messages d'erreur
+                    // Error messages
                     val errMsg = when (val r = state.result) {
                         is PinVerificationResult.Invalid ->
                             "PIN incorrect · ${r.remainingAttempts} tentative(s) restante(s)"
                         is PinVerificationResult.Locked ->
                             "Verrouillé · réessayez dans ${r.unlockInSeconds}s"
-                        else -> state.error
+                        else -> biometricError ?: state.error
                     }
                     errMsg?.let {
                         Spacer(Modifier.height(12.dp))
@@ -147,6 +193,21 @@ fun PinUnlockScreen(
                 enabled = pin.length == 6 && !state.isLoading,
                 onClick = { viewModel.verify(pin) }
             )
+
+            // Biometric button
+            if (biometricEnabled && biometricAvailable) {
+                Spacer(Modifier.height(20.dp))
+                OutlinedButton(
+                    onClick = { biometricError = null; biometricPrompt.authenticate(promptInfo) },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGold),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Fingerprint, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Utiliser l'empreinte digitale")
+                }
+            }
         }
     }
 }

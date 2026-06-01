@@ -70,6 +70,9 @@ interface TronApi {
 
     @POST("wallet/createtransaction")
     suspend fun createTransfer(@Body body: TronCreateTransferRequest): TronUnsignedTxDto
+
+    @GET("v1/transactions/{txid}")
+    suspend fun getTransactionById(@Path("txid") txid: String): TronSingleTxListDto
 }
 
 /**
