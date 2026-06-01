@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+
+    <!-- Interdit le trafic HTTP en clair pour toutes les connexions -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Uniquement les CAs système — pas de CAs utilisateur -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- CoinGecko -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.coingecko.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Blockstream (Bitcoin) -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">blockstream.info</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Solana RPC -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.mainnet-beta.solana.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- TronGrid -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.trongrid.io</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 1inch -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.1inch.dev</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Cloudflare ETH RPC -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">cloudflare-eth.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- BSC RPC -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">bsc-dataseed.binance.org</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>

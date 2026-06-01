@@ -1,7 +1,7 @@
 package com.vaultex.core.security
 
-import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -16,6 +16,10 @@ import javax.inject.Singleton
  * Utilise AES-256-GCM pour le chiffrement authentifié de la mnémonique.
  *
  * Les clés ne quittent JAMAIS le hardware sécurisé.
+ *
+ * Si la clé est invalidée (changement d'empreinte, reset biométrique → KeyPermanentlyInvalidatedException),
+ * la clé est recréée. La mnémonique ne peut alors plus être déchiffrée — l'utilisateur doit
+ * réimporter son wallet via la phrase mnémonique.
  */
 @Singleton
 class KeystoreManager @Inject constructor() {
@@ -29,14 +33,13 @@ class KeystoreManager @Inject constructor() {
 
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
-    /**
-     * Génère ou récupère la master key dans le Keystore.
-     * Si l'appareil supporte StrongBox (Pixel 3+, Samsung S20+), elle y est stockée.
-     */
     private fun getOrCreateMasterKey(requireBiometric: Boolean = false): SecretKey {
         val existingKey = keyStore.getKey(MASTER_KEY_ALIAS, null) as? SecretKey
         if (existingKey != null) return existingKey
+        return generateMasterKey(requireBiometric)
+    }
 
+    private fun generateMasterKey(requireBiometric: Boolean): SecretKey {
         val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         val builder = KeyGenParameterSpec.Builder(
             MASTER_KEY_ALIAS,
@@ -47,7 +50,6 @@ class KeystoreManager @Inject constructor() {
             .setKeySize(256)
             .setRandomizedEncryptionRequired(true)
 
-        // Demander l'auth biométrique pour usage de la clé (sensitive data)
         if (requireBiometric) {
             builder.setUserAuthenticationRequired(true)
             builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
@@ -57,8 +59,8 @@ class KeystoreManager @Inject constructor() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             try {
                 builder.setIsStrongBoxBacked(true)
-            } catch (e: Exception) {
-                // Fallback TEE
+            } catch (_: Exception) {
+                // Fallback TEE silencieux
             }
         }
 
@@ -74,28 +76,41 @@ class KeystoreManager @Inject constructor() {
         val key = getOrCreateMasterKey(requireBiometric)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)
-
-        val iv = cipher.iv  // 12 bytes générés automatiquement
+        val iv = cipher.iv
         val ciphertext = cipher.doFinal(plaintext)
-
         return iv + ciphertext
     }
 
     /**
      * Déchiffre des données AES-256-GCM.
+     * Lance [KeyInvalidatedException] si la clé a été invalidée (ex: changement d'empreinte).
      */
     fun decrypt(encrypted: ByteArray): ByteArray {
         require(encrypted.size > GCM_IV_LENGTH) { "Données chiffrées trop courtes" }
-        val key = getOrCreateMasterKey()
+
+        val key = try {
+            getOrCreateMasterKey()
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            // La clé a été invalidée par un changement biométrique ou un reset du Keystore.
+            // Supprimer l'ancienne clé invalide et relancer avec une indication à l'utilisateur.
+            destroyMasterKey()
+            throw KeyInvalidatedException(
+                "La clé de chiffrement a été invalidée (changement d'empreinte ou reset). " +
+                "Veuillez réimporter votre wallet avec votre phrase mnémonique.", e
+            )
+        }
 
         val iv = encrypted.copyOfRange(0, GCM_IV_LENGTH)
         val ciphertext = encrypted.copyOfRange(GCM_IV_LENGTH, encrypted.size)
 
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)
-        cipher.init(Cipher.DECRYPT_MODE, key, spec)
-
-        return cipher.doFinal(ciphertext)
+        return try {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_LENGTH, iv))
+            cipher.doFinal(ciphertext)
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            destroyMasterKey()
+            throw KeyInvalidatedException("Clé invalide lors du déchiffrement.", e)
+        }
     }
 
     /**
@@ -108,15 +123,11 @@ class KeystoreManager @Inject constructor() {
     }
 
     fun isStrongBoxAvailable(): Boolean {
-        // Vérifie le feature hardware réel, pas juste la version Android
         return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            try {
-                val pm = keyStore.getEntry(MASTER_KEY_ALIAS, null)
-                // Pas d'accès direct au PackageManager ici — on essaie lors de la génération de clé
-                true
-            } catch (_: Exception) {
-                false
-            }
+            try { keyStore.getEntry(MASTER_KEY_ALIAS, null); true } catch (_: Exception) { false }
         } else false
     }
 }
+
+/** Lancée quand la clé Keystore a été invalidée par le système (changement biométrique). */
+class KeyInvalidatedException(message: String, cause: Throwable? = null) : Exception(message, cause)
