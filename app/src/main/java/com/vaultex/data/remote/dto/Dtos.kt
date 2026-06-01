@@ -129,3 +129,19 @@ data class CoinGeckoMarketDto(
 )
 data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
+
+// ─── TRON CREATE TRANSACTION ──────────────────────────────────────
+data class TronCreateTransferRequest(
+    val owner_address: String,
+    val to_address: String,
+    val amount: Long,
+    val visible: Boolean = true
+)
+data class TronUnsignedTxDto(
+    val raw_data_hex: String,
+    val txID: String,
+    val raw_data: Map<String, Any>? = null
+)
+
+// ─── SOLANA RPC ────────────────────────────────────────────────────
+data class SolanaBlockhashParams(val commitment: String = "finalized")

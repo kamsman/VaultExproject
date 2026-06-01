@@ -30,6 +30,7 @@ interface BitcoinApi {
     suspend fun getTransaction(@Path("txid") txid: String): BlockstreamTxDto
 
     @POST("tx")
+    @Headers("Content-Type: text/plain")
     suspend fun broadcastTx(@Body rawHex: String): String
 
     @GET("fee-estimates")
@@ -66,6 +67,9 @@ interface TronApi {
 
     @POST("wallet/broadcasttransaction")
     suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
+
+    @POST("wallet/createtransaction")
+    suspend fun createTransfer(@Body body: TronCreateTransferRequest): TronUnsignedTxDto
 }
 
 /**
