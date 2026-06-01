@@ -31,13 +31,12 @@ import com.vaultex.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TokenDetailScreen(navController: NavHostController) {
+fun TokenDetailScreen(navController: NavHostController, symbol: String) {
 
     val dashboardVm: DashboardViewModel = hiltViewModel()
     val uiState by dashboardVm.uiState.collectAsState()
 
-    // Prend le premier token comme contexte (navigation avec args serait la prochaine étape)
-    val token = uiState.tokens.firstOrNull()
+    val token = uiState.tokens.find { it.symbol == symbol } ?: uiState.tokens.firstOrNull()
 
     var selectedRange by remember { mutableStateOf("1S") }
     val ranges = listOf("1J", "1S", "1M", "3M", "1A")

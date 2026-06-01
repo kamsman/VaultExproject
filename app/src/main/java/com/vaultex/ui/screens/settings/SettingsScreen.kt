@@ -123,7 +123,7 @@ fun SettingsScreen(navController: NavHostController) {
                     icon = Icons.Default.VpnKey,
                     title = "Voir la phrase mnémonique",
                     subtitle = "Nécessite le PIN",
-                    onClick = { /* TODO: PinVerifyScreen → ShowMnemonicScreen */ }
+                    onClick = { navController.navigate(Routes.pinUnlockTo(Routes.SHOW_MNEMONIC)) }
                 )
 
                 HorizontalDivider(color = BgPrimary.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))

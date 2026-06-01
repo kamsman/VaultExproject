@@ -3,11 +3,13 @@ package com.vaultex.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaultex.core.crypto.Blockchain
-import com.vaultex.core.security.SecureStorage
 import com.vaultex.core.crypto.WalletManager
+import com.vaultex.core.security.SecureStorage
+import com.vaultex.data.repository.BalanceRepository
 import com.vaultex.data.repository.PriceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
-    private val priceRepository: PriceRepository
+    private val priceRepository: PriceRepository,
+    private val balanceRepository: BalanceRepository
 ) : ViewModel() {
 
     data class TokenItem(
@@ -26,6 +29,7 @@ class DashboardViewModel @Inject constructor(
         val name: String,
         val blockchain: Blockchain,
         val balance: String,
+        val balanceRaw: Double,
         val valueUsd: String,
         val address: String = ""
     )
@@ -34,7 +38,8 @@ class DashboardViewModel @Inject constructor(
         val totalBalance: String = "—",
         val tokens: List<TokenItem> = emptyList(),
         val isLoading: Boolean = true,
-        val addresses: WalletManager.WalletAddresses? = null
+        val addresses: WalletManager.WalletAddresses? = null,
+        val error: String? = null
     )
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -42,71 +47,83 @@ class DashboardViewModel @Inject constructor(
 
     private val coinGeckoIds = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron")
 
-    init {
-        loadDashboard()
-    }
+    init { loadDashboard() }
 
     fun loadDashboard() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 val addresses = withContext(Dispatchers.IO) {
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext null
                     WalletManager.deriveAddresses(mnemonic)
                 }
-                val prices = withContext(Dispatchers.IO) {
+
+                // Prices et balances en parallèle
+                val pricesDeferred = async(Dispatchers.IO) {
                     priceRepository.getMultiplePrices(coinGeckoIds)
                 }
-                val tokens = buildTokenList(addresses, prices)
-                val total = tokens.sumOf { parseUsd(it.valueUsd) }
+                val balancesDeferred = if (addresses != null) {
+                    async(Dispatchers.IO) { balanceRepository.fetchAll(addresses) }
+                } else null
+
+                val prices = pricesDeferred.await()
+                val balances = balancesDeferred?.await()
+
+                val tokens = buildTokenList(addresses, prices, balances)
+                val total = tokens.sumOf { it.balanceRaw * priceForSymbol(it.symbol, prices) }
+
                 _uiState.value = DashboardUiState(
                     totalBalance = "%.2f".format(total),
                     tokens = tokens,
                     isLoading = false,
                     addresses = addresses
                 )
-            } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
             }
         }
     }
 
+    fun tokenBySymbol(symbol: String): TokenItem? = _uiState.value.tokens.find { it.symbol == symbol }
+
     private fun buildTokenList(
         addresses: WalletManager.WalletAddresses?,
-        prices: Map<String, Double>
+        prices: Map<String, Double>,
+        balances: BalanceRepository.Balances?
     ): List<TokenItem> {
-        // Balances hardcodées en attendant l'intégration des RPCs
-        val btcBalance = 0.0
-        val ethBalance = 0.0
-        val bnbBalance = 0.0
-        val solBalance = 0.0
-        val trxBalance = 0.0
-
-        val btcPrice = prices["bitcoin"] ?: 0.0
-        val ethPrice = prices["ethereum"] ?: 0.0
-        val bnbPrice = prices["binancecoin"] ?: 0.0
-        val solPrice = prices["solana"] ?: 0.0
-        val trxPrice = prices["tron"] ?: 0.0
+        val b = balances ?: BalanceRepository.Balances()
+        val btcPrice  = prices["bitcoin"] ?: 0.0
+        val ethPrice  = prices["ethereum"] ?: 0.0
+        val bnbPrice  = prices["binancecoin"] ?: 0.0
+        val solPrice  = prices["solana"] ?: 0.0
+        val trxPrice  = prices["tron"] ?: 0.0
 
         return listOf(
-            TokenItem("BTC", "Bitcoin", Blockchain.BITCOIN,
-                "%.6f".format(btcBalance), "$%.2f".format(btcBalance * btcPrice),
-                addresses?.btc ?: ""),
-            TokenItem("ETH", "Ethereum", Blockchain.ETHEREUM,
-                "%.6f".format(ethBalance), "$%.2f".format(ethBalance * ethPrice),
-                addresses?.eth ?: ""),
-            TokenItem("BNB", "BNB Chain", Blockchain.BNB_CHAIN,
-                "%.6f".format(bnbBalance), "$%.2f".format(bnbBalance * bnbPrice),
-                addresses?.bnb ?: ""),
-            TokenItem("SOL", "Solana", Blockchain.SOLANA,
-                "%.6f".format(solBalance), "$%.2f".format(solBalance * solPrice),
-                addresses?.sol ?: ""),
-            TokenItem("TRX", "Tron", Blockchain.TRON,
-                "%.6f".format(trxBalance), "$%.2f".format(trxBalance * trxPrice),
-                addresses?.trx ?: "")
+            token("BTC", "Bitcoin",   Blockchain.BITCOIN,   b.btc, btcPrice, addresses?.btc),
+            token("ETH", "Ethereum",  Blockchain.ETHEREUM,  b.eth, ethPrice, addresses?.eth),
+            token("BNB", "BNB Chain", Blockchain.BNB_CHAIN, b.bnb, bnbPrice, addresses?.bnb),
+            token("SOL", "Solana",    Blockchain.SOLANA,    b.sol, solPrice, addresses?.sol),
+            token("TRX", "Tron",      Blockchain.TRON,      b.trx, trxPrice, addresses?.trx)
         )
     }
 
-    private fun parseUsd(valueUsd: String): Double =
-        valueUsd.removePrefix("$").replace(",", "").toDoubleOrNull() ?: 0.0
+    private fun token(
+        symbol: String, name: String, blockchain: Blockchain,
+        balance: Double, price: Double, address: String?
+    ) = TokenItem(
+        symbol = symbol, name = name, blockchain = blockchain,
+        balance = if (balance == 0.0) "0.000000" else "%.6f".format(balance),
+        balanceRaw = balance,
+        valueUsd = "$%.2f".format(balance * price),
+        address = address ?: ""
+    )
+
+    private fun priceForSymbol(symbol: String, prices: Map<String, Double>): Double = when (symbol) {
+        "BTC" -> prices["bitcoin"] ?: 0.0
+        "ETH" -> prices["ethereum"] ?: 0.0
+        "BNB" -> prices["binancecoin"] ?: 0.0
+        "SOL" -> prices["solana"] ?: 0.0
+        "TRX" -> prices["tron"] ?: 0.0
+        else  -> 0.0
+    }
 }

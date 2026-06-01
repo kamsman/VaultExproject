@@ -22,7 +22,11 @@ import com.vaultex.ui.screens.swap.SwapScreen
 import com.vaultex.ui.screens.history.HistoryScreen
 import com.vaultex.ui.screens.security.NotificationsScreen
 import com.vaultex.ui.screens.tokens.TokenDetailScreen
+import com.vaultex.ui.screens.security.PinUnlockScreen
+import com.vaultex.ui.screens.security.ShowMnemonicScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun VaultExNavGraph(navController: NavHostController) {
@@ -97,8 +101,22 @@ fun VaultExNavGraph(navController: NavHostController) {
             NotificationsScreen(navController)
         }
 
-        composable(Routes.TOKEN_DETAIL) {
-            TokenDetailScreen(navController)
+        composable(
+            route = Routes.TOKEN_DETAIL,
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            TokenDetailScreen(navController, backStackEntry.arguments?.getString("symbol") ?: "")
+        }
+
+        composable(
+            route = Routes.PIN_UNLOCK_TO_ROUTE,
+            arguments = listOf(navArgument("destination") { type = NavType.StringType })
+        ) { backStackEntry ->
+            PinUnlockScreen(navController, backStackEntry.arguments?.getString("destination") ?: "")
+        }
+
+        composable(Routes.SHOW_MNEMONIC) {
+            ShowMnemonicScreen(navController)
         }
     }
 }

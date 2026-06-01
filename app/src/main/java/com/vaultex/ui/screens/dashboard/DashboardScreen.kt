@@ -84,7 +84,7 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             items(uiState.tokens) { token ->
-                TokenRow(token) { navController.navigate(Routes.TOKEN_DETAIL) }
+                TokenRow(token) { navController.navigate(Routes.tokenDetail(token.symbol)) }
                 Spacer(Modifier.height(8.dp))
             }
         }
