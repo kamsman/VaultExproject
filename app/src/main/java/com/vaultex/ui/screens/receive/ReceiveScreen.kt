@@ -3,6 +3,7 @@ package com.vaultex.ui.screens.receive
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -170,7 +171,14 @@ fun ReceiveScreen(navController: NavHostController, preselectedSymbol: String = 
                             Text(if (copied) "Copié !" else "Copier")
                         }
                         OutlinedButton(
-                            onClick = { /* Share intent TODO */ },
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, address)
+                                    putExtra(Intent.EXTRA_SUBJECT, "Mon adresse $selectedChain")
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Partager l'adresse"))
+                            },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
