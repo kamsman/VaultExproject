@@ -7,6 +7,7 @@ import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.repository.BalanceRepository
 import com.vaultex.data.repository.PriceRepository
+import com.vaultex.data.repository.TxStatusRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -21,7 +22,8 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val priceRepository: PriceRepository,
-    private val balanceRepository: BalanceRepository
+    private val balanceRepository: BalanceRepository,
+    private val txStatusRepository: TxStatusRepository
 ) : ViewModel() {
 
     data class TokenItem(
@@ -52,6 +54,8 @@ class DashboardViewModel @Inject constructor(
     fun loadDashboard() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            // Refresh pending tx statuses in background — non-blocking
+            launch { try { txStatusRepository.refreshPendingStatuses() } catch (_: Exception) {} }
             try {
                 val addresses = withContext(Dispatchers.IO) {
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext null
