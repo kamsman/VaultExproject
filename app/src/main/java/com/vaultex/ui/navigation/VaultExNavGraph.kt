@@ -82,11 +82,11 @@ fun VaultExNavGraph(navController: NavHostController) {
         }
 
         composable(Routes.SEND) {
-            SendScreen(navController)
+            SendScreen(navController, "")
         }
 
         composable(Routes.RECEIVE) {
-            ReceiveScreen(navController)
+            ReceiveScreen(navController, "")
         }
 
         composable(Routes.SWAP) {
@@ -117,6 +117,20 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.SHOW_MNEMONIC) {
             ShowMnemonicScreen(navController)
+        }
+
+        composable(
+            route = Routes.SEND_TOKEN,
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            SendScreen(navController, backStackEntry.arguments?.getString("symbol") ?: "")
+        }
+
+        composable(
+            route = Routes.RECEIVE_TOKEN,
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            ReceiveScreen(navController, backStackEntry.arguments?.getString("symbol") ?: "")
         }
     }
 }

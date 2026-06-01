@@ -36,16 +36,17 @@ import com.vaultex.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceiveScreen(navController: NavHostController) {
+fun ReceiveScreen(navController: NavHostController, preselectedSymbol: String = "") {
 
     val viewModel: DashboardViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var selectedChain by remember { mutableStateOf("ETH") }
-    var copied by remember { mutableStateOf(false) }
-
     val chains = listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+    val initialChain = if (preselectedSymbol in chains) preselectedSymbol else "ETH"
+
+    var selectedChain by remember { mutableStateOf(initialChain) }
+    var copied by remember { mutableStateOf(false) }
 
     val address = when (selectedChain) {
         "BTC" -> uiState.addresses?.btc

@@ -33,4 +33,13 @@ object Routes {
     private const val TOKEN_DETAIL_BASE = "tokenDetail"
     fun tokenDetail(symbol: String) = "$TOKEN_DETAIL_BASE/$symbol"
     const val TOKEN_DETAIL = "$TOKEN_DETAIL_BASE/{symbol}"
+
+    // Send / Receive pré-sélectionnés par token
+    private const val SEND_TOKEN_BASE = "sendToken"
+    fun sendToken(symbol: String) = "$SEND_TOKEN_BASE/$symbol"
+    const val SEND_TOKEN = "$SEND_TOKEN_BASE/{symbol}"
+
+    private const val RECEIVE_TOKEN_BASE = "receiveToken"
+    fun receiveToken(symbol: String) = "$RECEIVE_TOKEN_BASE/$symbol"
+    const val RECEIVE_TOKEN = "$RECEIVE_TOKEN_BASE/{symbol}"
 }

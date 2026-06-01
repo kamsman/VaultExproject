@@ -28,17 +28,18 @@ import com.vaultex.ui.viewmodel.SendViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SendScreen(navController: NavHostController) {
+fun SendScreen(navController: NavHostController, preselectedSymbol: String = "") {
 
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
+    val chains = listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+    val initialChain = if (preselectedSymbol in chains) preselectedSymbol else "ETH"
+
     var address by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var selectedChain by remember { mutableStateOf("ETH") }
+    var selectedChain by remember { mutableStateOf(initialChain) }
     var showConfirm by remember { mutableStateOf(false) }
-
-    val chains = listOf("BTC", "ETH", "BNB", "SOL", "TRX")
 
     val feeLabel = when (selectedChain) {
         "BTC" -> "~sat/vbyte × 250 vbytes"

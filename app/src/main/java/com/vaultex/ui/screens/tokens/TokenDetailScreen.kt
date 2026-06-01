@@ -118,7 +118,7 @@ fun TokenDetailScreen(navController: NavHostController, symbol: String) {
             // ── Actions rapides ───────────────────────────────────────────────
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { navController.navigate(Routes.SEND) },
+                    onClick = { navController.navigate(Routes.sendToken(symbol)) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AccentGold)
@@ -128,7 +128,7 @@ fun TokenDetailScreen(navController: NavHostController, symbol: String) {
                     Text("Envoyer", color = BgPrimary, fontWeight = FontWeight.Bold)
                 }
                 OutlinedButton(
-                    onClick = { navController.navigate(Routes.RECEIVE) },
+                    onClick = { navController.navigate(Routes.receiveToken(symbol)) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGold)

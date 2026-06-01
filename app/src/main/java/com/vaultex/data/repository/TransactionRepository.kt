@@ -4,6 +4,8 @@ import com.vaultex.core.crypto.Base58
 import com.vaultex.core.crypto.Ed25519Utils
 import com.vaultex.core.crypto.Slip10
 import com.vaultex.core.security.SecureStorage
+import com.vaultex.data.local.dao.TransactionDao
+import com.vaultex.data.local.entity.TransactionEntity
 import com.vaultex.data.remote.api.BitcoinApi
 import com.vaultex.data.remote.api.EvmRpcApi
 import com.vaultex.data.remote.api.SolanaRpcApi
@@ -36,14 +38,15 @@ class TransactionRepository @Inject constructor(
     private val btcApi: BitcoinApi,
     private val solanaApi: SolanaRpcApi,
     private val tronApi: TronApi,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val transactionDao: TransactionDao
 ) {
-    data class TxResult(val txHash: String)
+    data class TxResult(val txHash: String, val fromAddress: String = "")
 
     suspend fun send(chain: String, toAddress: String, amountNative: Double): TxResult {
         val mnemonic = secureStorage.getMnemonic() ?: error("No wallet found")
         val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
-        return when (chain) {
+        val result = when (chain) {
             "ETH" -> sendEvm(ethApi, seed, chainId = 1L, toAddress, amountNative)
             "BNB" -> sendEvm(bnbApi, seed, chainId = 56L, toAddress, amountNative)
             "BTC" -> sendBtc(seed, toAddress, amountNative)
@@ -51,6 +54,21 @@ class TransactionRepository @Inject constructor(
             "TRX" -> sendTron(seed, toAddress, amountNative)
             else  -> error("Unknown chain: $chain")
         }
+        transactionDao.insert(TransactionEntity(
+            hash = result.txHash,
+            type = "SEND",
+            blockchain = chain,
+            fromAddress = result.fromAddress,
+            toAddress = toAddress,
+            amount = "%.8f".format(amountNative),
+            tokenSymbol = chain,
+            fee = "",
+            status = "PENDING",
+            timestamp = System.currentTimeMillis(),
+            confirmations = 0,
+            blockNumber = null
+        ))
+        return result
     }
 
     // ── ETH / BNB ────────────────────────────────────────────────────────────
@@ -81,7 +99,8 @@ class TransactionRepository @Inject constructor(
         val signed = Numeric.toHexString(TransactionEncoder.signMessage(rawTx, chainId, credentials))
 
         val res = api.rpcCall(JsonRpcRequest("eth_sendRawTransaction", listOf(signed)))
-        return TxResult(res.result as? String ?: error(res.error?.message ?: "Broadcast failed"))
+        val txHash = res.result as? String ?: error(res.error?.message ?: "Broadcast failed")
+        return TxResult(txHash, credentials.address)
     }
 
     // ── BTC ──────────────────────────────────────────────────────────────────
@@ -133,7 +152,7 @@ class TransactionRepository @Inject constructor(
 
         val rawHex = tx.bitcoinSerialize().toHex()
         val txHash = btcApi.broadcastTx(rawHex)
-        return TxResult(txHash.trim().removeSurrounding("\""))
+        return TxResult(txHash.trim().removeSurrounding("\""), fromAddress.toString())
     }
 
     // ── SOLANA ───────────────────────────────────────────────────────────────
@@ -182,7 +201,7 @@ class TransactionRepository @Inject constructor(
             params = listOf(txBase64, mapOf("encoding" to "base64"))
         ))
         val txHash = sendRes.result as? String ?: error(sendRes.error?.message ?: "Solana broadcast failed")
-        return TxResult(txHash)
+        return TxResult(txHash, Base58.encode(pubKeyBytes))
     }
 
     private fun buildSolanaMessage(
@@ -255,7 +274,7 @@ class TransactionRepository @Inject constructor(
             TronBroadcastDto(raw_data_hex = unsignedTx.raw_data_hex, signature = listOf(sigHex))
         )
         if (result.result != true) error(result.message ?: "Tron broadcast failed")
-        return TxResult(result.txid ?: unsignedTx.txID)
+        return TxResult(result.txid ?: unsignedTx.txID, tronFrom)
     }
 
     private fun toTronBase58(addrBytes: ByteArray): String {
