@@ -42,4 +42,6 @@ object Routes {
     private const val RECEIVE_TOKEN_BASE = "receiveToken"
     fun receiveToken(symbol: String) = "$RECEIVE_TOKEN_BASE/$symbol"
     const val RECEIVE_TOKEN = "$RECEIVE_TOKEN_BASE/{symbol}"
+
+    const val PRICE_ALERTS = "priceAlerts"
 }

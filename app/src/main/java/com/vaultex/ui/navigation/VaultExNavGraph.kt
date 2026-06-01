@@ -24,6 +24,7 @@ import com.vaultex.ui.screens.security.NotificationsScreen
 import com.vaultex.ui.screens.tokens.TokenDetailScreen
 import com.vaultex.ui.screens.security.PinUnlockScreen
 import com.vaultex.ui.screens.security.ShowMnemonicScreen
+import com.vaultex.ui.screens.alerts.PriceAlertScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -117,6 +118,10 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.SHOW_MNEMONIC) {
             ShowMnemonicScreen(navController)
+        }
+
+        composable(Routes.PRICE_ALERTS) {
+            PriceAlertScreen(navController)
         }
 
         composable(

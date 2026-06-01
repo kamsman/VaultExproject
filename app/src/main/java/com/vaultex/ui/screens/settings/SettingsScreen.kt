@@ -115,6 +115,18 @@ fun SettingsScreen(navController: NavHostController) {
                 )
             }
 
+            // ── Notifications ─────────────────────────────────────────────────
+            SectionHeader("Notifications")
+
+            SettingsCard {
+                SettingsAction(
+                    icon = Icons.Default.NotificationsActive,
+                    title = "Alertes de prix",
+                    subtitle = "Notifier quand un prix atteint votre cible",
+                    onClick = { navController.navigate(Routes.PRICE_ALERTS) }
+                )
+            }
+
             // ── Wallet ────────────────────────────────────────────────────────
             SectionHeader("Wallet")
 
