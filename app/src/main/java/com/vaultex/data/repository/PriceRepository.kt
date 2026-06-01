@@ -1,69 +1,38 @@
-package com.bidichange.cryptowallet.data.repository
+package com.vaultex.data.repository
 
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONObject
+import com.vaultex.data.remote.api.CoinGeckoApi
+import javax.inject.Inject
 
-object PriceRepository {
+class PriceRepository @Inject constructor(
+    private val api: CoinGeckoApi
+) {
 
-    private val client = OkHttpClient()
-
-    suspend fun getNativeUsdPrice(networkId: String): Double {
-        val coinId = when (networkId) {
-            "ethereum" -> "ethereum"
-            "bnb" -> "binancecoin"
-            "polygon" -> "matic-network"
-            "arbitrum" -> "ethereum"
-            else -> "ethereum"
-        }
-
-        val url =
-            "https://api.coingecko.com/api/v3/simple/price" +
-                    "?ids=$coinId&vs_currencies=usd"
-
-        val request = Request.Builder()
-            .url(url)
-            .build()
-
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return 0.0
-
-        val json = JSONObject(body)
-
-        if (!json.has(coinId)) return 0.0
-
-        return json.getJSONObject(coinId).optDouble("usd", 0.0)
+    /**
+     * Prix USD + variation 24h pour plusieurs tokens natifs en une requête.
+     * @param coinGeckoIds ex: ["bitcoin","ethereum","binancecoin","solana","tron"]
+     */
+    suspend fun getMultiplePrices(
+        coinGeckoIds: List<String>
+    ): Map<String, Double> = try {
+        api.getPrices(
+            ids = coinGeckoIds.joinToString(","),
+            vsCurrencies = "usd",
+            include24hChange = false,
+            includeMarketCap = false
+        ).mapValues { (_, dto) -> dto.usd }
+    } catch (_: Exception) {
+        emptyMap()
     }
 
-    suspend fun getTokenUsdPrice(
-        networkId: String,
-        contractAddress: String
-    ): Double {
-
-        val networkPath = when (networkId) {
-            "ethereum" -> "ethereum"
-            "bnb" -> "binance-smart-chain"
-            "polygon" -> "polygon-pos"
-            "arbitrum" -> "arbitrum-one"
-            else -> "ethereum"
-        }
-
-        val url =
-            "https://api.coingecko.com/api/v3/simple/token_price/$networkPath" +
-                    "?contract_addresses=$contractAddress&vs_currencies=usd"
-
-        val request = Request.Builder()
-            .url(url)
-            .build()
-
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return 0.0
-
-        val json = JSONObject(body)
-        val key = contractAddress.lowercase()
-
-        if (!json.has(key)) return 0.0
-
-        return json.getJSONObject(key).optDouble("usd", 0.0)
+    /** Prix USD d'un seul token natif. */
+    suspend fun getNativeUsdPrice(coinGeckoId: String): Double = try {
+        api.getPrices(
+            ids = coinGeckoId,
+            vsCurrencies = "usd",
+            include24hChange = false,
+            includeMarketCap = false
+        )[coinGeckoId]?.usd ?: 0.0
+    } catch (_: Exception) {
+        0.0
     }
 }

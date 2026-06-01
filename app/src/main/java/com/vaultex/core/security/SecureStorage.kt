@@ -82,6 +82,29 @@ class SecureStorage @Inject constructor(
 
     fun getAutoLockMinutes(): Int = prefs.getInt(KEY_AUTOLOCK_MIN, 5)
 
+    // ──────────────────────────────────────────────────────────
+    // Persistance de l'état de lockout PIN (survit aux relances de process)
+    // ──────────────────────────────────────────────────────────
+
+    fun saveFailedPinAttempts(count: Int) {
+        prefs.edit().putInt(KEY_PIN_FAILED_ATTEMPTS, count).apply()
+    }
+
+    fun getFailedPinAttempts(): Int = prefs.getInt(KEY_PIN_FAILED_ATTEMPTS, 0)
+
+    fun savePinLockedUntil(timestamp: Long) {
+        prefs.edit().putLong(KEY_PIN_LOCKED_UNTIL, timestamp).apply()
+    }
+
+    fun getPinLockedUntil(): Long = prefs.getLong(KEY_PIN_LOCKED_UNTIL, 0L)
+
+    fun clearPinLockout() {
+        prefs.edit()
+            .putInt(KEY_PIN_FAILED_ATTEMPTS, 0)
+            .putLong(KEY_PIN_LOCKED_UNTIL, 0L)
+            .apply()
+    }
+
     /**
      * RESET COMPLET — utilisé par le PIN de panique.
      * Efface mnémonique + PIN + détruit la master key.
@@ -97,5 +120,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PANIC_PIN_HASH = "panic_pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_AUTOLOCK_MIN = "autolock_minutes"
+        private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
+        private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
     }
 }
