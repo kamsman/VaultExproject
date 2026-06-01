@@ -25,6 +25,12 @@ import com.vaultex.ui.screens.tokens.TokenDetailScreen
 import com.vaultex.ui.screens.security.PinUnlockScreen
 import com.vaultex.ui.screens.security.ShowMnemonicScreen
 import com.vaultex.ui.screens.alerts.PriceAlertScreen
+import com.vaultex.ui.screens.addressbook.AddressBookScreen
+import com.vaultex.ui.screens.history.TransactionDetailScreen
+import com.vaultex.ui.screens.settings.NetworkSettingsScreen
+import com.vaultex.ui.screens.settings.WalletManagementScreen
+import com.vaultex.ui.screens.tokens.ManageTokensScreen
+import com.vaultex.ui.screens.tokens.AddTokenScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -136,6 +142,33 @@ fun VaultExNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("symbol") { type = NavType.StringType })
         ) { backStackEntry ->
             ReceiveScreen(navController, backStackEntry.arguments?.getString("symbol") ?: "")
+        }
+
+        composable(Routes.MANAGE_TOKENS) {
+            ManageTokensScreen(navController)
+        }
+
+        composable(Routes.ADD_TOKEN) {
+            AddTokenScreen(navController)
+        }
+
+        composable(Routes.NETWORK_SETTINGS) {
+            NetworkSettingsScreen(navController)
+        }
+
+        composable(Routes.WALLET_MANAGEMENT) {
+            WalletManagementScreen(navController)
+        }
+
+        composable(Routes.ADDRESS_BOOK) {
+            AddressBookScreen(navController)
+        }
+
+        composable(
+            route = Routes.TX_DETAIL,
+            arguments = listOf(navArgument("hash") { type = NavType.StringType })
+        ) { backStackEntry ->
+            TransactionDetailScreen(navController, backStackEntry.arguments?.getString("hash") ?: "")
         }
     }
 }

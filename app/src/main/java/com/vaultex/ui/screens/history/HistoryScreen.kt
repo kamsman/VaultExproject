@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 
 import com.vaultex.data.local.entity.TransactionEntity
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.HistoryViewModel
 import java.text.SimpleDateFormat
@@ -72,14 +74,14 @@ fun HistoryScreen(navController: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(transactions, key = { it.hash }) { tx ->
-                TxRow(tx)
+                TxRow(tx, onClick = { navController.navigate(Routes.txDetail(tx.hash)) })
             }
         }
     }
 }
 
 @Composable
-private fun TxRow(tx: TransactionEntity) {
+private fun TxRow(tx: TransactionEntity, onClick: () -> Unit = {}) {
     val date = remember(tx.timestamp) {
         SimpleDateFormat("dd MMM yyyy HH:mm", Locale.FRANCE).format(Date(tx.timestamp))
     }
@@ -104,7 +106,7 @@ private fun TxRow(tx: TransactionEntity) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Surface)
     ) {

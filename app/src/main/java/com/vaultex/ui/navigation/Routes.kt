@@ -44,4 +44,20 @@ object Routes {
     const val RECEIVE_TOKEN = "$RECEIVE_TOKEN_BASE/{symbol}"
 
     const val PRICE_ALERTS = "priceAlerts"
+
+    // Tokens
+    const val MANAGE_TOKENS = "manageTokens"
+    const val ADD_TOKEN = "addToken"
+
+    // Settings
+    const val NETWORK_SETTINGS = "networkSettings"
+    const val WALLET_MANAGEMENT = "walletManagement"
+
+    // Address book
+    const val ADDRESS_BOOK = "addressBook"
+
+    // Transaction detail avec argument hash
+    private const val TX_DETAIL_BASE = "txDetail"
+    fun txDetail(hash: String) = "$TX_DETAIL_BASE/$hash"
+    const val TX_DETAIL = "$TX_DETAIL_BASE/{hash}"
 }

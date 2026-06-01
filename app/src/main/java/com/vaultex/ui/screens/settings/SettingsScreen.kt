@@ -146,6 +146,45 @@ fun SettingsScreen(navController: NavHostController) {
                     subtitle = "Ajouter via phrase mnémonique",
                     onClick = { navController.navigate(Routes.IMPORT_WALLET) }
                 )
+
+                HorizontalDivider(color = BgPrimary.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))
+
+                SettingsAction(
+                    icon = Icons.Default.AccountBalanceWallet,
+                    title = "Gestion du wallet",
+                    subtitle = "Voir vos adresses par chaîne",
+                    onClick = { navController.navigate(Routes.WALLET_MANAGEMENT) }
+                )
+
+                HorizontalDivider(color = BgPrimary.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))
+
+                SettingsAction(
+                    icon = Icons.Default.List,
+                    title = "Gérer les tokens",
+                    subtitle = "Tokens natifs et ERC-20 custom",
+                    onClick = { navController.navigate(Routes.MANAGE_TOKENS) }
+                )
+            }
+
+            // ── Avancé ────────────────────────────────────────────────────────
+            SectionHeader("Avancé")
+
+            SettingsCard {
+                SettingsAction(
+                    icon = Icons.Default.Contacts,
+                    title = "Carnet d'adresses",
+                    subtitle = "Gérer vos contacts crypto",
+                    onClick = { navController.navigate(Routes.ADDRESS_BOOK) }
+                )
+
+                HorizontalDivider(color = BgPrimary.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))
+
+                SettingsAction(
+                    icon = Icons.Default.Dns,
+                    title = "Paramètres réseau",
+                    subtitle = "Endpoints RPC par blockchain",
+                    onClick = { navController.navigate(Routes.NETWORK_SETTINGS) }
+                )
             }
 
             // ── Danger ────────────────────────────────────────────────────────
