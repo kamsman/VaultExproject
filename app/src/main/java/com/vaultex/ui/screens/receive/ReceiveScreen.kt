@@ -3,6 +3,8 @@ package com.vaultex.ui.screens.receive
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,7 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -110,7 +115,7 @@ fun ReceiveScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(24.dp))
 
-            // QR Code placeholder
+            // QR Code
             Box(
                 modifier = Modifier
                     .size(200.dp)
@@ -118,16 +123,16 @@ fun ReceiveScreen(navController: NavHostController) {
                     .border(2.dp, AccentGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.isLoading) {
+                if (uiState.isLoading || address == "Chargement...") {
                     CircularProgressIndicator(color = AccentGold, modifier = Modifier.size(40.dp))
                 } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("▓▓▓▓▓▓▓▓", color = AccentGold.copy(alpha = 0.3f), fontSize = 22.sp)
-                        Text("▓  ▓  ▓▓", color = AccentGold.copy(alpha = 0.3f), fontSize = 22.sp)
-                        Text("▓▓▓▓▓▓▓▓", color = AccentGold.copy(alpha = 0.3f), fontSize = 22.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text("QR Code", color = TextMuted, fontSize = 11.sp)
-                        Text("(intégration à venir)", color = TextMuted, fontSize = 10.sp)
+                    val qrBitmap = remember(address) { generateQr(address, 512) }
+                    if (qrBitmap != null) {
+                        Image(
+                            bitmap = qrBitmap.asImageBitmap(),
+                            contentDescription = "QR Code $selectedChain",
+                            modifier = Modifier.size(176.dp)
+                        )
                     }
                 }
             }
@@ -195,3 +200,14 @@ fun ReceiveScreen(navController: NavHostController) {
         }
     }
 }
+
+private fun generateQr(content: String, size: Int): Bitmap? = try {
+    val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
+    val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565)
+    for (x in 0 until size) {
+        for (y in 0 until size) {
+            bmp.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+        }
+    }
+    bmp
+} catch (_: Exception) { null }
