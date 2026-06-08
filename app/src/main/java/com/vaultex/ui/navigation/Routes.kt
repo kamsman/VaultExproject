@@ -47,4 +47,26 @@ object Routes {
     const val NOTIFICATIONS = "notifications"
 
     const val TOKEN_DETAIL = "tokenDetail"
+
+    const val HOME = "home"
+
+    const val COIN_DETAIL = "coinDetail"
+
+    const val MOBILE_MONEY = "mobileMoney"
+
+    const val BACKUP = "backup"
+
+    const val PANIC_PIN = "panicPin"
+
+    const val BIOMETRIC_SETUP = "biometricSetup"
+
+    const val WALLET_MANAGER = "walletManager"
+
+    const val TOKEN_MANAGER = "tokenManager"
+
+    const val ADDRESS_BOOK = "addressBook"
+
+    const val NETWORK_SETTINGS = "networkSettings"
+
+    const val SECURITY = "security"
 }

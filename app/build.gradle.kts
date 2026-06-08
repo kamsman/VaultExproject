@@ -4,6 +4,8 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -104,8 +106,8 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
 
     // CRYPTO (PROPRE)
-    implementation("org.web3j:core:4.10.3")
-    implementation("org.bitcoinj:bitcoinj-core:0.16.3")
+    implementation("org.web3j:core:4.9.8-android")
+    implementation("org.bitcoinj:bitcoinj-core:0.16.2")
 
     // ❌ SUPPRIMÉ (IMPORTANT)
     // BIP39

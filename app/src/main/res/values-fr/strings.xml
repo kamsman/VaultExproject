@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VaultEx</string>
+    <string name="tagline">Wallet Non-Custodial Multi-Chain</string>
+
+    <!-- Onboarding -->
+    <string name="create_wallet">Créer un wallet</string>
+    <string name="import_wallet">Importer un wallet</string>
+    <string name="welcome_title">Bienvenue sur VaultEx</string>
+    <string name="welcome_subtitle">Votre crypto, vos clés, votre liberté.</string>
+    <string name="seed_phrase_title">Votre phrase secrète</string>
+    <string name="seed_phrase_warning">Écrivez ces 12 mots dans l\'ordre et conservez-les en lieu sûr.</string>
+    <string name="verify_seed">Vérifier la phrase</string>
+    <string name="set_pin">Créer un code PIN</string>
+    <string name="confirm_pin">Confirmer le PIN</string>
+
+    <!-- Home -->
+    <string name="total_balance">Solde total</string>
+    <string name="send">Envoyer</string>
+    <string name="receive">Recevoir</string>
+    <string name="swap">Échanger</string>
+    <string name="mobile_money">Mobile Money</string>
+    <string name="my_assets">Mes actifs</string>
+
+    <!-- Navigation -->
+    <string name="tab_home">Accueil</string>
+    <string name="tab_market">Marché</string>
+    <string name="tab_swap">Swap</string>
+    <string name="tab_history">Historique</string>
+    <string name="tab_settings">Réglages</string>
+
+    <!-- Send -->
+    <string name="send_title">Envoyer</string>
+    <string name="recipient_address">Adresse du destinataire</string>
+    <string name="amount">Montant</string>
+    <string name="network_fee">Frais réseau</string>
+    <string name="confirm_send">Confirmer l\'envoi</string>
+    <string name="scan_qr">Scanner QR</string>
+
+    <!-- Receive -->
+    <string name="receive_title">Recevoir</string>
+    <string name="my_address">Mon adresse</string>
+    <string name="copy_address">Copier l\'adresse</string>
+    <string name="share_address">Partager</string>
+
+    <!-- Security -->
+    <string name="pin_title">Entrez votre PIN</string>
+    <string name="biometric_title">Identifiez-vous</string>
+    <string name="wrong_pin">PIN incorrect</string>
+    <string name="pin_locked">Compte verrouillé. Réessayez dans %1$s.</string>
+    <string name="panic_pin_title">PIN de panique</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Réglages</string>
+    <string name="security">Sécurité</string>
+    <string name="backup">Sauvegarde</string>
+    <string name="notifications">Notifications</string>
+    <string name="network_settings">Réseaux</string>
+    <string name="address_book">Carnet d\'adresses</string>
+    <string name="wallet_manager">Mes wallets</string>
+    <string name="token_manager">Gérer les tokens</string>
+    <string name="language">Langue</string>
+    <string name="currency">Devise</string>
+
+    <!-- Errors -->
+    <string name="error_network">Erreur réseau. Vérifiez votre connexion.</string>
+    <string name="error_insufficient_funds">Solde insuffisant.</string>
+    <string name="error_invalid_address">Adresse invalide.</string>
+    <string name="error_wallet_not_found">Wallet non trouvé.</string>
+
+    <!-- Mobile Money -->
+    <string name="mobile_money_title">Mobile Money</string>
+    <string name="operator">Opérateur</string>
+    <string name="phone_number">Numéro de téléphone</string>
+    <string name="fee_notice">Frais : 1%% via CinetPay · Zone UEMOA</string>
+
+    <!-- Market -->
+    <string name="market_title">Marché</string>
+    <string name="price_24h">Prix (24h)</string>
+    <string name="market_cap">Cap. marché</string>
+
+    <!-- History -->
+    <string name="history_title">Historique</string>
+    <string name="no_transactions">Aucune transaction</string>
+    <string name="sent">Envoyé</string>
+    <string name="received">Reçu</string>
+    <string name="swapped">Échangé</string>
+
+    <!-- Misc -->
+    <string name="cancel">Annuler</string>
+    <string name="confirm">Confirmer</string>
+    <string name="back">Retour</string>
+    <string name="loading">Chargement…</string>
+    <string name="copied">Copié !</string>
+</resources>

@@ -3,8 +3,8 @@ package com.vaultex.app
 import android.os.Bundle
 import android.view.WindowManager
 
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.fragment.app.FragmentActivity
 
 import androidx.navigation.compose.rememberNavController
 
@@ -14,7 +14,7 @@ import com.vaultex.ui.theme.VaultExTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
