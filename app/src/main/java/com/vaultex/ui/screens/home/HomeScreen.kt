@@ -100,7 +100,7 @@ fun HomeScreen(navController: NavController) {
             }
 
             items(tokens) { token ->
-                TokenCard(token) { }
+                TokenCard(token) { navController.navigate(Routes.tokenDetail(token.symbol)) }
             }
         }
     }

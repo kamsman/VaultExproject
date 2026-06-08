@@ -30,8 +30,7 @@ class SendViewModel @Inject constructor(
     fun setChain(chain: String) = _state.update { it.copy(selectedChain = chain) }
 
     fun setToAddress(address: String) {
-        val valid = address.length >= 26
-        _state.update { it.copy(toAddress = address, isAddressValid = valid) }
+        _state.update { it.copy(toAddress = address, isAddressValid = address.length >= 26) }
     }
 
     fun setAmount(amount: String) = _state.update { it.copy(amount = amount) }
@@ -44,12 +43,11 @@ class SendViewModel @Inject constructor(
             val result = when (s.selectedChain) {
                 "ETH", "BNB" -> {
                     val chainId = if (s.selectedChain == "ETH") 1L else 56L
-                    val coinType = 60
                     val amountWei = try {
                         java.math.BigDecimal(s.amount)
                             .multiply(java.math.BigDecimal("1000000000000000000"))
                             .toBigInteger()
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         _state.update { it.copy(isLoading = false, error = "Montant invalide") }
                         return@launch
                     }
@@ -58,15 +56,13 @@ class SendViewModel @Inject constructor(
                         amountWei = amountWei,
                         gasPrice = java.math.BigInteger.valueOf(20_000_000_000L),
                         gasLimit = java.math.BigInteger.valueOf(21_000L),
-                        nonce = java.math.BigInteger.ZERO,
-                        chainId = chainId,
-                        coinType = coinType
+                        chainId = chainId
                     )
                 }
                 else -> SendCryptoUseCase.Result.Error("Chain non encore supportée dans l'UI")
             }
             when (result) {
-                is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.signedTxHex) }
+                is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                 is SendCryptoUseCase.Result.Error -> _state.update { it.copy(isLoading = false, error = result.message) }
             }
         }

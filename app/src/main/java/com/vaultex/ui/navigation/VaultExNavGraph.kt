@@ -3,8 +3,10 @@ package com.vaultex.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 
 import com.vaultex.ui.screens.splash.SplashScreen
 import com.vaultex.ui.screens.welcome.WelcomeScreen
@@ -138,8 +140,12 @@ fun VaultExNavGraph(navController: NavHostController) {
             AlertsScreen(navController)
         }
 
-        composable(Routes.TOKEN_DETAIL) {
-            TokenDetailScreen(navController)
+        composable(
+            route = Routes.TOKEN_DETAIL,
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val symbol = backStackEntry.arguments?.getString("symbol") ?: "ETH"
+            TokenDetailScreen(navController, symbol)
         }
 
         composable(Routes.ADDRESS_BOOK) {

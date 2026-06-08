@@ -46,7 +46,9 @@ object Routes {
 
     const val NOTIFICATIONS = "notifications"
 
-    const val TOKEN_DETAIL = "tokenDetail"
+    const val TOKEN_DETAIL = "tokenDetail/{symbol}"
+
+    fun tokenDetail(symbol: String) = "tokenDetail/$symbol"
 
     const val HOME = "home"
 
