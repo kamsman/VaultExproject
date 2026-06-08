@@ -32,6 +32,8 @@ import com.vaultex.ui.screens.notifications.AlertsScreen
 import com.vaultex.ui.screens.tokens.TokenDetailScreen
 import com.vaultex.ui.screens.unlock.UnlockScreen
 import com.vaultex.ui.screens.addressbook.AddressBookScreen
+import com.vaultex.ui.screens.security.SecurityScreen
+import com.vaultex.ui.screens.settings.NetworkSettingsScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @Composable
@@ -150,6 +152,14 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.TOKEN_MANAGER) {
             TokenManagerScreen(navController)
+        }
+
+        composable(Routes.SECURITY) {
+            SecurityScreen(navController)
+        }
+
+        composable(Routes.NETWORK_SETTINGS) {
+            NetworkSettingsScreen(navController)
         }
     }
 }

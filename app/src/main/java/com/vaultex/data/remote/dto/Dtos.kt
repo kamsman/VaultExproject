@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 data class JsonRpcRequest(
     val jsonrpc: String = "2.0",
     val method: String,
-    val params: List<Any> = emptyList(),
+    val params: MutableList<Any> = mutableListOf(),
     val id: Int = 1
 )
 data class JsonRpcResponse(

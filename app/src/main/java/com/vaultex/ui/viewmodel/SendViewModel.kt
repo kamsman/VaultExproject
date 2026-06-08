@@ -41,8 +41,34 @@ class SendViewModel @Inject constructor(
         if (!s.isAddressValid || s.amount.isEmpty()) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            // Signing réel appelé ici via sendCryptoUseCase
-            _state.update { it.copy(isLoading = false, txHash = "0xPENDING") }
+            val result = when (s.selectedChain) {
+                "ETH", "BNB" -> {
+                    val chainId = if (s.selectedChain == "ETH") 1L else 56L
+                    val coinType = 60
+                    val amountWei = try {
+                        java.math.BigDecimal(s.amount)
+                            .multiply(java.math.BigDecimal("1000000000000000000"))
+                            .toBigInteger()
+                    } catch (e: Exception) {
+                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
+                        return@launch
+                    }
+                    sendCryptoUseCase.sendEvm(
+                        toAddress = s.toAddress,
+                        amountWei = amountWei,
+                        gasPrice = java.math.BigInteger.valueOf(20_000_000_000L),
+                        gasLimit = java.math.BigInteger.valueOf(21_000L),
+                        nonce = java.math.BigInteger.ZERO,
+                        chainId = chainId,
+                        coinType = coinType
+                    )
+                }
+                else -> SendCryptoUseCase.Result.Error("Chain non encore supportée dans l'UI")
+            }
+            when (result) {
+                is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.signedTxHex) }
+                is SendCryptoUseCase.Result.Error -> _state.update { it.copy(isLoading = false, error = result.message) }
+            }
         }
     }
 
