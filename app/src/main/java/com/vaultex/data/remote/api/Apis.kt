@@ -65,6 +65,9 @@ interface TronApi {
         @Query("limit") limit: Int = 50
     ): TronTrc20ListDto
 
+    @POST("wallet/createtransaction")
+    suspend fun createTransaction(@Body body: TronCreateTxBody): TronRawTxDto
+
     @POST("wallet/broadcasttransaction")
     suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
 }

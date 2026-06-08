@@ -77,6 +77,11 @@ data class TronTrc20Tx(
 )
 data class TronBroadcastDto(val raw_data_hex: String, val signature: List<String>)
 data class TronBroadcastResultDto(val result: Boolean, val txid: String?, val message: String?)
+data class TronCreateTxBody(val owner_address: String, val to_address: String, val amount: Long)
+data class TronRawTxDto(
+    val txID: String,
+    @SerializedName("raw_data_hex") val rawDataHex: String?
+)
 
 // ─── 1INCH ─────────────────────────────────────────────────────────
 data class OneInchQuoteDto(
@@ -111,7 +116,8 @@ data class OneInchTokensDto(val tokens: Map<String, OneInchToken>)
 
 // ─── COINGECKO ─────────────────────────────────────────────────────
 data class CoinGeckoPriceDto(
-    val usd: Double,
+    val usd: Double = 0.0,
+    val xof: Double = 0.0,
     @SerializedName("usd_24h_change") val change24h: Double = 0.0,
     @SerializedName("usd_market_cap") val marketCap: Double = 0.0
 )

@@ -53,7 +53,6 @@ class PortfolioViewModel @Inject constructor(
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
 
     companion object {
-        private const val XOF_PER_USD = 655.0
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron")
     }
 
@@ -73,7 +72,7 @@ class PortfolioViewModel @Inject constructor(
                     try {
                         coinGeckoApi.getPrices(
                             ids = COIN_IDS.joinToString(","),
-                            vsCurrencies = "usd",
+                            vsCurrencies = "xof,usd",
                             include24hChange = true,
                             includeMarketCap = false
                         )
@@ -89,14 +88,14 @@ class PortfolioViewModel @Inject constructor(
                     val btc = btcD.await(); val eth = ethD.await()
                     val bnb = bnbD.await(); val sol = solD.await(); val trx = trxD.await()
 
-                    fun p(id: String) = prices[id]?.usd ?: 0.0
+                    fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     listOf(
-                        TokenBalance("BTC", "Bitcoin", "%.6f BTC".format(btc), btc * p("bitcoin") * XOF_PER_USD, c("bitcoin"), "#F7931A"),
-                        TokenBalance("ETH", "Ethereum", "%.6f ETH".format(eth), eth * p("ethereum") * XOF_PER_USD, c("ethereum"), "#627EEA"),
-                        TokenBalance("BNB", "BNB",      "%.4f BNB".format(bnb), bnb * p("binancecoin") * XOF_PER_USD, c("binancecoin"), "#F0B90B"),
-                        TokenBalance("SOL", "Solana",   "%.4f SOL".format(sol), sol * p("solana") * XOF_PER_USD, c("solana"), "#9945FF"),
-                        TokenBalance("TRX", "Tron",     "%.2f TRX".format(trx), trx * p("tron") * XOF_PER_USD, c("tron"), "#FF060A"),
+                        TokenBalance("BTC", "Bitcoin", "%.6f BTC".format(btc), btc * xof("bitcoin"), c("bitcoin"), "#F7931A"),
+                        TokenBalance("ETH", "Ethereum", "%.6f ETH".format(eth), eth * xof("ethereum"), c("ethereum"), "#627EEA"),
+                        TokenBalance("BNB", "BNB",      "%.4f BNB".format(bnb), bnb * xof("binancecoin"), c("binancecoin"), "#F0B90B"),
+                        TokenBalance("SOL", "Solana",   "%.4f SOL".format(sol), sol * xof("solana"), c("solana"), "#9945FF"),
+                        TokenBalance("TRX", "Tron",     "%.2f TRX".format(trx), trx * xof("tron"), c("tron"), "#FF060A"),
                     )
                 }
 
