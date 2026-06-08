@@ -53,7 +53,8 @@ class PortfolioViewModel @Inject constructor(
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
 
     companion object {
-        private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron")
+        private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
+        private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
     }
 
     init { loadPortfolio() }
@@ -80,22 +81,25 @@ class PortfolioViewModel @Inject constructor(
                 }
 
                 val tokens = coroutineScope {
-                    val btcD = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
-                    val ethD = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
-                    val bnbD = async(Dispatchers.IO) { fetchEvmBalance(bnbRpc, addresses.bnb) }
-                    val solD = async(Dispatchers.IO) { fetchSolBalance(addresses.sol) }
-                    val trxD = async(Dispatchers.IO) { fetchTrxBalance(addresses.trx) }
+                    val btcD  = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
+                    val ethD  = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
+                    val bnbD  = async(Dispatchers.IO) { fetchEvmBalance(bnbRpc, addresses.bnb) }
+                    val solD  = async(Dispatchers.IO) { fetchSolBalance(addresses.sol) }
+                    val trxD  = async(Dispatchers.IO) { fetchTrxBalance(addresses.trx) }
+                    val usdtD = async(Dispatchers.IO) { fetchUsdtTrc20Balance(addresses.trx) }
                     val btc = btcD.await(); val eth = ethD.await()
-                    val bnb = bnbD.await(); val sol = solD.await(); val trx = trxD.await()
+                    val bnb = bnbD.await(); val sol = solD.await()
+                    val trx = trxD.await(); val usdt = usdtD.await()
 
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     listOf(
-                        TokenBalance("BTC", "Bitcoin", "%.6f BTC".format(btc), btc * xof("bitcoin"), c("bitcoin"), "#F7931A"),
-                        TokenBalance("ETH", "Ethereum", "%.6f ETH".format(eth), eth * xof("ethereum"), c("ethereum"), "#627EEA"),
-                        TokenBalance("BNB", "BNB",      "%.4f BNB".format(bnb), bnb * xof("binancecoin"), c("binancecoin"), "#F0B90B"),
-                        TokenBalance("SOL", "Solana",   "%.4f SOL".format(sol), sol * xof("solana"), c("solana"), "#9945FF"),
-                        TokenBalance("TRX", "Tron",     "%.2f TRX".format(trx), trx * xof("tron"), c("tron"), "#FF060A"),
+                        TokenBalance("BTC",  "Bitcoin", "%.6f BTC".format(btc),   btc  * xof("bitcoin"),     c("bitcoin"),     "#F7931A"),
+                        TokenBalance("ETH",  "Ethereum","%.6f ETH".format(eth),   eth  * xof("ethereum"),    c("ethereum"),    "#627EEA"),
+                        TokenBalance("BNB",  "BNB",     "%.4f BNB".format(bnb),   bnb  * xof("binancecoin"), c("binancecoin"), "#F0B90B"),
+                        TokenBalance("SOL",  "Solana",  "%.4f SOL".format(sol),   sol  * xof("solana"),      c("solana"),      "#9945FF"),
+                        TokenBalance("TRX",  "Tron",    "%.2f TRX".format(trx),   trx  * xof("tron"),        c("tron"),        "#FF060A"),
+                        TokenBalance("USDT", "Tether",  "%.2f USDT".format(usdt), usdt * xof("tether"),      c("tether"),      "#26A17B"),
                     )
                 }
 
@@ -133,4 +137,15 @@ class PortfolioViewModel @Inject constructor(
         val account = tronApi.getAccount(address)
         (account.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
     } catch (_: Exception) { 0.0 }
+
+    private suspend fun fetchUsdtTrc20Balance(address: String): Double {
+        return try {
+            val account = tronApi.getAccount(address)
+            val trc20List = account.data.firstOrNull()?.trc20 ?: return 0.0
+            val rawBalance = trc20List
+                .firstOrNull { it.containsKey(USDT_TRC20_CONTRACT) }
+                ?.get(USDT_TRC20_CONTRACT) ?: return 0.0
+            rawBalance.toLongOrNull()?.let { it / 1_000_000.0 } ?: 0.0
+        } catch (_: Exception) { 0.0 }
+    }
 }

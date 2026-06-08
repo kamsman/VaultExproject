@@ -9,6 +9,7 @@ import com.vaultex.core.tx.EvmTransactionService
 import com.vaultex.core.tx.SolanaTransactionService
 import com.vaultex.core.tx.TronTransactionService
 import com.vaultex.core.tx.Utxo
+import com.vaultex.core.validation.AddressValidator
 import com.vaultex.data.remote.api.BitcoinApi
 import com.vaultex.data.remote.api.EvmRpcApi
 import com.vaultex.data.remote.api.SolanaRpcApi
@@ -16,6 +17,7 @@ import com.vaultex.data.remote.api.TronApi
 import com.vaultex.data.remote.dto.JsonRpcRequest
 import com.vaultex.data.remote.dto.TronBroadcastDto
 import com.vaultex.data.remote.dto.TronCreateTxBody
+import com.vaultex.data.remote.dto.TronTriggerSmartContractBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
@@ -40,6 +42,10 @@ class SendCryptoUseCase @Inject constructor(
         data class Error(val message: String) : Result()
     }
 
+    companion object {
+        const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    }
+
     // ─── EVM (ETH / BNB) ─────────────────────────────────────────────
 
     suspend fun sendEvm(
@@ -48,40 +54,30 @@ class SendCryptoUseCase @Inject constructor(
         chainId: Long,
         coinType: Int = 60
     ): Result {
+        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
             val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
 
-            // Nonce réseau
-            val nonceRes = rpc.rpcCall(
-                JsonRpcRequest("eth_getTransactionCount", mutableListOf(fromAddress as Any, "pending" as Any))
-            )
-            val nonce = BigInteger(
-                (nonceRes.result as? String ?: "0x0").removePrefix("0x").ifEmpty { "0" }, 16
-            )
+            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount", mutableListOf(fromAddress as Any, "pending" as Any)))
+            val nonce = BigInteger((nonceRes.result as? String ?: "0x0").removePrefix("0x").ifEmpty { "0" }, 16)
 
-            // Gas price réseau
             val gpRes = rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
             val gasPrice = try {
                 BigInteger((gpRes.result as? String ?: "0x4A817C800").removePrefix("0x"), 16)
             } catch (_: Exception) { BigInteger.valueOf(20_000_000_000L) }
 
-            // Estimation gas (+ 20% buffer)
-            val estimateReq = JsonRpcRequest(
-                "eth_estimateGas",
-                mutableListOf(mapOf("from" to fromAddress, "to" to toAddress, "value" to "0x${amountWei.toString(16)}") as Any)
-            )
+            val estimateReq = JsonRpcRequest("eth_estimateGas",
+                mutableListOf(mapOf("from" to fromAddress, "to" to toAddress, "value" to "0x${amountWei.toString(16)}") as Any))
             val glRes = rpc.rpcCall(estimateReq)
             val gasLimit = try {
                 BigInteger((glRes.result as? String ?: "0x5208").removePrefix("0x"), 16)
                     .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
-            } catch (_: Exception) { BigInteger.valueOf(25_200L) } // 21000 + 20%
+            } catch (_: Exception) { BigInteger.valueOf(25_200L) }
 
             val signed = evmTx.signTransaction(mnemonic, toAddress, amountWei, gasPrice, gasLimit, nonce, chainId, coinType)
-            val broadcastRes = rpc.rpcCall(
-                JsonRpcRequest("eth_sendRawTransaction", mutableListOf("0x$signed" as Any))
-            )
+            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf("0x$signed" as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
             else Result.Success(broadcastRes.result as? String ?: signed)
         } catch (e: Exception) {
@@ -92,25 +88,20 @@ class SendCryptoUseCase @Inject constructor(
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
     suspend fun sendBtc(toAddress: String, amountSatoshi: Long): Result {
+        if (!AddressValidator.isValidBtc(toAddress)) return Result.Error("Adresse BTC invalide")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
             val btcAddress = WalletManager.deriveAddresses(mnemonic).btc
-
             val utxosDto = bitcoinApi.getUtxos(btcAddress)
             val feeEstimates = bitcoinApi.getFeeEstimates()
             val satPerByte = (feeEstimates["6"] ?: feeEstimates["3"] ?: feeEstimates["1"] ?: 10.0).toLong()
 
-            val confirmedUtxos = utxosDto
-                .filter { it.status.confirmed }
-                .sortedByDescending { it.value }
+            val confirmedUtxos = utxosDto.filter { it.status.confirmed }.sortedByDescending { it.value }
                 .map { Utxo(txHash = it.txid, outputIndex = it.vout, valueSatoshi = it.value) }
-
             if (confirmedUtxos.isEmpty()) return Result.Error("Aucun UTXO confirmé disponible")
 
-            // Estimation taille tx: 10 + 148*inputs + 34*outputs
             val inputCount = confirmedUtxos.size.coerceAtMost(10)
-            val estimatedBytes = (10 + 148 * inputCount + 34 * 2).toLong()
-            val feeSatoshi = estimatedBytes * satPerByte
+            val feeSatoshi = (10 + 148 * inputCount + 34 * 2).toLong() * satPerByte
 
             val signed = btcTx.signTransaction(mnemonic, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }
@@ -121,15 +112,14 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
-    // ─── TRON ────────────────────────────────────────────────────────
+    // ─── TRON (TRX natif) ────────────────────────────────────────────
 
     suspend fun sendTrx(toAddress: String, amountSun: Long): Result {
+        if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
             val ownerAddress = tronTx.deriveAddress(mnemonic)
-            val rawTx = tronApi.createTransaction(
-                TronCreateTxBody(owner_address = ownerAddress, to_address = toAddress, amount = amountSun)
-            )
+            val rawTx = tronApi.createTransaction(TronCreateTxBody(owner_address = ownerAddress, to_address = toAddress, amount = amountSun))
             val rawDataHex = rawTx.rawDataHex ?: return Result.Error("Création transaction TRX échouée")
             val signature = tronTx.signRawTransaction(mnemonic, rawDataHex)
             val result = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
@@ -140,15 +130,51 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
+    // ─── USDT TRC20 ──────────────────────────────────────────────────
+
+    suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: Double): Result {
+        if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        return try {
+            val ownerBase58 = tronTx.deriveAddress(mnemonic)
+            val ownerHex = tronAddrToHex(ownerBase58)
+            val contractHex = tronAddrToHex(USDT_TRC20_CONTRACT)
+            val amountMicro = (amountUsdt * 1_000_000).toLong()
+            val parameter = buildTrc20Param(toAddress, amountMicro)
+
+            val triggerRes = tronApi.triggerSmartContract(
+                TronTriggerSmartContractBody(
+                    owner_address = ownerHex,
+                    contract_address = contractHex,
+                    function_selector = "transfer(address,uint256)",
+                    parameter = parameter,
+                    fee_limit = 10_000_000
+                )
+            )
+            if (triggerRes.result.result != true)
+                return Result.Error(triggerRes.result.message ?: "Création TRC20 échouée")
+
+            val rawTx = triggerRes.transaction ?: return Result.Error("Transaction TRC20 vide")
+            val rawDataHex = rawTx.rawDataHex ?: return Result.Error("raw_data_hex absent")
+            val signature = tronTx.signRawTransaction(mnemonic, rawDataHex)
+            val broadcastResult = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
+
+            if (broadcastResult.result == true) Result.Success(broadcastResult.txid ?: rawTx.txID)
+            else Result.Error(broadcastResult.message ?: "Broadcast USDT échoué")
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Erreur USDT TRC20")
+        }
+    }
+
     // ─── SOLANA ──────────────────────────────────────────────────────
 
     suspend fun sendSol(toAddress: String, lamports: Long): Result {
+        if (!AddressValidator.isValidSolana(toAddress)) return Result.Error("Adresse SOL invalide")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
             val fromPubKey = Base58.decode(WalletManager.deriveAddresses(mnemonic).sol)
             val toPubKey = Base58.decode(toAddress)
 
-            // Blockhash récent
             val bhRes = solanaRpc.rpcCall(
                 JsonRpcRequest("getLatestBlockhash", mutableListOf(mapOf("commitment" to "finalized") as Any))
             )
@@ -158,13 +184,9 @@ class SendCryptoUseCase @Inject constructor(
                 ?: return Result.Error("Blockhash Solana introuvable")
             val recentBlockhash = Base58.decode(blockhashB58)
 
-            // Construire le message de transfert natif SOL
             val message = buildSolTransferMessage(fromPubKey, toPubKey, recentBlockhash, lamports)
-
-            // Signer
             val sig = solTx.signTransaction(mnemonic, message)
 
-            // Encoder la transaction : [compact(1)] + [sig 64B] + [message]
             val txBytes = ByteArray(1 + 64 + message.size)
             txBytes[0] = 1
             System.arraycopy(sig, 0, txBytes, 1, 64)
@@ -181,23 +203,33 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
-    // Message de transfert natif SOL (System Program Transfer)
+    // ─── Helpers ─────────────────────────────────────────────────────
+
+    /** Convertit une adresse Tron Base58Check en hex sans 0x (ex: "41XXXX...") */
+    private fun tronAddrToHex(address: String): String =
+        Base58.decode(address).copyOfRange(0, 21).joinToString("") { "%02x".format(it) }
+
+    /** ABI encode pour transfer(address,uint256) dans TronGrid */
+    private fun buildTrc20Param(toAddress: String, amountMicro: Long): String {
+        val decoded = Base58.decode(toAddress)
+        val addrHex = decoded.copyOfRange(1, 21).joinToString("") { "%02x".format(it) }
+        return addrHex.padStart(64, '0') + amountMicro.toString(16).padStart(64, '0')
+    }
+
     private fun buildSolTransferMessage(
         from: ByteArray, to: ByteArray, recentBlockhash: ByteArray, lamports: Long
     ): ByteArray {
         val out = ByteArrayOutputStream()
-        val systemProgram = ByteArray(32) // 0x00...00
-        out.write(1); out.write(0); out.write(1) // header
-        out.write(3)                              // 3 comptes
+        val systemProgram = ByteArray(32)
+        out.write(1); out.write(0); out.write(1)
+        out.write(3)
         out.write(from); out.write(to); out.write(systemProgram)
         out.write(recentBlockhash)
-        out.write(1)  // 1 instruction
-        out.write(2)  // program_id_index = 2 (System Program)
-        out.write(2)  // 2 comptes impliqués
-        out.write(0); out.write(1)  // from=0, to=1
-        out.write(12) // data length = 12 bytes
-        out.write(2); out.write(0); out.write(0); out.write(0) // Transfer = type 2 (LE u32)
-        for (i in 0 until 8) out.write((lamports ushr (i * 8)).toInt() and 0xFF) // lamports LE u64
+        out.write(1)
+        out.write(2); out.write(2); out.write(0); out.write(1)
+        out.write(12)
+        out.write(2); out.write(0); out.write(0); out.write(0)
+        for (i in 0 until 8) out.write((lamports ushr (i * 8)).toInt() and 0xFF)
         return out.toByteArray()
     }
 }

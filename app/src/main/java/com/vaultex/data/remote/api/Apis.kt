@@ -68,6 +68,9 @@ interface TronApi {
     @POST("wallet/createtransaction")
     suspend fun createTransaction(@Body body: TronCreateTxBody): TronRawTxDto
 
+    @POST("wallet/triggersmartcontract")
+    suspend fun triggerSmartContract(@Body body: TronTriggerSmartContractBody): TronTriggerSmartContractDto
+
     @POST("wallet/broadcasttransaction")
     suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
 }

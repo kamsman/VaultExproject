@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,57 +19,69 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.HistoryViewModel
+import com.vaultex.ui.viewmodel.TxDisplay
 
 @Composable
 fun HistoryScreen(navController: NavController) {
-    val chains = listOf("Tous", "BTC", "ETH", "BNB", "TRX", "SOL")
-    var selectedChain by remember { mutableStateOf("Tous") }
+    val viewModel: HistoryViewModel = hiltViewModel()
+    val filtered by viewModel.filtered.collectAsState()
+    val filteredChain by viewModel.filteredChain.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    data class TxItem(val hash: String, val type: String, val chain: String, val amount: String, val valueXof: String, val date: String, val isIncoming: Boolean)
-
-    val txList = listOf(
-        TxItem("0xabc...123", "Reçu", "ETH", "+0.12 ETH", "+330 000 FCFA", "Auj. 14:32", true),
-        TxItem("0xdef...456", "Envoyé", "BTC", "-0.005 BTC", "-342 000 FCFA", "Auj. 09:15", false),
-        TxItem("0x789...abc", "Swap", "BNB", "2 BNB → USDT", "-4 FCFA frais", "Hier 18:44", false),
-        TxItem("0xfed...321", "Reçu", "SOL", "+5 SOL", "+312 500 FCFA", "Hier 11:20", true),
-        TxItem("0x111...222", "Envoyé", "TRX", "-500 TRX", "-75 800 FCFA", "03/06 08:00", false),
-        TxItem("0x333...444", "Reçu", "ETH", "+0.08 ETH", "+220 000 FCFA", "02/06 16:10", true),
-    )
-
-    val filtered = if (selectedChain == "Tous") txList else txList.filter { it.chain == selectedChain }
+    val chains = listOf("Tous", "BTC", "ETH", "BNB", "TRX", "USDT", "SOL")
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Historique", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, null, tint = VaultExColors.BluePrimary)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
         containerColor = VaultExColors.Background
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+
             // Chain filter chips
-            Row(
+            LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                chains.forEach { chain ->
+                items(chains) { chain ->
                     FilterChip(
-                        selected = selectedChain == chain,
-                        onClick = { selectedChain = chain },
+                        selected = (if (chain == "Tous") null else chain) == filteredChain,
+                        onClick = { viewModel.filterByChain(if (chain == "Tous") null else chain) },
                         label = { Text(chain, fontSize = 12.sp) }
                     )
                 }
             }
 
-            if (filtered.isEmpty()) {
+            if (isLoading && filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = VaultExColors.BluePrimary)
+                }
+            } else if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.History, null, modifier = Modifier.size(64.dp), tint = VaultExColors.Border)
+                        Icon(
+                            Icons.Default.History, null,
+                            modifier = Modifier.size(64.dp),
+                            tint = VaultExColors.Border
+                        )
                         Spacer(Modifier.height(12.dp))
                         Text("Aucune transaction", color = VaultExColors.TextSecondary)
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { viewModel.refresh() }) {
+                            Text("Actualiser", color = VaultExColors.BluePrimary)
+                        }
                     }
                 }
             } else {
@@ -76,7 +89,15 @@ fun HistoryScreen(navController: NavController) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filtered) { tx ->
+                    if (isLoading) {
+                        item {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                color = VaultExColors.BluePrimary
+                            )
+                        }
+                    }
+                    items(filtered, key = { it.hash }) { tx ->
                         TxCard(tx) { navController.navigate("history_detail") }
                     }
                 }
@@ -86,7 +107,12 @@ fun HistoryScreen(navController: NavController) {
 }
 
 @Composable
-private fun TxCard(tx: Any, onClick: () -> Unit) {
+private fun TxCard(tx: TxDisplay, onClick: () -> Unit) {
+    val iconColor = if (tx.isIncoming) VaultExColors.Success else VaultExColors.Error
+    val bgColor = if (tx.isIncoming) VaultExColors.Success.copy(alpha = 0.1f) else VaultExColors.Error.copy(alpha = 0.1f)
+    val icon = if (tx.isIncoming) Icons.Default.CallReceived else Icons.Default.CallMade
+    val chainColor = chainColor(tx.chain)
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
@@ -95,21 +121,41 @@ private fun TxCard(tx: Any, onClick: () -> Unit) {
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier.size(42.dp).clip(CircleShape)
-                    .background(VaultExColors.BlueLight),
+                modifier = Modifier.size(42.dp).clip(CircleShape).background(bgColor),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.SwapHoriz, null, tint = VaultExColors.BluePrimary, modifier = Modifier.size(20.dp))
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Transaction", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("ETH · Auj. 14:32", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                Text(tx.type, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(chainColor)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("${tx.chain} · ${tx.date}", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("+0.12 ETH", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = VaultExColors.Success)
-                Text("+330 000 FCFA", fontSize = 11.sp, color = VaultExColors.TextSecondary)
-            }
+            Text(
+                tx.amount,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = if (tx.isIncoming) VaultExColors.Success else VaultExColors.Error
+            )
         }
     }
+}
+
+private fun chainColor(chain: String): Color = when (chain) {
+    "BTC"  -> Color(0xFFF7931A)
+    "ETH"  -> Color(0xFF627EEA)
+    "BNB"  -> Color(0xFFF0B90B)
+    "SOL"  -> Color(0xFF9945FF)
+    "TRX"  -> Color(0xFFFF060A)
+    "USDT" -> Color(0xFF26A17B)
+    else   -> VaultExColors.TextSecondary
 }

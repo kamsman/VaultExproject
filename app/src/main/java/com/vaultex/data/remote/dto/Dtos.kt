@@ -82,6 +82,19 @@ data class TronRawTxDto(
     val txID: String,
     @SerializedName("raw_data_hex") val rawDataHex: String?
 )
+data class TronTriggerSmartContractBody(
+    val owner_address: String,
+    val contract_address: String,
+    val function_selector: String,
+    val parameter: String,
+    val fee_limit: Long = 10_000_000,
+    val call_value: Long = 0
+)
+data class TronTriggerSmartContractDto(
+    val result: TronTriggerResult,
+    val transaction: TronRawTxDto?
+)
+data class TronTriggerResult(val result: Boolean, val message: String? = null)
 
 // ─── 1INCH ─────────────────────────────────────────────────────────
 data class OneInchQuoteDto(

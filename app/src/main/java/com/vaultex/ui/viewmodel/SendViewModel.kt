@@ -2,6 +2,7 @@ package com.vaultex.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.core.validation.AddressValidator
 import com.vaultex.domain.usecase.SendCryptoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -28,10 +29,16 @@ class SendViewModel @Inject constructor(
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
 
-    fun setChain(chain: String) = _state.update { it.copy(selectedChain = chain, error = null) }
+    fun setChain(chain: String) {
+        val addr = _state.value.toAddress
+        val valid = if (addr.isEmpty()) false else AddressValidator.isValid(addr, chain)
+        _state.update { it.copy(selectedChain = chain, isAddressValid = valid, error = null) }
+    }
 
     fun setToAddress(address: String) {
-        _state.update { it.copy(toAddress = address, isAddressValid = address.length >= 26) }
+        val chain = _state.value.selectedChain
+        val valid = AddressValidator.isValid(address, chain)
+        _state.update { it.copy(toAddress = address, isAddressValid = valid) }
     }
 
     fun setAmount(amount: String) = _state.update { it.copy(amount = amount) }
@@ -80,6 +87,13 @@ class SendViewModel @Inject constructor(
                         return@launch
                     }
                     sendCryptoUseCase.sendSol(toAddress = s.toAddress, lamports = lamports)
+                }
+                "USDT" -> {
+                    val amountUsdt = s.amount.toDoubleOrNull() ?: run {
+                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
+                        return@launch
+                    }
+                    sendCryptoUseCase.sendUsdtTrc20(toAddress = s.toAddress, amountUsdt = amountUsdt)
                 }
                 else -> SendCryptoUseCase.Result.Error("Chain non supportée")
             }
