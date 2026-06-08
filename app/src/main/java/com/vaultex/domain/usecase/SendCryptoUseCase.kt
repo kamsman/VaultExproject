@@ -8,6 +8,8 @@ import com.vaultex.core.tx.Utxo
 import com.vaultex.data.remote.api.BitcoinApi
 import com.vaultex.data.remote.api.EvmRpcApi
 import com.vaultex.data.remote.dto.JsonRpcRequest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Named
@@ -69,7 +71,8 @@ class SendCryptoUseCase @Inject constructor(
         return try {
             val signed = btcTx.signTransaction(mnemonic, toAddress, amountSatoshi, feeSatoshi, utxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }
-            val txHash = bitcoinApi.broadcastTx(signedHex)
+            val body = signedHex.toRequestBody("text/plain".toMediaType())
+            val txHash = bitcoinApi.broadcastTx(body)
             Result.Success(txHash)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur de transaction BTC")

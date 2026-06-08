@@ -46,7 +46,7 @@ object NetworkModule {
     @Provides @Singleton
     @Named("eth")
     fun provideEthRpcApi(client: OkHttpClient): EvmRpcApi =
-        retrofit("https://mainnet.infura.io/v3/YOUR_INFURA_KEY/", client).create(EvmRpcApi::class.java)
+        retrofit("https://rpc.ankr.com/eth/", client).create(EvmRpcApi::class.java)
 
     @Provides @Singleton
     @Named("bnb")
@@ -55,7 +55,7 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideBitcoinApi(client: OkHttpClient): BitcoinApi =
-        retrofit("https://api.blockcypher.com/v1/btc/main/", client).create(BitcoinApi::class.java)
+        retrofit("https://blockstream.info/api/", client).create(BitcoinApi::class.java)
 
     @Provides @Singleton
     fun provideSolanaRpcApi(client: OkHttpClient): SolanaRpcApi =

@@ -1,7 +1,7 @@
 package com.vaultex.data.remote.api
 
 import com.vaultex.data.remote.dto.*
-import retrofit2.Response
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 /**
@@ -30,7 +30,8 @@ interface BitcoinApi {
     suspend fun getTransaction(@Path("txid") txid: String): BlockstreamTxDto
 
     @POST("tx")
-    suspend fun broadcastTx(@Body rawHex: String): String
+    @Headers("Content-Type: text/plain")
+    suspend fun broadcastTx(@Body rawHex: RequestBody): String
 
     @GET("fee-estimates")
     suspend fun getFeeEstimates(): Map<String, Double>
