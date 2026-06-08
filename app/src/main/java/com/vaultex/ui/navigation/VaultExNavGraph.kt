@@ -28,7 +28,7 @@ import com.vaultex.ui.screens.auth.PanicPinScreen
 import com.vaultex.ui.screens.auth.BiometricSetupScreen
 import com.vaultex.ui.screens.walletmanager.WalletManagerScreen
 import com.vaultex.ui.screens.walletmanager.TokenManagerScreen
-import com.vaultex.ui.screens.security.NotificationsScreen
+import com.vaultex.ui.screens.notifications.AlertsScreen
 import com.vaultex.ui.screens.tokens.TokenDetailScreen
 import com.vaultex.ui.screens.unlock.UnlockScreen
 import com.vaultex.ui.screens.addressbook.AddressBookScreen
@@ -133,7 +133,7 @@ fun VaultExNavGraph(navController: NavHostController) {
         }
 
         composable(Routes.NOTIFICATIONS) {
-            NotificationsScreen(navController)
+            AlertsScreen(navController)
         }
 
         composable(Routes.TOKEN_DETAIL) {

@@ -1,6 +1,7 @@
 package com.vaultex.core.crypto
 
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 
 /**
  * Utilitaires ed25519 — calcul de la clé publique depuis la clé privée pour Solana.
@@ -16,5 +17,18 @@ object Ed25519Utils {
         require(privateKey.size == 32) { "Clé privée ed25519 doit faire 32 bytes" }
         val privParams = Ed25519PrivateKeyParameters(privateKey, 0)
         return privParams.generatePublicKey().encoded
+    }
+
+    /**
+     * Signe un message avec la clé privée ed25519 (32 bytes).
+     * Retourne la signature (64 bytes) compatible Solana.
+     */
+    fun sign(message: ByteArray, privateKey: ByteArray): ByteArray {
+        require(privateKey.size == 32) { "Clé privée ed25519 doit faire 32 bytes" }
+        val privParams = Ed25519PrivateKeyParameters(privateKey, 0)
+        val signer = Ed25519Signer()
+        signer.init(true, privParams)
+        signer.update(message, 0, message.size)
+        return signer.generateSignature()
     }
 }

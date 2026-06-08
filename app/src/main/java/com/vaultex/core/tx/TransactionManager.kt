@@ -7,5 +7,6 @@ import javax.inject.Singleton
 class TransactionManager @Inject constructor(
     val evm: EvmTransactionService,
     val btc: BtcTransactionService,
-    val tron: TronTransactionService
+    val tron: TronTransactionService,
+    val solana: SolanaTransactionService
 )

@@ -16,7 +16,7 @@ import com.vaultex.ui.theme.TextPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(navController: NavHostController) {
+fun SecurityNotificationsScreen(navController: NavHostController) {
 
     Scaffold(
         topBar = {

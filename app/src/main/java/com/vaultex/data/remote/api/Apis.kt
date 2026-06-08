@@ -130,3 +130,34 @@ interface CoinGeckoApi {
         @Query("days") days: Int
     ): CoinGeckoChartDto
 }
+
+/**
+ * ChangeNOW — swaps cross-chain avec marge 1.5% côté VaultEx.
+ * Base URL : https://api.changenow.io/v1/
+ */
+interface ChangeNowApi {
+    @GET("exchange-amount/{amount}/{fromTo}")
+    suspend fun getEstimatedAmount(
+        @Path("amount") amount: String,
+        @Path("fromTo") fromTo: String,  // ex: "btc_eth"
+        @Query("api_key") apiKey: String
+    ): ChangeNowEstimateDto
+
+    @GET("min-amount/{fromTo}")
+    suspend fun getMinAmount(
+        @Path("fromTo") fromTo: String,
+        @Query("api_key") apiKey: String
+    ): ChangeNowMinAmountDto
+
+    @POST("transactions/{apiKey}")
+    suspend fun createTransaction(
+        @Path("apiKey") apiKey: String,
+        @Body body: ChangeNowTransactionBody
+    ): ChangeNowTransactionDto
+
+    @GET("transactions/{id}/{apiKey}")
+    suspend fun getTransactionStatus(
+        @Path("id") transactionId: String,
+        @Path("apiKey") apiKey: String
+    ): ChangeNowStatusDto
+}

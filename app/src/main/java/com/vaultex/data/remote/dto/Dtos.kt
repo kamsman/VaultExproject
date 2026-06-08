@@ -129,3 +129,38 @@ data class CoinGeckoMarketDto(
 )
 data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
+
+// ─── CHANGENOW ─────────────────────────────────────────────────────
+data class ChangeNowEstimateDto(
+    @SerializedName("estimatedAmount") val estimatedAmount: String,
+    @SerializedName("transactionSpeedForecast") val speedForecast: String? = null,
+    @SerializedName("warningMessage") val warning: String? = null
+)
+
+data class ChangeNowMinAmountDto(
+    @SerializedName("minAmount") val minAmount: Double
+)
+
+data class ChangeNowTransactionBody(
+    val from: String,
+    val to: String,
+    val address: String,
+    val amount: String,
+    @SerializedName("refundAddress") val refundAddress: String? = null
+)
+
+data class ChangeNowTransactionDto(
+    val id: String,
+    @SerializedName("payinAddress") val payinAddress: String,
+    @SerializedName("payoutAddress") val payoutAddress: String,
+    @SerializedName("payinExtraId") val payinExtraId: String? = null,
+    val amount: String
+)
+
+data class ChangeNowStatusDto(
+    val id: String,
+    val status: String,  // waiting, confirming, exchanging, sending, finished, failed
+    @SerializedName("amountFrom") val amountFrom: String? = null,
+    @SerializedName("amountTo") val amountTo: String? = null,
+    val hash: String? = null
+)
