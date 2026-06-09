@@ -11,7 +11,7 @@ import java.math.BigDecimal
 import javax.inject.Inject
 
 data class SendState(
-    val selectedChain: String = "ETH",
+    val selectedChain: String = "USDT",
     val toAddress: String = "",
     val amount: String = "",
     val estimatedFee: String = "",
@@ -45,6 +45,7 @@ class SendViewModel @Inject constructor(
 
     fun send() {
         val s = _state.value
+        if (s.isLoading) return
         if (!s.isAddressValid || s.amount.isEmpty()) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
