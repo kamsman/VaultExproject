@@ -13,134 +13,56 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
-
+import com.vaultex.ui.viewmodel.SplashViewModel
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(
-    navController: NavHostController
-) {
+fun SplashScreen(navController: NavHostController) {
+    val viewModel: SplashViewModel = hiltViewModel()
 
-    /*
-    =========================
-    ANIMATIONS
-    =========================
-     */
-
-    val infiniteTransition = rememberInfiniteTransition(
-        label = "logo_animation"
-    )
-
+    val infiniteTransition = rememberInfiniteTransition(label = "logo_animation")
     val logoScale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1800,
-                easing = EaseInOut
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
+        initialValue = 0.92f, targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = EaseInOut), RepeatMode.Reverse),
         label = "scale"
     )
-
     val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1600,
-                easing = EaseInOut
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
+        initialValue = 0.4f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = EaseInOut), RepeatMode.Reverse),
         label = "alpha"
     )
 
-    /*
-    =========================
-    NAVIGATION
-    =========================
-     */
-
     LaunchedEffect(Unit) {
-
         delay(3200)
-
-        navController.navigate(Routes.ONBOARDING) {
-
-            popUpTo(Routes.SPLASH) {
-                inclusive = true
-            }
+        // Route vers PIN_UNLOCK si wallet existe, ONBOARDING sinon
+        val destination = if (viewModel.hasWallet()) Routes.PIN_UNLOCK else Routes.ONBOARDING
+        navController.navigate(destination) {
+            popUpTo(Routes.SPLASH) { inclusive = true }
         }
     }
-
-    /*
-    =========================
-    UI
-    =========================
-     */
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        BgPrimary,
-                        BgSecondary
-                    )
-                )
-            ),
+            .background(Brush.verticalGradient(listOf(BgPrimary, BgSecondary))),
         contentAlignment = Alignment.Center
     ) {
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            /*
-            =========================
-            LOGO
-            =========================
-             */
-
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "◆",
                 color = AccentGold.copy(alpha = glowAlpha),
                 fontSize = 120.sp,
                 fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier
-                    .scale(logoScale)
-                    .alpha(glowAlpha)
+                modifier = Modifier.scale(logoScale).alpha(glowAlpha)
             )
-
-            Spacer(modifier = Modifier.height(26.dp))
-
-            /*
-            =========================
-            BRAND
-            =========================
-             */
-
-            Text(
-                text = "VaultEx",
-                color = TextPrimary,
-                fontSize = 38.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Secure Multi-Chain Wallet",
-                color = TextSecondary,
-                fontSize = 16.sp
-            )
+            Spacer(Modifier.height(26.dp))
+            Text("VaultEx", color = TextPrimary, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Text("Secure Multi-Chain Wallet", color = TextSecondary, fontSize = 16.sp)
         }
     }
 }

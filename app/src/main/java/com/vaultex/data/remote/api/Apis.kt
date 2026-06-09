@@ -168,3 +168,23 @@ interface ChangeNowApi {
         @Path("apiKey") apiKey: String
     ): ChangeNowStatusDto
 }
+
+/**
+ * Etherscan / BscScan — historique de transactions EVM.
+ * Compatible Etherscan API (api.etherscan.io et api.bscscan.com).
+ */
+interface EtherscanApi {
+    @GET("api")
+    suspend fun getTransactions(
+        @Query("module") module: String = "account",
+        @Query("action") action: String = "txlist",
+        @Query("address") address: String,
+        @Query("startblock") startBlock: Long = 0L,
+        @Query("endblock") endBlock: Long = 99_999_999L,
+        @Query("page") page: Int = 1,
+        @Query("offset") offset: Int = 50,
+        @Query("sort") sort: String = "desc",
+        @Query("apikey") apiKey: String = ""
+    ): EtherscanResponse
+}
+

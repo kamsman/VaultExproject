@@ -8,17 +8,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.BiometricSetupViewModel
 
 @Composable
 fun BiometricSetupScreen(navController: NavController) {
+    val viewModel: BiometricSetupViewModel = hiltViewModel()
+
+    fun goToDashboard() {
+        navController.navigate(Routes.DASHBOARD) {
+            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -42,7 +51,10 @@ fun BiometricSetupScreen(navController: NavController) {
         )
         Spacer(Modifier.height(48.dp))
         Button(
-            onClick = { navController.navigate(Routes.DASHBOARD) { popUpTo(navController.graph.startDestinationId) { inclusive = true } } },
+            onClick = {
+                viewModel.enableBiometric()   // ← sauvegarde dans SecureStorage
+                goToDashboard()
+            },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
@@ -50,7 +62,7 @@ fun BiometricSetupScreen(navController: NavController) {
             Text("Activer la biométrie", fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(12.dp))
-        TextButton(onClick = { navController.navigate(Routes.DASHBOARD) { popUpTo(navController.graph.startDestinationId) { inclusive = true } } }) {
+        TextButton(onClick = { goToDashboard() }) {
             Text("Ignorer pour l'instant", color = VaultExColors.TextSecondary)
         }
     }

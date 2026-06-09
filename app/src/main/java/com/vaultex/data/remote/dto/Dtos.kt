@@ -188,3 +188,20 @@ data class ChangeNowStatusDto(
     @SerializedName("amountTo") val amountTo: String? = null,
     val hash: String? = null
 )
+
+// ─── ETHERSCAN / BSCSCAN ──────────────────────────────────────
+data class EtherscanResponse(
+    val status: String,
+    val result: List<EtherscanTx>? = null
+)
+data class EtherscanTx(
+    val hash: String,
+    val from: String,
+    val to: String,
+    val value: String,      // wei as decimal string
+    @SerializedName("timeStamp") val timeStamp: String,
+    val gasUsed: String,
+    val gasPrice: String,
+    val isError: String,    // "0" = success, "1" = failed
+    val confirmations: String = "0"
+)

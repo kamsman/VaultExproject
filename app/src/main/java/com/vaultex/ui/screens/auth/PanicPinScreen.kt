@@ -1,9 +1,9 @@
 package com.vaultex.ui.screens.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -13,17 +13,43 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.navigation.Routes
+import com.vaultex.ui.viewmodel.PanicPinViewModel
 
 @Composable
 fun PanicPinScreen(navController: NavController) {
+    val viewModel: PanicPinViewModel = hiltViewModel()
+    val saved by viewModel.saved.collectAsState()
+
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var step by remember { mutableStateOf(0) }
+    var mismatch by remember { mutableStateOf(false) }
     val maxLen = 6
+
+    // Sauvegarde réussie → retour
+    LaunchedEffect(saved) {
+        if (saved == true) navController.popBackStack()
+    }
+
+    // Quand confirmPin est complet → vérifier et sauvegarder
+    LaunchedEffect(confirmPin) {
+        if (confirmPin.length == maxLen) {
+            if (confirmPin == pin) {
+                viewModel.savePin(pin)
+            } else {
+                mismatch = true
+                confirmPin = ""
+                step = 0
+                pin = ""
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -35,9 +61,12 @@ fun PanicPinScreen(navController: NavController) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(48.dp))
-            Icon(Icons.Default.ArrowBack, contentDescription = "Retour",
+            Icon(
+                Icons.Default.ArrowBack,
+                contentDescription = "Retour",
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.align(Alignment.Start).size(24.dp)
+                    .clickable { navController.popBackStack() }
             )
             Spacer(Modifier.height(32.dp))
             Text(
@@ -49,9 +78,14 @@ fun PanicPinScreen(navController: NavController) {
                 "Ce PIN efface toutes les données du wallet\nsi saisi à l'écran de déverrouillage.",
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 13.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(16.dp))
+            if (mismatch) {
+                Text("Les PINs ne correspondent pas", color = Color(0xFFEF4444), fontSize = 13.sp)
+                LaunchedEffect(Unit) { kotlinx.coroutines.delay(2000); mismatch = false }
+            }
+            Spacer(Modifier.height(16.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val current = if (step == 0) pin else confirmPin
@@ -64,7 +98,6 @@ fun PanicPinScreen(navController: NavController) {
             }
         }
 
-        // Numpad
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val digits = listOf("1","2","3","4","5","6","7","8","9","","0","⌫")
             digits.chunked(3).forEach { row ->

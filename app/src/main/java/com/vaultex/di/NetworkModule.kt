@@ -1,6 +1,7 @@
 package com.vaultex.di
 
 import com.vaultex.data.remote.api.*
+import com.vaultex.data.remote.api.EtherscanApi
 import com.vaultex.data.repository.MarketRepository
 import com.vaultex.data.repository.PriceRepository
 import dagger.Module
@@ -64,6 +65,16 @@ object NetworkModule {
     @Provides @Singleton
     fun provideTronApi(client: OkHttpClient): TronApi =
         retrofit("https://api.trongrid.io/", client).create(TronApi::class.java)
+
+    @Provides @Singleton
+    @Named("etherscan")
+    fun provideEtherscanApi(client: OkHttpClient): EtherscanApi =
+        retrofit("https://api.etherscan.io/", client).create(EtherscanApi::class.java)
+
+    @Provides @Singleton
+    @Named("bscscan")
+    fun provideBscScanApi(client: OkHttpClient): EtherscanApi =
+        retrofit("https://api.bscscan.com/", client).create(EtherscanApi::class.java)
 
     @Provides @Singleton
     fun provideMarketRepository(api: CoinGeckoApi): MarketRepository = MarketRepository(api)

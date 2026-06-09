@@ -14,17 +14,22 @@ import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.local.dao.TransactionDao
 import com.vaultex.data.local.entity.TransactionEntity
 import com.vaultex.data.remote.api.BitcoinApi
+import com.vaultex.data.remote.api.EtherscanApi
+import com.vaultex.data.remote.api.SolanaRpcApi
 import com.vaultex.data.remote.api.TronApi
+import com.vaultex.data.remote.dto.JsonRpcRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import javax.inject.Named
 
 data class TxDisplay(
     val hash: String,
@@ -41,6 +46,9 @@ class HistoryViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val tronApi: TronApi,
     private val bitcoinApi: BitcoinApi,
+    @Named("etherscan") private val etherscanApi: EtherscanApi,
+    @Named("bscscan") private val bscScanApi: EtherscanApi,
+    private val solanaRpc: SolanaRpcApi,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -67,7 +75,6 @@ class HistoryViewModel @Inject constructor(
     init { syncBlockchainHistory() }
 
     fun filterByChain(chain: String?) = _filteredChain.update { chain }
-
     fun refresh() = syncBlockchainHistory()
 
     private fun syncBlockchainHistory() {
@@ -76,10 +83,12 @@ class HistoryViewModel @Inject constructor(
             try {
                 val mnemonic = secureStorage.getMnemonic() ?: return@launch
                 val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic) }
-
                 withContext(Dispatchers.IO) {
                     fetchTronHistory(addresses.trx)
                     fetchBtcHistory(addresses.btc)
+                    fetchEvmHistory(etherscanApi, addresses.eth, "ETH", "ETH")
+                    fetchEvmHistory(bscScanApi, addresses.bnb, "BNB", "BNB")
+                    fetchSolHistory(addresses.sol)
                 }
             } catch (_: Exception) {
             } finally {
@@ -88,13 +97,15 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    // ─── TRON TRX ────────────────────────────────────────────────────
+
     private suspend fun fetchTronHistory(address: String) {
         try {
             val txList = tronApi.getTransactions(address, limit = 50)
             for (tx in txList.data) {
                 val contract = tx.rawData.contract.firstOrNull() ?: continue
                 val type = contract["type"] as? String ?: "TransferContract"
-                if (type != "TransferContract") continue  // ignore TRC20 here (covered below)
+                if (type != "TransferContract") continue
 
                 @Suppress("UNCHECKED_CAST")
                 val paramValue = (contract["parameter"] as? Map<String, Any>)
@@ -111,9 +122,9 @@ class HistoryViewModel @Inject constructor(
                     else      -> 0L
                 }
                 val amount = "%.6f".format(amountSun / 1_000_000.0)
-
                 val retCode = tx.ret?.firstOrNull()?.get("contractRet") ?: "SUCCESS"
                 val status = if (retCode == "SUCCESS") "confirmed" else "failed"
+
                 val entity = TransactionEntity(
                     hash = tx.txID,
                     type = if (isIncoming) "received" else "sent",
@@ -135,6 +146,7 @@ class HistoryViewModel @Inject constructor(
             }
         } catch (_: Exception) {}
 
+        // ─── TRC20 (USDT) ────────────────────────────────────────────
         try {
             val trc20List = tronApi.getTrc20Transactions(address, limit = 50)
             for (tx in trc20List.data) {
@@ -144,6 +156,7 @@ class HistoryViewModel @Inject constructor(
                 val rawAmount = tx.value.toLongOrNull() ?: 0L
                 val divisor = Math.pow(10.0, decimals.toDouble())
                 val amount = "%.2f".format(rawAmount / divisor)
+
                 val entity = TransactionEntity(
                     hash = tx.txId,
                     type = if (isIncoming) "received" else "sent",
@@ -160,14 +173,13 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification(
-                        "Vous avez reçu $amount $symbol",
-                        "Transaction TRC20 confirmée"
-                    )
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée")
                 }
             }
         } catch (_: Exception) {}
     }
+
+    // ─── BITCOIN ─────────────────────────────────────────────────────
 
     private suspend fun fetchBtcHistory(address: String) {
         try {
@@ -178,6 +190,7 @@ class HistoryViewModel @Inject constructor(
                 val isIncoming = received > sent
                 val netSatoshi = if (isIncoming) received - sent else sent - received
                 val amount = "%.6f".format(netSatoshi / 1e8)
+
                 val entity = TransactionEntity(
                     hash = tx.txid,
                     type = if (isIncoming) "received" else "sent",
@@ -200,6 +213,114 @@ class HistoryViewModel @Inject constructor(
         } catch (_: Exception) {}
     }
 
+    // ─── ETH / BNB via Etherscan-compatible API ───────────────────────
+
+    private suspend fun fetchEvmHistory(
+        api: EtherscanApi,
+        address: String,
+        blockchain: String,
+        symbol: String
+    ) {
+        try {
+            val response = api.getTransactions(address = address)
+            if (response.status != "1") return
+            for (tx in response.result ?: emptyList()) {
+                val isIncoming = tx.to.equals(address, ignoreCase = true)
+                val amountWei = tx.value.toBigDecimalOrNull() ?: BigDecimal.ZERO
+                val amount = "%.6f".format(amountWei.divide(BigDecimal("1000000000000000000")).toDouble())
+                val status = if (tx.isError == "0") "confirmed" else "failed"
+                val confirmations = tx.confirmations.toIntOrNull() ?: 0
+
+                val entity = TransactionEntity(
+                    hash = tx.hash,
+                    type = if (isIncoming) "received" else "sent",
+                    blockchain = blockchain,
+                    fromAddress = tx.from,
+                    toAddress = tx.to,
+                    amount = amount,
+                    tokenSymbol = symbol,
+                    fee = "0",
+                    status = status,
+                    timestamp = tx.timeStamp.toLongOrNull()?.times(1000) ?: System.currentTimeMillis(),
+                    confirmations = confirmations,
+                    blockNumber = null
+                )
+                val inserted = transactionDao.insertIgnore(entity)
+                if (inserted > 0 && isIncoming && status == "confirmed") {
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée")
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    // ─── SOLANA ──────────────────────────────────────────────────────
+
+    private suspend fun fetchSolHistory(address: String) {
+        try {
+            val sigsRes = solanaRpc.rpcCall(
+                JsonRpcRequest(
+                    "getSignaturesForAddress",
+                    mutableListOf(address as Any, mapOf("limit" to 50) as Any)
+                )
+            )
+            @Suppress("UNCHECKED_CAST")
+            val sigs = sigsRes.result as? List<Map<String, Any>> ?: return
+
+            for (sig in sigs.take(20)) {
+                val signature = sig["signature"] as? String ?: continue
+                val blockTime = (sig["blockTime"] as? Double)?.toLong() ?: continue
+                val err = sig["err"]
+                val status = if (err == null) "confirmed" else "failed"
+
+                // Récupérer le détail de la transaction pour le montant
+                val txRes = solanaRpc.rpcCall(
+                    JsonRpcRequest(
+                        "getTransaction",
+                        mutableListOf(
+                            signature as Any,
+                            mapOf("encoding" to "jsonParsed", "maxSupportedTransactionVersion" to 0) as Any
+                        )
+                    )
+                )
+                @Suppress("UNCHECKED_CAST")
+                val txData = txRes.result as? Map<String, Any>
+                val meta = txData?.get("meta") as? Map<String, Any>
+                val preBalances = meta?.get("preBalances") as? List<Double>
+                val postBalances = meta?.get("postBalances") as? List<Double>
+
+                // Index 0 = fee payer / sender
+                val pre0 = preBalances?.getOrNull(0) ?: 0.0
+                val post0 = postBalances?.getOrNull(0) ?: 0.0
+                val fee = (meta?.get("fee") as? Double) ?: 0.0
+                val delta = post0 - pre0 + fee  // positive = received, negative = sent
+                val isIncoming = delta > 0
+                val lamports = Math.abs(delta).toLong()
+                val amount = "%.6f".format(lamports / 1e9)
+
+                val entity = TransactionEntity(
+                    hash = signature,
+                    type = if (isIncoming) "received" else "sent",
+                    blockchain = "SOL",
+                    fromAddress = address,
+                    toAddress = address,
+                    amount = amount,
+                    tokenSymbol = "SOL",
+                    fee = "%.6f".format(fee / 1e9),
+                    status = status,
+                    timestamp = blockTime * 1000L,
+                    confirmations = if (status == "confirmed") 1 else 0,
+                    blockNumber = null
+                )
+                val inserted = transactionDao.insertIgnore(entity)
+                if (inserted > 0 && isIncoming) {
+                    sendLocalNotification("Vous avez reçu $amount SOL", "Transaction Solana confirmée")
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    // ─── Notification ────────────────────────────────────────────────
+
     private fun sendLocalNotification(title: String, body: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -216,26 +337,26 @@ class HistoryViewModel @Inject constructor(
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(System.currentTimeMillis().toInt(), notification)
     }
 
+    // ─── Display mapper ──────────────────────────────────────────────
+
     private fun TransactionEntity.toDisplay(): TxDisplay {
-        val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
         val todaySdf = SimpleDateFormat("dd/MM", Locale.getDefault())
+        val fullSdf  = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+        val timeSdf  = SimpleDateFormat("HH:mm", Locale.getDefault())
         val today = todaySdf.format(Date())
-        val txDate = todaySdf.format(Date(timestamp))
-        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
-        val dateFormatted = if (txDate == today) "Auj. $timeStr" else sdf.format(Date(timestamp))
-
+        val txDay = todaySdf.format(Date(timestamp))
+        val dateFormatted = if (txDay == today) "Auj. ${timeSdf.format(Date(timestamp))}"
+                            else fullSdf.format(Date(timestamp))
         val sign = if (type == "received") "+" else "-"
-        val amountStr = "$sign$amount $tokenSymbol"
-
         return TxDisplay(
             hash = hash,
             type = if (type == "received") "Reçu" else "Envoyé",
             chain = blockchain,
-            amount = amountStr,
+            amount = "$sign$amount $tokenSymbol",
             date = dateFormatted,
             isIncoming = type == "received"
         )
