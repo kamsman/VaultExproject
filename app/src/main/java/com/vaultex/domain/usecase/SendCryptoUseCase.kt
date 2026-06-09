@@ -85,6 +85,48 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
+    // ─── ERC-20 (USDT on ETH / BNB) ──────────────────────────────────
+
+    suspend fun sendErc20(
+        toAddress: String,
+        amountWei: BigInteger,
+        contractAddress: String,
+        chainId: Long
+    ): Result {
+        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        return try {
+            val rpc = if (chainId == 1L) ethRpc else bnbRpc
+            val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
+
+            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount", mutableListOf(fromAddress as Any, "pending" as Any)))
+            val nonce = BigInteger((nonceRes.result as? String ?: "0x0").removePrefix("0x").ifEmpty { "0" }, 16)
+
+            val gpRes = rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
+            val gasPrice = try {
+                BigInteger((gpRes.result as? String ?: "0x4A817C800").removePrefix("0x"), 16)
+            } catch (_: Exception) { BigInteger.valueOf(20_000_000_000L) }
+
+            val paddedTo = toAddress.removePrefix("0x").padStart(64, '0')
+            val paddedAmt = amountWei.toString(16).padStart(64, '0')
+            val data = "0xa9059cbb$paddedTo$paddedAmt"
+            val estimateReq = JsonRpcRequest("eth_estimateGas",
+                mutableListOf(mapOf("from" to fromAddress, "to" to contractAddress, "data" to data) as Any))
+            val glRes = rpc.rpcCall(estimateReq)
+            val gasLimit = try {
+                BigInteger((glRes.result as? String ?: "0xEA60").removePrefix("0x"), 16)
+                    .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
+            } catch (_: Exception) { BigInteger.valueOf(72_000L) }
+
+            val signed = evmTx.signErc20Transfer(mnemonic, contractAddress, toAddress, amountWei, gasPrice, gasLimit, nonce, chainId)
+            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf(signed as Any)))
+            if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
+            else Result.Success(broadcastRes.result as? String ?: signed)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Erreur transaction ERC-20")
+        }
+    }
+
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
     suspend fun sendBtc(toAddress: String, amountSatoshi: Long): Result {

@@ -170,6 +170,19 @@ interface ChangeNowApi {
 }
 
 /**
+ * Flutterwave — Mobile Money UEMOA (Orange Money, Wave, Moov, Free).
+ * Base URL : https://api.flutterwave.com/v3/
+ * Requires Authorization: Bearer <secret_key> header.
+ */
+interface FlutterwaveApi {
+    @POST("charges?type=mobile_money_franco")
+    suspend fun charge(@Body body: FlutterwaveChargeBody): FlutterwaveChargeDto
+
+    @GET("transactions/{id}/verify")
+    suspend fun verify(@Path("id") transactionId: Long): FlutterwaveVerifyDto
+}
+
+/**
  * Etherscan / BscScan — historique de transactions EVM.
  * Compatible Etherscan API (api.etherscan.io et api.bscscan.com).
  */

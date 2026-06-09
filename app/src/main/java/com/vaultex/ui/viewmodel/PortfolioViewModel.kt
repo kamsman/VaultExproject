@@ -2,6 +2,7 @@ package com.vaultex.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.core.crypto.Blockchain
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.BitcoinApi
@@ -27,7 +28,8 @@ data class TokenBalance(
     val amountFormatted: String,
     val valueXof: Double,
     val changePercent24h: Double,
-    val colorHex: String
+    val colorHex: String,
+    val blockchain: Blockchain
 )
 
 data class PortfolioState(
@@ -55,6 +57,8 @@ class PortfolioViewModel @Inject constructor(
     companion object {
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        private const val USDT_ETH_CONTRACT  = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+        private const val USDT_BNB_CONTRACT  = "0x55d398326f99059fF775485246999027B3197955"
     }
 
     init { loadPortfolio() }
@@ -81,25 +85,30 @@ class PortfolioViewModel @Inject constructor(
                 }
 
                 val tokens = coroutineScope {
-                    val btcD  = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
-                    val ethD  = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
-                    val bnbD  = async(Dispatchers.IO) { fetchEvmBalance(bnbRpc, addresses.bnb) }
-                    val solD  = async(Dispatchers.IO) { fetchSolBalance(addresses.sol) }
-                    val trxD  = async(Dispatchers.IO) { fetchTrxBalance(addresses.trx) }
-                    val usdtD = async(Dispatchers.IO) { fetchUsdtTrc20Balance(addresses.trx) }
+                    val btcD     = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
+                    val ethD     = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
+                    val bnbD     = async(Dispatchers.IO) { fetchEvmBalance(bnbRpc, addresses.bnb) }
+                    val solD     = async(Dispatchers.IO) { fetchSolBalance(addresses.sol) }
+                    val trxD     = async(Dispatchers.IO) { fetchTrxBalance(addresses.trx) }
+                    val usdtTrcD = async(Dispatchers.IO) { fetchUsdtTrc20Balance(addresses.trx) }
+                    val usdtEthD = async(Dispatchers.IO) { fetchErc20Balance(ethRpc, USDT_ETH_CONTRACT, addresses.eth, 6) }
+                    val usdtBnbD = async(Dispatchers.IO) { fetchErc20Balance(bnbRpc, USDT_BNB_CONTRACT, addresses.bnb, 18) }
                     val btc = btcD.await(); val eth = ethD.await()
                     val bnb = bnbD.await(); val sol = solD.await()
-                    val trx = trxD.await(); val usdt = usdtD.await()
+                    val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
+                    val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
 
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     listOf(
-                        TokenBalance("BTC",  "Bitcoin", "%.6f BTC".format(btc),   btc  * xof("bitcoin"),     c("bitcoin"),     "#F7931A"),
-                        TokenBalance("ETH",  "Ethereum","%.6f ETH".format(eth),   eth  * xof("ethereum"),    c("ethereum"),    "#627EEA"),
-                        TokenBalance("BNB",  "BNB",     "%.4f BNB".format(bnb),   bnb  * xof("binancecoin"), c("binancecoin"), "#F0B90B"),
-                        TokenBalance("SOL",  "Solana",  "%.4f SOL".format(sol),   sol  * xof("solana"),      c("solana"),      "#9945FF"),
-                        TokenBalance("TRX",  "Tron",    "%.2f TRX".format(trx),   trx  * xof("tron"),        c("tron"),        "#FF060A"),
-                        TokenBalance("USDT", "Tether",  "%.2f USDT".format(usdt), usdt * xof("tether"),      c("tether"),      "#26A17B"),
+                        TokenBalance("BTC",      "Bitcoin",    "%.6f BTC".format(btc),     btc     * xof("bitcoin"),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN),
+                        TokenBalance("ETH",      "Ethereum",   "%.6f ETH".format(eth),     eth     * xof("ethereum"),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM),
+                        TokenBalance("BNB",      "BNB",        "%.4f BNB".format(bnb),     bnb     * xof("binancecoin"), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN),
+                        TokenBalance("SOL",      "Solana",     "%.4f SOL".format(sol),     sol     * xof("solana"),      c("solana"),      "#9945FF", Blockchain.SOLANA),
+                        TokenBalance("TRX",      "Tron",       "%.2f TRX".format(trx),     trx     * xof("tron"),        c("tron"),        "#FF060A", Blockchain.TRON),
+                        TokenBalance("USDT",     "Tether TRC20","%.2f USDT".format(usdtTrc),usdtTrc * xof("tether"),      c("tether"),      "#26A17B", Blockchain.TRON),
+                        TokenBalance("USDT-ETH", "Tether ERC20","%.2f USDT".format(usdtEth),usdtEth * xof("tether"),      c("tether"),      "#26A17B", Blockchain.ETHEREUM),
+                        TokenBalance("USDT-BNB", "Tether BEP20","%.2f USDT".format(usdtBnb),usdtBnb * xof("tether"),      c("tether"),      "#26A17B", Blockchain.BNB_CHAIN),
                     )
                 }
 
@@ -115,6 +124,16 @@ class PortfolioViewModel @Inject constructor(
     }
 
     fun refresh() = loadPortfolio()
+
+    private suspend fun fetchErc20Balance(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double = try {
+        val paddedAddr = address.removePrefix("0x").padStart(64, '0')
+        val data = "0x70a08231$paddedAddr"
+        val res = rpc.rpcCall(JsonRpcRequest("eth_call",
+            mutableListOf(mapOf("to" to contract, "data" to data) as Any, "latest" as Any)))
+        val hex = res.result as? String ?: "0x0"
+        val raw = BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
+        raw.toBigDecimal().divide(java.math.BigDecimal.TEN.pow(decimals)).toDouble()
+    } catch (_: Exception) { 0.0 }
 
     private suspend fun fetchEvmBalance(rpc: EvmRpcApi, address: String): Double = try {
         val res = rpc.rpcCall(JsonRpcRequest("eth_getBalance", mutableListOf(address as Any, "latest" as Any)))

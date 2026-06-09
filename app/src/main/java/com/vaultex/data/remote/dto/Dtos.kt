@@ -189,6 +189,43 @@ data class ChangeNowStatusDto(
     val hash: String? = null
 )
 
+// ─── FLUTTERWAVE ───────────────────────────────────────────────
+data class FlutterwaveChargeBody(
+    val phone_number: String,
+    val amount: String,
+    val currency: String = "XOF",
+    val tx_ref: String,
+    val type: String = "mobile_money_franco",
+    val network: String,           // ORANGE, MOOV, WAVE, FREE
+    val email: String = "user@vaultex.app",
+    val fullname: String = "VaultEx User"
+)
+data class FlutterwaveChargeDto(
+    val status: String,
+    val message: String,
+    val data: FlutterwaveChargeData?
+)
+data class FlutterwaveChargeData(
+    val id: Long,
+    @SerializedName("tx_ref") val txRef: String,
+    @SerializedName("flw_ref") val flwRef: String,
+    val status: String,
+    val currency: String,
+    val amount: Double
+)
+data class FlutterwaveVerifyDto(
+    val status: String,
+    val message: String,
+    val data: FlutterwaveVerifyData?
+)
+data class FlutterwaveVerifyData(
+    val id: Long,
+    val status: String,
+    @SerializedName("tx_ref") val txRef: String,
+    val amount: Double,
+    val currency: String
+)
+
 // ─── ETHERSCAN / BSCSCAN ──────────────────────────────────────
 data class EtherscanResponse(
     val status: String,

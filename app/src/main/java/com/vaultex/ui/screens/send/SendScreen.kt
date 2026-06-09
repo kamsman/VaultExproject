@@ -31,16 +31,18 @@ fun SendScreen(navController: NavController) {
     val context = LocalContext.current as FragmentActivity
     val biometricHelper = remember { BiometricHelper(context) }
 
-    val chains = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT")
+    val chains = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB")
 
     val feeEstimate = when (state.selectedChain) {
-        "BTC"  -> "~2 800 FCFA"
-        "ETH"  -> "~1 500 FCFA"
-        "BNB"  -> "~150 FCFA"
-        "SOL"  -> "~5 FCFA"
-        "TRX"  -> "~20 FCFA"
-        "USDT" -> "~20 FCFA (TRC20)"
-        else   -> "--"
+        "BTC"      -> "~2 800 FCFA"
+        "ETH"      -> "~1 500 FCFA"
+        "BNB"      -> "~150 FCFA"
+        "SOL"      -> "~5 FCFA"
+        "TRX"      -> "~20 FCFA"
+        "USDT"     -> "~20 FCFA (TRC20)"
+        "USDT-ETH" -> "~900 FCFA (ERC20)"
+        "USDT-BNB" -> "~90 FCFA (BEP20)"
+        else       -> "--"
     }
 
     // Success dialog

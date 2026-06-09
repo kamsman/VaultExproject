@@ -96,6 +96,37 @@ class SendViewModel @Inject constructor(
                     }
                     sendCryptoUseCase.sendUsdtTrc20(toAddress = s.toAddress, amountUsdt = amountUsdt)
                 }
+                "USDT-ETH" -> {
+                    val amountWei = try {
+                        BigDecimal(s.amount).multiply(BigDecimal("1000000"))
+                            .toBigInteger() // USDT has 6 decimals on ETH
+                    } catch (_: Exception) {
+                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
+                        return@launch
+                    }
+                    sendCryptoUseCase.sendErc20(
+                        toAddress = s.toAddress,
+                        amountWei = amountWei,
+                        contractAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                        chainId = 1L
+                    )
+                }
+                "USDT-BNB" -> {
+                    val amountWei = try {
+                        BigDecimal(s.amount)
+                            .multiply(BigDecimal("1000000000000000000"))
+                            .toBigInteger() // USDT on BSC has 18 decimals
+                    } catch (_: Exception) {
+                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
+                        return@launch
+                    }
+                    sendCryptoUseCase.sendErc20(
+                        toAddress = s.toAddress,
+                        amountWei = amountWei,
+                        contractAddress = "0x55d398326f99059fF775485246999027B3197955",
+                        chainId = 56L
+                    )
+                }
                 else -> SendCryptoUseCase.Result.Error("Chain non supportée")
             }
             when (result) {

@@ -6,7 +6,7 @@ import java.security.MessageDigest
 object AddressValidator {
 
     fun isValid(address: String, chain: String): Boolean = when (chain) {
-        "ETH", "BNB" -> isValidEvm(address)
+        "ETH", "BNB", "USDT-ETH", "USDT-BNB" -> isValidEvm(address)
         "BTC"        -> isValidBtc(address)
         "TRX", "USDT" -> isValidTron(address)
         "SOL"        -> isValidSolana(address)

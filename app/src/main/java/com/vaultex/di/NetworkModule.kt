@@ -1,5 +1,6 @@
 package com.vaultex.di
 
+import com.vaultex.core.config.ApiKeys
 import com.vaultex.data.remote.api.*
 import com.vaultex.data.remote.api.EtherscanApi
 import com.vaultex.data.repository.MarketRepository
@@ -75,6 +76,20 @@ object NetworkModule {
     @Named("bscscan")
     fun provideBscScanApi(client: OkHttpClient): EtherscanApi =
         retrofit("https://api.bscscan.com/", client).create(EtherscanApi::class.java)
+
+    @Provides @Singleton
+    fun provideFlutterwaveApi(client: OkHttpClient): FlutterwaveApi {
+        val authedClient = client.newBuilder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Bearer ${ApiKeys.FLUTTERWAVE}")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+                )
+            }.build()
+        return retrofit("https://api.flutterwave.com/v3/", authedClient).create(FlutterwaveApi::class.java)
+    }
 
     @Provides @Singleton
     fun provideMarketRepository(api: CoinGeckoApi): MarketRepository = MarketRepository(api)
