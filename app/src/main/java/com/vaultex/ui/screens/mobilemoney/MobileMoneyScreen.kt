@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,14 +31,18 @@ private data class MobileOperator(
     val name: String,
     val shortName: String,
     val color: Color,
-    val flwNetwork: String
+    val flwNetwork: String,
+    val available: Boolean = true
 )
 
+// Flutterwave mobile_money_franco supports ORANGE, WAVE, MOOV, FREE in UEMOA.
+// MTN Money is not in the UEMOA franco zone on Flutterwave — shown as disabled.
 private val OPERATORS = listOf(
     MobileOperator("Orange Money", "Orange", Color(0xFFFF6600), "ORANGE"),
     MobileOperator("Wave",         "Wave",   Color(0xFF1B95C6), "WAVE"),
     MobileOperator("Moov Money",   "Moov",   Color(0xFF0065BD), "MOOV"),
     MobileOperator("Free Money",   "Free",   Color(0xFF009245), "FREE"),
+    MobileOperator("MTN Money",    "MTN",    Color(0xFFFFCC00), "MTN",  available = false),
 )
 
 @Composable
@@ -92,24 +97,41 @@ fun MobileMoneyScreen(
             }
 
             Text("Opérateur", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 OPERATORS.forEach { op ->
                     val selected = state.selectedNetwork == op.flwNetwork
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selected) op.color.copy(alpha = 0.15f) else Color.White)
-                            .border(1.dp, if (selected) op.color else VaultExColors.Border, RoundedCornerShape(10.dp))
-                            .clickable { viewModel.setNetwork(op.flwNetwork) }
+                            .background(
+                                when {
+                                    !op.available -> Color(0xFFF3F4F6)
+                                    selected -> op.color.copy(alpha = 0.15f)
+                                    else -> Color.White
+                                }
+                            )
+                            .border(1.dp,
+                                if (!op.available) VaultExColors.Border
+                                else if (selected) op.color
+                                else VaultExColors.Border,
+                                RoundedCornerShape(10.dp))
+                            .then(if (op.available) Modifier.clickable { viewModel.setNetwork(op.flwNetwork) } else Modifier)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            op.shortName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) op.color else VaultExColors.TextSecondary
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                op.shortName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (!op.available) Color(0xFFBBBBBB)
+                                        else if (selected) op.color
+                                        else VaultExColors.TextSecondary
+                            )
+                            if (!op.available) {
+                                Text("Bientôt", fontSize = 9.sp, color = Color(0xFFBBBBBB))
+                            }
+                        }
                     }
                 }
             }

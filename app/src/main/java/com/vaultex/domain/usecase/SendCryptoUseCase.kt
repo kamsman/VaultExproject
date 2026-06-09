@@ -60,24 +60,34 @@ class SendCryptoUseCase @Inject constructor(
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
             val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
 
-            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount", mutableListOf(fromAddress as Any, "pending" as Any)))
-            val nonce = BigInteger((nonceRes.result as? String ?: "0x0").removePrefix("0x").ifEmpty { "0" }, 16)
+            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
+                mutableListOf(fromAddress as Any, "pending" as Any)))
+            val nonce = BigInteger((nonceRes.result as? String ?: "0x0")
+                .removePrefix("0x").ifEmpty { "0" }, 16)
 
-            val gpRes = rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
-            val gasPrice = try {
-                BigInteger((gpRes.result as? String ?: "0x4A817C800").removePrefix("0x"), 16)
-            } catch (_: Exception) { BigInteger.valueOf(20_000_000_000L) }
-
-            val estimateReq = JsonRpcRequest("eth_estimateGas",
-                mutableListOf(mapOf("from" to fromAddress, "to" to toAddress, "value" to "0x${amountWei.toString(16)}") as Any))
-            val glRes = rpc.rpcCall(estimateReq)
+            val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
+                mapOf("from" to fromAddress, "to" to toAddress,
+                    "value" to "0x${amountWei.toString(16)}") as Any))
             val gasLimit = try {
-                BigInteger((glRes.result as? String ?: "0x5208").removePrefix("0x"), 16)
+                BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0x5208")
+                    .removePrefix("0x"), 16)
                     .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
             } catch (_: Exception) { BigInteger.valueOf(25_200L) }
 
-            val signed = evmTx.signTransaction(mnemonic, toAddress, amountWei, gasPrice, gasLimit, nonce, chainId, coinType)
-            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf(signed as Any)))
+            val signed = if (chainId == 1L) {
+                // Ethereum mainnet: EIP-1559 (type-2) — accurate base fee + tip
+                val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
+                evmTx.signTransactionEip1559(mnemonic, toAddress, amountWei,
+                    maxPriority, maxFee, gasLimit, nonce, chainId, coinType)
+            } else {
+                // BSC and others: legacy (type-0)
+                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
+                evmTx.signTransaction(mnemonic, toAddress, amountWei,
+                    gasPrice, gasLimit, nonce, chainId, coinType)
+            }
+
+            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
+                mutableListOf(signed as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
             else Result.Success(broadcastRes.result as? String ?: signed)
         } catch (e: Exception) {
@@ -99,27 +109,34 @@ class SendCryptoUseCase @Inject constructor(
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
             val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
 
-            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount", mutableListOf(fromAddress as Any, "pending" as Any)))
-            val nonce = BigInteger((nonceRes.result as? String ?: "0x0").removePrefix("0x").ifEmpty { "0" }, 16)
+            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
+                mutableListOf(fromAddress as Any, "pending" as Any)))
+            val nonce = BigInteger((nonceRes.result as? String ?: "0x0")
+                .removePrefix("0x").ifEmpty { "0" }, 16)
 
-            val gpRes = rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
-            val gasPrice = try {
-                BigInteger((gpRes.result as? String ?: "0x4A817C800").removePrefix("0x"), 16)
-            } catch (_: Exception) { BigInteger.valueOf(20_000_000_000L) }
-
-            val paddedTo = toAddress.removePrefix("0x").padStart(64, '0')
+            val paddedTo  = toAddress.removePrefix("0x").padStart(64, '0')
             val paddedAmt = amountWei.toString(16).padStart(64, '0')
-            val data = "0xa9059cbb$paddedTo$paddedAmt"
-            val estimateReq = JsonRpcRequest("eth_estimateGas",
-                mutableListOf(mapOf("from" to fromAddress, "to" to contractAddress, "data" to data) as Any))
-            val glRes = rpc.rpcCall(estimateReq)
+            val callData  = "0xa9059cbb$paddedTo$paddedAmt"
+            val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
+                mapOf("from" to fromAddress, "to" to contractAddress, "data" to callData) as Any))
             val gasLimit = try {
-                BigInteger((glRes.result as? String ?: "0xEA60").removePrefix("0x"), 16)
+                BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0xEA60")
+                    .removePrefix("0x"), 16)
                     .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
             } catch (_: Exception) { BigInteger.valueOf(72_000L) }
 
-            val signed = evmTx.signErc20Transfer(mnemonic, contractAddress, toAddress, amountWei, gasPrice, gasLimit, nonce, chainId)
-            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf(signed as Any)))
+            val signed = if (chainId == 1L) {
+                val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
+                evmTx.signErc20TransferEip1559(mnemonic, contractAddress, toAddress,
+                    amountWei, maxPriority, maxFee, gasLimit, nonce, chainId)
+            } else {
+                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
+                evmTx.signErc20Transfer(mnemonic, contractAddress, toAddress,
+                    amountWei, gasPrice, gasLimit, nonce, chainId)
+            }
+
+            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
+                mutableListOf(signed as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
             else Result.Success(broadcastRes.result as? String ?: signed)
         } catch (e: Exception) {
@@ -260,6 +277,31 @@ class SendCryptoUseCase @Inject constructor(
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
+
+    /**
+     * EIP-1559 fees: returns (maxPriorityFeePerGas, maxFeePerGas).
+     * maxFeePerGas = 2 × baseFee + maxPriorityFeePerGas (canonical formula).
+     */
+    private suspend fun fetchEip1559Fees(rpc: EvmRpcApi): Pair<BigInteger, BigInteger> {
+        val priorityRes = rpc.rpcCall(JsonRpcRequest("eth_maxPriorityFeePerGas", mutableListOf()))
+        val maxPriority = try {
+            BigInteger((priorityRes.result as? String ?: "0x3B9ACA00").removePrefix("0x"), 16)
+        } catch (_: Exception) { BigInteger.valueOf(1_000_000_000L) }  // 1 gwei fallback
+
+        val blockRes = rpc.rpcCall(JsonRpcRequest("eth_getBlockByNumber",
+            mutableListOf("latest" as Any, false as Any)))
+        @Suppress("UNCHECKED_CAST")
+        val baseFeeHex = (blockRes.result as? Map<String, Any>)
+            ?.get("baseFeePerGas") as? String ?: "0x0"
+        val baseFee = BigInteger(baseFeeHex.removePrefix("0x").ifEmpty { "0" }, 16)
+        val maxFee = baseFee.multiply(BigInteger.TWO).add(maxPriority)
+        return Pair(maxPriority, maxFee)
+    }
+
+    private suspend fun fetchLegacyGasPrice(rpc: EvmRpcApi, default: Long): BigInteger = try {
+        BigInteger((rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
+            .result as? String ?: "0x0").removePrefix("0x"), 16)
+    } catch (_: Exception) { BigInteger.valueOf(default) }
 
     /** Convertit une adresse Tron Base58Check en hex sans 0x (ex: "41XXXX...") */
     private fun tronAddrToHex(address: String): String =
