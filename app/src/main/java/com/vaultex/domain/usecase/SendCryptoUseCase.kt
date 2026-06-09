@@ -77,7 +77,7 @@ class SendCryptoUseCase @Inject constructor(
             } catch (_: Exception) { BigInteger.valueOf(25_200L) }
 
             val signed = evmTx.signTransaction(mnemonic, toAddress, amountWei, gasPrice, gasLimit, nonce, chainId, coinType)
-            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf("0x$signed" as Any)))
+            val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction", mutableListOf(signed as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
             else Result.Success(broadcastRes.result as? String ?: signed)
         } catch (e: Exception) {
@@ -101,7 +101,8 @@ class SendCryptoUseCase @Inject constructor(
             if (confirmedUtxos.isEmpty()) return Result.Error("Aucun UTXO confirmé disponible")
 
             val inputCount = confirmedUtxos.size.coerceAtMost(10)
-            val feeSatoshi = (10 + 148 * inputCount + 34 * 2).toLong() * satPerByte
+            // P2WPKH virtual size: ~68 vbytes/input (41 non-witness + 108 witness / 4)
+            val feeSatoshi = (11 + 68 * inputCount + 31 * 2).toLong() * satPerByte
 
             val signed = btcTx.signTransaction(mnemonic, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }

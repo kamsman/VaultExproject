@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaultex.R
 import com.vaultex.app.MainActivity
 import com.vaultex.core.config.ApiKeys
+import com.vaultex.core.crypto.Base58
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.local.dao.TransactionDao
@@ -113,8 +114,9 @@ class HistoryViewModel @Inject constructor(
                     ?.get("value") as? Map<String, Any>
 
                 val toAddrHex = paramValue?.get("to_address") as? String ?: ""
-                val isIncoming = toAddrHex.equals(address, ignoreCase = true)
-                    || (toAddrHex.startsWith("41") && toAddrHex.length == 42)
+                // TronGrid returns hex addresses; convert our Base58 wallet address to hex for comparison
+                val ourHex = tronBase58ToHex(address)
+                val isIncoming = toAddrHex.equals(ourHex, ignoreCase = true)
 
                 val amountSun = when (val raw = paramValue?.get("amount")) {
                     is Double -> raw.toLong()
@@ -342,6 +344,14 @@ class HistoryViewModel @Inject constructor(
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(System.currentTimeMillis().toInt(), notification)
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────────
+
+    /** Converts a Tron Base58Check address (T…) to the hex format TronGrid uses (41XXXX…). */
+    private fun tronBase58ToHex(address: String): String = try {
+        val decoded = Base58.decode(address)   // 25 bytes: version(1) + payload(20) + checksum(4)
+        decoded.copyOfRange(0, 21).joinToString("") { "%02x".format(it) }
+    } catch (_: Exception) { "" }
 
     // ─── Display mapper ──────────────────────────────────────────────
 

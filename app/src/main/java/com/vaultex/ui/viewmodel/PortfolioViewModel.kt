@@ -104,7 +104,9 @@ class PortfolioViewModel @Inject constructor(
                 }
 
                 val total = tokens.sumOf { it.valueXof }
-                val avgChange = if (tokens.isEmpty()) 0.0 else tokens.map { it.changePercent24h }.average()
+                // Value-weighted 24h change: each token weighted by its XOF value
+                val avgChange = if (total == 0.0) 0.0
+                    else tokens.sumOf { it.changePercent24h * it.valueXof } / total
                 _state.update { it.copy(tokens = tokens, totalBalanceXof = total, totalChangePercent = avgChange, isLoading = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
