@@ -94,22 +94,33 @@ class HistoryViewModel @Inject constructor(
             for (tx in txList.data) {
                 val contract = tx.rawData.contract.firstOrNull() ?: continue
                 val type = contract["type"] as? String ?: "TransferContract"
-                val isIncoming = type == "TransferContract" && run {
-                    @Suppress("UNCHECKED_CAST")
-                    val value = (contract["parameter"] as? Map<String, Any>)?.get("value") as? Map<String, Any>
-                    val toAddr = value?.get("to_address") as? String ?: ""
-                    toAddr.equals(address, ignoreCase = true) ||
-                            toAddr.replace("41", "T").startsWith("T")
+                if (type != "TransferContract") continue  // ignore TRC20 here (covered below)
+
+                @Suppress("UNCHECKED_CAST")
+                val paramValue = (contract["parameter"] as? Map<String, Any>)
+                    ?.get("value") as? Map<String, Any>
+
+                val toAddrHex = paramValue?.get("to_address") as? String ?: ""
+                val isIncoming = toAddrHex.equals(address, ignoreCase = true)
+                    || (toAddrHex.startsWith("41") && toAddrHex.length == 42)
+
+                val amountSun = when (val raw = paramValue?.get("amount")) {
+                    is Double -> raw.toLong()
+                    is Long   -> raw
+                    is Int    -> raw.toLong()
+                    else      -> 0L
                 }
+                val amount = "%.6f".format(amountSun / 1_000_000.0)
+
                 val retCode = tx.ret?.firstOrNull()?.get("contractRet") ?: "SUCCESS"
                 val status = if (retCode == "SUCCESS") "confirmed" else "failed"
                 val entity = TransactionEntity(
                     hash = tx.txID,
                     type = if (isIncoming) "received" else "sent",
                     blockchain = "TRX",
-                    fromAddress = address,
-                    toAddress = address,
-                    amount = "TRX",
+                    fromAddress = paramValue?.get("owner_address") as? String ?: address,
+                    toAddress = toAddrHex.ifEmpty { address },
+                    amount = amount,
                     tokenSymbol = "TRX",
                     fee = "0",
                     status = status,
@@ -119,7 +130,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Nouvelle transaction TRX", "Vous avez reçu des TRX")
+                    sendLocalNotification("Vous avez reçu $amount TRX", "Transaction TRON confirmée")
                 }
             }
         } catch (_: Exception) {}
