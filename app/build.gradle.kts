@@ -129,11 +129,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("io.github.g00fy2.quickie:quickie-bundled:1.10.0")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
-    // ANIMATION
-    implementation("com.airbnb.android:lottie-compose:6.4.0")
-
     // ROOT DETECTION
     implementation("com.scottyab:rootbeer-lib:0.1.0")
 

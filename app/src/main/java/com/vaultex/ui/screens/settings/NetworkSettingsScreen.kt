@@ -6,32 +6,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.ui.theme.VaultExColors
-
-private data class RpcEntry(val label: String, val url: String)
-
-private val RPC_ENTRIES = listOf(
-    RpcEntry("Ethereum (ETH)", "https://rpc.ankr.com/eth/"),
-    RpcEntry("BNB Smart Chain", "https://bsc-dataseed.binance.org/"),
-    RpcEntry("Bitcoin (BTC)", "https://blockstream.info/api/"),
-    RpcEntry("Solana (SOL)", "https://api.mainnet-beta.solana.com/"),
-    RpcEntry("TRON (TRX/USDT)", "https://api.trongrid.io/"),
-    RpcEntry("Etherscan (ETH history)", "https://api.etherscan.io/"),
-    RpcEntry("BscScan (BNB history)", "https://api.bscscan.com/"),
-    RpcEntry("ChangeNOW (swap)", "https://api.changenow.io/v1/")
-)
+import com.vaultex.ui.viewmodel.NetworkSettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkSettingsScreen(navController: NavHostController) {
+    val viewModel: NetworkSettingsViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -39,6 +32,11 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = viewModel::reset) {
+                        Icon(Icons.Default.RestartAlt, contentDescription = "Réinitialiser", tint = VaultExColors.TextSecondary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -52,40 +50,58 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                 .padding(padding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "Endpoints RPC utilisés (mainnet)",
+                "Endpoints RPC (mainnet)",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
-                color = VaultExColors.TextSecondary,
-                modifier = Modifier.padding(bottom = 4.dp)
+                color = VaultExColors.TextSecondary
             )
-            RPC_ENTRIES.forEach { entry ->
+
+            state.entries.forEach { entry ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text(entry.label, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                        Text(entry.url, fontSize = 12.sp, color = VaultExColors.BluePrimary)
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(entry.label, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                        OutlinedTextField(
+                            value = entry.current,
+                            onValueChange = { viewModel.setUrl(entry.chain, it) },
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
+
+            Button(
+                onClick = viewModel::save,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
+            ) {
+                Text(if (state.saved) "Enregistré ✓" else "Enregistrer")
+            }
+
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = VaultExColors.BlueLight),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Support testnet et RPC personnalisé disponible dans une prochaine version.",
+                    "Les modifications prennent effet au prochain lancement de l'application.",
                     fontSize = 12.sp,
                     color = VaultExColors.BluePrimary,
                     modifier = Modifier.padding(12.dp)
                 )
             }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

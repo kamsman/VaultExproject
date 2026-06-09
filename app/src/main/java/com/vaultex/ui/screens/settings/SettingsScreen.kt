@@ -17,12 +17,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.SettingsViewModel
 
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val viewModel: SettingsViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -71,7 +76,7 @@ fun SettingsScreen(navController: NavController) {
 
             item { SectionTitle("Réseau & Affichage") }
             item { SettingsItem(Icons.Default.NetworkWifi, "Réseaux RPC", "Nœuds ETH, BSC, SOL...") { navController.navigate(Routes.NETWORK_SETTINGS) } }
-            item { SettingsItem(Icons.Default.AttachMoney, "Devise", "XOF, USD, EUR...") { } }
+            item { SettingsItem(Icons.Default.AttachMoney, "Devise", state.selectedCurrency) { } }
             item { SettingsItem(Icons.Default.Language, "Langue", "Français, Bambara...") { } }
 
             item { SectionTitle("Notifications") }
