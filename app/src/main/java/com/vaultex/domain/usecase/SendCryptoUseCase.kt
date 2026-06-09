@@ -112,55 +112,68 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
-    // ─── TRON (TRX natif) ────────────────────────────────────────────
+    // ─── TRON (TRX natif) — flux : Créer → Signer → Broadcast → Hash ──
 
     suspend fun sendTrx(toAddress: String, amountSun: Long): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
-            val ownerAddress = tronTx.deriveAddress(mnemonic)
-            val rawTx = tronApi.createTransaction(TronCreateTxBody(owner_address = ownerAddress, to_address = toAddress, amount = amountSun))
+            // Étape 1 — Dériver l'adresse owner en hex (format attendu par TronGrid)
+            val ownerHex = tronAddrToHex(tronTx.deriveAddress(mnemonic))
+            val toHex    = tronAddrToHex(toAddress)
+
+            // Étape 2 — Créer la transaction non signée via TronGrid
+            val rawTx = tronApi.createTransaction(
+                TronCreateTxBody(owner_address = ownerHex, to_address = toHex, amount = amountSun)
+            )
             val rawDataHex = rawTx.rawDataHex ?: return Result.Error("Création transaction TRX échouée")
+
+            // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
             val signature = tronTx.signRawTransaction(mnemonic, rawDataHex)
-            val result = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
-            if (result.result == true) Result.Success(result.txid ?: rawTx.txID)
-            else Result.Error(result.message ?: "Broadcast TRX échoué")
+
+            // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
+            val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
+            if (broadcast.result == true) Result.Success(broadcast.txid ?: rawTx.txID)
+            else Result.Error(broadcast.message ?: "Broadcast TRX échoué")
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction TRX")
         }
     }
 
-    // ─── USDT TRC20 ──────────────────────────────────────────────────
+    // ─── USDT TRC20 — flux : Trigger → Signer → Broadcast → Hash ────
 
     suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: Double): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         return try {
-            val ownerBase58 = tronTx.deriveAddress(mnemonic)
-            val ownerHex = tronAddrToHex(ownerBase58)
+            // Étape 1 — Préparer les paramètres hex + ABI-encode transfer(address,uint256)
+            val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic))
             val contractHex = tronAddrToHex(USDT_TRC20_CONTRACT)
             val amountMicro = (amountUsdt * 1_000_000).toLong()
-            val parameter = buildTrc20Param(toAddress, amountMicro)
+            val parameter   = buildTrc20Param(toAddress, amountMicro)
 
+            // Étape 2 — Déclencher le smart contract (génère la tx non signée)
             val triggerRes = tronApi.triggerSmartContract(
                 TronTriggerSmartContractBody(
-                    owner_address = ownerHex,
-                    contract_address = contractHex,
+                    owner_address     = ownerHex,
+                    contract_address  = contractHex,
                     function_selector = "transfer(address,uint256)",
-                    parameter = parameter,
-                    fee_limit = 10_000_000
+                    parameter         = parameter,
+                    fee_limit         = 10_000_000
                 )
             )
             if (triggerRes.result.result != true)
                 return Result.Error(triggerRes.result.message ?: "Création TRC20 échouée")
 
-            val rawTx = triggerRes.transaction ?: return Result.Error("Transaction TRC20 vide")
-            val rawDataHex = rawTx.rawDataHex ?: return Result.Error("raw_data_hex absent")
-            val signature = tronTx.signRawTransaction(mnemonic, rawDataHex)
-            val broadcastResult = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
+            // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
+            val rawTx      = triggerRes.transaction ?: return Result.Error("Transaction TRC20 vide")
+            val rawDataHex = rawTx.rawDataHex       ?: return Result.Error("raw_data_hex absent")
+            val signature  = tronTx.signRawTransaction(mnemonic, rawDataHex)
 
-            if (broadcastResult.result == true) Result.Success(broadcastResult.txid ?: rawTx.txID)
-            else Result.Error(broadcastResult.message ?: "Broadcast USDT échoué")
+            // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
+            val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
+            if (broadcast.result == true) Result.Success(broadcast.txid ?: rawTx.txID)
+            else Result.Error(broadcast.message ?: "Broadcast USDT échoué")
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur USDT TRC20")
         }

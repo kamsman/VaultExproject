@@ -77,7 +77,12 @@ data class TronTrc20Tx(
 )
 data class TronBroadcastDto(val raw_data_hex: String, val signature: List<String>)
 data class TronBroadcastResultDto(val result: Boolean, val txid: String?, val message: String?)
-data class TronCreateTxBody(val owner_address: String, val to_address: String, val amount: Long)
+data class TronCreateTxBody(
+    val owner_address: String,
+    val to_address: String,
+    val amount: Long,
+    val visible: Boolean = false  // false = hex addresses expected by TronGrid by default
+)
 data class TronRawTxDto(
     val txID: String,
     @SerializedName("raw_data_hex") val rawDataHex: String?
