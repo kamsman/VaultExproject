@@ -1,11 +1,21 @@
 package com.vaultex.core.config
 
+import com.vaultex.BuildConfig
+
+/**
+ * API keys injected at build time from local.properties (gitignored).
+ *
+ * To configure: add the following lines to your local.properties file:
+ *   etherscan.key=YOUR_KEY     → https://etherscan.io/myapikey
+ *   bscscan.key=YOUR_KEY       → https://bscscan.com/myapikey
+ *   changenow.key=YOUR_KEY     → https://changenow.io/api-keys
+ *   flutterwave.key=YOUR_KEY   → Flutterwave dashboard → API → Secret key
+ *
+ * Keys default to empty string (APIs still work, may rate-limit without a key).
+ */
 object ApiKeys {
-    // Free keys from https://etherscan.io/myapikey and https://bscscan.com/myapikey
-    const val ETHERSCAN   = "YourEtherscanApiKeyHere"
-    const val BSCSCAN     = "YourBscScanApiKeyHere"
-    // Free key from https://changenow.io/api-keys
-    const val CHANGENOW   = "YourChangeNowApiKeyHere"
-    // Secret key from https://developer.flutterwave.com
-    const val FLUTTERWAVE = "YourFlutterwaveSecretKeyHere"
+    val ETHERSCAN:   String = BuildConfig.ETHERSCAN_KEY
+    val BSCSCAN:     String = BuildConfig.BSCSCAN_KEY
+    val CHANGENOW:   String = BuildConfig.CHANGENOW_KEY
+    val FLUTTERWAVE: String = BuildConfig.FLUTTERWAVE_KEY
 }

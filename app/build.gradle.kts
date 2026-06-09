@@ -8,6 +8,12 @@ plugins {
     id("com.google.firebase.crashlytics")
 }
 
+import java.util.Properties
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+
 android {
     namespace = "com.vaultex"
     compileSdk = 34
@@ -22,14 +28,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "INFURA_API_KEY", "\"REPLACE_WITH_YOUR_INFURA_KEY\"")
+        buildConfigField("String", "INFURA_API_KEY",  "\"REPLACE_WITH_YOUR_INFURA_KEY\"")
         buildConfigField("String", "ALCHEMY_API_KEY", "\"REPLACE_WITH_YOUR_ALCHEMY_KEY\"")
-        buildConfigField("String", "TRONGRID_API_KEY", "\"REPLACE_WITH_YOUR_TRONGRID_KEY\"")
+        buildConfigField("String", "TRONGRID_API_KEY","\"REPLACE_WITH_YOUR_TRONGRID_KEY\"")
         buildConfigField("String", "ONEINCH_API_KEY", "\"REPLACE_WITH_YOUR_1INCH_KEY\"")
-        buildConfigField("String", "COINGECKO_API_KEY", "\"REPLACE_WITH_YOUR_COINGECKO_KEY\"")
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH", "\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX", "\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
-        buildConfigField("double", "VAULTEX_FEE_PERCENT", "1.5")
+        buildConfigField("String", "COINGECKO_API_KEY","\"REPLACE_WITH_YOUR_COINGECKO_KEY\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH","\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
+        buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
+        // API keys read from local.properties (gitignored) — set them there, not here
+        buildConfigField("String", "ETHERSCAN_KEY",   "\"${localProps.getProperty("etherscan.key",   "")}\"")
+        buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")
+        buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "")}\"")
+        buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
     }
 
     buildTypes {
