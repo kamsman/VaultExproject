@@ -14,13 +14,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.BackupViewModel
 
 @Composable
 fun BackupScreen(navController: NavController) {
-    var showMnemonic by remember { mutableStateOf(false) }
-    var pinVerified by remember { mutableStateOf(false) }
+    val viewModel: BackupViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
@@ -66,9 +68,9 @@ fun BackupScreen(navController: NavController) {
                         }
                     }
 
-                    if (!showMnemonic) {
+                    if (!state.isRevealed) {
                         Button(
-                            onClick = { showMnemonic = true },
+                            onClick = { viewModel.reveal() },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
@@ -78,26 +80,29 @@ fun BackupScreen(navController: NavController) {
                             Text("Révéler la phrase secrète")
                         }
                     } else {
-                        val fakeMnemonic = "apple brave crystal dragon echo flame garden hero ivory jungle kite lemon"
-                        val words = fakeMnemonic.split(" ")
-                        Column(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(VaultExColors.Background)
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            words.chunked(3).forEachIndexed { rowIdx, rowWords ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    rowWords.forEachIndexed { colIdx, word ->
-                                        val index = rowIdx * 3 + colIdx + 1
-                                        MnemonicWord(index, word, Modifier.weight(1f))
+                        val words = (state.mnemonic ?: "").split(" ").filter { it.isNotEmpty() }
+                        if (words.isEmpty()) {
+                            Text("Impossible de charger la phrase secrète.", color = VaultExColors.Error, fontSize = 13.sp)
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(VaultExColors.Background)
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                words.chunked(3).forEachIndexed { rowIdx, rowWords ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        rowWords.forEachIndexed { colIdx, word ->
+                                            val index = rowIdx * 3 + colIdx + 1
+                                            MnemonicWord(index, word, Modifier.weight(1f))
+                                        }
                                     }
                                 }
                             }
                         }
                         Button(
-                            onClick = { showMnemonic = false },
+                            onClick = { viewModel.hide() },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.Error)

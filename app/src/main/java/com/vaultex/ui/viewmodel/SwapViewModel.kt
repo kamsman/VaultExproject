@@ -2,6 +2,7 @@ package com.vaultex.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.core.config.ApiKeys
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.ChangeNowApi
@@ -36,7 +37,7 @@ class SwapViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val CHANGENOW_API_KEY = ""  // Renseigner une clé ChangeNOW ici
+        private val CHANGENOW_API_KEY get() = ApiKeys.CHANGENOW
     }
 
     private val _state = MutableStateFlow(SwapState())

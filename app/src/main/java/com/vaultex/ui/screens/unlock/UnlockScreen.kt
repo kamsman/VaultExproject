@@ -34,7 +34,7 @@ fun UnlockScreen(navController: NavHostController) {
     // Panic PIN → reset complet
     LaunchedEffect(state.panicTriggered) {
         if (state.panicTriggered) {
-            navController.navigate(Routes.ONBOARDING) { popUpTo(0) { inclusive = true } }
+            navController.navigate(Routes.WELCOME) { popUpTo(0) { inclusive = true } }
         }
     }
 

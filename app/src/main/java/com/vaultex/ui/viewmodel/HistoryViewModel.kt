@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaultex.R
 import com.vaultex.app.MainActivity
+import com.vaultex.core.config.ApiKeys
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.local.dao.TransactionDao
@@ -86,8 +87,8 @@ class HistoryViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     fetchTronHistory(addresses.trx)
                     fetchBtcHistory(addresses.btc)
-                    fetchEvmHistory(etherscanApi, addresses.eth, "ETH", "ETH")
-                    fetchEvmHistory(bscScanApi, addresses.bnb, "BNB", "BNB")
+                    fetchEvmHistory(etherscanApi, addresses.eth, "ETH", "ETH", ApiKeys.ETHERSCAN)
+                    fetchEvmHistory(bscScanApi, addresses.bnb, "BNB", "BNB", ApiKeys.BSCSCAN)
                     fetchSolHistory(addresses.sol)
                 }
             } catch (_: Exception) {
@@ -219,10 +220,11 @@ class HistoryViewModel @Inject constructor(
         api: EtherscanApi,
         address: String,
         blockchain: String,
-        symbol: String
+        symbol: String,
+        apiKey: String = ""
     ) {
         try {
-            val response = api.getTransactions(address = address)
+            val response = api.getTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") return
             for (tx in response.result ?: emptyList()) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)
