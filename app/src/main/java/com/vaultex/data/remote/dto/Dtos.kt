@@ -4,9 +4,9 @@ import com.google.gson.annotations.SerializedName
 
 // ─── JSON-RPC GENERIC (EVM + Solana) ──────────────────────────────
 data class JsonRpcRequest(
-    val jsonrpc: String = "2.0",
     val method: String,
     val params: MutableList<Any> = mutableListOf(),
+    val jsonrpc: String = "2.0",
     val id: Int = 1
 )
 data class JsonRpcResponse(

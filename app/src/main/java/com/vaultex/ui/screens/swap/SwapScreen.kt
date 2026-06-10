@@ -174,7 +174,7 @@ fun SwapScreen(navController: NavController) {
 }
 
 @Composable
-private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) =
+private fun RowScope.ModeChip(label: String, selected: Boolean, onClick: () -> Unit) =
     FilterChip(selected = selected, onClick = onClick, label = { Text(label, fontSize = 12.sp) }, modifier = Modifier.weight(1f))
 
 @Composable
