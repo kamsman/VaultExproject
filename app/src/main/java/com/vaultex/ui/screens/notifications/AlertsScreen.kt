@@ -10,31 +10,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.data.local.entity.PriceAlertEntity
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.AlertsViewModel
+import java.text.NumberFormat
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertsScreen(navController: NavController) {
-    data class PriceAlert(
-        val id: String,
-        val token: String,
-        val condition: String,
-        val target: String,
-        val current: String,
-        var isActive: Boolean
-    )
-
-    val alerts = remember {
-        mutableStateListOf(
-            PriceAlert("1", "BTC", "au-dessus de", "35 000 000 FCFA", "34 200 000 FCFA", true),
-            PriceAlert("2", "ETH", "en-dessous de", "2 500 000 FCFA", "2 770 000 FCFA", true),
-            PriceAlert("3", "SOL", "au-dessus de", "100 000 FCFA", "62 500 FCFA", false),
-        )
-    }
+    val viewModel: AlertsViewModel = hiltViewModel()
+    val alerts by viewModel.alerts.collectAsState()
+    val currentPrices by viewModel.currentPricesXof.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -49,7 +41,7 @@ fun AlertsScreen(navController: NavController) {
                 },
                 actions = {
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Ajouter", tint = VaultExColors.BluePrimary)
+                        Icon(Icons.Default.Add, contentDescription = "Ajouter une alerte", tint = VaultExColors.BluePrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -60,7 +52,7 @@ fun AlertsScreen(navController: NavController) {
         if (alerts.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Notifications, null, modifier = Modifier.size(64.dp), tint = VaultExColors.Border)
+                    Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = VaultExColors.Border)
                     Spacer(Modifier.height(16.dp))
                     Text("Aucune alerte configurée", color = VaultExColors.TextSecondary)
                     Spacer(Modifier.height(8.dp))
@@ -77,11 +69,12 @@ fun AlertsScreen(navController: NavController) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(alerts) { alert ->
+                items(alerts, key = { it.id }) { alert ->
                     AlertCard(
                         alert = alert,
-                        onToggle = { alert.isActive = it },
-                        onDelete = { alerts.remove(alert) }
+                        currentPriceXof = currentPrices[alert.tokenSymbol],
+                        onToggle = { viewModel.toggleAlert(alert.id, it) },
+                        onDelete = { viewModel.deleteAlert(alert.id) }
                     )
                 }
             }
@@ -89,21 +82,27 @@ fun AlertsScreen(navController: NavController) {
     }
 
     if (showAddDialog) {
-        AddAlertDialog(onDismiss = { showAddDialog = false }, onConfirm = { _, _, _ -> showAddDialog = false })
+        AddAlertDialog(
+            onDismiss = { showAddDialog = false },
+            onConfirm = { token, condition, target ->
+                viewModel.createAlert(token, condition, target)
+                showAddDialog = false
+            }
+        )
     }
 }
 
+private fun formatXof(value: Double): String =
+    NumberFormat.getNumberInstance(Locale.FRANCE).format(value.toLong()) + " FCFA"
+
 @Composable
 private fun AlertCard(
-    alert: Any,
+    alert: PriceAlertEntity,
+    currentPriceXof: Double?,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
-    @Suppress("UNCHECKED_CAST")
-    data class AlertData(
-        val token: String, val condition: String, val target: String,
-        val current: String, val isActive: Boolean
-    )
+    val targetFormatted = alert.targetPrice.toDoubleOrNull()?.let(::formatXof) ?: "${alert.targetPrice} FCFA"
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -113,20 +112,28 @@ private fun AlertCard(
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("BTC", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Surface(shape = RoundedCornerShape(4.dp), color = VaultExColors.BlueLight) {
-                        Text("Actif", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 11.sp, color = VaultExColors.BluePrimary)
+                    Text(alert.tokenSymbol, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    if (alert.isActive) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = VaultExColors.BlueLight) {
+                            Text(
+                                "Actif", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 11.sp, color = VaultExColors.BluePrimary
+                            )
+                        }
                     }
                 }
-                Text("Alerte au-dessus de 35 000 000 FCFA", fontSize = 13.sp, color = VaultExColors.TextSecondary)
-                Text("Prix actuel : 34 200 000 FCFA", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                Text("Alerte ${alert.condition} $targetFormatted", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                currentPriceXof?.let {
+                    Text("Prix actuel : ${formatXof(it)}", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Switch(checked = true, onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(checkedTrackColor = VaultExColors.BluePrimary))
+                Switch(
+                    checked = alert.isActive, onCheckedChange = onToggle,
+                    colors = SwitchDefaults.colors(checkedTrackColor = VaultExColors.BluePrimary)
+                )
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Delete, null, tint = VaultExColors.Error, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Delete, contentDescription = "Supprimer l'alerte", tint = VaultExColors.Error, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -171,7 +178,7 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
         confirmButton = {
             Button(
                 onClick = { onConfirm(token, condition, target) },
-                enabled = target.isNotEmpty(),
+                enabled = target.toDoubleOrNull() != null,
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
             ) { Text("Créer") }

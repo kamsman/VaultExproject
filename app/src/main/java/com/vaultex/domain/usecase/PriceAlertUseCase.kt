@@ -9,6 +9,8 @@ import javax.inject.Inject
 class PriceAlertUseCase @Inject constructor(
     private val priceAlertDao: PriceAlertDao
 ) {
+    fun observeAlerts(): Flow<List<PriceAlertEntity>> = priceAlertDao.observeAll()
+
     fun observeActiveAlerts(): Flow<List<PriceAlertEntity>> = priceAlertDao.observeActive()
 
     suspend fun createAlert(symbol: String, condition: String, targetPrice: String) {

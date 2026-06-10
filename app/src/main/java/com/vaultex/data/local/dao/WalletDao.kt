@@ -93,6 +93,9 @@ interface ContactDao {
 
 @Dao
 interface PriceAlertDao {
+    @Query("SELECT * FROM price_alerts")
+    fun observeAll(): Flow<List<PriceAlertEntity>>
+
     @Query("SELECT * FROM price_alerts WHERE isActive = 1")
     fun observeActive(): Flow<List<PriceAlertEntity>>
 
