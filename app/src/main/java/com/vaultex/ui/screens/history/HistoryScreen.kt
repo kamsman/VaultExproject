@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.HistoryViewModel
 import com.vaultex.ui.viewmodel.TxDisplay
@@ -98,7 +99,7 @@ fun HistoryScreen(navController: NavController) {
                         }
                     }
                     items(filtered, key = { it.hash }) { tx ->
-                        TxCard(tx) { navController.navigate("history_detail") }
+                        TxCard(tx) { navController.navigate(Routes.HISTORY_DETAIL) }
                     }
                 }
             }

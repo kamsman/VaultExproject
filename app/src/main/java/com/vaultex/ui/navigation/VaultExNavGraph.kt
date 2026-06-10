@@ -36,6 +36,8 @@ import com.vaultex.ui.screens.unlock.UnlockScreen
 import com.vaultex.ui.screens.addressbook.AddressBookScreen
 import com.vaultex.ui.screens.security.SecurityScreen
 import com.vaultex.ui.screens.settings.NetworkSettingsScreen
+import com.vaultex.ui.screens.scanner.QrScannerScreen
+import com.vaultex.ui.screens.history.TransactionDetailScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @Composable
@@ -166,6 +168,14 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.NETWORK_SETTINGS) {
             NetworkSettingsScreen(navController)
+        }
+
+        composable(Routes.SCANNER) {
+            QrScannerScreen(navController)
+        }
+
+        composable(Routes.HISTORY_DETAIL) {
+            TransactionDetailScreen(navController)
         }
     }
 }

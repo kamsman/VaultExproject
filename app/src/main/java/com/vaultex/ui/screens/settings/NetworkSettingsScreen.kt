@@ -94,7 +94,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Les modifications prennent effet au prochain lancement de l'application.",
+                    "Les modifications prennent effet immédiatement pour les nouvelles requêtes.",
                     fontSize = 12.sp,
                     color = VaultExColors.BluePrimary,
                     modifier = Modifier.padding(12.dp)

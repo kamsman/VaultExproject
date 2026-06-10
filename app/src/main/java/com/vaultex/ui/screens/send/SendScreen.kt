@@ -21,6 +21,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.core.security.BiometricHelper
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SendViewModel
 
@@ -146,7 +147,7 @@ fun SendScreen(navController: NavController) {
                         singleLine = true,
                         isError = state.toAddress.isNotEmpty() && !state.isAddressValid,
                         trailingIcon = {
-                            IconButton(onClick = { navController.navigate("scanner") }) {
+                            IconButton(onClick = { navController.navigate(Routes.SCANNER) }) {
                                 Icon(Icons.Default.QrCodeScanner, null, tint = VaultExColors.BluePrimary)
                             }
                         }

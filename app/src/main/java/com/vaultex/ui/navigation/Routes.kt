@@ -71,4 +71,8 @@ object Routes {
     const val NETWORK_SETTINGS = "networkSettings"
 
     const val SECURITY = "security"
+
+    const val SCANNER = "scanner"
+
+    const val HISTORY_DETAIL = "history_detail"
 }

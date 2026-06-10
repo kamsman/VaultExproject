@@ -58,7 +58,7 @@ fun DashboardScreen(navController: NavHostController) {
                 val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
                     .format(state.totalBalanceXof.toLong()) + " FCFA"
 
-                BalanceDisplay(amount = xofFormatted)
+                BalanceDisplay(amount = xofFormatted, currency = "")
 
                 if (state.isLoading) {
                     LinearProgressIndicator(
