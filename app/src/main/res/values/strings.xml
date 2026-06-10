@@ -3,11 +3,17 @@
     <string name="app_name">VaultEx</string>
     <string name="app_tagline">Votre crypto, vos clés</string>
     <string name="app_subtitle">5 blockchains, 1 wallet sécurisé</string>
+    <string name="tagline">Wallet Non-Custodial Multi-Chain</string>
 
     <!-- Onboarding -->
     <string name="welcome_title">Bienvenue sur VaultEx</string>
+    <string name="welcome_subtitle">Votre crypto, vos clés, votre liberté.</string>
     <string name="create_wallet">Créer un nouveau wallet</string>
     <string name="import_wallet">Importer un wallet existant</string>
+    <string name="seed_phrase_title">Votre phrase secrète</string>
+    <string name="seed_phrase_warning">Écrivez ces 12 mots dans l\'ordre et conservez-les en lieu sûr.</string>
+    <string name="verify_seed">Vérifier la phrase</string>
+    <string name="set_pin">Créer un code PIN</string>
 
     <!-- Mnemonic -->
     <string name="mnemonic_warning">Notez ces mots dans l\'ordre exact. Ils ne seront plus affichés.</string>
@@ -18,17 +24,74 @@
     <!-- Security -->
     <string name="pin_create">Créer votre PIN à 6 chiffres</string>
     <string name="pin_confirm">Confirmer votre PIN</string>
+    <string name="pin_title">Entrez votre PIN</string>
+    <string name="wrong_pin">PIN incorrect</string>
+    <string name="pin_locked">Compte verrouillé. Réessayez dans %1$s.</string>
+    <string name="panic_pin_title">PIN de panique</string>
     <string name="biometric_enable">Activer la biométrie</string>
+    <string name="biometric_title">Identifiez-vous</string>
     <string name="biometric_subtitle">Authentifiez-vous pour accéder à VaultEx</string>
 
-    <!-- Dashboard -->
+    <!-- Dashboard / Home -->
     <string name="dashboard_balance">Solde total</string>
+    <string name="total_balance">Solde total</string>
     <string name="action_send">Envoyer</string>
     <string name="action_receive">Recevoir</string>
     <string name="action_swap">Swap</string>
     <string name="action_buy">Acheter</string>
+    <string name="my_assets">Mes actifs</string>
+    <string name="mobile_money">Mobile Money</string>
 
-    <!-- Transactions -->
+    <!-- Navigation -->
+    <string name="tab_home">Accueil</string>
+    <string name="tab_market">Marché</string>
+    <string name="tab_swap">Swap</string>
+    <string name="tab_history">Historique</string>
+    <string name="tab_settings">Paramètres</string>
+
+    <!-- Send -->
+    <string name="send_title">Envoyer</string>
+    <string name="recipient_address">Adresse du destinataire</string>
+    <string name="amount">Montant</string>
+    <string name="network_fee">Frais réseau</string>
+    <string name="confirm_send">Confirmer l\'envoi</string>
+    <string name="scan_qr">Scanner QR</string>
+
+    <!-- Receive -->
+    <string name="receive_title">Recevoir</string>
+    <string name="my_address">Mon adresse</string>
+    <string name="copy_address">Copier l\'adresse</string>
+    <string name="share_address">Partager</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Paramètres</string>
+    <string name="security">Sécurité</string>
+    <string name="backup">Sauvegarde</string>
+    <string name="notifications">Notifications</string>
+    <string name="network_settings">Réseaux</string>
+    <string name="address_book">Carnet d\'adresses</string>
+    <string name="wallet_manager">Mes wallets</string>
+    <string name="token_manager">Gérer les tokens</string>
+    <string name="language">Langue</string>
+    <string name="currency">Devise</string>
+
+    <!-- Mobile Money -->
+    <string name="mobile_money_title">Mobile Money</string>
+    <string name="operator">Opérateur</string>
+    <string name="phone_number">Numéro de téléphone</string>
+    <string name="fee_notice">Frais : 1%% via CinetPay · Zone UEMOA</string>
+
+    <!-- Market -->
+    <string name="market_title">Marché</string>
+    <string name="price_24h">Prix (24h)</string>
+    <string name="market_cap">Cap. marché</string>
+
+    <!-- History / Transactions -->
+    <string name="history_title">Historique</string>
+    <string name="no_transactions">Aucune transaction</string>
+    <string name="sent">Envoyé</string>
+    <string name="received">Reçu</string>
+    <string name="swapped">Échangé</string>
     <string name="tx_pending">En attente</string>
     <string name="tx_confirmed">Confirmé</string>
     <string name="tx_failed">Échoué</string>
@@ -38,6 +101,8 @@
     <string name="error_network">Pas de connexion réseau</string>
     <string name="error_invalid_address">Adresse invalide</string>
     <string name="error_insufficient_balance">Solde insuffisant</string>
+    <string name="error_insufficient_funds">Solde insuffisant.</string>
+    <string name="error_wallet_not_found">Wallet non trouvé.</string>
     <string name="error_root_detected">Cet appareil est rooté. VaultEx refuse de s\'exécuter pour votre sécurité.</string>
 
     <!-- Common -->
@@ -49,4 +114,9 @@
     <string name="copied">Copié</string>
     <string name="share">Partager</string>
     <string name="loading">Chargement…</string>
+    <string name="delete">Supprimer</string>
+    <string name="create">Créer</string>
+    <string name="add">Ajouter</string>
+    <string name="close">Fermer</string>
+    <string name="active">Actif</string>
 </resources>
