@@ -114,6 +114,17 @@ class SecureStorage @Inject constructor(
         keystoreManager.destroyMasterKey()
     }
 
+    private val rpcPrefs: SharedPreferences by lazy {
+        context.getSharedPreferences("vaultex_rpc_prefs", Context.MODE_PRIVATE)
+    }
+
+    fun setRpcUrl(chain: String, url: String) {
+        rpcPrefs.edit().putString("rpc_$chain", url).apply()
+    }
+
+    fun getRpcUrl(chain: String, default: String): String =
+        rpcPrefs.getString("rpc_$chain", default) ?: default
+
     companion object {
         private const val KEY_MNEMONIC = "encrypted_mnemonic"
         private const val KEY_PIN_HASH = "pin_hash"

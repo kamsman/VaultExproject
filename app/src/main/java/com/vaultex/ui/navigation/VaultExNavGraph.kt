@@ -3,8 +3,10 @@ package com.vaultex.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 
 import com.vaultex.ui.screens.splash.SplashScreen
 import com.vaultex.ui.screens.welcome.WelcomeScreen
@@ -14,22 +16,33 @@ import com.vaultex.ui.screens.onboarding.MnemonicVerifyScreen
 import com.vaultex.ui.screens.onboarding.ImportWalletScreen
 import com.vaultex.ui.screens.security.PinSetupScreen
 import com.vaultex.ui.screens.dashboard.DashboardScreen
+import com.vaultex.ui.screens.home.HomeScreen
 import com.vaultex.ui.screens.market.MarketScreen
+import com.vaultex.ui.screens.market.CoinDetailScreen
 import com.vaultex.ui.screens.settings.SettingsScreen
+import com.vaultex.ui.screens.settings.BackupScreen
 import com.vaultex.ui.screens.send.SendScreen
 import com.vaultex.ui.screens.receive.ReceiveScreen
 import com.vaultex.ui.screens.swap.SwapScreen
 import com.vaultex.ui.screens.history.HistoryScreen
-import com.vaultex.ui.screens.security.NotificationsScreen
+import com.vaultex.ui.screens.mobilemoney.MobileMoneyScreen
+import com.vaultex.ui.screens.auth.PanicPinScreen
+import com.vaultex.ui.screens.auth.BiometricSetupScreen
+import com.vaultex.ui.screens.walletmanager.WalletManagerScreen
+import com.vaultex.ui.screens.walletmanager.TokenManagerScreen
+import com.vaultex.ui.screens.notifications.AlertsScreen
 import com.vaultex.ui.screens.tokens.TokenDetailScreen
+import com.vaultex.ui.screens.unlock.UnlockScreen
+import com.vaultex.ui.screens.addressbook.AddressBookScreen
+import com.vaultex.ui.screens.security.SecurityScreen
+import com.vaultex.ui.screens.settings.NetworkSettingsScreen
+import com.vaultex.ui.screens.scanner.QrScannerScreen
+import com.vaultex.ui.screens.history.TransactionDetailScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @Composable
 fun VaultExNavGraph(navController: NavHostController) {
 
-    // ViewModel partagé entre tous les écrans d'onboarding.
-    // Scoped à l'Activity (appelé depuis MainActivity.setContent) → même instance
-    // pour MnemonicDisplay → MnemonicVerify → PinSetup.
     val onboardingViewModel: OnboardingViewModel = hiltViewModel()
 
     NavHost(
@@ -37,10 +50,12 @@ fun VaultExNavGraph(navController: NavHostController) {
         startDestination = Routes.SPLASH
     ) {
 
+        // ─── Splash ───────────────────────────────────────────
         composable(Routes.SPLASH) {
             SplashScreen(navController)
         }
 
+        // ─── Onboarding ───────────────────────────────────────
         composable(Routes.ONBOARDING) {
             OnboardingScreen(navController)
         }
@@ -61,8 +76,26 @@ fun VaultExNavGraph(navController: NavHostController) {
             ImportWalletScreen(navController, onboardingViewModel)
         }
 
+        // ─── Auth / PIN ────────────────────────────────────────
         composable(Routes.PIN_SETUP) {
             PinSetupScreen(navController, onboardingViewModel)
+        }
+
+        composable(Routes.PIN_UNLOCK) {
+            UnlockScreen(navController)
+        }
+
+        composable(Routes.BIOMETRIC_SETUP) {
+            BiometricSetupScreen(navController)
+        }
+
+        composable(Routes.PANIC_PIN) {
+            PanicPinScreen(navController)
+        }
+
+        // ─── Main ──────────────────────────────────────────────
+        composable(Routes.HOME) {
+            HomeScreen(navController)
         }
 
         composable(Routes.DASHBOARD) {
@@ -73,8 +106,16 @@ fun VaultExNavGraph(navController: NavHostController) {
             MarketScreen(navController)
         }
 
+        composable(Routes.COIN_DETAIL) {
+            CoinDetailScreen(navController)
+        }
+
         composable(Routes.SETTINGS) {
             SettingsScreen(navController)
+        }
+
+        composable(Routes.BACKUP) {
+            BackupScreen(navController)
         }
 
         composable(Routes.SEND) {
@@ -93,12 +134,48 @@ fun VaultExNavGraph(navController: NavHostController) {
             HistoryScreen(navController)
         }
 
-        composable(Routes.NOTIFICATIONS) {
-            NotificationsScreen(navController)
+        composable(Routes.MOBILE_MONEY) {
+            MobileMoneyScreen(navController)
         }
 
-        composable(Routes.TOKEN_DETAIL) {
-            TokenDetailScreen(navController)
+        composable(Routes.NOTIFICATIONS) {
+            AlertsScreen(navController)
+        }
+
+        composable(
+            route = Routes.TOKEN_DETAIL,
+            arguments = listOf(navArgument("symbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val symbol = backStackEntry.arguments?.getString("symbol") ?: "ETH"
+            TokenDetailScreen(navController, symbol)
+        }
+
+        composable(Routes.ADDRESS_BOOK) {
+            AddressBookScreen(navController)
+        }
+
+        composable(Routes.WALLET_MANAGER) {
+            WalletManagerScreen(navController)
+        }
+
+        composable(Routes.TOKEN_MANAGER) {
+            TokenManagerScreen(navController)
+        }
+
+        composable(Routes.SECURITY) {
+            SecurityScreen(navController)
+        }
+
+        composable(Routes.NETWORK_SETTINGS) {
+            NetworkSettingsScreen(navController)
+        }
+
+        composable(Routes.SCANNER) {
+            QrScannerScreen(navController)
+        }
+
+        composable(Routes.HISTORY_DETAIL) {
+            TransactionDetailScreen(navController)
         }
     }
 }

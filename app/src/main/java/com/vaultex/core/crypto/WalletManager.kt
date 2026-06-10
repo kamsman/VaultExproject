@@ -1,6 +1,6 @@
 package com.vaultex.core.crypto
 
-import org.bitcoinj.core.LegacyAddress
+import org.bitcoinj.core.SegwitAddress
 import org.bitcoinj.crypto.ChildNumber
 import org.bitcoinj.crypto.HDKeyDerivation
 import org.bitcoinj.params.MainNetParams
@@ -66,17 +66,17 @@ object WalletManager {
         return Credentials.create(Bip32ECKeyPair.deriveKeyPair(master, path)).address
     }
 
-    // Bitcoin: m/44'/0'/0'/0/0 → P2PKH (Legacy)
+    // Bitcoin: m/84'/0'/0'/0/0 → P2WPKH native SegWit (bech32, bc1…)
     private fun deriveBtcAddress(seed: ByteArray): String {
         val path = listOf(
-            ChildNumber(44, true), ChildNumber(0, true),
+            ChildNumber(84, true), ChildNumber(0, true),
             ChildNumber(0, true),  ChildNumber(0, false),
             ChildNumber(0, false)
         )
         val key = path.fold(HDKeyDerivation.createMasterPrivateKey(seed)) { k, child ->
             HDKeyDerivation.deriveChildKey(k, child)
         }
-        return LegacyAddress.fromKey(MainNetParams.get(), key).toString()
+        return SegwitAddress.fromKey(MainNetParams.get(), key).toString()
     }
 
     // Solana: m/44'/501'/0'/0' → ed25519 via SLIP-10

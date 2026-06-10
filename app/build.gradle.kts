@@ -1,9 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+}
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
 }
 
 android {
@@ -20,14 +29,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "INFURA_API_KEY", "\"REPLACE_WITH_YOUR_INFURA_KEY\"")
+        buildConfigField("String", "INFURA_API_KEY",  "\"REPLACE_WITH_YOUR_INFURA_KEY\"")
         buildConfigField("String", "ALCHEMY_API_KEY", "\"REPLACE_WITH_YOUR_ALCHEMY_KEY\"")
-        buildConfigField("String", "TRONGRID_API_KEY", "\"REPLACE_WITH_YOUR_TRONGRID_KEY\"")
+        buildConfigField("String", "TRONGRID_API_KEY","\"REPLACE_WITH_YOUR_TRONGRID_KEY\"")
         buildConfigField("String", "ONEINCH_API_KEY", "\"REPLACE_WITH_YOUR_1INCH_KEY\"")
-        buildConfigField("String", "COINGECKO_API_KEY", "\"REPLACE_WITH_YOUR_COINGECKO_KEY\"")
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH", "\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX", "\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
-        buildConfigField("double", "VAULTEX_FEE_PERCENT", "1.5")
+        buildConfigField("String", "COINGECKO_API_KEY","\"REPLACE_WITH_YOUR_COINGECKO_KEY\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH","\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
+        buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
+        // API keys read from local.properties (gitignored) — set them there, not here
+        buildConfigField("String", "ETHERSCAN_KEY",   "\"${localProps.getProperty("etherscan.key",   "")}\"")
+        buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")
+        buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "")}\"")
+        buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
     }
 
     buildTypes {
@@ -104,8 +118,8 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
 
     // CRYPTO (PROPRE)
-    implementation("org.web3j:core:4.10.3")
-    implementation("org.bitcoinj:bitcoinj-core:0.16.3")
+    implementation("org.web3j:core:4.9.8-android")
+    implementation("org.bitcoinj:bitcoinj-core:0.16.2")
 
     // ❌ SUPPRIMÉ (IMPORTANT)
     // BIP39
@@ -127,11 +141,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("io.github.g00fy2.quickie:quickie-bundled:1.10.0")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
-    // ANIMATION
-    implementation("com.airbnb.android:lottie-compose:6.4.0")
-
     // ROOT DETECTION
     implementation("com.scottyab:rootbeer-lib:0.1.0")
 

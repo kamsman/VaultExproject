@@ -66,8 +66,14 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE fromAddress = :address OR toAddress = :address ORDER BY timestamp DESC")
     fun observeByAddress(address: String): Flow<List<TransactionEntity>>
 
+    @Query("SELECT hash FROM transactions WHERE hash = :hash LIMIT 1")
+    suspend fun getHash(hash: String): String?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: TransactionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(transaction: TransactionEntity): Long
 
     @Query("UPDATE transactions SET status = :status, confirmations = :conf WHERE hash = :hash")
     suspend fun updateStatus(hash: String, status: String, conf: Int)

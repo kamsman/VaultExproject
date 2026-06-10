@@ -1,7 +1,7 @@
 package com.vaultex.data.remote.api
 
 import com.vaultex.data.remote.dto.*
-import retrofit2.Response
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 /**
@@ -30,7 +30,8 @@ interface BitcoinApi {
     suspend fun getTransaction(@Path("txid") txid: String): BlockstreamTxDto
 
     @POST("tx")
-    suspend fun broadcastTx(@Body rawHex: String): String
+    @Headers("Content-Type: text/plain")
+    suspend fun broadcastTx(@Body rawHex: RequestBody): String
 
     @GET("fee-estimates")
     suspend fun getFeeEstimates(): Map<String, Double>
@@ -63,6 +64,12 @@ interface TronApi {
         @Path("address") address: String,
         @Query("limit") limit: Int = 50
     ): TronTrc20ListDto
+
+    @POST("wallet/createtransaction")
+    suspend fun createTransaction(@Body body: TronCreateTxBody): TronRawTxDto
+
+    @POST("wallet/triggersmartcontract")
+    suspend fun triggerSmartContract(@Body body: TronTriggerSmartContractBody): TronTriggerSmartContractDto
 
     @POST("wallet/broadcasttransaction")
     suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
@@ -130,3 +137,67 @@ interface CoinGeckoApi {
         @Query("days") days: Int
     ): CoinGeckoChartDto
 }
+
+/**
+ * ChangeNOW — swaps cross-chain avec marge 1.5% côté VaultEx.
+ * Base URL : https://api.changenow.io/v1/
+ */
+interface ChangeNowApi {
+    @GET("exchange-amount/{amount}/{fromTo}")
+    suspend fun getEstimatedAmount(
+        @Path("amount") amount: String,
+        @Path("fromTo") fromTo: String,  // ex: "btc_eth"
+        @Query("api_key") apiKey: String
+    ): ChangeNowEstimateDto
+
+    @GET("min-amount/{fromTo}")
+    suspend fun getMinAmount(
+        @Path("fromTo") fromTo: String,
+        @Query("api_key") apiKey: String
+    ): ChangeNowMinAmountDto
+
+    @POST("transactions/{apiKey}")
+    suspend fun createTransaction(
+        @Path("apiKey") apiKey: String,
+        @Body body: ChangeNowTransactionBody
+    ): ChangeNowTransactionDto
+
+    @GET("transactions/{id}/{apiKey}")
+    suspend fun getTransactionStatus(
+        @Path("id") transactionId: String,
+        @Path("apiKey") apiKey: String
+    ): ChangeNowStatusDto
+}
+
+/**
+ * Flutterwave — Mobile Money UEMOA (Orange Money, Wave, Moov, Free).
+ * Base URL : https://api.flutterwave.com/v3/
+ * Requires Authorization: Bearer <secret_key> header.
+ */
+interface FlutterwaveApi {
+    @POST("charges?type=mobile_money_franco")
+    suspend fun charge(@Body body: FlutterwaveChargeBody): FlutterwaveChargeDto
+
+    @GET("transactions/{id}/verify")
+    suspend fun verify(@Path("id") transactionId: Long): FlutterwaveVerifyDto
+}
+
+/**
+ * Etherscan / BscScan — historique de transactions EVM.
+ * Compatible Etherscan API (api.etherscan.io et api.bscscan.com).
+ */
+interface EtherscanApi {
+    @GET("api")
+    suspend fun getTransactions(
+        @Query("module") module: String = "account",
+        @Query("action") action: String = "txlist",
+        @Query("address") address: String,
+        @Query("startblock") startBlock: Long = 0L,
+        @Query("endblock") endBlock: Long = 99_999_999L,
+        @Query("page") page: Int = 1,
+        @Query("offset") offset: Int = 50,
+        @Query("sort") sort: String = "desc",
+        @Query("apikey") apiKey: String = ""
+    ): EtherscanResponse
+}
+

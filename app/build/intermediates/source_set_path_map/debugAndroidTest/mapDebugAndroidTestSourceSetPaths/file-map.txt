@@ -1,6 +1,0 @@
-com.vaultex.test.app-annotation-experimental-1.4.0-0 C:\Users\HP\.gradle\caches\transforms-4\403258c53f741b8b6d9b135e95174650\transformed\annotation-experimental-1.4.0\res
-com.vaultex.test.app-core-1.5.0-1 C:\Users\HP\.gradle\caches\transforms-4\63c27464db0d7c870a9e202b1d015d2f\transformed\core-1.5.0\res
-com.vaultex.test.app-androidTest-2 C:\Users\HP\AndroidStudioProjects\VaultexWallet\app\build\generated\res\resValues\androidTest\debug
-com.vaultex.test.app-mergeDebugAndroidTestResources-3 C:\Users\HP\AndroidStudioProjects\VaultexWallet\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
-com.vaultex.test.app-mergeDebugAndroidTestResources-4 C:\Users\HP\AndroidStudioProjects\VaultexWallet\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
-com.vaultex.test.app-debugAndroidTest-5 C:\Users\HP\AndroidStudioProjects\VaultexWallet\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
