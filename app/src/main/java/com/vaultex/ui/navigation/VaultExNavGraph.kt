@@ -16,7 +16,6 @@ import com.vaultex.ui.screens.onboarding.MnemonicVerifyScreen
 import com.vaultex.ui.screens.onboarding.ImportWalletScreen
 import com.vaultex.ui.screens.security.PinSetupScreen
 import com.vaultex.ui.screens.dashboard.DashboardScreen
-import com.vaultex.ui.screens.home.HomeScreen
 import com.vaultex.ui.screens.market.MarketScreen
 import com.vaultex.ui.screens.market.CoinDetailScreen
 import com.vaultex.ui.screens.settings.SettingsScreen
@@ -94,10 +93,6 @@ fun VaultExNavGraph(navController: NavHostController) {
         }
 
         // ─── Main ──────────────────────────────────────────────
-        composable(Routes.HOME) {
-            HomeScreen(navController)
-        }
-
         composable(Routes.DASHBOARD) {
             DashboardScreen(navController)
         }

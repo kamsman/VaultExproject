@@ -50,8 +50,6 @@ object Routes {
 
     fun tokenDetail(symbol: String) = "tokenDetail/$symbol"
 
-    const val HOME = "home"
-
     const val COIN_DETAIL = "coinDetail"
 
     const val MOBILE_MONEY = "mobileMoney"
