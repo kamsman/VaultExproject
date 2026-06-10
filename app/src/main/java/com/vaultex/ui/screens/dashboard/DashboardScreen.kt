@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vaultex.ui.components.BalanceDisplay
 import com.vaultex.ui.components.TokenIcon
 import com.vaultex.ui.navigation.Routes
@@ -40,8 +41,8 @@ fun DashboardScreen(navController: NavHostController) {
             TopAppBar(
                 title = { Text("VaultEx", color = TextPrimary) },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = TextPrimary)
+                    IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Alertes", tint = TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
@@ -174,31 +175,29 @@ private fun TokenRow(token: TokenBalance) {
 
 @Composable
 private fun BottomNavBar(navController: NavHostController) {
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    val items = listOf(
+        Triple(Routes.DASHBOARD, Icons.Default.Home, "Accueil"),
+        Triple(Routes.MARKET, Icons.Default.TrendingUp, "Marché"),
+        Triple(Routes.SWAP, Icons.Default.SwapHoriz, "Swap"),
+        Triple(Routes.HISTORY, Icons.Default.History, "Historique"),
+        Triple(Routes.SETTINGS, Icons.Default.Settings, "Paramètres")
+    )
+
     NavigationBar(containerColor = Surface) {
-        NavigationBarItem(
-            selected = true,
-            onClick = { navController.navigate(Routes.DASHBOARD) },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") }
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(Routes.MARKET) },
-            icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Market") }
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(Routes.SWAP) },
-            icon = { Icon(Icons.Default.SwapHoriz, contentDescription = "Swap") }
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(Routes.HISTORY) },
-            icon = { Icon(Icons.Default.History, contentDescription = "History") }
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { navController.navigate(Routes.SETTINGS) },
-            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") }
-        )
+        items.forEach { (route, icon, label) ->
+            NavigationBarItem(
+                selected = currentRoute == route,
+                onClick = {
+                    navController.navigate(route) {
+                        popUpTo(Routes.DASHBOARD) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = { Icon(icon, contentDescription = label) }
+            )
+        }
     }
 }

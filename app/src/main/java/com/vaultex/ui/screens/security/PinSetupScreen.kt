@@ -127,7 +127,7 @@ fun PinSetupScreen(
                             IconButton(onClick = { showPin = !showPin }) {
                                 Icon(
                                     imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = if (showPin) "Masquer le PIN" else "Afficher le PIN",
                                     tint = AccentGold
                                 )
                             }
@@ -162,7 +162,7 @@ fun PinSetupScreen(
                             IconButton(onClick = { showConfirmPin = !showConfirmPin }) {
                                 Icon(
                                     imageVector = if (showConfirmPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = if (showConfirmPin) "Masquer le PIN" else "Afficher le PIN",
                                     tint = AccentGold
                                 )
                             }
