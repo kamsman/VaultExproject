@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaultex.R
 import com.vaultex.core.crypto.Blockchain
 import com.vaultex.ui.theme.*
 
@@ -150,7 +152,7 @@ fun BalanceDisplay(
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            "Solde total",
+            stringResource(R.string.total_balance),
             color = TextSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium

@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.core.security.BiometricHelper
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
@@ -51,12 +53,12 @@ fun SendScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { viewModel.reset(); navController.popBackStack() },
             icon = { Icon(Icons.Default.CheckCircle, null, tint = VaultExColors.Success) },
-            title = { Text("Transaction envoyée") },
+            title = { Text(stringResource(R.string.send_tx_sent_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Votre transaction a été diffusée sur le réseau.", fontSize = 14.sp)
+                    Text(stringResource(R.string.send_tx_broadcast), fontSize = 14.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text("Hash :", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.send_tx_hash_label), fontSize = 12.sp, color = VaultExColors.TextSecondary)
                     Text(
                         state.txHash!!.take(20) + "…",
                         fontSize = 11.sp,
@@ -67,7 +69,7 @@ fun SendScreen(navController: NavController) {
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.reset(); navController.popBackStack() }) {
-                    Text("Fermer")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -76,7 +78,7 @@ fun SendScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Envoyer", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.send_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, null)
@@ -102,7 +104,7 @@ fun SendScreen(navController: NavController) {
                 colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Réseau", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(stringResource(R.string.send_network_label), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -125,18 +127,18 @@ fun SendScreen(navController: NavController) {
                 colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Adresse destinataire", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(stringResource(R.string.recipient_address), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     OutlinedTextField(
                         value = state.toAddress,
                         onValueChange = { viewModel.setToAddress(it) },
                         placeholder = {
                             Text(
                                 when (state.selectedChain) {
-                                    "BTC"  -> "bc1... ou 1... ou 3..."
+                                    "BTC"  -> stringResource(R.string.send_address_placeholder_btc)
                                     "ETH", "BNB" -> "0x..."
                                     "TRX", "USDT" -> "T..."
-                                    "SOL"  -> "Adresse Solana Base58"
-                                    else   -> "Adresse ${state.selectedChain}"
+                                    "SOL"  -> stringResource(R.string.send_address_placeholder_sol)
+                                    else   -> stringResource(R.string.send_address_placeholder_generic, state.selectedChain)
                                 },
                                 color = VaultExColors.TextSecondary,
                                 fontSize = 13.sp
@@ -154,7 +156,7 @@ fun SendScreen(navController: NavController) {
                     )
                     if (state.toAddress.isNotEmpty() && !state.isAddressValid) {
                         Text(
-                            "Adresse ${state.selectedChain} invalide",
+                            stringResource(R.string.send_invalid_address, state.selectedChain),
                             fontSize = 12.sp,
                             color = VaultExColors.Error
                         )
@@ -168,7 +170,7 @@ fun SendScreen(navController: NavController) {
                 colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Montant", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(stringResource(R.string.amount), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     OutlinedTextField(
                         value = state.amount,
                         onValueChange = { viewModel.setAmount(it) },
@@ -183,7 +185,7 @@ fun SendScreen(navController: NavController) {
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Frais estimés :", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                        Text(stringResource(R.string.send_fee_estimate_label), fontSize = 12.sp, color = VaultExColors.TextSecondary)
                         Text(feeEstimate, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
@@ -238,7 +240,7 @@ fun SendScreen(navController: NavController) {
                 } else {
                     Icon(Icons.Default.Lock, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Envoyer", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(stringResource(R.string.action_send), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 }
             }
         }

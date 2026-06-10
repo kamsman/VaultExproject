@@ -12,12 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.BackupViewModel
 
@@ -39,10 +41,10 @@ fun BackupScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sauvegarde", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.backup), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -59,8 +61,8 @@ fun BackupScreen(navController: NavController) {
                     Icon(Icons.Default.Warning, null, tint = Color(0xFFB45309), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Ne partagez jamais votre phrase secrète", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF92400E))
-                        Text("Quiconque connaît votre phrase peut accéder à tous vos fonds.", fontSize = 13.sp, color = Color(0xFF92400E))
+                        Text(stringResource(R.string.backup_warning_title), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF92400E))
+                        Text(stringResource(R.string.backup_warning_body), fontSize = 13.sp, color = Color(0xFF92400E))
                     }
                 }
             }
@@ -71,8 +73,8 @@ fun BackupScreen(navController: NavController) {
                         Icon(Icons.Default.Lock, tint = VaultExColors.BluePrimary, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text("Phrase de récupération", fontWeight = FontWeight.SemiBold)
-                            Text("12 mots BIP-39", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                            Text(stringResource(R.string.backup_recovery_phrase), fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.backup_bip39_subtitle), fontSize = 12.sp, color = VaultExColors.TextSecondary)
                         }
                     }
 
@@ -85,12 +87,12 @@ fun BackupScreen(navController: NavController) {
                         ) {
                             Icon(Icons.Default.Visibility, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Révéler la phrase secrète")
+                            Text(stringResource(R.string.backup_reveal))
                         }
                     } else {
                         val words = (state.mnemonic ?: "").split(" ").filter { it.isNotEmpty() }
                         if (words.isEmpty()) {
-                            Text("Impossible de charger la phrase secrète.", color = VaultExColors.Error, fontSize = 13.sp)
+                            Text(stringResource(R.string.backup_load_error), color = VaultExColors.Error, fontSize = 13.sp)
                         } else {
                             Column(
                                 modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -111,19 +113,19 @@ fun BackupScreen(navController: NavController) {
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.Error)
-                        ) { Text("Masquer") }
+                        ) { Text(stringResource(R.string.backup_hide)) }
                     }
                 }
             }
 
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Checklist de sécurité", fontWeight = FontWeight.SemiBold)
-                    ChecklistItem("Écrivez votre phrase sur papier")
-                    ChecklistItem("Stockez dans un endroit sûr")
-                    ChecklistItem("Ne prenez pas de photo")
-                    ChecklistItem("Ne partagez avec personne")
-                    ChecklistItem("Testez la récupération")
+                    Text(stringResource(R.string.backup_checklist_title), fontWeight = FontWeight.SemiBold)
+                    ChecklistItem(stringResource(R.string.backup_check_write))
+                    ChecklistItem(stringResource(R.string.backup_check_store))
+                    ChecklistItem(stringResource(R.string.backup_check_no_photo))
+                    ChecklistItem(stringResource(R.string.backup_check_no_share))
+                    ChecklistItem(stringResource(R.string.backup_check_test))
                 }
             }
         }
@@ -140,7 +142,7 @@ private fun PinConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Confirmez votre PIN", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.pin_confirm), fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -179,7 +181,7 @@ private fun PinConfirmDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

@@ -11,11 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.NetworkSettingsViewModel
 
@@ -28,15 +30,15 @@ fun NetworkSettingsScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Paramètres réseau", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.network_settings), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::reset) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Réinitialiser", tint = VaultExColors.TextSecondary)
+                        Icon(Icons.Default.RestartAlt, contentDescription = stringResource(R.string.network_reset), tint = VaultExColors.TextSecondary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -53,7 +55,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "Endpoints RPC (mainnet)",
+                stringResource(R.string.network_rpc_endpoints),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
                 color = VaultExColors.TextSecondary
@@ -85,7 +87,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
             ) {
-                Text(if (state.saved) "Enregistré ✓" else "Enregistrer")
+                Text(if (state.saved) stringResource(R.string.network_saved) else stringResource(R.string.network_save))
             }
 
             Card(
@@ -94,7 +96,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Les modifications prennent effet immédiatement pour les nouvelles requêtes.",
+                    stringResource(R.string.network_changes_notice),
                     fontSize = 12.sp,
                     color = VaultExColors.BluePrimary,
                     modifier = Modifier.padding(12.dp)

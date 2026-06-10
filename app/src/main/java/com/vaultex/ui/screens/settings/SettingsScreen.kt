@@ -14,11 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SettingsViewModel
@@ -31,7 +33,7 @@ fun SettingsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Réglages", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
@@ -58,33 +60,33 @@ fun SettingsScreen(navController: NavController) {
                         }
                         Spacer(Modifier.width(14.dp))
                         Column {
-                            Text("Mon Wallet", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("VaultEx · Multi-Chain", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                            Text(stringResource(R.string.settings_my_wallet), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(stringResource(R.string.settings_wallet_subtitle), fontSize = 13.sp, color = VaultExColors.TextSecondary)
                         }
                     }
                 }
             }
 
-            item { SectionTitle("Wallet") }
-            item { SettingsItem(Icons.Default.AccountBalanceWallet, "Mes wallets", "Gérer vos wallets") { navController.navigate(Routes.WALLET_MANAGER) } }
-            item { SettingsItem(Icons.Default.Token, "Gérer les tokens", "Ajouter, masquer des tokens") { navController.navigate(Routes.TOKEN_MANAGER) } }
-            item { SettingsItem(Icons.Default.Contacts, "Carnet d'adresses", "Adresses enregistrées") { navController.navigate(Routes.ADDRESS_BOOK) } }
+            item { SectionTitle(stringResource(R.string.settings_section_wallet)) }
+            item { SettingsItem(Icons.Default.AccountBalanceWallet, stringResource(R.string.wallet_manager), stringResource(R.string.settings_wallets_subtitle)) { navController.navigate(Routes.WALLET_MANAGER) } }
+            item { SettingsItem(Icons.Default.Token, stringResource(R.string.token_manager), stringResource(R.string.settings_tokens_subtitle)) { navController.navigate(Routes.TOKEN_MANAGER) } }
+            item { SettingsItem(Icons.Default.Contacts, stringResource(R.string.address_book), stringResource(R.string.settings_address_book_subtitle)) { navController.navigate(Routes.ADDRESS_BOOK) } }
 
-            item { SectionTitle("Sécurité") }
-            item { SettingsItem(Icons.Default.Security, "Sécurité", "PIN, biométrie, verrou auto") { navController.navigate(Routes.SECURITY) } }
-            item { SettingsItem(Icons.Default.Backup, "Sauvegarde", "Phrase secrète, export") { navController.navigate(Routes.BACKUP) } }
+            item { SectionTitle(stringResource(R.string.security)) }
+            item { SettingsItem(Icons.Default.Security, stringResource(R.string.security), stringResource(R.string.settings_security_subtitle)) { navController.navigate(Routes.SECURITY) } }
+            item { SettingsItem(Icons.Default.Backup, stringResource(R.string.backup), stringResource(R.string.settings_backup_subtitle)) { navController.navigate(Routes.BACKUP) } }
 
-            item { SectionTitle("Réseau & Affichage") }
-            item { SettingsItem(Icons.Default.NetworkWifi, "Réseaux RPC", "Nœuds ETH, BSC, SOL...") { navController.navigate(Routes.NETWORK_SETTINGS) } }
-            item { SettingsItem(Icons.Default.AttachMoney, "Devise", state.selectedCurrency) { } }
-            item { SettingsItem(Icons.Default.Language, "Langue", "Français, Bambara...") { } }
+            item { SectionTitle(stringResource(R.string.settings_section_network_display)) }
+            item { SettingsItem(Icons.Default.NetworkWifi, stringResource(R.string.settings_rpc_networks), stringResource(R.string.settings_rpc_subtitle)) { navController.navigate(Routes.NETWORK_SETTINGS) } }
+            item { SettingsItem(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency) { } }
+            item { SettingsItem(Icons.Default.Language, stringResource(R.string.language), stringResource(R.string.settings_language_subtitle)) { } }
 
-            item { SectionTitle("Notifications") }
-            item { SettingsItem(Icons.Default.Notifications, "Alertes prix", "Configurer les alertes") { navController.navigate(Routes.NOTIFICATIONS) } }
+            item { SectionTitle(stringResource(R.string.notifications)) }
+            item { SettingsItem(Icons.Default.Notifications, stringResource(R.string.settings_price_alerts), stringResource(R.string.settings_price_alerts_subtitle)) { navController.navigate(Routes.NOTIFICATIONS) } }
 
-            item { SectionTitle("À propos") }
-            item { SettingsItem(Icons.Default.Info, "Version", "VaultEx 1.0.0") { } }
-            item { SettingsItem(Icons.Default.Help, "Aide & Support", "FAQ, contact") { } }
+            item { SectionTitle(stringResource(R.string.settings_section_about)) }
+            item { SettingsItem(Icons.Default.Info, stringResource(R.string.settings_version), stringResource(R.string.settings_version_value)) { } }
+            item { SettingsItem(Icons.Default.Help, stringResource(R.string.settings_help), stringResource(R.string.settings_help_subtitle)) { } }
             item { Spacer(Modifier.height(32.dp)) }
         }
     }

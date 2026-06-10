@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SwapViewModel
 
@@ -37,10 +39,10 @@ fun SwapScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { viewModel.resetSwap() },
             icon = { Icon(Icons.Default.SwapHoriz, null, tint = VaultExColors.BluePrimary) },
-            title = { Text("Swap créé") },
+            title = { Text(stringResource(R.string.swap_created_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Envoyez ${state.fromAmount} ${state.fromToken} à l'adresse suivante pour déclencher le swap :", fontSize = 14.sp)
+                    Text(stringResource(R.string.swap_send_instruction, state.fromAmount, state.fromToken), fontSize = 14.sp)
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = VaultExColors.BlueLight
@@ -53,16 +55,16 @@ fun SwapScreen(navController: NavController) {
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    Text("ID : ${state.swapId?.take(16)}…", fontSize = 11.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.swap_id_label, state.swapId?.take(16) ?: ""), fontSize = 11.sp, color = VaultExColors.TextSecondary)
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     clipboard.setText(AnnotatedString(state.payinAddress!!))
-                }) { Text("Copier l'adresse") }
+                }) { Text(stringResource(R.string.copy_address)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.resetSwap() }) { Text("Fermer") }
+                TextButton(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.close)) }
             }
         )
     }
@@ -70,7 +72,7 @@ fun SwapScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Swap", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.action_swap), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
@@ -84,14 +86,14 @@ fun SwapScreen(navController: NavController) {
         ) {
             // Mode selector
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ModeChip("Même chaîne (1inch)", !state.isCrossChain) { /* TODO */ }
-                ModeChip("Cross-chain (ChangeNOW)", state.isCrossChain) { /* always cross-chain for now */ }
+                ModeChip(stringResource(R.string.swap_mode_same_chain), !state.isCrossChain) { /* TODO */ }
+                ModeChip(stringResource(R.string.swap_mode_cross_chain), state.isCrossChain) { /* always cross-chain for now */ }
             }
 
             // From
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Vous envoyez", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.swap_you_send), fontSize = 13.sp, color = VaultExColors.TextSecondary)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = state.fromAmount,
@@ -112,14 +114,14 @@ fun SwapScreen(navController: NavController) {
                     onClick = { viewModel.swapTokens() },
                     modifier = Modifier.background(VaultExColors.BluePrimary, RoundedCornerShape(12.dp)).size(40.dp)
                 ) {
-                    Icon(Icons.Default.SwapVert, contentDescription = "Inverser les tokens", tint = VaultExColors.TextOnPrimary)
+                    Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.swap_invert_tokens), tint = VaultExColors.TextOnPrimary)
                 }
             }
 
             // To
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Vous recevez (estimé)", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.swap_you_receive_estimated), fontSize = 13.sp, color = VaultExColors.TextSecondary)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = state.toAmount,
@@ -137,9 +139,9 @@ fun SwapScreen(navController: NavController) {
             if (state.fromAmount.isNotEmpty()) {
                 Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.BlueLight)) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FeeRow("Frais VaultEx (1.5%)", "${state.estimatedFee.ifEmpty { "—" }} ${state.fromToken}")
-                        FeeRow("Route", "ChangeNOW cross-chain")
-                        FeeRow("Slippage max", "0.5%")
+                        FeeRow(stringResource(R.string.swap_fee_vaultex), "${state.estimatedFee.ifEmpty { "—" }} ${state.fromToken}")
+                        FeeRow(stringResource(R.string.swap_route), "ChangeNOW cross-chain")
+                        FeeRow(stringResource(R.string.swap_slippage_max), "0.5%")
                     }
                 }
             }
@@ -164,7 +166,7 @@ fun SwapScreen(navController: NavController) {
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VaultExColors.TextOnPrimary, strokeWidth = 2.dp)
                 } else {
-                    Text("Swap", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(stringResource(R.string.action_swap), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 }
             }
         }

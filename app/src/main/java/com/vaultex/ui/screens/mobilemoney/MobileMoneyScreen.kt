@@ -18,12 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.MobileMoneyViewModel
 
@@ -68,10 +70,10 @@ fun MobileMoneyScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mobile Money", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.mobile_money_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -89,14 +91,14 @@ fun MobileMoneyScreen(
         ) {
             Surface(color = VaultExColors.BlueLight, shape = RoundedCornerShape(12.dp)) {
                 Text(
-                    "Frais : 1% via Flutterwave · Zone UEMOA",
+                    stringResource(R.string.momo_fee_notice),
                     modifier = Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     color = VaultExColors.BluePrimary
                 )
             }
 
-            Text("Opérateur", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(stringResource(R.string.operator), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 OPERATORS.forEach { op ->
                     val selected = state.selectedNetwork == op.flwNetwork
@@ -129,14 +131,14 @@ fun MobileMoneyScreen(
                                         else VaultExColors.TextSecondary
                             )
                             if (!op.available) {
-                                Text("Bientôt", fontSize = 9.sp, color = Color(0xFFBBBBBB))
+                                Text(stringResource(R.string.momo_coming_soon), fontSize = 9.sp, color = Color(0xFFBBBBBB))
                             }
                         }
                     }
                 }
             }
 
-            Text("Numéro de téléphone", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(stringResource(R.string.phone_number), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             OutlinedTextField(
                 value = state.phoneNumber,
                 onValueChange = { viewModel.setPhone(it) },
@@ -147,11 +149,11 @@ fun MobileMoneyScreen(
                 shape = RoundedCornerShape(10.dp)
             )
 
-            Text("Montant (FCFA)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(stringResource(R.string.momo_amount_fcfa), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             OutlinedTextField(
                 value = state.amountFcfa,
                 onValueChange = { viewModel.setAmount(it) },
-                placeholder = { Text("Ex: 5000") },
+                placeholder = { Text(stringResource(R.string.momo_amount_example)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
@@ -163,11 +165,11 @@ fun MobileMoneyScreen(
                 Surface(shape = RoundedCornerShape(12.dp), color = VaultExColors.CardBackground, tonalElevation = 1.dp) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Frais (1%)", color = VaultExColors.TextSecondary, fontSize = 13.sp)
+                            Text(stringResource(R.string.momo_fee_label), color = VaultExColors.TextSecondary, fontSize = 13.sp)
                             Text("${String.format("%.0f", viewModel.fee)} FCFA", fontSize = 13.sp)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Vous recevez", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.momo_you_receive), fontWeight = FontWeight.SemiBold)
                             Text(
                                 "${String.format("%.0f", viewModel.amountAfterFee)} FCFA",
                                 fontWeight = FontWeight.Bold,
@@ -195,7 +197,7 @@ fun MobileMoneyScreen(
                 if (state.isLoading) {
                     CircularProgressIndicator(color = VaultExColors.TextOnPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Confirmer le transfert", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.momo_confirm_transfer), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -204,19 +206,19 @@ fun MobileMoneyScreen(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirmer") },
+            title = { Text(stringResource(R.string.confirm)) },
             text = {
                 val op = OPERATORS.find { it.flwNetwork == state.selectedNetwork }?.name ?: state.selectedNetwork
-                Text("Envoyer ${state.amountFcfa} FCFA vers ${state.phoneNumber} via $op ?")
+                Text(stringResource(R.string.momo_confirm_message, state.amountFcfa, state.phoneNumber, op))
             },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmDialog = false
                     viewModel.initiateTransfer()
-                }) { Text("Confirmer") }
+                }) { Text(stringResource(R.string.confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) { Text("Annuler") }
+                TextButton(onClick = { showConfirmDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -236,15 +238,15 @@ private fun SuccessScreen(txRef: String, flwRef: String, onDone: () -> Unit) {
             modifier = Modifier.size(72.dp)
         )
         Spacer(Modifier.height(16.dp))
-        Text("Transfert initié !", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.momo_transfer_initiated), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
-        Text("Référence : $txRef", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+        Text(stringResource(R.string.momo_reference, txRef), fontSize = 13.sp, color = VaultExColors.TextSecondary)
         if (flwRef.isNotEmpty()) {
-            Text("Flutterwave ref : $flwRef", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+            Text(stringResource(R.string.momo_flw_reference, flwRef), fontSize = 12.sp, color = VaultExColors.TextSecondary)
         }
         Spacer(Modifier.height(32.dp))
         Button(onClick = onDone, shape = RoundedCornerShape(10.dp)) {
-            Text("Retour")
+            Text(stringResource(R.string.back))
         }
     }
 }

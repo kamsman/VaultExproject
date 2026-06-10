@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,6 +26,7 @@ import androidx.navigation.NavController
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.common.BitMatrix
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.ReceiveViewModel
 
@@ -43,7 +45,7 @@ fun ReceiveScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recevoir", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.receive_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, null)
@@ -84,7 +86,7 @@ fun ReceiveScreen(navController: NavController) {
                         qrBitmap?.let {
                             Image(
                                 bitmap = it.asImageBitmap(),
-                                contentDescription = "QR Code",
+                                contentDescription = stringResource(R.string.receive_qr_code),
                                 modifier = Modifier.size(220.dp).clip(RoundedCornerShape(12.dp))
                             )
                         } ?: Box(
@@ -111,7 +113,7 @@ fun ReceiveScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         if (currentAddress.isEmpty()) {
-                            Text("Wallet non initialisé", fontSize = 13.sp, color = VaultExColors.Error)
+                            Text(stringResource(R.string.receive_wallet_not_initialized), fontSize = 13.sp, color = VaultExColors.Error)
                         } else {
                             Text(
                                 currentAddress,
@@ -132,7 +134,7 @@ fun ReceiveScreen(navController: NavController) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(if (copied) "Copié !" else "Copier")
+                                    Text(if (copied) stringResource(R.string.copied) else stringResource(R.string.copy))
                                 }
                                 Button(
                                     onClick = { },
@@ -142,7 +144,7 @@ fun ReceiveScreen(navController: NavController) {
                                 ) {
                                     Icon(Icons.Default.Share, null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Partager")
+                                    Text(stringResource(R.string.share))
                                 }
                             }
                         }
@@ -150,7 +152,7 @@ fun ReceiveScreen(navController: NavController) {
                 }
 
                 Text(
-                    "Envoyez uniquement des $selectedChain à cette adresse.\nToute autre crypto sera perdue définitivement.",
+                    stringResource(R.string.receive_warning, selectedChain),
                     fontSize = 12.sp,
                     color = VaultExColors.TextSecondary,
                     textAlign = TextAlign.Center
