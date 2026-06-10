@@ -36,7 +36,7 @@ fun SecurityScreen(navController: NavHostController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -121,7 +121,7 @@ fun SecurityScreen(navController: NavHostController) {
 private fun SecurityCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(4.dp), content = content)

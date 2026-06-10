@@ -71,7 +71,7 @@ fun SwapScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Swap", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -89,7 +89,7 @@ fun SwapScreen(navController: NavController) {
             }
 
             // From
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Vous envoyez", fontSize = 13.sp, color = VaultExColors.TextSecondary)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -112,12 +112,12 @@ fun SwapScreen(navController: NavController) {
                     onClick = { viewModel.swapTokens() },
                     modifier = Modifier.background(VaultExColors.BluePrimary, RoundedCornerShape(12.dp)).size(40.dp)
                 ) {
-                    Icon(Icons.Default.SwapVert, null, tint = Color.White)
+                    Icon(Icons.Default.SwapVert, contentDescription = "Inverser les tokens", tint = VaultExColors.TextOnPrimary)
                 }
             }
 
             // To
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Vous recevez (estimé)", fontSize = 13.sp, color = VaultExColors.TextSecondary)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -162,7 +162,7 @@ fun SwapScreen(navController: NavController) {
                 colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VaultExColors.TextOnPrimary, strokeWidth = 2.dp)
                 } else {
                     Text("Swap", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 }

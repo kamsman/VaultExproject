@@ -1,8 +1,6 @@
 package com.vaultex.ui.theme
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // ─── COULEURS VAULTEX PREMIUM ─────────────────────────────────
@@ -31,7 +29,7 @@ val NetworkBnb = Color(0xFFF0B90B)
 val NetworkSol = Color(0xFF9945FF)
 val NetworkTrx = Color(0xFFFF060A)
 
-private val DarkColorScheme = darkColorScheme(
+internal val DarkColorScheme = darkColorScheme(
     primary = AccentGold,
     onPrimary = BgPrimary,
     secondary = AccentGreen,
@@ -46,15 +44,3 @@ private val DarkColorScheme = darkColorScheme(
     onError = TextPrimary,
     outline = BorderColor
 )
-
-@Composable
-fun VaultExDarkTheme(
-    darkTheme: Boolean = true,  // Toujours dark - design premium
-    content: @Composable () -> Unit
-) {
-    MaterialTheme(
-        colorScheme = DarkColorScheme,
-        typography = VaultExTypography,
-        content = content
-    )
-}

@@ -82,7 +82,7 @@ fun SendScreen(navController: NavController) {
                         Icon(Icons.Default.ArrowBack, null)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -99,7 +99,7 @@ fun SendScreen(navController: NavController) {
             // Chain selector
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Réseau", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -122,7 +122,7 @@ fun SendScreen(navController: NavController) {
             // Address input
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Adresse destinataire", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -165,7 +165,7 @@ fun SendScreen(navController: NavController) {
             // Amount input
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Montant", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -232,7 +232,7 @@ fun SendScreen(navController: NavController) {
                 if (state.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = VaultExColors.TextOnPrimary,
                         strokeWidth = 2.dp
                     )
                 } else {

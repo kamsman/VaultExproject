@@ -2,40 +2,46 @@ package com.vaultex.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Alias hérités de l'ancienne charte claire, remappés sur la palette
+ * sombre "premium" de Theme.kt pour garantir un rendu cohérent.
+ * À terme, les écrans doivent référencer MaterialTheme.colorScheme ;
+ * ne pas ajouter de nouvelle couleur ici.
+ */
 object VaultExColors {
-    // Primary Blues
-    val BluePrimary = Color(0xFF1A6FE8)
-    val BlueDark = Color(0xFF0C447C)
-    val BlueLight = Color(0xFFE8F1FD)
-    val BlueGradientStart = Color(0xFF1A6FE8)
-    val BlueGradientEnd = Color(0xFF0C447C)
+    // Accent principal (ex-bleus → or premium)
+    val BluePrimary = AccentGold
+    val BlueDark = AccentGoldDark
+    val BlueLight = SurfaceLight
+    val BlueGradientStart = BgTertiary
+    val BlueGradientEnd = BgSecondary
 
-    // Background
-    val Background = Color(0xFFF5F7FA)
+    // Fonds
+    val Background = BgPrimary
     val SplashBackground = Color(0xFF0A0E1A)
-    val CardBackground = Color(0xFFFFFFFF)
+    val CardBackground = Surface
 
     // Gold (logo/splash)
-    val Gold = Color(0xFFD4A843)
+    val Gold = AccentGold
 
-    // Text
-    val TextPrimary = Color(0xFF0A0E1A)
-    val TextSecondary = Color(0xFF6B7280)
-    val TextOnPrimary = Color(0xFFFFFFFF)
+    // Texte
+    val TextPrimary = com.vaultex.ui.theme.TextPrimary
+    val TextSecondary = com.vaultex.ui.theme.TextSecondary
+    val TextOnPrimary = BgPrimary
 
-    // Status
-    val Success = Color(0xFF22C55E)
-    val Error = Color(0xFFEF4444)
-    val Warning = Color(0xFFF59E0B)
+    // Statuts
+    val Success = AccentGreen
+    val Error = AccentRed
+    val Warning = AccentOrange
 
-    // Border
-    val Border = Color(0xFFE5E7EB)
-    val DividerColor = Color(0xFFF3F4F6)
+    // Bordures
+    val Border = BorderColor
+    val DividerColor = BorderColor
 
-    // Chains
-    val BitcoinOrange = Color(0xFFF7931A)
-    val EthereumBlue = Color(0xFF627EEA)
-    val BnbYellow = Color(0xFFF0B90B)
-    val TronRed = Color(0xFFFF060A)
-    val SolanaGreen = Color(0xFF9945FF)
+    // Chaînes
+    val BitcoinOrange = NetworkBtc
+    val EthereumBlue = NetworkEth
+    val BnbYellow = NetworkBnb
+    val TronRed = NetworkTrx
+    val SolanaGreen = NetworkSol
 }

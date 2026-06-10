@@ -52,7 +52,7 @@ fun AddressBookScreen(navController: NavHostController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         floatingActionButton = {
@@ -60,7 +60,7 @@ fun AddressBookScreen(navController: NavHostController) {
                 onClick = viewModel::openAddDialog,
                 containerColor = VaultExColors.BluePrimary
             ) {
-                Icon(Icons.Default.Add, null, tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Ajouter un contact", tint = VaultExColors.TextOnPrimary)
             }
         },
         containerColor = VaultExColors.Background
@@ -96,7 +96,7 @@ private fun ContactCard(contact: ContactEntity, onDelete: () -> Unit) {
 
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

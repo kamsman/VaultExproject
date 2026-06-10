@@ -38,7 +38,7 @@ fun WalletManagerScreen(navController: NavController) {
                 title = { Text("Wallets", fontWeight = FontWeight.Bold) },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = { IconButton(onClick = { }) { Icon(Icons.Default.Add, null, tint = VaultExColors.BluePrimary) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -47,7 +47,7 @@ fun WalletManagerScreen(navController: NavController) {
             items(wallets) { wallet ->
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
                     border = if (wallet.isActive) BorderStroke(2.dp, VaultExColors.BluePrimary) else null
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -45,7 +45,7 @@ fun BackupScreen(navController: NavController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -65,7 +65,7 @@ fun BackupScreen(navController: NavController) {
                 }
             }
 
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Lock, tint = VaultExColors.BluePrimary, contentDescription = null)
@@ -116,7 +116,7 @@ fun BackupScreen(navController: NavController) {
                 }
             }
 
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Checklist de sécurité", fontWeight = FontWeight.SemiBold)
                     ChecklistItem("Écrivez votre phrase sur papier")
@@ -187,7 +187,7 @@ private fun PinConfirmDialog(
 @Composable
 private fun MnemonicWord(index: Int, word: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).padding(8.dp),
+        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(VaultExColors.BlueLight).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("$index.", fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.width(20.dp))

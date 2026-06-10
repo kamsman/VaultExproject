@@ -34,7 +34,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -48,7 +48,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Price header
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(20.dp)) {
                     Text("Bitcoin", color = VaultExColors.TextSecondary, fontSize = 13.sp)
                     Spacer(Modifier.height(4.dp))
@@ -80,7 +80,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
             }
 
             // Chart placeholder
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center
@@ -90,7 +90,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
             }
 
             // Stats
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Statistiques", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     StatRow("Cap. marché", "674 Md FCFA")

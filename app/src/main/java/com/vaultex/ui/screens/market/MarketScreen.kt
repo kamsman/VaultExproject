@@ -42,7 +42,7 @@ fun MarketScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Marché", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -67,7 +67,7 @@ fun MarketScreen(navController: NavController) {
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Routes.COIN_DETAIL) },
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("${idx + 1}", fontSize = 12.sp, color = VaultExColors.TextSecondary, modifier = Modifier.width(22.dp))

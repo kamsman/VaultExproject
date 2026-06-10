@@ -74,7 +74,7 @@ fun MobileMoneyScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -105,9 +105,9 @@ fun MobileMoneyScreen(
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 when {
-                                    !op.available -> Color(0xFFF3F4F6)
+                                    !op.available -> VaultExColors.CardBackground.copy(alpha = 0.5f)
                                     selected -> op.color.copy(alpha = 0.15f)
-                                    else -> Color.White
+                                    else -> VaultExColors.CardBackground
                                 }
                             )
                             .border(1.dp,
@@ -160,7 +160,7 @@ fun MobileMoneyScreen(
             )
 
             if (state.amountFcfa.isNotEmpty() && state.amountFcfa.toDoubleOrNull() != null) {
-                Surface(shape = RoundedCornerShape(12.dp), color = Color.White, tonalElevation = 1.dp) {
+                Surface(shape = RoundedCornerShape(12.dp), color = VaultExColors.CardBackground, tonalElevation = 1.dp) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Frais (1%)", color = VaultExColors.TextSecondary, fontSize = 13.sp)
@@ -193,7 +193,7 @@ fun MobileMoneyScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = VaultExColors.TextOnPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
                     Text("Confirmer le transfert", fontWeight = FontWeight.SemiBold)
                 }

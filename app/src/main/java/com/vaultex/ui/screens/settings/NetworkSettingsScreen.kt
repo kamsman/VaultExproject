@@ -39,7 +39,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                         Icon(Icons.Default.RestartAlt, contentDescription = "Réinitialiser", tint = VaultExColors.TextSecondary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -62,7 +62,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
             state.entries.forEach { entry ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

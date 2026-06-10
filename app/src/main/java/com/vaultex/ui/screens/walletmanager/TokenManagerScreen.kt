@@ -43,7 +43,7 @@ fun TokenManagerScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Gérer les tokens", fontWeight = FontWeight.Bold) },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -60,7 +60,7 @@ fun TokenManagerScreen(navController: NavController) {
             )
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filtered) { token ->
-                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(40.dp).clip(CircleShape).background(VaultExColors.BlueLight), contentAlignment = Alignment.Center) {
                                 Text(token.symbol.take(1), color = VaultExColors.BluePrimary, fontWeight = FontWeight.Bold)
