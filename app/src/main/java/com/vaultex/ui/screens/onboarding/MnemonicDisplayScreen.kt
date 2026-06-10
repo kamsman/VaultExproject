@@ -13,11 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.components.GlassCard
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
@@ -41,7 +43,7 @@ fun MnemonicDisplayScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Phrase de récupération", color = TextPrimary) },
+                title = { Text(stringResource(R.string.seed_phrase_title), color = TextPrimary) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -60,8 +62,7 @@ fun MnemonicDisplayScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "⚠️ Notez ces 12 mots dans l'ordre exact. " +
-                            "Si vous les perdez, vous perdez votre wallet.",
+                    text = stringResource(R.string.mnemonic_display_warning),
                     color = AccentRed,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(14.dp)
@@ -120,7 +121,7 @@ fun MnemonicDisplayScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (revealed) "Masquer" else "Afficher les mots",
+                        text = if (revealed) stringResource(R.string.mnemonic_hide) else stringResource(R.string.mnemonic_show),
                         color = AccentGold
                     )
                 }
@@ -129,7 +130,7 @@ fun MnemonicDisplayScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
-                text = "Continuer",
+                text = stringResource(R.string.continue_btn),
                 onClick = { navController.navigate(Routes.MNEMONIC_VERIFY) },
                 enabled = mnemonic.isNotEmpty()
             )

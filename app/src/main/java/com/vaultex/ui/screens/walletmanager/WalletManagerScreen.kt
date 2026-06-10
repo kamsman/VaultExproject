@@ -15,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.data.local.entity.WalletEntity
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
@@ -36,10 +38,10 @@ fun WalletManagerScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wallets", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.wallet_manager), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -54,7 +56,7 @@ fun WalletManagerScreen(navController: NavController) {
             if (wallets.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Text("Aucun wallet", color = VaultExColors.TextSecondary)
+                        Text(stringResource(R.string.wallet_mgr_empty), color = VaultExColors.TextSecondary)
                     }
                 }
             }
@@ -75,7 +77,7 @@ fun WalletManagerScreen(navController: NavController) {
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Créer un nouveau wallet")
+                    Text(stringResource(R.string.create_wallet))
                 }
             }
             item {
@@ -86,7 +88,7 @@ fun WalletManagerScreen(navController: NavController) {
                 ) {
                     Icon(Icons.Default.FileDownload, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Importer un wallet existant")
+                    Text(stringResource(R.string.import_wallet))
                 }
             }
         }
@@ -125,26 +127,26 @@ private fun WalletCard(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(wallet.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text("Créé le $createdAt", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                Text(stringResource(R.string.wallet_mgr_created_on, createdAt), fontSize = 13.sp, color = VaultExColors.TextSecondary)
                 if (wallet.isActive) {
-                    Text("Actif", fontSize = 11.sp, color = VaultExColors.BluePrimary, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.active), fontSize = 11.sp, color = VaultExColors.BluePrimary, fontWeight = FontWeight.Medium)
                 }
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Options du wallet", tint = VaultExColors.TextSecondary)
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.wallet_mgr_options), tint = VaultExColors.TextSecondary)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (!wallet.isActive) {
                         DropdownMenuItem(
-                            text = { Text("Activer") },
+                            text = { Text(stringResource(R.string.wallet_mgr_activate)) },
                             onClick = {
                                 menuExpanded = false
                                 onActivate()
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Supprimer", color = VaultExColors.Error) },
+                            text = { Text(stringResource(R.string.delete), color = VaultExColors.Error) },
                             onClick = {
                                 menuExpanded = false
                                 showDeleteConfirm = true
@@ -152,7 +154,7 @@ private fun WalletCard(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("Wallet actif", color = VaultExColors.TextSecondary) },
+                            text = { Text(stringResource(R.string.wallet_mgr_active_wallet), color = VaultExColors.TextSecondary) },
                             onClick = { menuExpanded = false }
                         )
                     }
@@ -164,16 +166,16 @@ private fun WalletCard(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Supprimer ce wallet ?") },
-            text = { Text("Cette action est irréversible. Assurez-vous d'avoir sauvegardé la phrase de récupération.") },
+            title = { Text(stringResource(R.string.wallet_mgr_delete_title)) },
+            text = { Text(stringResource(R.string.wallet_mgr_delete_warning)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
                     onDelete()
-                }) { Text("Supprimer", color = VaultExColors.Error) }
+                }) { Text(stringResource(R.string.delete), color = VaultExColors.Error) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Annuler") }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

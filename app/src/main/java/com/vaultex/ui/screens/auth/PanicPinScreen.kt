@@ -12,12 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.viewmodel.PanicPinViewModel
 
@@ -63,26 +65,26 @@ fun PanicPinScreen(navController: NavController) {
             Spacer(Modifier.height(48.dp))
             Icon(
                 Icons.Default.ArrowBack,
-                contentDescription = "Retour",
+                contentDescription = stringResource(R.string.back),
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.align(Alignment.Start).size(24.dp)
                     .clickable { navController.popBackStack() }
             )
             Spacer(Modifier.height(32.dp))
             Text(
-                if (step == 0) "PIN de Panique" else "Confirmer le PIN",
+                if (step == 0) stringResource(R.string.panic_pin_title) else stringResource(R.string.pin_confirm),
                 color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Ce PIN efface toutes les données du wallet\nsi saisi à l'écran de déverrouillage.",
+                stringResource(R.string.panic_description),
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(16.dp))
             if (mismatch) {
-                Text("Les PINs ne correspondent pas", color = Color(0xFFEF4444), fontSize = 13.sp)
+                Text(stringResource(R.string.panic_mismatch), color = Color(0xFFEF4444), fontSize = 13.sp)
                 LaunchedEffect(Unit) { kotlinx.coroutines.delay(2000); mismatch = false }
             }
             Spacer(Modifier.height(16.dp))

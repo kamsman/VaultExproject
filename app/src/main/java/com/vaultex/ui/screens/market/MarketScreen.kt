@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 
@@ -41,7 +43,7 @@ fun MarketScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Marché", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.market_title), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },
@@ -50,17 +52,17 @@ fun MarketScreen(navController: NavController) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             OutlinedTextField(
                 value = searchQuery, onValueChange = { searchQuery = it },
-                placeholder = { Text("Rechercher BTC, ETH...") },
+                placeholder = { Text(stringResource(R.string.market_search_placeholder)) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 shape = RoundedCornerShape(12.dp), singleLine = true
             )
             // Header row
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                Text("#  Nom", fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.weight(1f))
-                Text("Prix (FCFA)", fontSize = 11.sp, color = VaultExColors.TextSecondary)
+                Text(stringResource(R.string.market_header_name), fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.market_header_price), fontSize = 11.sp, color = VaultExColors.TextSecondary)
                 Spacer(Modifier.width(12.dp))
-                Text("24h", fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.width(52.dp))
+                Text(stringResource(R.string.market_header_24h), fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.width(52.dp))
             }
             LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(filtered.withIndex().toList()) { (idx, coin) ->
@@ -85,7 +87,7 @@ fun MarketScreen(navController: NavController) {
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("${coin.priceXof} F", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                Text("Cap: ${coin.marketCap}", fontSize = 10.sp, color = VaultExColors.TextSecondary)
+                                Text(stringResource(R.string.market_cap_value, coin.marketCap), fontSize = 10.sp, color = VaultExColors.TextSecondary)
                             }
                             Spacer(Modifier.width(12.dp))
                             val isPos = coin.change24h >= 0

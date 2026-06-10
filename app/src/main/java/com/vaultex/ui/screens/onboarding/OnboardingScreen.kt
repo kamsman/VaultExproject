@@ -11,11 +11,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 
@@ -35,18 +37,18 @@ fun OnboardingScreen(
     val pages = listOf(
 
         OnboardingPage(
-            "Bienvenue sur VaultEx",
-            "Le wallet crypto sécurisé nouvelle génération."
+            stringResource(R.string.welcome_title),
+            stringResource(R.string.onboarding_page1_desc)
         ),
 
         OnboardingPage(
-            "Multi-Blockchain",
-            "Ethereum, BNB, Polygon, Arbitrum et Base."
+            stringResource(R.string.onboarding_page2_title),
+            stringResource(R.string.onboarding_page2_desc)
         ),
 
         OnboardingPage(
-            "100% Non-Custodial",
-            "Vos clés. Vos cryptos. Votre contrôle."
+            stringResource(R.string.onboarding_page3_title),
+            stringResource(R.string.onboarding_page3_desc)
         )
     )
 
@@ -93,7 +95,7 @@ fun OnboardingScreen(
                 ) {
 
                     Text(
-                        text = "Skip",
+                        text = stringResource(R.string.onboarding_skip),
                         color = TextPrimary
                     )
                 }
@@ -204,9 +206,9 @@ fun OnboardingScreen(
                     Text(
                         text =
                             if (pagerState.currentPage == pages.lastIndex)
-                                "Get Started"
+                                stringResource(R.string.onboarding_get_started)
                             else
-                                "Next",
+                                stringResource(R.string.onboarding_next),
 
                         color = AccentGold,
                         fontSize = 18.sp

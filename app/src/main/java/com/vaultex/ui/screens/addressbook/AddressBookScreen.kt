@@ -12,11 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.data.local.entity.ContactEntity
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.AddressBookViewModel
@@ -46,10 +48,10 @@ fun AddressBookScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Carnet d'adresses", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.address_book), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -60,7 +62,7 @@ fun AddressBookScreen(navController: NavHostController) {
                 onClick = viewModel::openAddDialog,
                 containerColor = VaultExColors.BluePrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Ajouter un contact", tint = VaultExColors.TextOnPrimary)
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.contacts_add), tint = VaultExColors.TextOnPrimary)
             }
         },
         containerColor = VaultExColors.Background
@@ -70,8 +72,8 @@ fun AddressBookScreen(navController: NavHostController) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.Contacts, null, tint = VaultExColors.TextSecondary, modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(16.dp))
-                    Text("Aucun contact", color = VaultExColors.TextSecondary, fontSize = 15.sp)
-                    Text("Appuyez sur + pour ajouter un contact", color = VaultExColors.TextSecondary, fontSize = 13.sp)
+                    Text(stringResource(R.string.contacts_empty), color = VaultExColors.TextSecondary, fontSize = 15.sp)
+                    Text(stringResource(R.string.contacts_empty_hint), color = VaultExColors.TextSecondary, fontSize = 13.sp)
                 }
             }
         } else {
@@ -150,20 +152,20 @@ private fun AddContactDialog(
     val chains = listOf("ETH", "BNB", "BTC", "SOL", "TRX", "USDT")
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nouveau contact") },
+        title = { Text(stringResource(R.string.contacts_new)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = onNameChange,
-                    label = { Text("Nom") },
+                    label = { Text(stringResource(R.string.contacts_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = address,
                     onValueChange = onAddressChange,
-                    label = { Text("Adresse") },
+                    label = { Text(stringResource(R.string.contacts_address)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -172,7 +174,7 @@ private fun AddContactDialog(
                     OutlinedTextField(
                         value = chain,
                         onValueChange = {},
-                        label = { Text("Réseau") },
+                        label = { Text(stringResource(R.string.contacts_network)) },
                         readOnly = true,
                         trailingIcon = {
                             IconButton(onClick = { expanded = true }) {
@@ -193,10 +195,10 @@ private fun AddContactDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onSave) { Text("Ajouter") }
+            Button(onClick = onSave) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

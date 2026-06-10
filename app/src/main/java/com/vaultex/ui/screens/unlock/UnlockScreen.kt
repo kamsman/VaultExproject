@@ -10,12 +10,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.UnlockViewModel
@@ -54,9 +56,9 @@ fun UnlockScreen(navController: NavHostController) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("◆", color = AccentGold, fontSize = 64.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
-                Text("VaultEx", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.app_name), color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text("Entrez votre PIN", color = TextSecondary, fontSize = 15.sp)
+                Text(stringResource(R.string.pin_title), color = TextSecondary, fontSize = 15.sp)
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -77,7 +79,8 @@ fun UnlockScreen(navController: NavHostController) {
                     state.lockedSeconds > 0 -> {
                         val min = state.lockedSeconds / 60
                         val sec = state.lockedSeconds % 60
-                        if (min > 0) "Bloqué ${min}min ${sec}s" else "Bloqué ${sec}s"
+                        val duration = if (min > 0) "${min}min ${sec}s" else "${sec}s"
+                        stringResource(R.string.pin_locked, duration)
                     }
                     state.error != null -> state.error
                     else -> ""

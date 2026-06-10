@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 
 @Composable
@@ -41,7 +43,7 @@ fun TokenManagerScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gérer les tokens", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.token_manager), fontWeight = FontWeight.Bold) },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
@@ -52,7 +54,7 @@ fun TokenManagerScreen(navController: NavController) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Rechercher un token...") },
+                placeholder = { Text(stringResource(R.string.token_mgr_search)) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 shape = RoundedCornerShape(10.dp),

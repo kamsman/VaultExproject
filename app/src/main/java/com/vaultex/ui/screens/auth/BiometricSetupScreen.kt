@@ -8,12 +8,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.BiometricSetupViewModel
@@ -40,10 +42,10 @@ fun BiometricSetupScreen(navController: NavController) {
             tint = VaultExColors.BluePrimary
         )
         Spacer(Modifier.height(32.dp))
-        Text("Activer la biométrie", fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.biometric_enable), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
         Text(
-            "Utilisez votre empreinte digitale ou Face ID pour déverrouiller VaultEx rapidement et en toute sécurité.",
+            stringResource(R.string.biometric_setup_description),
             fontSize = 15.sp,
             color = VaultExColors.TextSecondary,
             textAlign = TextAlign.Center,
@@ -59,11 +61,11 @@ fun BiometricSetupScreen(navController: NavController) {
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
         ) {
-            Text("Activer la biométrie", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.biometric_enable), fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = { goToDashboard() }) {
-            Text("Ignorer pour l'instant", color = VaultExColors.TextSecondary)
+            Text(stringResource(R.string.biometric_setup_skip), color = VaultExColors.TextSecondary)
         }
     }
 }

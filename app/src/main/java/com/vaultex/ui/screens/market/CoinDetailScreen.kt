@@ -13,10 +13,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.theme.VaultExColors
 
 @Composable
@@ -31,7 +33,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
                 title = { Text("Bitcoin", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -60,7 +62,7 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
                             tint = if (isPositive) VaultExColors.Success else VaultExColors.Error
                         )
                         Text(
-                            "+2.4% (24h)",
+                            stringResource(R.string.coin_change_24h, "+2.4%"),
                             color = if (isPositive) VaultExColors.Success else VaultExColors.Error,
                             fontSize = 14.sp
                         )
@@ -85,19 +87,19 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Graphique $selectedPeriod", color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.coin_chart_period, selectedPeriod), color = VaultExColors.TextSecondary)
                 }
             }
 
             // Stats
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Statistiques", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    StatRow("Cap. marché", "674 Md FCFA")
-                    StatRow("Volume 24h", "18.3 Md FCFA")
-                    StatRow("Plus haut 24h", "35 100 000 FCFA")
-                    StatRow("Plus bas 24h", "33 200 000 FCFA")
-                    StatRow("Rang", "#1")
+                    Text(stringResource(R.string.coin_stats), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    StatRow(stringResource(R.string.market_cap), "674 Md FCFA")
+                    StatRow(stringResource(R.string.coin_volume_24h), "18.3 Md FCFA")
+                    StatRow(stringResource(R.string.coin_high_24h), "35 100 000 FCFA")
+                    StatRow(stringResource(R.string.coin_low_24h), "33 200 000 FCFA")
+                    StatRow(stringResource(R.string.coin_rank), "#1")
                 }
             }
 
@@ -108,12 +110,12 @@ fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-                ) { Text("Acheter/Envoyer") }
+                ) { Text(stringResource(R.string.coin_buy_send)) }
                 OutlinedButton(
                     onClick = { navController.navigate("receive") },
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(10.dp)
-                ) { Text("Recevoir") }
+                ) { Text(stringResource(R.string.action_receive)) }
             }
         }
     }

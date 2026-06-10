@@ -10,7 +10,9 @@ import androidx.navigation.NavHostController
 // ✅ IMPORTS CORRECTS (OBLIGATOIRE)
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.res.stringResource
 
+import com.vaultex.R
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.TextPrimary
 
@@ -23,7 +25,7 @@ fun TransactionDetailScreen(navController: NavHostController) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Détail transaction",
+                        text = stringResource(R.string.tx_detail_title),
                         color = TextPrimary
                     )
                 },
@@ -33,7 +35,7 @@ fun TransactionDetailScreen(navController: NavHostController) {
                     ) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -54,7 +56,7 @@ fun TransactionDetailScreen(navController: NavHostController) {
         ) {
 
             Text(
-                text = "Détails de la transaction",
+                text = stringResource(R.string.tx_detail_description),
                 color = TextPrimary
             )
         }

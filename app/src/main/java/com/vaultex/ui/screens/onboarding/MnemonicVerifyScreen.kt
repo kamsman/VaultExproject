@@ -5,11 +5,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -28,7 +30,7 @@ fun MnemonicVerifyScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Vérification", color = TextPrimary) },
+                title = { Text(stringResource(R.string.mnemonic_verify_title), color = TextPrimary) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -43,7 +45,7 @@ fun MnemonicVerifyScreen(
         ) {
 
             Text(
-                text = "Confirmez votre phrase",
+                text = stringResource(R.string.mnemonic_verify_heading),
                 color = TextPrimary,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
@@ -52,7 +54,7 @@ fun MnemonicVerifyScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Entrez le mot numéro ${wordIndex + 1} de votre phrase de récupération.",
+                text = stringResource(R.string.mnemonic_verify_instruction, wordIndex + 1),
                 color = TextSecondary,
                 fontSize = 15.sp,
                 lineHeight = 22.sp
@@ -68,7 +70,7 @@ fun MnemonicVerifyScreen(
                 Column(modifier = Modifier.padding(20.dp)) {
 
                     Text(
-                        text = "Mot numéro ${wordIndex + 1}",
+                        text = stringResource(R.string.mnemonic_verify_word_label, wordIndex + 1),
                         color = AccentGold,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
@@ -82,7 +84,7 @@ fun MnemonicVerifyScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
-                        placeholder = { Text("Entrez le mot", color = TextSecondary) },
+                        placeholder = { Text(stringResource(R.string.mnemonic_verify_placeholder), color = TextSecondary) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AccentGold,
                             unfocusedBorderColor = BgSecondary,
@@ -103,7 +105,7 @@ fun MnemonicVerifyScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
-                text = "Continuer",
+                text = stringResource(R.string.continue_btn),
                 onClick = {
                     when {
                         word.isBlank() -> error = "Veuillez entrer le mot"

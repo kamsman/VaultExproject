@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.HistoryViewModel
@@ -38,7 +40,7 @@ fun HistoryScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Historique", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, null, tint = VaultExColors.BluePrimary)
@@ -60,7 +62,12 @@ fun HistoryScreen(navController: NavController) {
                     FilterChip(
                         selected = (if (chain == "Tous") null else chain) == filteredChain,
                         onClick = { viewModel.filterByChain(if (chain == "Tous") null else chain) },
-                        label = { Text(chain, fontSize = 12.sp) }
+                        label = {
+                            Text(
+                                if (chain == "Tous") stringResource(R.string.history_filter_all) else chain,
+                                fontSize = 12.sp
+                            )
+                        }
                     )
                 }
             }
@@ -78,10 +85,10 @@ fun HistoryScreen(navController: NavController) {
                             tint = VaultExColors.Border
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("Aucune transaction", color = VaultExColors.TextSecondary)
+                        Text(stringResource(R.string.no_transactions), color = VaultExColors.TextSecondary)
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = { viewModel.refresh() }) {
-                            Text("Actualiser", color = VaultExColors.BluePrimary)
+                            Text(stringResource(R.string.history_refresh), color = VaultExColors.BluePrimary)
                         }
                     }
                 }

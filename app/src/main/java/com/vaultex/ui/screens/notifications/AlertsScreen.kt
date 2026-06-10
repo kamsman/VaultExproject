@@ -10,11 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.data.local.entity.PriceAlertEntity
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.AlertsViewModel
@@ -33,15 +35,15 @@ fun AlertsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Alertes prix", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.alerts_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Ajouter une alerte", tint = VaultExColors.BluePrimary)
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.alerts_add), tint = VaultExColors.BluePrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -54,13 +56,13 @@ fun AlertsScreen(navController: NavController) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = VaultExColors.Border)
                     Spacer(Modifier.height(16.dp))
-                    Text("Aucune alerte configurée", color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.alerts_empty), color = VaultExColors.TextSecondary)
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { showAddDialog = true },
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-                    ) { Text("Créer une alerte") }
+                    ) { Text(stringResource(R.string.alerts_create)) }
                 }
             }
         } else {
@@ -116,15 +118,15 @@ private fun AlertCard(
                     if (alert.isActive) {
                         Surface(shape = RoundedCornerShape(4.dp), color = VaultExColors.BlueLight) {
                             Text(
-                                "Actif", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                stringResource(R.string.active), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontSize = 11.sp, color = VaultExColors.BluePrimary
                             )
                         }
                     }
                 }
-                Text("Alerte ${alert.condition} $targetFormatted", fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                Text(stringResource(R.string.alerts_condition_target, alert.condition, targetFormatted), fontSize = 13.sp, color = VaultExColors.TextSecondary)
                 currentPriceXof?.let {
-                    Text("Prix actuel : ${formatXof(it)}", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.alerts_current_price, formatXof(it)), fontSize = 12.sp, color = VaultExColors.TextSecondary)
                 }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -133,7 +135,7 @@ private fun AlertCard(
                     colors = SwitchDefaults.colors(checkedTrackColor = VaultExColors.BluePrimary)
                 )
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Supprimer l'alerte", tint = VaultExColors.Error, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.alerts_delete), tint = VaultExColors.Error, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -150,10 +152,10 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nouvelle alerte") },
+        title = { Text(stringResource(R.string.alerts_new)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Token", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Text(stringResource(R.string.alerts_token_label), fontWeight = FontWeight.Medium, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     tokens.take(3).forEach { t ->
                         FilterChip(selected = token == t, onClick = { token = t }, label = { Text(t) })
@@ -164,13 +166,13 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                         FilterChip(selected = token == t, onClick = { token = t }, label = { Text(t) })
                     }
                 }
-                Text("Condition", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Text(stringResource(R.string.alerts_condition_label), fontWeight = FontWeight.Medium, fontSize = 13.sp)
                 conditions.forEach { c ->
                     FilterChip(selected = condition == c, onClick = { condition = c }, label = { Text(c) })
                 }
                 OutlinedTextField(
                     value = target, onValueChange = { target = it },
-                    label = { Text("Prix cible (FCFA)") }, singleLine = true,
+                    label = { Text(stringResource(R.string.alerts_target_price)) }, singleLine = true,
                     shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -181,8 +183,8 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                 enabled = target.toDoubleOrNull() != null,
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-            ) { Text("Créer") }
+            ) { Text(stringResource(R.string.create)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }

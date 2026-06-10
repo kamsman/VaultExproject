@@ -10,11 +10,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SecurityViewModel
@@ -30,10 +32,10 @@ fun SecurityScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sécurité", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.security), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -52,8 +54,8 @@ fun SecurityScreen(navController: NavHostController) {
             SecurityCard {
                 SecurityRow(
                     icon = Icons.Default.Fingerprint,
-                    title = "Déverrouillage biométrique",
-                    subtitle = if (state.isBiometricEnabled) "Activé" else "Désactivé"
+                    title = stringResource(R.string.security_biometric_title),
+                    subtitle = if (state.isBiometricEnabled) stringResource(R.string.security_enabled) else stringResource(R.string.security_disabled)
                 ) {
                     Switch(
                         checked = state.isBiometricEnabled,
@@ -68,18 +70,18 @@ fun SecurityScreen(navController: NavHostController) {
                 var expanded by remember { mutableStateOf(false) }
                 SecurityRow(
                     icon = Icons.Default.Timer,
-                    title = "Verrouillage automatique",
-                    subtitle = "${state.autoLockMinutes} min"
+                    title = stringResource(R.string.security_auto_lock),
+                    subtitle = stringResource(R.string.security_minutes_format, state.autoLockMinutes)
                 ) {
                     Box {
                         TextButton(onClick = { expanded = true }) {
-                            Text("${state.autoLockMinutes} min", color = VaultExColors.BluePrimary)
+                            Text(stringResource(R.string.security_minutes_format, state.autoLockMinutes), color = VaultExColors.BluePrimary)
                             Icon(Icons.Default.ArrowDropDown, null, tint = VaultExColors.BluePrimary)
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             autoLockOptions.forEach { minutes ->
                                 DropdownMenuItem(
-                                    text = { Text("$minutes min") },
+                                    text = { Text(stringResource(R.string.security_minutes_format, minutes)) },
                                     onClick = { viewModel.setAutoLockMinutes(minutes); expanded = false }
                                 )
                             }
@@ -92,8 +94,8 @@ fun SecurityScreen(navController: NavHostController) {
             SecurityCard {
                 SecurityRow(
                     icon = Icons.Default.Pin,
-                    title = "Changer le PIN",
-                    subtitle = "Modifier votre code PIN actuel"
+                    title = stringResource(R.string.security_change_pin),
+                    subtitle = stringResource(R.string.security_change_pin_subtitle)
                 ) {
                     IconButton(onClick = { navController.navigate(Routes.PIN_SETUP) }) {
                         Icon(Icons.Default.ChevronRight, null, tint = VaultExColors.TextSecondary)
@@ -105,8 +107,8 @@ fun SecurityScreen(navController: NavHostController) {
             SecurityCard {
                 SecurityRow(
                     icon = Icons.Default.Warning,
-                    title = "PIN de panique",
-                    subtitle = if (state.hasPanicPin) "Configuré" else "Non configuré — efface toutes les données"
+                    title = stringResource(R.string.panic_pin_title),
+                    subtitle = if (state.hasPanicPin) stringResource(R.string.security_panic_configured) else stringResource(R.string.security_panic_not_configured)
                 ) {
                     IconButton(onClick = { navController.navigate(Routes.PANIC_PIN) }) {
                         Icon(Icons.Default.ChevronRight, null, tint = VaultExColors.TextSecondary)

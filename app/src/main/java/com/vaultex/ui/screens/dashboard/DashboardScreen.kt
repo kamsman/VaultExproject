@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.vaultex.R
 import com.vaultex.ui.components.BalanceDisplay
 import com.vaultex.ui.components.TokenIcon
 import com.vaultex.ui.navigation.Routes
@@ -39,10 +41,10 @@ fun DashboardScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("VaultEx", color = TextPrimary) },
+                title = { Text(stringResource(R.string.app_name), color = TextPrimary) },
                 actions = {
                     IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Alertes", tint = TextPrimary)
+                        Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.dashboard_alerts), tint = TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
@@ -80,22 +82,22 @@ fun DashboardScreen(navController: NavHostController) {
                 Spacer(Modifier.height(20.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAction("Envoyer", Icons.Default.CallMade, Modifier.weight(1f)) {
+                    QuickAction(stringResource(R.string.action_send), Icons.Default.CallMade, Modifier.weight(1f)) {
                         navController.navigate(Routes.SEND)
                     }
-                    QuickAction("Recevoir", Icons.Default.CallReceived, Modifier.weight(1f)) {
+                    QuickAction(stringResource(R.string.action_receive), Icons.Default.CallReceived, Modifier.weight(1f)) {
                         navController.navigate(Routes.RECEIVE)
                     }
-                    QuickAction("Swap", Icons.Default.SwapHoriz, Modifier.weight(1f)) {
+                    QuickAction(stringResource(R.string.action_swap), Icons.Default.SwapHoriz, Modifier.weight(1f)) {
                         navController.navigate(Routes.SWAP)
                     }
-                    QuickAction("Acheter", Icons.Default.AddCircle, Modifier.weight(1f)) {
+                    QuickAction(stringResource(R.string.action_buy), Icons.Default.AddCircle, Modifier.weight(1f)) {
                         navController.navigate(Routes.MOBILE_MONEY)
                     }
                 }
 
                 Spacer(Modifier.height(24.dp))
-                Text("Vos actifs", color = TextPrimary, fontSize = 18.sp)
+                Text(stringResource(R.string.my_assets), color = TextPrimary, fontSize = 18.sp)
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -108,7 +110,7 @@ fun DashboardScreen(navController: NavHostController) {
             if (!state.isLoading && state.tokens.isEmpty() && state.error == null) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Aucun actif trouvé", color = TextSecondary)
+                        Text(stringResource(R.string.dashboard_no_assets), color = TextSecondary)
                     }
                 }
             }
@@ -178,11 +180,11 @@ private fun BottomNavBar(navController: NavHostController) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     val items = listOf(
-        Triple(Routes.DASHBOARD, Icons.Default.Home, "Accueil"),
-        Triple(Routes.MARKET, Icons.Default.TrendingUp, "Marché"),
-        Triple(Routes.SWAP, Icons.Default.SwapHoriz, "Swap"),
-        Triple(Routes.HISTORY, Icons.Default.History, "Historique"),
-        Triple(Routes.SETTINGS, Icons.Default.Settings, "Paramètres")
+        Triple(Routes.DASHBOARD, Icons.Default.Home, stringResource(R.string.tab_home)),
+        Triple(Routes.MARKET, Icons.Default.TrendingUp, stringResource(R.string.tab_market)),
+        Triple(Routes.SWAP, Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)),
+        Triple(Routes.HISTORY, Icons.Default.History, stringResource(R.string.tab_history)),
+        Triple(Routes.SETTINGS, Icons.Default.Settings, stringResource(R.string.tab_settings))
     )
 
     NavigationBar(containerColor = Surface) {

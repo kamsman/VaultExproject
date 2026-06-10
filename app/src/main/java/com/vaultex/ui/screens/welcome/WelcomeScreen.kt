@@ -7,12 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.components.SecondaryButton
 import com.vaultex.ui.navigation.Routes
@@ -78,7 +80,7 @@ fun WelcomeScreen(
              */
 
             Text(
-                text = "Votre crypto, vos clés",
+                text = stringResource(R.string.app_tagline),
                 color = TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -96,9 +98,7 @@ fun WelcomeScreen(
              */
 
             Text(
-                text =
-                    "5 blockchains. 1 wallet sécurisé.\n" +
-                            "Non-custodial. 100% sous votre contrôle.",
+                text = stringResource(R.string.welcome_description),
 
                 color = TextSecondary,
                 fontSize = 15.sp,
@@ -117,7 +117,7 @@ fun WelcomeScreen(
              */
 
             PrimaryButton(
-                text = "Créer un wallet",
+                text = stringResource(R.string.create_wallet),
                 onClick = {
 
                     navController.navigate(
@@ -137,7 +137,7 @@ fun WelcomeScreen(
              */
 
             SecondaryButton(
-                text = "Importer un wallet",
+                text = stringResource(R.string.import_wallet),
                 onClick = {
 
                     navController.navigate(

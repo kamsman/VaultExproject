@@ -11,12 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -63,7 +65,7 @@ fun ImportWalletScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             Text(
-                text = "Importer un wallet",
+                text = stringResource(R.string.import_wallet),
                 color = TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
@@ -72,7 +74,7 @@ fun ImportWalletScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Entrez votre phrase de récupération de 12 mots.",
+                text = stringResource(R.string.import_instruction),
                 color = TextSecondary,
                 fontSize = 15.sp,
                 lineHeight = 24.sp
@@ -88,7 +90,7 @@ fun ImportWalletScreen(
                 Column(modifier = Modifier.padding(22.dp)) {
 
                     Text(
-                        text = "Phrase secrète",
+                        text = stringResource(R.string.seed_phrase_title),
                         color = AccentGold,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
@@ -124,7 +126,7 @@ fun ImportWalletScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
-                        text = "$wordCount / 12 mots",
+                        text = stringResource(R.string.import_word_count, wordCount),
                         color = if (isValidCount) AccentGold else TextSecondary,
                         fontSize = 14.sp
                     )
@@ -143,8 +145,7 @@ fun ImportWalletScreen(
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Text(
-                    text = "⚠️ Ne partagez jamais votre phrase secrète. " +
-                            "Toute personne ayant accès à cette phrase peut contrôler votre wallet.",
+                    text = stringResource(R.string.import_warning),
                     color = AccentRed,
                     fontSize = 13.sp,
                     lineHeight = 22.sp,
@@ -155,7 +156,7 @@ fun ImportWalletScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
-                text = "Continuer",
+                text = stringResource(R.string.continue_btn),
                 onClick = {
                     when {
                         mnemonic.isBlank() -> error = "Veuillez entrer votre phrase secrète"

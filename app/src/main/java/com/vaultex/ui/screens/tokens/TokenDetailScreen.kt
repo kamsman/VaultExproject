@@ -18,11 +18,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.TokenDetailViewModel
@@ -40,12 +42,12 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                 title = { Text(state.name.ifEmpty { symbol }, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadData() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualiser", tint = VaultExColors.BluePrimary)
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.token_detail_refresh), tint = VaultExColors.BluePrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
@@ -100,7 +102,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                "%+.2f%% (24h)".format(state.change24h),
+                                stringResource(R.string.token_detail_change_24h, "%+.2f%%".format(state.change24h)),
                                 fontSize = 14.sp,
                                 color = if (isPositive) VaultExColors.Success else VaultExColors.Error,
                                 fontWeight = FontWeight.Medium
@@ -108,7 +110,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                         }
                         if (state.marketCapUsd > 0) {
                             Text(
-                                "Cap. marché : ${formatUsd(state.marketCapUsd)}",
+                                stringResource(R.string.token_detail_market_cap, formatUsd(state.marketCapUsd)),
                                 fontSize = 12.sp,
                                 color = VaultExColors.TextSecondary
                             )
@@ -125,7 +127,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("Évolution 7 jours", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(stringResource(R.string.token_detail_chart_7d), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             Spacer(Modifier.height(12.dp))
                             SparklineChart(
                                 prices = state.chartPrices,
@@ -144,12 +146,12 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Mon portefeuille", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(stringResource(R.string.token_detail_my_wallet), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         if (state.address.isEmpty()) {
-                            Text("Wallet non initialisé", fontSize = 13.sp, color = VaultExColors.Error)
+                            Text(stringResource(R.string.token_detail_wallet_not_initialized), fontSize = 13.sp, color = VaultExColors.Error)
                         } else {
                             Text(
-                                "Adresse $symbol",
+                                stringResource(R.string.token_detail_address, symbol),
                                 fontSize = 12.sp,
                                 color = VaultExColors.TextSecondary
                             )
@@ -175,7 +177,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     ) {
                         Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Envoyer")
+                        Text(stringResource(R.string.action_send))
                     }
                     OutlinedButton(
                         onClick = { navController.navigate(Routes.RECEIVE) },
@@ -184,7 +186,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     ) {
                         Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Recevoir")
+                        Text(stringResource(R.string.action_receive))
                     }
                 }
 
@@ -200,7 +202,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     ) {
                         Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Échanger")
+                        Text(stringResource(R.string.action_swap))
                     }
                     OutlinedButton(
                         onClick = { navController.navigate(Routes.HISTORY) },
@@ -209,7 +211,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     ) {
                         Icon(Icons.Default.History, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Historique")
+                        Text(stringResource(R.string.history_title))
                     }
                 }
 

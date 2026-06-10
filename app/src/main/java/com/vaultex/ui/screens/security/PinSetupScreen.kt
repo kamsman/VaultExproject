@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -89,7 +91,7 @@ fun PinSetupScreen(
             Spacer(modifier = Modifier.height(36.dp))
 
             Text(
-                text = "Créer un code PIN",
+                text = stringResource(R.string.set_pin),
                 color = TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
@@ -98,7 +100,7 @@ fun PinSetupScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Votre PIN sera demandé à chaque ouverture du wallet.",
+                text = stringResource(R.string.pin_setup_description),
                 color = TextSecondary,
                 fontSize = 15.sp,
                 lineHeight = 24.sp
@@ -113,7 +115,7 @@ fun PinSetupScreen(
             ) {
                 Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 26.dp)) {
 
-                    Text("Code PIN", color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.pin_setup_pin_label), color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -127,7 +129,7 @@ fun PinSetupScreen(
                             IconButton(onClick = { showPin = !showPin }) {
                                 Icon(
                                     imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (showPin) "Masquer le PIN" else "Afficher le PIN",
+                                    contentDescription = if (showPin) stringResource(R.string.pin_setup_hide_pin) else stringResource(R.string.pin_setup_show_pin),
                                     tint = AccentGold
                                 )
                             }
@@ -148,7 +150,7 @@ fun PinSetupScreen(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    Text("Confirmer le PIN", color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.pin_confirm), color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -162,7 +164,7 @@ fun PinSetupScreen(
                             IconButton(onClick = { showConfirmPin = !showConfirmPin }) {
                                 Icon(
                                     imageVector = if (showConfirmPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (showConfirmPin) "Masquer le PIN" else "Afficher le PIN",
+                                    contentDescription = if (showConfirmPin) stringResource(R.string.pin_setup_hide_pin) else stringResource(R.string.pin_setup_show_pin),
                                     tint = AccentGold
                                 )
                             }
@@ -207,7 +209,7 @@ fun PinSetupScreen(
                     if (saveState is OnboardingViewModel.SaveState.Error) {
                         Spacer(modifier = Modifier.height(20.dp))
                         Text(
-                            text = "Erreur : ${(saveState as OnboardingViewModel.SaveState.Error).message}",
+                            text = stringResource(R.string.pin_setup_error, (saveState as OnboardingViewModel.SaveState.Error).message),
                             color = AccentRed,
                             fontSize = 14.sp
                         )
@@ -218,7 +220,7 @@ fun PinSetupScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             PrimaryButton(
-                text = if (isLoading) "Sauvegarde..." else "Continuer",
+                text = if (isLoading) stringResource(R.string.pin_setup_saving) else stringResource(R.string.continue_btn),
                 enabled = !isLoading,
                 onClick = {
                     when {

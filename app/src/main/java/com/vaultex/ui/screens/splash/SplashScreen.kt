@@ -10,11 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.SplashViewModel
@@ -60,9 +62,9 @@ fun SplashScreen(navController: NavHostController) {
                 modifier = Modifier.scale(logoScale).alpha(glowAlpha)
             )
             Spacer(Modifier.height(26.dp))
-            Text("VaultEx", color = TextPrimary, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.app_name), color = TextPrimary, fontSize = 38.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            Text("Secure Multi-Chain Wallet", color = TextSecondary, fontSize = 16.sp)
+            Text(stringResource(R.string.tagline), color = TextSecondary, fontSize = 16.sp)
         }
     }
 }
