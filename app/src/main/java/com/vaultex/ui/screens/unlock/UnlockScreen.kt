@@ -43,7 +43,7 @@ fun UnlockScreen(navController: NavHostController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgPrimary, BgSecondary))),
+            .background(Brush.verticalGradient(listOf(SplashNavyTop, SplashNavyBottom))),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -54,7 +54,7 @@ fun UnlockScreen(navController: NavHostController) {
             Spacer(Modifier.height(48.dp))
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("◆", color = AccentGold, fontSize = 64.sp, fontWeight = FontWeight.Bold)
+                Text("◆", color = AccentBlue, fontSize = 64.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.app_name), color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
@@ -67,7 +67,7 @@ fun UnlockScreen(navController: NavHostController) {
                     repeat(6) { i ->
                         Box(
                             modifier = Modifier.size(14.dp).clip(CircleShape)
-                                .background(if (i < state.pin.length) AccentGold else Color.White.copy(alpha = 0.25f))
+                                .background(if (i < state.pin.length) AccentBlue else Color.White.copy(alpha = 0.25f))
                         )
                     }
                 }

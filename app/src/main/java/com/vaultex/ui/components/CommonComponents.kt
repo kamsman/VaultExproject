@@ -35,9 +35,9 @@ fun PrimaryButton(
             .height(56.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AccentGold,
+            containerColor = AccentBlue,
             contentColor = BgPrimary,
-            disabledContainerColor = AccentGold.copy(alpha = 0.3f)
+            disabledContainerColor = AccentBlue.copy(alpha = 0.3f)
         )
     ) {
         if (icon != null) {
@@ -62,8 +62,8 @@ fun SecondaryButton(
             .fillMaxWidth()
             .height(56.dp),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentGold),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGold)
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
     ) {
         Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
@@ -168,7 +168,7 @@ fun BalanceDisplay(
             Spacer(Modifier.width(6.dp))
             Text(
                 currency,
-                color = AccentGold,
+                color = AccentBlue,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 6.dp)
@@ -185,7 +185,7 @@ fun GoldDivider(modifier: Modifier = Modifier) {
             .height(1.dp)
             .background(
                 Brush.horizontalGradient(
-                    listOf(Color.Transparent, AccentGold.copy(alpha = 0.5f), Color.Transparent)
+                    listOf(Color.Transparent, AccentBlue.copy(alpha = 0.5f), Color.Transparent)
                 )
             )
     )

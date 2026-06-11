@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 @Composable
 fun VaultExTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = VaultExColorScheme,
         typography = VaultExTypography,
         content = content
     )

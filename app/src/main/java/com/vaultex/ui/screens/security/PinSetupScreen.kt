@@ -81,7 +81,7 @@ fun PinSetupScreen(
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(AccentGold.copy(alpha = 0.25f), BgSecondary)
+                            colors = listOf(AccentBlue.copy(alpha = 0.25f), BgSecondary)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -116,7 +116,7 @@ fun PinSetupScreen(
             ) {
                 Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 26.dp)) {
 
-                    Text(stringResource(R.string.pin_setup_pin_label), color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.pin_setup_pin_label), color = AccentBlue, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -131,7 +131,7 @@ fun PinSetupScreen(
                                 Icon(
                                     imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = if (showPin) stringResource(R.string.pin_setup_hide_pin) else stringResource(R.string.pin_setup_show_pin),
-                                    tint = AccentGold
+                                    tint = AccentBlue
                                 )
                             }
                         },
@@ -141,17 +141,17 @@ fun PinSetupScreen(
                             color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
+                            focusedBorderColor = AccentBlue,
                             unfocusedBorderColor = Color.Transparent,
                             focusedContainerColor = BgPrimary,
                             unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
+                            cursorColor = AccentBlue
                         )
                     )
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    Text(stringResource(R.string.pin_confirm), color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.pin_confirm), color = AccentBlue, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -166,7 +166,7 @@ fun PinSetupScreen(
                                 Icon(
                                     imageVector = if (showConfirmPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = if (showConfirmPin) stringResource(R.string.pin_setup_hide_pin) else stringResource(R.string.pin_setup_show_pin),
-                                    tint = AccentGold
+                                    tint = AccentBlue
                                 )
                             }
                         },
@@ -176,11 +176,11 @@ fun PinSetupScreen(
                             color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
+                            focusedBorderColor = AccentBlue,
                             unfocusedBorderColor = Color.Transparent,
                             focusedContainerColor = BgPrimary,
                             unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
+                            cursorColor = AccentBlue
                         )
                     )
 
@@ -196,8 +196,8 @@ fun PinSetupScreen(
                                 modifier = Modifier
                                     .size(14.dp)
                                     .clip(CircleShape)
-                                    .background(if (index < pin.length) AccentGold else BgPrimary)
-                                    .border(1.dp, AccentGold.copy(alpha = 0.5f), CircleShape)
+                                    .background(if (index < pin.length) AccentBlue else BgPrimary)
+                                    .border(1.dp, AccentBlue.copy(alpha = 0.5f), CircleShape)
                             )
                         }
                     }

@@ -3,31 +3,30 @@ package com.vaultex.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Alias hérités de l'ancienne charte claire, remappés sur la palette
- * sombre "premium" de Theme.kt pour garantir un rendu cohérent.
- * À terme, les écrans doivent référencer MaterialTheme.colorScheme ;
+ * Alias hérités, alignés sur la palette claire du prototype v2.
+ * Les écrans doivent à terme référencer MaterialTheme.colorScheme ;
  * ne pas ajouter de nouvelle couleur ici.
  */
 object VaultExColors {
-    // Accent principal (ex-bleus → or premium)
-    val BluePrimary = AccentGold
-    val BlueDark = AccentGoldDark
-    val BlueLight = SurfaceLight
-    val BlueGradientStart = BgTertiary
-    val BlueGradientEnd = BgSecondary
+    // Accent principal
+    val BluePrimary = AccentBlue
+    val BlueDark = AccentBlueDark
+    val BlueLight = BgTertiary
+    val BlueGradientStart = AccentBlue
+    val BlueGradientEnd = AccentBlueDark
 
     // Fonds
     val Background = BgPrimary
-    val SplashBackground = Color(0xFF0A0E1A)
+    val SplashBackground = SplashNavyTop
     val CardBackground = Surface
 
-    // Gold (logo/splash)
-    val Gold = AccentGold
+    // Gold (logo/splash hérité)
+    val Gold = Color(0xFFD4A843)
 
     // Texte
     val TextPrimary = com.vaultex.ui.theme.TextPrimary
     val TextSecondary = com.vaultex.ui.theme.TextSecondary
-    val TextOnPrimary = BgPrimary
+    val TextOnPrimary = Color.White
 
     // Statuts
     val Success = AccentGreen
@@ -36,7 +35,7 @@ object VaultExColors {
 
     // Bordures
     val Border = BorderColor
-    val DividerColor = BorderColor
+    val DividerColor = SurfaceLight
 
     // Chaînes
     val BitcoinOrange = NetworkBtc

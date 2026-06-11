@@ -66,7 +66,7 @@ fun DashboardScreen(navController: NavHostController) {
                 if (state.isLoading) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        color = AccentGold
+                        color = AccentBlue
                     )
                 }
 
@@ -133,7 +133,7 @@ private fun QuickAction(
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = label, tint = AccentGold)
+        Icon(icon, contentDescription = label, tint = AccentBlue)
         Spacer(Modifier.height(6.dp))
         Text(label, color = TextPrimary, fontSize = 11.sp)
     }

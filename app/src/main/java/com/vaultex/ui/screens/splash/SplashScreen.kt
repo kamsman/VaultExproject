@@ -50,13 +50,13 @@ fun SplashScreen(navController: NavHostController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgPrimary, BgSecondary))),
+            .background(Brush.verticalGradient(listOf(SplashNavyTop, SplashNavyBottom))),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "◆",
-                color = AccentGold.copy(alpha = glowAlpha),
+                color = AccentBlue.copy(alpha = glowAlpha),
                 fontSize = 120.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.scale(logoScale).alpha(glowAlpha)

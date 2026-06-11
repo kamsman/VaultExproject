@@ -125,7 +125,7 @@ fun OnboardingScreen(
                     Text(
                         text = "◆",
                         fontSize = 90.sp,
-                        color = AccentGold
+                        color = AccentBlue
                     )
 
                     Spacer(modifier = Modifier.height(40.dp))
@@ -176,7 +176,7 @@ fun OnboardingScreen(
                                 )
                                 .background(
                                     if (pagerState.currentPage == index)
-                                        AccentGold
+                                        AccentBlue
                                     else
                                         TextSecondary
                                 )
@@ -210,7 +210,7 @@ fun OnboardingScreen(
                             else
                                 stringResource(R.string.onboarding_next),
 
-                        color = AccentGold,
+                        color = AccentBlue,
                         fontSize = 18.sp
                     )
                 }

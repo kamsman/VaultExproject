@@ -71,7 +71,7 @@ fun MnemonicVerifyScreen(
 
                     Text(
                         text = stringResource(R.string.mnemonic_verify_word_label, wordIndex + 1),
-                        color = AccentGold,
+                        color = AccentBlue,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -86,11 +86,11 @@ fun MnemonicVerifyScreen(
                         shape = RoundedCornerShape(18.dp),
                         placeholder = { Text(stringResource(R.string.mnemonic_verify_placeholder), color = TextSecondary) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
+                            focusedBorderColor = AccentBlue,
                             unfocusedBorderColor = BgSecondary,
                             focusedContainerColor = BgPrimary,
                             unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
+                            cursorColor = AccentBlue
                         ),
                         isError = error.isNotEmpty()
                     )

@@ -91,7 +91,7 @@ fun ImportWalletScreen(
 
                     Text(
                         text = stringResource(R.string.seed_phrase_title),
-                        color = AccentGold,
+                        color = AccentBlue,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -115,11 +115,11 @@ fun ImportWalletScreen(
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                         shape = RoundedCornerShape(22.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
+                            focusedBorderColor = AccentBlue,
                             unfocusedBorderColor = BgSecondary,
                             focusedContainerColor = BgPrimary,
                             unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
+                            cursorColor = AccentBlue
                         )
                     )
 
@@ -127,7 +127,7 @@ fun ImportWalletScreen(
 
                     Text(
                         text = stringResource(R.string.import_word_count, wordCount),
-                        color = if (isValidCount) AccentGold else TextSecondary,
+                        color = if (isValidCount) AccentBlue else TextSecondary,
                         fontSize = 14.sp
                     )
 

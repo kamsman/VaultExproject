@@ -79,7 +79,7 @@ fun MnemonicDisplayScreen(
                             .height(280.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = AccentGold)
+                        CircularProgressIndicator(color = AccentBlue)
                     }
                 } else {
                     LazyVerticalGrid(
@@ -117,12 +117,12 @@ fun MnemonicDisplayScreen(
                     Icon(
                         imageVector = if (revealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = null,
-                        tint = AccentGold
+                        tint = AccentBlue
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (revealed) stringResource(R.string.mnemonic_hide) else stringResource(R.string.mnemonic_show),
-                        color = AccentGold
+                        color = AccentBlue
                     )
                 }
             }

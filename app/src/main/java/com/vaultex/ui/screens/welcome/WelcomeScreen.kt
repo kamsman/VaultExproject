@@ -64,7 +64,7 @@ fun WelcomeScreen(
 
             Text(
                 text = "◆",
-                color = AccentGold,
+                color = AccentBlue,
                 fontSize = 100.sp,
                 fontWeight = FontWeight.Bold
             )
