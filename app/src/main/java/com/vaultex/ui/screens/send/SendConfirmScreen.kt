@@ -6,6 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.vaultex.ui.navigation.Routes
+import androidx.compose.ui.res.stringResource
+import com.vaultex.R
+import androidx.compose.material3.Button
 
 // ✅ IMPORT ICÔNE CORRECT
 import androidx.compose.material.icons.Icons
@@ -50,6 +54,12 @@ fun SendConfirmScreen(navController: NavHostController) {
                 text = "Récapitulatif transaction",
                 color = TextPrimary
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(onClick = { navController.navigate(Routes.sendResult("0xDEMO")) }) {
+                Text(stringResource(R.string.confirm))
+            }
         }
     }
 }

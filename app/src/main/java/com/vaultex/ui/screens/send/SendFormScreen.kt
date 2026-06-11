@@ -6,6 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.vaultex.ui.navigation.Routes
+import androidx.compose.ui.res.stringResource
+import com.vaultex.R
+import androidx.compose.material3.Button
 
 // ✅ IMPORT ICÔNE CORRECT
 import androidx.compose.material.icons.Icons
@@ -55,6 +59,10 @@ fun SendFormScreen(navController: NavHostController) {
 
             // 👉 Tu ajouteras ici les champs :
             // Adresse, montant, bouton envoyer
+
+            Button(onClick = { navController.navigate(Routes.SEND_CONFIRM) }) {
+                Text(stringResource(R.string.continue_btn))
+            }
         }
     }
 }

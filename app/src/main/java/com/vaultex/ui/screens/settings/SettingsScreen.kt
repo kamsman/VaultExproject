@@ -86,7 +86,16 @@ fun SettingsScreen(navController: NavController) {
 
             item { SectionTitle(stringResource(R.string.settings_section_about)) }
             item { SettingsItem(Icons.Default.Info, stringResource(R.string.settings_version), stringResource(R.string.settings_version_value)) { } }
-            item { SettingsItem(Icons.Default.Help, stringResource(R.string.settings_help), stringResource(R.string.settings_help_subtitle)) { } }
+            item { SettingsItem(Icons.Default.Help, stringResource(R.string.settings_help), stringResource(R.string.settings_help_subtitle)) { navController.navigate(Routes.HELP) } }
+
+            item { SectionTitle(stringResource(R.string.settings_section_prototypes)) }
+            item { SettingsItem(Icons.Default.Home, stringResource(R.string.proto_home), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.HOME) } }
+            item { SettingsItem(Icons.Default.PieChart, stringResource(R.string.proto_portfolio), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.PORTFOLIO) } }
+            item { SettingsItem(Icons.Default.Send, stringResource(R.string.proto_send_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SEND_FORM) } }
+            item { SettingsItem(Icons.Default.SwapHoriz, stringResource(R.string.proto_swap_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SWAP_CONFIRM) } }
+            item { SettingsItem(Icons.Default.QrCode, stringResource(R.string.proto_receive_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.RECEIVE_NETWORK) } }
+            item { SettingsItem(Icons.Default.AccountBalanceWallet, stringResource(R.string.proto_wallet_mgmt), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.WALLET_MANAGEMENT) } }
+            item { SettingsItem(Icons.Default.Shield, stringResource(R.string.proto_security_setup), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SECURITY_SETUP) } }
             item { Spacer(Modifier.height(32.dp)) }
         }
     }

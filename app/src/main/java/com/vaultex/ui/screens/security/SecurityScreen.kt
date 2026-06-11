@@ -115,6 +115,19 @@ fun SecurityScreen(navController: NavHostController) {
                     }
                 }
             }
+
+            // Notifications de sécurité
+            SecurityCard {
+                SecurityRow(
+                    icon = Icons.Default.Notifications,
+                    title = stringResource(R.string.notifications),
+                    subtitle = stringResource(R.string.security_notifications_subtitle)
+                ) {
+                    IconButton(onClick = { navController.navigate(Routes.SECURITY_NOTIFICATIONS) }) {
+                        Icon(Icons.Default.ChevronRight, null, tint = VaultExColors.TextSecondary)
+                    }
+                }
+            }
         }
     }
 }

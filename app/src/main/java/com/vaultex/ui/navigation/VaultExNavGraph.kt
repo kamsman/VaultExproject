@@ -38,6 +38,23 @@ import com.vaultex.ui.screens.security.SecurityScreen
 import com.vaultex.ui.screens.settings.NetworkSettingsScreen
 import com.vaultex.ui.screens.scanner.QrScannerScreen
 import com.vaultex.ui.screens.history.TransactionDetailScreen
+import com.vaultex.ui.screens.help.HelpScreen
+import com.vaultex.ui.screens.wallet.PortfolioScreen
+import com.vaultex.ui.screens.wallet.TokenDetailScreen as PortfolioTokenDetailScreen
+import com.vaultex.ui.screens.send.SendFormScreen
+import com.vaultex.ui.screens.send.SendConfirmScreen
+import com.vaultex.ui.screens.send.SendResultScreen
+import com.vaultex.ui.screens.swap.SwapConfirmScreen
+import com.vaultex.ui.screens.swap.SwapResultScreen
+import com.vaultex.ui.screens.receive.ReceiveNetworkScreen
+import com.vaultex.ui.screens.receive.ReceiveAddressScreen
+import com.vaultex.ui.screens.tokens.AddTokenScreen
+import com.vaultex.ui.screens.tokens.ManageTokensScreen
+import com.vaultex.ui.screens.splash.FirstLaunchSplash
+import com.vaultex.ui.screens.onboarding.SecuritySetupScreen
+import com.vaultex.ui.screens.settings.ImportWalletScreen as SettingsImportWalletScreen
+import com.vaultex.ui.screens.settings.WalletManagementScreen
+import com.vaultex.ui.screens.security.SecurityNotificationsScreen
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 
 @Composable
@@ -176,6 +193,91 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.HISTORY_DETAIL) {
             TransactionDetailScreen(navController)
+        }
+
+        // ─── Écrans secondaires / prototypes ──────────────────
+        composable(Routes.FIRST_LAUNCH) {
+            FirstLaunchSplash(onFinished = {
+                navController.navigate(Routes.ONBOARDING) {
+                    popUpTo(Routes.FIRST_LAUNCH) { inclusive = true }
+                }
+            })
+        }
+
+        composable(Routes.HELP) {
+            HelpScreen(navController)
+        }
+
+        composable(Routes.PORTFOLIO) {
+            PortfolioScreen(navController)
+        }
+
+        composable(Routes.PORTFOLIO_TOKEN_DETAIL) {
+            PortfolioTokenDetailScreen(navController)
+        }
+
+        composable(Routes.SEND_FORM) {
+            SendFormScreen(navController)
+        }
+
+        composable(Routes.SEND_CONFIRM) {
+            SendConfirmScreen(navController)
+        }
+
+        composable(
+            route = Routes.SEND_RESULT,
+            arguments = listOf(navArgument("hash") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val hash = backStackEntry.arguments?.getString("hash") ?: ""
+            SendResultScreen(navController, hash)
+        }
+
+        composable(Routes.SWAP_CONFIRM) {
+            SwapConfirmScreen(navController)
+        }
+
+        composable(
+            route = Routes.SWAP_RESULT,
+            arguments = listOf(navArgument("hash") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val hash = backStackEntry.arguments?.getString("hash") ?: ""
+            SwapResultScreen(navController, hash)
+        }
+
+        composable(Routes.RECEIVE_NETWORK) {
+            ReceiveNetworkScreen(navController)
+        }
+
+        composable(
+            route = Routes.RECEIVE_ADDRESS,
+            arguments = listOf(navArgument("blockchain") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val blockchain = backStackEntry.arguments?.getString("blockchain") ?: "ETH"
+            ReceiveAddressScreen(navController, blockchain)
+        }
+
+        composable(Routes.ADD_TOKEN) {
+            AddTokenScreen(navController)
+        }
+
+        composable(Routes.MANAGE_TOKENS) {
+            ManageTokensScreen(navController)
+        }
+
+        composable(Routes.SECURITY_SETUP) {
+            SecuritySetupScreen(navController)
+        }
+
+        composable(Routes.SETTINGS_IMPORT_WALLET) {
+            SettingsImportWalletScreen(navController)
+        }
+
+        composable(Routes.WALLET_MANAGEMENT) {
+            WalletManagementScreen(navController)
+        }
+
+        composable(Routes.SECURITY_NOTIFICATIONS) {
+            SecurityNotificationsScreen(navController)
         }
     }
 }

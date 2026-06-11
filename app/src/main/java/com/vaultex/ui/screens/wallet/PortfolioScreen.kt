@@ -6,6 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.vaultex.ui.navigation.Routes
+import androidx.compose.ui.res.stringResource
+import com.vaultex.R
+import androidx.compose.material3.Button
 
 // ✅ IMPORT CORRECT
 import androidx.compose.material.icons.Icons
@@ -50,6 +54,12 @@ fun PortfolioScreen(navController: NavHostController) {
                 text = "Liste complète des actifs",
                 color = TextPrimary
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(onClick = { navController.navigate(Routes.PORTFOLIO_TOKEN_DETAIL) }) {
+                Text(stringResource(R.string.portfolio_view_token))
+            }
         }
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.vaultex.R
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 
 @Composable
@@ -44,7 +45,15 @@ fun TokenManagerScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.token_manager), fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back)) } },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.ADD_TOKEN) }) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.token_mgr_add_custom), tint = VaultExColors.BluePrimary)
+                    }
+                    IconButton(onClick = { navController.navigate(Routes.MANAGE_TOKENS) }) {
+                        Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.token_mgr_visibility), tint = VaultExColors.BluePrimary)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
             )
         },

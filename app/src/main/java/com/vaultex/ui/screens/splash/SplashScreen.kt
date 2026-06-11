@@ -40,8 +40,8 @@ fun SplashScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         delay(3200)
-        // Route vers PIN_UNLOCK si wallet existe, ONBOARDING sinon
-        val destination = if (viewModel.hasWallet()) Routes.PIN_UNLOCK else Routes.ONBOARDING
+        // Route vers PIN_UNLOCK si wallet existe, animation de premier lancement sinon
+        val destination = if (viewModel.hasWallet()) Routes.PIN_UNLOCK else Routes.FIRST_LAUNCH
         navController.navigate(destination) {
             popUpTo(Routes.SPLASH) { inclusive = true }
         }

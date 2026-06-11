@@ -285,4 +285,19 @@
     <string name="network_save">Enregistrer</string>
     <string name="network_saved">Enregistré ✓</string>
     <string name="network_changes_notice">Les modifications prennent effet immédiatement pour les nouvelles requêtes.</string>
+
+    <!-- Prototypes / écrans secondaires -->
+    <string name="settings_section_prototypes">Prototypes (en développement)</string>
+    <string name="proto_subtitle">Écran prototype — en cours de développement</string>
+    <string name="proto_home">Accueil classique</string>
+    <string name="proto_portfolio">Portefeuille détaillé</string>
+    <string name="proto_send_v2">Envoi (v2)</string>
+    <string name="proto_swap_v2">Confirmation swap (v2)</string>
+    <string name="proto_receive_v2">Réception par réseau (v2)</string>
+    <string name="proto_wallet_mgmt">Gestion wallets (v2)</string>
+    <string name="proto_security_setup">Configuration sécurité (v2)</string>
+    <string name="portfolio_view_token">Voir le détail d\'un token</string>
+    <string name="security_notifications_subtitle">Préférences de notifications de sécurité</string>
+    <string name="token_mgr_add_custom">Ajouter un token personnalisé</string>
+    <string name="token_mgr_visibility">Masquer ou afficher des tokens</string>
 </resources>

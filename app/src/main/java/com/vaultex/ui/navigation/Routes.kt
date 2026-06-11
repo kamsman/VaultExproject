@@ -75,4 +75,50 @@ object Routes {
     const val SCANNER = "scanner"
 
     const val HISTORY_DETAIL = "history_detail"
+
+    /*
+    =========================
+    ÉCRANS SECONDAIRES / PROTOTYPES
+    =========================
+     */
+
+    const val FIRST_LAUNCH = "firstLaunch"
+
+    const val HELP = "help"
+
+    const val PORTFOLIO = "portfolio"
+
+    const val PORTFOLIO_TOKEN_DETAIL = "portfolioTokenDetail"
+
+    const val SEND_FORM = "sendForm"
+
+    const val SEND_CONFIRM = "sendConfirm"
+
+    const val SEND_RESULT = "sendResult/{hash}"
+
+    fun sendResult(hash: String) = "sendResult/$hash"
+
+    const val SWAP_CONFIRM = "swapConfirm"
+
+    const val SWAP_RESULT = "swapResult/{hash}"
+
+    fun swapResult(hash: String) = "swapResult/$hash"
+
+    const val RECEIVE_NETWORK = "receiveNetwork"
+
+    const val RECEIVE_ADDRESS = "receiveAddress/{blockchain}"
+
+    fun receiveAddress(blockchain: String) = "receiveAddress/$blockchain"
+
+    const val ADD_TOKEN = "addToken"
+
+    const val MANAGE_TOKENS = "manageTokens"
+
+    const val SECURITY_SETUP = "securitySetup"
+
+    const val SETTINGS_IMPORT_WALLET = "settingsImportWallet"
+
+    const val WALLET_MANAGEMENT = "walletManagement"
+
+    const val SECURITY_NOTIFICATIONS = "securityNotifications"
 }
