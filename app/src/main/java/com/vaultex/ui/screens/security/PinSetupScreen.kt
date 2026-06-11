@@ -48,11 +48,12 @@ fun PinSetupScreen(
 
     val saveState by viewModel.saveState.collectAsState()
 
-    // Navigation automatique quand la sauvegarde réussit
+    // Navigation automatique quand la sauvegarde réussit :
+    // proposer la biométrie avant d'entrer dans l'app
     LaunchedEffect(saveState) {
         if (saveState is OnboardingViewModel.SaveState.Success) {
             viewModel.resetSaveState()
-            navController.navigate(Routes.DASHBOARD) { popUpTo(0) }
+            navController.navigate(Routes.BIOMETRIC_SETUP) { popUpTo(0) }
         }
     }
 
