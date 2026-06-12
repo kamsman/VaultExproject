@@ -1,9 +1,12 @@
 package com.vaultex.ui.screens.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,9 +23,18 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.R
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentOrange
+import com.vaultex.ui.theme.AccentRed
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgTertiary
+import com.vaultex.ui.theme.BorderColor
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.BackupViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(navController: NavController) {
     val viewModel: BackupViewModel = hiltViewModel()
@@ -40,92 +52,168 @@ fun BackupScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.backup), fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.backup), fontWeight = FontWeight.Bold, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
-        containerColor = VaultExColors.Background
+        containerColor = BgPrimary
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
         ) {
-            Surface(color = Color(0xFFFFF3CD), shape = RoundedCornerShape(12.dp)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Warning, null, tint = Color(0xFFB45309), modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(stringResource(R.string.backup_warning_title), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF92400E))
-                        Text(stringResource(R.string.backup_warning_body), fontSize = 13.sp, color = Color(0xFF92400E))
-                    }
-                }
+            // Bandeau d'avertissement
+            Row(
+                modifier = Modifier.fillMaxWidth().background(Color(0xFFFFF4E5)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.width(4.dp).height(40.dp).background(AccentOrange))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.backup_device_warning),
+                    fontSize = 12.sp,
+                    color = TextPrimary
+                )
             }
 
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Lock, tint = VaultExColors.BluePrimary, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(stringResource(R.string.backup_recovery_phrase), fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(R.string.backup_bip39_subtitle), fontSize = 12.sp, color = VaultExColors.TextSecondary)
-                        }
-                    }
-
-                    if (!state.isRevealed) {
-                        Button(
-                            onClick = viewModel::requestReveal,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-                        ) {
-                            Icon(Icons.Default.Visibility, null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.backup_reveal))
-                        }
-                    } else {
-                        val words = (state.mnemonic ?: "").split(" ").filter { it.isNotEmpty() }
-                        if (words.isEmpty()) {
-                            Text(stringResource(R.string.backup_load_error), color = VaultExColors.Error, fontSize = 13.sp)
-                        } else {
-                            Column(
-                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                                    .background(VaultExColors.Background).padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ─── Phrase de récupération ───
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    border = BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(BgTertiary),
+                                contentAlignment = Alignment.Center
                             ) {
-                                words.chunked(3).forEachIndexed { rowIdx, rowWords ->
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        rowWords.forEachIndexed { colIdx, word ->
-                                            MnemonicWord(rowIdx * 3 + colIdx + 1, word, Modifier.weight(1f))
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                stringResource(R.string.backup_recovery_phrase),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = TextPrimary
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.backup_pin_required),
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+
+                        if (state.isRevealed) {
+                            val words = (state.mnemonic ?: "").split(" ").filter { it.isNotEmpty() }
+                            if (words.isEmpty()) {
+                                Text(stringResource(R.string.backup_load_error), color = AccentRed, fontSize = 13.sp)
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    words.chunked(2).forEachIndexed { rowIdx, rowWords ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            rowWords.forEachIndexed { colIdx, word ->
+                                                MnemonicChip(rowIdx * 2 + colIdx + 1, word, Modifier.weight(1f))
+                                            }
+                                            if (rowWords.size == 1) Spacer(Modifier.weight(1f))
                                         }
                                     }
                                 }
                             }
                         }
-                        Button(
-                            onClick = viewModel::hide,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.Error)
-                        ) { Text(stringResource(R.string.backup_hide)) }
                     }
                 }
-            }
 
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.backup_checklist_title), fontWeight = FontWeight.SemiBold)
-                    ChecklistItem(stringResource(R.string.backup_check_write))
-                    ChecklistItem(stringResource(R.string.backup_check_store))
-                    ChecklistItem(stringResource(R.string.backup_check_no_photo))
-                    ChecklistItem(stringResource(R.string.backup_check_no_share))
-                    ChecklistItem(stringResource(R.string.backup_check_test))
+                // Bouton afficher / masquer
+                if (!state.isRevealed) {
+                    OutlinedButton(
+                        onClick = viewModel::requestReveal,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.5.dp, AccentBlue)
+                    ) {
+                        Text(
+                            stringResource(R.string.backup_show_phrase),
+                            color = AccentBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = viewModel::hide,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.5.dp, AccentRed)
+                    ) {
+                        Text(
+                            stringResource(R.string.backup_hide),
+                            color = AccentRed,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // ─── Exporter clé privée ───
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    border = BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(BgTertiary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Key, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                stringResource(R.string.backup_export_key),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = TextPrimary
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.backup_select_chain),
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            listOf("BTC", "ETH", "BNB").forEach { chain ->
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = SurfaceColor,
+                                    border = BorderStroke(1.dp, BorderColor),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        chain,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -153,12 +241,12 @@ private fun PinConfirmDialog(
                     repeat(6) { i ->
                         Box(
                             modifier = Modifier.size(12.dp).clip(CircleShape)
-                                .background(if (i < pin.length) VaultExColors.BluePrimary else VaultExColors.Border)
+                                .background(if (i < pin.length) AccentBlue else BorderColor)
                         )
                     }
                 }
                 if (error != null) {
-                    Text(error, color = VaultExColors.Error, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text(error, color = AccentRed, fontSize = 12.sp, textAlign = TextAlign.Center)
                 }
                 val digits = listOf("1","2","3","4","5","6","7","8","9","","0","⌫")
                 digits.chunked(3).forEach { row ->
@@ -187,21 +275,13 @@ private fun PinConfirmDialog(
 }
 
 @Composable
-private fun MnemonicWord(index: Int, word: String, modifier: Modifier = Modifier) {
+private fun MnemonicChip(index: Int, word: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(VaultExColors.BlueLight).padding(8.dp),
+        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(BgTertiary)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("$index.", fontSize = 11.sp, color = VaultExColors.TextSecondary, modifier = Modifier.width(20.dp))
-        Text(word, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun ChecklistItem(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.CheckCircle, null, tint = VaultExColors.Success, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text, fontSize = 13.sp, color = VaultExColors.TextSecondary)
+        Text("$index.", fontSize = 12.sp, color = TextSecondary, modifier = Modifier.width(24.dp))
+        Text(word, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
     }
 }

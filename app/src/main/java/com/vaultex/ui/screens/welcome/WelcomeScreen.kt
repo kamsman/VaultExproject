@@ -2,11 +2,14 @@ package com.vaultex.ui.screens.welcome
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,99 +28,91 @@ fun WelcomeScreen(
     navController: NavHostController
 ) {
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        BgPrimary,
-                        BgSecondary
-                    )
-                )
-            )
+            .background(BgSecondary)
     ) {
+
+        /*
+        =========================
+        HAUT : DÉGRADÉ NAVY
+        =========================
+         */
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(SplashNavyTop, SplashNavyBottom)
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                // Diamant bleu
+                Box(
+                    modifier = Modifier.size(72.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .rotate(45f)
+                            .background(AccentBlue, RoundedCornerShape(5.dp))
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(R.string.app_name),
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = stringResource(R.string.welcome_tagline),
+                    color = TextMuted,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        /*
+        =========================
+        BAS : FOND BLANC
+        =========================
+         */
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            /*
-            =========================
-            TOP SPACE
-            =========================
-             */
-
-            Spacer(
-                modifier = Modifier.height(80.dp)
-            )
-
-            /*
-            =========================
-            LOGO
-            =========================
-             */
+            Spacer(modifier = Modifier.height(56.dp))
 
             Text(
-                text = "◆",
-                color = AccentBlue,
-                fontSize = 100.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(
-                modifier = Modifier.height(40.dp)
-            )
-
-            /*
-            =========================
-            TITLE
-            =========================
-             */
-
-            Text(
-                text = stringResource(R.string.app_tagline),
-                color = TextPrimary,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
+                text = stringResource(R.string.welcome_chains),
+                color = TextSecondary,
+                fontSize = 14.sp,
+                letterSpacing = 1.sp,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
-
-            /*
-            =========================
-            DESCRIPTION
-            =========================
-             */
-
-            Text(
-                text = stringResource(R.string.welcome_description),
-
-                color = TextSecondary,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp
-            )
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-            /*
-            =========================
-            CREATE WALLET
-            =========================
-             */
+            Spacer(modifier = Modifier.height(48.dp))
 
             PrimaryButton(
-                text = stringResource(R.string.create_wallet),
+                text = stringResource(R.string.welcome_create),
                 onClick = {
 
                     navController.navigate(
@@ -126,18 +121,10 @@ fun WelcomeScreen(
                 }
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
-
-            /*
-            =========================
-            IMPORT WALLET
-            =========================
-             */
+            Spacer(modifier = Modifier.height(16.dp))
 
             SecondaryButton(
-                text = stringResource(R.string.import_wallet),
+                text = stringResource(R.string.welcome_import),
                 onClick = {
 
                     navController.navigate(
@@ -146,9 +133,7 @@ fun WelcomeScreen(
                 }
             )
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.vaultex.ui.screens.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,118 +20,291 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.vaultex.R
+import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgTertiary
+import com.vaultex.ui.theme.BorderColor
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.SettingsViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController) {
+fun SettingsScreen(navController: NavHostController) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                title = {
+                    Text(
+                        stringResource(R.string.settings_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp,
+                        color = TextPrimary
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
-        containerColor = VaultExColors.Background
+        bottomBar = { VaultExBottomBar(navController) },
+        containerColor = BgPrimary
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // ─── Carte profil ───
             item {
-                // Profile card
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
+                val walletName = stringResource(R.string.settings_my_wallet)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.size(52.dp).clip(CircleShape),
+                            Modifier.size(52.dp).clip(CircleShape).background(AccentBlue),
                             contentAlignment = Alignment.Center
                         ) {
-                            Surface(color = VaultExColors.BluePrimary, shape = CircleShape) {
-                                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                                    Text("M", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Text(
+                                walletName.take(2).uppercase(),
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         Spacer(Modifier.width(14.dp))
                         Column {
-                            Text(stringResource(R.string.settings_my_wallet), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text(stringResource(R.string.settings_wallet_subtitle), fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                            Text(walletName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                            Text(
+                                stringResource(R.string.settings_wallet_subtitle),
+                                fontSize = 13.sp,
+                                color = TextSecondary
+                            )
                         }
                     }
                 }
             }
 
-            item { SectionTitle(stringResource(R.string.settings_section_wallet)) }
-            item { SettingsItem(Icons.Default.AccountBalanceWallet, stringResource(R.string.wallet_manager), stringResource(R.string.settings_wallets_subtitle)) { navController.navigate(Routes.WALLET_MANAGER) } }
-            item { SettingsItem(Icons.Default.Token, stringResource(R.string.token_manager), stringResource(R.string.settings_tokens_subtitle)) { navController.navigate(Routes.TOKEN_MANAGER) } }
-            item { SettingsItem(Icons.Default.Contacts, stringResource(R.string.address_book), stringResource(R.string.settings_address_book_subtitle)) { navController.navigate(Routes.ADDRESS_BOOK) } }
-
+            // ─── Sécurité ───
             item { SectionTitle(stringResource(R.string.security)) }
-            item { SettingsItem(Icons.Default.Security, stringResource(R.string.security), stringResource(R.string.settings_security_subtitle)) { navController.navigate(Routes.SECURITY) } }
-            item { SettingsItem(Icons.Default.Backup, stringResource(R.string.backup), stringResource(R.string.settings_backup_subtitle)) { navController.navigate(Routes.BACKUP) } }
+            item {
+                SectionCard {
+                    SettingsRow(Icons.Default.Pin, stringResource(R.string.security_change_pin)) {
+                        navController.navigate(Routes.PIN_SETUP)
+                    }
+                    RowDivider()
+                    SettingsToggleRow(
+                        icon = Icons.Default.Fingerprint,
+                        title = stringResource(R.string.settings_biometric),
+                        checked = state.isBiometricEnabled,
+                        onCheckedChange = viewModel::setBiometric
+                    )
+                    RowDivider()
+                    SettingsRow(Icons.Default.Warning, stringResource(R.string.panic_pin_title)) {
+                        navController.navigate(Routes.PANIC_PIN)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Security, stringResource(R.string.security)) {
+                        navController.navigate(Routes.SECURITY)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Backup, stringResource(R.string.backup)) {
+                        navController.navigate(Routes.BACKUP)
+                    }
+                }
+            }
 
-            item { SectionTitle(stringResource(R.string.settings_section_network_display)) }
-            item { SettingsItem(Icons.Default.NetworkWifi, stringResource(R.string.settings_rpc_networks), stringResource(R.string.settings_rpc_subtitle)) { navController.navigate(Routes.NETWORK_SETTINGS) } }
-            item { SettingsItem(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency) { } }
-            item { SettingsItem(Icons.Default.Language, stringResource(R.string.language), stringResource(R.string.settings_language_subtitle)) { } }
+            // ─── Wallet ───
+            item { SectionTitle(stringResource(R.string.settings_section_wallet)) }
+            item {
+                SectionCard {
+                    SettingsRow(Icons.Default.AccountBalanceWallet, stringResource(R.string.wallet_mgr_title)) {
+                        navController.navigate(Routes.WALLET_MANAGER)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Token, stringResource(R.string.settings_tokens_item)) {
+                        navController.navigate(Routes.TOKEN_MANAGER)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Contacts, stringResource(R.string.address_book)) {
+                        navController.navigate(Routes.ADDRESS_BOOK)
+                    }
+                }
+            }
 
-            item { SectionTitle(stringResource(R.string.notifications)) }
-            item { SettingsItem(Icons.Default.Notifications, stringResource(R.string.settings_price_alerts), stringResource(R.string.settings_price_alerts_subtitle)) { navController.navigate(Routes.NOTIFICATIONS) } }
+            // ─── Réseau ───
+            item { SectionTitle(stringResource(R.string.settings_section_network)) }
+            item {
+                SectionCard {
+                    SettingsRow(Icons.Default.NetworkWifi, stringResource(R.string.settings_rpc_item)) {
+                        navController.navigate(Routes.NETWORK_SETTINGS)
+                    }
+                    RowDivider()
+                    SettingsValueRow(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency)
+                    RowDivider()
+                    SettingsRow(Icons.Default.Notifications, stringResource(R.string.settings_price_alerts)) {
+                        navController.navigate(Routes.NOTIFICATIONS)
+                    }
+                }
+            }
 
-            item { SectionTitle(stringResource(R.string.settings_section_about)) }
-            item { SettingsItem(Icons.Default.Info, stringResource(R.string.settings_version), stringResource(R.string.settings_version_value)) { } }
-            item { SettingsItem(Icons.Default.Help, stringResource(R.string.settings_help), stringResource(R.string.settings_help_subtitle)) { navController.navigate(Routes.HELP) } }
+            // ─── App ───
+            item { SectionTitle(stringResource(R.string.settings_section_app)) }
+            item {
+                SectionCard {
+                    SettingsValueRow(
+                        Icons.Default.Language,
+                        stringResource(R.string.language),
+                        if (state.selectedLanguage == "fr") stringResource(R.string.settings_language_french)
+                        else state.selectedLanguage
+                    )
+                    RowDivider()
+                    SettingsRow(Icons.Default.Help, stringResource(R.string.settings_help)) {
+                        navController.navigate(Routes.HELP)
+                    }
+                    RowDivider()
+                    SettingsValueRow(
+                        Icons.Default.Info,
+                        stringResource(R.string.settings_about),
+                        stringResource(R.string.settings_version_short)
+                    )
+                }
+            }
 
+            // ─── Prototypes (en développement) ───
             item { SectionTitle(stringResource(R.string.settings_section_prototypes)) }
-            item { SettingsItem(Icons.Default.Home, stringResource(R.string.proto_home), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.HOME) } }
-            item { SettingsItem(Icons.Default.PieChart, stringResource(R.string.proto_portfolio), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.PORTFOLIO) } }
-            item { SettingsItem(Icons.Default.Send, stringResource(R.string.proto_send_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SEND_FORM) } }
-            item { SettingsItem(Icons.Default.SwapHoriz, stringResource(R.string.proto_swap_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SWAP_CONFIRM) } }
-            item { SettingsItem(Icons.Default.QrCode, stringResource(R.string.proto_receive_v2), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.RECEIVE_NETWORK) } }
-            item { SettingsItem(Icons.Default.AccountBalanceWallet, stringResource(R.string.proto_wallet_mgmt), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.WALLET_MANAGEMENT) } }
-            item { SettingsItem(Icons.Default.Shield, stringResource(R.string.proto_security_setup), stringResource(R.string.proto_subtitle)) { navController.navigate(Routes.SECURITY_SETUP) } }
-            item { Spacer(Modifier.height(32.dp)) }
+            item {
+                SectionCard {
+                    SettingsRow(Icons.Default.Home, stringResource(R.string.proto_home)) {
+                        navController.navigate(Routes.HOME)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.PieChart, stringResource(R.string.proto_portfolio)) {
+                        navController.navigate(Routes.PORTFOLIO)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Send, stringResource(R.string.proto_send_v2)) {
+                        navController.navigate(Routes.SEND_FORM)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.SwapHoriz, stringResource(R.string.proto_swap_v2)) {
+                        navController.navigate(Routes.SWAP_CONFIRM)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.QrCode, stringResource(R.string.proto_receive_v2)) {
+                        navController.navigate(Routes.RECEIVE_NETWORK)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.AccountBalanceWallet, stringResource(R.string.proto_wallet_mgmt)) {
+                        navController.navigate(Routes.WALLET_MANAGEMENT)
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Shield, stringResource(R.string.proto_security_setup)) {
+                        navController.navigate(Routes.SECURITY_SETUP)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = VaultExColors.TextSecondary,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp, start = 4.dp))
+    Text(
+        text,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        color = TextSecondary,
+        modifier = Modifier.padding(top = 10.dp, bottom = 2.dp, start = 4.dp)
+    )
 }
 
 @Composable
-private fun SettingsItem(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(color = VaultExColors.BlueLight, shape = RoundedCornerShape(10.dp)) {
-                    Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, tint = VaultExColors.BluePrimary, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                Text(subtitle, fontSize = 12.sp, color = VaultExColors.TextSecondary)
-            }
-            Icon(Icons.Default.ChevronRight, null, tint = VaultExColors.Border)
-        }
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(color = BorderColor, thickness = 0.5.dp, modifier = Modifier.padding(start = 60.dp))
+}
+
+@Composable
+private fun RowIcon(icon: ImageVector) {
+    Box(
+        Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(BgTertiary),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RowIcon(icon)
+        Spacer(Modifier.width(12.dp))
+        Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun SettingsValueRow(icon: ImageVector, title: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RowIcon(icon)
+        Spacer(Modifier.width(12.dp))
+        Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 13.sp, color = TextSecondary)
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RowIcon(icon)
+        Spacer(Modifier.width(12.dp))
+        Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = AccentBlue,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = BorderColor
+            )
+        )
     }
 }

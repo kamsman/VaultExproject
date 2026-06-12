@@ -3,19 +3,26 @@ package com.vaultex.ui.screens.splash
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaultex.ui.components.VaultExDiamond
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.R
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.SplashNavyBottom
+import com.vaultex.ui.theme.SplashNavyTop
+import com.vaultex.ui.theme.TextMuted
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,22 +45,31 @@ fun FirstLaunchSplash(onFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VaultExColors.SplashBackground),
+            .background(Brush.verticalGradient(listOf(SplashNavyTop, SplashNavyBottom))),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            VaultExDiamond(
+            // Diamant bleu
+            Box(
                 modifier = Modifier
                     .size(100.dp)
                     .scale(scale.value)
-                    .alpha(alpha.value)
-            )
+                    .alpha(alpha.value),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .rotate(45f)
+                        .background(AccentBlue, RoundedCornerShape(6.dp))
+                )
+            }
             Spacer(Modifier.height(24.dp))
             Text(
-                text = buildVaultExWordmark(),
+                text = stringResource(R.string.app_name),
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
@@ -62,14 +78,12 @@ fun FirstLaunchSplash(onFinished: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Non-Custodial · Multi-Chain",
+                text = stringResource(R.string.first_launch_tagline),
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.5f),
+                color = TextMuted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.alpha(textAlpha.value)
             )
         }
     }
 }
-
-private fun buildVaultExWordmark(): String = "Vaultξx"
