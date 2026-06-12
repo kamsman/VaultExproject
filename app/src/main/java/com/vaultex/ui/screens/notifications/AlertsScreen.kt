@@ -34,7 +34,7 @@ fun AlertsScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.alerts_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -46,7 +46,7 @@ fun AlertsScreen(navController: NavController) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.alerts_add), tint = VaultExColors.BluePrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
@@ -71,6 +71,9 @@ fun AlertsScreen(navController: NavController) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (currentPrices.isNotEmpty()) {
+                    item { LivePricesBanner(currentPrices) }
+                }
                 items(alerts, key = { it.id }) { alert ->
                     AlertCard(
                         alert = alert,
@@ -97,6 +100,41 @@ fun AlertsScreen(navController: NavController) {
 private fun formatXof(value: Double): String =
     NumberFormat.getNumberInstance(Locale.FRANCE).format(value.toLong()) + " FCFA"
 
+private fun tokenColor(symbol: String) = when (symbol) {
+    "BTC" -> VaultExColors.BitcoinOrange
+    "ETH" -> VaultExColors.EthereumBlue
+    "BNB" -> VaultExColors.BnbYellow
+    "SOL" -> VaultExColors.SolanaGreen
+    "TRX" -> VaultExColors.TronRed
+    else -> VaultExColors.BluePrimary
+}
+
+@Composable
+private fun LivePricesBanner(prices: Map<String, Double>) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            prices.entries.take(3).forEach { (symbol, price) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Box(
+                        Modifier.size(26.dp).clip(androidx.compose.foundation.shape.CircleShape).background(tokenColor(symbol)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(symbol.take(2), color = androidx.compose.ui.graphics.Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text(formatXof(price), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = VaultExColors.TextPrimary)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AlertCard(
     alert: PriceAlertEntity,
@@ -105,6 +143,8 @@ private fun AlertCard(
     onDelete: () -> Unit
 ) {
     val targetFormatted = alert.targetPrice.toDoubleOrNull()?.let(::formatXof) ?: "${alert.targetPrice} FCFA"
+    val color = tokenColor(alert.tokenSymbol)
+    val isAbove = alert.condition.contains("dessus", ignoreCase = true)
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -112,21 +152,29 @@ private fun AlertCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(alert.tokenSymbol.take(2), color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(alert.tokenSymbol, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    if (alert.isActive) {
-                        Surface(shape = RoundedCornerShape(4.dp), color = VaultExColors.BlueLight) {
-                            Text(
-                                stringResource(R.string.active), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 11.sp, color = VaultExColors.BluePrimary
-                            )
-                        }
-                    }
+                Text(alert.tokenSymbol, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isAbove) VaultExColors.Success.copy(alpha = 0.12f) else VaultExColors.Error.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        alert.condition.replaceFirstChar { it.uppercase() },
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 11.sp,
+                        color = if (isAbove) VaultExColors.Success else VaultExColors.Error
+                    )
                 }
-                Text(stringResource(R.string.alerts_condition_target, alert.condition, targetFormatted), fontSize = 13.sp, color = VaultExColors.TextSecondary)
+                Text(stringResource(R.string.alerts_target_fmt, targetFormatted), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = VaultExColors.TextPrimary)
                 currentPriceXof?.let {
-                    Text(stringResource(R.string.alerts_current_price, formatXof(it)), fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.alerts_current_price, formatXof(it)), fontSize = 11.sp, color = VaultExColors.TextSecondary)
                 }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {

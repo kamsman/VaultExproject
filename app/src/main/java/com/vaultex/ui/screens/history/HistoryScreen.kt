@@ -39,14 +39,19 @@ fun HistoryScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, null, tint = VaultExColors.BluePrimary)
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = VaultExColors.BluePrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.history_refresh), tint = VaultExColors.BluePrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = VaultExColors.Background)
             )
         },
         containerColor = VaultExColors.Background
