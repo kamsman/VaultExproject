@@ -50,6 +50,18 @@ import com.vaultex.ui.viewmodel.SendViewModel
 fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+
+    // Adresse renvoyée par le scanner QR
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow<String?>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, null)
+            ?.collect { scanned ->
+                if (!scanned.isNullOrBlank()) {
+                    viewModel.setToAddress(scanned)
+                    savedStateHandle.remove<String>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY)
+                }
+            }
+    }
     val context = LocalContext.current as FragmentActivity
     val biometricHelper = remember { BiometricHelper(context) }
 

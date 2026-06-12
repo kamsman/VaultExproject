@@ -27,14 +27,18 @@ data class SwapState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val swapId: String? = null,         // ChangeNOW transaction ID
-    val payinAddress: String? = null    // adresse où envoyer pour déclencher le swap
+    val payinAddress: String? = null,   // adresse où envoyer pour déclencher le swap
+    val swapStatus: String? = null      // waiting/confirming/exchanging/sending/finished/failed
 )
 
 @HiltViewModel
 class SwapViewModel @Inject constructor(
     private val changeNowApi: ChangeNowApi,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val swapUseCase: SwapUseCase
 ) : ViewModel() {
+
+    private var statusJob: kotlinx.coroutines.Job? = null
 
     companion object {
         private val CHANGENOW_API_KEY get() = ApiKeys.CHANGENOW
@@ -95,6 +99,18 @@ class SwapViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
+                when (val validation = swapUseCase.validate(s.fromToken, s.toToken, inputAmount)) {
+                    is SwapUseCase.ValidationResult.Invalid -> {
+                        val msg = when (validation.reason) {
+                            SwapUseCase.ValidationResult.Reason.INVALID_AMOUNT -> "Montant invalide"
+                            SwapUseCase.ValidationResult.Reason.SAME_TOKEN -> "Choisissez deux tokens différents"
+                            SwapUseCase.ValidationResult.Reason.BELOW_MINIMUM -> "Montant inférieur au minimum requis"
+                        }
+                        _state.update { it.copy(isLoading = false, error = msg) }
+                        return@launch
+                    }
+                    SwapUseCase.ValidationResult.Valid -> Unit
+                }
                 val (_, net) = SwapUseCase.applyFee(inputAmount)
 
                 // Dériver l'adresse de réception pour le toToken
@@ -137,17 +153,47 @@ class SwapViewModel @Inject constructor(
                         )
                     )
                 }
+                swapUseCase.recordSwap(
+                    swapId = txRes.id,
+                    fromToken = s.fromToken,
+                    toToken = s.toToken,
+                    amount = String.format("%.6f", net),
+                    payinAddress = txRes.payinAddress,
+                    payoutAddress = toAddress
+                )
                 _state.update {
                     it.copy(
                         isLoading = false,
                         swapId = txRes.id,
-                        payinAddress = txRes.payinAddress
+                        payinAddress = txRes.payinAddress,
+                        swapStatus = "waiting"
                     )
                 }
+                trackSwapStatus(txRes.id)
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message ?: "Erreur swap") }
             }
         }
+    }
+
+    /** Poll ChangeNOW toutes les 20 s jusqu'à un état terminal, et synchronise l'historique local. */
+    fun trackSwapStatus(swapId: String) {
+        statusJob?.cancel()
+        statusJob = viewModelScope.launch {
+            repeat(90) { // ~30 min max
+                kotlinx.coroutines.delay(20_000)
+                val remote = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
+                if (remote != null) {
+                    _state.update { it.copy(swapStatus = remote) }
+                    if (remote in listOf("finished", "failed", "refunded", "expired")) return@launch
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        statusJob?.cancel()
+        super.onCleared()
     }
 
     fun resetSwap() = _state.update { SwapState() }

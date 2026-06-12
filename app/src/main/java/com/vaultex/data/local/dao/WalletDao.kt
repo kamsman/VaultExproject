@@ -102,6 +102,9 @@ interface PriceAlertDao {
     @Query("SELECT * FROM price_alerts WHERE isActive = 1")
     fun observeActive(): Flow<List<PriceAlertEntity>>
 
+    @Query("SELECT * FROM price_alerts WHERE isActive = 1")
+    suspend fun getActiveOnce(): List<PriceAlertEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(alert: PriceAlertEntity)
 

@@ -141,6 +141,16 @@ dependencies {
     // UI / QR
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.google.zxing:core:3.5.3")
+
+    // CameraX — scanner QR
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // WorkManager — vérification des alertes de prix en arrière-plan
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
     implementation("io.github.g00fy2.quickie:quickie-bundled:1.10.0")
     // ROOT DETECTION
     implementation("com.scottyab:rootbeer-lib:0.1.0")

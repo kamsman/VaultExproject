@@ -1,57 +1,208 @@
 package com.vaultex.ui.screens.scanner
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview as CameraPreview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-
-// ✅ IMPORT ICÔNE
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavHostController
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.HybridBinarizer
 import com.vaultex.R
-import com.vaultex.ui.theme.BgPrimary
-import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.AccentBlue
+import java.util.concurrent.Executors
+
+/** Clé du résultat déposé dans le SavedStateHandle de l'écran appelant. */
+const val SCANNED_ADDRESS_KEY = "scanned_address"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScannerScreen(navController: NavHostController) {
+    val context = LocalContext.current
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var permissionDenied by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasPermission = granted
+        permissionDenied = !granted
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.scan_qr), color = TextPrimary) },
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.scan_qr), color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            Icons.Default.ArrowBack,
                             contentDescription = stringResource(R.string.back),
-                            tint = TextPrimary
+                            tint = Color.White
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BgPrimary
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Black)
             )
         },
-        containerColor = BgPrimary
+        containerColor = Color.Black
     ) { padding ->
-
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-        ) {
-
-            Text(
-                text = stringResource(R.string.scanner_camera_placeholder),
-                color = TextPrimary
-            )
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            when {
+                hasPermission -> {
+                    CameraQrPreview(
+                        onQrDetected = { raw ->
+                            // Nettoie les schémas d'URI courants (bitcoin:, ethereum:…)
+                            val address = if (raw.contains(":")) {
+                                raw.substringAfter(":").substringBefore("?")
+                            } else raw
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(SCANNED_ADDRESS_KEY, address)
+                            navController.popBackStack()
+                        }
+                    )
+                    // Cadre de visée
+                    Box(
+                        Modifier
+                            .size(240.dp)
+                            .border(3.dp, AccentBlue, RoundedCornerShape(20.dp))
+                    )
+                    Text(
+                        stringResource(R.string.scanner_hint),
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 48.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                permissionDenied -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.scanner_permission_required),
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        ) { Text(stringResource(R.string.scanner_grant_permission)) }
+                    }
+                }
+                else -> CircularProgressIndicator(color = AccentBlue)
+            }
         }
+    }
+}
+
+@Composable
+private fun CameraQrPreview(onQrDetected: (String) -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val detected = remember { mutableStateOf(false) }
+
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { ctx ->
+            val previewView = PreviewView(ctx)
+            val executor = Executors.newSingleThreadExecutor()
+            val reader = MultiFormatReader().apply {
+                setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
+            }
+
+            val providerFuture = ProcessCameraProvider.getInstance(ctx)
+            providerFuture.addListener({
+                val provider = providerFuture.get()
+                val preview = CameraPreview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+                val analysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                analysis.setAnalyzer(executor) { imageProxy ->
+                    if (!detected.value) {
+                        decodeQr(reader, imageProxy)?.let { result ->
+                            detected.value = true
+                            previewView.post { onQrDetected(result) }
+                        }
+                    }
+                    imageProxy.close()
+                }
+                try {
+                    provider.unbindAll()
+                    provider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        analysis
+                    )
+                } catch (_: Exception) {
+                    // Caméra indisponible (émulateur sans caméra, etc.)
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+
+            previewView
+        }
+    )
+}
+
+private fun decodeQr(reader: MultiFormatReader, imageProxy: ImageProxy): String? {
+    return try {
+        val buffer = imageProxy.planes[0].buffer
+        val bytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
+        val source = PlanarYUVLuminanceSource(
+            bytes, imageProxy.width, imageProxy.height,
+            0, 0, imageProxy.width, imageProxy.height, false
+        )
+        val bitmap = BinaryBitmap(HybridBinarizer(source))
+        reader.decodeWithState(bitmap).text
+    } catch (_: Exception) {
+        null
+    } finally {
+        reader.reset()
     }
 }
