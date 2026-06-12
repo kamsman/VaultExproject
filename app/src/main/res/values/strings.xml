@@ -451,4 +451,9 @@
     <string name="help_chat_subtitle">Réponse en moins de 2h</string>
     <string name="help_email">Email</string>
     <string name="help_email_value">support@vaultex.app</string>
+    <string name="dashboard_greeting">Bonjour 👋</string>
+    <string name="recent_title">Récent</string>
+    <string name="see_all">Voir tout</string>
+    <string name="recent_empty">Vos transactions récentes apparaîtront ici</string>
+    <string name="momo_label">MoMo</string>
 </resources>

@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,16 +15,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vaultex.R
-import com.vaultex.ui.components.BalanceDisplay
-import com.vaultex.ui.components.TokenIcon
+import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.PortfolioViewModel
@@ -32,44 +33,41 @@ import com.vaultex.ui.viewmodel.TokenBalance
 import java.text.NumberFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name), color = TextPrimary) },
-                actions = {
-                    IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.dashboard_alerts), tint = TextPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
-            )
-        },
-        bottomBar = { BottomNavBar(navController) },
+        bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding).fillMaxSize(),
-            contentPadding = PaddingValues(16.dp)
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // ─── En-tête « Bonjour 👋 / Mon Wallet » ───
             item {
-                val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
-                    .format(state.totalBalanceXof.toLong()) + " FCFA"
-
-                BalanceDisplay(amount = xofFormatted, currency = "")
-
-                if (state.isLoading) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        color = AccentBlue
+                Column {
+                    Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
+                    Text(
+                        stringResource(R.string.my_wallet),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
                     )
                 }
+            }
 
+            // ─── Carte solde (dégradé bleu, USD + ≈ XOF) ───
+            item {
+                BalanceCard(
+                    usd = state.totalBalanceUsd,
+                    xof = state.totalBalanceXof,
+                    changePercent = state.totalChangePercent,
+                    isLoading = state.isLoading
+                )
                 state.error?.let { err ->
                     Text(
                         err,
@@ -78,40 +76,65 @@ fun DashboardScreen(navController: NavHostController) {
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
+            }
 
-                Spacer(Modifier.height(20.dp))
-
+            // ─── 4 actions pastel ───
+            item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAction(stringResource(R.string.action_send), Icons.Default.CallMade, Modifier.weight(1f)) {
-                        navController.navigate(Routes.SEND)
+                    ActionChip(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
+                        AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND) }
+                    ActionChip(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
+                        AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
+                    ActionChip(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
+                        AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
+                    ActionChip(stringResource(R.string.momo_label), Icons.Default.PhoneAndroid,
+                        AccentOrange, Modifier.weight(1f)) { navController.navigate(Routes.MOBILE_MONEY) }
+                }
+            }
+
+            // ─── Mes actifs ───
+            item {
+                SectionCard(
+                    title = stringResource(R.string.my_assets),
+                    linkLabel = stringResource(R.string.see_all),
+                    onLinkClick = { navController.navigate(Routes.PORTFOLIO) }
+                ) {
+                    val visibleTokens = state.tokens
+                        .filter { it.valueXof > 0.0 || !state.isLoading }
+                        .sortedByDescending { it.valueUsd }
+                        .take(5)
+                    if (visibleTokens.isEmpty() && !state.isLoading) {
+                        Text(
+                            stringResource(R.string.dashboard_no_assets),
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
                     }
-                    QuickAction(stringResource(R.string.action_receive), Icons.Default.CallReceived, Modifier.weight(1f)) {
-                        navController.navigate(Routes.RECEIVE)
-                    }
-                    QuickAction(stringResource(R.string.action_swap), Icons.Default.SwapHoriz, Modifier.weight(1f)) {
-                        navController.navigate(Routes.SWAP)
-                    }
-                    QuickAction(stringResource(R.string.action_buy), Icons.Default.AddCircle, Modifier.weight(1f)) {
-                        navController.navigate(Routes.MOBILE_MONEY)
+                    visibleTokens.forEachIndexed { index, token ->
+                        AssetRow(token) {
+                            navController.navigate(Routes.tokenDetail(token.symbol))
+                        }
+                        if (index < visibleTokens.lastIndex) {
+                            HorizontalDivider(color = SurfaceLight, thickness = 1.dp)
+                        }
                     }
                 }
-
-                Spacer(Modifier.height(24.dp))
-                Text(stringResource(R.string.my_assets), color = TextPrimary, fontSize = 18.sp)
-                Spacer(Modifier.height(12.dp))
             }
 
-            val visibleTokens = state.tokens.filter { it.valueXof > 0.0 || !state.isLoading }
-            items(visibleTokens) { token ->
-                TokenRow(token)
-                Spacer(Modifier.height(8.dp))
-            }
-
-            if (!state.isLoading && state.tokens.isEmpty() && state.error == null) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.dashboard_no_assets), color = TextSecondary)
-                    }
+            // ─── Récent ───
+            item {
+                SectionCard(
+                    title = stringResource(R.string.recent_title),
+                    linkLabel = stringResource(R.string.history_title),
+                    onLinkClick = { navController.navigate(Routes.HISTORY) }
+                ) {
+                    Text(
+                        stringResource(R.string.recent_empty),
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
                 }
             }
         }
@@ -119,9 +142,71 @@ fun DashboardScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun QuickAction(
+private fun BalanceCard(usd: Double, xof: Double, changePercent: Double, isLoading: Boolean) {
+    val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+        maximumFractionDigits = 2; minimumFractionDigits = 2
+    }.format(usd)
+    val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).format(xof.toLong())
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.verticalGradient(listOf(AccentBlue, AccentBlueDark)))
+            .padding(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                stringResource(R.string.total_balance),
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("$$usdFormatted", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(4.dp))
+                Text("USD", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.approx_xof, xofFormatted),
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            val positive = changePercent >= 0
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (positive) Color(0xFFB9F3DC) else Color(0xFFFBD1D1)
+            ) {
+                Text(
+                    "%+.1f%%".format(changePercent),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    color = if (positive) Color(0xFF067A53) else Color(0xFFB42318),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            if (isLoading) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.25f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionChip(
     label: String,
     icon: ImageVector,
+    tint: Color,
     modifier: Modifier,
     onClick: () -> Unit
 ) {
@@ -129,77 +214,98 @@ private fun QuickAction(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(Surface)
-            .clickable { onClick() }
-            .padding(vertical = 14.dp),
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = label, tint = AccentBlue)
+        Box(
+            Modifier.size(36.dp).clip(CircleShape).background(tint.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
+        }
         Spacer(Modifier.height(6.dp))
         Text(label, color = TextPrimary, fontSize = 11.sp)
     }
 }
 
 @Composable
-private fun TokenRow(token: TokenBalance) {
-    val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
-        .format(token.valueXof.toLong()) + " FCFA"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Surface)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun SectionCard(
+    title: String,
+    linkLabel: String,
+    onLinkClick: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        TokenIcon(token.symbol, token.blockchain, size = 42.dp)
-
-        Spacer(Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(token.symbol, color = TextPrimary)
-            Text(token.name, color = TextSecondary, fontSize = 12.sp)
-        }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(xofFormatted, color = TextPrimary)
-            Spacer(Modifier.height(2.dp))
-            Text(token.amountFormatted, color = TextSecondary, fontSize = 12.sp)
-            val changeColor = if (token.changePercent24h >= 0) AccentGreen else MaterialTheme.colorScheme.error
-            Text(
-                "%.2f%%".format(token.changePercent24h),
-                color = changeColor,
-                fontSize = 11.sp
-            )
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                Text(
+                    "$linkLabel →",
+                    color = AccentBlue,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable(onClick = onLinkClick)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            content()
         }
     }
 }
 
 @Composable
-private fun BottomNavBar(navController: NavHostController) {
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+private fun AssetRow(token: TokenBalance, onClick: () -> Unit) {
+    val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+        maximumFractionDigits = 2
+    }.format(token.valueUsd)
+    val tokenColor = try {
+        Color(android.graphics.Color.parseColor(token.colorHex))
+    } catch (_: Exception) { AccentBlue }
 
-    val items = listOf(
-        Triple(Routes.DASHBOARD, Icons.Default.Home, stringResource(R.string.tab_home)),
-        Triple(Routes.MARKET, Icons.Default.TrendingUp, stringResource(R.string.tab_market)),
-        Triple(Routes.SWAP, Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)),
-        Triple(Routes.HISTORY, Icons.Default.History, stringResource(R.string.tab_history)),
-        Triple(Routes.SETTINGS, Icons.Default.Settings, stringResource(R.string.tab_settings))
-    )
-
-    NavigationBar(containerColor = Surface) {
-        items.forEach { (route, icon, label) ->
-            NavigationBarItem(
-                selected = currentRoute == route,
-                onClick = {
-                    navController.navigate(route) {
-                        popUpTo(Routes.DASHBOARD) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = { Icon(icon, contentDescription = label) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(tokenColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                token.symbol.take(2),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
             )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+            Surface(shape = RoundedCornerShape(4.dp), color = tokenColor.copy(alpha = 0.12f)) {
+                Text(
+                    token.symbol.substringBefore("-"),
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                    fontSize = 10.sp,
+                    color = tokenColor,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text("$$usdFormatted", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+            val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed
+            Text("%+.1f%%".format(token.changePercent24h), fontSize = 12.sp, color = changeColor)
         }
     }
 }

@@ -29,11 +29,13 @@ data class TokenBalance(
     val valueXof: Double,
     val changePercent24h: Double,
     val colorHex: String,
-    val blockchain: Blockchain
+    val blockchain: Blockchain,
+    val valueUsd: Double = 0.0
 )
 
 data class PortfolioState(
     val totalBalanceXof: Double = 0.0,
+    val totalBalanceUsd: Double = 0.0,
     val totalChangePercent: Double = 0.0,
     val tokens: List<TokenBalance> = emptyList(),
     val isLoading: Boolean = false,
@@ -99,24 +101,26 @@ class PortfolioViewModel @Inject constructor(
                     val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
 
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
+                    fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     listOf(
-                        TokenBalance("BTC",      "Bitcoin",    "%.6f BTC".format(btc),     btc     * xof("bitcoin"),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN),
-                        TokenBalance("ETH",      "Ethereum",   "%.6f ETH".format(eth),     eth     * xof("ethereum"),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM),
-                        TokenBalance("BNB",      "BNB",        "%.4f BNB".format(bnb),     bnb     * xof("binancecoin"), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN),
-                        TokenBalance("SOL",      "Solana",     "%.4f SOL".format(sol),     sol     * xof("solana"),      c("solana"),      "#9945FF", Blockchain.SOLANA),
-                        TokenBalance("TRX",      "Tron",       "%.2f TRX".format(trx),     trx     * xof("tron"),        c("tron"),        "#FF060A", Blockchain.TRON),
-                        TokenBalance("USDT",     "Tether TRC20","%.2f USDT".format(usdtTrc),usdtTrc * xof("tether"),      c("tether"),      "#26A17B", Blockchain.TRON),
-                        TokenBalance("USDT-ETH", "Tether ERC20","%.2f USDT".format(usdtEth),usdtEth * xof("tether"),      c("tether"),      "#26A17B", Blockchain.ETHEREUM),
-                        TokenBalance("USDT-BNB", "Tether BEP20","%.2f USDT".format(usdtBnb),usdtBnb * xof("tether"),      c("tether"),      "#26A17B", Blockchain.BNB_CHAIN),
+                        TokenBalance("BTC",      "Bitcoin",    "%.6f BTC".format(btc),     btc     * xof("bitcoin"),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN, valueUsd = btc * usd("bitcoin")),
+                        TokenBalance("ETH",      "Ethereum",   "%.6f ETH".format(eth),     eth     * xof("ethereum"),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM, valueUsd = eth * usd("ethereum")),
+                        TokenBalance("BNB",      "BNB",        "%.4f BNB".format(bnb),     bnb     * xof("binancecoin"), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN, valueUsd = bnb * usd("binancecoin")),
+                        TokenBalance("SOL",      "Solana",     "%.4f SOL".format(sol),     sol     * xof("solana"),      c("solana"),      "#9945FF", Blockchain.SOLANA, valueUsd = sol * usd("solana")),
+                        TokenBalance("TRX",      "Tron",       "%.2f TRX".format(trx),     trx     * xof("tron"),        c("tron"),        "#FF060A", Blockchain.TRON, valueUsd = trx * usd("tron")),
+                        TokenBalance("USDT",     "Tether TRC20","%.2f USDT".format(usdtTrc),usdtTrc * xof("tether"),      c("tether"),      "#26A17B", Blockchain.TRON, valueUsd = usdtTrc * usd("tether")),
+                        TokenBalance("USDT-ETH", "Tether ERC20","%.2f USDT".format(usdtEth),usdtEth * xof("tether"),      c("tether"),      "#26A17B", Blockchain.ETHEREUM, valueUsd = usdtEth * usd("tether")),
+                        TokenBalance("USDT-BNB", "Tether BEP20","%.2f USDT".format(usdtBnb),usdtBnb * xof("tether"),      c("tether"),      "#26A17B", Blockchain.BNB_CHAIN, valueUsd = usdtBnb * usd("tether")),
                     )
                 }
 
                 val total = tokens.sumOf { it.valueXof }
+                val totalUsd = tokens.sumOf { it.valueUsd }
                 // Value-weighted 24h change: each token weighted by its XOF value
                 val avgChange = if (total == 0.0) 0.0
                     else tokens.sumOf { it.changePercent24h * it.valueXof } / total
-                _state.update { it.copy(tokens = tokens, totalBalanceXof = total, totalChangePercent = avgChange, isLoading = false) }
+                _state.update { it.copy(tokens = tokens, totalBalanceXof = total, totalBalanceUsd = totalUsd, totalChangePercent = avgChange, isLoading = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
             }
