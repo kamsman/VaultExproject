@@ -1,130 +1,229 @@
 package com.vaultex.ui.screens.market
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.vaultex.R
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.navigation.Routes
+import com.vaultex.ui.theme.*
+import com.vaultex.ui.viewmodel.MarketViewModel
+import java.text.NumberFormat
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CoinDetailScreen(navController: NavController, coinId: String = "bitcoin") {
-    val isPositive = true
-    val periods = listOf("1J", "1S", "1M", "3M", "1A")
-    var selectedPeriod by remember { mutableStateOf("1S") }
+fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin") {
+    val viewModel: MarketViewModel = hiltViewModel()
+    val markets by viewModel.markets.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (markets.isEmpty()) viewModel.loadMarkets()
+    }
+
+    val coin = markets.find { it.id == coinId }
+    val periods = listOf("1H", "24H", "7J", "1M", "1A")
+    var selectedPeriod by remember { mutableStateOf("24H") }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Bitcoin", fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        coin?.name ?: coinId.replaceFirstChar { it.uppercase() },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgSecondary)
             )
         },
-        containerColor = VaultExColors.Background
+        containerColor = BgSecondary
     ) { padding ->
+        if (coin == null) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AccentBlue)
+            }
+            return@Scaffold
+        }
+
+        val usdFmt = remember {
+            NumberFormat.getNumberInstance(Locale.FRANCE).apply { maximumFractionDigits = 2 }
+        }
+        val symbol = coin.symbol.uppercase()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Price header
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("Bitcoin", color = VaultExColors.TextSecondary, fontSize = 13.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("34 210 000 FCFA", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (isPositive) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = if (isPositive) VaultExColors.Success else VaultExColors.Error
-                        )
+            Spacer(Modifier.height(16.dp))
+
+            // Cercle token + prix + badge variation
+            Box(
+                Modifier.size(56.dp).clip(CircleShape).background(tokenColor(symbol)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "$" + usdFmt.format(coin.currentPrice),
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Spacer(Modifier.height(6.dp))
+            val positive = coin.change24h >= 0
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (positive) AccentGreen.copy(alpha = 0.12f) else AccentRed.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    "%+.2f%%".format(coin.change24h),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (positive) AccentGreen else AccentRed
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Graphique placeholder sur bandeau pâle
+            Box(
+                Modifier.fillMaxWidth().height(180.dp).background(BgPrimary),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.coin_chart_period, selectedPeriod),
+                    color = TextMuted,
+                    fontSize = 13.sp
+                )
+            }
+
+            // Sélecteur de période
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                periods.forEach { period ->
+                    val selected = period == selectedPeriod
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (selected) AccentBlue else Color.Transparent)
+                            .clickable { selectedPeriod = period }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
                         Text(
-                            stringResource(R.string.coin_change_24h, "+2.4%"),
-                            color = if (isPositive) VaultExColors.Success else VaultExColors.Error,
-                            fontSize = 14.sp
+                            period,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (selected) Color.White else TextSecondary
                         )
                     }
                 }
             }
 
-            // Period selector
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                periods.forEach { period ->
-                    FilterChip(
-                        selected = selectedPeriod == period,
-                        onClick = { selectedPeriod = period },
-                        label = { Text(period, fontSize = 12.sp) }
+            // Cartes de stats 2×2
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StatCard(stringResource(R.string.market_cap), "$" + compact(coin.marketCap), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_volume_label), "$" + compact(coin.volume24h), Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StatCard(stringResource(R.string.coin_high_24h), "$" + usdFmt.format(coin.high24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_low_24h), "$" + usdFmt.format(coin.low24h), Modifier.weight(1f))
+                }
+            }
+
+            Spacer(Modifier.height(28.dp))
+
+            // Boutons d'action
+            Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = { navController.navigate(Routes.SWAP) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    Text(stringResource(R.string.coin_buy_swap), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+                OutlinedButton(
+                    onClick = { navController.navigate(Routes.RECEIVE) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue)
+                ) {
+                    Text(
+                        stringResource(R.string.receive_token_fmt, symbol),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = AccentBlue
                     )
                 }
             }
-
-            // Chart placeholder
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.coin_chart_period, selectedPeriod), color = VaultExColors.TextSecondary)
-                }
-            }
-
-            // Stats
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.coin_stats), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    StatRow(stringResource(R.string.market_cap), "674 Md FCFA")
-                    StatRow(stringResource(R.string.coin_volume_24h), "18.3 Md FCFA")
-                    StatRow(stringResource(R.string.coin_high_24h), "35 100 000 FCFA")
-                    StatRow(stringResource(R.string.coin_low_24h), "33 200 000 FCFA")
-                    StatRow(stringResource(R.string.coin_rank), "#1")
-                }
-            }
-
-            // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = { navController.navigate("send") },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-                ) { Text(stringResource(R.string.coin_buy_send)) }
-                OutlinedButton(
-                    onClick = { navController.navigate("receive") },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(10.dp)
-                ) { Text(stringResource(R.string.action_receive)) }
-            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
+private fun tokenColor(symbol: String) = when (symbol) {
+    "BTC" -> NetworkBtc
+    "ETH" -> NetworkEth
+    "BNB" -> NetworkBnb
+    "SOL" -> NetworkSol
+    "TRX" -> NetworkTrx
+    else -> AccentBlue
+}
+
+private fun compact(value: Double): String = when {
+    value >= 1e12 -> "%.2fT".format(value / 1e12)
+    value >= 1e9 -> "%.0fMd".format(value / 1e9)
+    value >= 1e6 -> "%.0fM".format(value / 1e6)
+    else -> "%.0f".format(value)
+}
+
 @Composable
-private fun StatRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = VaultExColors.TextSecondary, fontSize = 14.sp)
-        Text(value, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BgPrimary),
+        modifier = modifier
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(label, fontSize = 12.sp, color = TextSecondary)
+            Spacer(Modifier.height(4.dp))
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        }
     }
 }

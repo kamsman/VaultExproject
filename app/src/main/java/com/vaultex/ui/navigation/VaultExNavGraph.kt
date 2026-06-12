@@ -123,8 +123,12 @@ fun VaultExNavGraph(navController: NavHostController) {
             MarketScreen(navController)
         }
 
-        composable(Routes.COIN_DETAIL) {
-            CoinDetailScreen(navController)
+        composable(
+            route = Routes.COIN_DETAIL,
+            arguments = listOf(navArgument("coinId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val coinId = backStackEntry.arguments?.getString("coinId") ?: "bitcoin"
+            CoinDetailScreen(navController, coinId)
         }
 
         composable(Routes.SETTINGS) {
@@ -191,8 +195,12 @@ fun VaultExNavGraph(navController: NavHostController) {
             QrScannerScreen(navController)
         }
 
-        composable(Routes.HISTORY_DETAIL) {
-            TransactionDetailScreen(navController)
+        composable(
+            route = Routes.HISTORY_DETAIL,
+            arguments = listOf(navArgument("hash") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val hash = backStackEntry.arguments?.getString("hash") ?: ""
+            TransactionDetailScreen(navController, hash)
         }
 
         // ─── Écrans secondaires / prototypes ──────────────────

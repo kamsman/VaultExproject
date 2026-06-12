@@ -111,7 +111,7 @@ fun HistoryScreen(navController: NavController) {
                         }
                     }
                     items(filtered, key = { it.hash }) { tx ->
-                        TxCard(tx) { navController.navigate(Routes.HISTORY_DETAIL) }
+                        TxCard(tx) { navController.navigate(Routes.historyDetail(tx.hash)) }
                     }
                 }
             }

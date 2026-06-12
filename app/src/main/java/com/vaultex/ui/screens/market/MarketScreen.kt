@@ -126,7 +126,7 @@ fun MarketScreen(navController: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(filtered, key = { it.id }) { coin ->
-                    CoinCard(coin) { navController.navigate(Routes.COIN_DETAIL) }
+                    CoinCard(coin) { navController.navigate(Routes.coinDetail(coin.id)) }
                 }
             }
         }

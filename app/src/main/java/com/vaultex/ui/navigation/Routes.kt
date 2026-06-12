@@ -52,7 +52,9 @@ object Routes {
 
     const val HOME = "home"
 
-    const val COIN_DETAIL = "coinDetail"
+    const val COIN_DETAIL = "coinDetail/{coinId}"
+
+    fun coinDetail(coinId: String) = "coinDetail/$coinId"
 
     const val MOBILE_MONEY = "mobileMoney"
 
@@ -74,7 +76,9 @@ object Routes {
 
     const val SCANNER = "scanner"
 
-    const val HISTORY_DETAIL = "history_detail"
+    const val HISTORY_DETAIL = "historyDetail/{hash}"
+
+    fun historyDetail(hash: String) = "historyDetail/$hash"
 
     /*
     =========================

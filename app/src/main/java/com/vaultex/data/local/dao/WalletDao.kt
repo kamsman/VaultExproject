@@ -69,6 +69,9 @@ interface TransactionDao {
     @Query("SELECT hash FROM transactions WHERE hash = :hash LIMIT 1")
     suspend fun getHash(hash: String): String?
 
+    @Query("SELECT * FROM transactions WHERE hash = :hash LIMIT 1")
+    suspend fun getByHash(hash: String): TransactionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: TransactionEntity)
 

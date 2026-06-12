@@ -491,4 +491,13 @@
     <string name="network_settings_latency_format">%1$d ms</string>
     <string name="swap_fee_vaultex_label">Frais VaultEx</string>
     <string name="swap_rate_format">1 %1$s ≈ %2$s %3$s</string>
+    <string name="tx_detail_hash">Hash</string>
+    <string name="tx_detail_network">Réseau</string>
+    <string name="tx_detail_date">Date</string>
+    <string name="tx_detail_block">Bloc</string>
+    <string name="tx_detail_explorer">Voir sur l\'explorateur ↗</string>
+    <string name="tx_detail_not_found">Transaction introuvable</string>
+    <string name="coin_buy_swap">Acheter / Swap</string>
+    <string name="receive_token_fmt">Recevoir %1$s</string>
+    <string name="coin_volume_label">Volume 24h</string>
 </resources>

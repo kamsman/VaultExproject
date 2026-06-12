@@ -149,6 +149,8 @@ data class CoinGeckoMarketDto(
     @SerializedName("market_cap_rank") val rank: Int,
     @SerializedName("total_volume") val volume24h: Double,
     @SerializedName("price_change_percentage_24h") val change24h: Double,
+    @SerializedName("high_24h") val high24h: Double = 0.0,
+    @SerializedName("low_24h") val low24h: Double = 0.0,
     val sparkline_in_7d: SparklineDto? = null
 )
 data class SparklineDto(val price: List<Double>)
