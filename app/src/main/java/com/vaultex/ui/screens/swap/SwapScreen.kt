@@ -1,13 +1,19 @@
 package com.vaultex.ui.screens.swap
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,13 +27,38 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.vaultex.R
+import com.vaultex.ui.components.VaultExBottomBar
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentRed
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgTertiary
+import com.vaultex.ui.theme.BorderColor
+import com.vaultex.ui.theme.NetworkBnb
+import com.vaultex.ui.theme.NetworkBtc
+import com.vaultex.ui.theme.NetworkEth
+import com.vaultex.ui.theme.NetworkSol
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.SurfaceLight
+import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SwapViewModel
 
+private fun tokenColor(token: String): Color = when (token.uppercase()) {
+    "BTC" -> NetworkBtc
+    "ETH" -> NetworkEth
+    "BNB" -> NetworkBnb
+    "SOL" -> NetworkSol
+    "TRX", "USDT" -> AccentRed
+    else -> AccentBlue
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SwapScreen(navController: NavController) {
+fun SwapScreen(navController: NavHostController) {
     val viewModel: SwapViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val clipboard = LocalClipboardManager.current
@@ -38,24 +69,24 @@ fun SwapScreen(navController: NavController) {
     if (state.payinAddress != null) {
         AlertDialog(
             onDismissRequest = { viewModel.resetSwap() },
-            icon = { Icon(Icons.Default.SwapHoriz, null, tint = VaultExColors.BluePrimary) },
+            icon = { Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue) },
             title = { Text(stringResource(R.string.swap_created_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.swap_send_instruction, state.fromAmount, state.fromToken), fontSize = 14.sp)
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = VaultExColors.BlueLight
+                        color = BgTertiary
                     ) {
                         Text(
                             state.payinAddress!!,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(10.dp),
-                            color = VaultExColors.BluePrimary,
+                            color = AccentBlue,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    Text(stringResource(R.string.swap_id_label, state.swapId?.take(16) ?: ""), fontSize = 11.sp, color = VaultExColors.TextSecondary)
+                    Text(stringResource(R.string.swap_id_label, state.swapId?.take(16) ?: ""), fontSize = 11.sp, color = TextSecondary)
                 }
             },
             confirmButton = {
@@ -71,111 +102,222 @@ fun SwapScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.action_swap), fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.swap_exchange),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = AccentBlue
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
-        containerColor = VaultExColors.Background
+        bottomBar = {
+            Column {
+                Button(
+                    onClick = { viewModel.executeSwap() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                        .height(54.dp),
+                    enabled = state.fromAmount.isNotEmpty() && state.fromToken != state.toToken && !state.isLoading,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VaultExColors.TextOnPrimary, strokeWidth = 2.dp)
+                    } else {
+                        Text(
+                            stringResource(R.string.swap_exchange),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = VaultExColors.TextOnPrimary
+                        )
+                    }
+                }
+                VaultExBottomBar(navController)
+            }
+        },
+        containerColor = BgPrimary
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize().padding(padding)
-                .verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Mode selector
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ModeChip(stringResource(R.string.swap_mode_same_chain), !state.isCrossChain) { /* TODO */ }
-                ModeChip(stringResource(R.string.swap_mode_cross_chain), state.isCrossChain) { /* always cross-chain for now */ }
-            }
-
-            // From
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.swap_you_send), fontSize = 13.sp, color = VaultExColors.TextSecondary)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = state.fromAmount,
-                            onValueChange = { viewModel.setFromAmount(it) },
-                            placeholder = { Text("0.00") },
-                            modifier = Modifier.weight(1f), singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        TokenPill(state.fromToken, tokens) { viewModel.setFromToken(it) }
-                    }
-                }
-            }
-
-            // Swap icon
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                IconButton(
-                    onClick = { viewModel.swapTokens() },
-                    modifier = Modifier.background(VaultExColors.BluePrimary, RoundedCornerShape(12.dp)).size(40.dp)
-                ) {
-                    Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.swap_invert_tokens), tint = VaultExColors.TextOnPrimary)
-                }
-            }
-
-            // To
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.swap_you_receive_estimated), fontSize = 13.sp, color = VaultExColors.TextSecondary)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = state.toAmount,
-                            onValueChange = {},
-                            placeholder = { Text("0.00") },
-                            modifier = Modifier.weight(1f), singleLine = true,
-                            enabled = false, shape = RoundedCornerShape(10.dp)
-                        )
-                        TokenPill(state.toToken, tokens) { viewModel.setToToken(it) }
-                    }
-                }
-            }
-
-            // Fee summary
-            if (state.fromAmount.isNotEmpty()) {
-                Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.BlueLight)) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FeeRow(stringResource(R.string.swap_fee_vaultex), "${state.estimatedFee.ifEmpty { "—" }} ${state.fromToken}")
-                        FeeRow(stringResource(R.string.swap_route), "ChangeNOW cross-chain")
-                        FeeRow(stringResource(R.string.swap_slippage_max), "0.5%")
-                    }
-                }
-            }
-
-            // Error
-            if (state.error != null) {
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = VaultExColors.Error.copy(alpha = 0.1f))
-                ) {
-                    Text(state.error!!, fontSize = 13.sp, color = VaultExColors.Error, modifier = Modifier.padding(12.dp))
-                }
-            }
-
-            Button(
-                onClick = { viewModel.executeSwap() },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = state.fromAmount.isNotEmpty() && state.fromToken != state.toToken && !state.isLoading,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
+            // Carte « De »
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = SurfaceColor,
+                border = BorderStroke(1.dp, BorderColor),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VaultExColors.TextOnPrimary, strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.action_swap), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.label_from), fontSize = 12.sp, color = TextSecondary)
+                    TokenPill(state.fromToken, tokens) { viewModel.setFromToken(it) }
+                    AmountField(
+                        value = state.fromAmount,
+                        onValueChange = { viewModel.setFromAmount(it) },
+                        enabled = true,
+                        placeholder = "0.00"
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.balance_label, "—"),
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                        Text(
+                            stringResource(R.string.max_label),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentBlue
+                        )
+                    }
                 }
             }
+
+            // Bouton d'inversion
+            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                Surface(
+                    onClick = { viewModel.swapTokens() },
+                    shape = CircleShape,
+                    color = SurfaceColor,
+                    border = BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.SwapVert,
+                            contentDescription = stringResource(R.string.swap_invert_tokens),
+                            tint = AccentBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Carte « Vers »
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = SurfaceColor,
+                border = BorderStroke(1.dp, BorderColor),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.swap_to_label), fontSize = 12.sp, color = TextSecondary)
+                    TokenPill(state.toToken, tokens) { viewModel.setToToken(it) }
+                    AmountField(
+                        value = if (state.toAmount.isNotEmpty()) "≈ ${state.toAmount}" else "",
+                        onValueChange = {},
+                        enabled = false,
+                        placeholder = "≈ 0.00"
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Récapitulatif taux / frais / route
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = SurfaceColor,
+                border = BorderStroke(1.dp, BorderColor),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                    val from = state.fromAmount.toDoubleOrNull()
+                    val to = state.toAmount.toDoubleOrNull()
+                    val rateValue = if (from != null && from > 0.0 && to != null && to > 0.0)
+                        stringResource(
+                            R.string.swap_rate_format,
+                            state.fromToken,
+                            String.format("%.2f", to / from),
+                            state.toToken
+                        )
+                    else "—"
+                    SummaryRow(stringResource(R.string.swap_rate), rateValue)
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    SummaryRow(
+                        stringResource(R.string.swap_fee_vaultex_label),
+                        "${state.vaultexFeePercent}%"
+                    )
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    SummaryRow(
+                        stringResource(R.string.swap_via),
+                        "ChangeNOW",
+                        valueColor = AccentBlue
+                    )
+                }
+            }
+
+            // Erreur
+            if (state.error != null) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = AccentRed.copy(alpha = 0.1f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun RowScope.ModeChip(label: String, selected: Boolean, onClick: () -> Unit) =
-    FilterChip(selected = selected, onClick = onClick, label = { Text(label, fontSize = 12.sp) }, modifier = Modifier.weight(1f))
+private fun AmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    placeholder: String
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        placeholder = { Text(placeholder, color = TextMuted, fontSize = 16.sp) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = RoundedCornerShape(12.dp),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) TextPrimary else TextMuted
+        ),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = SurfaceLight,
+            unfocusedContainerColor = SurfaceLight,
+            disabledContainerColor = SurfaceLight,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            disabledTextColor = TextMuted,
+            cursorColor = AccentBlue
+        )
+    )
+}
 
 @Composable
 private fun TokenPill(current: String, options: List<String>, onSelect: (String) -> Unit) {
@@ -183,16 +325,34 @@ private fun TokenPill(current: String, options: List<String>, onSelect: (String)
     Box {
         Surface(
             onClick = { expanded = true },
-            shape = RoundedCornerShape(10.dp),
-            color = VaultExColors.BlueLight
+            shape = RoundedCornerShape(20.dp),
+            color = BgTertiary
         ) {
             Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                Modifier.padding(start = 6.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(current, fontWeight = FontWeight.Bold, color = VaultExColors.BluePrimary)
-                Icon(Icons.Default.ArrowDropDown, null, tint = VaultExColors.BluePrimary, modifier = Modifier.size(18.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(tokenColor(current), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        current.take(2).uppercase(),
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(current, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -207,8 +367,12 @@ private fun TokenPill(current: String, options: List<String>, onSelect: (String)
 }
 
 @Composable
-private fun FeeRow(label: String, value: String) =
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 12.sp, color = VaultExColors.TextSecondary)
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = VaultExColors.TextPrimary)
+private fun SummaryRow(label: String, value: String, valueColor: Color = TextPrimary) =
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 13.sp, color = TextSecondary)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
     }

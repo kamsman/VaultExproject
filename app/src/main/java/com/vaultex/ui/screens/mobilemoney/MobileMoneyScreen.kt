@@ -26,8 +26,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.R
-import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentGreen
+import com.vaultex.ui.theme.AccentRed
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgTertiary
+import com.vaultex.ui.theme.BorderColor
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.SurfaceLight
+import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.MobileMoneyViewModel
+import java.util.Locale
 
 private data class MobileOperator(
     val name: String,
@@ -47,6 +58,10 @@ private val OPERATORS = listOf(
     MobileOperator("MTN Money",    "MTN",    Color(0xFFFFCC00), "MTN",  available = false),
 )
 
+private fun formatXof(value: Double): String =
+    String.format(Locale.US, "%,.0f", value).replace(",", " ")
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MobileMoneyScreen(
     navController: NavController,
@@ -54,6 +69,8 @@ fun MobileMoneyScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showConfirmDialog by remember { mutableStateOf(false) }
+    // Visual direction toggle (mockup) — only Crypto → CFA is backed by the API today.
+    var cryptoToCfa by remember { mutableStateOf(true) }
 
     if (state.success) {
         SuccessScreen(
@@ -69,17 +86,28 @@ fun MobileMoneyScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.mobile_money_title), fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.mobile_money_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = AccentBlue
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
-        containerColor = VaultExColors.Background
+        containerColor = BgPrimary
     ) { padding ->
         Column(
             modifier = Modifier
@@ -89,115 +117,123 @@ fun MobileMoneyScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Surface(color = VaultExColors.BlueLight, shape = RoundedCornerShape(12.dp)) {
-                Text(
-                    stringResource(R.string.momo_fee_notice),
-                    modifier = Modifier.padding(12.dp),
-                    fontSize = 13.sp,
-                    color = VaultExColors.BluePrimary
-                )
-            }
-
-            Text(stringResource(R.string.operator), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                OPERATORS.forEach { op ->
-                    val selected = state.selectedNetwork == op.flwNetwork
+            // Fee notice banner with left accent bar
+            Surface(color = BgTertiary, shape = RoundedCornerShape(10.dp)) {
+                Row(Modifier.height(IntrinsicSize.Min)) {
                     Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                when {
-                                    !op.available -> VaultExColors.CardBackground.copy(alpha = 0.5f)
-                                    selected -> op.color.copy(alpha = 0.15f)
-                                    else -> VaultExColors.CardBackground
-                                }
-                            )
-                            .border(1.dp,
-                                if (!op.available) VaultExColors.Border
-                                else if (selected) op.color
-                                else VaultExColors.Border,
-                                RoundedCornerShape(10.dp))
-                            .then(if (op.available) Modifier.clickable { viewModel.setNetwork(op.flwNetwork) } else Modifier)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                op.shortName,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (!op.available) Color(0xFFBBBBBB)
-                                        else if (selected) op.color
-                                        else VaultExColors.TextSecondary
-                            )
-                            if (!op.available) {
-                                Text(stringResource(R.string.momo_coming_soon), fontSize = 9.sp, color = Color(0xFFBBBBBB))
-                            }
-                        }
-                    }
+                        Modifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(AccentBlue)
+                    )
+                    Text(
+                        stringResource(R.string.momo_fee_notice),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                        fontSize = 13.sp,
+                        color = TextPrimary
+                    )
                 }
             }
 
-            Text(stringResource(R.string.phone_number), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            OutlinedTextField(
+            // Direction toggle
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DirectionPill(
+                    text = stringResource(R.string.momo_crypto_to_cfa),
+                    selected = cryptoToCfa,
+                    modifier = Modifier.weight(1f),
+                    onClick = { cryptoToCfa = true }
+                )
+                DirectionPill(
+                    text = stringResource(R.string.momo_cfa_to_crypto),
+                    selected = !cryptoToCfa,
+                    modifier = Modifier.weight(1f),
+                    onClick = { cryptoToCfa = false }
+                )
+            }
+
+            // Operator chips
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+                OPERATORS.forEach { op ->
+                    val selected = state.selectedNetwork == op.flwNetwork
+                    OperatorChip(
+                        operator = op,
+                        selected = selected,
+                        onClick = { viewModel.setNetwork(op.flwNetwork) }
+                    )
+                }
+            }
+
+            // Phone number
+            MomoTextField(
                 value = state.phoneNumber,
                 onValueChange = { viewModel.setPhone(it) },
-                placeholder = { Text("+226 XX XX XX XX") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp)
+                placeholder = stringResource(R.string.momo_phone_placeholder),
+                keyboardType = KeyboardType.Phone
             )
 
-            Text(stringResource(R.string.momo_amount_fcfa), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            OutlinedTextField(
+            // Amount
+            MomoTextField(
                 value = state.amountFcfa,
                 onValueChange = { viewModel.setAmount(it) },
-                placeholder = { Text(stringResource(R.string.momo_amount_example)) },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                suffix = { Text("FCFA") }
+                placeholder = stringResource(R.string.momo_amount_placeholder),
+                keyboardType = KeyboardType.Number
             )
 
-            if (state.amountFcfa.isNotEmpty() && state.amountFcfa.toDoubleOrNull() != null) {
-                Surface(shape = RoundedCornerShape(12.dp), color = VaultExColors.CardBackground, tonalElevation = 1.dp) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.momo_fee_label), color = VaultExColors.TextSecondary, fontSize = 13.sp)
-                            Text("${String.format("%.0f", viewModel.fee)} FCFA", fontSize = 13.sp)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.momo_you_receive), fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "${String.format("%.0f", viewModel.amountAfterFee)} FCFA",
-                                fontWeight = FontWeight.Bold,
-                                color = VaultExColors.Success
-                            )
-                        }
+            // Summary card
+            Surface(shape = RoundedCornerShape(16.dp), color = SurfaceColor) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.label_fee), color = TextSecondary, fontSize = 14.sp)
+                        Text(
+                            "~${formatXof(viewModel.fee)} XOF",
+                            fontSize = 14.sp,
+                            color = TextPrimary
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.momo_you_receive), color = TextSecondary, fontSize = 14.sp)
+                        Text(
+                            "~${formatXof(viewModel.amountAfterFee)} XOF",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = TextPrimary
+                        )
                     }
                 }
             }
 
             state.error?.let { err ->
-                Text(err, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                Text(err, color = AccentRed, fontSize = 13.sp)
             }
+
+            Spacer(Modifier.height(8.dp))
 
             Button(
                 onClick = { showConfirmDialog = true },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
                 enabled = state.selectedNetwork.isNotEmpty()
                         && state.phoneNumber.isNotEmpty()
                         && state.amountFcfa.isNotEmpty()
                         && !state.isLoading,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
+                shape = RoundedCornerShape(27.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AccentBlue,
+                    contentColor = Color.White
+                )
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(color = VaultExColors.TextOnPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Text(stringResource(R.string.momo_confirm_transfer), fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.mobile_money_confirm_transfer),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
             }
         }
@@ -225,27 +261,147 @@ fun MobileMoneyScreen(
 }
 
 @Composable
+private fun DirectionPill(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) AccentBlue else SurfaceColor)
+            .border(
+                1.dp,
+                if (selected) AccentBlue else BorderColor,
+                RoundedCornerShape(20.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) Color.White else TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun OperatorChip(
+    operator: MobileOperator,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                when {
+                    !operator.available -> SurfaceLight
+                    selected -> operator.color.copy(alpha = 0.10f)
+                    else -> SurfaceColor
+                }
+            )
+            .border(
+                if (selected && operator.available) 2.dp else 1.5.dp,
+                if (!operator.available) BorderColor else operator.color,
+                RoundedCornerShape(12.dp)
+            )
+            .then(if (operator.available) Modifier.clickable(onClick = onClick) else Modifier)
+            .width(66.dp)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (!operator.available) {
+                Text(
+                    stringResource(R.string.momo_coming_soon),
+                    fontSize = 8.sp,
+                    color = TextMuted
+                )
+            }
+            Text(
+                operator.shortName.first().uppercase(),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (operator.available) operator.color else TextMuted
+            )
+            Text(
+                operator.shortName,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (operator.available) TextPrimary else TextMuted
+            )
+        }
+    }
+}
+
+@Composable
+private fun MomoTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = TextMuted, fontSize = 14.sp) },
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = SurfaceLight,
+            unfocusedContainerColor = SurfaceLight,
+            disabledContainerColor = SurfaceLight,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            cursorColor = AccentBlue,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary
+        )
+    )
+}
+
+@Composable
 private fun SuccessScreen(txRef: String, flwRef: String, onDone: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgPrimary)
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             Icons.Default.CheckCircle,
             contentDescription = null,
-            tint = VaultExColors.Success,
+            tint = AccentGreen,
             modifier = Modifier.size(72.dp)
         )
         Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.momo_transfer_initiated), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(R.string.momo_transfer_initiated),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
         Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.momo_reference, txRef), fontSize = 13.sp, color = VaultExColors.TextSecondary)
+        Text(stringResource(R.string.momo_reference, txRef), fontSize = 13.sp, color = TextSecondary)
         if (flwRef.isNotEmpty()) {
-            Text(stringResource(R.string.momo_flw_reference, flwRef), fontSize = 12.sp, color = VaultExColors.TextSecondary)
+            Text(stringResource(R.string.momo_flw_reference, flwRef), fontSize = 12.sp, color = TextSecondary)
         }
         Spacer(Modifier.height(32.dp))
-        Button(onClick = onDone, shape = RoundedCornerShape(10.dp)) {
+        Button(
+            onClick = onDone,
+            shape = RoundedCornerShape(27.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue, contentColor = Color.White)
+        ) {
             Text(stringResource(R.string.back))
         }
     }

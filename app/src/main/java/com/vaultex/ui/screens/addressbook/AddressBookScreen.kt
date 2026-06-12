@@ -1,18 +1,24 @@
 package com.vaultex.ui.screens.addressbook
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,9 +26,31 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
 import com.vaultex.data.local.entity.ContactEntity
+import com.vaultex.ui.components.VaultExBottomBar
+import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentRed
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.NetworkBnb
+import com.vaultex.ui.theme.NetworkBtc
+import com.vaultex.ui.theme.NetworkEth
+import com.vaultex.ui.theme.NetworkSol
+import com.vaultex.ui.theme.NetworkTrx
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.AddressBookViewModel
 import org.json.JSONObject
+
+private fun chainColor(chain: String): Color = when (chain.uppercase()) {
+    "ETH" -> NetworkEth
+    "BTC" -> NetworkBtc
+    "BNB" -> NetworkBnb
+    "SOL" -> NetworkSol
+    "TRX" -> NetworkTrx
+    else -> AccentBlue
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +58,9 @@ fun AddressBookScreen(navController: NavHostController) {
     val viewModel: AddressBookViewModel = hiltViewModel()
     val contacts by viewModel.contacts.collectAsState()
     val ui by viewModel.ui.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
+    var contactToDelete by remember { mutableStateOf<ContactEntity?>(null) }
 
     if (ui.showAddDialog) {
         AddContactDialog(
@@ -45,44 +76,103 @@ fun AddressBookScreen(navController: NavHostController) {
         )
     }
 
+    contactToDelete?.let { contact ->
+        AlertDialog(
+            onDismissRequest = { contactToDelete = null },
+            title = { Text(stringResource(R.string.address_book_delete_title)) },
+            text = { Text(contact.name, fontWeight = FontWeight.SemiBold) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteContact(contact.id)
+                    contactToDelete = null
+                }) { Text(stringResource(R.string.delete), color = AccentRed) }
+            },
+            dismissButton = {
+                TextButton(onClick = { contactToDelete = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.address_book), fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.address_book),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = AccentBlue
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = VaultExColors.Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
+        bottomBar = { VaultExBottomBar(navController) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = viewModel::openAddDialog,
-                containerColor = VaultExColors.BluePrimary
+                shape = CircleShape,
+                containerColor = AccentBlue,
+                contentColor = Color.White
             ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.contacts_add), tint = VaultExColors.TextOnPrimary)
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.contacts_add))
             }
         },
-        containerColor = VaultExColors.Background
+        containerColor = BgPrimary
     ) { padding ->
-        if (contacts.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Contacts, null, tint = VaultExColors.TextSecondary, modifier = Modifier.size(64.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.contacts_empty), color = VaultExColors.TextSecondary, fontSize = 15.sp)
-                    Text(stringResource(R.string.contacts_empty_hint), color = VaultExColors.TextSecondary, fontSize = 13.sp)
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+        ) {
+            Spacer(Modifier.height(12.dp))
+            SearchField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = stringResource(R.string.contacts_search)
+            )
+            Spacer(Modifier.height(16.dp))
+
+            val filtered = remember(contacts, searchQuery) {
+                if (searchQuery.isBlank()) contacts
+                else contacts.filter { it.name.contains(searchQuery, ignoreCase = true) }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(contacts, key = { it.id }) { contact ->
-                    ContactCard(contact, onDelete = { viewModel.deleteContact(contact.id) })
+
+            if (filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Contacts,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(stringResource(R.string.contacts_empty), color = TextSecondary, fontSize = 15.sp)
+                        Text(stringResource(R.string.contacts_empty_hint), color = TextMuted, fontSize = 13.sp)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp)
+                ) {
+                    items(filtered, key = { it.id }) { contact ->
+                        ContactCard(contact, onClick = { contactToDelete = contact })
+                    }
                 }
             }
         }
@@ -90,50 +180,131 @@ fun AddressBookScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun ContactCard(contact: ContactEntity, onDelete: () -> Unit) {
+private fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, VaultExColors.Border),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = TextMuted,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(placeholder, color = TextMuted, fontSize = 14.sp)
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(color = TextPrimary, fontSize = 14.sp),
+                    cursorBrush = SolidColor(AccentBlue),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactCard(contact: ContactEntity, onClick: () -> Unit) {
     val addresses = runCatching {
         val json = JSONObject(contact.addressesJson)
         json.keys().asSequence().map { chain -> chain to json.getString(chain) }.toList()
     }.getOrDefault(emptyList())
 
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
-        modifier = Modifier.fillMaxWidth()
+    val initials = contact.name
+        .split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifEmpty { "?" }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = CircleShape,
-                color = Color(contact.avatarColor),
-                modifier = Modifier.size(44.dp)
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(Color(contact.avatarColor)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        contact.name.take(1).uppercase(),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
+                Text(
+                    initials,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(contact.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                addresses.forEach { (chain, addr) ->
+                Text(
+                    contact.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = TextPrimary
+                )
+                addresses.firstOrNull()?.let { (_, addr) ->
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        "$chain: ${addr.take(12)}…${addr.takeLast(6)}",
+                        "${addr.take(6)}…${addr.takeLast(4)}",
                         fontSize = 12.sp,
-                        color = VaultExColors.TextSecondary
+                        color = TextSecondary
                     )
                 }
+                if (addresses.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        addresses.forEach { (chain, _) ->
+                            ChainBadge(chain)
+                        }
+                    }
+                }
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, null, tint = VaultExColors.Error, modifier = Modifier.size(20.dp))
-            }
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TextMuted,
+                modifier = Modifier.size(20.dp)
+            )
         }
+    }
+}
+
+@Composable
+private fun ChainBadge(chain: String) {
+    val color = chainColor(chain)
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            chain.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
     }
 }
 
@@ -152,7 +323,8 @@ private fun AddContactDialog(
     val chains = listOf("ETH", "BNB", "BTC", "SOL", "TRX", "USDT")
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.contacts_new)) },
+        containerColor = SurfaceColor,
+        title = { Text(stringResource(R.string.contacts_new), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -160,6 +332,7 @@ private fun AddContactDialog(
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.contacts_name)) },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -167,6 +340,7 @@ private fun AddContactDialog(
                     onValueChange = onAddressChange,
                     label = { Text(stringResource(R.string.contacts_address)) },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 var expanded by remember { mutableStateOf(false) }
@@ -176,9 +350,10 @@ private fun AddContactDialog(
                         onValueChange = {},
                         label = { Text(stringResource(R.string.contacts_network)) },
                         readOnly = true,
+                        shape = RoundedCornerShape(12.dp),
                         trailingIcon = {
                             IconButton(onClick = { expanded = true }) {
-                                Icon(Icons.Default.ArrowDropDown, null)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -190,15 +365,18 @@ private fun AddContactDialog(
                     }
                 }
                 if (error != null) {
-                    Text(error, color = VaultExColors.Error, fontSize = 12.sp)
+                    Text(error, color = AccentRed, fontSize = 12.sp)
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onSave) { Text(stringResource(R.string.add)) }
+            Button(
+                onClick = onSave,
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = TextSecondary) }
         }
     )
 }

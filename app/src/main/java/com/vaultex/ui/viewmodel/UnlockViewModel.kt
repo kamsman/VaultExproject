@@ -19,8 +19,16 @@ data class UnlockState(
 
 @HiltViewModel
 class UnlockViewModel @Inject constructor(
-    private val pinManager: PinManager
+    private val pinManager: PinManager,
+    private val secureStorage: com.vaultex.core.security.SecureStorage
 ) : ViewModel() {
+
+    fun isBiometricEnabled(): Boolean = secureStorage.isBiometricEnabled()
+
+    fun onBiometricSuccess() {
+        _state.update { it.copy(isUnlocked = true) }
+    }
+
 
     private val _state = MutableStateFlow(UnlockState())
     val state: StateFlow<UnlockState> = _state.asStateFlow()
