@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,12 +42,29 @@ fun SettingsScreen(navController: NavHostController) {
     val state by viewModel.state.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val currentLang = remember { com.vaultex.core.session.LocaleManager.getLanguage(context) }
 
     if (showThemeDialog) {
         ThemePickerDialog(
             current = themeMode,
             onPick = { viewModel.setThemeMode(it); showThemeDialog = false },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showLanguageDialog) {
+        LanguagePickerDialog(
+            current = currentLang,
+            onPick = { lang ->
+                showLanguageDialog = false
+                if (lang != currentLang) {
+                    com.vaultex.core.session.LocaleManager.setLanguage(context, lang)
+                    (context as? android.app.Activity)?.recreate()
+                }
+            },
+            onDismiss = { showLanguageDialog = false }
         )
     }
 
@@ -178,12 +196,11 @@ fun SettingsScreen(navController: NavHostController) {
                         themeModeLabel(themeMode)
                     ) { showThemeDialog = true }
                     RowDivider()
-                    SettingsValueRow(
+                    SettingsClickableValueRow(
                         Icons.Default.Language,
                         stringResource(R.string.language),
-                        if (state.selectedLanguage == "fr") stringResource(R.string.settings_language_french)
-                        else state.selectedLanguage
-                    )
+                        languageLabel(currentLang)
+                    ) { showLanguageDialog = true }
                     RowDivider()
                     SettingsRow(Icons.Default.Help, stringResource(R.string.settings_help)) {
                         navController.navigate(Routes.HELP)
@@ -311,6 +328,47 @@ private fun SettingsClickableValueRow(
         Spacer(Modifier.width(6.dp))
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
     }
+}
+
+@Composable
+private fun languageLabel(code: String): String = when (code) {
+    "en" -> stringResource(R.string.lang_english)
+    "ar" -> stringResource(R.string.lang_arabic)
+    else -> stringResource(R.string.lang_french)
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    current: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        "fr" to stringResource(R.string.lang_french),
+        "en" to stringResource(R.string.lang_english),
+        "ar" to stringResource(R.string.lang_arabic)
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.language)) },
+        text = {
+            Column {
+                options.forEach { (code, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(code) }.padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = current == code, onClick = { onPick(code) })
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, fontSize = 15.sp, color = TextPrimary)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        }
+    )
 }
 
 @Composable

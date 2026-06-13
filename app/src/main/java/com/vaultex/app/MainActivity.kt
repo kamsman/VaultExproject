@@ -1,5 +1,6 @@
 package com.vaultex.app
 
+import android.content.Context
 import android.os.Bundle
 import android.view.WindowManager
 
@@ -14,6 +15,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.compose.rememberNavController
 
 import com.vaultex.BuildConfig
+import com.vaultex.core.session.LocaleManager
 import com.vaultex.core.session.SessionLockManager
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.navigation.VaultExNavGraph
@@ -31,6 +33,10 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var themeController: ThemeController
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleManager.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
