@@ -42,7 +42,7 @@ fun SecurityScreen(navController: NavHostController) {
     val viewModel: SecurityViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
-    val autoLockOptions = listOf(1, 5, 15, 30, 60)
+    val autoLockOptions = listOf(0, 1, 5, 15, 30, 60)
     var showWipeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -111,14 +111,14 @@ fun SecurityScreen(navController: NavHostController) {
                 ) {
                     Box {
                         Text(
-                            stringResource(R.string.security_minutes_format, state.autoLockMinutes),
+                            autoLockLabel(state.autoLockMinutes),
                             fontSize = 14.sp,
                             color = TextSecondary
                         )
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             autoLockOptions.forEach { minutes ->
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.security_minutes_format, minutes)) },
+                                    text = { Text(autoLockLabel(minutes)) },
                                     onClick = { viewModel.setAutoLockMinutes(minutes); expanded = false }
                                 )
                             }
@@ -196,6 +196,11 @@ fun SecurityScreen(navController: NavHostController) {
 
 /** Aligné sur PinManager.MAX_ATTEMPTS (valeur informative). */
 private const val MAX_PIN_ATTEMPTS = 5
+
+@Composable
+private fun autoLockLabel(minutes: Int): String =
+    if (minutes == 0) stringResource(R.string.security_autolock_immediate)
+    else stringResource(R.string.security_minutes_format, minutes)
 
 @Composable
 private fun SecuritySectionLabel(text: String) {

@@ -29,6 +29,7 @@ import javax.inject.Inject
 class OnboardingViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val pinManager: PinManager,
+    private val sessionLock: com.vaultex.core.session.SessionLockManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -82,6 +83,7 @@ class OnboardingViewModel @Inject constructor(
                     AppLaunchManager.setWalletCreated(context, true)
                 }
                 _mnemonic.value = emptyList() // efface de la RAM
+                sessionLock.markUnlocked()    // nouvelle session déverrouillée
                 _saveState.value = SaveState.Success
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "Erreur inconnue")

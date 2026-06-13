@@ -4,18 +4,27 @@ import android.os.Bundle
 import android.view.WindowManager
 
 import androidx.activity.compose.setContent
-import com.vaultex.BuildConfig
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.fragment.app.FragmentActivity
-
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.compose.rememberNavController
 
+import com.vaultex.BuildConfig
+import com.vaultex.core.session.SessionLockManager
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.navigation.VaultExNavGraph
 import com.vaultex.ui.theme.VaultExTheme
 
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
+    @Inject
+    lateinit var sessionLock: SessionLockManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,8 +46,33 @@ class MainActivity : FragmentActivity() {
 
             VaultExTheme {
 
-                val navController =
-                    rememberNavController()
+                val navController = rememberNavController()
+
+                /*
+                =========================
+                VERROUILLAGE AUTO AU RETOUR D'ARRIÈRE-PLAN
+                =========================
+                 */
+                val lifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        when (event) {
+                            Lifecycle.Event.ON_STOP -> sessionLock.onEnterBackground()
+                            Lifecycle.Event.ON_START -> {
+                                if (sessionLock.shouldLockOnForeground()) {
+                                    sessionLock.lock()
+                                    navController.navigate(Routes.PIN_UNLOCK) {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
 
                 VaultExNavGraph(navController)
             }

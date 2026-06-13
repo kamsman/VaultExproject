@@ -20,12 +20,14 @@ data class UnlockState(
 @HiltViewModel
 class UnlockViewModel @Inject constructor(
     private val pinManager: PinManager,
-    private val secureStorage: com.vaultex.core.security.SecureStorage
+    private val secureStorage: com.vaultex.core.security.SecureStorage,
+    private val sessionLock: com.vaultex.core.session.SessionLockManager
 ) : ViewModel() {
 
     fun isBiometricEnabled(): Boolean = secureStorage.isBiometricEnabled()
 
     fun onBiometricSuccess() {
+        sessionLock.markUnlocked()
         _state.update { it.copy(isUnlocked = true) }
     }
 
@@ -49,8 +51,10 @@ class UnlockViewModel @Inject constructor(
     private fun verify(pin: String) {
         viewModelScope.launch {
             when (val result = pinManager.verifyPin(pin)) {
-                is PinVerificationResult.Valid ->
+                is PinVerificationResult.Valid -> {
+                    sessionLock.markUnlocked()
                     _state.update { it.copy(isUnlocked = true) }
+                }
                 is PinVerificationResult.Invalid ->
                     _state.update { it.copy(pin = "", error = "PIN incorrect — ${result.remainingAttempts} tentative(s) restante(s)") }
                 is PinVerificationResult.Locked ->
