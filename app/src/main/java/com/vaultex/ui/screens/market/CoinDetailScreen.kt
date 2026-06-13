@@ -200,7 +200,7 @@ private fun tokenColor(symbol: String) = when (symbol) {
     "BNB" -> NetworkBnb
     "SOL" -> NetworkSol
     "TRX" -> NetworkTrx
-    else -> AccentBlue
+    else -> Color(0xFF1A6FE8)
 }
 
 private fun compact(value: Double): String = when {

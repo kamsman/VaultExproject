@@ -170,5 +170,5 @@ private fun chainColor(chain: String): Color = when (chain) {
     "SOL"  -> Color(0xFF9945FF)
     "TRX"  -> Color(0xFFFF060A)
     "USDT" -> Color(0xFF26A17B)
-    else   -> VaultExColors.TextSecondary
+    else   -> Color(0xFF64748B)
 }

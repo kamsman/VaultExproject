@@ -219,7 +219,7 @@ private fun chainColor(chain: String): Color = when (chain) {
     "bnb", "bscscan" -> NetworkBnb
     "sol" -> NetworkSol
     "trx" -> NetworkTrx
-    else -> AccentBlue
+    else -> Color(0xFF1A6FE8)
 }
 
 @Composable

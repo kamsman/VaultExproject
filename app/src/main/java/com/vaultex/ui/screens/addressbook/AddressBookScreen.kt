@@ -49,7 +49,7 @@ private fun chainColor(chain: String): Color = when (chain.uppercase()) {
     "BNB" -> NetworkBnb
     "SOL" -> NetworkSol
     "TRX" -> NetworkTrx
-    else -> AccentBlue
+    else -> Color(0xFF1A6FE8)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

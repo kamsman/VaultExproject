@@ -82,6 +82,12 @@ class SecureStorage @Inject constructor(
 
     fun getAutoLockMinutes(): Int = prefs.getInt(KEY_AUTOLOCK_MIN, 5)
 
+    fun setThemeMode(mode: String) {
+        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "SYSTEM") ?: "SYSTEM"
+
     // ──────────────────────────────────────────────────────────
     // Persistance de l'état de lockout PIN (survit aux relances de process)
     // ──────────────────────────────────────────────────────────
@@ -131,6 +137,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PANIC_PIN_HASH = "panic_pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_AUTOLOCK_MIN = "autolock_minutes"
+        private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
     }

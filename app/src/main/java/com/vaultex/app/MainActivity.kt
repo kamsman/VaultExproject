@@ -5,6 +5,8 @@ import android.view.WindowManager
 
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -15,6 +17,7 @@ import com.vaultex.BuildConfig
 import com.vaultex.core.session.SessionLockManager
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.navigation.VaultExNavGraph
+import com.vaultex.ui.theme.ThemeController
 import com.vaultex.ui.theme.VaultExTheme
 
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,6 +28,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var sessionLock: SessionLockManager
+
+    @Inject
+    lateinit var themeController: ThemeController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +50,9 @@ class MainActivity : FragmentActivity() {
 
         setContent {
 
-            VaultExTheme {
+            val themeMode by themeController.mode.collectAsState()
+
+            VaultExTheme(themeMode = themeMode) {
 
                 val navController = rememberNavController()
 

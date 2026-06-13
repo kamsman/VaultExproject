@@ -106,7 +106,7 @@ private fun tokenColor(symbol: String) = when (symbol) {
     "BNB" -> VaultExColors.BnbYellow
     "SOL" -> VaultExColors.SolanaGreen
     "TRX" -> VaultExColors.TronRed
-    else -> VaultExColors.BluePrimary
+    else -> androidx.compose.ui.graphics.Color(0xFF1A6FE8)
 }
 
 @Composable

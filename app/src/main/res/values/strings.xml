@@ -506,4 +506,8 @@
     <string name="alert_triggered_title">Alerte prix %1$s</string>
     <string name="alert_triggered_body">%1$s est %2$s %3$s FCFA (prix actuel : %4$s FCFA)</string>
     <string name="security_autolock_immediate">Immédiat</string>
+    <string name="settings_theme">Apparence</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="theme_system">Système</string>
 </resources>

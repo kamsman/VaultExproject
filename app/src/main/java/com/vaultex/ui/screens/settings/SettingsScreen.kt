@@ -39,6 +39,16 @@ import com.vaultex.ui.viewmodel.SettingsViewModel
 fun SettingsScreen(navController: NavHostController) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    if (showThemeDialog) {
+        ThemePickerDialog(
+            current = themeMode,
+            onPick = { viewModel.setThemeMode(it); showThemeDialog = false },
+            onDismiss = { showThemeDialog = false }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -162,6 +172,12 @@ fun SettingsScreen(navController: NavHostController) {
             item { SectionTitle(stringResource(R.string.settings_section_app)) }
             item {
                 SectionCard {
+                    SettingsClickableValueRow(
+                        Icons.Default.DarkMode,
+                        stringResource(R.string.settings_theme),
+                        themeModeLabel(themeMode)
+                    ) { showThemeDialog = true }
+                    RowDivider()
                     SettingsValueRow(
                         Icons.Default.Language,
                         stringResource(R.string.language),
@@ -267,6 +283,68 @@ private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
         Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
     }
+}
+
+@Composable
+private fun themeModeLabel(mode: com.vaultex.ui.theme.ThemeMode): String = when (mode) {
+    com.vaultex.ui.theme.ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+    com.vaultex.ui.theme.ThemeMode.DARK -> stringResource(R.string.theme_dark)
+    com.vaultex.ui.theme.ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
+}
+
+@Composable
+private fun SettingsClickableValueRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RowIcon(icon)
+        Spacer(Modifier.width(12.dp))
+        Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 13.sp, color = TextSecondary)
+        Spacer(Modifier.width(6.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun ThemePickerDialog(
+    current: com.vaultex.ui.theme.ThemeMode,
+    onPick: (com.vaultex.ui.theme.ThemeMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        com.vaultex.ui.theme.ThemeMode.LIGHT to stringResource(R.string.theme_light),
+        com.vaultex.ui.theme.ThemeMode.DARK to stringResource(R.string.theme_dark),
+        com.vaultex.ui.theme.ThemeMode.SYSTEM to stringResource(R.string.theme_system)
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_theme)) },
+        text = {
+            Column {
+                options.forEach { (mode, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(mode) }.padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = current == mode, onClick = { onPick(mode) })
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, fontSize = 15.sp, color = TextPrimary)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        }
+    )
 }
 
 @Composable

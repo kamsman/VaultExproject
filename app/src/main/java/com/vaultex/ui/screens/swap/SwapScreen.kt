@@ -52,8 +52,8 @@ private fun tokenColor(token: String): Color = when (token.uppercase()) {
     "ETH" -> NetworkEth
     "BNB" -> NetworkBnb
     "SOL" -> NetworkSol
-    "TRX", "USDT" -> AccentRed
-    else -> AccentBlue
+    "TRX", "USDT" -> NetworkTrx
+    else -> Color(0xFF1A6FE8)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

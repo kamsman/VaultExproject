@@ -1,11 +1,11 @@
 package com.vaultex.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.vaultex.core.security.SecureStorage
+import com.vaultex.ui.theme.ThemeController
+import com.vaultex.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsState(
@@ -18,11 +18,16 @@ data class SettingsState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val themeController: ThemeController
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
+
+    val themeMode: StateFlow<ThemeMode> = themeController.mode
+
+    fun setThemeMode(mode: ThemeMode) = themeController.setMode(mode)
 
     init {
         loadSettings()
