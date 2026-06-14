@@ -516,4 +516,8 @@
     <string name="balance_show">إظهار الرصيد</string>
     <string name="balance_hide">إخفاء الرصيد</string>
     <string name="coin_chart_unavailable">الرسم البياني غير متوفر</string>
+    <string name="updated_just_now">الآن</string>
+    <string name="updated_min_ago">آخر تحديث منذ %1$d دقيقة</string>
+    <string name="updated_hours_ago">آخر تحديث منذ %1$d ساعة</string>
+    <string name="offline_cached">غير متصل — آخر البيانات المعروفة</string>
 </resources>

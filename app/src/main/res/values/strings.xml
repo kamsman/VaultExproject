@@ -516,4 +516,8 @@
     <string name="balance_show">Afficher le solde</string>
     <string name="balance_hide">Masquer le solde</string>
     <string name="coin_chart_unavailable">Graphique indisponible</string>
+    <string name="updated_just_now">À l\'instant</string>
+    <string name="updated_min_ago">Mis à jour il y a %1$d min</string>
+    <string name="updated_hours_ago">Mis à jour il y a %1$d h</string>
+    <string name="offline_cached">Hors ligne — dernières données</string>
 </resources>

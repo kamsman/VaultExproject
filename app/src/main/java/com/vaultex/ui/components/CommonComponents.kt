@@ -19,6 +19,35 @@ import com.vaultex.R
 import com.vaultex.core.crypto.Blockchain
 import com.vaultex.ui.theme.*
 
+/**
+ * Indicateur offline-first (#5) : « Mis à jour il y a X min » ou un
+ * bandeau « Hors ligne — dernières données » si la dernière synchro a
+ * échoué mais qu'un cache existe.
+ */
+@Composable
+fun LastUpdatedLabel(
+    lastUpdated: Long,
+    isFromCache: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (lastUpdated <= 0L) return
+    val now = System.currentTimeMillis()
+    val minutes = ((now - lastUpdated) / 60_000L).toInt().coerceAtLeast(0)
+    val label = when {
+        minutes < 1 -> stringResource(R.string.updated_just_now)
+        minutes < 60 -> stringResource(R.string.updated_min_ago, minutes)
+        else -> stringResource(R.string.updated_hours_ago, minutes / 60)
+    }
+    val text = if (isFromCache) stringResource(R.string.offline_cached) + " · " + label else label
+    Text(
+        text,
+        modifier = modifier,
+        color = if (isFromCache) AccentOrange else TextMuted,
+        fontSize = 11.sp,
+        fontWeight = if (isFromCache) FontWeight.SemiBold else FontWeight.Normal
+    )
+}
+
 @Composable
 fun PrimaryButton(
     text: String,

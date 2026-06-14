@@ -129,6 +129,12 @@ fun HomeScreen(navController: NavHostController) {
                         }
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                com.vaultex.ui.components.LastUpdatedLabel(
+                    lastUpdated = state.lastUpdated,
+                    isFromCache = state.isFromCache,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
                 state.error?.let { err ->
                     Text(err, color = AccentRed, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                 }

@@ -71,6 +71,12 @@ fun DashboardScreen(navController: NavHostController) {
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
+                Spacer(Modifier.height(6.dp))
+                com.vaultex.ui.components.LastUpdatedLabel(
+                    lastUpdated = state.lastUpdated,
+                    isFromCache = state.isFromCache,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
                 state.error?.let { err ->
                     Text(
                         err,

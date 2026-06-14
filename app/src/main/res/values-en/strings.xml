@@ -516,4 +516,8 @@
     <string name="balance_show">Show balance</string>
     <string name="balance_hide">Hide balance</string>
     <string name="coin_chart_unavailable">Chart unavailable</string>
+    <string name="updated_just_now">Just now</string>
+    <string name="updated_min_ago">Updated %1$d min ago</string>
+    <string name="updated_hours_ago">Updated %1$d h ago</string>
+    <string name="offline_cached">Offline — last known data</string>
 </resources>

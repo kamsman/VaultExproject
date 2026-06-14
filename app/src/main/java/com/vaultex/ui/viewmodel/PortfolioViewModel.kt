@@ -39,7 +39,9 @@ data class PortfolioState(
     val totalChangePercent: Double = 0.0,
     val tokens: List<TokenBalance> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val lastUpdated: Long = 0L,   // epoch ms de la dernière synchro réussie (#5)
+    val isFromCache: Boolean = false
 )
 
 @HiltViewModel
@@ -68,7 +70,51 @@ class PortfolioViewModel @Inject constructor(
         private const val USDT_BNB_CONTRACT  = "0x55d398326f99059fF775485246999027B3197955"
     }
 
-    init { loadPortfolio() }
+    private val gson = com.google.gson.Gson()
+
+    private data class Snapshot(
+        val totalBalanceXof: Double,
+        val totalBalanceUsd: Double,
+        val totalChangePercent: Double,
+        val tokens: List<TokenBalance>,
+        val lastUpdated: Long
+    )
+
+    init {
+        loadCachedSnapshot()
+        loadPortfolio()
+    }
+
+    /** Affiche immédiatement le dernier portefeuille connu (offline-first). */
+    private fun loadCachedSnapshot() {
+        val json = secureStorage.getPortfolioSnapshot() ?: return
+        try {
+            val snap = gson.fromJson(json, Snapshot::class.java) ?: return
+            _state.update {
+                it.copy(
+                    totalBalanceXof = snap.totalBalanceXof,
+                    totalBalanceUsd = snap.totalBalanceUsd,
+                    totalChangePercent = snap.totalChangePercent,
+                    tokens = snap.tokens,
+                    lastUpdated = snap.lastUpdated,
+                    isFromCache = true
+                )
+            }
+        } catch (_: Exception) { /* cache illisible : ignoré */ }
+    }
+
+    private fun persistSnapshot(state: PortfolioState) {
+        try {
+            secureStorage.savePortfolioSnapshot(
+                gson.toJson(
+                    Snapshot(
+                        state.totalBalanceXof, state.totalBalanceUsd,
+                        state.totalChangePercent, state.tokens, state.lastUpdated
+                    )
+                )
+            )
+        } catch (_: Exception) { }
+    }
 
     fun loadPortfolio() {
         viewModelScope.launch {
@@ -125,9 +171,21 @@ class PortfolioViewModel @Inject constructor(
                 // Value-weighted 24h change: each token weighted by its XOF value
                 val avgChange = if (total == 0.0) 0.0
                     else tokens.sumOf { it.changePercent24h * it.valueXof } / total
-                _state.update { it.copy(tokens = tokens, totalBalanceXof = total, totalBalanceUsd = totalUsd, totalChangePercent = avgChange, isLoading = false) }
+                val newState = _state.value.copy(
+                    tokens = tokens,
+                    totalBalanceXof = total,
+                    totalBalanceUsd = totalUsd,
+                    totalChangePercent = avgChange,
+                    isLoading = false,
+                    error = null,
+                    lastUpdated = System.currentTimeMillis(),
+                    isFromCache = false
+                )
+                _state.value = newState
+                persistSnapshot(newState)
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                // Offline-first : on conserve les données en cache, on signale juste l'erreur.
+                _state.update { it.copy(isLoading = false, error = e.message, isFromCache = it.lastUpdated > 0L) }
             }
         }
     }
