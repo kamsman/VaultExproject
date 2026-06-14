@@ -88,6 +88,24 @@ class SecureStorage @Inject constructor(
 
     fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "SYSTEM") ?: "SYSTEM"
 
+    /**
+     * Clé de chiffrement de la base SQLCipher (C-03).
+     * Générée aléatoirement une fois, stockée dans les prefs chiffrées
+     * (protégées par le Keystore). Retourne une copie (SQLCipher efface
+     * le tableau après usage).
+     */
+    fun getOrCreateDatabaseKey(): ByteArray {
+        val existing = prefs.getString(KEY_DB_KEY, null)
+        if (existing != null) {
+            return android.util.Base64.decode(existing, android.util.Base64.NO_WRAP)
+        }
+        val key = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        prefs.edit()
+            .putString(KEY_DB_KEY, android.util.Base64.encodeToString(key, android.util.Base64.NO_WRAP))
+            .apply()
+        return key.copyOf()
+    }
+
     fun setBalanceHidden(hidden: Boolean) {
         prefs.edit().putBoolean(KEY_BALANCE_HIDDEN, hidden).apply()
     }
@@ -146,6 +164,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_AUTOLOCK_MIN = "autolock_minutes"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_BALANCE_HIDDEN = "balance_hidden"
+        private const val KEY_DB_KEY = "db_encryption_key"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
     }
