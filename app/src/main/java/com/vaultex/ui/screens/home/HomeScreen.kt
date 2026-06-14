@@ -39,6 +39,7 @@ import java.util.Locale
 fun HomeScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val balanceHidden by viewModel.balanceHidden.collectAsState()
 
     Scaffold(
         topBar = {
@@ -51,6 +52,13 @@ fun HomeScreen(navController: NavHostController) {
                     )
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.toggleBalanceVisibility() }) {
+                        Icon(
+                            if (balanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = stringResource(if (balanceHidden) R.string.balance_show else R.string.balance_hide),
+                            tint = TextPrimary
+                        )
+                    }
                     IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
                         Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.notifications), tint = TextPrimary)
                     }
@@ -92,7 +100,7 @@ fun HomeScreen(navController: NavHostController) {
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "$xofFormatted FCFA",
+                            if (balanceHidden) "••••••" else "$xofFormatted FCFA",
                             color = Color.White,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold
@@ -151,7 +159,7 @@ fun HomeScreen(navController: NavHostController) {
 
             val visibleTokens = state.tokens.filter { it.valueXof > 0.0 || !state.isLoading }
             items(visibleTokens) { token ->
-                TokenCard(token) { navController.navigate(Routes.tokenDetail(token.symbol)) }
+                TokenCard(token, balanceHidden) { navController.navigate(Routes.tokenDetail(token.symbol)) }
             }
 
             if (!state.isLoading && state.tokens.isEmpty() && state.error == null) {
@@ -193,7 +201,7 @@ private fun ActionChip(
 }
 
 @Composable
-private fun TokenCard(token: TokenBalance, onClick: () -> Unit) {
+private fun TokenCard(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) {
     val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
         .format(token.valueXof.toLong())
     val tokenColor = try {
@@ -222,7 +230,7 @@ private fun TokenCard(token: TokenBalance, onClick: () -> Unit) {
                 Text(token.amountFormatted, fontSize = 12.sp, color = TextSecondary)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("$xofFormatted FCFA", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
+                Text(if (hidden) "••••" else "$xofFormatted FCFA", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
                 val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed
                 Text("%+.1f%%".format(token.changePercent24h), fontSize = 12.sp, color = changeColor)
             }

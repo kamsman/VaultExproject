@@ -513,4 +513,7 @@
     <string name="lang_french">الفرنسية</string>
     <string name="lang_english">الإنجليزية</string>
     <string name="lang_arabic">العربية</string>
+    <string name="balance_show">إظهار الرصيد</string>
+    <string name="balance_hide">إخفاء الرصيد</string>
+    <string name="coin_chart_unavailable">الرسم البياني غير متوفر</string>
 </resources>

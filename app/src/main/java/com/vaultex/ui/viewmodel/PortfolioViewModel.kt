@@ -50,11 +50,16 @@ class PortfolioViewModel @Inject constructor(
     @Named("bnb") private val bnbRpc: EvmRpcApi,
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
-    private val tronApi: TronApi
+    private val tronApi: TronApi,
+    private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PortfolioState(isLoading = true))
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
+
+    /** État partagé Show / Hide Balance. */
+    val balanceHidden: StateFlow<Boolean> = balanceVisibility.hidden
+    fun toggleBalanceVisibility() = balanceVisibility.toggle()
 
     companion object {
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")

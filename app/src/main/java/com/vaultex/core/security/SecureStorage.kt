@@ -88,6 +88,12 @@ class SecureStorage @Inject constructor(
 
     fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "SYSTEM") ?: "SYSTEM"
 
+    fun setBalanceHidden(hidden: Boolean) {
+        prefs.edit().putBoolean(KEY_BALANCE_HIDDEN, hidden).apply()
+    }
+
+    fun isBalanceHidden(): Boolean = prefs.getBoolean(KEY_BALANCE_HIDDEN, false)
+
     // ──────────────────────────────────────────────────────────
     // Persistance de l'état de lockout PIN (survit aux relances de process)
     // ──────────────────────────────────────────────────────────
@@ -138,6 +144,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_AUTOLOCK_MIN = "autolock_minutes"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_BALANCE_HIDDEN = "balance_hidden"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
     }

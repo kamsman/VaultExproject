@@ -513,4 +513,7 @@
     <string name="lang_french">Français</string>
     <string name="lang_english">Anglais</string>
     <string name="lang_arabic">العربية</string>
+    <string name="balance_show">Afficher le solde</string>
+    <string name="balance_hide">Masquer le solde</string>
+    <string name="coin_chart_unavailable">Graphique indisponible</string>
 </resources>

@@ -39,8 +39,14 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
     }
 
     val coin = markets.find { it.id == coinId }
-    val periods = listOf("1H", "24H", "7J", "1M", "1A")
-    var selectedPeriod by remember { mutableStateOf("24H") }
+    val chart by viewModel.chart.collectAsState()
+    val chartLoading by viewModel.chartLoading.collectAsState()
+    val periods = listOf("24H", "7J", "1M", "1A")
+    var selectedPeriod by remember { mutableStateOf("7J") }
+
+    LaunchedEffect(coinId, selectedPeriod) {
+        viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
+    }
 
     Scaffold(
         topBar = {
@@ -115,16 +121,26 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
 
             Spacer(Modifier.height(16.dp))
 
-            // Graphique placeholder sur bandeau pâle
+            // Graphique de prix réel (CoinGecko market_chart)
             Box(
                 Modifier.fillMaxWidth().height(180.dp).background(BgPrimary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    stringResource(R.string.coin_chart_period, selectedPeriod),
-                    color = TextMuted,
-                    fontSize = 13.sp
-                )
+                when {
+                    chartLoading && chart.isEmpty() ->
+                        CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(28.dp))
+                    chart.size < 2 ->
+                        Text(
+                            stringResource(R.string.coin_chart_unavailable),
+                            color = TextMuted,
+                            fontSize = 13.sp
+                        )
+                    else ->
+                        PriceLineChart(
+                            points = chart,
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)
+                        )
+                }
             }
 
             // Sélecteur de période
@@ -191,6 +207,61 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** Mappe la période UI vers le nombre de jours pour CoinGecko market_chart. */
+private fun daysForPeriod(period: String): Int = when (period) {
+    "24H" -> 1
+    "7J" -> 7
+    "1M" -> 30
+    "1A" -> 365
+    else -> 7
+}
+
+/** Courbe de prix dessinée au Canvas (sans dépendance externe). */
+@Composable
+private fun PriceLineChart(points: List<Float>, modifier: Modifier = Modifier) {
+    val rising = points.last() >= points.first()
+    val lineColor = if (rising) AccentGreen else AccentRed
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val min = points.min()
+        val max = points.max()
+        val range = (max - min).takeIf { it > 0f } ?: 1f
+        val stepX = if (points.size > 1) size.width / (points.size - 1) else size.width
+        fun y(v: Float) = size.height - ((v - min) / range) * size.height
+
+        val linePath = androidx.compose.ui.graphics.Path()
+        val fillPath = androidx.compose.ui.graphics.Path()
+        points.forEachIndexed { i, v ->
+            val px = i * stepX
+            val py = y(v)
+            if (i == 0) {
+                linePath.moveTo(px, py)
+                fillPath.moveTo(px, size.height)
+                fillPath.lineTo(px, py)
+            } else {
+                linePath.lineTo(px, py)
+                fillPath.lineTo(px, py)
+            }
+        }
+        fillPath.lineTo((points.size - 1) * stepX, size.height)
+        fillPath.close()
+
+        drawPath(
+            path = fillPath,
+            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(lineColor.copy(alpha = 0.22f), lineColor.copy(alpha = 0f))
+            )
+        )
+        drawPath(
+            path = linePath,
+            color = lineColor,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 3f,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        )
     }
 }
 

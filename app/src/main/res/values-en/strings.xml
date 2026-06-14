@@ -513,4 +513,7 @@
     <string name="lang_french">French</string>
     <string name="lang_english">English</string>
     <string name="lang_arabic">العربية</string>
+    <string name="balance_show">Show balance</string>
+    <string name="balance_hide">Hide balance</string>
+    <string name="coin_chart_unavailable">Chart unavailable</string>
 </resources>

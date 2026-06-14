@@ -37,6 +37,7 @@ import java.util.Locale
 fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val balanceHidden by viewModel.balanceHidden.collectAsState()
 
     Scaffold(
         bottomBar = { VaultExBottomBar(navController) },
@@ -66,7 +67,9 @@ fun DashboardScreen(navController: NavHostController) {
                     usd = state.totalBalanceUsd,
                     xof = state.totalBalanceXof,
                     changePercent = state.totalChangePercent,
-                    isLoading = state.isLoading
+                    isLoading = state.isLoading,
+                    hidden = balanceHidden,
+                    onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
                 state.error?.let { err ->
                     Text(
@@ -112,7 +115,7 @@ fun DashboardScreen(navController: NavHostController) {
                         )
                     }
                     visibleTokens.forEachIndexed { index, token ->
-                        AssetRow(token) {
+                        AssetRow(token, balanceHidden) {
                             navController.navigate(Routes.tokenDetail(token.symbol))
                         }
                         if (index < visibleTokens.lastIndex) {
@@ -142,11 +145,19 @@ fun DashboardScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun BalanceCard(usd: Double, xof: Double, changePercent: Double, isLoading: Boolean) {
+private fun BalanceCard(
+    usd: Double,
+    xof: Double,
+    changePercent: Double,
+    isLoading: Boolean,
+    hidden: Boolean,
+    onToggleHidden: () -> Unit
+) {
     val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
         maximumFractionDigits = 2; minimumFractionDigits = 2
     }.format(usd)
     val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).format(xof.toLong())
+    val masked = "••••••"
 
     Box(
         modifier = Modifier
@@ -155,6 +166,18 @@ private fun BalanceCard(usd: Double, xof: Double, changePercent: Double, isLoadi
             .background(Brush.verticalGradient(listOf(AccentBlue, AccentBlueDark)))
             .padding(20.dp)
     ) {
+        // Œil Show/Hide en haut à droite
+        IconButton(
+            onClick = onToggleHidden,
+            modifier = Modifier.align(Alignment.TopEnd).size(28.dp)
+        ) {
+            Icon(
+                if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                contentDescription = stringResource(if (hidden) R.string.balance_show else R.string.balance_hide),
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -166,13 +189,16 @@ private fun BalanceCard(usd: Double, xof: Double, changePercent: Double, isLoadi
             )
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("$$usdFormatted", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (hidden) masked else "$$usdFormatted",
+                    color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.width(4.dp))
                 Text("USD", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(R.string.approx_xof, xofFormatted),
+                if (hidden) masked else stringResource(R.string.approx_xof, xofFormatted),
                 color = Color.White.copy(alpha = 0.75f),
                 fontSize = 13.sp
             )
@@ -263,7 +289,7 @@ private fun SectionCard(
 }
 
 @Composable
-private fun AssetRow(token: TokenBalance, onClick: () -> Unit) {
+private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) {
     val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
         maximumFractionDigits = 2
     }.format(token.valueUsd)
@@ -303,7 +329,10 @@ private fun AssetRow(token: TokenBalance, onClick: () -> Unit) {
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("$$usdFormatted", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+            Text(
+                if (hidden) "••••" else "$$usdFormatted",
+                fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
+            )
             val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed
             Text("%+.1f%%".format(token.changePercent24h), fontSize = 12.sp, color = changeColor)
         }
