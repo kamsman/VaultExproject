@@ -19,7 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalClipboardManager
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -53,7 +55,24 @@ fun ReceiveScreen(navController: NavController) {
     var selectedChain by remember { mutableStateOf("ETH") }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
+
+    // Nettoyage auto du presse-papier 30 s après copie (m-01)
+    fun copyWithAutoClear(value: String) {
+        clipboard.setText(AnnotatedString(value))
+        copied = true
+        scope.launch {
+            kotlinx.coroutines.delay(30_000)
+            val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                as? android.content.ClipboardManager
+            val current = cm?.primaryClip?.getItemAt(0)?.text?.toString()
+            if (current == value) {
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+            }
+            copied = false
+        }
+    }
 
     val currentAddress = state.addresses[selectedChain] ?: ""
 
@@ -164,7 +183,7 @@ fun ReceiveScreen(navController: NavController) {
                     )
 
                     OutlinedButton(
-                        onClick = { clipboard.setText(AnnotatedString(currentAddress)); copied = true },
+                        onClick = { copyWithAutoClear(currentAddress) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp),

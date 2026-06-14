@@ -12,6 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -30,9 +31,32 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        // Fail-fast pour permettre le basculement RPC (#2)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        // Durcissement MITM : TLS 1.2+ uniquement (C-02 partiel)
+        .connectionSpecs(
+            listOf(okhttp3.ConnectionSpec.RESTRICTED_TLS, okhttp3.ConnectionSpec.MODERN_TLS)
+        )
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
+        .build()
+
+    /**
+     * Clients RPC nœud (#2) : bascule automatiquement sur un nœud public
+     * secondaire si le primaire échoue (timeout / IOException). Les corps
+     * JSON-RPC (EVM, Solana) et l'API REST Bitcoin (Blockstream/mempool)
+     * sont compatibles entre primaire et secours.
+     */
+    private fun fallbackClient(
+        base: OkHttpClient,
+        prefs: SharedPreferences,
+        prefKey: String,
+        defaultBase: String,
+        backupHosts: List<String>
+    ): OkHttpClient = base.newBuilder()
+        .addInterceptor(DynamicBaseUrlInterceptor(prefs, prefKey, defaultBase))
+        .addInterceptor(RpcFallbackInterceptor(backupHosts))
         .build()
 
     private fun retrofit(baseUrl: String, client: OkHttpClient): Retrofit =
@@ -66,7 +90,8 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): EvmRpcApi {
         val default = "https://rpc.ankr.com/eth/"
-        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_eth", default))
+        val backups = listOf("https://cloudflare-eth.com/", "https://ethereum.publicnode.com/")
+        return retrofit(default, fallbackClient(client, rpcPrefs(ctx), "rpc_eth", default, backups))
             .create(EvmRpcApi::class.java)
     }
 
@@ -75,7 +100,8 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): EvmRpcApi {
         val default = "https://bsc-dataseed.binance.org/"
-        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_bnb", default))
+        val backups = listOf("https://bsc.publicnode.com/", "https://bsc-dataseed1.defibit.io/")
+        return retrofit(default, fallbackClient(client, rpcPrefs(ctx), "rpc_bnb", default, backups))
             .create(EvmRpcApi::class.java)
     }
 
@@ -84,7 +110,8 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): BitcoinApi {
         val default = "https://blockstream.info/api/"
-        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_btc", default))
+        val backups = listOf("https://mempool.space/api/") // API REST compatible Blockstream
+        return retrofit(default, fallbackClient(client, rpcPrefs(ctx), "rpc_btc", default, backups))
             .create(BitcoinApi::class.java)
     }
 
@@ -93,7 +120,8 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): SolanaRpcApi {
         val default = "https://api.mainnet-beta.solana.com/"
-        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_sol", default))
+        val backups = listOf("https://solana-rpc.publicnode.com/", "https://api.mainnet-beta.solana.com/")
+        return retrofit(default, fallbackClient(client, rpcPrefs(ctx), "rpc_sol", default, backups))
             .create(SolanaRpcApi::class.java)
     }
 
@@ -157,7 +185,7 @@ object NetworkModule {
     // ─── Helpers ─────────────────────────────────────────────────────
 
     private fun rpcPrefs(ctx: Context): SharedPreferences =
-        ctx.getSharedPreferences("vaultex_rpc_prefs", Context.MODE_PRIVATE)
+        com.vaultex.core.security.RpcPrefs.get(ctx)
 }
 
 /**
@@ -190,5 +218,50 @@ private class DynamicBaseUrlInterceptor(
         }
 
         return chain.proceed(original.newBuilder().url(newUrl).build())
+    }
+}
+
+/**
+ * Bascule RPC (#2). En cas d'échec réseau (IOException/timeout) ou de
+ * réponse 5xx du nœud courant, rejoue la requête en remplaçant l'hôte
+ * par un nœud de secours, jusqu'à épuisement de la liste.
+ */
+private class RpcFallbackInterceptor(
+    private val backupBaseUrls: List<String>
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val original = chain.request()
+
+        // Tentative sur le nœud courant
+        val primary: Response? = try {
+            val r = chain.proceed(original)
+            if (r.isSuccessful || r.code < 500) return r
+            r.close()
+            null
+        } catch (_: Exception) {
+            null
+        }
+        if (primary != null) return primary
+
+        // Bascule successive sur les nœuds de secours
+        for (backup in backupBaseUrls) {
+            try {
+                val backupHost = backup.toHttpUrlOrNull() ?: continue
+                val newUrl = original.url.newBuilder()
+                    .scheme(backupHost.scheme)
+                    .host(backupHost.host)
+                    .port(backupHost.port)
+                    .build()
+                val resp = chain.proceed(original.newBuilder().url(newUrl).build())
+                if (resp.isSuccessful || resp.code < 500) return resp
+                resp.close()
+            } catch (_: Exception) {
+                // essaie le suivant
+            }
+        }
+
+        // Tout a échoué : on relance le primaire pour propager l'erreur réelle
+        return chain.proceed(original)
     }
 }

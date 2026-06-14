@@ -107,16 +107,9 @@ class KeystoreManager @Inject constructor() {
         }
     }
 
-    fun isStrongBoxAvailable(): Boolean {
-        // Vérifie le feature hardware réel, pas juste la version Android
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            try {
-                val pm = keyStore.getEntry(MASTER_KEY_ALIAS, null)
-                // Pas d'accès direct au PackageManager ici — on essaie lors de la génération de clé
-                true
-            } catch (_: Exception) {
-                false
-            }
-        } else false
+    /** Détection réelle du module hardware StrongBox (m-03). */
+    fun isStrongBoxAvailable(context: android.content.Context): Boolean {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
     }
 }

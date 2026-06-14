@@ -126,12 +126,13 @@ class SecureStorage @Inject constructor(
         keystoreManager.destroyMasterKey()
     }
 
-    private val rpcPrefs: SharedPreferences by lazy {
-        context.getSharedPreferences("vaultex_rpc_prefs", Context.MODE_PRIVATE)
-    }
+    private val rpcPrefs: SharedPreferences by lazy { RpcPrefs.get(context) }
 
-    fun setRpcUrl(chain: String, url: String) {
+    /** @return false si l'URL est rejetée (non HTTPS). */
+    fun setRpcUrl(chain: String, url: String): Boolean {
+        if (!RpcPrefs.isValidRpcUrl(url)) return false
         rpcPrefs.edit().putString("rpc_$chain", url).apply()
+        return true
     }
 
     fun getRpcUrl(chain: String, default: String): String =

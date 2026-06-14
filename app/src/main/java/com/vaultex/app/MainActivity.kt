@@ -14,7 +14,26 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.compose.rememberNavController
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GppBad
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+
+import com.scottyab.rootbeer.RootBeer
 import com.vaultex.BuildConfig
+import com.vaultex.R
 import com.vaultex.core.session.LocaleManager
 import com.vaultex.core.session.SessionLockManager
 import com.vaultex.ui.navigation.Routes
@@ -43,15 +62,27 @@ class MainActivity : FragmentActivity() {
 
         /*
         =========================
-        BLOCK SCREENSHOTS
+        BLOCK SCREENSHOTS — actif en toutes circonstances (M-02)
         =========================
          */
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
-        if (!BuildConfig.DEBUG) {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
+        /*
+        =========================
+        ROOT DETECTION BLOQUANTE (C-01)
+        En release, un appareil rooté ne peut pas accéder au wallet.
+        =========================
+         */
+        if (!BuildConfig.DEBUG && RootBeer(this).isRooted) {
+            setContent {
+                VaultExTheme {
+                    RootBlockedScreen()
+                }
+            }
+            return
         }
 
         setContent {
@@ -90,6 +121,29 @@ class MainActivity : FragmentActivity() {
 
                 VaultExNavGraph(navController)
             }
+        }
+    }
+}
+
+@Composable
+private fun RootBlockedScreen() {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.GppBad,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            Text(
+                stringResource(R.string.error_root_detected),
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
