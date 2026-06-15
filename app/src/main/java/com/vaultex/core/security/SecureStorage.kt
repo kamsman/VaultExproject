@@ -58,6 +58,24 @@ class SecureStorage @Inject constructor(
 
     fun hasMnemonic(): Boolean = prefs.contains(KEY_MNEMONIC)
 
+    /**
+     * Passphrase BIP39 optionnelle (« 13e mot »). Chiffrée comme la
+     * mnémonique. Vide = BIP39 standard (compatibilité ascendante).
+     */
+    fun savePassphrase(passphrase: String) {
+        if (passphrase.isEmpty()) { prefs.edit().remove(KEY_PASSPHRASE).apply(); return }
+        val encrypted = keystoreManager.encrypt(passphrase.toByteArray(Charsets.UTF_8))
+        val base64 = android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
+        prefs.edit().putString(KEY_PASSPHRASE, base64).apply()
+    }
+
+    fun getPassphrase(): String {
+        val base64 = prefs.getString(KEY_PASSPHRASE, null) ?: return ""
+        return try {
+            String(keystoreManager.decrypt(android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (_: Exception) { "" }
+    }
+
     fun savePin(pinHash: String) {
         prefs.edit().putString(KEY_PIN_HASH, pinHash).apply()
     }
@@ -168,6 +186,7 @@ class SecureStorage @Inject constructor(
 
     companion object {
         private const val KEY_MNEMONIC = "encrypted_mnemonic"
+        private const val KEY_PASSPHRASE = "encrypted_passphrase"
         private const val KEY_PIN_HASH = "pin_hash"
         private const val KEY_PANIC_PIN_HASH = "panic_pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"

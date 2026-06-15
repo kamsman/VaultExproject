@@ -526,4 +526,7 @@
     <string name="pin_wrong_attempts">Wrong PIN — %1$d attempt(s) left</string>
     <string name="pin_blocked_seconds">Locked %1$d s</string>
     <string name="pin_panic_wiped">Panic PIN — data wiped</string>
+    <string name="passphrase_label">BIP39 passphrase (optional)</string>
+    <string name="passphrase_hint">13th word — leave empty if you had none</string>
+    <string name="passphrase_placeholder">Passphrase</string>
 </resources>

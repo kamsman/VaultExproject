@@ -10,8 +10,8 @@ import javax.inject.Singleton
 @Singleton
 class SolanaTransactionService @Inject constructor() {
 
-    fun deriveAddress(mnemonic: String): String {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun deriveAddress(mnemonic: String, passphrase: String): String {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val path = intArrayOf(
             44 or Int.MIN_VALUE,
             501 or Int.MIN_VALUE,
@@ -23,8 +23,8 @@ class SolanaTransactionService @Inject constructor() {
         return Base58.encode(pubKey)
     }
 
-    fun signTransaction(mnemonic: String, serializedMessage: ByteArray): ByteArray {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun signTransaction(mnemonic: String, passphrase: String, serializedMessage: ByteArray): ByteArray {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val path = intArrayOf(
             44 or Int.MIN_VALUE,
             501 or Int.MIN_VALUE,

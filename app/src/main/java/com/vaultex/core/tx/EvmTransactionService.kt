@@ -18,6 +18,7 @@ class EvmTransactionService @Inject constructor() {
 
     fun signTransaction(
         mnemonic: String,
+        passphrase: String,
         toAddress: String,
         amountWei: BigInteger,
         gasPrice: BigInteger,
@@ -26,13 +27,14 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val keyPair = deriveKeyPair(mnemonic, coinType)
+        val keyPair = deriveKeyPair(mnemonic, passphrase, coinType)
         val tx = RawTransaction.createEtherTransaction(nonce, gasPrice, gasLimit, toAddress, amountWei)
         return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, keyPair))
     }
 
     fun signErc20Transfer(
         mnemonic: String,
+        passphrase: String,
         contractAddress: String,
         toAddress: String,
         amountWei: BigInteger,
@@ -42,7 +44,7 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val keyPair = deriveKeyPair(mnemonic, coinType)
+        val keyPair = deriveKeyPair(mnemonic, passphrase, coinType)
         val tx = RawTransaction.createTransaction(
             nonce, gasPrice, gasLimit, contractAddress, buildErc20Data(toAddress, amountWei)
         )
@@ -55,6 +57,7 @@ class EvmTransactionService @Inject constructor() {
 
     fun signTransactionEip1559(
         mnemonic: String,
+        passphrase: String,
         toAddress: String,
         amountWei: BigInteger,
         maxPriorityFeePerGas: BigInteger,
@@ -64,7 +67,7 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val credentials = Credentials.create(deriveKeyPair(mnemonic, coinType))
+        val credentials = Credentials.create(deriveKeyPair(mnemonic, passphrase, coinType))
         val tx = RawTransaction.createTransaction(
             chainId, nonce, gasLimit, toAddress, amountWei, "",
             maxPriorityFeePerGas, maxFeePerGas
@@ -74,6 +77,7 @@ class EvmTransactionService @Inject constructor() {
 
     fun signErc20TransferEip1559(
         mnemonic: String,
+        passphrase: String,
         contractAddress: String,
         toAddress: String,
         amountWei: BigInteger,
@@ -84,7 +88,7 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val credentials = Credentials.create(deriveKeyPair(mnemonic, coinType))
+        val credentials = Credentials.create(deriveKeyPair(mnemonic, passphrase, coinType))
         val tx = RawTransaction.createTransaction(
             chainId, nonce, gasLimit, contractAddress, BigInteger.ZERO,
             buildErc20Data(toAddress, amountWei), maxPriorityFeePerGas, maxFeePerGas
@@ -94,8 +98,8 @@ class EvmTransactionService @Inject constructor() {
 
     // ─── Helpers ─────────────────────────────────────────────────────
 
-    private fun deriveKeyPair(mnemonic: String, coinType: Int): ECKeyPair {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    private fun deriveKeyPair(mnemonic: String, passphrase: String, coinType: Int): ECKeyPair {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val master = Bip32ECKeyPair.generateKeyPair(seed)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,

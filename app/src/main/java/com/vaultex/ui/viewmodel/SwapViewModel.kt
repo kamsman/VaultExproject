@@ -116,7 +116,7 @@ class SwapViewModel @Inject constructor(
                 // Dériver l'adresse de réception pour le toToken
                 val mnemonic = secureStorage.getMnemonic()
                 val toAddress = if (mnemonic != null) {
-                    val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic) }
+                    val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
                     when (s.toToken.uppercase()) {
                         "ETH", "USDC" -> addresses.eth
                         "BNB"         -> addresses.bnb

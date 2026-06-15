@@ -84,7 +84,7 @@ class HistoryViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val mnemonic = secureStorage.getMnemonic() ?: return@launch
-                val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic) }
+                val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
                 withContext(Dispatchers.IO) {
                     fetchTronHistory(addresses.trx)
                     fetchBtcHistory(addresses.btc)

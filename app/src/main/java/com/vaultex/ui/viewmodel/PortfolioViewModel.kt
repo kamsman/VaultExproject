@@ -124,7 +124,7 @@ class PortfolioViewModel @Inject constructor(
                     _state.update { it.copy(isLoading = false, error = "Wallet non initialisé") }
                     return@launch
                 }
-                val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic) }
+                val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
 
                 val prices = withContext(Dispatchers.IO) {
                     try {

@@ -68,9 +68,14 @@ class OnboardingViewModel @Inject constructor(
     fun verifyWord(index: Int, input: String): Boolean =
         _mnemonic.value.getOrNull(index)?.equals(input.trim(), ignoreCase = true) == true
 
+    // Passphrase BIP39 optionnelle saisie pendant l'onboarding (« 13e mot »).
+    private val _passphrase = MutableStateFlow("")
+    val passphrase: StateFlow<String> = _passphrase.asStateFlow()
+    fun setPassphrase(value: String) { _passphrase.value = value }
+
     /**
-     * Sauvegarde la mnémonique (chiffrée) + le PIN (hashé PBKDF2).
-     * Efface la mnémonique de la mémoire après sauvegarde.
+     * Sauvegarde la mnémonique (chiffrée) + la passphrase BIP39 (chiffrée)
+     * + le PIN (hashé PBKDF2). Efface la mnémonique de la mémoire ensuite.
      */
     fun saveWallet(pin: String) {
         viewModelScope.launch {
@@ -79,10 +84,12 @@ class OnboardingViewModel @Inject constructor(
                 val mnemonicStr = _mnemonic.value.joinToString(" ")
                 withContext(Dispatchers.IO) {
                     secureStorage.saveMnemonic(mnemonicStr)
+                    secureStorage.savePassphrase(_passphrase.value.trim())
                     pinManager.setPin(pin)
                     AppLaunchManager.setWalletCreated(context, true)
                 }
                 _mnemonic.value = emptyList() // efface de la RAM
+                _passphrase.value = ""        // efface la passphrase de la RAM
                 sessionLock.markUnlocked()    // nouvelle session déverrouillée
                 _saveState.value = SaveState.Success
             } catch (e: Exception) {

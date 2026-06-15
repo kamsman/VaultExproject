@@ -25,12 +25,13 @@ class BtcTransactionService @Inject constructor() {
 
     fun signTransaction(
         mnemonic: String,
+        passphrase: String,
         toAddress: String,
         amountSatoshi: Long,
         feeSatoshi: Long,
         utxos: List<Utxo>
     ): ByteArray {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val ecKey = deriveKey(seed)
 
         // Select UTXOs covering amount + fee

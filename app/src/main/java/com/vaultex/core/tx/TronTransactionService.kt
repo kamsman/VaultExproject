@@ -14,8 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class TronTransactionService @Inject constructor() {
 
-    fun deriveAddress(mnemonic: String): String {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun deriveAddress(mnemonic: String, passphrase: String): String {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val master = Bip32ECKeyPair.generateKeyPair(seed)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,
@@ -35,8 +35,8 @@ class TronTransactionService @Inject constructor() {
         return encodeBase58Check(raw + checksum)
     }
 
-    fun signRawTransaction(mnemonic: String, rawTxHex: String): String {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun signRawTransaction(mnemonic: String, passphrase: String, rawTxHex: String): String {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val master = Bip32ECKeyPair.generateKeyPair(seed)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,

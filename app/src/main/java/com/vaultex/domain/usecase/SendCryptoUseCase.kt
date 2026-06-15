@@ -56,9 +56,10 @@ class SendCryptoUseCase @Inject constructor(
     ): Result {
         if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
-            val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
+            val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).eth
 
             val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
                 mutableListOf(fromAddress as Any, "pending" as Any)))
@@ -77,12 +78,12 @@ class SendCryptoUseCase @Inject constructor(
             val signed = if (chainId == 1L) {
                 // Ethereum mainnet: EIP-1559 (type-2) — accurate base fee + tip
                 val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
-                evmTx.signTransactionEip1559(mnemonic, toAddress, amountWei,
+                evmTx.signTransactionEip1559(mnemonic, passphrase, toAddress, amountWei,
                     maxPriority, maxFee, gasLimit, nonce, chainId, coinType)
             } else {
                 // BSC and others: legacy (type-0)
                 val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
-                evmTx.signTransaction(mnemonic, toAddress, amountWei,
+                evmTx.signTransaction(mnemonic, passphrase, toAddress, amountWei,
                     gasPrice, gasLimit, nonce, chainId, coinType)
             }
 
@@ -105,9 +106,10 @@ class SendCryptoUseCase @Inject constructor(
     ): Result {
         if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
-            val fromAddress = WalletManager.deriveAddresses(mnemonic).eth
+            val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).eth
 
             val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
                 mutableListOf(fromAddress as Any, "pending" as Any)))
@@ -127,11 +129,11 @@ class SendCryptoUseCase @Inject constructor(
 
             val signed = if (chainId == 1L) {
                 val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
-                evmTx.signErc20TransferEip1559(mnemonic, contractAddress, toAddress,
+                evmTx.signErc20TransferEip1559(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, maxPriority, maxFee, gasLimit, nonce, chainId)
             } else {
                 val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
-                evmTx.signErc20Transfer(mnemonic, contractAddress, toAddress,
+                evmTx.signErc20Transfer(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, gasPrice, gasLimit, nonce, chainId)
             }
 
@@ -149,8 +151,9 @@ class SendCryptoUseCase @Inject constructor(
     suspend fun sendBtc(toAddress: String, amountSatoshi: Long): Result {
         if (!AddressValidator.isValidBtc(toAddress)) return Result.Error("Adresse BTC invalide")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
-            val btcAddress = WalletManager.deriveAddresses(mnemonic).btc
+            val btcAddress = WalletManager.deriveAddresses(mnemonic, passphrase).btc
             val utxosDto = bitcoinApi.getUtxos(btcAddress)
             val feeEstimates = bitcoinApi.getFeeEstimates()
             val satPerByte = (feeEstimates["6"] ?: feeEstimates["3"] ?: feeEstimates["1"] ?: 10.0).toLong()
@@ -163,7 +166,7 @@ class SendCryptoUseCase @Inject constructor(
             // P2WPKH virtual size: ~68 vbytes/input (41 non-witness + 108 witness / 4)
             val feeSatoshi = (11 + 68 * inputCount + 31 * 2).toLong() * satPerByte
 
-            val signed = btcTx.signTransaction(mnemonic, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
+            val signed = btcTx.signTransaction(mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }
             val txHash = bitcoinApi.broadcastTx(signedHex.toRequestBody("text/plain".toMediaType()))
             Result.Success(txHash)
@@ -177,9 +180,10 @@ class SendCryptoUseCase @Inject constructor(
     suspend fun sendTrx(toAddress: String, amountSun: Long): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
             // Étape 1 — Dériver l'adresse owner en hex (format attendu par TronGrid)
-            val ownerHex = tronAddrToHex(tronTx.deriveAddress(mnemonic))
+            val ownerHex = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
             val toHex    = tronAddrToHex(toAddress)
 
             // Étape 2 — Créer la transaction non signée via TronGrid
@@ -189,7 +193,7 @@ class SendCryptoUseCase @Inject constructor(
             val rawDataHex = rawTx.rawDataHex ?: return Result.Error("Création transaction TRX échouée")
 
             // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
-            val signature = tronTx.signRawTransaction(mnemonic, rawDataHex)
+            val signature = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
 
             // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
             val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
@@ -205,9 +209,10 @@ class SendCryptoUseCase @Inject constructor(
     suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: Double): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
             // Étape 1 — Préparer les paramètres hex + ABI-encode transfer(address,uint256)
-            val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic))
+            val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
             val contractHex = tronAddrToHex(USDT_TRC20_CONTRACT)
             val amountMicro = (amountUsdt * 1_000_000).toLong()
             val parameter   = buildTrc20Param(toAddress, amountMicro)
@@ -228,7 +233,7 @@ class SendCryptoUseCase @Inject constructor(
             // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
             val rawTx      = triggerRes.transaction ?: return Result.Error("Transaction TRC20 vide")
             val rawDataHex = rawTx.rawDataHex       ?: return Result.Error("raw_data_hex absent")
-            val signature  = tronTx.signRawTransaction(mnemonic, rawDataHex)
+            val signature  = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
 
             // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
             val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
@@ -244,8 +249,9 @@ class SendCryptoUseCase @Inject constructor(
     suspend fun sendSol(toAddress: String, lamports: Long): Result {
         if (!AddressValidator.isValidSolana(toAddress)) return Result.Error("Adresse SOL invalide")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val passphrase = secureStorage.getPassphrase()
         return try {
-            val fromPubKey = Base58.decode(WalletManager.deriveAddresses(mnemonic).sol)
+            val fromPubKey = Base58.decode(WalletManager.deriveAddresses(mnemonic, passphrase).sol)
             val toPubKey = Base58.decode(toAddress)
 
             val bhRes = solanaRpc.rpcCall(
@@ -258,7 +264,7 @@ class SendCryptoUseCase @Inject constructor(
             val recentBlockhash = Base58.decode(blockhashB58)
 
             val message = buildSolTransferMessage(fromPubKey, toPubKey, recentBlockhash, lamports)
-            val sig = solTx.signTransaction(mnemonic, message)
+            val sig = solTx.signTransaction(mnemonic, passphrase, message)
 
             val txBytes = ByteArray(1 + 64 + message.size)
             txBytes[0] = 1

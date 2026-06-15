@@ -40,11 +40,12 @@ object WalletManager {
     }
 
     /**
-     * Dérive les adresses des 5 blockchains à partir d'une mnémonique.
-     * CPU-intensif — appeler sur Dispatchers.IO.
+     * Dérive les adresses des 5 blockchains à partir d'une mnémonique et
+     * d'une passphrase BIP39 optionnelle (« 13e mot »). Passphrase vide
+     * = BIP39 standard. CPU-intensif — appeler sur Dispatchers.IO.
      */
-    fun deriveAddresses(mnemonic: String): WalletAddresses {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun deriveAddresses(mnemonic: String, passphrase: String): WalletAddresses {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         return WalletAddresses(
             btc = deriveBtcAddress(seed),
             eth = deriveEvmAddress(seed, coinType = 60),

@@ -8,9 +8,9 @@ import javax.inject.Inject
 
 class WalletRepositoryImpl @Inject constructor() : WalletRepository {
 
-    override suspend fun deriveAddresses(mnemonic: String): WalletManager.WalletAddresses =
+    override suspend fun deriveAddresses(mnemonic: String, passphrase: String): WalletManager.WalletAddresses =
         withContext(Dispatchers.Default) {
-            WalletManager.deriveAddresses(mnemonic)
+            WalletManager.deriveAddresses(mnemonic, passphrase)
         }
 
     override fun validateMnemonic(phrase: String): Boolean =

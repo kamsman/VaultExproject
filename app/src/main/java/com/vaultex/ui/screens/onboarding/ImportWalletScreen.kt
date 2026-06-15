@@ -34,6 +34,7 @@ fun ImportWalletScreen(
     viewModel: OnboardingViewModel
 ) {
     var mnemonic by remember { mutableStateOf("") }
+    var passphrase by remember { mutableStateOf("") }
     var errorRes by remember { mutableStateOf<Int?>(null) }
 
     val words = mnemonic
@@ -130,6 +131,34 @@ fun ImportWalletScreen(
                 fontSize = 13.sp,
                 textAlign = TextAlign.End,
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Passphrase BIP39 optionnelle (« 13e mot ») — M-03
+            Text(
+                text = stringResource(R.string.passphrase_label),
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = passphrase,
+                onValueChange = { passphrase = it; viewModel.setPassphrase(it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.passphrase_placeholder), color = TextMuted) },
+                supportingText = { Text(stringResource(R.string.passphrase_hint), color = TextSecondary, fontSize = 11.sp) },
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = BorderColor,
+                    focusedContainerColor = BgPrimary,
+                    unfocusedContainerColor = BgPrimary,
+                    cursorColor = AccentBlue
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))

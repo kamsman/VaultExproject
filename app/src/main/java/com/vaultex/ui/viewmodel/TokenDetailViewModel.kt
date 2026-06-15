@@ -58,7 +58,7 @@ class TokenDetailViewModel @Inject constructor(
             try {
                 val address = withContext(Dispatchers.IO) {
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext ""
-                    val a = WalletManager.deriveAddresses(mnemonic)
+                    val a = WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
                     when (symbol) {
                         "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb
                         "SOL" -> a.sol; "TRX" -> a.trx; else -> a.eth

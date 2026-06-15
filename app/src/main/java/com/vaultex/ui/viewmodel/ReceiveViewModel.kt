@@ -28,7 +28,7 @@ class ReceiveViewModel @Inject constructor(
         viewModelScope.launch {
             val addresses = withContext(Dispatchers.IO) {
                 val mnemonic = secureStorage.getMnemonic() ?: return@withContext emptyMap<String, String>()
-                val derived = WalletManager.deriveAddresses(mnemonic)
+                val derived = WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
                 mapOf(
                     "BTC" to derived.btc,
                     "ETH" to derived.eth,
