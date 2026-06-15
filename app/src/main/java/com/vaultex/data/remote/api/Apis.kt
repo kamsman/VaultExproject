@@ -75,38 +75,6 @@ interface TronApi {
     suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
 }
 
-/**
- * 1inch DEX Aggregator API — pour les swaps cross-token.
- * Frais VaultEx 1.5% intégrés via paramètre fee.
- */
-interface OneInchApi {
-    @GET("swap/v6.0/{chainId}/quote")
-    suspend fun getQuote(
-        @Path("chainId") chainId: Int,
-        @Query("src") fromTokenAddress: String,
-        @Query("dst") toTokenAddress: String,
-        @Query("amount") amount: String,
-        @Query("fee") feePercent: Double = 1.5,
-        @Query("includeProtocols") includeProtocols: Boolean = true,
-        @Query("includeGas") includeGas: Boolean = true
-    ): OneInchQuoteDto
-
-    @GET("swap/v6.0/{chainId}/swap")
-    suspend fun getSwapData(
-        @Path("chainId") chainId: Int,
-        @Query("src") fromTokenAddress: String,
-        @Query("dst") toTokenAddress: String,
-        @Query("amount") amount: String,
-        @Query("from") fromAddress: String,
-        @Query("slippage") slippagePercent: Double,
-        @Query("fee") feePercent: Double = 1.5,
-        @Query("referrer") feeRecipient: String,
-        @Query("disableEstimate") disableEstimate: Boolean = false
-    ): OneInchSwapDto
-
-    @GET("swap/v6.0/{chainId}/tokens")
-    suspend fun getSupportedTokens(@Path("chainId") chainId: Int): OneInchTokensDto
-}
 
 /**
  * CoinGecko Pro — prix temps réel et historique.

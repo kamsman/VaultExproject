@@ -101,36 +101,6 @@ data class TronTriggerSmartContractDto(
 )
 data class TronTriggerResult(val result: Boolean, val message: String? = null)
 
-// ─── 1INCH ─────────────────────────────────────────────────────────
-data class OneInchQuoteDto(
-    val toAmount: String,
-    val fromToken: OneInchToken?,
-    val toToken: OneInchToken?,
-    val protocols: List<List<List<OneInchProtocol>>>?,
-    val gas: String?
-)
-data class OneInchToken(
-    val address: String,
-    val symbol: String,
-    val name: String,
-    val decimals: Int,
-    val logoURI: String?
-)
-data class OneInchProtocol(val name: String, val part: Double)
-
-data class OneInchSwapDto(
-    val toAmount: String,
-    val tx: OneInchTx
-)
-data class OneInchTx(
-    val from: String,
-    val to: String,
-    val data: String,
-    val value: String,
-    val gas: Long,
-    val gasPrice: String
-)
-data class OneInchTokensDto(val tokens: Map<String, OneInchToken>)
 
 // ─── COINGECKO ─────────────────────────────────────────────────────
 data class CoinGeckoPriceDto(

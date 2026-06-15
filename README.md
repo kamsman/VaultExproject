@@ -9,7 +9,7 @@ Architecture MVVM + Clean Architecture + Hilt. Conçu pour des millions d'utilis
 
 - **Non-custodial** : les clés privées ne quittent jamais l'appareil
 - **5 blockchains** : BTC, ETH, BNB, SOL, TRX + tokens ERC-20/BEP-20/SPL/TRC-20
-- **Swap intégré 1.5%** via 1inch DEX Aggregator
+- **Swap intégré 1.5%** via ChangeNOW (cross-chain)
 - **30 écrans** complets — onboarding, dashboard, send/receive, swap, settings
 - **Sécurité maximale** :
   - BIP39/BIP44 standards
@@ -137,10 +137,10 @@ app/src/main/java/com/vaultex/
 ## 💰 Modèle économique
 
 - **Envoi/Réception** : 0% (gratuit)
-- **Swap** : 1.5% via paramètre `fee` de l'API 1inch
+- **Swap** : 1.5% de frais de service VaultEx via ChangeNOW
 - **Frais réseau (gas)** : payés par l'utilisateur, transmis à la blockchain
 
-Les frais 1.5% sont automatiquement envoyés à votre wallet `VAULTEX_FEE_RECIPIENT_*` via le paramètre `referrer` de 1inch.
+Les frais de service VaultEx (1.5%) sont appliqués sur le montant échangé via ChangeNOW.
 
 ### Estimation revenus
 

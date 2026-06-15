@@ -79,10 +79,6 @@ object NetworkModule {
     fun provideCoinGeckoApi(client: OkHttpClient): CoinGeckoApi =
         retrofit("https://api.coingecko.com/api/v3/", client).create(CoinGeckoApi::class.java)
 
-    @Provides @Singleton
-    fun provideOneInchApi(client: OkHttpClient): OneInchApi =
-        retrofit("https://api.1inch.io/", client).create(OneInchApi::class.java)
-
     // ─── User-configurable RPC / explorer APIs ────────────────────────
 
     @Provides @Singleton @Named("eth")
