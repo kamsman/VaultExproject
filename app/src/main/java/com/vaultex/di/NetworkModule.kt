@@ -174,8 +174,18 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): TronApi {
         val default = "https://api.trongrid.io/"
-        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_trx", default))
-            .create(TronApi::class.java)
+        var trxClient = dynamicClient(client, rpcPrefs(ctx), "rpc_trx", default)
+        // Clé TronGrid optionnelle (header TRON-PRO-API-KEY) — anti rate-limit
+        if (ApiKeys.TRONGRID.isNotBlank()) {
+            trxClient = trxClient.newBuilder().addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .addHeader("TRON-PRO-API-KEY", ApiKeys.TRONGRID)
+                        .build()
+                )
+            }.build()
+        }
+        return retrofit(default, trxClient).create(TronApi::class.java)
     }
 
     @Provides @Singleton @Named("etherscan")

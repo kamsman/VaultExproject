@@ -29,11 +29,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "INFURA_API_KEY",  "\"REPLACE_WITH_YOUR_INFURA_KEY\"")
-        buildConfigField("String", "ALCHEMY_API_KEY", "\"REPLACE_WITH_YOUR_ALCHEMY_KEY\"")
-        buildConfigField("String", "TRONGRID_API_KEY","\"REPLACE_WITH_YOUR_TRONGRID_KEY\"")
-        buildConfigField("String", "ONEINCH_API_KEY", "\"REPLACE_WITH_YOUR_1INCH_KEY\"")
-        buildConfigField("String", "COINGECKO_API_KEY","\"REPLACE_WITH_YOUR_COINGECKO_KEY\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH","\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
         buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
@@ -45,6 +40,8 @@ android {
         buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")
         buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "")}\"")
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
+        // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
+        buildConfigField("String", "TRONGRID_KEY",    "\"${localProps.getProperty("trongrid.key",    "")}\"")
     }
 
     buildTypes {
