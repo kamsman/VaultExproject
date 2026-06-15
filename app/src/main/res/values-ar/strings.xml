@@ -520,4 +520,7 @@
     <string name="updated_min_ago">آخر تحديث منذ %1$d دقيقة</string>
     <string name="updated_hours_ago">آخر تحديث منذ %1$d ساعة</string>
     <string name="offline_cached">غير متصل — آخر البيانات المعروفة</string>
+    <string name="swap_network_fee">رسوم الشبكة</string>
+    <string name="swap_network_included">مضمّنة في السعر</string>
+    <string name="swap_you_receive_est">ستستلم (تقديري)</string>
 </resources>

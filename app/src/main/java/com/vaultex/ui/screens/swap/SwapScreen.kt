@@ -255,9 +255,23 @@ fun SwapScreen(navController: NavHostController) {
                     else "—"
                     SummaryRow(stringResource(R.string.swap_rate), rateValue)
                     Divider(color = SurfaceLight, thickness = 1.dp)
+                    // Frais réseau (gas) — inclus dans le devis ChangeNOW
+                    SummaryRow(
+                        stringResource(R.string.swap_network_fee),
+                        stringResource(R.string.swap_network_included)
+                    )
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    // Frais de service VaultEx — distincts du réseau
                     SummaryRow(
                         stringResource(R.string.swap_fee_vaultex_label),
                         "${state.vaultexFeePercent}%"
+                    )
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    // Montant net reçu estimé
+                    SummaryRow(
+                        stringResource(R.string.swap_you_receive_est),
+                        if (to != null && to > 0.0) "${String.format("%.6f", to)} ${state.toToken}" else "—",
+                        valueColor = TextPrimary
                     )
                     Divider(color = SurfaceLight, thickness = 1.dp)
                     SummaryRow(

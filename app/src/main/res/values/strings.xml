@@ -520,4 +520,7 @@
     <string name="updated_min_ago">Mis à jour il y a %1$d min</string>
     <string name="updated_hours_ago">Mis à jour il y a %1$d h</string>
     <string name="offline_cached">Hors ligne — dernières données</string>
+    <string name="swap_network_fee">Frais réseau</string>
+    <string name="swap_network_included">Inclus dans le taux</string>
+    <string name="swap_you_receive_est">Vous recevez (estimé)</string>
 </resources>
