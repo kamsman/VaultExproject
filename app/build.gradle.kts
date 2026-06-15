@@ -37,6 +37,9 @@ android {
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH","\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
         buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
+        // Certificate pinning (P1) — activer en release UNE FOIS les empreintes
+        // SHA-256 réelles renseignées dans NetworkModule.CERT_PINS.
+        buildConfigField("boolean", "ENABLE_CERT_PINNING","false")
         // API keys read from local.properties (gitignored) — set them there, not here
         buildConfigField("String", "ETHERSCAN_KEY",   "\"${localProps.getProperty("etherscan.key",   "")}\"")
         buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")

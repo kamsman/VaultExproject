@@ -51,6 +51,14 @@ fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
+    // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse)
+    LaunchedEffect(Unit) {
+        com.vaultex.core.session.DeepLinkBuffer.consume()?.let { target ->
+            viewModel.setChain(target.chain)
+            viewModel.setToAddress(target.address)
+        }
+    }
+
     // Adresse renvoyée par le scanner QR
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
     LaunchedEffect(savedStateHandle) {

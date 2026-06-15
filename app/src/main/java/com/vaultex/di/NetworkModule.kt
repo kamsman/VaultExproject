@@ -30,17 +30,50 @@ object NetworkModule {
     // ─── Base OkHttp client ───────────────────────────────────────────
 
     @Provides @Singleton
-    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        // Fail-fast pour permettre le basculement RPC (#2)
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
-        // Durcissement MITM : TLS 1.2+ uniquement (C-02 partiel)
-        .connectionSpecs(
-            listOf(okhttp3.ConnectionSpec.RESTRICTED_TLS, okhttp3.ConnectionSpec.MODERN_TLS)
-        )
-        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
-        .build()
+    fun provideOkHttpClient(): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            // Fail-fast pour permettre le basculement RPC (#2)
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            // Durcissement MITM : TLS 1.2+ uniquement (C-02)
+            .connectionSpecs(
+                listOf(okhttp3.ConnectionSpec.RESTRICTED_TLS, okhttp3.ConnectionSpec.MODERN_TLS)
+            )
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
+
+        // Certificate pinning (P1) — anti-MITM. Activé uniquement quand
+        // ENABLE_CERT_PINNING=true ET que des empreintes réelles existent.
+        if (com.vaultex.BuildConfig.ENABLE_CERT_PINNING) {
+            buildCertificatePinner()?.let { builder.certificatePinner(it) }
+        }
+        return builder.build()
+    }
+
+    /**
+     * Empreintes SHA-256 (SPKI) des hôtes sensibles. À RENSEIGNER avant
+     * d'activer le pinning, sinon toutes les connexions échoueraient.
+     *
+     * Pour obtenir l'empreinte d'un hôte :
+     *   openssl s_client -connect api.changenow.io:443 -servername api.changenow.io < /dev/null 2>/dev/null \
+     *     | openssl x509 -pubkey -noout \
+     *     | openssl pkey -pubin -outform der \
+     *     | openssl dgst -sha256 -binary | openssl enc -base64
+     * Préfixer chaque valeur par "sha256/". Mettre au moins 2 pins par hôte
+     * (certificat courant + backup) pour survivre aux rotations.
+     */
+    private val CERT_PINS: Map<String, List<String>> = mapOf(
+        // "api.changenow.io"      to listOf("sha256/AAAA…", "sha256/BBBB…"),
+        // "api.flutterwave.com"   to listOf("sha256/CCCC…", "sha256/DDDD…"),
+        // "rpc.ankr.com"          to listOf("sha256/EEEE…", "sha256/FFFF…"),
+    )
+
+    private fun buildCertificatePinner(): okhttp3.CertificatePinner? {
+        if (CERT_PINS.isEmpty()) return null
+        val b = okhttp3.CertificatePinner.Builder()
+        CERT_PINS.forEach { (host, pins) -> pins.forEach { b.add(host, it) } }
+        return b.build()
+    }
 
     /**
      * Clients RPC nœud (#2) : bascule automatiquement sur un nœud public

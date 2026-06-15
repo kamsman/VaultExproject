@@ -57,8 +57,18 @@ class MainActivity : FragmentActivity() {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        // P5 : deep link reçu alors que l'app tourne déjà
+        com.vaultex.core.session.DeepLinkBuffer.offer(intent.dataString)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // P5 : adresse de paiement issue d'un deep link — validée par
+        // AddressValidator avant toute mémorisation/préremplissage.
+        com.vaultex.core.session.DeepLinkBuffer.offer(intent?.dataString)
 
         /*
         =========================

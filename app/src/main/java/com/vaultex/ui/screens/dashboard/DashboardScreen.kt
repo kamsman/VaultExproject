@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +39,13 @@ fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val balanceHidden by viewModel.balanceHidden.collectAsState()
+
+    // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
+    LaunchedEffect(Unit) {
+        if (com.vaultex.core.session.DeepLinkBuffer.hasPending()) {
+            navController.navigate(Routes.SEND)
+        }
+    }
 
     Scaffold(
         bottomBar = { VaultExBottomBar(navController) },

@@ -148,7 +148,10 @@ class SecureStorage @Inject constructor(
      */
     fun nukeAllData() {
         prefs.edit().clear().apply()
+        rpcPrefs.edit().clear().apply()
         keystoreManager.destroyMasterKey()
+        // P2 : effacer aussi la base chiffrée (historique, contacts, alertes…)
+        context.deleteDatabase("vaultex.db")
     }
 
     private val rpcPrefs: SharedPreferences by lazy { RpcPrefs.get(context) }

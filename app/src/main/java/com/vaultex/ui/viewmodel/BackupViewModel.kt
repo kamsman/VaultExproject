@@ -26,7 +26,8 @@ data class BackupState(
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
-    private val pinManager: PinManager
+    private val pinManager: PinManager,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BackupState())
@@ -52,11 +53,11 @@ class BackupViewModel @Inject constructor(
                     _state.update { it.copy(showPinDialog = false, isRevealed = true, mnemonic = mnemonic, pinInput = "") }
                 }
                 is PinVerificationResult.Invalid ->
-                    _state.update { it.copy(pinError = "PIN incorrect — ${result.remainingAttempts} essai(s) restant(s)", pinInput = "") }
+                    _state.update { it.copy(pinError = appContext.getString(com.vaultex.R.string.pin_wrong_attempts, result.remainingAttempts), pinInput = "") }
                 is PinVerificationResult.Locked ->
-                    _state.update { it.copy(pinError = "Bloqué ${result.unlockInSeconds}s", pinInput = "") }
+                    _state.update { it.copy(pinError = appContext.getString(com.vaultex.R.string.pin_blocked_seconds, result.unlockInSeconds.toInt()), pinInput = "") }
                 is PinVerificationResult.PanicTriggered ->
-                    _state.update { it.copy(pinError = "PIN de panique — données effacées", pinInput = "") }
+                    _state.update { it.copy(pinError = appContext.getString(com.vaultex.R.string.pin_panic_wiped), pinInput = "") }
             }
         }
     }

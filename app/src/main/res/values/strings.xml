@@ -523,4 +523,7 @@
     <string name="swap_network_fee">Frais réseau</string>
     <string name="swap_network_included">Inclus dans le taux</string>
     <string name="swap_you_receive_est">Vous recevez (estimé)</string>
+    <string name="pin_wrong_attempts">PIN incorrect — %1$d tentative(s) restante(s)</string>
+    <string name="pin_blocked_seconds">Bloqué %1$d s</string>
+    <string name="pin_panic_wiped">PIN de panique — données effacées</string>
 </resources>

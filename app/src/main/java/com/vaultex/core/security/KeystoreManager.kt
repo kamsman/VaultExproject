@@ -51,6 +51,9 @@ class KeystoreManager @Inject constructor() {
         if (requireBiometric) {
             builder.setUserAuthenticationRequired(true)
             builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            // P4 : invalide la clé si une nouvelle empreinte est enrôlée
+            // (empêche un attaquant ayant ajouté sa biométrie de l'utiliser).
+            builder.setInvalidatedByBiometricEnrollment(true)
         }
 
         // Tente StrongBox si disponible (Android 9+)

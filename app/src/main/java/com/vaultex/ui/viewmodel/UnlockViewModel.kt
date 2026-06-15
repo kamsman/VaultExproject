@@ -21,7 +21,8 @@ data class UnlockState(
 class UnlockViewModel @Inject constructor(
     private val pinManager: PinManager,
     private val secureStorage: com.vaultex.core.security.SecureStorage,
-    private val sessionLock: com.vaultex.core.session.SessionLockManager
+    private val sessionLock: com.vaultex.core.session.SessionLockManager,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     fun isBiometricEnabled(): Boolean = secureStorage.isBiometricEnabled()
@@ -56,7 +57,7 @@ class UnlockViewModel @Inject constructor(
                     _state.update { it.copy(isUnlocked = true) }
                 }
                 is PinVerificationResult.Invalid ->
-                    _state.update { it.copy(pin = "", error = "PIN incorrect — ${result.remainingAttempts} tentative(s) restante(s)") }
+                    _state.update { it.copy(pin = "", error = appContext.getString(com.vaultex.R.string.pin_wrong_attempts, result.remainingAttempts)) }
                 is PinVerificationResult.Locked ->
                     _state.update { it.copy(pin = "", lockedSeconds = result.unlockInSeconds, error = null) }
                 is PinVerificationResult.PanicTriggered ->

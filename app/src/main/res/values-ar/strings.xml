@@ -523,4 +523,7 @@
     <string name="swap_network_fee">رسوم الشبكة</string>
     <string name="swap_network_included">مضمّنة في السعر</string>
     <string name="swap_you_receive_est">ستستلم (تقديري)</string>
+    <string name="pin_wrong_attempts">رمز PIN خاطئ — %1$d محاولة متبقية</string>
+    <string name="pin_blocked_seconds">محظور %1$d ث</string>
+    <string name="pin_panic_wiped">رمز الطوارئ — تم مسح البيانات</string>
 </resources>
