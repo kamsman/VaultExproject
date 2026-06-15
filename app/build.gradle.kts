@@ -52,10 +52,14 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Certificate pinning actif en production (P1)
+            buildConfigField("boolean", "ENABLE_CERT_PINNING", "true")
         }
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
+            // Désactivé en debug pour ne pas bloquer les tests (proxy/Charles)
+            buildConfigField("boolean", "ENABLE_CERT_PINNING", "false")
         }
     }
 

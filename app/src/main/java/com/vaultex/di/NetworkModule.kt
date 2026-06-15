@@ -63,9 +63,24 @@ object NetworkModule {
      * (certificat courant + backup) pour survivre aux rotations.
      */
     private val CERT_PINS: Map<String, List<String>> = mapOf(
-        // "api.changenow.io"      to listOf("sha256/AAAA…", "sha256/BBBB…"),
-        // "api.flutterwave.com"   to listOf("sha256/CCCC…", "sha256/DDDD…"),
-        // "rpc.ankr.com"          to listOf("sha256/EEEE…", "sha256/FFFF…"),
+        // ─ Services critiques (mouvement d'argent) — 2 pins ─
+        "api.changenow.io" to listOf(
+            "sha256/oqpstRWo8o/smZIWpFWTUuTyu17sZ5onK7mXJiy5Zpc=",
+            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+        ),
+        "api.flutterwave.com" to listOf(
+            "sha256/11kFWr8Qs08a+tX7u9pQ7RUUWuejKKNV1Jh4x9INTcA=",
+            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+        ),
+        "api.trongrid.io" to listOf(
+            "sha256/y+ZJG53oAEWQ76+So+SztvGgByATWEG1KMwNdarn3go=",
+            // Backup : Amazon Root CA 1 (TronGrid est derrière AWS)
+            "sha256/++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI="
+        ),
+        // ─ Services secondaires (données) — 1 pin ─
+        "api.etherscan.io" to listOf("sha256/kjWU9H91qtu39iBXltykNck8+xWT425ShPW+wFF2WTg="),
+        "api.bscscan.com" to listOf("sha256/i9oogB4vKEVz0R5PhIsBqJsyJV1l3SPEnwQl65LR5/w="),
+        "api.coingecko.com" to listOf("sha256/dgrX3vEnFHd+VpOBXSDSp5oFpJTB0v6FRx0pl00ifSM=")
     )
 
     private fun buildCertificatePinner(): okhttp3.CertificatePinner? {
