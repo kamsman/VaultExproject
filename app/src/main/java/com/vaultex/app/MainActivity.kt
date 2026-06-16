@@ -31,9 +31,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-import com.scottyab.rootbeer.RootBeer
 import com.vaultex.BuildConfig
 import com.vaultex.R
+import com.vaultex.core.monitoring.CrashReporter
+import com.vaultex.core.security.DeviceIntegrity
 import com.vaultex.core.session.LocaleManager
 import com.vaultex.core.session.SessionLockManager
 import com.vaultex.ui.navigation.Routes
@@ -86,7 +87,9 @@ class MainActivity : FragmentActivity() {
         En release, un appareil rooté ne peut pas accéder au wallet.
         =========================
          */
-        if (!BuildConfig.DEBUG && RootBeer(this).isRooted) {
+        if (!BuildConfig.DEBUG && DeviceIntegrity.isDeviceRooted(this)) {
+            CrashReporter.setKey("device_rooted", true)
+            CrashReporter.log("Accès bloqué : appareil rooté détecté")
             setContent {
                 VaultExTheme {
                     RootBlockedScreen()

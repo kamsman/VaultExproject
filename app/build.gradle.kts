@@ -42,6 +42,9 @@ android {
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
         buildConfigField("String", "TRONGRID_KEY",    "\"${localProps.getProperty("trongrid.key",    "")}\"")
+        // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
+        // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
+        buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
     }
 
     buildTypes {
@@ -163,6 +166,8 @@ dependencies {
     implementation("io.github.g00fy2.quickie:quickie-bundled:1.10.0")
     // ROOT DETECTION
     implementation("com.scottyab:rootbeer-lib:0.1.0")
+    // DEVICE INTEGRITY — Play Integrity API (successeur de SafetyNet)
+    implementation("com.google.android.play:integrity:1.4.0")
 
     // FIREBASE
     implementation(platform("com.google.firebase:firebase-bom:32.7.4"))
@@ -173,6 +178,7 @@ dependencies {
     // TEST
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("io.mockk:mockk:1.13.10")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

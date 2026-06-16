@@ -8,7 +8,9 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.scottyab.rootbeer.RootBeer
+import com.vaultex.BuildConfig
+import com.vaultex.core.monitoring.CrashReporter
+import com.vaultex.core.security.DeviceIntegrity
 import com.vaultex.service.PendingSendWorker
 import com.vaultex.service.PriceAlertWorker
 import com.vaultex.ui.viewmodel.HistoryViewModel
@@ -32,10 +34,14 @@ class VaultExApplication : Application(), Configuration.Provider {
         // Reprend les envois mis en file lors d'une session précédente
         // (le worker attend tout seul le retour du réseau).
         PendingSendWorker.enqueue(this)
-        val rootBeer = RootBeer(this)
-        if (rootBeer.isRooted) {
-            // Production: block app. Dev/debug: allow for tests.
-        }
+
+        // Contexte enrichi pour les rapports de crash (Crashlytics).
+        CrashReporter.setKey("app_version", BuildConfig.VERSION_NAME)
+        CrashReporter.setKey("device_rooted", DeviceIntegrity.isDeviceRooted(this))
+        CrashReporter.log("Application démarrée")
+
+        // Play Integrity (best-effort, no-op tant que le projet n'est pas configuré).
+        DeviceIntegrity.requestIntegrityToken(this)
     }
 
     /** Vérification des alertes de prix toutes les 15 minutes. */
