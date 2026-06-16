@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -37,6 +39,7 @@ fun MnemonicDisplayScreen(
     }
 
     val mnemonic by viewModel.mnemonic.collectAsState()
+    var passphrase by remember { mutableStateOf(viewModel.passphrase.value) }
 
     Scaffold(
         topBar = {
@@ -67,6 +70,8 @@ fun MnemonicDisplayScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
@@ -130,7 +135,36 @@ fun MnemonicDisplayScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Passphrase BIP39 optionnelle (« 13e mot ») — M-03.
+            // Saisie ici car elle fait partie du secret à sauvegarder.
+            Text(
+                text = stringResource(R.string.passphrase_label),
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = passphrase,
+                onValueChange = { passphrase = it; viewModel.setPassphrase(it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.passphrase_placeholder), color = TextMuted) },
+                supportingText = { Text(stringResource(R.string.passphrase_hint), color = TextSecondary, fontSize = 11.sp) },
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = BorderColor,
+                    focusedContainerColor = BgPrimary,
+                    unfocusedContainerColor = BgPrimary,
+                    cursorColor = AccentBlue
+                )
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             PrimaryButton(
                 text = stringResource(R.string.mnemonic_saved_button),
