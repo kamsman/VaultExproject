@@ -376,6 +376,7 @@
     <string name="send_confirm_and_send">Confirmer et envoyer</string>
     <string name="send_biometric_title">Confirmer la transaction</string>
     <string name="send_biometric_subtitle">Envoi de %1$s %2$s vers %3$s…</string>
+    <string name="send_dust_warning">Montant inférieur au minimum recommandé (%1$s). La transaction risque d\'être rejetée par le réseau.</string>
     <string name="receive_only_warning">Envoyez uniquement du %1$s sur cette adresse</string>
     <string name="receive_network_title">Choisir le réseau</string>
     <string name="receive_select_chain">Sélectionnez la chaîne</string>

@@ -246,6 +246,29 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
+            // Avertissement montant sous le minimum réseau
+            if (state.dustWarning != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = androidx.compose.ui.graphics.Color(0xFFFFF3CD),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFE6AC00)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, null, tint = androidx.compose.ui.graphics.Color(0xFFB07800), modifier = Modifier.size(18.dp))
+                        Text(
+                            stringResource(R.string.send_dust_warning, state.dustWarning!!),
+                            fontSize = 13.sp,
+                            color = androidx.compose.ui.graphics.Color(0xFF7A5200)
+                        )
+                    }
+                }
+            }
+
             // Fee info card
             Surface(
                 shape = RoundedCornerShape(14.dp),

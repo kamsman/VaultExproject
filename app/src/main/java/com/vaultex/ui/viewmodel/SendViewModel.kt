@@ -24,7 +24,8 @@ data class SendState(
     val isLoading: Boolean = false,
     val txHash: String? = null,
     val error: String? = null,
-    val queued: Boolean = false
+    val queued: Boolean = false,
+    val dustWarning: String? = null
 )
 
 @HiltViewModel
@@ -40,7 +41,8 @@ class SendViewModel @Inject constructor(
     fun setChain(chain: String) {
         val addr = _state.value.toAddress
         val valid = if (addr.isEmpty()) false else AddressValidator.isValid(addr, chain)
-        _state.update { it.copy(selectedChain = chain, isAddressValid = valid, error = null) }
+        val warning = dustWarning(chain, _state.value.amount)
+        _state.update { it.copy(selectedChain = chain, isAddressValid = valid, error = null, dustWarning = warning) }
     }
 
     fun setToAddress(address: String) {
@@ -49,7 +51,29 @@ class SendViewModel @Inject constructor(
         _state.update { it.copy(toAddress = address, isAddressValid = valid) }
     }
 
-    fun setAmount(amount: String) = _state.update { it.copy(amount = amount) }
+    fun setAmount(amount: String) {
+        val warning = dustWarning(_state.value.selectedChain, amount)
+        _state.update { it.copy(amount = amount, dustWarning = warning) }
+    }
+
+    private fun dustWarning(chain: String, amount: String): String? {
+        val value = amount.replace(",", ".").toDoubleOrNull() ?: return null
+        val minimum = MINIMUM_AMOUNTS[chain] ?: return null
+        return if (value < minimum) "$minimum $chain" else null
+    }
+
+    companion object {
+        private val MINIMUM_AMOUNTS = mapOf(
+            "BTC"      to 0.00000546,
+            "ETH"      to 0.0001,
+            "BNB"      to 0.0001,
+            "SOL"      to 0.000001,
+            "TRX"      to 0.000001,
+            "USDT"     to 1.0,
+            "USDT-ETH" to 1.0,
+            "USDT-BNB" to 1.0
+        )
+    }
 
     fun send() {
         val s = _state.value
