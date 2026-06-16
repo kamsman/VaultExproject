@@ -39,6 +39,7 @@ import com.vaultex.ui.theme.NetworkBnb
 import com.vaultex.ui.theme.NetworkBtc
 import com.vaultex.ui.theme.NetworkEth
 import com.vaultex.ui.theme.NetworkSol
+import com.vaultex.ui.theme.NetworkTrx
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextMuted

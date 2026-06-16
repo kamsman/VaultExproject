@@ -27,9 +27,9 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val keyPair = deriveKeyPair(mnemonic, passphrase, coinType)
+        val credentials = Credentials.create(deriveKeyPair(mnemonic, passphrase, coinType))
         val tx = RawTransaction.createEtherTransaction(nonce, gasPrice, gasLimit, toAddress, amountWei)
-        return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, keyPair))
+        return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, credentials))
     }
 
     fun signErc20Transfer(
@@ -44,11 +44,11 @@ class EvmTransactionService @Inject constructor() {
         chainId: Long,
         coinType: Int = 60
     ): String {
-        val keyPair = deriveKeyPair(mnemonic, passphrase, coinType)
+        val credentials = Credentials.create(deriveKeyPair(mnemonic, passphrase, coinType))
         val tx = RawTransaction.createTransaction(
             nonce, gasPrice, gasLimit, contractAddress, buildErc20Data(toAddress, amountWei)
         )
-        return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, keyPair))
+        return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, credentials))
     }
 
     // ─── EIP-1559 (type-2) — Ethereum mainnet ────────────────────────

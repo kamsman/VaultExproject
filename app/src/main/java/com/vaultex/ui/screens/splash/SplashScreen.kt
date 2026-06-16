@@ -106,6 +106,8 @@ fun SplashScreen(navController: NavHostController) {
 
 @Composable
 private fun DotsLoader(phase: Float, dotCount: Int = 6) {
+    // Lue dans le contexte @Composable, puis utilisée dans le lambda DrawScope.
+    val dotColor = AccentBlue
     Canvas(modifier = Modifier.size(96.dp)) {
         val radius = size.minDimension / 2f - 8.dp.toPx()
         val dotRadius = 7.dp.toPx()
@@ -118,7 +120,7 @@ private fun DotsLoader(phase: Float, dotCount: Int = 6) {
             )
             val distance = ((i - phase + dotCount) % dotCount) / dotCount
             val alpha = 0.25f + 0.75f * (1f - distance)
-            drawCircle(color = AccentBlue, radius = dotRadius, center = pos, alpha = alpha)
+            drawCircle(color = dotColor, radius = dotRadius, center = pos, alpha = alpha)
         }
     }
 }

@@ -274,6 +274,8 @@ private fun StatLine(label: String, value: String, valueColor: Color = TextPrima
 /** Courbe de démonstration (pas de données de chart dans le PortfolioViewModel). */
 @Composable
 internal fun DemoLineChart(seed: Int, modifier: Modifier = Modifier) {
+    // Lue dans le contexte @Composable, puis utilisée dans le lambda DrawScope.
+    val lineColor = AccentBlue
     Canvas(modifier = modifier) {
         val random = Random(seed)
         val points = 90
@@ -286,7 +288,7 @@ internal fun DemoLineChart(seed: Int, modifier: Modifier = Modifier) {
                 .coerceIn(size.height * 0.08f, size.height * 0.92f)
             path.lineTo(i * step, y)
         }
-        drawPath(path, color = AccentBlue, style = Stroke(width = 3f))
+        drawPath(path, color = lineColor, style = Stroke(width = 3f))
     }
 }
 

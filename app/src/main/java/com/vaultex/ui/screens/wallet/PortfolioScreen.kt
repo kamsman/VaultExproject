@@ -275,7 +275,7 @@ private fun PortfolioTokenRow(token: TokenBalance, share: Double, onClick: () ->
 private fun TokenBalance.color(): Color = try {
     Color(android.graphics.Color.parseColor(colorHex))
 } catch (_: Exception) {
-    AccentBlue
+    Color(0xFF3B82F6) // bleu d'accent par défaut (valeur fixe, hors thème)
 }
 
 private fun formatUsd(value: Double): String =
