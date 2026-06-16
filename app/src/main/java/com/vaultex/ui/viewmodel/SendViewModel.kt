@@ -1,10 +1,14 @@
 package com.vaultex.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.R
+import com.vaultex.core.session.NetworkMonitor
 import com.vaultex.core.validation.AddressValidator
 import com.vaultex.domain.usecase.SendCryptoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -23,7 +27,8 @@ data class SendState(
 
 @HiltViewModel
 class SendViewModel @Inject constructor(
-    private val sendCryptoUseCase: SendCryptoUseCase
+    private val sendCryptoUseCase: SendCryptoUseCase,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SendState())
@@ -47,6 +52,10 @@ class SendViewModel @Inject constructor(
         val s = _state.value
         if (s.isLoading) return
         if (!s.isAddressValid || s.amount.isEmpty()) return
+        if (!NetworkMonitor.isOnline(appContext)) {
+            _state.update { it.copy(error = appContext.getString(R.string.error_network)) }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             val result = when (s.selectedChain) {
