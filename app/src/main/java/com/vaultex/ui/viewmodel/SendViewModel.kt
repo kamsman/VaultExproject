@@ -3,15 +3,16 @@ package com.vaultex.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaultex.R
 import com.vaultex.core.session.NetworkMonitor
 import com.vaultex.core.validation.AddressValidator
+import com.vaultex.data.local.dao.PendingSendDao
+import com.vaultex.data.local.entity.PendingSendEntity
 import com.vaultex.domain.usecase.SendCryptoUseCase
+import com.vaultex.service.PendingSendWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
 import javax.inject.Inject
 
 data class SendState(
@@ -22,12 +23,14 @@ data class SendState(
     val isAddressValid: Boolean = false,
     val isLoading: Boolean = false,
     val txHash: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val queued: Boolean = false
 )
 
 @HiltViewModel
 class SendViewModel @Inject constructor(
     private val sendCryptoUseCase: SendCryptoUseCase,
+    private val pendingSendDao: PendingSendDao,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -52,92 +55,37 @@ class SendViewModel @Inject constructor(
         val s = _state.value
         if (s.isLoading) return
         if (!s.isAddressValid || s.amount.isEmpty()) return
+
+        // Hors-ligne : on met l'INTENTION en file. Elle sera signée (avec un
+        // nonce/blockhash frais) et diffusée automatiquement, une seule fois,
+        // au retour du réseau via PendingSendWorker.
         if (!NetworkMonitor.isOnline(appContext)) {
-            _state.update { it.copy(error = appContext.getString(R.string.error_network)) }
+            viewModelScope.launch {
+                try {
+                    pendingSendDao.insert(
+                        PendingSendEntity(
+                            chain = s.selectedChain,
+                            toAddress = s.toAddress,
+                            amount = s.amount,
+                            status = PendingSendWorker.STATUS_PENDING,
+                            txHash = null,
+                            lastError = null,
+                            attempts = 0,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                    PendingSendWorker.enqueue(appContext)
+                    _state.update { it.copy(queued = true, error = null) }
+                } catch (e: Exception) {
+                    _state.update { it.copy(error = e.message ?: "Erreur de mise en file") }
+                }
+            }
             return
         }
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val result = when (s.selectedChain) {
-                "ETH", "BNB" -> {
-                    val chainId = if (s.selectedChain == "ETH") 1L else 56L
-                    val amountWei = try {
-                        BigDecimal(s.amount)
-                            .multiply(BigDecimal("1000000000000000000"))
-                            .toBigInteger()
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendEvm(toAddress = s.toAddress, amountWei = amountWei, chainId = chainId)
-                }
-                "BTC" -> {
-                    val amountSatoshi = try {
-                        BigDecimal(s.amount).multiply(BigDecimal("100000000")).toLong()
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendBtc(toAddress = s.toAddress, amountSatoshi = amountSatoshi)
-                }
-                "TRX" -> {
-                    val amountSun = try {
-                        BigDecimal(s.amount).multiply(BigDecimal("1000000")).toLong()
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendTrx(toAddress = s.toAddress, amountSun = amountSun)
-                }
-                "SOL" -> {
-                    val lamports = try {
-                        BigDecimal(s.amount).multiply(BigDecimal("1000000000")).toLong()
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendSol(toAddress = s.toAddress, lamports = lamports)
-                }
-                "USDT" -> {
-                    val amountUsdt = s.amount.toDoubleOrNull() ?: run {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendUsdtTrc20(toAddress = s.toAddress, amountUsdt = amountUsdt)
-                }
-                "USDT-ETH" -> {
-                    val amountWei = try {
-                        BigDecimal(s.amount).multiply(BigDecimal("1000000"))
-                            .toBigInteger() // USDT has 6 decimals on ETH
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendErc20(
-                        toAddress = s.toAddress,
-                        amountWei = amountWei,
-                        contractAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-                        chainId = 1L
-                    )
-                }
-                "USDT-BNB" -> {
-                    val amountWei = try {
-                        BigDecimal(s.amount)
-                            .multiply(BigDecimal("1000000000000000000"))
-                            .toBigInteger() // USDT on BSC has 18 decimals
-                    } catch (_: Exception) {
-                        _state.update { it.copy(isLoading = false, error = "Montant invalide") }
-                        return@launch
-                    }
-                    sendCryptoUseCase.sendErc20(
-                        toAddress = s.toAddress,
-                        amountWei = amountWei,
-                        contractAddress = "0x55d398326f99059fF775485246999027B3197955",
-                        chainId = 56L
-                    )
-                }
-                else -> SendCryptoUseCase.Result.Error("Chain non supportée")
-            }
+            val result = sendCryptoUseCase.sendByChain(s.selectedChain, s.toAddress, s.amount)
             when (result) {
                 is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                 is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = result.message) }

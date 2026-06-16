@@ -213,6 +213,8 @@
     <string name="contacts_network">Network</string>
 
     <!-- Transactions / Settings (group C) -->
+    <string name="send_queued_title">Transaction queued</string>
+    <string name="send_queued_body">You are offline. The transaction will be sent automatically once, as soon as the connection is back.</string>
     <string name="send_tx_sent_title">Transaction sent</string>
     <string name="send_tx_broadcast">Your transaction has been broadcast to the network.</string>
     <string name="send_tx_hash_label">Hash:</string>

@@ -66,3 +66,22 @@ data class PriceAlertEntity(
     val targetPrice: String,
     val isActive: Boolean
 )
+
+/**
+ * File des envois mis en attente hors-ligne. On stocke l'INTENTION
+ * (chaîne, destinataire, montant en unité humaine) — jamais une
+ * transaction déjà signée — pour pouvoir signer avec un nonce/blockhash
+ * frais au moment de la diffusion. status : PENDING, SENDING, SENT, FAILED.
+ */
+@Entity(tableName = "pending_sends")
+data class PendingSendEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val chain: String,
+    val toAddress: String,
+    val amount: String,
+    val status: String,
+    val txHash: String?,
+    val lastError: String?,
+    val attempts: Int,
+    val createdAt: Long
+)

@@ -213,6 +213,8 @@
     <string name="contacts_network">الشبكة</string>
 
     <!-- Transactions / Réglages (groupe C) -->
+    <string name="send_queued_title">تمت إضافة المعاملة إلى قائمة الانتظار</string>
+    <string name="send_queued_body">أنت غير متصل بالإنترنت. سيتم إرسال المعاملة تلقائيًا مرة واحدة بمجرد عودة الاتصال.</string>
     <string name="send_tx_sent_title">تم إرسال المعاملة</string>
     <string name="send_tx_broadcast">تم بثّ معاملتك على الشبكة.</string>
     <string name="send_tx_hash_label">التجزئة:</string>

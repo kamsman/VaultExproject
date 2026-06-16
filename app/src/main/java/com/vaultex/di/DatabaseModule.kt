@@ -42,4 +42,5 @@ object DatabaseModule {
     @Provides @Singleton fun provideTransactionDao(db: VaultExDatabase): TransactionDao = db.transactionDao()
     @Provides @Singleton fun provideContactDao(db: VaultExDatabase): ContactDao = db.contactDao()
     @Provides @Singleton fun providePriceAlertDao(db: VaultExDatabase): PriceAlertDao = db.priceAlertDao()
+    @Provides @Singleton fun providePendingSendDao(db: VaultExDatabase): PendingSendDao = db.pendingSendDao()
 }

@@ -21,6 +21,7 @@ import com.vaultex.data.remote.dto.TronTriggerSmartContractBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
+import java.math.BigDecimal
 import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Named
@@ -44,6 +45,63 @@ class SendCryptoUseCase @Inject constructor(
 
     companion object {
         const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        const val USDT_ERC20_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+        const val USDT_BEP20_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
+    }
+
+    /**
+     * Point d'entrée UNIQUE d'un envoi : convertit le montant saisi (unité
+     * humaine) selon la chaîne puis appelle le bon envoi. Utilisé à la fois
+     * par l'UI (envoi direct en ligne) et par la file hors-ligne
+     * (PendingSendWorker), afin que les deux chemins soient identiques.
+     */
+    suspend fun sendByChain(chain: String, toAddress: String, amount: String): Result {
+        return when (chain) {
+            "ETH", "BNB" -> {
+                val chainId = if (chain == "ETH") 1L else 56L
+                val amountWei = try {
+                    BigDecimal(amount).multiply(BigDecimal("1000000000000000000")).toBigInteger()
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendEvm(toAddress = toAddress, amountWei = amountWei, chainId = chainId)
+            }
+            "BTC" -> {
+                val amountSatoshi = try {
+                    BigDecimal(amount).multiply(BigDecimal("100000000")).toLong()
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendBtc(toAddress = toAddress, amountSatoshi = amountSatoshi)
+            }
+            "TRX" -> {
+                val amountSun = try {
+                    BigDecimal(amount).multiply(BigDecimal("1000000")).toLong()
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendTrx(toAddress = toAddress, amountSun = amountSun)
+            }
+            "SOL" -> {
+                val lamports = try {
+                    BigDecimal(amount).multiply(BigDecimal("1000000000")).toLong()
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendSol(toAddress = toAddress, lamports = lamports)
+            }
+            "USDT" -> {
+                val amountUsdt = amount.toDoubleOrNull() ?: return Result.Error("Montant invalide")
+                sendUsdtTrc20(toAddress = toAddress, amountUsdt = amountUsdt)
+            }
+            "USDT-ETH" -> {
+                val amountWei = try {
+                    BigDecimal(amount).multiply(BigDecimal("1000000")).toBigInteger() // 6 décimales
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendErc20(toAddress = toAddress, amountWei = amountWei,
+                    contractAddress = USDT_ERC20_CONTRACT, chainId = 1L)
+            }
+            "USDT-BNB" -> {
+                val amountWei = try {
+                    BigDecimal(amount).multiply(BigDecimal("1000000000000000000")).toBigInteger() // 18 décimales
+                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                sendErc20(toAddress = toAddress, amountWei = amountWei,
+                    contractAddress = USDT_BEP20_CONTRACT, chainId = 56L)
+            }
+            else -> Result.Error("Chain non supportée")
+        }
     }
 
     // ─── EVM (ETH / BNB) ─────────────────────────────────────────────

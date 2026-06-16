@@ -114,3 +114,27 @@ interface PriceAlertDao {
     @Query("DELETE FROM price_alerts WHERE id = :id")
     suspend fun delete(id: String)
 }
+
+@Dao
+interface PendingSendDao {
+    @Query("SELECT * FROM pending_sends ORDER BY createdAt ASC")
+    fun observeAll(): Flow<List<PendingSendEntity>>
+
+    @Query("SELECT COUNT(*) FROM pending_sends WHERE status = 'PENDING'")
+    fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM pending_sends WHERE status = 'PENDING' ORDER BY createdAt ASC")
+    suspend fun getPending(): List<PendingSendEntity>
+
+    @Insert
+    suspend fun insert(item: PendingSendEntity): Long
+
+    @Query("UPDATE pending_sends SET status = :status, txHash = :txHash, lastError = :error, attempts = :attempts WHERE id = :id")
+    suspend fun updateResult(id: Long, status: String, txHash: String?, error: String?, attempts: Int)
+
+    @Query("DELETE FROM pending_sends WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("DELETE FROM pending_sends WHERE status = 'SENT'")
+    suspend fun clearSent()
+}

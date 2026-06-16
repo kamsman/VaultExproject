@@ -87,6 +87,21 @@ fun SendScreen(navController: NavController) {
         else       -> "--"
     }
 
+    // Hors-ligne : transaction mise en file
+    if (state.queued) {
+        AlertDialog(
+            onDismissRequest = { viewModel.reset(); navController.popBackStack() },
+            icon = { Icon(Icons.Default.Schedule, null, tint = AccentBlue) },
+            title = { Text(stringResource(R.string.send_queued_title)) },
+            text = { Text(stringResource(R.string.send_queued_body), fontSize = 14.sp) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.reset(); navController.popBackStack() }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
     // Success dialog
     if (state.txHash != null) {
         AlertDialog(

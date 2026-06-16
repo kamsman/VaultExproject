@@ -9,6 +9,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.scottyab.rootbeer.RootBeer
+import com.vaultex.service.PendingSendWorker
 import com.vaultex.service.PriceAlertWorker
 import com.vaultex.ui.viewmodel.HistoryViewModel
 import dagger.hilt.android.HiltAndroidApp
@@ -28,6 +29,9 @@ class VaultExApplication : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannel()
         schedulePriceAlertChecks()
+        // Reprend les envois mis en file lors d'une session précédente
+        // (le worker attend tout seul le retour du réseau).
+        PendingSendWorker.enqueue(this)
         val rootBeer = RootBeer(this)
         if (rootBeer.isRooted) {
             // Production: block app. Dev/debug: allow for tests.

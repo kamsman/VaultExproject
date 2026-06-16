@@ -213,6 +213,8 @@
     <string name="contacts_network">Réseau</string>
 
     <!-- Transactions / Réglages (groupe C) -->
+    <string name="send_queued_title">Transaction mise en file</string>
+    <string name="send_queued_body">Vous êtes hors ligne. La transaction sera envoyée automatiquement dès le retour de la connexion, une seule fois.</string>
     <string name="send_tx_sent_title">Transaction envoyée</string>
     <string name="send_tx_broadcast">Votre transaction a été diffusée sur le réseau.</string>
     <string name="send_tx_hash_label">Hash :</string>

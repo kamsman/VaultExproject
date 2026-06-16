@@ -12,9 +12,10 @@ import com.vaultex.data.local.entity.*
         TokenEntity::class,
         TransactionEntity::class,
         ContactEntity::class,
-        PriceAlertEntity::class
+        PriceAlertEntity::class,
+        PendingSendEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class VaultExDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class VaultExDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun contactDao(): ContactDao
     abstract fun priceAlertDao(): PriceAlertDao
+    abstract fun pendingSendDao(): PendingSendDao
 
     companion object {
         const val DATABASE_NAME = "vaultex.db"
