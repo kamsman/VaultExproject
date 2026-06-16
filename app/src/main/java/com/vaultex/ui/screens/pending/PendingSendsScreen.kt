@@ -33,7 +33,7 @@ import java.util.Locale
 @Composable
 fun PendingSendsScreen(navController: NavHostController) {
     val viewModel: PendingSendsViewModel = hiltViewModel()
-    val items by viewModel.items.collectAsState()
+    val pending by viewModel.items.collectAsState()
 
     // Intention en attente de confirmation de relance (avertissement double-dépense)
     var retryTarget by remember { mutableStateOf<PendingSendEntity?>(null) }
@@ -55,7 +55,7 @@ fun PendingSendsScreen(navController: NavHostController) {
                     }
                 },
                 actions = {
-                    if (items.any { it.status == PendingSendWorker.STATUS_SENT }) {
+                    if (pending.any { it.status == PendingSendWorker.STATUS_SENT }) {
                         IconButton(onClick = { viewModel.clearSent() }) {
                             Icon(
                                 Icons.Default.DeleteSweep,
@@ -70,7 +70,7 @@ fun PendingSendsScreen(navController: NavHostController) {
         },
         containerColor = BgPrimary
     ) { padding ->
-        if (items.isEmpty()) {
+        if (pending.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -93,7 +93,7 @@ fun PendingSendsScreen(navController: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                items(items, key = { it.id }) { item ->
+                items(pending, key = { it.id }) { item ->
                     PendingSendCard(
                         item = item,
                         onRetry = { retryTarget = item },
