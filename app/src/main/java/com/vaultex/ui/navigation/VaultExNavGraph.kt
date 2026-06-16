@@ -15,6 +15,7 @@ import com.vaultex.ui.screens.onboarding.MnemonicDisplayScreen
 import com.vaultex.ui.screens.onboarding.MnemonicVerifyScreen
 import com.vaultex.ui.screens.onboarding.ImportWalletScreen
 import com.vaultex.ui.screens.security.PinSetupScreen
+import com.vaultex.ui.screens.pending.PendingSendsScreen
 import com.vaultex.ui.screens.dashboard.DashboardScreen
 import com.vaultex.ui.screens.home.HomeScreen
 import com.vaultex.ui.screens.market.MarketScreen
@@ -185,6 +186,10 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.SECURITY) {
             SecurityScreen(navController)
+        }
+
+        composable(Routes.PENDING_SENDS) {
+            PendingSendsScreen(navController)
         }
 
         composable(Routes.NETWORK_SETTINGS) {

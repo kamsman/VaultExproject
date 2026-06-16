@@ -167,6 +167,10 @@ fun SettingsScreen(navController: NavHostController) {
                     SettingsRow(Icons.Default.Contacts, stringResource(R.string.address_book)) {
                         navController.navigate(Routes.ADDRESS_BOOK)
                     }
+                    RowDivider()
+                    SettingsRow(Icons.Default.Schedule, stringResource(R.string.pending_sends_title)) {
+                        navController.navigate(Routes.PENDING_SENDS)
+                    }
                 }
             }
 

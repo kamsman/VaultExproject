@@ -215,6 +215,17 @@
     <!-- Transactions / Réglages (groupe C) -->
     <string name="send_queued_title">تمت إضافة المعاملة إلى قائمة الانتظار</string>
     <string name="send_queued_body">أنت غير متصل بالإنترنت. سيتم إرسال المعاملة تلقائيًا مرة واحدة بمجرد عودة الاتصال.</string>
+    <string name="pending_sends_title">المعاملات المعلّقة</string>
+    <string name="pending_sends_empty">لا توجد معاملات معلّقة</string>
+    <string name="pending_sends_retry">إعادة المحاولة</string>
+    <string name="pending_sends_dismiss">إزالة</string>
+    <string name="pending_sends_clear_sent">مسح المُرسَلة</string>
+    <string name="pending_sends_status_pending">في انتظار الشبكة</string>
+    <string name="pending_sends_status_sending">قيد التنفيذ / غير مؤكد</string>
+    <string name="pending_sends_status_sent">تم الإرسال</string>
+    <string name="pending_sends_status_failed">فشلت</string>
+    <string name="pending_sends_retry_warning_title">إعادة محاولة الإرسال؟</string>
+    <string name="pending_sends_retry_warning_body">تحقّق أولًا عبر مستكشف الكتل من أنّ المعاملة السابقة لم تُنفَّذ بالفعل. إعادة المحاولة تُرسل برقم nonce جديد وقد تؤدي إلى إنفاق مزدوج إن كان الإرسال الأول قد نجح.</string>
     <string name="send_tx_sent_title">تم إرسال المعاملة</string>
     <string name="send_tx_broadcast">تم بثّ معاملتك على الشبكة.</string>
     <string name="send_tx_hash_label">التجزئة:</string>

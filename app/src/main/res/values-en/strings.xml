@@ -215,6 +215,17 @@
     <!-- Transactions / Settings (group C) -->
     <string name="send_queued_title">Transaction queued</string>
     <string name="send_queued_body">You are offline. The transaction will be sent automatically once, as soon as the connection is back.</string>
+    <string name="pending_sends_title">Pending transactions</string>
+    <string name="pending_sends_empty">No pending transactions</string>
+    <string name="pending_sends_retry">Retry</string>
+    <string name="pending_sends_dismiss">Remove</string>
+    <string name="pending_sends_clear_sent">Clear sent</string>
+    <string name="pending_sends_status_pending">Waiting for network</string>
+    <string name="pending_sends_status_sending">In progress / uncertain</string>
+    <string name="pending_sends_status_sent">Sent</string>
+    <string name="pending_sends_status_failed">Failed</string>
+    <string name="pending_sends_retry_warning_title">Retry this send?</string>
+    <string name="pending_sends_retry_warning_body">First check on a block explorer that the previous transaction did not already go through. Retrying re-sends with a new nonce and could double-spend if the initial send had succeeded.</string>
     <string name="send_tx_sent_title">Transaction sent</string>
     <string name="send_tx_broadcast">Your transaction has been broadcast to the network.</string>
     <string name="send_tx_hash_label">Hash:</string>

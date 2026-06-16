@@ -215,6 +215,17 @@
     <!-- Transactions / Réglages (groupe C) -->
     <string name="send_queued_title">Transaction mise en file</string>
     <string name="send_queued_body">Vous êtes hors ligne. La transaction sera envoyée automatiquement dès le retour de la connexion, une seule fois.</string>
+    <string name="pending_sends_title">Transactions en attente</string>
+    <string name="pending_sends_empty">Aucune transaction en attente</string>
+    <string name="pending_sends_retry">Réessayer</string>
+    <string name="pending_sends_dismiss">Retirer</string>
+    <string name="pending_sends_clear_sent">Nettoyer les envoyées</string>
+    <string name="pending_sends_status_pending">En attente du réseau</string>
+    <string name="pending_sends_status_sending">En cours / incertain</string>
+    <string name="pending_sends_status_sent">Envoyée</string>
+    <string name="pending_sends_status_failed">Échouée</string>
+    <string name="pending_sends_retry_warning_title">Réessayer l\'envoi ?</string>
+    <string name="pending_sends_retry_warning_body">Vérifiez d\'abord, sur un explorateur de blocs, que la transaction précédente n\'est pas déjà passée. Réessayer renvoie avec un nouveau nonce et pourrait dépenser deux fois si l\'envoi initial avait réussi.</string>
     <string name="send_tx_sent_title">Transaction envoyée</string>
     <string name="send_tx_broadcast">Votre transaction a été diffusée sur le réseau.</string>
     <string name="send_tx_hash_label">Hash :</string>

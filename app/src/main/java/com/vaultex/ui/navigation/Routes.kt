@@ -74,6 +74,8 @@ object Routes {
 
     const val SECURITY = "security"
 
+    const val PENDING_SENDS = "pendingSends"
+
     const val SCANNER = "scanner"
 
     const val HISTORY_DETAIL = "historyDetail/{hash}"
