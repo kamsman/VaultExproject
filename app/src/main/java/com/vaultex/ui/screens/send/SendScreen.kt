@@ -276,8 +276,14 @@ fun SendScreen(navController: NavController) {
             Button(
                 onClick = {
                     val bioStatus = biometricHelper.checkAvailability()
-                    if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE) {
-                        biometricHelper.authenticate(
+                    // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
+                    // Biométrie si disponible, sinon code de verrouillage de
+                    // l'appareil. On n'envoie sans auth que si l'appareil n'a
+                    // aucun verrouillage sécurisé (cas impossible à améliorer).
+                    if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
+                        biometricHelper.canUseDeviceCredential()
+                    ) {
+                        biometricHelper.authenticateStrongOrCredential(
                             title = context.getString(R.string.send_biometric_title),
                             subtitle = context.getString(
                                 R.string.send_biometric_subtitle,
