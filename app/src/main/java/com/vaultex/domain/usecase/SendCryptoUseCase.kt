@@ -320,9 +320,34 @@ class SendCryptoUseCase @Inject constructor(
         return addrHex.padStart(64, '0') + amountMicro.toString(16).padStart(64, '0')
     }
 
+    /**
+     * Sérialise un message Solana « legacy » pour un transfert natif SOL.
+     *
+     * IMPORTANT (m-04) : sérialiseur écrit à la main, volontairement limité
+     * au seul cas SystemProgram::Transfer. Les compteurs sont encodés sur un
+     * octet, ce qui est valide tant que toutes les valeurs restent < 128
+     * (compact-u16 / ShortVec) — ce qui est garanti ici (3 comptes, 1
+     * instruction, 12 octets de data). Les gardes ci-dessous échouent vite
+     * plutôt que de produire un message mal formé mais signé.
+     *
+     * Disposition exacte des octets :
+     *   [header]      numRequiredSignatures=1, numReadonlySigned=0, numReadonlyUnsigned=1
+     *   [comptes]     count=3, then from(signer,writable) | to(writable) | systemProgram(readonly)
+     *   [blockhash]   32 octets
+     *   [instructions] count=1
+     *     programIdIndex=2 (systemProgram)
+     *     accountCount=2, indices=[0(from), 1(to)]
+     *     dataLen=12
+     *     data = instruction(=2, Transfer, u32 LE) + lamports(u64 LE)
+     */
     private fun buildSolTransferMessage(
         from: ByteArray, to: ByteArray, recentBlockhash: ByteArray, lamports: Long
     ): ByteArray {
+        require(from.size == 32) { "Clé publique source Solana invalide (${from.size} octets)" }
+        require(to.size == 32) { "Clé publique destination Solana invalide (${to.size} octets)" }
+        require(recentBlockhash.size == 32) { "Blockhash Solana invalide (${recentBlockhash.size} octets)" }
+        require(lamports >= 0) { "Montant lamports négatif" }
+
         val out = ByteArrayOutputStream()
         val systemProgram = ByteArray(32)
         out.write(1); out.write(0); out.write(1)
