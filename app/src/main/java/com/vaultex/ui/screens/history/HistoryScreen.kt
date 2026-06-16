@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.R
+import com.vaultex.ui.components.HistoryListSkeleton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.HistoryViewModel
@@ -78,9 +79,7 @@ fun HistoryScreen(navController: NavController) {
             }
 
             if (isLoading && filtered.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = VaultExColors.BluePrimary)
-                }
+                HistoryListSkeleton()
             } else if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

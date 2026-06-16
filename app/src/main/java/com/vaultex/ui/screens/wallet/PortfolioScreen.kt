@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
+import com.vaultex.ui.components.PortfolioListSkeleton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentBlueDark
@@ -147,6 +148,10 @@ fun PortfolioScreen(navController: NavHostController) {
                             color = TextPrimary
                         )
                         Spacer(Modifier.height(4.dp))
+                        if (tokens.isEmpty() && state.isLoading) {
+                            Spacer(Modifier.height(8.dp))
+                            PortfolioListSkeleton()
+                        }
                         tokens.forEachIndexed { index, token ->
                             PortfolioTokenRow(
                                 token = token,

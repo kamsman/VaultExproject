@@ -34,7 +34,8 @@ object NetworkModule {
         val builder = OkHttpClient.Builder()
             // Fail-fast pour permettre le basculement RPC (#2)
             .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .writeTimeout(8, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             // Durcissement MITM : TLS 1.2+ uniquement (C-02)
             .connectionSpecs(

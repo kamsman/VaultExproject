@@ -19,7 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +74,15 @@ fun SendScreen(navController: NavController) {
     }
     val context = LocalContext.current as FragmentActivity
     val biometricHelper = remember { BiometricHelper(context) }
+    val haptic = LocalHapticFeedback.current
+
+    // Retour haptique de confirmation quand la transaction part (ou est mise en file)
+    LaunchedEffect(state.txHash) {
+        if (state.txHash != null) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+    LaunchedEffect(state.queued) {
+        if (state.queued) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
 
     val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB")
 
@@ -313,6 +324,7 @@ fun SendScreen(navController: NavController) {
 
             Button(
                 onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     val bioStatus = biometricHelper.checkAvailability()
                     // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
                     // Biométrie si disponible, sinon code de verrouillage de

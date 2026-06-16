@@ -1,5 +1,6 @@
 package com.vaultex.ui.screens.tokens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.R
+import com.vaultex.ui.components.TokenDetailSkeleton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.TokenDetailViewModel
@@ -55,10 +57,9 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
         },
         containerColor = VaultExColors.Background
     ) { padding ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = VaultExColors.BluePrimary)
-            }
+        Crossfade(targetState = state.isLoading, label = "token_detail_reveal") { loading ->
+        if (loading) {
+            TokenDetailSkeleton(Modifier.padding(padding))
         } else {
             Column(
                 Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
@@ -217,6 +218,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
 
                 Spacer(Modifier.height(16.dp))
             }
+        }
         }
     }
 }
