@@ -32,13 +32,13 @@ import java.util.Locale
 @Composable
 fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin") {
     val viewModel: MarketViewModel = hiltViewModel()
-    val markets by viewModel.markets.collectAsState()
+    val coin by viewModel.coin.collectAsState()
+    val coinLoading by viewModel.coinLoading.collectAsState()
+    val coinError by viewModel.coinError.collectAsState()
 
-    LaunchedEffect(Unit) {
-        if (markets.isEmpty()) viewModel.loadMarkets()
-    }
+    // Charge UNIQUEMENT cette pièce (appel léger), pas toute la liste marché.
+    LaunchedEffect(coinId) { viewModel.loadCoin(coinId) }
 
-    val coin = markets.find { it.id == coinId }
     val chart by viewModel.chart.collectAsState()
     val chartLoading by viewModel.chartLoading.collectAsState()
     val periods = listOf("24H", "7J", "1M", "1A")
@@ -69,9 +69,22 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         },
         containerColor = BgSecondary
     ) { padding ->
-        if (coin == null) {
+        val c = coin
+        if (c == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AccentBlue)
+                if (coinError) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.coin_load_error), color = TextMuted, fontSize = 13.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { viewModel.loadCoin(coinId) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        ) { Text(stringResource(R.string.history_refresh)) }
+                    }
+                } else {
+                    CircularProgressIndicator(color = AccentBlue)
+                }
             }
             return@Scaffold
         }
@@ -79,7 +92,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         val usdFmt = remember {
             NumberFormat.getNumberInstance(Locale.FRANCE).apply { maximumFractionDigits = 2 }
         }
-        val symbol = coin.symbol.uppercase()
+        val symbol = c.symbol.uppercase()
 
         Column(
             modifier = Modifier
@@ -99,19 +112,19 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "$" + usdFmt.format(coin.currentPrice),
+                "$" + usdFmt.format(c.currentPrice),
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )
             Spacer(Modifier.height(6.dp))
-            val positive = coin.change24h >= 0
+            val positive = c.change24h >= 0
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = if (positive) AccentGreen.copy(alpha = 0.12f) else AccentRed.copy(alpha = 0.12f)
             ) {
                 Text(
-                    "%+.2f%%".format(coin.change24h),
+                    "%+.2f%%".format(c.change24h),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -170,12 +183,12 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             // Cartes de stats 2×2
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(stringResource(R.string.market_cap), "$" + compact(coin.marketCap), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_volume_label), "$" + compact(coin.volume24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.market_cap), "$" + compact(c.marketCap), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_volume_label), "$" + compact(c.volume24h), Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(stringResource(R.string.coin_high_24h), "$" + usdFmt.format(coin.high24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_low_24h), "$" + usdFmt.format(coin.low24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_high_24h), "$" + usdFmt.format(c.high24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_low_24h), "$" + usdFmt.format(c.low24h), Modifier.weight(1f))
                 }
             }
 

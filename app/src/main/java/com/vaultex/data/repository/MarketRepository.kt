@@ -14,6 +14,14 @@ class MarketRepository @Inject constructor(
         return api.getMarkets(vsCurrency = "xof")
     }
 
+    /**
+     * Données marché d'UNE seule pièce (appel léger, pour l'écran détail).
+     * En USD : l'écran détail affiche en $ et son graphique est déjà en USD.
+     */
+    suspend fun getMarket(coinId: String): List<CoinGeckoMarketDto> {
+        return api.getMarkets(vsCurrency = "usd", sparkline = false, ids = coinId)
+    }
+
     /** Courbe de prix d'un token sur [days] jours (CoinGecko market_chart). */
     suspend fun getMarketChart(coinId: String, days: Int): CoinGeckoChartDto {
         return api.getMarketChart(coinId, days = days)

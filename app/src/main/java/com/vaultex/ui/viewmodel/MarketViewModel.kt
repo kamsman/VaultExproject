@@ -23,6 +23,37 @@ class MarketViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // ─── Détail d'UNE pièce (écran CoinDetail) ─────────────────
+    private val _coin = MutableStateFlow<CoinGeckoMarketDto?>(null)
+    val coin: StateFlow<CoinGeckoMarketDto?> = _coin
+
+    private val _coinLoading = MutableStateFlow(false)
+    val coinLoading: StateFlow<Boolean> = _coinLoading
+
+    private val _coinError = MutableStateFlow(false)
+    val coinError: StateFlow<Boolean> = _coinError
+
+    /**
+     * Charge UNIQUEMENT la pièce demandée (appel léger via ids=), au lieu de
+     * re-télécharger toute la liste marché. Échec/réseau ⇒ coinError = true
+     * (l'écran montre « réessayer » au lieu d'un spinner infini).
+     */
+    fun loadCoin(coinId: String) {
+        viewModelScope.launch {
+            _coinLoading.value = true
+            _coinError.value = false
+            try {
+                val result = withContext(Dispatchers.IO) { repository.getMarket(coinId) }
+                _coin.value = result.firstOrNull()
+                _coinError.value = (_coin.value == null)
+            } catch (e: Exception) {
+                _coinError.value = true
+            } finally {
+                _coinLoading.value = false
+            }
+        }
+    }
+
     // ─── Courbe de prix (détail token) ─────────────────────────
     private val _chart = MutableStateFlow<List<Float>>(emptyList())
     val chart: StateFlow<List<Float>> = _chart

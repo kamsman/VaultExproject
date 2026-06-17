@@ -95,7 +95,8 @@ interface CoinGeckoApi {
         @Query("per_page") perPage: Int = 100,
         @Query("page") page: Int = 1,
         @Query("sparkline") sparkline: Boolean = true,
-        @Query("price_change_percentage") priceChangeRanges: String = "24h"
+        @Query("price_change_percentage") priceChangeRanges: String = "24h",
+        @Query("ids") ids: String? = null   // filtre optionnel : 1 ou plusieurs coins
     ): List<CoinGeckoMarketDto>
 
     @GET("coins/{id}/market_chart")
