@@ -22,8 +22,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
+import com.vaultex.data.remote.dto.CoinGeckoMarketDto
+import com.vaultex.ui.components.HistoryListSkeleton
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
@@ -36,6 +39,9 @@ import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.MarketViewModel
+import java.text.NumberFormat
+import java.util.Locale
 import kotlin.random.Random
 
 private data class CoinRow(
@@ -53,15 +59,25 @@ private enum class MarketFilter { ALL, GAINERS, LOSERS }
 @Composable
 fun MarketScreen(navController: NavHostController) {
 
-    val coins = listOf(
-        CoinRow("bitcoin", "Bitcoin", "BTC", "34 210 000", 2.4, "674 Md", VaultExColors.BitcoinOrange),
-        CoinRow("ethereum", "Ethereum", "ETH", "2 776 000", 3.1, "333 Md", VaultExColors.EthereumBlue),
-        CoinRow("binancecoin", "BNB", "BNB", "398 000", -0.8, "58 Md", VaultExColors.BnbYellow),
-        CoinRow("solana", "Solana", "SOL", "62 500", 7.2, "28 Md", VaultExColors.SolanaGreen),
-        CoinRow("tron", "Tron", "TRX", "152", 5.1, "13 Md", VaultExColors.TronRed),
-        CoinRow("tether", "Tether", "USDT", "655", 0.01, "111 Md", Color(0xFF26A17B)),
-        CoinRow("usd-coin", "USD Coin", "USDC", "655", 0.0, "32 Md", Color(0xFF2775CA)),
-    )
+    val viewModel: MarketViewModel = hiltViewModel()
+    val markets by viewModel.markets.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadMarkets() }
+
+    // Données live CoinGecko (en XOF) ; repli sur une liste statique en cas d'échec.
+    val liveCoins = markets.map { dto ->
+        CoinRow(
+            id = dto.id,
+            name = dto.name,
+            symbol = dto.symbol.uppercase(),
+            priceXof = formatMarketXof(dto.currentPrice),
+            change24h = dto.change24h,
+            marketCap = "",
+            color = marketColor(dto.symbol)
+        )
+    }
+    val coins = if (liveCoins.isNotEmpty()) liveCoins else FALLBACK_COINS
 
     var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
@@ -120,13 +136,17 @@ fun MarketScreen(navController: NavHostController) {
                 FilterPill(stringResource(R.string.market_filter_losers), filter == MarketFilter.LOSERS) { filter = MarketFilter.LOSERS }
             }
 
-            // ─── Liste des cryptos ───
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(filtered, key = { it.id }) { coin ->
-                    CoinCard(coin) { navController.navigate(Routes.coinDetail(coin.id)) }
+            // ─── Liste des cryptos (skeleton au 1er chargement) ───
+            if (isLoading && markets.isEmpty()) {
+                HistoryListSkeleton()
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filtered, key = { it.id }) { coin ->
+                        CoinCard(coin) { navController.navigate(Routes.coinDetail(coin.id)) }
+                    }
                 }
             }
         }
@@ -218,3 +238,31 @@ private fun MiniSparkline(seed: Int, color: Color, modifier: Modifier = Modifier
         drawPath(path, color = color, style = Stroke(width = 2.5f))
     }
 }
+
+/** Prix en FCFA : grands nombres sans décimale, petits montants à 2 décimales. */
+private fun formatMarketXof(value: Double): String =
+    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+        maximumFractionDigits = if (value < 100) 2 else 0
+    }.format(value)
+
+private fun marketColor(symbol: String): Color = when (symbol.uppercase()) {
+    "BTC"  -> VaultExColors.BitcoinOrange
+    "ETH"  -> VaultExColors.EthereumBlue
+    "BNB"  -> VaultExColors.BnbYellow
+    "SOL"  -> VaultExColors.SolanaGreen
+    "TRX"  -> VaultExColors.TronRed
+    "USDT" -> Color(0xFF26A17B)
+    "USDC" -> Color(0xFF2775CA)
+    else   -> Color(0xFF1A6FE8)
+}
+
+/** Repli affiché si l'appel CoinGecko échoue (jamais d'écran vide). */
+private val FALLBACK_COINS = listOf(
+    CoinRow("bitcoin", "Bitcoin", "BTC", "34 210 000", 2.4, "", VaultExColors.BitcoinOrange),
+    CoinRow("ethereum", "Ethereum", "ETH", "2 776 000", 3.1, "", VaultExColors.EthereumBlue),
+    CoinRow("binancecoin", "BNB", "BNB", "398 000", -0.8, "", VaultExColors.BnbYellow),
+    CoinRow("solana", "Solana", "SOL", "62 500", 7.2, "", VaultExColors.SolanaGreen),
+    CoinRow("tron", "Tron", "TRX", "152", 5.1, "", VaultExColors.TronRed),
+    CoinRow("tether", "Tether", "USDT", "655", 0.01, "", Color(0xFF26A17B)),
+    CoinRow("usd-coin", "USD Coin", "USDC", "655", 0.0, "", Color(0xFF2775CA)),
+)

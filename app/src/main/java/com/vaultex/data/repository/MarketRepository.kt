@@ -10,7 +10,8 @@ class MarketRepository @Inject constructor(
 ) {
 
     suspend fun getMarkets(): List<CoinGeckoMarketDto> {
-        return api.getMarkets()
+        // L'écran Marché affiche en FCFA : on demande directement les prix en XOF.
+        return api.getMarkets(vsCurrency = "xof")
     }
 
     /** Courbe de prix d'un token sur [days] jours (CoinGecko market_chart). */
