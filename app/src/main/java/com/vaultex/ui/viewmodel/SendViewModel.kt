@@ -3,6 +3,8 @@ package com.vaultex.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.R
+import com.vaultex.core.security.SecureStorage
 import com.vaultex.core.session.NetworkMonitor
 import com.vaultex.core.validation.AddressValidator
 import com.vaultex.data.local.dao.PendingSendDao
@@ -25,24 +27,41 @@ data class SendState(
     val txHash: String? = null,
     val error: String? = null,
     val queued: Boolean = false,
-    val dustWarning: String? = null
+    val dustWarning: String? = null,
+    // Solde disponible de la chaîne sélectionnée (lu depuis le cache portefeuille).
+    val availableBalance: String? = null
 )
 
 @HiltViewModel
 class SendViewModel @Inject constructor(
     private val sendCryptoUseCase: SendCryptoUseCase,
     private val pendingSendDao: PendingSendDao,
+    private val secureStorage: SecureStorage,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
 
+    private val gson = com.google.gson.Gson()
+
+    init {
+        _state.update { it.copy(availableBalance = availableFor(it.selectedChain)) }
+    }
+
     fun setChain(chain: String) {
         val addr = _state.value.toAddress
         val valid = if (addr.isEmpty()) false else AddressValidator.isValid(addr, chain)
         val warning = dustWarning(chain, _state.value.amount)
-        _state.update { it.copy(selectedChain = chain, isAddressValid = valid, error = null, dustWarning = warning) }
+        _state.update {
+            it.copy(
+                selectedChain = chain,
+                isAddressValid = valid,
+                error = null,
+                dustWarning = warning,
+                availableBalance = availableFor(chain)
+            )
+        }
     }
 
     fun setToAddress(address: String) {
@@ -53,7 +72,21 @@ class SendViewModel @Inject constructor(
 
     fun setAmount(amount: String) {
         val warning = dustWarning(_state.value.selectedChain, amount)
-        _state.update { it.copy(amount = amount, dustWarning = warning) }
+        _state.update { it.copy(amount = amount, dustWarning = warning, error = null) }
+    }
+
+    /**
+     * Bouton MAX : remplit le montant avec le solde disponible de la chaîne.
+     * Si aucun solde connu (ou 0), affiche un message explicite plutôt que rien.
+     */
+    fun onMaxClicked() {
+        val bal = availableFor(_state.value.selectedChain)
+        val value = bal?.toDoubleOrNull()
+        if (value == null || value <= 0.0) {
+            _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
+        } else {
+            setAmount(bal)
+        }
     }
 
     private fun dustWarning(chain: String, amount: String): String? {
@@ -61,6 +94,37 @@ class SendViewModel @Inject constructor(
         val minimum = MINIMUM_AMOUNTS[chain] ?: return null
         return if (value < minimum) "$minimum $chain" else null
     }
+
+    /** Lit le solde de [chain] dans l'instantané portefeuille (aucun appel réseau). */
+    private fun availableFor(chain: String): String? {
+        val json = secureStorage.getPortfolioSnapshot() ?: return null
+        return try {
+            val snap = gson.fromJson(json, SnapshotLite::class.java) ?: return null
+            val raw = snap.tokens?.firstOrNull { it.symbol == chain }?.amountFormatted ?: return null
+            val numeric = raw.substringBefore(" ").replace(" ", "").replace(",", ".")
+            if (numeric.toDoubleOrNull() != null) numeric else null
+        } catch (_: Exception) { null }
+    }
+
+    /** Traduit un message d'erreur technique en message utilisateur clair. */
+    private fun friendlyError(raw: String?): String {
+        val m = (raw ?: "").lowercase()
+        return when {
+            m.contains("insufficient funds") || m.contains("overshot") || m.contains("tx cost") ->
+                appContext.getString(R.string.send_err_insufficient)
+            m.contains("nonce") ->
+                appContext.getString(R.string.send_err_nonce)
+            m.contains("underpriced") || m.contains("fee too low") || m.contains("gas price") ->
+                appContext.getString(R.string.send_err_fee)
+            m.contains("timeout") || m.contains("timed out") ||
+                m.contains("unable to resolve host") || m.contains("failed to connect") ->
+                appContext.getString(R.string.send_err_network)
+            else -> appContext.getString(R.string.send_err_generic)
+        }
+    }
+
+    private data class SnapshotLite(val tokens: List<TokenLite>?)
+    private data class TokenLite(val symbol: String = "", val amountFormatted: String = "")
 
     companion object {
         private val MINIMUM_AMOUNTS = mapOf(
@@ -101,7 +165,7 @@ class SendViewModel @Inject constructor(
                     PendingSendWorker.enqueue(appContext)
                     _state.update { it.copy(queued = true, error = null) }
                 } catch (e: Exception) {
-                    _state.update { it.copy(error = e.message ?: "Erreur de mise en file") }
+                    _state.update { it.copy(error = friendlyError(e.message)) }
                 }
             }
             return
@@ -112,7 +176,7 @@ class SendViewModel @Inject constructor(
             val result = sendCryptoUseCase.sendByChain(s.selectedChain, s.toAddress, s.amount)
             when (result) {
                 is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.txHash) }
-                is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = result.message) }
+                is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
             }
         }
     }

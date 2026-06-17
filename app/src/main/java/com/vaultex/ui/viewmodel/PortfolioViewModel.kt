@@ -141,6 +141,10 @@ class PortfolioViewModel @Inject constructor(
                     } catch (_: Exception) { emptyMap() }
                 }
 
+                // Dernier état connu : si une lecture échoue, on RÉUTILISE la
+                // valeur en cache au lieu de la remettre à 0 (fonds jamais perdus).
+                val prevBySymbol = _state.value.tokens.associateBy { it.symbol }
+                var anyStale = false
                 val tokens = coroutineScope {
                     val btcD     = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
                     val ethD     = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
@@ -158,25 +162,34 @@ class PortfolioViewModel @Inject constructor(
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
-                    // "—" si la lecture a échoué (null) ; sinon le montant formaté.
                     fun amt(bal: Double?, decimals: Int, unit: String) =
                         if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
-                    // 0 si lecture échouée pour ne pas fausser à la hausse le total.
                     fun value(bal: Double?, price: Double) = (bal ?: 0.0) * price
+                    // Lecture échouée (null) → on garde le token précédent (dernier
+                    // solde connu) ; jamais de remise à zéro silencieuse.
+                    fun build(symbol: String, name: String, bal: Double?, decimals: Int, unit: String,
+                              id: String, color: String, chain: Blockchain): TokenBalance {
+                        if (bal == null) {
+                            anyStale = true
+                            prevBySymbol[symbol]?.let { return it }
+                        }
+                        return TokenBalance(symbol, name, amt(bal, decimals, unit),
+                            value(bal, xof(id)), c(id), color, chain, valueUsd = value(bal, usd(id)))
+                    }
                     listOf(
-                        TokenBalance("BTC",      "Bitcoin",     amt(btc, 6, "BTC"),      value(btc, xof("bitcoin")),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN,  valueUsd = value(btc, usd("bitcoin"))),
-                        TokenBalance("ETH",      "Ethereum",    amt(eth, 6, "ETH"),      value(eth, xof("ethereum")),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM, valueUsd = value(eth, usd("ethereum"))),
-                        TokenBalance("BNB",      "BNB",         amt(bnb, 4, "BNB"),      value(bnb, xof("binancecoin")), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN, valueUsd = value(bnb, usd("binancecoin"))),
-                        TokenBalance("SOL",      "Solana",      amt(sol, 4, "SOL"),      value(sol, xof("solana")),      c("solana"),      "#9945FF", Blockchain.SOLANA,   valueUsd = value(sol, usd("solana"))),
-                        TokenBalance("TRX",      "Tron",        amt(trx, 2, "TRX"),      value(trx, xof("tron")),        c("tron"),        "#FF060A", Blockchain.TRON,     valueUsd = value(trx, usd("tron"))),
-                        TokenBalance("USDT",     "Tether TRC20", amt(usdtTrc, 2, "USDT"), value(usdtTrc, xof("tether")),  c("tether"),      "#26A17B", Blockchain.TRON,     valueUsd = value(usdtTrc, usd("tether"))),
-                        TokenBalance("USDT-ETH", "Tether ERC20", amt(usdtEth, 2, "USDT"), value(usdtEth, xof("tether")),  c("tether"),      "#26A17B", Blockchain.ETHEREUM, valueUsd = value(usdtEth, usd("tether"))),
-                        TokenBalance("USDT-BNB", "Tether BEP20", amt(usdtBnb, 2, "USDT"), value(usdtBnb, xof("tether")),  c("tether"),      "#26A17B", Blockchain.BNB_CHAIN, valueUsd = value(usdtBnb, usd("tether"))),
+                        build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),
+                        build("ETH",      "Ethereum",     eth,     6, "ETH",  "ethereum",    "#627EEA", Blockchain.ETHEREUM),
+                        build("BNB",      "BNB",          bnb,     4, "BNB",  "binancecoin", "#F0B90B", Blockchain.BNB_CHAIN),
+                        build("SOL",      "Solana",       sol,     4, "SOL",  "solana",      "#9945FF", Blockchain.SOLANA),
+                        build("TRX",      "Tron",         trx,     2, "TRX",  "tron",        "#FF060A", Blockchain.TRON),
+                        build("USDT",     "Tether TRC20", usdtTrc, 2, "USDT", "tether",      "#26A17B", Blockchain.TRON),
+                        build("USDT-ETH", "Tether ERC20", usdtEth, 2, "USDT", "tether",      "#26A17B", Blockchain.ETHEREUM),
+                        build("USDT-BNB", "Tether BEP20", usdtBnb, 2, "USDT", "tether",      "#26A17B", Blockchain.BNB_CHAIN),
                     )
                 }
 
-                // "—" comme montant ⇒ au moins une lecture de solde a échoué.
-                val balancesUnavailable = tokens.any { it.amountFormatted.startsWith("—") }
+                // Au moins une lecture a échoué (réseau/RPC) → affichage depuis le cache.
+                val balancesUnavailable = anyStale
                 val total = tokens.sumOf { it.valueXof }
                 val totalUsd = tokens.sumOf { it.valueUsd }
                 // Value-weighted 24h change: each token weighted by its XOF value
@@ -189,10 +202,12 @@ class PortfolioViewModel @Inject constructor(
                     totalChangePercent = avgChange,
                     isLoading = false,
                     error = if (balancesUnavailable)
-                        "Certains soldes n'ont pas pu être lus (réseau/RPC). Les fonds reçus sont en sécurité on-chain ; réessaie."
+                        "Soldes affichés depuis le cache (réseau indisponible). Réessaie pour mettre à jour."
                     else null,
-                    lastUpdated = System.currentTimeMillis(),
-                    isFromCache = false,
+                    // Si rien n'a pu être rafraîchi, on reste « en cache » et on
+                    // conserve l'horodatage précédent (pas de fausse fraîcheur).
+                    lastUpdated = if (balancesUnavailable) _state.value.lastUpdated else System.currentTimeMillis(),
+                    isFromCache = balancesUnavailable,
                     balancesUnavailable = balancesUnavailable
                 )
                 _state.value = newState

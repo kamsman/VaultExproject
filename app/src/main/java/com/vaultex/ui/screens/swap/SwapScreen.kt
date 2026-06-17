@@ -74,6 +74,14 @@ fun SwapScreen(navController: NavHostController) {
 
     val tokens = listOf("ETH", "BNB", "USDT", "BTC", "SOL", "TRX")
 
+    // Pré-sélection « De » depuis la page d'une crypto (#4).
+    LaunchedEffect(Unit) {
+        com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
+            val t = if (sym == "USDT-ETH" || sym == "USDT-BNB") "USDT" else sym
+            if (t in tokens) viewModel.setFromToken(t)
+        }
+    }
+
     // Résultat du swap : afficher la payin address
     if (state.payinAddress != null) {
         AlertDialog(

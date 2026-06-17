@@ -171,7 +171,10 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
-                        onClick = { navController.navigate(Routes.SEND) },
+                        onClick = {
+                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                            navController.navigate(Routes.SEND)
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
@@ -181,7 +184,10 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                         Text(stringResource(R.string.action_send))
                     }
                     OutlinedButton(
-                        onClick = { navController.navigate(Routes.RECEIVE) },
+                        onClick = {
+                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                            navController.navigate(Routes.RECEIVE)
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -197,7 +203,10 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { navController.navigate(Routes.SWAP) },
+                        onClick = {
+                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                            navController.navigate(Routes.SWAP)
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {

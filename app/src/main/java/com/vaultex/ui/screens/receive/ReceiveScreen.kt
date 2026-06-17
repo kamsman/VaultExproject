@@ -53,6 +53,19 @@ fun ReceiveScreen(navController: NavController) {
 
     val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL")
     var selectedChain by remember { mutableStateOf("ETH") }
+
+    // Pré-sélection depuis la page d'une crypto (#4). USDT mappé vers sa chaîne.
+    LaunchedEffect(Unit) {
+        com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
+            val chain = when (sym) {
+                "USDT" -> "TRX"
+                "USDT-ETH" -> "ETH"
+                "USDT-BNB" -> "BNB"
+                else -> sym
+            }
+            if (chain in chains) selectedChain = chain
+        }
+    }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

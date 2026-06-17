@@ -53,11 +53,19 @@ fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
 
-    // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse)
+    // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse).
+    // Sinon, pré-sélection de la chaîne depuis la page d'une crypto (#4).
     LaunchedEffect(Unit) {
-        com.vaultex.core.session.DeepLinkBuffer.consume()?.let { target ->
+        val target = com.vaultex.core.session.DeepLinkBuffer.consume()
+        if (target != null) {
             viewModel.setChain(target.chain)
             viewModel.setToAddress(target.address)
+        } else {
+            com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
+                if (sym in listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB")) {
+                    viewModel.setChain(sym)
+                }
+            }
         }
     }
 
@@ -308,12 +316,27 @@ fun SendScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        state.availableBalance
+                            ?.let { stringResource(R.string.send_balance_label, "$it ${state.selectedChain}") }
+                            ?: stringResource(R.string.send_balance_label, "—"),
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
                     Text(
                         stringResource(R.string.max_label),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AccentBlue
+                        color = AccentBlue,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { viewModel.onMaxClicked() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }

@@ -197,7 +197,10 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             // Boutons d'action
             Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { navController.navigate(Routes.SWAP) },
+                    onClick = {
+                        com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                        navController.navigate(Routes.SWAP)
+                    },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
@@ -205,7 +208,10 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     Text(stringResource(R.string.coin_buy_swap), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
                 OutlinedButton(
-                    onClick = { navController.navigate(Routes.RECEIVE) },
+                    onClick = {
+                        com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                        navController.navigate(Routes.RECEIVE)
+                    },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue)
