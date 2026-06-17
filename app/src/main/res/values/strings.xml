@@ -378,9 +378,7 @@
     <string name="send_biometric_subtitle">Envoi de %1$s %2$s vers %3$s…</string>
     <string name="send_dust_warning">Montant inférieur au minimum recommandé (%1$s). La transaction risque d\'être rejetée par le réseau.</string>
     <string name="wallet_management_title">Mes wallets</string>
-    <string name="security_setup_title">Sécurité</string>
     <string name="swap_result_title">Swap effectué</string>
-    <string name="add_token_title">Ajouter un token</string>
     <string name="send_result_title">Transaction</string>
     <string name="send_confirm_recap_title">Vérifiez votre envoi</string>
     <string name="send_confirm_network">Réseau</string>

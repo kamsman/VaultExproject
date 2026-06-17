@@ -378,9 +378,7 @@
     <string name="send_biometric_subtitle">إرسال %1$s %2$s إلى %3$s…</string>
     <string name="send_dust_warning">المبلغ أقل من الحد الأدنى الموصى به (%1$s). قد يتم رفض المعاملة من قبل الشبكة.</string>
     <string name="wallet_management_title">محافظي</string>
-    <string name="security_setup_title">الأمان</string>
     <string name="swap_result_title">تم التبادل</string>
-    <string name="add_token_title">إضافة رمز</string>
     <string name="send_result_title">معاملة</string>
     <string name="send_confirm_recap_title">راجع تحويلك</string>
     <string name="send_confirm_network">الشبكة</string>
