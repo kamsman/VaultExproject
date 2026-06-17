@@ -77,16 +77,30 @@ class SendViewModel @Inject constructor(
 
     /**
      * Bouton MAX : remplit le montant avec le solde disponible de la chaîne.
-     * Si aucun solde connu (ou 0), affiche un message explicite plutôt que rien.
+     * Pour une monnaie NATIVE (BNB/ETH/BTC/SOL/TRX), on retranche une petite
+     * réserve pour couvrir les frais de réseau (sinon l'envoi du solde entier
+     * est refusé faute de gas). Pour un token (USDT*), gas payé en natif → on
+     * peut envoyer tout le solde. Si aucun solde connu, message explicite.
      */
     fun onMaxClicked() {
-        val bal = availableFor(_state.value.selectedChain)
-        val value = bal?.toDoubleOrNull()
-        if (value == null || value <= 0.0) {
+        val chain = _state.value.selectedChain
+        val balance = availableFor(chain)?.toBigDecimalOrNull()
+        if (balance == null || balance.signum() <= 0) {
             _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
-        } else {
-            setAmount(bal)
+            return
         }
+        val reserve = NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
+            ?: java.math.BigDecimal.ZERO
+        val spendable = balance.subtract(reserve)
+        if (spendable.signum() <= 0) {
+            _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
+            return
+        }
+        setAmount(
+            spendable.setScale(8, java.math.RoundingMode.DOWN)
+                .stripTrailingZeros()
+                .toPlainString()
+        )
     }
 
     private fun dustWarning(chain: String, amount: String): String? {
@@ -127,6 +141,17 @@ class SendViewModel @Inject constructor(
     private data class TokenLite(val symbol: String = "", val amountFormatted: String = "")
 
     companion object {
+        // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que
+        // l'envoi « tout le solde » couvre le gas. Valeurs volontairement
+        // prudentes ; les tokens (USDT*) ne sont pas listés (gas payé en natif).
+        private val NATIVE_FEE_RESERVE = mapOf(
+            "BTC" to 0.0003,
+            "ETH" to 0.0008,
+            "BNB" to 0.0002,
+            "SOL" to 0.0001,
+            "TRX" to 2.0
+        )
+
         private val MINIMUM_AMOUNTS = mapOf(
             "BTC"      to 0.00000546,
             "ETH"      to 0.0001,

@@ -179,7 +179,7 @@ class PortfolioViewModel @Inject constructor(
                     listOf(
                         build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),
                         build("ETH",      "Ethereum",     eth,     6, "ETH",  "ethereum",    "#627EEA", Blockchain.ETHEREUM),
-                        build("BNB",      "BNB",          bnb,     4, "BNB",  "binancecoin", "#F0B90B", Blockchain.BNB_CHAIN),
+                        build("BNB",      "BNB",          bnb,     6, "BNB",  "binancecoin", "#F0B90B", Blockchain.BNB_CHAIN),
                         build("SOL",      "Solana",       sol,     4, "SOL",  "solana",      "#9945FF", Blockchain.SOLANA),
                         build("TRX",      "Tron",         trx,     2, "TRX",  "tron",        "#FF060A", Blockchain.TRON),
                         build("USDT",     "Tether TRC20", usdtTrc, 2, "USDT", "tether",      "#26A17B", Blockchain.TRON),
@@ -211,9 +211,12 @@ class PortfolioViewModel @Inject constructor(
                     balancesUnavailable = balancesUnavailable
                 )
                 _state.value = newState
-                // On NE persiste PAS un instantané partiel : on garde le dernier
-                // cache complet plutôt que d'écraser avec des soldes incomplets.
-                if (!balancesUnavailable) persistSnapshot(newState)
+                // On persiste TOUJOURS : la fusion ci-dessus a déjà réinjecté le
+                // dernier solde connu pour les chaînes en échec, donc l'instantané
+                // n'est jamais « pire » que le précédent. Indispensable pour que
+                // l'écran Envoi (bouton Max) retrouve le solde même si une autre
+                // chaîne a échoué.
+                persistSnapshot(newState)
             } catch (e: Exception) {
                 // Offline-first : on conserve les données en cache, on signale juste l'erreur.
                 _state.update { it.copy(isLoading = false, error = e.message, isFromCache = it.lastUpdated > 0L) }
