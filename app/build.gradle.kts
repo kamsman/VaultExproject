@@ -88,6 +88,11 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
             excludes += "/META-INF/NOTICE*"
+            // Doublons apportés par les jars netty (transitifs de web3j)
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
+            excludes += "/META-INF/native-image/**"
+            excludes += "/META-INF/versions/**"
         }
     }
 }
