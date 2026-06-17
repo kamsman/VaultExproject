@@ -25,12 +25,12 @@ fun WalletManagementScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mes wallets", color = TextPrimary) },
+                title = { Text(stringResource(R.string.wallet_management_title), color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }

@@ -75,6 +75,7 @@ fun SendScreen(navController: NavController) {
     val context = LocalContext.current as FragmentActivity
     val biometricHelper = remember { BiometricHelper(context) }
     val haptic = LocalHapticFeedback.current
+    var showConfirm by remember { mutableStateOf(false) }
 
     // Retour haptique de confirmation quand la transaction part (ou est mise en file)
     LaunchedEffect(state.txHash) {
@@ -135,6 +136,66 @@ fun SendScreen(navController: NavController) {
             confirmButton = {
                 TextButton(onClick = { viewModel.reset(); navController.popBackStack() }) {
                     Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
+    // Écran de confirmation : récap clair (réseau / adresse / montant / frais
+    // / total) AVANT la ré-authentification et l'envoi.
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            icon = { Icon(Icons.Default.Send, null, tint = AccentBlue) },
+            title = { Text(stringResource(R.string.send_confirm_recap_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ConfirmRow(stringResource(R.string.send_confirm_network), state.selectedChain)
+                    ConfirmRow(stringResource(R.string.send_recipient_label), shortenAddress(state.toAddress))
+                    ConfirmRow(stringResource(R.string.amount), "${state.amount} ${state.selectedChain}")
+                    ConfirmRow(stringResource(R.string.send_fee_estimate_label).trimEnd(' ', ':'), feeEstimate)
+                    HorizontalDivider(color = BorderColor)
+                    ConfirmRow(
+                        stringResource(R.string.send_confirm_total),
+                        "${state.amount} ${state.selectedChain} + ${feeEstimate}",
+                        emphasize = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirm = false
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
+                        // Biométrie si disponible, sinon code de verrouillage de
+                        // l'appareil. On n'envoie sans auth que si l'appareil n'a
+                        // aucun verrouillage sécurisé (cas impossible à améliorer).
+                        val bioStatus = biometricHelper.checkAvailability()
+                        if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
+                            biometricHelper.canUseDeviceCredential()
+                        ) {
+                            biometricHelper.authenticateStrongOrCredential(
+                                title = context.getString(R.string.send_biometric_title),
+                                subtitle = context.getString(
+                                    R.string.send_biometric_subtitle,
+                                    state.amount, state.selectedChain, state.toAddress.take(12)
+                                ),
+                                onSuccess = { viewModel.send() },
+                                onError = { _, _ -> /* annulé/erreur — reste sur l'écran */ }
+                            )
+                        } else {
+                            viewModel.send()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    Text(stringResource(R.string.send_confirm_cta))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -325,28 +386,8 @@ fun SendScreen(navController: NavController) {
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    val bioStatus = biometricHelper.checkAvailability()
-                    // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
-                    // Biométrie si disponible, sinon code de verrouillage de
-                    // l'appareil. On n'envoie sans auth que si l'appareil n'a
-                    // aucun verrouillage sécurisé (cas impossible à améliorer).
-                    if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
-                        biometricHelper.canUseDeviceCredential()
-                    ) {
-                        biometricHelper.authenticateStrongOrCredential(
-                            title = context.getString(R.string.send_biometric_title),
-                            subtitle = context.getString(
-                                R.string.send_biometric_subtitle,
-                                state.amount, state.selectedChain, state.toAddress.take(12)
-                            ),
-                            onSuccess = { viewModel.send() },
-                            onError = { _, _ ->
-                                // user cancelled or error — no-op, stays on screen
-                            }
-                        )
-                    } else {
-                        viewModel.send()
-                    }
+                    // Étape de confirmation explicite (récap) avant la ré-auth.
+                    showConfirm = true
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -438,3 +479,23 @@ internal fun SendField(
         }
     )
 }
+
+@Composable
+private fun ConfirmRow(label: String, value: String, emphasize: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 13.sp, color = TextSecondary)
+        Text(
+            value,
+            fontSize = 13.sp,
+            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (emphasize) AccentBlue else TextPrimary
+        )
+    }
+}
+
+private fun shortenAddress(a: String): String =
+    if (a.length <= 14) a else "${a.take(8)}…${a.takeLast(6)}"

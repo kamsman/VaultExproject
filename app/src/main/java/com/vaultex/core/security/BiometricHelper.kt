@@ -4,6 +4,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.vaultex.R
 
 /**
  * Gestion de l'authentification biométrique avec BiometricPrompt.
@@ -71,7 +72,7 @@ class BiometricHelper(private val activity: FragmentActivity) {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setNegativeButtonText("Annuler")
+            .setNegativeButtonText(activity.getString(R.string.cancel))
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .setConfirmationRequired(true)
             .build()
@@ -114,7 +115,7 @@ class BiometricHelper(private val activity: FragmentActivity) {
         if (biometricAvailable) {
             // BIOMETRIC_STRONG impose un bouton négatif explicite.
             builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                .setNegativeButtonText("Annuler")
+                .setNegativeButtonText(activity.getString(R.string.cancel))
         } else {
             // DEVICE_CREDENTIAL : pas de bouton négatif autorisé par l'API.
             builder.setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL)

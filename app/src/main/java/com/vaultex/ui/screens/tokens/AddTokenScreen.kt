@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 
@@ -11,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 
+import com.vaultex.R
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.TextPrimary
 
@@ -21,12 +23,12 @@ fun AddTokenScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ajouter token", color = TextPrimary) },
+                title = { Text(stringResource(R.string.add_token_title), color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -47,7 +49,7 @@ fun AddTokenScreen(navController: NavHostController) {
         ) {
 
             Text(
-                text = "Adresse contrat custom",
+                text = stringResource(R.string.add_token_custom_contract),
                 color = TextPrimary
             )
         }
