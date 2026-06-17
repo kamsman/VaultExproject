@@ -41,7 +41,11 @@ data class PortfolioState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val lastUpdated: Long = 0L,   // epoch ms de la dernière synchro réussie (#5)
-    val isFromCache: Boolean = false
+    val isFromCache: Boolean = false,
+    // Vrai si au moins un solde n'a pas pu être lu (réseau/RPC). Permet de ne
+    // JAMAIS confondre « lecture échouée » avec « solde nul » (fonds reçus mais
+    // invisibles parce que le nœud public a rejeté l'appel).
+    val balancesUnavailable: Boolean = false
 )
 
 @HiltViewModel
@@ -154,18 +158,25 @@ class PortfolioViewModel @Inject constructor(
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
+                    // "—" si la lecture a échoué (null) ; sinon le montant formaté.
+                    fun amt(bal: Double?, decimals: Int, unit: String) =
+                        if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
+                    // 0 si lecture échouée pour ne pas fausser à la hausse le total.
+                    fun value(bal: Double?, price: Double) = (bal ?: 0.0) * price
                     listOf(
-                        TokenBalance("BTC",      "Bitcoin",    "%.6f BTC".format(btc),     btc     * xof("bitcoin"),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN, valueUsd = btc * usd("bitcoin")),
-                        TokenBalance("ETH",      "Ethereum",   "%.6f ETH".format(eth),     eth     * xof("ethereum"),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM, valueUsd = eth * usd("ethereum")),
-                        TokenBalance("BNB",      "BNB",        "%.4f BNB".format(bnb),     bnb     * xof("binancecoin"), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN, valueUsd = bnb * usd("binancecoin")),
-                        TokenBalance("SOL",      "Solana",     "%.4f SOL".format(sol),     sol     * xof("solana"),      c("solana"),      "#9945FF", Blockchain.SOLANA, valueUsd = sol * usd("solana")),
-                        TokenBalance("TRX",      "Tron",       "%.2f TRX".format(trx),     trx     * xof("tron"),        c("tron"),        "#FF060A", Blockchain.TRON, valueUsd = trx * usd("tron")),
-                        TokenBalance("USDT",     "Tether TRC20","%.2f USDT".format(usdtTrc),usdtTrc * xof("tether"),      c("tether"),      "#26A17B", Blockchain.TRON, valueUsd = usdtTrc * usd("tether")),
-                        TokenBalance("USDT-ETH", "Tether ERC20","%.2f USDT".format(usdtEth),usdtEth * xof("tether"),      c("tether"),      "#26A17B", Blockchain.ETHEREUM, valueUsd = usdtEth * usd("tether")),
-                        TokenBalance("USDT-BNB", "Tether BEP20","%.2f USDT".format(usdtBnb),usdtBnb * xof("tether"),      c("tether"),      "#26A17B", Blockchain.BNB_CHAIN, valueUsd = usdtBnb * usd("tether")),
+                        TokenBalance("BTC",      "Bitcoin",     amt(btc, 6, "BTC"),      value(btc, xof("bitcoin")),     c("bitcoin"),     "#F7931A", Blockchain.BITCOIN,  valueUsd = value(btc, usd("bitcoin"))),
+                        TokenBalance("ETH",      "Ethereum",    amt(eth, 6, "ETH"),      value(eth, xof("ethereum")),    c("ethereum"),    "#627EEA", Blockchain.ETHEREUM, valueUsd = value(eth, usd("ethereum"))),
+                        TokenBalance("BNB",      "BNB",         amt(bnb, 4, "BNB"),      value(bnb, xof("binancecoin")), c("binancecoin"), "#F0B90B", Blockchain.BNB_CHAIN, valueUsd = value(bnb, usd("binancecoin"))),
+                        TokenBalance("SOL",      "Solana",      amt(sol, 4, "SOL"),      value(sol, xof("solana")),      c("solana"),      "#9945FF", Blockchain.SOLANA,   valueUsd = value(sol, usd("solana"))),
+                        TokenBalance("TRX",      "Tron",        amt(trx, 2, "TRX"),      value(trx, xof("tron")),        c("tron"),        "#FF060A", Blockchain.TRON,     valueUsd = value(trx, usd("tron"))),
+                        TokenBalance("USDT",     "Tether TRC20", amt(usdtTrc, 2, "USDT"), value(usdtTrc, xof("tether")),  c("tether"),      "#26A17B", Blockchain.TRON,     valueUsd = value(usdtTrc, usd("tether"))),
+                        TokenBalance("USDT-ETH", "Tether ERC20", amt(usdtEth, 2, "USDT"), value(usdtEth, xof("tether")),  c("tether"),      "#26A17B", Blockchain.ETHEREUM, valueUsd = value(usdtEth, usd("tether"))),
+                        TokenBalance("USDT-BNB", "Tether BEP20", amt(usdtBnb, 2, "USDT"), value(usdtBnb, xof("tether")),  c("tether"),      "#26A17B", Blockchain.BNB_CHAIN, valueUsd = value(usdtBnb, usd("tether"))),
                     )
                 }
 
+                // "—" comme montant ⇒ au moins une lecture de solde a échoué.
+                val balancesUnavailable = tokens.any { it.amountFormatted.startsWith("—") }
                 val total = tokens.sumOf { it.valueXof }
                 val totalUsd = tokens.sumOf { it.valueUsd }
                 // Value-weighted 24h change: each token weighted by its XOF value
@@ -177,12 +188,17 @@ class PortfolioViewModel @Inject constructor(
                     totalBalanceUsd = totalUsd,
                     totalChangePercent = avgChange,
                     isLoading = false,
-                    error = null,
+                    error = if (balancesUnavailable)
+                        "Certains soldes n'ont pas pu être lus (réseau/RPC). Les fonds reçus sont en sécurité on-chain ; réessaie."
+                    else null,
                     lastUpdated = System.currentTimeMillis(),
-                    isFromCache = false
+                    isFromCache = false,
+                    balancesUnavailable = balancesUnavailable
                 )
                 _state.value = newState
-                persistSnapshot(newState)
+                // On NE persiste PAS un instantané partiel : on garde le dernier
+                // cache complet plutôt que d'écraser avec des soldes incomplets.
+                if (!balancesUnavailable) persistSnapshot(newState)
             } catch (e: Exception) {
                 // Offline-first : on conserve les données en cache, on signale juste l'erreur.
                 _state.update { it.copy(isLoading = false, error = e.message, isFromCache = it.lastUpdated > 0L) }
@@ -192,41 +208,49 @@ class PortfolioViewModel @Inject constructor(
 
     fun refresh() = loadPortfolio()
 
-    private suspend fun fetchErc20Balance(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double = try {
+    // Les fetch renvoient Double? : null = ÉCHEC de lecture (réseau/RPC),
+    // une valeur (y compris 0.0) = solde réellement déterminé. Si la réponse
+    // RPC contient une erreur explicite, on considère aussi que c'est un échec.
+    private suspend fun fetchErc20Balance(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double? = try {
         val paddedAddr = address.removePrefix("0x").padStart(64, '0')
         val data = "0x70a08231$paddedAddr"
         val res = rpc.rpcCall(JsonRpcRequest("eth_call",
             mutableListOf(mapOf("to" to contract, "data" to data) as Any, "latest" as Any)))
-        val hex = res.result as? String ?: "0x0"
-        val raw = BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
-        raw.toBigDecimal().divide(java.math.BigDecimal.TEN.pow(decimals)).toDouble()
-    } catch (_: Exception) { 0.0 }
+        val hex = res.result as? String
+        if (res.error != null || hex == null) null
+        else BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
+            .toBigDecimal().divide(java.math.BigDecimal.TEN.pow(decimals)).toDouble()
+    } catch (_: Exception) { null }
 
-    private suspend fun fetchEvmBalance(rpc: EvmRpcApi, address: String): Double = try {
+    private suspend fun fetchEvmBalance(rpc: EvmRpcApi, address: String): Double? = try {
         val res = rpc.rpcCall(JsonRpcRequest("eth_getBalance", mutableListOf(address as Any, "latest" as Any)))
-        val hex = res.result as? String ?: "0x0"
-        BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
+        val hex = res.result as? String
+        if (res.error != null || hex == null) null
+        else BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
             .toBigDecimal().divide(java.math.BigDecimal("1000000000000000000")).toDouble()
-    } catch (_: Exception) { 0.0 }
+    } catch (_: Exception) { null }
 
-    private suspend fun fetchBtcBalance(address: String): Double = try {
+    private suspend fun fetchBtcBalance(address: String): Double? = try {
         val info = bitcoinApi.getAddressInfo(address)
         (info.chainStats.fundedSum - info.chainStats.spentSum) / 1e8
-    } catch (_: Exception) { 0.0 }
+    } catch (_: Exception) { null }
 
-    private suspend fun fetchSolBalance(address: String): Double = try {
+    private suspend fun fetchSolBalance(address: String): Double? = try {
         val res = solanaRpc.rpcCall(JsonRpcRequest("getBalance", mutableListOf(address as Any)))
-        @Suppress("UNCHECKED_CAST")
-        val lamports = (res.result as? Map<String, Any>)?.get("value") as? Double ?: 0.0
-        lamports / 1e9
-    } catch (_: Exception) { 0.0 }
+        if (res.error != null) null
+        else {
+            @Suppress("UNCHECKED_CAST")
+            val lamports = (res.result as? Map<String, Any>)?.get("value") as? Double ?: 0.0
+            lamports / 1e9
+        }
+    } catch (_: Exception) { null }
 
-    private suspend fun fetchTrxBalance(address: String): Double = try {
+    private suspend fun fetchTrxBalance(address: String): Double? = try {
         val account = tronApi.getAccount(address)
         (account.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
-    } catch (_: Exception) { 0.0 }
+    } catch (_: Exception) { null }
 
-    private suspend fun fetchUsdtTrc20Balance(address: String): Double {
+    private suspend fun fetchUsdtTrc20Balance(address: String): Double? {
         return try {
             val account = tronApi.getAccount(address)
             val trc20List = account.data.firstOrNull()?.trc20 ?: return 0.0
@@ -234,6 +258,6 @@ class PortfolioViewModel @Inject constructor(
                 .firstOrNull { it.containsKey(USDT_TRC20_CONTRACT) }
                 ?.get(USDT_TRC20_CONTRACT) ?: return 0.0
             rawBalance.toLongOrNull()?.let { it / 1_000_000.0 } ?: 0.0
-        } catch (_: Exception) { 0.0 }
+        } catch (_: Exception) { null }
     }
 }
