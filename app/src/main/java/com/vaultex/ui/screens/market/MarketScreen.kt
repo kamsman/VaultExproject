@@ -71,7 +71,7 @@ fun MarketScreen(navController: NavHostController) {
             id = dto.id,
             name = dto.name,
             symbol = dto.symbol.uppercase(),
-            priceXof = formatMarketXof(dto.currentPrice),
+            priceXof = formatMarketUsd(dto.currentPrice),
             change24h = dto.change24h,
             marketCap = "",
             color = marketColor(dto.symbol)
@@ -209,7 +209,7 @@ private fun CoinCard(coin: CoinRow, onClick: () -> Unit) {
             )
             Spacer(Modifier.width(10.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text("${coin.priceXof} F", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                Text("$" + coin.priceXof, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
                 Text(
                     "${if (isPositive) "+" else ""}${String.format("%.1f", coin.change24h)}%",
                     fontSize = 12.sp,
@@ -240,9 +240,14 @@ private fun MiniSparkline(seed: Int, color: Color, modifier: Modifier = Modifier
 }
 
 /** Prix en FCFA : grands nombres sans décimale, petits montants à 2 décimales. */
-private fun formatMarketXof(value: Double): String =
+/** Prix en USD : 4 décimales sous 1 $, 2 décimales sinon, sans décimale au-delà de 1000. */
+private fun formatMarketUsd(value: Double): String =
     NumberFormat.getNumberInstance(Locale.FRANCE).apply {
-        maximumFractionDigits = if (value < 100) 2 else 0
+        maximumFractionDigits = when {
+            value < 1.0 -> 4
+            value < 1000.0 -> 2
+            else -> 0
+        }
     }.format(value)
 
 private fun marketColor(symbol: String): Color = when (symbol.uppercase()) {
@@ -258,11 +263,11 @@ private fun marketColor(symbol: String): Color = when (symbol.uppercase()) {
 
 /** Repli affiché si l'appel CoinGecko échoue (jamais d'écran vide). */
 private val FALLBACK_COINS = listOf(
-    CoinRow("bitcoin", "Bitcoin", "BTC", "34 210 000", 2.4, "", VaultExColors.BitcoinOrange),
-    CoinRow("ethereum", "Ethereum", "ETH", "2 776 000", 3.1, "", VaultExColors.EthereumBlue),
-    CoinRow("binancecoin", "BNB", "BNB", "398 000", -0.8, "", VaultExColors.BnbYellow),
-    CoinRow("solana", "Solana", "SOL", "62 500", 7.2, "", VaultExColors.SolanaGreen),
-    CoinRow("tron", "Tron", "TRX", "152", 5.1, "", VaultExColors.TronRed),
-    CoinRow("tether", "Tether", "USDT", "655", 0.01, "", Color(0xFF26A17B)),
-    CoinRow("usd-coin", "USD Coin", "USDC", "655", 0.0, "", Color(0xFF2775CA)),
+    CoinRow("bitcoin", "Bitcoin", "BTC", "65 000", 2.4, "", VaultExColors.BitcoinOrange),
+    CoinRow("ethereum", "Ethereum", "ETH", "3 200", 3.1, "", VaultExColors.EthereumBlue),
+    CoinRow("binancecoin", "BNB", "BNB", "600", -0.8, "", VaultExColors.BnbYellow),
+    CoinRow("solana", "Solana", "SOL", "150", 7.2, "", VaultExColors.SolanaGreen),
+    CoinRow("tron", "Tron", "TRX", "0.12", 5.1, "", VaultExColors.TronRed),
+    CoinRow("tether", "Tether", "USDT", "1.00", 0.01, "", Color(0xFF26A17B)),
+    CoinRow("usd-coin", "USD Coin", "USDC", "1.00", 0.0, "", Color(0xFF2775CA)),
 )
