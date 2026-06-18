@@ -125,8 +125,20 @@ object NetworkModule {
     // ─── Fixed / non-configurable APIs ───────────────────────────────
 
     @Provides @Singleton
-    fun provideCoinGeckoApi(client: OkHttpClient): CoinGeckoApi =
-        retrofit("https://api.coingecko.com/api/v3/", client).create(CoinGeckoApi::class.java)
+    fun provideCoinGeckoApi(client: OkHttpClient): CoinGeckoApi {
+        // Clé Demo CoinGecko (header x-cg-demo-api-key) si renseignée : lève le
+        // rate-limit qui faisait échouer le Marché. Sinon, API publique libre.
+        val cgClient = if (ApiKeys.COINGECKO.isNotBlank()) {
+            client.newBuilder().addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .addHeader("x-cg-demo-api-key", ApiKeys.COINGECKO)
+                        .build()
+                )
+            }.build()
+        } else client
+        return retrofit("https://api.coingecko.com/api/v3/", cgClient).create(CoinGeckoApi::class.java)
+    }
 
     // ─── User-configurable RPC / explorer APIs ────────────────────────
 

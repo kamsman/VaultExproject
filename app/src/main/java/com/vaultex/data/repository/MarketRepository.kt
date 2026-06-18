@@ -15,11 +15,26 @@ class MarketRepository @Inject constructor(
     // charger »). Tout est en USD pour que liste et détail soient cohérents.
     @Volatile
     private var cache: List<CoinGeckoMarketDto> = emptyList()
+    @Volatile
+    private var cacheTime: Long = 0L
+    private val cacheTtlMs = 90_000L
 
     suspend fun getMarkets(): List<CoinGeckoMarketDto> {
-        val list = api.getMarkets(vsCurrency = "usd")
-        if (list.isNotEmpty()) cache = list
-        return list
+        val now = System.currentTimeMillis()
+        // Sert le cache si récent → bien moins d'appels CoinGecko (donc moins de
+        // rate-limit) et le cache reste rempli pour l'écran détail.
+        if (cache.isNotEmpty() && now - cacheTime < cacheTtlMs) return cache
+        return try {
+            val list = api.getMarkets(vsCurrency = "usd")
+            if (list.isNotEmpty()) {
+                cache = list
+                cacheTime = now
+            }
+            if (list.isNotEmpty()) list else cache
+        } catch (e: Exception) {
+            // En cas d'échec (rate-limit/réseau), on garde la dernière liste connue.
+            if (cache.isNotEmpty()) cache else throw e
+        }
     }
 
     /**
