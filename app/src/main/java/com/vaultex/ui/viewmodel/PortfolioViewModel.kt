@@ -120,9 +120,9 @@ class PortfolioViewModel @Inject constructor(
         } catch (_: Exception) { }
     }
 
-    fun loadPortfolio() {
+    fun loadPortfolio(silent: Boolean = false) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            if (!silent) _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val mnemonic = secureStorage.getMnemonic() ?: run {
                     _state.update { it.copy(isLoading = false, error = "Wallet non initialisé") }
@@ -225,6 +225,9 @@ class PortfolioViewModel @Inject constructor(
     }
 
     fun refresh() = loadPortfolio()
+
+    /** Rafraîchissement sans spinner (retour sur l'écran, polling). */
+    fun refreshSilently() = loadPortfolio(silent = true)
 
     // Les fetch renvoient Double? : null = ÉCHEC de lecture (réseau/RPC),
     // une valeur (y compris 0.0) = solde réellement déterminé. Si la réponse

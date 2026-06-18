@@ -9,21 +9,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import com.vaultex.R
 import com.vaultex.ui.components.VaultExBottomBar
@@ -44,6 +44,30 @@ fun DashboardScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         if (com.vaultex.core.session.DeepLinkBuffer.hasPending()) {
             navController.navigate(Routes.SEND)
+        }
+    }
+
+    // Rafraîchissement auto des soldes au RETOUR sur le Dashboard (après un
+    // envoi, ou retour de l'app au premier plan) — sans spinner. Le premier
+    // ON_RESUME est ignoré car l'init du ViewModel charge déjà.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var firstResume by remember { mutableStateOf(true) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (firstResume) firstResume = false else viewModel.refreshSilently()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Polling discret toutes les 45 s tant que le Dashboard est affiché
+    // (pour voir une réception arriver sans action de l'utilisateur).
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(45_000)
+            viewModel.refreshSilently()
         }
     }
 
