@@ -378,6 +378,7 @@
     <string name="send_biometric_subtitle">Envoi de %1$s %2$s vers %3$s…</string>
     <string name="send_dust_warning">Montant inférieur au minimum recommandé (%1$s). La transaction risque d\'être rejetée par le réseau.</string>
     <string name="send_no_balance">Solde indisponible ou insuffisant pour cette monnaie.</string>
+    <string name="send_in_progress">Envoi en cours…</string>
     <string name="send_balance_label">Solde : %1$s</string>
     <string name="send_err_insufficient">Fonds insuffisants pour couvrir le montant et les frais de réseau.</string>
     <string name="send_err_nonce">Conflit de transaction en cours. Patiente quelques secondes et réessaie.</string>

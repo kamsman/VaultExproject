@@ -28,6 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.vaultex.ui.components.DotsCircleLoader
+import com.vaultex.ui.theme.SplashNavyBottom
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -207,6 +211,30 @@ fun SendScreen(navController: NavController) {
                 }
             }
         )
+    }
+
+    // Overlay de chargement pendant l'envoi : loader « points en cercle ».
+    if (state.isLoading) {
+        Dialog(
+            onDismissRequest = { },
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Surface(shape = RoundedCornerShape(20.dp), color = SplashNavyBottom) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    DotsCircleLoader(size = 76.dp)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        stringResource(R.string.send_in_progress),
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(

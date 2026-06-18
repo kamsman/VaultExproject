@@ -378,6 +378,7 @@
     <string name="send_biometric_subtitle">Sending %1$s %2$s to %3$s…</string>
     <string name="send_dust_warning">Amount below the recommended minimum (%1$s). The transaction may be rejected by the network.</string>
     <string name="send_no_balance">Balance unavailable or insufficient for this coin.</string>
+    <string name="send_in_progress">Sending…</string>
     <string name="send_balance_label">Balance: %1$s</string>
     <string name="send_err_insufficient">Not enough funds to cover the amount plus network fees.</string>
     <string name="send_err_nonce">A transaction is already in progress. Wait a few seconds and try again.</string>
