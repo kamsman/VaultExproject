@@ -45,7 +45,8 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
     var selectedPeriod by remember { mutableStateOf("7J") }
 
     LaunchedEffect(coinId, selectedPeriod) {
-        viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
+        // 7J vient du sparkline en cache → pas d'appel. Autres périodes : market_chart.
+        if (selectedPeriod != "7J") viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
     }
 
     Scaffold(
@@ -134,15 +135,18 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
 
             Spacer(Modifier.height(16.dp))
 
-            // Graphique de prix réel (CoinGecko market_chart)
+            // Graphique : pour 7J on réutilise le sparkline déjà en cache (aucun
+            // appel réseau) ; les autres périodes passent par market_chart.
+            val sparklineF = c.sparkline_in_7d?.price?.map { it.toFloat() } ?: emptyList()
+            val chartPoints = if (selectedPeriod == "7J" && sparklineF.size >= 2) sparklineF else chart
             Box(
                 Modifier.fillMaxWidth().height(180.dp).background(BgPrimary),
                 contentAlignment = Alignment.Center
             ) {
                 when {
-                    chartLoading && chart.isEmpty() ->
+                    chartLoading && chartPoints.isEmpty() ->
                         CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(28.dp))
-                    chart.size < 2 ->
+                    chartPoints.size < 2 ->
                         Text(
                             stringResource(R.string.coin_chart_unavailable),
                             color = TextMuted,
@@ -150,7 +154,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         )
                     else ->
                         PriceLineChart(
-                            points = chart,
+                            points = chartPoints,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)
                         )
                 }
