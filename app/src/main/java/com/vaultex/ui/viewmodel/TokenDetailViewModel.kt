@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.CoinGeckoApi
+import com.vaultex.data.repository.MarketRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class TokenDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val secureStorage: SecureStorage,
+    private val marketRepository: MarketRepository,
     private val coinGeckoApi: CoinGeckoApi
 ) : ViewModel() {
 
@@ -28,12 +30,17 @@ class TokenDetailViewModel @Inject constructor(
         val marketCapUsd: Double = 0.0,
         val chartPrices: List<Double> = emptyList(),
         val address: String = "",
+        // Solde détenu (depuis l'instantané portefeuille).
+        val amountFormatted: String = "",
+        val valueUsd: Double = 0.0,
         val isLoading: Boolean = true,
         val error: String? = null
     )
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
+
+    private val gson = com.google.gson.Gson()
 
     private val symbol: String = savedStateHandle["symbol"] ?: "ETH"
 
@@ -65,31 +72,30 @@ class TokenDetailViewModel @Inject constructor(
                     }
                 }
 
-                val prices = withContext(Dispatchers.IO) {
-                    try {
-                        coinGeckoApi.getPrices(
-                            ids = coinGeckoId,
-                            vsCurrencies = "usd",
-                            include24hChange = true,
-                            includeMarketCap = true
-                        )
-                    } catch (_: Exception) { emptyMap() }
-                }
+                // Solde détenu : lu dans l'instantané portefeuille (aucun appel réseau).
+                val (amountFormatted, valueUsd) = balanceFor(symbol)
 
-                val chartData = withContext(Dispatchers.IO) {
-                    try {
-                        coinGeckoApi.getMarketChart(coinGeckoId, "usd", 7).prices.map { it[1] }
-                    } catch (_: Exception) { emptyList() }
+                // Prix / variation / market cap / sparkline 7j : cache marché
+                // (cache-first → évite le rate-limit CoinGecko qui cassait l'écran).
+                val dto = withContext(Dispatchers.IO) {
+                    try { marketRepository.getMarket(coinGeckoId).firstOrNull() } catch (_: Exception) { null }
                 }
+                // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
+                val chartData = dto?.sparkline_in_7d?.price
+                    ?: withContext(Dispatchers.IO) {
+                        try { coinGeckoApi.getMarketChart(coinGeckoId, "usd", 7).prices.map { it[1] } }
+                        catch (_: Exception) { emptyList() }
+                    }
 
-                val dto = prices[coinGeckoId]
                 _state.update {
                     it.copy(
-                        priceUsd = dto?.usd ?: 0.0,
+                        priceUsd = dto?.currentPrice ?: 0.0,
                         change24h = dto?.change24h ?: 0.0,
                         marketCapUsd = dto?.marketCap ?: 0.0,
                         chartPrices = chartData,
                         address = address,
+                        amountFormatted = amountFormatted,
+                        valueUsd = valueUsd,
                         isLoading = false
                     )
                 }
@@ -98,4 +104,21 @@ class TokenDetailViewModel @Inject constructor(
             }
         }
     }
+
+    /** Solde + valeur USD de [sym] depuis l'instantané portefeuille persté. */
+    private fun balanceFor(sym: String): Pair<String, Double> {
+        val json = secureStorage.getPortfolioSnapshot() ?: return "" to 0.0
+        return try {
+            val snap = gson.fromJson(json, SnapshotLite::class.java)
+            val t = snap?.tokens?.firstOrNull { it.symbol == sym }
+            (t?.amountFormatted ?: "") to (t?.valueUsd ?: 0.0)
+        } catch (_: Exception) { "" to 0.0 }
+    }
+
+    private data class SnapshotLite(val tokens: List<TokenLite>?)
+    private data class TokenLite(
+        val symbol: String = "",
+        val amountFormatted: String = "",
+        val valueUsd: Double = 0.0
+    )
 }

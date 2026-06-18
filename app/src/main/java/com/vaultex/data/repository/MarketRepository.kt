@@ -28,7 +28,9 @@ class MarketRepository @Inject constructor(
      */
     suspend fun getMarket(coinId: String): List<CoinGeckoMarketDto> {
         cache.firstOrNull { it.id == coinId }?.let { return listOf(it) }
-        val list = api.getMarkets(vsCurrency = "usd", sparkline = false, ids = coinId)
+        // sparkline=true → ramène aussi la courbe 7j (utilisée par l'écran détail),
+        // ce qui évite un second appel réseau pour le graphique.
+        val list = api.getMarkets(vsCurrency = "usd", sparkline = true, ids = coinId)
         if (list.isNotEmpty()) cache = (cache + list).distinctBy { it.id }
         return list
     }

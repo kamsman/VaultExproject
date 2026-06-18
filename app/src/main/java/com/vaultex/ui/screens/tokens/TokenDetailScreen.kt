@@ -146,11 +146,26 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.token_detail_my_wallet), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        // Solde détenu (le fond)
+                        Text(
+                            state.amountFormatted.ifEmpty { "—" },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp,
+                            color = VaultExColors.TextPrimary
+                        )
+                        if (state.valueUsd > 0.0) {
+                            Text(
+                                "≈ " + formatUsd(state.valueUsd),
+                                fontSize = 13.sp,
+                                color = VaultExColors.TextSecondary
+                            )
+                        }
                         if (state.address.isEmpty()) {
                             Text(stringResource(R.string.token_detail_wallet_not_initialized), fontSize = 13.sp, color = VaultExColors.Error)
                         } else {
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 stringResource(R.string.token_detail_address, symbol),
                                 fontSize = 12.sp,
