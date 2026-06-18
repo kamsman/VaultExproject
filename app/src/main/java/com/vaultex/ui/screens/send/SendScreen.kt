@@ -99,17 +99,8 @@ fun SendScreen(navController: NavController) {
 
     val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB")
 
-    val feeEstimate = when (state.selectedChain) {
-        "BTC"      -> "~2 800 FCFA"
-        "ETH"      -> "~1 500 FCFA"
-        "BNB"      -> "~150 FCFA"
-        "SOL"      -> "~5 FCFA"
-        "TRX"      -> "~20 FCFA"
-        "USDT"     -> "~20 FCFA (TRC20)"
-        "USDT-ETH" -> "~900 FCFA (ERC20)"
-        "USDT-BNB" -> "~90 FCFA (BEP20)"
-        else       -> "--"
-    }
+    // Frais réseau réel (gas live), calculé par chaîne dans le ViewModel.
+    val feeEstimate = state.estimatedFee
 
     // Hors-ligne : transaction mise en file
     if (state.queued) {
@@ -165,11 +156,11 @@ fun SendScreen(navController: NavController) {
                     ConfirmRow(stringResource(R.string.send_confirm_network), state.selectedChain)
                     ConfirmRow(stringResource(R.string.send_recipient_label), shortenAddress(state.toAddress))
                     ConfirmRow(stringResource(R.string.amount), "${state.amount} ${state.selectedChain}")
-                    ConfirmRow(stringResource(R.string.send_fee_estimate_label).trimEnd(' ', ':'), feeEstimate)
+                    ConfirmRow(stringResource(R.string.send_fee_estimate_label).trimEnd(' ', ':'), feeEstimate.ifEmpty { "—" })
                     HorizontalDivider(color = BorderColor)
                     ConfirmRow(
                         stringResource(R.string.send_confirm_total),
-                        "${state.amount} ${state.selectedChain} + ${feeEstimate}",
+                        "${state.amount} ${state.selectedChain}" + if (feeEstimate.isNotEmpty()) " + ${feeEstimate}" else "",
                         emphasize = true
                     )
                 }
@@ -392,24 +383,27 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Fee info card
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = SurfaceLight,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            // Carte frais — affichée UNIQUEMENT quand un montant est saisi (#2a),
+            // avec le frais réseau RÉEL calculé sur le gas (#2b).
+            if (state.amount.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = SurfaceLight,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Info, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                    Text(
-                        stringResource(R.string.send_fee_estimate_label) + " " + feeEstimate,
-                        fontSize = 13.sp,
-                        color = TextPrimary
-                    )
+                    Row(
+                        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        Text(
+                            stringResource(R.string.send_fee_estimate_label) + " " + feeEstimate.ifEmpty { "…" },
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                    }
                 }
             }
 

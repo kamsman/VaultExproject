@@ -47,6 +47,7 @@ class SendViewModel @Inject constructor(
 
     init {
         _state.update { it.copy(availableBalance = availableFor(it.selectedChain)) }
+        fetchFee(_state.value.selectedChain)
     }
 
     fun setChain(chain: String) {
@@ -59,10 +60,36 @@ class SendViewModel @Inject constructor(
                 isAddressValid = valid,
                 error = null,
                 dustWarning = warning,
-                availableBalance = availableFor(chain)
+                availableBalance = availableFor(chain),
+                estimatedFee = ""        // recalcul ci-dessous pour la nouvelle chaîne
             )
         }
+        fetchFee(chain)
     }
+
+    /** Frais réseau réel de la chaîne (gas live) — recalculé à chaque changement. */
+    private fun fetchFee(chain: String) {
+        viewModelScope.launch {
+            val feeNative = sendCryptoUseCase.estimateFeeNative(chain)
+            val formatted = feeNative?.let { "≈ " + formatFeeAmount(it) + " " + nativeUnit(chain) } ?: ""
+            _state.update { it.copy(estimatedFee = formatted) }
+        }
+    }
+
+    private fun nativeUnit(chain: String): String = when (chain) {
+        "ETH", "USDT-ETH" -> "ETH"
+        "BNB", "USDT-BNB" -> "BNB"
+        "BTC" -> "BTC"
+        "SOL" -> "SOL"
+        "TRX", "USDT" -> "TRX"
+        else -> chain
+    }
+
+    private fun formatFeeAmount(value: Double): String =
+        java.math.BigDecimal.valueOf(value)
+            .setScale(8, java.math.RoundingMode.HALF_UP)
+            .stripTrailingZeros()
+            .toPlainString()
 
     fun setToAddress(address: String) {
         val chain = _state.value.selectedChain

@@ -37,15 +37,17 @@ class SessionLockManager @Inject constructor(
 
     /**
      * Vrai s'il faut reverrouiller au retour au premier plan :
-     * un wallet existe, la session était déverrouillée, et le temps écoulé
-     * en arrière-plan atteint le délai d'auto-verrouillage (0 = immédiat).
+     * un wallet existe, la session était déverrouillée, et l'app est restée
+     * au moins [LOCK_DELAY_MS] en arrière-plan.
      */
     fun shouldLockOnForeground(): Boolean {
         if (!secureStorage.hasMnemonic()) return false
         if (!isUnlocked) return false          // cold start → le Splash gère le routage
         if (backgroundedAt == 0L) return false  // pas passé en arrière-plan
         val elapsedMs = System.currentTimeMillis() - backgroundedAt
-        val thresholdMs = secureStorage.getAutoLockMinutes() * 60_000L
+        // Plafonné à 10 s : re-verrouillage rapide (sécurité wallet), tout en
+        // respectant un réglage plus agressif (ex. « immédiat »).
+        val thresholdMs = minOf(secureStorage.getAutoLockMinutes() * 60_000L, MAX_LOCK_DELAY_MS)
         return elapsedMs >= thresholdMs
     }
 
@@ -53,5 +55,10 @@ class SessionLockManager @Inject constructor(
     fun lock() {
         isUnlocked = false
         backgroundedAt = 0L
+    }
+
+    companion object {
+        /** Plafond de délai de re-verrouillage : 10 s en arrière-plan. */
+        private const val MAX_LOCK_DELAY_MS = 10_000L
     }
 }

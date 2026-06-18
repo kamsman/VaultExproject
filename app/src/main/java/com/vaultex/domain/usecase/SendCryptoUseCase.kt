@@ -343,6 +343,29 @@ class SendCryptoUseCase @Inject constructor(
     // ─── Helpers ─────────────────────────────────────────────────────
 
     /**
+     * Frais réseau RÉELS estimés pour [chain], en unité native (ETH/BNB/BTC…).
+     * Interroge le gas/feerate réel du réseau (pas une valeur fixe). null si
+     * indisponible — l'envoi recalcule de toute façon ses propres frais en signant.
+     */
+    suspend fun estimateFeeNative(chain: String): Double? = try {
+        when (chain) {
+            "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 21_000.0 / 1e18 }
+            "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18 }
+            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 21_000.0 / 1e18
+            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 65_000.0 / 1e18
+            "BTC"      -> {
+                val fees = bitcoinApi.getFeeEstimates()
+                val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0
+                satPerByte * 150.0 / 1e8   // ~150 vbytes pour une tx P2WPKH typique
+            }
+            "SOL"  -> 0.000005   // 5000 lamports (frais fixe Solana)
+            "TRX"  -> 0.3        // bande passante standard
+            "USDT" -> 27.0       // TRC20 : énergie (~27 TRX si non détenue)
+            else   -> null
+        }
+    } catch (_: Exception) { null }
+
+    /**
      * EIP-1559 fees: returns (maxPriorityFeePerGas, maxFeePerGas).
      * maxFeePerGas = 2 × baseFee + maxPriorityFeePerGas (canonical formula).
      */
