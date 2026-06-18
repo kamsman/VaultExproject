@@ -44,7 +44,7 @@ android {
         buildConfigField("String", "TRONGRID_KEY",    "\"${localProps.getProperty("trongrid.key",    "")}\"")
         // Optionnelle — clé CoinGecko Demo (gratuite) : supprime quasiment le
         // rate-limit du Marché. https://www.coingecko.com/en/developers/dashboard
-        buildConfigField("String", "COINGECKO_KEY",   "\"${localProps.getProperty("coingecko.key",   "")}\"")
+        buildConfigField("String", "COINGECKO_KEY",   "\"${localProps.getProperty("coingecko.key",   "CG-Z2gs4Nrv66SgVF4mKp5qrA7u")}\"")
         // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
         // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
         buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
