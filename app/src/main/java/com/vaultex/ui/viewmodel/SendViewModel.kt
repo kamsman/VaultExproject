@@ -200,7 +200,11 @@ class SendViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             val result = sendCryptoUseCase.sendByChain(s.selectedChain, s.toAddress, s.amount)
             when (result) {
-                is SendCryptoUseCase.Result.Success -> _state.update { it.copy(isLoading = false, txHash = result.txHash) }
+                is SendCryptoUseCase.Result.Success -> {
+                    // Demande à l'accueil de rafraîchir vite le solde après l'envoi.
+                    com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
+                    _state.update { it.copy(isLoading = false, txHash = result.txHash) }
+                }
                 is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
             }
         }

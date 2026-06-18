@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import com.vaultex.R
+import kotlinx.coroutines.launch
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -48,14 +49,23 @@ fun DashboardScreen(navController: NavHostController) {
     }
 
     // Rafraîchissement auto des soldes au RETOUR sur le Dashboard (après un
-    // envoi, ou retour de l'app au premier plan) — sans spinner. Le premier
-    // ON_RESUME est ignoré car l'init du ViewModel charge déjà.
+    // envoi, ou retour de l'app au premier plan) — sans spinner.
     val lifecycleOwner = LocalLifecycleOwner.current
-    var firstResume by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (firstResume) firstResume = false else viewModel.refreshSilently()
+                viewModel.refreshSilently()
+                // Après un envoi : rafale courte (toutes les 5 s) pour afficher
+                // le solde dès la confirmation, sans attendre le poll de 45 s.
+                if (com.vaultex.core.session.BalanceRefreshSignal.consumePending()) {
+                    scope.launch {
+                        repeat(5) {
+                            kotlinx.coroutines.delay(5_000)
+                            viewModel.refreshSilently()
+                        }
+                    }
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
