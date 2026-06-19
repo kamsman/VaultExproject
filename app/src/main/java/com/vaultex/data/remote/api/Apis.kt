@@ -65,14 +65,16 @@ interface TronApi {
         @Query("limit") limit: Int = 50
     ): TronTrc20ListDto
 
+    // Retour brut (JsonObject) : on doit rediffuser la transaction COMPLÈTE
+    // (txID + raw_data + raw_data_hex + signature), pas seulement raw_data_hex.
     @POST("wallet/createtransaction")
-    suspend fun createTransaction(@Body body: TronCreateTxBody): TronRawTxDto
+    suspend fun createTransaction(@Body body: TronCreateTxBody): com.google.gson.JsonObject
 
     @POST("wallet/triggersmartcontract")
-    suspend fun triggerSmartContract(@Body body: TronTriggerSmartContractBody): TronTriggerSmartContractDto
+    suspend fun triggerSmartContract(@Body body: TronTriggerSmartContractBody): com.google.gson.JsonObject
 
     @POST("wallet/broadcasttransaction")
-    suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
+    suspend fun broadcast(@Body tx: com.google.gson.JsonObject): TronBroadcastResultDto
 }
 
 

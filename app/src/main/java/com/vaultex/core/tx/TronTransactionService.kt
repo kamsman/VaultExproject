@@ -48,12 +48,16 @@ class TronTransactionService @Inject constructor() {
         val ecKeyPair = ECKeyPair.create(keyPair.privateKey)
 
         val txBytes = Numeric.hexStringToByteArray(rawTxHex)
-        val txHash = Hash.sha3(txBytes)
+        // TRON : txID = SHA-256(raw_data) et la signature porte sur ce SHA-256
+        // (PAS keccak256). C'était le bug qui invalidait toutes les tx TRON.
+        val txHash = MessageDigest.getInstance("SHA-256").digest(txBytes)
         val sigData = Sign.signMessage(txHash, ecKeyPair, false)
 
         val r = Numeric.toHexStringNoPrefix(sigData.r).padStart(64, '0')
         val s = Numeric.toHexStringNoPrefix(sigData.s).padStart(64, '0')
-        val v = sigData.v.firstOrNull()?.toString(16)?.padStart(2, '0') ?: "1b"
+        // TRON attend le recovery id (0/1), pas 27/28 d'Ethereum.
+        val recId = ((sigData.v.firstOrNull()?.toInt() ?: 27) - 27).coerceIn(0, 1)
+        val v = recId.toString(16).padStart(2, '0')
         return "$r$s$v"
     }
 

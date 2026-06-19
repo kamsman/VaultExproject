@@ -244,18 +244,21 @@ class SendCryptoUseCase @Inject constructor(
             val ownerHex = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
             val toHex    = tronAddrToHex(toAddress)
 
-            // Étape 2 — Créer la transaction non signée via TronGrid
+            // Étape 2 — Créer la transaction non signée via TronGrid (objet complet)
             val rawTx = tronApi.createTransaction(
                 TronCreateTxBody(owner_address = ownerHex, to_address = toHex, amount = amountSun)
             )
-            val rawDataHex = rawTx.rawDataHex ?: return Result.Error("Création transaction TRX échouée")
+            val rawDataHex = rawTx.get("raw_data_hex")?.takeIf { !it.isJsonNull }?.asString
+                ?: return Result.Error("Création transaction TRX échouée")
 
-            // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
+            // Étape 3 — Signer le SHA-256 du raw_data
             val signature = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
 
-            // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
-            val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
-            if (broadcast.result == true) Result.Success(broadcast.txid ?: rawTx.txID)
+            // Étape 4 — Rediffuser la transaction COMPLÈTE (avec sa signature)
+            rawTx.add("signature", com.google.gson.JsonArray().apply { add(signature) })
+            val broadcast = tronApi.broadcast(rawTx)
+            val txId = rawTx.get("txID")?.takeIf { !it.isJsonNull }?.asString ?: ""
+            if (broadcast.result == true) Result.Success(broadcast.txid ?: txId)
             else Result.Error(broadcast.message ?: "Broadcast TRX échoué")
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction TRX")
@@ -285,17 +288,22 @@ class SendCryptoUseCase @Inject constructor(
                     fee_limit         = 10_000_000
                 )
             )
-            if (triggerRes.result.result != true)
-                return Result.Error(triggerRes.result.message ?: "Création TRC20 échouée")
+            val triggerResult = triggerRes.getAsJsonObject("result")
+            if (triggerResult == null || triggerResult.get("result")?.asBoolean != true)
+                return Result.Error("Création TRC20 échouée")
 
-            // Étape 3 — Signer : SHA3(rawDataHex) → secp256k1 → r+s+v hex
-            val rawTx      = triggerRes.transaction ?: return Result.Error("Transaction TRC20 vide")
-            val rawDataHex = rawTx.rawDataHex       ?: return Result.Error("raw_data_hex absent")
+            // Étape 3 — Signer le SHA-256 du raw_data de la transaction
+            val txObj      = triggerRes.getAsJsonObject("transaction")
+                ?: return Result.Error("Transaction TRC20 vide")
+            val rawDataHex = txObj.get("raw_data_hex")?.takeIf { !it.isJsonNull }?.asString
+                ?: return Result.Error("raw_data_hex absent")
             val signature  = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
 
-            // Étape 4 — Broadcast sur le réseau TRON, récupérer le txID
-            val broadcast = tronApi.broadcast(TronBroadcastDto(raw_data_hex = rawDataHex, signature = listOf(signature)))
-            if (broadcast.result == true) Result.Success(broadcast.txid ?: rawTx.txID)
+            // Étape 4 — Rediffuser la transaction COMPLÈTE (avec sa signature)
+            txObj.add("signature", com.google.gson.JsonArray().apply { add(signature) })
+            val broadcast = tronApi.broadcast(txObj)
+            val txId = txObj.get("txID")?.takeIf { !it.isJsonNull }?.asString ?: ""
+            if (broadcast.result == true) Result.Success(broadcast.txid ?: txId)
             else Result.Error(broadcast.message ?: "Broadcast USDT échoué")
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur USDT TRC20")
