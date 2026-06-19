@@ -40,6 +40,16 @@ fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val balanceHidden by viewModel.balanceHidden.collectAsState()
+    val walletName by viewModel.walletName.collectAsState()
+    var showRename by remember { mutableStateOf(false) }
+
+    if (showRename) {
+        WalletRenameDialog(
+            current = walletName,
+            onDismiss = { showRename = false },
+            onConfirm = { viewModel.renameWallet(it); showRename = false }
+        )
+    }
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -94,12 +104,25 @@ fun DashboardScreen(navController: NavHostController) {
             item {
                 Column {
                     Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
-                    Text(
-                        stringResource(R.string.my_wallet),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
+                    // Nom du wallet éditable (#5) : tap pour renommer
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.clickable { showRename = true }
+                    ) {
+                        Text(
+                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.wallet_rename_title),
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -377,25 +400,80 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) 
             )
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
-            Surface(shape = RoundedCornerShape(4.dp), color = tokenColor.copy(alpha = 0.12f)) {
-                Text(
-                    token.symbol.substringBefore("-"),
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                    fontSize = 10.sp,
-                    color = tokenColor,
-                    fontWeight = FontWeight.Medium
-                )
+        // Quantité détenue + prix unitaire (Prix = Valeur / Quantité)
+        val qty = token.amountFormatted.substringBefore(" ").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
+        val unitPrice = if (qty > 0.0) token.valueUsd / qty else 0.0
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+                // Badge réseau (#9) : montre clairement sur quel réseau est le coin
+                Surface(shape = RoundedCornerShape(4.dp), color = tokenColor.copy(alpha = 0.12f)) {
+                    Text(
+                        networkLabel(token.symbol),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                        fontSize = 9.sp,
+                        color = tokenColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
+            Text(
+                stringResource(R.string.asset_price_fmt, "$" + formatAssetPrice(unitPrice)),
+                fontSize = 11.sp, color = TextSecondary
+            )
+            Text(
+                stringResource(R.string.asset_qty_fmt, if (hidden) "••••" else token.amountFormatted),
+                fontSize = 11.sp, color = TextSecondary
+            )
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 if (hidden) "••••" else "$$usdFormatted",
-                fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
+                fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
             )
             val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed
             Text("%+.1f%%".format(token.changePercent24h), fontSize = 12.sp, color = changeColor)
         }
     }
+}
+
+/** Réseau lisible d'un coin (#9) — clarifie sur quelle chaîne il circule. */
+private fun networkLabel(symbol: String): String = when (symbol) {
+    "USDT" -> "TRC20"
+    "USDT-ETH" -> "ERC20"
+    "USDT-BNB" -> "BEP20"
+    "BTC" -> "Bitcoin"
+    "ETH" -> "Ethereum"
+    "BNB" -> "BNB Chain"
+    "SOL" -> "Solana"
+    "TRX" -> "Tron"
+    else -> symbol.substringBefore("-")
+}
+
+private fun formatAssetPrice(value: Double): String =
+    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+        maximumFractionDigits = if (value < 1.0) 4 else 2
+    }.format(value)
+
+@Composable
+private fun WalletRenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var text by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.wallet_rename_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.wallet_rename_hint)) }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text.trim()) }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
 }

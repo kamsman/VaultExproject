@@ -67,6 +67,14 @@ class PortfolioViewModel @Inject constructor(
     val balanceHidden: StateFlow<Boolean> = balanceVisibility.hidden
     fun toggleBalanceVisibility() = balanceVisibility.toggle()
 
+    /** Nom du wallet (éditable). Vide => le libellé par défaut est affiché. */
+    private val _walletName = MutableStateFlow(secureStorage.getWalletName())
+    val walletName: StateFlow<String> = _walletName.asStateFlow()
+    fun renameWallet(name: String) {
+        secureStorage.saveWalletName(name)
+        _walletName.value = name.trim()
+    }
+
     companion object {
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"

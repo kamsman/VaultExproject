@@ -379,6 +379,11 @@
     <string name="send_dust_warning">المبلغ أقل من الحد الأدنى الموصى به (%1$s). قد يتم رفض المعاملة من قبل الشبكة.</string>
     <string name="send_no_balance">الرصيد غير متوفر أو غير كافٍ لهذه العملة.</string>
     <string name="send_in_progress">جارٍ الإرسال…</string>
+    <string name="asset_price_fmt">السعر: %1$s</string>
+    <string name="asset_qty_fmt">الكمية: %1$s</string>
+    <string name="wallet_rename_title">اسم المحفظة</string>
+    <string name="wallet_rename_hint">أدخل اسمًا</string>
+    <string name="save">حفظ</string>
     <string name="send_balance_label">الرصيد: %1$s</string>
     <string name="send_err_insufficient">رصيد غير كافٍ لتغطية المبلغ ورسوم الشبكة.</string>
     <string name="send_err_nonce">هناك معاملة قيد التنفيذ. انتظر بضع ثوانٍ وحاول مرة أخرى.</string>

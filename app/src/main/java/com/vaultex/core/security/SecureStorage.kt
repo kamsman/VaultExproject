@@ -106,6 +106,13 @@ class SecureStorage @Inject constructor(
 
     fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "SYSTEM") ?: "SYSTEM"
 
+    /** Nom d'affichage du wallet, modifiable par l'utilisateur (vide = défaut). */
+    fun getWalletName(): String = prefs.getString(KEY_WALLET_NAME, "") ?: ""
+
+    fun saveWalletName(name: String) {
+        prefs.edit().putString(KEY_WALLET_NAME, name.trim()).apply()
+    }
+
     /**
      * Clé de chiffrement de la base SQLCipher (C-03).
      * Générée aléatoirement une fois, stockée dans les prefs chiffrées
@@ -197,5 +204,6 @@ class SecureStorage @Inject constructor(
         private const val KEY_PORTFOLIO_SNAPSHOT = "portfolio_snapshot"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
+        private const val KEY_WALLET_NAME = "wallet_display_name"
     }
 }
