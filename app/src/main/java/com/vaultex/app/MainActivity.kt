@@ -87,9 +87,11 @@ class MainActivity : FragmentActivity() {
         En release, un appareil rooté ne peut pas accéder au wallet.
         =========================
          */
-        if (!BuildConfig.DEBUG && DeviceIntegrity.isDeviceRooted(this)) {
-            CrashReporter.setKey("device_rooted", true)
-            CrashReporter.log("Accès bloqué : appareil rooté détecté")
+        if (!BuildConfig.DEBUG && DeviceIntegrity.isCompromised(this)) {
+            val hooked = DeviceIntegrity.isHookingDetected(this)
+            CrashReporter.setKey("device_rooted", DeviceIntegrity.isDeviceRooted(this))
+            CrashReporter.setKey("device_hooked", hooked)
+            CrashReporter.log("Accès bloqué : appareil rooté ou instrumenté (hooking=$hooked)")
             setContent {
                 VaultExTheme {
                     RootBlockedScreen()

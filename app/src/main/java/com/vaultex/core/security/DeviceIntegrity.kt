@@ -31,6 +31,13 @@ object DeviceIntegrity {
         return rootBeer.isRooted || rootBeer.isRootedWithBusyBoxCheck()
     }
 
+    /** Détection d'instrumentation/hooking (Frida, Xposed, LSPosed, Substrate). */
+    fun isHookingDetected(context: Context): Boolean = HookDetector.isHookingDetected(context)
+
+    /** Appareil compromis : rooté OU instrumenté (hooking). */
+    fun isCompromised(context: Context): Boolean =
+        isDeviceRooted(context) || isHookingDetected(context)
+
     /**
      * Demande un jeton Play Integrity et le remonte (à terme) à un backend
      * pour vérification. Ici on se contente de journaliser le résultat dans
