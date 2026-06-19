@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +39,7 @@ import com.vaultex.ui.viewmodel.TokenBalance
 import java.text.NumberFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
@@ -95,8 +100,19 @@ fun DashboardScreen(navController: NavHostController) {
         bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
+        // Pull-to-refresh (#6) : tirer l'écran vers le bas → rafraîchit.
+        val pullState = rememberPullRefreshState(
+            refreshing = state.isLoading,
+            onRefresh = { viewModel.refresh() }
+        )
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .pullRefresh(pullState)
+        ) {
         LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -153,6 +169,12 @@ fun DashboardScreen(navController: NavHostController) {
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
+            }
+
+            // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───
+            val funded = state.tokens.filter { it.valueUsd > 0.0 }
+            if (funded.size >= 2) {
+                item { PortfolioDonutCard(funded) }
             }
 
             // ─── 4 actions pastel ───
@@ -218,6 +240,12 @@ fun DashboardScreen(navController: NavHostController) {
                     )
                 }
             }
+        }
+        PullRefreshIndicator(
+            refreshing = state.isLoading,
+            state = pullState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
         }
     }
 }
@@ -454,6 +482,59 @@ private fun formatAssetPrice(value: Double): String =
     NumberFormat.getNumberInstance(Locale.FRANCE).apply {
         maximumFractionDigits = if (value < 1.0) 4 else 2
     }.format(value)
+
+@Composable
+private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
+    val total = tokens.sumOf { it.valueUsd }
+    fun colorOf(hex: String): Color = try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (_: Exception) { AccentBlue }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.portfolio_repartition),
+                fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.vaultex.ui.components.DonutChart(
+                    slices = tokens.map { colorOf(it.colorHex) to it.valueUsd.toFloat() },
+                    modifier = Modifier.size(120.dp)
+                )
+                Spacer(Modifier.width(20.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tokens.forEach { token ->
+                        val pct = if (total > 0.0) token.valueUsd / total * 100 else 0.0
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                Modifier.size(10.dp).clip(CircleShape).background(colorOf(token.colorHex))
+                            )
+                            Text(
+                                token.symbol,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary
+                            )
+                            Text(
+                                "%.0f%%".format(pct),
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun WalletRenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
