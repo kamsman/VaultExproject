@@ -81,6 +81,11 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(symbol.take(1), color = VaultExColors.BluePrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                coil.compose.AsyncImage(
+                                    model = com.vaultex.ui.components.CryptoIcon.url(symbol),
+                                    contentDescription = symbol,
+                                    modifier = Modifier.size(44.dp).clip(CircleShape)
+                                )
                             }
                             Column {
                                 Text(symbol, fontWeight = FontWeight.Bold, fontSize = 20.sp)

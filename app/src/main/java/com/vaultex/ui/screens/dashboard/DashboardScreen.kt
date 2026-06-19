@@ -363,11 +363,17 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) 
             Modifier.size(40.dp).clip(CircleShape).background(tokenColor),
             contentAlignment = Alignment.Center
         ) {
+            // Lettres en repli ; le logo réel par-dessus s'il se charge.
             Text(
                 token.symbol.take(2),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
+            )
+            coil.compose.AsyncImage(
+                model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
+                contentDescription = token.symbol,
+                modifier = Modifier.size(40.dp).clip(CircleShape)
             )
         }
         Spacer(Modifier.width(12.dp))
