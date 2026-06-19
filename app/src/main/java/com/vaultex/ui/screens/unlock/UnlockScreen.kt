@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,14 +137,13 @@ fun UnlockScreen(navController: NavHostController) {
 
         Spacer(Modifier.weight(1f))
 
-        // Biométrie
+        // Biométrie — icône d'empreinte (au lieu d'un texte)
         if (viewModel.isBiometricEnabled() && activity != null) {
-            Text(
-                stringResource(R.string.unlock_use_fingerprint),
-                color = AccentBlue,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+            Box(
                 modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .border(1.dp, BorderColor, CircleShape)
                     .clickable {
                         BiometricHelper(activity).authenticate(
                             title = activity.getString(R.string.biometric_title),
@@ -150,9 +151,16 @@ fun UnlockScreen(navController: NavHostController) {
                             onSuccess = { viewModel.onBiometricSuccess() },
                             onError = { _, _ -> }
                         )
-                    }
-                    .padding(12.dp)
-            )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Fingerprint,
+                    contentDescription = stringResource(R.string.unlock_use_fingerprint),
+                    tint = AccentBlue,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
         Spacer(Modifier.height(24.dp))
     }

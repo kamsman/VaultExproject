@@ -104,12 +104,21 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // Cercle token + prix + badge variation
-            Box(
-                Modifier.size(56.dp).clip(CircleShape).background(tokenColor(symbol)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            // Logo token (réel via CoinGecko) ou cercle coloré en repli + prix
+            val logoUrl = c.image
+            if (!logoUrl.isNullOrEmpty()) {
+                coil.compose.AsyncImage(
+                    model = logoUrl,
+                    contentDescription = symbol,
+                    modifier = Modifier.size(56.dp).clip(CircleShape)
+                )
+            } else {
+                Box(
+                    Modifier.size(56.dp).clip(CircleShape).background(tokenColor(symbol)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
             Spacer(Modifier.height(12.dp))
             Text(

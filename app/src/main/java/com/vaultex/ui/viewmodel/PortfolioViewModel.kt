@@ -201,9 +201,9 @@ class PortfolioViewModel @Inject constructor(
                     totalBalanceUsd = totalUsd,
                     totalChangePercent = avgChange,
                     isLoading = false,
-                    error = if (balancesUnavailable)
-                        "Soldes affichés depuis le cache (réseau indisponible). Réessaie pour mettre à jour."
-                    else null,
+                    // Plus de message d'erreur quand on retombe sur le cache : les
+                    // soldes restent affichés (fusion), pas besoin d'alarmer l'utilisateur.
+                    error = null,
                     // Si rien n'a pu être rafraîchi, on reste « en cache » et on
                     // conserve l'horodatage précédent (pas de fausse fraîcheur).
                     lastUpdated = if (balancesUnavailable) _state.value.lastUpdated else System.currentTimeMillis(),

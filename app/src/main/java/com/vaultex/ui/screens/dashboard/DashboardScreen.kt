@@ -109,7 +109,10 @@ fun DashboardScreen(navController: NavHostController) {
                     usd = state.totalBalanceUsd,
                     xof = state.totalBalanceXof,
                     changePercent = state.totalChangePercent,
-                    isLoading = state.isLoading,
+                    // Barre de chargement UNIQUEMENT au tout premier chargement
+                    // (aucune donnée en cache) ; sinon affichage direct + refresh
+                    // silencieux en arrière-plan (comme Trust Wallet).
+                    isLoading = state.isLoading && state.tokens.isEmpty(),
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
@@ -150,10 +153,14 @@ fun DashboardScreen(navController: NavHostController) {
                     linkLabel = stringResource(R.string.see_all),
                     onLinkClick = { navController.navigate(Routes.PORTFOLIO) }
                 ) {
-                    val visibleTokens = state.tokens
-                        .filter { it.valueXof > 0.0 || !state.isLoading }
+                    // Tous les actifs DÉTENUS (solde > 0) sont affichés (USDT inclus,
+                    // jamais masqué par une limite). Si rien n'est détenu, on montre
+                    // les principales cryptos à 0.
+                    val held = state.tokens
+                        .filter { it.valueXof > 0.0 }
                         .sortedByDescending { it.valueUsd }
-                        .take(5)
+                    val visibleTokens = if (held.isNotEmpty()) held
+                        else state.tokens.sortedByDescending { it.valueUsd }.take(5)
                     if (visibleTokens.isEmpty() && !state.isLoading) {
                         Text(
                             stringResource(R.string.dashboard_no_assets),

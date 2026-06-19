@@ -46,12 +46,14 @@ class TokenDetailViewModel @Inject constructor(
 
     private val coinGeckoId = mapOf(
         "BTC" to "bitcoin", "ETH" to "ethereum", "BNB" to "binancecoin",
-        "SOL" to "solana", "TRX" to "tron"
+        "SOL" to "solana", "TRX" to "tron",
+        "USDT" to "tether", "USDT-ETH" to "tether", "USDT-BNB" to "tether"
     )[symbol] ?: "ethereum"
 
     private val tokenNames = mapOf(
         "BTC" to "Bitcoin", "ETH" to "Ethereum", "BNB" to "BNB",
-        "SOL" to "Solana", "TRX" to "Tron"
+        "SOL" to "Solana", "TRX" to "Tron",
+        "USDT" to "Tether TRC20", "USDT-ETH" to "Tether ERC20", "USDT-BNB" to "Tether BEP20"
     )
 
     init {
@@ -67,8 +69,12 @@ class TokenDetailViewModel @Inject constructor(
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext ""
                     val a = WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
                     when (symbol) {
-                        "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb
-                        "SOL" -> a.sol; "TRX" -> a.trx; else -> a.eth
+                        "BTC" -> a.btc
+                        "ETH", "USDT-ETH" -> a.eth
+                        "BNB", "USDT-BNB" -> a.bnb
+                        "SOL" -> a.sol
+                        "TRX", "USDT" -> a.trx
+                        else -> a.eth
                     }
                 }
 

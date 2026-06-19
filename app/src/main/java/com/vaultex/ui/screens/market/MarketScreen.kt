@@ -51,7 +51,8 @@ private data class CoinRow(
     val priceXof: String,
     val change24h: Double,
     val marketCap: String,
-    val color: Color
+    val color: Color,
+    val imageUrl: String = ""
 )
 
 private enum class MarketFilter { ALL, GAINERS, LOSERS }
@@ -74,7 +75,8 @@ fun MarketScreen(navController: NavHostController) {
             priceXof = formatMarketUsd(dto.currentPrice),
             change24h = dto.change24h,
             marketCap = "",
-            color = marketColor(dto.symbol)
+            color = marketColor(dto.symbol),
+            imageUrl = dto.image ?: ""
         )
     }
     val coins = if (liveCoins.isNotEmpty()) liveCoins else FALLBACK_COINS
@@ -186,16 +188,24 @@ private fun CoinCard(coin: CoinRow, onClick: () -> Unit) {
             Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier.size(46.dp).clip(CircleShape).background(coin.color),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    coin.symbol.take(2),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+            if (coin.imageUrl.isNotEmpty()) {
+                coil.compose.AsyncImage(
+                    model = coin.imageUrl,
+                    contentDescription = coin.symbol,
+                    modifier = Modifier.size(46.dp).clip(CircleShape)
                 )
+            } else {
+                Box(
+                    modifier = Modifier.size(46.dp).clip(CircleShape).background(coin.color),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        coin.symbol.take(2),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
