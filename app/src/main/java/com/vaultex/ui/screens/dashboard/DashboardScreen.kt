@@ -92,10 +92,15 @@ fun DashboardScreen(navController: NavHostController) {
         bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
-        // Pull-to-refresh (#6) : tirer l'écran vers le bas → rafraîchit.
+        // Pull-to-refresh (#6) : UNIQUEMENT déclenché par l'utilisateur (tirer
+        // l'écran). L'indicateur ne s'affiche pas pour le chargement auto.
+        var manualRefresh by remember { mutableStateOf(false) }
+        LaunchedEffect(state.isLoading) {
+            if (!state.isLoading) manualRefresh = false
+        }
         val pullState = rememberPullRefreshState(
-            refreshing = state.isLoading,
-            onRefresh = { viewModel.refresh() }
+            refreshing = manualRefresh,
+            onRefresh = { manualRefresh = true; viewModel.refresh() }
         )
         Box(
             modifier = Modifier
@@ -224,7 +229,7 @@ fun DashboardScreen(navController: NavHostController) {
             }
         }
         PullRefreshIndicator(
-            refreshing = state.isLoading,
+            refreshing = manualRefresh,
             state = pullState,
             modifier = Modifier.align(Alignment.TopCenter)
         )
@@ -417,11 +422,16 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onC
             )
         }
         Spacer(Modifier.width(12.dp))
-        // Prix unitaire de marché (directement, pas valeur/quantité → plus de « 00 »)
-        val unitPrice = when (currency) {
+        // Prix unitaire de marché. Repli sur valeur/quantité si le prix stocké
+        // est 0 (ex. instantané en cache d'une ancienne version) → plus de « 00 ».
+        val storedPrice = when (currency) {
             "EUR" -> token.priceEur
             "XOF" -> token.priceXof
             else -> token.priceUsd
+        }
+        val unitPrice = if (storedPrice > 0.0) storedPrice else {
+            val qty = token.amountFormatted.substringBefore(" ").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
+            if (qty > 0.0) valueAmount / qty else 0.0
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -439,10 +449,6 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onC
             }
             Text(
                 stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),
-                fontSize = 11.sp, color = TextSecondary
-            )
-            Text(
-                stringResource(R.string.asset_qty_fmt, if (hidden) "••••" else token.amountFormatted),
                 fontSize = 11.sp, color = TextSecondary
             )
         }

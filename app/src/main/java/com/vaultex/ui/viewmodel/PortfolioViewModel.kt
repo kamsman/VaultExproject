@@ -173,9 +173,14 @@ class PortfolioViewModel @Inject constructor(
                     val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
                     val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
 
-                    fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun eur(id: String) = prices[id]?.eur ?: 0.0
+                    // XOF est pegué à l'EUR (655,957 XOF = 1 €). Si CoinGecko ne
+                    // renvoie pas xof, on le dérive de l'EUR (jamais 0 si l'EUR existe).
+                    fun xof(id: String): Double {
+                        val direct = prices[id]?.xof ?: 0.0
+                        return if (direct > 0.0) direct else eur(id) * 655.957
+                    }
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     fun amt(bal: Double?, decimals: Int, unit: String) =
                         if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
