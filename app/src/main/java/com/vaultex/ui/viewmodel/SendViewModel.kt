@@ -141,9 +141,15 @@ class SendViewModel @Inject constructor(
         val json = secureStorage.getPortfolioSnapshot() ?: return null
         return try {
             val snap = gson.fromJson(json, SnapshotLite::class.java) ?: return null
-            val raw = snap.tokens?.firstOrNull { it.symbol == chain }?.amountFormatted ?: return null
-            val numeric = raw.substringBefore(" ").replace(" ", "").replace(",", ".")
-            if (numeric.toDoubleOrNull() != null) numeric else null
+            val t = snap.tokens?.firstOrNull { it.symbol == chain } ?: return null
+            // Solde EXACT (amountRaw) si disponible → le bouton Max ne dépasse
+            // jamais le solde réel (sinon le montant arrondi faisait revert la tx).
+            if (t.amountRaw > 0.0) {
+                java.math.BigDecimal.valueOf(t.amountRaw).toPlainString()
+            } else {
+                val numeric = t.amountFormatted.substringBefore(" ").replace(" ", "").replace(",", ".")
+                if (numeric.toDoubleOrNull() != null) numeric else null
+            }
         } catch (_: Exception) { null }
     }
 
@@ -165,7 +171,11 @@ class SendViewModel @Inject constructor(
     }
 
     private data class SnapshotLite(val tokens: List<TokenLite>?)
-    private data class TokenLite(val symbol: String = "", val amountFormatted: String = "")
+    private data class TokenLite(
+        val symbol: String = "",
+        val amountFormatted: String = "",
+        val amountRaw: Double = 0.0
+    )
 
     companion object {
         // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que

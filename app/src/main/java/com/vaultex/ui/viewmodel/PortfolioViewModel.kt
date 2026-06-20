@@ -35,7 +35,9 @@ data class TokenBalance(
     // Prix unitaire de marché (indépendant du solde) — évite les « prix 00 ».
     val priceUsd: Double = 0.0,
     val priceEur: Double = 0.0,
-    val priceXof: Double = 0.0
+    val priceXof: Double = 0.0,
+    // Solde EXACT (non arrondi) — utilisé par le bouton Max pour ne pas dépasser.
+    val amountRaw: Double = 0.0
 )
 
 data class PortfolioState(
@@ -196,12 +198,21 @@ class PortfolioViewModel @Inject constructor(
                               id: String, color: String, chain: Blockchain): TokenBalance {
                         if (bal == null) {
                             anyStale = true
-                            prevBySymbol[symbol]?.let { return it }
+                            // Solde indisponible : on garde le dernier solde connu MAIS
+                            // on rafraîchit le PRIX de marché (indépendant du solde),
+                            // sinon ETH/USDT-ETH affichaient « Prix : $0 ».
+                            prevBySymbol[symbol]?.let {
+                                return it.copy(
+                                    priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id),
+                                    changePercent24h = c(id)
+                                )
+                            }
                         }
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
                             value(bal, xof(id)), c(id), color, chain,
                             valueUsd = value(bal, usd(id)), valueEur = value(bal, eur(id)),
-                            priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id))
+                            priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id),
+                            amountRaw = bal ?: 0.0)
                     }
                     listOf(
                         build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),
