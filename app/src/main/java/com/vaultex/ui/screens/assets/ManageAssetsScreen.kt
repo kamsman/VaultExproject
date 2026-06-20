@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,6 +76,32 @@ fun ManageAssetsScreen(navController: NavController) {
                     checked = held || symbol in visible,
                     onToggle = { viewModel.toggleAssetVisible(symbol) }
                 )
+            }
+            item {
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = SurfaceColor,
+                    onClick = { navController.navigate(com.vaultex.ui.navigation.Routes.ADD_TOKEN) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(38.dp).clip(CircleShape).background(AccentBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            stringResource(R.string.add_token_button),
+                            fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
+                        )
+                    }
+                }
             }
         }
     }

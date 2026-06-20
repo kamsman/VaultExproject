@@ -37,7 +37,11 @@ data class TokenBalance(
     val priceEur: Double = 0.0,
     val priceXof: Double = 0.0,
     // Solde EXACT (non arrondi) — utilisé par le bouton Max pour ne pas dépasser.
-    val amountRaw: Double = 0.0
+    val amountRaw: Double = 0.0,
+    // Token personnalisé ajouté par l'utilisateur (contrat ERC-20/BEP-20).
+    val isCustom: Boolean = false,
+    val contractAddress: String = "",
+    val decimals: Int = 0
 )
 
 data class PortfolioState(
@@ -68,7 +72,8 @@ class PortfolioViewModel @Inject constructor(
     private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController,
     private val currencyController: com.vaultex.core.session.CurrencyController,
     private val walletNameController: com.vaultex.core.session.WalletNameController,
-    private val assetVisibility: com.vaultex.core.session.AssetVisibilityController
+    private val assetVisibility: com.vaultex.core.session.AssetVisibilityController,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository
 ) : ViewModel() {
 
     /** Devise d'affichage choisie (USD/EUR/XOF). */
@@ -166,7 +171,7 @@ class PortfolioViewModel @Inject constructor(
                 // valeur en cache au lieu de la remettre à 0 (fonds jamais perdus).
                 val prevBySymbol = _state.value.tokens.associateBy { it.symbol }
                 var anyStale = false
-                val tokens = coroutineScope {
+                val mainTokens = coroutineScope {
                     val btcD     = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
                     val ethD     = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
                     val bnbD     = async(Dispatchers.IO) { fetchEvmBalance(bnbRpc, addresses.bnb) }
@@ -226,6 +231,16 @@ class PortfolioViewModel @Inject constructor(
                     )
                 }
 
+                // Tokens personnalisés (ajoutés par contrat). Encapsulés dans un
+                // try/catch dédié : leur lecture ne doit JAMAIS casser les 8 actifs
+                // principaux. En cas d'échec, on réutilise le dernier état connu.
+                val customTokens = try {
+                    loadCustomTokens(addresses.eth, addresses.bnb, prevBySymbol)
+                } catch (_: Exception) {
+                    _state.value.tokens.filter { it.isCustom }
+                }
+                val tokens = mainTokens + customTokens
+
                 // Au moins une lecture a échoué (réseau/RPC) → affichage depuis le cache.
                 val balancesUnavailable = anyStale
                 val total = tokens.sumOf { it.valueXof }
@@ -272,6 +287,74 @@ class PortfolioViewModel @Inject constructor(
     // Les fetch renvoient Double? : null = ÉCHEC de lecture (réseau/RPC),
     // une valeur (y compris 0.0) = solde réellement déterminé. Si la réponse
     // RPC contient une erreur explicite, on considère aussi que c'est un échec.
+    /**
+     * Charge les tokens personnalisés (ERC-20 / BEP-20 ajoutés par contrat) :
+     * solde réel via eth_call(balanceOf) + prix de marché via CoinGecko
+     * (par adresse de contrat). En cas d'échec de prix, le token reste affiché
+     * avec son solde (valeur inconnue = 0), jamais d'écran cassé.
+     */
+    private suspend fun loadCustomTokens(
+        ethAddress: String,
+        bnbAddress: String,
+        prevBySymbol: Map<String, TokenBalance>
+    ): List<TokenBalance> = coroutineScope {
+        val customs = withContext(Dispatchers.IO) { tokenRepository.getCustom() }
+        if (customs.isEmpty()) return@coroutineScope emptyList()
+        // Index du dernier état connu par contrat (pour ne jamais remettre à 0).
+        val prevByContract = prevBySymbol.values
+            .filter { it.isCustom }
+            .associateBy { it.contractAddress.lowercase() }
+        customs.map { entity ->
+            async(Dispatchers.IO) {
+                val isBnb = entity.blockchain == "BNB"
+                val rpc = if (isBnb) bnbRpc else ethRpc
+                val address = if (isBnb) bnbAddress else ethAddress
+                val chain = if (isBnb) Blockchain.BNB_CHAIN else Blockchain.ETHEREUM
+                val platform = if (isBnb) "binance-smart-chain" else "ethereum"
+
+                val bal = fetchErc20Balance(rpc, entity.contractAddress, address, entity.decimals)
+
+                // Prix par contrat (clé = adresse en minuscules dans la réponse).
+                val price = try {
+                    coinGeckoApi.getTokenPrice(platform, entity.contractAddress.lowercase())
+                        .entries.firstOrNull()?.value
+                } catch (_: Exception) { null }
+                val usd = price?.usd ?: 0.0
+                val eur = price?.eur ?: 0.0
+                val xof = (price?.xof ?: 0.0).let { if (it > 0.0) it else eur * 655.957 }
+                val change = price?.change24h ?: 0.0
+
+                if (bal == null) {
+                    // Lecture du solde échouée → on garde le dernier solde connu
+                    // mais on rafraîchit le prix de marché.
+                    prevByContract[entity.contractAddress.lowercase()]?.let {
+                        return@async it.copy(
+                            priceUsd = usd, priceEur = eur, priceXof = xof,
+                            changePercent24h = change
+                        )
+                    }
+                }
+                val amount = bal ?: 0.0
+                TokenBalance(
+                    symbol = entity.symbol,
+                    name = entity.name.ifBlank { entity.symbol },
+                    amountFormatted = "%.4f %s".format(amount, entity.symbol),
+                    valueXof = amount * xof,
+                    changePercent24h = change,
+                    colorHex = "#3B82F6",
+                    blockchain = chain,
+                    valueUsd = amount * usd,
+                    valueEur = amount * eur,
+                    priceUsd = usd, priceEur = eur, priceXof = xof,
+                    amountRaw = amount,
+                    isCustom = true,
+                    contractAddress = entity.contractAddress,
+                    decimals = entity.decimals
+                )
+            }
+        }.map { it.await() }
+    }
+
     private suspend fun fetchErc20Balance(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double? = try {
         val paddedAddr = address.removePrefix("0x").padStart(64, '0')
         val data = "0x70a08231$paddedAddr"

@@ -51,8 +51,14 @@ interface TokenDao {
     @Query("SELECT * FROM tokens WHERE blockchain = :blockchain")
     suspend fun getByBlockchain(blockchain: String): List<TokenEntity>
 
+    @Query("SELECT * FROM tokens WHERE isCustom = 1 AND isHidden = 0")
+    suspend fun getCustom(): List<TokenEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(token: TokenEntity)
+
+    @Query("DELETE FROM tokens WHERE contractAddress = :address AND blockchain = :blockchain")
+    suspend fun delete(address: String, blockchain: String)
 
     @Query("UPDATE tokens SET isHidden = :hidden WHERE contractAddress = :address AND blockchain = :blockchain")
     suspend fun setHidden(address: String, blockchain: String, hidden: Boolean)

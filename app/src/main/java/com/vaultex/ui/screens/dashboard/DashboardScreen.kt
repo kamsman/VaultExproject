@@ -188,8 +188,10 @@ fun DashboardScreen(navController: NavHostController) {
                 ) {
                     // Règle : une monnaie s'affiche si elle est ACTIVÉE (Gérer les
                     // actifs) OU si elle a un solde > 0 (on ne masque jamais de fonds).
+                    // Les tokens personnalisés (ajoutés par contrat) sont toujours
+                    // affichés tant qu'ils existent en base.
                     val visibleTokens = state.tokens
-                        .filter { it.valueUsd > 0.0 || it.symbol in visibleAssets }
+                        .filter { it.valueUsd > 0.0 || it.symbol in visibleAssets || it.isCustom }
                         .sortedByDescending { it.valueUsd }
                     if (visibleTokens.isEmpty() && !state.isLoading) {
                         Text(

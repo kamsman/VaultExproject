@@ -483,6 +483,16 @@
     <string name="add_token_decimals">Décimales</string>
     <string name="add_token_verified">Contrat ERC-20 vérifié ✓</string>
     <string name="add_token_confirm">Ajouter ce token</string>
+    <string name="add_token_network">Réseau</string>
+    <string name="add_token_network_eth">Ethereum (ERC-20)</string>
+    <string name="add_token_network_bnb">BNB Chain (BEP-20)</string>
+    <string name="add_token_detect">Détecter</string>
+    <string name="add_token_detecting">Lecture du contrat…</string>
+    <string name="add_token_paste_hint">Collez l\'adresse du contrat (0x…) puis touchez Détecter.</string>
+    <string name="add_token_not_found">Contrat introuvable ou réseau indisponible. Vérifiez l\'adresse et le réseau.</string>
+    <string name="add_token_invalid_address">Adresse de contrat invalide (doit commencer par 0x et faire 42 caractères).</string>
+    <string name="add_token_added">Token ajouté. Le solde apparaîtra dans « Mes actifs ».</string>
+    <string name="add_token_button">Ajouter un token</string>
     <string name="contacts_search">Rechercher un contact</string>
     <string name="help_search">Rechercher une aide</string>
     <string name="help_q_create">Comment créer un wallet ?</string>

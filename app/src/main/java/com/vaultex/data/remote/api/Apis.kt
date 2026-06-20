@@ -90,6 +90,17 @@ interface CoinGeckoApi {
         @Query("include_market_cap") includeMarketCap: Boolean = true
     ): Map<String, CoinGeckoPriceDto>
 
+    // Prix d'un token ERC-20/BEP-20 par adresse de contrat.
+    // platform : "ethereum" ou "binance-smart-chain".
+    // Clé du Map retourné = adresse de contrat en minuscules.
+    @GET("simple/token_price/{platform}")
+    suspend fun getTokenPrice(
+        @Path("platform") platform: String,
+        @Query("contract_addresses") contractAddresses: String,
+        @Query("vs_currencies") vsCurrencies: String = "usd,eur,xof",
+        @Query("include_24hr_change") include24hChange: Boolean = true
+    ): Map<String, CoinGeckoPriceDto>
+
     @GET("coins/markets")
     suspend fun getMarkets(
         @Query("vs_currency") vsCurrency: String = "usd",
