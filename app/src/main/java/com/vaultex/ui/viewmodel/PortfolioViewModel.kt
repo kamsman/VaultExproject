@@ -39,8 +39,11 @@ data class TokenBalance(
     // Solde EXACT (non arrondi) — utilisé par le bouton Max pour ne pas dépasser.
     val amountRaw: Double = 0.0,
     // Token personnalisé ajouté par l'utilisateur (contrat ERC-20/BEP-20).
+    // contractAddress est NULLABLE : un ancien instantané (cache) sérialisé
+    // avant l'ajout de ce champ le désérialise à null via Gson ; un champ
+    // non-null ferait planter .copy() (« parameter specified as non-null is null »).
     val isCustom: Boolean = false,
-    val contractAddress: String = "",
+    val contractAddress: String? = null,
     val decimals: Int = 0
 )
 
@@ -302,8 +305,8 @@ class PortfolioViewModel @Inject constructor(
         if (customs.isEmpty()) return@coroutineScope emptyList()
         // Index du dernier état connu par contrat (pour ne jamais remettre à 0).
         val prevByContract = prevBySymbol.values
-            .filter { it.isCustom }
-            .associateBy { it.contractAddress.lowercase() }
+            .filter { it.isCustom && it.contractAddress != null }
+            .associateBy { it.contractAddress!!.lowercase() }
         customs.map { entity ->
             async(Dispatchers.IO) {
                 val isBnb = entity.blockchain == "BNB"
