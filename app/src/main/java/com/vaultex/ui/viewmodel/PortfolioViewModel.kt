@@ -31,7 +31,11 @@ data class TokenBalance(
     val colorHex: String,
     val blockchain: Blockchain,
     val valueUsd: Double = 0.0,
-    val valueEur: Double = 0.0
+    val valueEur: Double = 0.0,
+    // Prix unitaire de marché (indépendant du solde) — évite les « prix 00 ».
+    val priceUsd: Double = 0.0,
+    val priceEur: Double = 0.0,
+    val priceXof: Double = 0.0
 )
 
 data class PortfolioState(
@@ -60,11 +64,15 @@ class PortfolioViewModel @Inject constructor(
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
     private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController,
-    private val currencyController: com.vaultex.core.session.CurrencyController
+    private val currencyController: com.vaultex.core.session.CurrencyController,
+    private val walletNameController: com.vaultex.core.session.WalletNameController
 ) : ViewModel() {
 
     /** Devise d'affichage choisie (USD/EUR/XOF). */
     val currency: StateFlow<String> = currencyController.currency
+
+    /** Nom du wallet (affichage seul ici ; édition dans Paramètres). */
+    val walletName: StateFlow<String> = walletNameController.name
 
     private val _state = MutableStateFlow(PortfolioState(isLoading = true))
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
@@ -72,14 +80,6 @@ class PortfolioViewModel @Inject constructor(
     /** État partagé Show / Hide Balance. */
     val balanceHidden: StateFlow<Boolean> = balanceVisibility.hidden
     fun toggleBalanceVisibility() = balanceVisibility.toggle()
-
-    /** Nom du wallet (éditable). Vide => le libellé par défaut est affiché. */
-    private val _walletName = MutableStateFlow(secureStorage.getWalletName())
-    val walletName: StateFlow<String> = _walletName.asStateFlow()
-    fun renameWallet(name: String) {
-        secureStorage.saveWalletName(name)
-        _walletName.value = name.trim()
-    }
 
     companion object {
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
@@ -190,7 +190,8 @@ class PortfolioViewModel @Inject constructor(
                         }
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
                             value(bal, xof(id)), c(id), color, chain,
-                            valueUsd = value(bal, usd(id)), valueEur = value(bal, eur(id)))
+                            valueUsd = value(bal, usd(id)), valueEur = value(bal, eur(id)),
+                            priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id))
                     }
                     listOf(
                         build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),

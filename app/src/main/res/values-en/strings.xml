@@ -384,6 +384,7 @@
     <string name="wallet_rename_title">Wallet name</string>
     <string name="wallet_rename_hint">Enter a name</string>
     <string name="save">Save</string>
+    <string name="profile_remove_photo">Remove photo</string>
     <string name="send_balance_label">Balance: %1$s</string>
     <string name="send_err_insufficient">Not enough funds to cover the amount plus network fees.</string>
     <string name="send_err_nonce">A transaction is already in progress. Wait a few seconds and try again.</string>

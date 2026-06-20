@@ -13,6 +13,7 @@ data class SettingsState(
     val autoLockMinutes: Int = 5,
     val selectedCurrency: String = "XOF",
     val selectedLanguage: String = "fr",
+    val walletName: String = "",
     val hasPanicPin: Boolean = false
 )
 
@@ -20,7 +21,8 @@ data class SettingsState(
 class SettingsViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val themeController: ThemeController,
-    private val currencyController: com.vaultex.core.session.CurrencyController
+    private val currencyController: com.vaultex.core.session.CurrencyController,
+    private val walletNameController: com.vaultex.core.session.WalletNameController
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -40,9 +42,15 @@ class SettingsViewModel @Inject constructor(
                 isBiometricEnabled = secureStorage.isBiometricEnabled(),
                 autoLockMinutes = secureStorage.getAutoLockMinutes(),
                 selectedCurrency = currencyController.currency.value,
+                walletName = walletNameController.name.value,
                 hasPanicPin = secureStorage.getPanicPinHash() != null
             )
         }
+    }
+
+    fun setWalletName(name: String) {
+        walletNameController.setName(name)
+        _state.update { it.copy(walletName = name.trim()) }
     }
 
     fun setBiometric(enabled: Boolean) {

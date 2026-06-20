@@ -47,15 +47,6 @@ fun DashboardScreen(navController: NavHostController) {
     val balanceHidden by viewModel.balanceHidden.collectAsState()
     val walletName by viewModel.walletName.collectAsState()
     val currency by viewModel.currency.collectAsState()
-    var showRename by remember { mutableStateOf(false) }
-
-    if (showRename) {
-        WalletRenameDialog(
-            current = walletName,
-            onDismiss = { showRename = false },
-            onConfirm = { viewModel.renameWallet(it); showRename = false }
-        )
-    }
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -121,25 +112,13 @@ fun DashboardScreen(navController: NavHostController) {
             item {
                 Column {
                     Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
-                    // Nom du wallet éditable (#5) : tap pour renommer
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.clickable { showRename = true }
-                    ) {
-                        Text(
-                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.wallet_rename_title),
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    // Nom du wallet (affichage seul ; édition dans Paramètres)
+                    Text(
+                        walletName.ifEmpty { stringResource(R.string.my_wallet) },
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
                 }
             }
 
@@ -438,9 +417,12 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onC
             )
         }
         Spacer(Modifier.width(12.dp))
-        // Quantité détenue + prix unitaire (Prix = Valeur / Quantité)
-        val qty = token.amountFormatted.substringBefore(" ").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
-        val unitPrice = if (qty > 0.0) valueAmount / qty else 0.0
+        // Prix unitaire de marché (directement, pas valeur/quantité → plus de « 00 »)
+        val unitPrice = when (currency) {
+            "EUR" -> token.priceEur
+            "XOF" -> token.priceXof
+            else -> token.priceUsd
+        }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
@@ -544,27 +526,4 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
             }
         }
     }
-}
-
-@Composable
-private fun WalletRenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var text by remember { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.wallet_rename_title)) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.wallet_rename_hint)) }
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text.trim()) }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
 }

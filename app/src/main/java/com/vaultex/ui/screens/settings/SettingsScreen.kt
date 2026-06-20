@@ -1,5 +1,7 @@
 package com.vaultex.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +46,12 @@ fun SettingsScreen(navController: NavHostController) {
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
+    var showWalletNameDialog by remember { mutableStateOf(false) }
+    // Photo de profil (#4) : version pour forcer le rechargement après changement.
+    var photoVersion by remember { mutableStateOf(0) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && com.vaultex.core.session.ProfilePhotoStore.save(context, uri)) photoVersion++
+    }
     val context = LocalContext.current
     val currentLang = remember { com.vaultex.core.session.LocaleManager.getLanguage(context) }
 
@@ -77,6 +85,14 @@ fun SettingsScreen(navController: NavHostController) {
         )
     }
 
+    if (showWalletNameDialog) {
+        WalletRenameDialog(
+            current = state.walletName,
+            onDismiss = { showWalletNameDialog = false },
+            onConfirm = { viewModel.setWalletName(it); showWalletNameDialog = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -99,34 +115,74 @@ fun SettingsScreen(navController: NavHostController) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // ─── Carte profil ───
+            // ─── Carte profil : photo (#4) + nom éditable (#5) ───
             item {
-                val walletName = stringResource(R.string.settings_my_wallet)
+                val displayName = state.walletName.ifEmpty { stringResource(R.string.settings_my_wallet) }
+                val hasPhoto = remember(photoVersion) {
+                    com.vaultex.core.session.ProfilePhotoStore.exists(context)
+                }
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // Avatar : photo si définie, sinon initiales. Tap = choisir une photo.
                         Box(
-                            Modifier.size(52.dp).clip(CircleShape).background(AccentBlue),
+                            Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(AccentBlue)
+                                .clickable { photoPicker.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                walletName.take(2).uppercase(),
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (hasPhoto) {
+                                val f = com.vaultex.core.session.ProfilePhotoStore.file(context)
+                                coil.compose.AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(context)
+                                        .data(f)
+                                        .memoryCacheKey("profile-${f.lastModified()}")
+                                        .diskCacheKey("profile-${f.lastModified()}")
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.size(56.dp).clip(CircleShape)
+                                )
+                            } else {
+                                Text(
+                                    displayName.take(2).uppercase(),
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                         Spacer(Modifier.width(14.dp))
-                        Column {
-                            Text(walletName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        Column(Modifier.weight(1f)) {
+                            Text(displayName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
                             Text(
                                 stringResource(R.string.settings_wallet_subtitle),
                                 fontSize = 13.sp,
                                 color = TextSecondary
                             )
+                            if (hasPhoto) {
+                                Text(
+                                    stringResource(R.string.profile_remove_photo),
+                                    fontSize = 12.sp,
+                                    color = AccentBlue,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .clickable {
+                                            com.vaultex.core.session.ProfilePhotoStore.delete(context)
+                                            photoVersion++
+                                        }
+                                )
+                            }
+                        }
+                        // Éditer le nom
+                        IconButton(onClick = { showWalletNameDialog = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.wallet_rename_title), tint = TextSecondary)
                         }
                     }
                 }
@@ -353,6 +409,29 @@ private fun languageLabel(code: String): String = when (code) {
 }
 
 @Composable
+@Composable
+private fun WalletRenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var text by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.wallet_rename_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.wallet_rename_hint)) }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text.trim()) }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
+}
+
 @Composable
 private fun CurrencyPickerDialog(
     current: String,
