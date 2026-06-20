@@ -120,6 +120,17 @@ class SecureStorage @Inject constructor(
         prefs.edit().putString(KEY_CURRENCY, code).apply()
     }
 
+    /** Monnaies activées (visibles) dans « Mes actifs ». Défaut : les principales. */
+    fun getVisibleAssets(): Set<String> {
+        val csv = prefs.getString(KEY_VISIBLE_ASSETS, null)
+        return if (csv == null) DEFAULT_VISIBLE_ASSETS
+        else csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    }
+
+    fun setVisibleAssets(assets: Set<String>) {
+        prefs.edit().putString(KEY_VISIBLE_ASSETS, assets.joinToString(",")).apply()
+    }
+
     /**
      * Clé de chiffrement de la base SQLCipher (C-03).
      * Générée aléatoirement une fois, stockée dans les prefs chiffrées
@@ -213,5 +224,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"
         private const val KEY_CURRENCY = "display_currency"
+        private const val KEY_VISIBLE_ASSETS = "visible_assets"
+        val DEFAULT_VISIBLE_ASSETS = setOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT")
     }
 }

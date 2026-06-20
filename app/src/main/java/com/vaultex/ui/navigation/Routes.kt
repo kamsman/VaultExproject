@@ -120,6 +120,8 @@ object Routes {
 
     const val MANAGE_TOKENS = "manageTokens"
 
+    const val MANAGE_ASSETS = "manageAssets"
+
     const val SECURITY_SETUP = "securitySetup"
 
     const val SETTINGS_IMPORT_WALLET = "settingsImportWallet"

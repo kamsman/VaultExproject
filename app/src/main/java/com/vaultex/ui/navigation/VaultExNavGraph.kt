@@ -277,6 +277,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             ManageTokensScreen(navController)
         }
 
+        composable(Routes.MANAGE_ASSETS) {
+            com.vaultex.ui.screens.assets.ManageAssetsScreen(navController)
+        }
+
         composable(Routes.SECURITY_SETUP) {
             SecuritySetupScreen(navController)
         }

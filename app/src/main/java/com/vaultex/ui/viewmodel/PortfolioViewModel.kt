@@ -65,7 +65,8 @@ class PortfolioViewModel @Inject constructor(
     private val tronApi: TronApi,
     private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController,
     private val currencyController: com.vaultex.core.session.CurrencyController,
-    private val walletNameController: com.vaultex.core.session.WalletNameController
+    private val walletNameController: com.vaultex.core.session.WalletNameController,
+    private val assetVisibility: com.vaultex.core.session.AssetVisibilityController
 ) : ViewModel() {
 
     /** Devise d'affichage choisie (USD/EUR/XOF). */
@@ -73,6 +74,10 @@ class PortfolioViewModel @Inject constructor(
 
     /** Nom du wallet (affichage seul ici ; édition dans Paramètres). */
     val walletName: StateFlow<String> = walletNameController.name
+
+    /** Monnaies activées dans « Mes actifs » (en plus de celles ayant un solde). */
+    val visibleAssets: StateFlow<Set<String>> = assetVisibility.visible
+    fun toggleAssetVisible(symbol: String) = assetVisibility.toggle(symbol)
 
     private val _state = MutableStateFlow(PortfolioState(isLoading = true))
     val state: StateFlow<PortfolioState> = _state.asStateFlow()

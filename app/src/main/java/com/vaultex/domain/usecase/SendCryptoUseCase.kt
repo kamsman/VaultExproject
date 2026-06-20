@@ -179,11 +179,14 @@ class SendCryptoUseCase @Inject constructor(
             val callData  = "0xa9059cbb$paddedTo$paddedAmt"
             val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
                 mapOf("from" to fromAddress, "to" to contractAddress, "data" to callData) as Any))
-            val gasLimit = try {
+            val estimatedGas = try {
                 BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0xEA60")
                     .removePrefix("0x"), 16)
                     .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
             } catch (_: Exception) { BigInteger.valueOf(72_000L) }
+            // Plancher généreux pour un transfert de token (évite tout revert
+            // « out of gas » sur certains BEP-20/ERC-20).
+            val gasLimit = estimatedGas.max(BigInteger.valueOf(100_000L))
 
             val signed = if (chainId == 1L) {
                 val (maxPriority, maxFee) = fetchEip1559Fees(rpc)

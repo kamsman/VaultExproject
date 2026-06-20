@@ -47,6 +47,7 @@ fun DashboardScreen(navController: NavHostController) {
     val balanceHidden by viewModel.balanceHidden.collectAsState()
     val walletName by viewModel.walletName.collectAsState()
     val currency by viewModel.currency.collectAsState()
+    val visibleAssets by viewModel.visibleAssets.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -185,14 +186,11 @@ fun DashboardScreen(navController: NavHostController) {
                     linkLabel = stringResource(R.string.see_all),
                     onLinkClick = { navController.navigate(Routes.PORTFOLIO) }
                 ) {
-                    // Tous les actifs DÉTENUS (solde > 0) sont affichés (USDT inclus,
-                    // jamais masqué par une limite). Si rien n'est détenu, on montre
-                    // les principales cryptos à 0.
-                    val held = state.tokens
-                        .filter { it.valueXof > 0.0 }
+                    // Règle : une monnaie s'affiche si elle est ACTIVÉE (Gérer les
+                    // actifs) OU si elle a un solde > 0 (on ne masque jamais de fonds).
+                    val visibleTokens = state.tokens
+                        .filter { it.valueUsd > 0.0 || it.symbol in visibleAssets }
                         .sortedByDescending { it.valueUsd }
-                    val visibleTokens = if (held.isNotEmpty()) held
-                        else state.tokens.sortedByDescending { it.valueUsd }.take(5)
                     if (visibleTokens.isEmpty() && !state.isLoading) {
                         Text(
                             stringResource(R.string.dashboard_no_assets),
@@ -209,6 +207,17 @@ fun DashboardScreen(navController: NavHostController) {
                             HorizontalDivider(color = SurfaceLight, thickness = 1.dp)
                         }
                     }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "+ " + stringResource(R.string.manage_assets_action),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentBlue,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { navController.navigate(Routes.MANAGE_ASSETS) }
+                            .padding(vertical = 8.dp)
+                    )
                 }
             }
 
