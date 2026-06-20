@@ -19,7 +19,8 @@ data class SettingsState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
-    private val themeController: ThemeController
+    private val themeController: ThemeController,
+    private val currencyController: com.vaultex.core.session.CurrencyController
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -38,6 +39,7 @@ class SettingsViewModel @Inject constructor(
             it.copy(
                 isBiometricEnabled = secureStorage.isBiometricEnabled(),
                 autoLockMinutes = secureStorage.getAutoLockMinutes(),
+                selectedCurrency = currencyController.currency.value,
                 hasPanicPin = secureStorage.getPanicPinHash() != null
             )
         }
@@ -53,7 +55,10 @@ class SettingsViewModel @Inject constructor(
         _state.update { it.copy(autoLockMinutes = minutes) }
     }
 
-    fun setCurrency(currency: String) = _state.update { it.copy(selectedCurrency = currency) }
+    fun setCurrency(currency: String) {
+        currencyController.setCurrency(currency)
+        _state.update { it.copy(selectedCurrency = currency) }
+    }
 
     fun setLanguage(language: String) = _state.update { it.copy(selectedLanguage = language) }
 }

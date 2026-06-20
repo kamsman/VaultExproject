@@ -43,6 +43,7 @@ fun SettingsScreen(navController: NavHostController) {
     val themeMode by viewModel.themeMode.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showCurrencyDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val currentLang = remember { com.vaultex.core.session.LocaleManager.getLanguage(context) }
 
@@ -65,6 +66,14 @@ fun SettingsScreen(navController: NavHostController) {
                 }
             },
             onDismiss = { showLanguageDialog = false }
+        )
+    }
+
+    if (showCurrencyDialog) {
+        CurrencyPickerDialog(
+            current = state.selectedCurrency,
+            onPick = { viewModel.setCurrency(it); showCurrencyDialog = false },
+            onDismiss = { showCurrencyDialog = false }
         )
     }
 
@@ -182,7 +191,9 @@ fun SettingsScreen(navController: NavHostController) {
                         navController.navigate(Routes.NETWORK_SETTINGS)
                     }
                     RowDivider()
-                    SettingsValueRow(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency)
+                    SettingsValueRow(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency) {
+                        showCurrencyDialog = true
+                    }
                     RowDivider()
                     SettingsRow(Icons.Default.Notifications, stringResource(R.string.settings_price_alerts)) {
                         navController.navigate(Routes.NOTIFICATIONS)
@@ -342,6 +353,41 @@ private fun languageLabel(code: String): String = when (code) {
 }
 
 @Composable
+@Composable
+private fun CurrencyPickerDialog(
+    current: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        "USD" to "Dollar (USD)",
+        "EUR" to "Euro (EUR)",
+        "XOF" to "Franc CFA (XOF)"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.currency)) },
+        text = {
+            Column {
+                options.forEach { (code, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(code) }.padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = current == code, onClick = { onPick(code) })
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, fontSize = 15.sp, color = TextPrimary)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        }
+    )
+}
+
+@Composable
 private fun LanguagePickerDialog(
     current: String,
     onPick: (String) -> Unit,
@@ -410,9 +456,12 @@ private fun ThemePickerDialog(
 }
 
 @Composable
-private fun SettingsValueRow(icon: ImageVector, title: String, value: String) {
+private fun SettingsValueRow(icon: ImageVector, title: String, value: String, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RowIcon(icon)

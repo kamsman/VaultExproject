@@ -30,12 +30,14 @@ data class TokenBalance(
     val changePercent24h: Double,
     val colorHex: String,
     val blockchain: Blockchain,
-    val valueUsd: Double = 0.0
+    val valueUsd: Double = 0.0,
+    val valueEur: Double = 0.0
 )
 
 data class PortfolioState(
     val totalBalanceXof: Double = 0.0,
     val totalBalanceUsd: Double = 0.0,
+    val totalBalanceEur: Double = 0.0,
     val totalChangePercent: Double = 0.0,
     val tokens: List<TokenBalance> = emptyList(),
     val isLoading: Boolean = false,
@@ -57,8 +59,12 @@ class PortfolioViewModel @Inject constructor(
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
-    private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController
+    private val balanceVisibility: com.vaultex.core.session.BalanceVisibilityController,
+    private val currencyController: com.vaultex.core.session.CurrencyController
 ) : ViewModel() {
+
+    /** Devise d'affichage choisie (USD/EUR/XOF). */
+    val currency: StateFlow<String> = currencyController.currency
 
     private val _state = MutableStateFlow(PortfolioState(isLoading = true))
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
@@ -142,7 +148,7 @@ class PortfolioViewModel @Inject constructor(
                     try {
                         coinGeckoApi.getPrices(
                             ids = COIN_IDS.joinToString(","),
-                            vsCurrencies = "xof,usd",
+                            vsCurrencies = "xof,usd,eur",
                             include24hChange = true,
                             includeMarketCap = false
                         )
@@ -169,6 +175,7 @@ class PortfolioViewModel @Inject constructor(
 
                     fun xof(id: String) = prices[id]?.xof ?: 0.0
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
+                    fun eur(id: String) = prices[id]?.eur ?: 0.0
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     fun amt(bal: Double?, decimals: Int, unit: String) =
                         if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
@@ -182,7 +189,8 @@ class PortfolioViewModel @Inject constructor(
                             prevBySymbol[symbol]?.let { return it }
                         }
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
-                            value(bal, xof(id)), c(id), color, chain, valueUsd = value(bal, usd(id)))
+                            value(bal, xof(id)), c(id), color, chain,
+                            valueUsd = value(bal, usd(id)), valueEur = value(bal, eur(id)))
                     }
                     listOf(
                         build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),
@@ -200,6 +208,7 @@ class PortfolioViewModel @Inject constructor(
                 val balancesUnavailable = anyStale
                 val total = tokens.sumOf { it.valueXof }
                 val totalUsd = tokens.sumOf { it.valueUsd }
+                val totalEur = tokens.sumOf { it.valueEur }
                 // Value-weighted 24h change: each token weighted by its XOF value
                 val avgChange = if (total == 0.0) 0.0
                     else tokens.sumOf { it.changePercent24h * it.valueXof } / total
@@ -207,6 +216,7 @@ class PortfolioViewModel @Inject constructor(
                     tokens = tokens,
                     totalBalanceXof = total,
                     totalBalanceUsd = totalUsd,
+                    totalBalanceEur = totalEur,
                     totalChangePercent = avgChange,
                     isLoading = false,
                     // Plus de message d'erreur quand on retombe sur le cache : les

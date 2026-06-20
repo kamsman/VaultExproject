@@ -46,6 +46,7 @@ fun DashboardScreen(navController: NavHostController) {
     val state by viewModel.state.collectAsState()
     val balanceHidden by viewModel.balanceHidden.collectAsState()
     val walletName by viewModel.walletName.collectAsState()
+    val currency by viewModel.currency.collectAsState()
     var showRename by remember { mutableStateOf(false) }
 
     if (showRename) {
@@ -145,7 +146,9 @@ fun DashboardScreen(navController: NavHostController) {
             // ─── Carte solde (dégradé bleu, USD + ≈ XOF) ───
             item {
                 BalanceCard(
+                    currency = currency,
                     usd = state.totalBalanceUsd,
+                    eur = state.totalBalanceEur,
                     xof = state.totalBalanceXof,
                     changePercent = state.totalChangePercent,
                     // Barre de chargement UNIQUEMENT au tout premier chargement
@@ -215,7 +218,7 @@ fun DashboardScreen(navController: NavHostController) {
                         )
                     }
                     visibleTokens.forEachIndexed { index, token ->
-                        AssetRow(token, balanceHidden) {
+                        AssetRow(token, balanceHidden, currency) {
                             navController.navigate(Routes.tokenDetail(token.symbol))
                         }
                         if (index < visibleTokens.lastIndex) {
@@ -252,17 +255,21 @@ fun DashboardScreen(navController: NavHostController) {
 
 @Composable
 private fun BalanceCard(
+    currency: String,
     usd: Double,
+    eur: Double,
     xof: Double,
     changePercent: Double,
     isLoading: Boolean,
     hidden: Boolean,
     onToggleHidden: () -> Unit
 ) {
-    val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
-        maximumFractionDigits = 2; minimumFractionDigits = 2
-    }.format(usd)
-    val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).format(xof.toLong())
+    val primaryAmount = when (currency) { "EUR" -> eur; "XOF" -> xof; else -> usd }
+    val primaryText = com.vaultex.core.util.CurrencyFormat.format(primaryAmount, currency)
+    // Référence secondaire : USD si on n'est pas en USD, sinon FCFA.
+    val secondaryText =
+        if (currency == "USD") com.vaultex.core.util.CurrencyFormat.format(xof, "XOF")
+        else com.vaultex.core.util.CurrencyFormat.format(usd, "USD")
     val masked = "••••••"
 
     Box(
@@ -296,15 +303,15 @@ private fun BalanceCard(
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    if (hidden) masked else "$$usdFormatted",
+                    if (hidden) masked else primaryText,
                     color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.width(4.dp))
-                Text("USD", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(6.dp))
+                Text(currency, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hidden) masked else stringResource(R.string.approx_xof, xofFormatted),
+                if (hidden) masked else "≈ $secondaryText",
                 color = Color.White.copy(alpha = 0.75f),
                 fontSize = 13.sp
             )
@@ -395,10 +402,13 @@ private fun SectionCard(
 }
 
 @Composable
-private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) {
-    val usdFormatted = NumberFormat.getNumberInstance(Locale.FRANCE).apply {
-        maximumFractionDigits = 2
-    }.format(token.valueUsd)
+private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onClick: () -> Unit) {
+    val valueAmount = when (currency) {
+        "EUR" -> token.valueEur
+        "XOF" -> token.valueXof
+        else -> token.valueUsd
+    }
+    val valueText = com.vaultex.core.util.CurrencyFormat.format(valueAmount, currency)
     val tokenColor = try {
         Color(android.graphics.Color.parseColor(token.colorHex))
     } catch (_: Exception) { AccentBlue }
@@ -430,7 +440,7 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) 
         Spacer(Modifier.width(12.dp))
         // Quantité détenue + prix unitaire (Prix = Valeur / Quantité)
         val qty = token.amountFormatted.substringBefore(" ").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
-        val unitPrice = if (qty > 0.0) token.valueUsd / qty else 0.0
+        val unitPrice = if (qty > 0.0) valueAmount / qty else 0.0
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
@@ -446,7 +456,7 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) 
                 }
             }
             Text(
-                stringResource(R.string.asset_price_fmt, "$" + formatAssetPrice(unitPrice)),
+                stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),
                 fontSize = 11.sp, color = TextSecondary
             )
             Text(
@@ -456,7 +466,7 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) 
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                if (hidden) "••••" else "$$usdFormatted",
+                if (hidden) "••••" else valueText,
                 fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
             )
             val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed

@@ -106,6 +106,7 @@ data class TronTriggerResult(val result: Boolean, val message: String? = null)
 data class CoinGeckoPriceDto(
     val usd: Double = 0.0,
     val xof: Double = 0.0,
+    val eur: Double = 0.0,
     @SerializedName("usd_24h_change") val change24h: Double = 0.0,
     @SerializedName("usd_market_cap") val marketCap: Double = 0.0
 )

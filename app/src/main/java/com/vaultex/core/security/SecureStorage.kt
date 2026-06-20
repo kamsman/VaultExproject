@@ -113,6 +113,13 @@ class SecureStorage @Inject constructor(
         prefs.edit().putString(KEY_WALLET_NAME, name.trim()).apply()
     }
 
+    /** Devise d'affichage du wallet : USD, EUR ou XOF (défaut USD). */
+    fun getCurrency(): String = prefs.getString(KEY_CURRENCY, "USD") ?: "USD"
+
+    fun setCurrency(code: String) {
+        prefs.edit().putString(KEY_CURRENCY, code).apply()
+    }
+
     /**
      * Clé de chiffrement de la base SQLCipher (C-03).
      * Générée aléatoirement une fois, stockée dans les prefs chiffrées
@@ -205,5 +212,6 @@ class SecureStorage @Inject constructor(
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"
+        private const val KEY_CURRENCY = "display_currency"
     }
 }
