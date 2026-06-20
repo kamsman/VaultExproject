@@ -478,9 +478,10 @@ private fun formatAssetPrice(value: Double): String =
 @Composable
 private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
     val total = tokens.sumOf { it.valueUsd }
+    val fallbackColor = AccentBlue   // lu dans le contexte @Composable
     fun colorOf(hex: String): Color = try {
         Color(android.graphics.Color.parseColor(hex))
-    } catch (_: Exception) { AccentBlue }
+    } catch (_: Exception) { fallbackColor }
 
     Card(
         shape = RoundedCornerShape(16.dp),
