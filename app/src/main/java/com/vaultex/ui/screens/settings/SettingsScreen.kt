@@ -43,6 +43,7 @@ fun SettingsScreen(navController: NavHostController) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+    val context = LocalContext.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
@@ -52,7 +53,6 @@ fun SettingsScreen(navController: NavHostController) {
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && com.vaultex.core.session.ProfilePhotoStore.save(context, uri)) photoVersion++
     }
-    val context = LocalContext.current
     val currentLang = remember { com.vaultex.core.session.LocaleManager.getLanguage(context) }
 
     if (showThemeDialog) {
@@ -408,7 +408,6 @@ private fun languageLabel(code: String): String = when (code) {
     else -> stringResource(R.string.lang_french)
 }
 
-@Composable
 @Composable
 private fun WalletRenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf(current) }
