@@ -127,7 +127,20 @@ fun AddTokenScreen(navController: NavHostController) {
                         Text(stringResource(R.string.add_token_detected), color = TextSecondary, fontSize = 12.sp)
                         DetailRow(stringResource(R.string.add_token_symbol), symbol)
                         DetailRow(stringResource(R.string.add_token_decimals), decimals.toString())
+                        val priceUsd = state.detectedPriceUsd
+                        if (priceUsd != null) {
+                            DetailRow(
+                                stringResource(R.string.add_token_price),
+                                "$" + (if (priceUsd >= 1.0) "%,.2f".format(priceUsd) else "%.6f".format(priceUsd))
+                            )
+                        }
                         Text(stringResource(R.string.add_token_verified), color = Color(0xFF22C55E), fontSize = 13.sp)
+                        if (state.priceUnknown) {
+                            Text(
+                                stringResource(R.string.add_token_price_unknown),
+                                color = Color(0xFFE6AC00), fontSize = 12.sp
+                            )
+                        }
                     }
                 }
 

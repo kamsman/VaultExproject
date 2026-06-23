@@ -493,6 +493,8 @@
     <string name="add_token_invalid_address">Adresse de contrat invalide (doit commencer par 0x et faire 42 caractères).</string>
     <string name="add_token_added">Token ajouté. Le solde apparaîtra dans « Mes actifs ».</string>
     <string name="add_token_button">Ajouter un token</string>
+    <string name="add_token_price">Prix</string>
+    <string name="add_token_price_unknown">Token reconnu sur la blockchain, mais non coté (prix indisponible). Vous pouvez quand même l\'ajouter.</string>
     <string name="contacts_search">Rechercher un contact</string>
     <string name="help_search">Rechercher une aide</string>
     <string name="help_q_create">Comment créer un wallet ?</string>

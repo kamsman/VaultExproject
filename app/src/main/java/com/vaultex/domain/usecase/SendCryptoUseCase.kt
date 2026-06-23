@@ -56,6 +56,22 @@ class SendCryptoUseCase @Inject constructor(
      * (PendingSendWorker), afin que les deux chemins soient identiques.
      */
     suspend fun sendByChain(chain: String, toAddress: String, amount: String): Result {
+        // Token personnalisé (ERC-20/BEP-20 ajouté par contrat). Encodé sous la
+        // forme "ERC20:<ETH|BNB>:<contract>:<decimals>" pour que CE chemin unique
+        // serve l'envoi direct ET la file hors-ligne (PendingSendWorker).
+        if (chain.startsWith("ERC20:")) {
+            val parts = chain.split(":")
+            if (parts.size != 4) return Result.Error("Token personnalisé invalide")
+            val evm = parts[1]
+            val contract = parts[2]
+            val decimals = parts[3].toIntOrNull() ?: return Result.Error("Décimales invalides")
+            val chainId = if (evm == "BNB") 56L else 1L
+            val amountWei = try {
+                BigDecimal(amount).multiply(BigDecimal.TEN.pow(decimals)).toBigInteger()
+            } catch (_: Exception) { return Result.Error("Montant invalide") }
+            return sendErc20(toAddress = toAddress, amountWei = amountWei,
+                contractAddress = contract, chainId = chainId)
+        }
         return when (chain) {
             "ETH", "BNB" -> {
                 val chainId = if (chain == "ETH") 1L else 56L
@@ -359,7 +375,16 @@ class SendCryptoUseCase @Inject constructor(
      * indisponible — l'envoi recalcule de toute façon ses propres frais en signant.
      */
     suspend fun estimateFeeNative(chain: String): Double? = try {
-        when (chain) {
+        // Token personnalisé : gas d'un transfert ERC-20/BEP-20 (~65 000 gas),
+        // payé en natif (ETH ou BNB).
+        if (chain.startsWith("ERC20:")) {
+            val evm = chain.split(":").getOrNull(1)
+            if (evm == "BNB") {
+                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 65_000.0 / 1e18
+            } else {
+                val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18
+            }
+        } else when (chain) {
             "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 21_000.0 / 1e18 }
             "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18 }
             "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 21_000.0 / 1e18

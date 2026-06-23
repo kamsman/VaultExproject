@@ -56,6 +56,7 @@ import com.vaultex.ui.viewmodel.SendViewModel
 fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val customTokens by viewModel.customTokens.collectAsState()
 
     // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse).
     // Sinon, pré-sélection de la chaîne depuis la page d'une crypto (#4).
@@ -66,7 +67,10 @@ fun SendScreen(navController: NavController) {
             viewModel.setToAddress(target.address)
         } else {
             com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
-                if (sym in listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB")) {
+                // Chaînes natives OU symbole d'un token personnalisé enregistré.
+                if (sym in listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB") ||
+                    customTokens.any { it.symbol == sym }
+                ) {
                     viewModel.setChain(sym)
                 }
             }
@@ -97,7 +101,9 @@ fun SendScreen(navController: NavController) {
         if (state.queued) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB")
+    // Chaînes natives + symboles des tokens personnalisés ajoutés par contrat.
+    val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB") +
+        customTokens.map { it.symbol }
 
     // Frais réseau réel (gas live), calculé par chaîne dans le ViewModel.
     val feeEstimate = state.estimatedFee

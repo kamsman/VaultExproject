@@ -17,6 +17,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Token personnalisé (ERC-20/BEP-20) sélectionnable dans l'écran Envoyer. */
+data class CustomTokenLite(
+    val symbol: String,
+    val contractAddress: String,
+    val decimals: Int,
+    val blockchain: String   // "ETH" ou "BNB"
+)
+
 data class SendState(
     val selectedChain: String = "USDT",
     val toAddress: String = "",
@@ -29,7 +37,9 @@ data class SendState(
     val queued: Boolean = false,
     val dustWarning: String? = null,
     // Solde disponible de la chaîne sélectionnée (lu depuis le cache portefeuille).
-    val availableBalance: String? = null
+    val availableBalance: String? = null,
+    // Non-null quand l'utilisateur envoie un token personnalisé ajouté par contrat.
+    val customToken: CustomTokenLite? = null
 )
 
 @HiltViewModel
@@ -37,26 +47,53 @@ class SendViewModel @Inject constructor(
     private val sendCryptoUseCase: SendCryptoUseCase,
     private val pendingSendDao: PendingSendDao,
     private val secureStorage: SecureStorage,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
 
+    /** Tokens personnalisés à afficher en plus des 8 chaînes natives. */
+    private val _customTokens = MutableStateFlow<List<CustomTokenLite>>(emptyList())
+    val customTokens: StateFlow<List<CustomTokenLite>> = _customTokens.asStateFlow()
+
     private val gson = com.google.gson.Gson()
 
     init {
         _state.update { it.copy(availableBalance = availableFor(it.selectedChain)) }
         fetchFee(_state.value.selectedChain)
+        viewModelScope.launch {
+            _customTokens.value = try {
+                tokenRepository.getCustom().map {
+                    CustomTokenLite(it.symbol, it.contractAddress, it.decimals, it.blockchain)
+                }
+            } catch (_: Exception) { emptyList() }
+        }
     }
 
+    /** Chaîne effective passée à l'envoi : encodée pour un token personnalisé. */
+    private fun effectiveChain(s: SendState): String =
+        s.customToken?.let { "ERC20:${it.blockchain}:${it.contractAddress}:${it.decimals}" }
+            ?: s.selectedChain
+
     fun setChain(chain: String) {
+        // Un token personnalisé est identifié par son symbole (chip). On le
+        // reconnaît seulement s'il ne porte pas le nom d'une chaîne native.
+        val custom = if (chain in NATIVE_CHAINS) null
+            else _customTokens.value.firstOrNull { it.symbol == chain }
         val addr = _state.value.toAddress
-        val valid = if (addr.isEmpty()) false else AddressValidator.isValid(addr, chain)
+        // Adresse EVM (0x…) pour un token personnalisé ; sinon validation native.
+        val valid = when {
+            addr.isEmpty() -> false
+            custom != null -> AddressValidator.isValidEvm(addr)
+            else -> AddressValidator.isValid(addr, chain)
+        }
         val warning = dustWarning(chain, _state.value.amount)
         _state.update {
             it.copy(
                 selectedChain = chain,
+                customToken = custom,
                 isAddressValid = valid,
                 error = null,
                 dustWarning = warning,
@@ -64,7 +101,7 @@ class SendViewModel @Inject constructor(
                 estimatedFee = ""        // recalcul ci-dessous pour la nouvelle chaîne
             )
         }
-        fetchFee(chain)
+        fetchFee(effectiveChain(_state.value))
     }
 
     /** Frais réseau réel de la chaîne (gas live) — recalculé à chaque changement. */
@@ -76,12 +113,13 @@ class SendViewModel @Inject constructor(
         }
     }
 
-    private fun nativeUnit(chain: String): String = when (chain) {
-        "ETH", "USDT-ETH" -> "ETH"
-        "BNB", "USDT-BNB" -> "BNB"
-        "BTC" -> "BTC"
-        "SOL" -> "SOL"
-        "TRX", "USDT" -> "TRX"
+    private fun nativeUnit(chain: String): String = when {
+        chain.startsWith("ERC20:") -> if (chain.split(":").getOrNull(1) == "BNB") "BNB" else "ETH"
+        chain == "ETH" || chain == "USDT-ETH" -> "ETH"
+        chain == "BNB" || chain == "USDT-BNB" -> "BNB"
+        chain == "BTC" -> "BTC"
+        chain == "SOL" -> "SOL"
+        chain == "TRX" || chain == "USDT" -> "TRX"
         else -> chain
     }
 
@@ -92,8 +130,10 @@ class SendViewModel @Inject constructor(
             .toPlainString()
 
     fun setToAddress(address: String) {
-        val chain = _state.value.selectedChain
-        val valid = AddressValidator.isValid(address, chain)
+        val s = _state.value
+        // Token personnalisé → adresse EVM (0x…) ; sinon validation par chaîne.
+        val valid = if (s.customToken != null) AddressValidator.isValidEvm(address)
+            else AddressValidator.isValid(address, s.selectedChain)
         _state.update { it.copy(toAddress = address, isAddressValid = valid) }
     }
 
@@ -178,6 +218,12 @@ class SendViewModel @Inject constructor(
     )
 
     companion object {
+        // Chaînes natives connues : un symbole hors de cette liste qui correspond
+        // à un token enregistré est traité comme un token personnalisé.
+        private val NATIVE_CHAINS = setOf(
+            "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB"
+        )
+
         // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que
         // l'envoi « tout le solde » couvre le gas. Valeurs volontairement
         // prudentes ; les tokens (USDT*) ne sont pas listés (gas payé en natif).
@@ -209,12 +255,13 @@ class SendViewModel @Inject constructor(
         // Hors-ligne : on met l'INTENTION en file. Elle sera signée (avec un
         // nonce/blockhash frais) et diffusée automatiquement, une seule fois,
         // au retour du réseau via PendingSendWorker.
+        val effective = effectiveChain(s)
         if (!NetworkMonitor.isOnline(appContext)) {
             viewModelScope.launch {
                 try {
                     pendingSendDao.insert(
                         PendingSendEntity(
-                            chain = s.selectedChain,
+                            chain = effective,
                             toAddress = s.toAddress,
                             amount = s.amount,
                             status = PendingSendWorker.STATUS_PENDING,
@@ -235,7 +282,7 @@ class SendViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val result = sendCryptoUseCase.sendByChain(s.selectedChain, s.toAddress, s.amount)
+            val result = sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount)
             when (result) {
                 is SendCryptoUseCase.Result.Success -> {
                     // Demande à l'accueil de rafraîchir vite le solde après l'envoi.
