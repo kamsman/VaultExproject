@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -108,6 +109,28 @@ fun SendScreen(navController: NavController) {
     val selectedNetworkKey = networks.firstOrNull { state.selectedChain in it.coins }?.key
         ?: networks.first().key
 
+    // ─ Données d'affichage « pro » (titre, conversions fiat, récapitulatif) ─
+    val coinShort = coinLabel(state.selectedChain)                          // ex: USDT
+    val coinTitle = coinTitleOf(state.selectedChain, state.customToken)     // ex: USDT (TRC20)
+    val netFull = networkFullLabel(state.selectedChain, state.customToken)  // ex: TRC20 · Tron
+    val isNative = state.selectedChain in listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+
+    val price = state.priceSelected
+    val amountNum = state.amount.replace(",", ".").toDoubleOrNull() ?: 0.0
+    val availNum = state.availableBalance?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
+    val feeNum = state.feeNativeAmount ?: 0.0
+
+    fun fiat(v: Double): String? =
+        if (v > 0.0) com.vaultex.core.util.CurrencyFormat.format(v, state.currency) else null
+    val availFiat = if (price > 0.0) fiat(availNum * price) else null
+    val amountFiat = if (price > 0.0) fiat(amountNum * price) else null
+    val feeFiat = if (state.priceNative > 0.0) fiat(feeNum * state.priceNative) else null
+    // Total : pour une monnaie native, montant + frais (même actif) ; pour un
+    // token, les frais sont payés en natif → le total dans le token = montant.
+    val totalToken = if (isNative) amountNum + feeNum else amountNum
+    val totalFiatValue = if (isNative) (amountNum + feeNum) * price else amountNum * price
+    val totalFiat = if (price > 0.0) fiat(totalFiatValue) else null
+
     // Frais réseau réel (gas live), calculé par chaîne dans le ViewModel.
     val feeEstimate = state.estimatedFee
 
@@ -162,14 +185,14 @@ fun SendScreen(navController: NavController) {
             title = { Text(stringResource(R.string.send_confirm_recap_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ConfirmRow(stringResource(R.string.send_confirm_network), state.selectedChain)
+                    ConfirmRow(stringResource(R.string.send_confirm_network), netFull)
                     ConfirmRow(stringResource(R.string.send_recipient_label), shortenAddress(state.toAddress))
-                    ConfirmRow(stringResource(R.string.amount), "${state.amount} ${state.selectedChain}")
+                    ConfirmRow(stringResource(R.string.amount), "${state.amount} $coinShort")
                     ConfirmRow(stringResource(R.string.send_fee_estimate_label).trimEnd(' ', ':'), feeEstimate.ifEmpty { "—" })
                     HorizontalDivider(color = BorderColor)
                     ConfirmRow(
                         stringResource(R.string.send_confirm_total),
-                        "${state.amount} ${state.selectedChain}" + if (feeEstimate.isNotEmpty()) " + ${feeEstimate}" else "",
+                        "${state.amount} $coinShort" + if (feeEstimate.isNotEmpty()) " + ${feeEstimate}" else "",
                         emphasize = true
                     )
                 }
@@ -240,7 +263,7 @@ fun SendScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.send_title), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
+                title = { Text("${stringResource(R.string.send_title)} $coinTitle", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
@@ -295,6 +318,34 @@ fun SendScreen(navController: NavController) {
                             label = coinLabel(coin),
                             selected = state.selectedChain == coin,
                             onClick = { viewModel.setChain(coin) }
+                        )
+                    }
+                }
+            }
+
+            // ─── Carte « Solde disponible » (montant + équivalent fiat + icône) ─
+            SendCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.send_available_balance), fontSize = 12.sp, color = TextSecondary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            (state.availableBalance ?: "—") + " " + coinShort,
+                            fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                        )
+                        if (availFiat != null) {
+                            Text("≈ $availFiat", fontSize = 13.sp, color = TextSecondary)
+                        }
+                    }
+                    Box(
+                        Modifier.size(46.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(coinShort.take(2), color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        coil.compose.AsyncImage(
+                            model = com.vaultex.ui.components.CryptoIcon.url(coinShort),
+                            contentDescription = coinShort,
+                            modifier = Modifier.size(46.dp).clip(CircleShape)
                         )
                     }
                 }
@@ -363,10 +414,14 @@ fun SendScreen(navController: NavController) {
                 SendField(
                     value = state.amount,
                     onValueChange = { viewModel.setAmount(it) },
-                    placeholder = "0.00 ${state.selectedChain}",
+                    placeholder = "0.00 $coinShort",
                     keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (amountFiat != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("≈ $amountFiat", fontSize = 12.sp, color = TextSecondary)
+                }
                 Spacer(Modifier.height(10.dp))
                 Row(
                     Modifier.fillMaxWidth(),
@@ -375,7 +430,7 @@ fun SendScreen(navController: NavController) {
                 ) {
                     Text(
                         state.availableBalance
-                            ?.let { stringResource(R.string.send_balance_label, "$it ${state.selectedChain}") }
+                            ?.let { stringResource(R.string.send_balance_label, "$it $coinShort") }
                             ?: stringResource(R.string.send_balance_label, "—"),
                         fontSize = 12.sp,
                         color = TextSecondary
@@ -416,25 +471,39 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Carte frais — affichée UNIQUEMENT quand un montant est saisi (#2a),
-            // avec le frais réseau RÉEL calculé sur le gas (#2b).
-            if (state.amount.isNotEmpty()) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = SurfaceLight,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                    modifier = Modifier.fillMaxWidth()
+            // Carte récapitulative : Réseau / Frais réseau / Tu vas envoyer / Total.
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = SurfaceLight,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Info, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                    SummaryRow(stringResource(R.string.send_summary_network), netFull)
+                    SummaryRow(
+                        stringResource(R.string.send_summary_fee),
+                        feeEstimate.ifEmpty { "…" },
+                        sub = feeFiat?.let { "≈ $it" }
+                    )
+                    SummaryRow(
+                        stringResource(R.string.send_summary_you_send),
+                        "${state.amount.ifEmpty { "0" }} $coinShort",
+                        sub = amountFiat?.let { "≈ $it" }
+                    )
+                    HorizontalDivider(color = BorderColor)
+                    SummaryRow(
+                        stringResource(R.string.send_summary_total),
+                        formatTokenAmount(totalToken) + " $coinShort",
+                        sub = totalFiat?.let { "≈ $it" },
+                        emphasize = true
+                    )
+                    if (!isNative) {
                         Text(
-                            stringResource(R.string.send_fee_estimate_label) + " " + feeEstimate.ifEmpty { "…" },
-                            fontSize = 13.sp,
-                            color = TextPrimary
+                            stringResource(R.string.send_summary_fee_note, nativeFeeUnit(state.selectedChain, state.customToken)),
+                            fontSize = 11.sp, color = TextSecondary
                         )
                     }
                 }
@@ -577,6 +646,65 @@ private fun ConfirmRow(label: String, value: String, emphasize: Boolean = false)
 
 private fun shortenAddress(a: String): String =
     if (a.length <= 14) a else "${a.take(8)}…${a.takeLast(6)}"
+
+@Composable
+private fun SummaryRow(label: String, value: String, sub: String? = null, emphasize: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 13.sp, color = TextSecondary)
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+            Text(
+                value,
+                fontSize = if (emphasize) 15.sp else 13.sp,
+                fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (emphasize) AccentBlue else TextPrimary
+            )
+            if (sub != null) Text(sub, fontSize = 11.sp, color = TextSecondary)
+        }
+    }
+}
+
+/** Titre de la monnaie avec sa norme : « USDT (TRC20) », « SHIB (ERC20) »… */
+private fun coinTitleOf(chain: String, custom: CustomTokenLite?): String = when {
+    custom != null -> "${custom.symbol} (${if (custom.blockchain == "BNB") "BEP20" else "ERC20"})"
+    chain == "USDT" -> "USDT (TRC20)"
+    chain == "USDT-ETH" -> "USDT (ERC20)"
+    chain == "USDT-BNB" -> "USDT (BEP20)"
+    else -> chain
+}
+
+/** Réseau complet : « TRC20 · Tron », « ERC20 · Ethereum », « Bitcoin »… */
+private fun networkFullLabel(chain: String, custom: CustomTokenLite?): String = when {
+    custom != null -> if (custom.blockchain == "BNB") "BEP20 · BNB Chain" else "ERC20 · Ethereum"
+    chain == "BTC" -> "Bitcoin"
+    chain == "ETH" -> "Ethereum"
+    chain == "BNB" -> "BNB Chain"
+    chain == "SOL" -> "Solana"
+    chain == "TRX" -> "Tron"
+    chain == "USDT" -> "TRC20 · Tron"
+    chain == "USDT-ETH" -> "ERC20 · Ethereum"
+    chain == "USDT-BNB" -> "BEP20 · BNB Chain"
+    else -> chain
+}
+
+/** Monnaie dans laquelle les frais (gas) sont payés pour un token. */
+private fun nativeFeeUnit(chain: String, custom: CustomTokenLite?): String = when {
+    custom != null -> if (custom.blockchain == "BNB") "BNB" else "ETH"
+    chain == "USDT-ETH" -> "ETH"
+    chain == "USDT-BNB" -> "BNB"
+    chain == "USDT" -> "TRX"
+    else -> chain
+}
+
+/** Affiche un montant de token sans zéros superflus (max 8 décimales). */
+private fun formatTokenAmount(v: Double): String =
+    java.math.BigDecimal.valueOf(v)
+        .setScale(8, java.math.RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString()
 
 /** Un réseau (blockchain) et toutes les monnaies qui lui sont liées. */
 private data class SendNetworkUi(val key: String, val label: String, val coins: List<String>)

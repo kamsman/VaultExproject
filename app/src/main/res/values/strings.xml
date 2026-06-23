@@ -53,6 +53,12 @@
     <string name="send_title">Envoyer</string>
     <string name="send_network_label">Réseau (blockchain)</string>
     <string name="send_coin_label">Monnaie</string>
+    <string name="send_available_balance">Solde disponible</string>
+    <string name="send_summary_network">Réseau</string>
+    <string name="send_summary_fee">Frais réseau</string>
+    <string name="send_summary_you_send">Tu vas envoyer</string>
+    <string name="send_summary_total">Total</string>
+    <string name="send_summary_fee_note">Les frais sont payés en %1$s (séparément du token).</string>
     <string name="recipient_address">Adresse du destinataire</string>
     <string name="amount">Montant</string>
     <string name="network_fee">Frais réseau</string>

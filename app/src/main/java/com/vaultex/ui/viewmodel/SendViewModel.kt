@@ -39,7 +39,12 @@ data class SendState(
     // Solde disponible de la chaîne sélectionnée (lu depuis le cache portefeuille).
     val availableBalance: String? = null,
     // Non-null quand l'utilisateur envoie un token personnalisé ajouté par contrat.
-    val customToken: CustomTokenLite? = null
+    val customToken: CustomTokenLite? = null,
+    // Conversion fiat (devise d'affichage) pour l'écran Envoyer « pro ».
+    val currency: String = "USD",
+    val priceSelected: Double = 0.0,   // prix de la monnaie envoyée, dans `currency`
+    val priceNative: Double = 0.0,     // prix de la monnaie des frais (gas), dans `currency`
+    val feeNativeAmount: Double? = null // montant numérique des frais (unité native)
 )
 
 @HiltViewModel
@@ -48,6 +53,7 @@ class SendViewModel @Inject constructor(
     private val pendingSendDao: PendingSendDao,
     private val secureStorage: SecureStorage,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val currencyController: com.vaultex.core.session.CurrencyController,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -61,7 +67,15 @@ class SendViewModel @Inject constructor(
     private val gson = com.google.gson.Gson()
 
     init {
-        _state.update { it.copy(availableBalance = availableFor(it.selectedChain)) }
+        val cur = currencyController.currency.value
+        _state.update {
+            it.copy(
+                currency = cur,
+                availableBalance = availableFor(it.selectedChain),
+                priceSelected = priceFor(it.selectedChain, cur),
+                priceNative = priceFor(nativeUnit(effectiveChain(it)), cur)
+            )
+        }
         fetchFee(_state.value.selectedChain)
         viewModelScope.launch {
             _customTokens.value = try {
@@ -70,6 +84,17 @@ class SendViewModel @Inject constructor(
                 }
             } catch (_: Exception) { emptyList() }
         }
+    }
+
+    /** Prix unitaire d'une monnaie (par symbole) dans la devise d'affichage,
+     *  lu depuis l'instantané portefeuille (aucun appel réseau). */
+    private fun priceFor(symbol: String, currency: String): Double {
+        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
+        return try {
+            val snap = gson.fromJson(json, SnapshotLite::class.java) ?: return 0.0
+            val t = snap.tokens?.firstOrNull { it.symbol == symbol } ?: return 0.0
+            when (currency) { "EUR" -> t.priceEur; "XOF" -> t.priceXof; else -> t.priceUsd }
+        } catch (_: Exception) { 0.0 }
     }
 
     /** Chaîne effective passée à l'envoi : encodée pour un token personnalisé. */
@@ -90,6 +115,8 @@ class SendViewModel @Inject constructor(
             else -> AddressValidator.isValid(addr, chain)
         }
         val warning = dustWarning(chain, _state.value.amount)
+        val cur = currencyController.currency.value
+        val eff = custom?.let { "ERC20:${it.blockchain}:${it.contractAddress}:${it.decimals}" } ?: chain
         _state.update {
             it.copy(
                 selectedChain = chain,
@@ -98,10 +125,13 @@ class SendViewModel @Inject constructor(
                 error = null,
                 dustWarning = warning,
                 availableBalance = availableFor(chain),
-                estimatedFee = ""        // recalcul ci-dessous pour la nouvelle chaîne
+                estimatedFee = "",       // recalcul ci-dessous pour la nouvelle chaîne
+                currency = cur,
+                priceSelected = priceFor(chain, cur),
+                priceNative = priceFor(nativeUnit(eff), cur)
             )
         }
-        fetchFee(effectiveChain(_state.value))
+        fetchFee(eff)
     }
 
     /** Frais réseau réel de la chaîne (gas live) — recalculé à chaque changement. */
@@ -109,7 +139,7 @@ class SendViewModel @Inject constructor(
         viewModelScope.launch {
             val feeNative = sendCryptoUseCase.estimateFeeNative(chain)
             val formatted = feeNative?.let { "≈ " + formatFeeAmount(it) + " " + nativeUnit(chain) } ?: ""
-            _state.update { it.copy(estimatedFee = formatted) }
+            _state.update { it.copy(estimatedFee = formatted, feeNativeAmount = feeNative) }
         }
     }
 
@@ -214,7 +244,10 @@ class SendViewModel @Inject constructor(
     private data class TokenLite(
         val symbol: String = "",
         val amountFormatted: String = "",
-        val amountRaw: Double = 0.0
+        val amountRaw: Double = 0.0,
+        val priceUsd: Double = 0.0,
+        val priceEur: Double = 0.0,
+        val priceXof: Double = 0.0
     )
 
     companion object {
