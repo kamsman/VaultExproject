@@ -200,26 +200,35 @@ class PortfolioViewModel @Inject constructor(
                     fun amt(bal: Double?, decimals: Int, unit: String) =
                         if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
                     fun value(bal: Double?, price: Double) = (bal ?: 0.0) * price
-                    // Lecture échouée (null) → on garde le token précédent (dernier
-                    // solde connu) ; jamais de remise à zéro silencieuse.
+                    // Prix COLLANT : si l'appel CoinGecko a échoué (rate-limit) le
+                    // prix live vaut 0 ; on réutilise alors le dernier prix connu
+                    // (cache) au lieu d'afficher « 00 ». Une fois récupéré, le prix
+                    // reste affiché même si un rafraîchissement ultérieur échoue.
+                    fun stick(live: Double, prev: Double?) = if (live > 0.0) live else (prev ?: 0.0)
                     fun build(symbol: String, name: String, bal: Double?, decimals: Int, unit: String,
                               id: String, color: String, chain: Blockchain): TokenBalance {
+                        val prev = prevBySymbol[symbol]
+                        // Prix collants (jamais ramenés à 0 par un appel raté).
+                        val pUsd = stick(usd(id), prev?.priceUsd)
+                        val pEur = stick(eur(id), prev?.priceEur)
+                        val pXof = stick(xof(id), prev?.priceXof)
+                        val pChange = if (id in prices) c(id) else (prev?.changePercent24h ?: 0.0)
                         if (bal == null) {
                             anyStale = true
                             // Solde indisponible : on garde le dernier solde connu MAIS
                             // on rafraîchit le PRIX de marché (indépendant du solde),
                             // sinon ETH/USDT-ETH affichaient « Prix : $0 ».
-                            prevBySymbol[symbol]?.let {
+                            prev?.let {
                                 return it.copy(
-                                    priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id),
-                                    changePercent24h = c(id)
+                                    priceUsd = pUsd, priceEur = pEur, priceXof = pXof,
+                                    changePercent24h = pChange
                                 )
                             }
                         }
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
-                            value(bal, xof(id)), c(id), color, chain,
-                            valueUsd = value(bal, usd(id)), valueEur = value(bal, eur(id)),
-                            priceUsd = usd(id), priceEur = eur(id), priceXof = xof(id),
+                            value(bal, pXof), pChange, color, chain,
+                            valueUsd = value(bal, pUsd), valueEur = value(bal, pEur),
+                            priceUsd = pUsd, priceEur = pEur, priceXof = pXof,
                             amountRaw = bal ?: 0.0)
                     }
                     listOf(
@@ -322,15 +331,24 @@ class PortfolioViewModel @Inject constructor(
                     coinGeckoApi.getTokenPrice(platform, entity.contractAddress.lowercase())
                         .entries.firstOrNull()?.value
                 } catch (_: Exception) { null }
-                val usd = price?.usd ?: 0.0
-                val eur = price?.eur ?: 0.0
-                val xof = (price?.xof ?: 0.0).let { if (it > 0.0) it else eur * 655.957 }
-                val change = price?.change24h ?: 0.0
+                // Prix COLLANT : si CoinGecko échoue, on réutilise le dernier prix
+                // connu pour ce contrat (jamais « 00 » une fois récupéré).
+                val prev = prevByContract[entity.contractAddress.lowercase()]
+                val usd = (price?.usd ?: 0.0).let { if (it > 0.0) it else (prev?.priceUsd ?: 0.0) }
+                val eur = (price?.eur ?: 0.0).let { if (it > 0.0) it else (prev?.priceEur ?: 0.0) }
+                val xof = (price?.xof ?: 0.0).let {
+                    when {
+                        it > 0.0 -> it
+                        eur > 0.0 -> eur * 655.957
+                        else -> prev?.priceXof ?: 0.0
+                    }
+                }
+                val change = price?.change24h ?: (prev?.changePercent24h ?: 0.0)
 
                 if (bal == null) {
                     // Lecture du solde échouée → on garde le dernier solde connu
                     // mais on rafraîchit le prix de marché.
-                    prevByContract[entity.contractAddress.lowercase()]?.let {
+                    prev?.let {
                         return@async it.copy(
                             priceUsd = usd, priceEur = eur, priceXof = xof,
                             changePercent24h = change

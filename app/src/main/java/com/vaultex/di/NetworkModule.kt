@@ -146,8 +146,15 @@ object NetworkModule {
     fun provideEthRpcApi(
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): EvmRpcApi {
-        val default = "https://rpc.ankr.com/eth/"
-        val backups = listOf("https://cloudflare-eth.com/", "https://ethereum.publicnode.com/")
+        // Ankr/free a fini par exiger une clé (403/429) → eth_call ETH échouait
+        // (prix et détection de token KO) alors que BNB marchait. On passe sur
+        // des nœuds publics ouverts et fiables, avec bascule automatique.
+        val default = "https://ethereum-rpc.publicnode.com/"
+        val backups = listOf(
+            "https://eth.llamarpc.com/",
+            "https://cloudflare-eth.com/",
+            "https://rpc.ankr.com/eth/"
+        )
         return retrofit(default, fallbackClient(client, rpcPrefs(ctx), "rpc_eth", default, backups))
             .create(EvmRpcApi::class.java)
     }
@@ -300,10 +307,17 @@ private class RpcFallbackInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
 
+        // Codes qui doivent déclencher une bascule de nœud : 5xx (panne serveur)
+        // mais AUSSI 403 (clé exigée), 408/425/429 (rate-limit). Les nœuds publics
+        // gratuits renvoient souvent 403/429 sans être en panne — sinon eth_call
+        // restait bloqué sur le primaire (cas ETH/Ankr).
+        fun shouldFailover(code: Int): Boolean =
+            code >= 500 || code == 403 || code == 408 || code == 425 || code == 429
+
         // Tentative sur le nœud courant
         val primary: Response? = try {
             val r = chain.proceed(original)
-            if (r.isSuccessful || r.code < 500) return r
+            if (!shouldFailover(r.code)) return r
             r.close()
             null
         } catch (_: Exception) {
@@ -321,7 +335,7 @@ private class RpcFallbackInterceptor(
                     .port(backupHost.port)
                     .build()
                 val resp = chain.proceed(original.newBuilder().url(newUrl).build())
-                if (resp.isSuccessful || resp.code < 500) return resp
+                if (!shouldFailover(resp.code)) return resp
                 resp.close()
             } catch (_: Exception) {
                 // essaie le suivant
