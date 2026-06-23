@@ -49,6 +49,7 @@ import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
+import com.vaultex.ui.viewmodel.CustomTokenLite
 import com.vaultex.ui.viewmodel.SendViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,9 +102,11 @@ fun SendScreen(navController: NavController) {
         if (state.queued) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    // Chaînes natives + symboles des tokens personnalisés ajoutés par contrat.
-    val chains = listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB") +
-        customTokens.map { it.symbol }
+    // Regroupement par RÉSEAU (blockchain) : chaque réseau liste toutes ses
+    // monnaies (natives + tokens personnalisés ajoutés par contrat).
+    val networks = buildSendNetworks(customTokens)
+    val selectedNetworkKey = networks.firstOrNull { state.selectedChain in it.coins }?.key
+        ?: networks.first().key
 
     // Frais réseau réel (gas live), calculé par chaîne dans le ViewModel.
     val feeEstimate = state.estimatedFee
@@ -257,19 +260,43 @@ fun SendScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // Token chips row
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-            ) {
-                chains.forEach { chain ->
-                    SendTokenChip(
-                        label = chain,
-                        selected = state.selectedChain == chain,
-                        onClick = { viewModel.setChain(chain) }
-                    )
+            // 1) Sélecteur de RÉSEAU (blockchain). 2) Monnaies de ce réseau.
+            // L'utilisateur voit ainsi toutes les monnaies liées à chaque chaîne.
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(R.string.send_network_label),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                ) {
+                    networks.forEach { net ->
+                        SendTokenChip(
+                            label = net.label,
+                            selected = net.key == selectedNetworkKey,
+                            // Sélectionner un réseau choisit sa première monnaie.
+                            onClick = { net.coins.firstOrNull()?.let { viewModel.setChain(it) } }
+                        )
+                    }
+                }
+
+                val coins = networks.firstOrNull { it.key == selectedNetworkKey }?.coins ?: emptyList()
+                Text(
+                    stringResource(R.string.send_coin_label),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                ) {
+                    coins.forEach { coin ->
+                        SendTokenChip(
+                            label = coinLabel(coin),
+                            selected = state.selectedChain == coin,
+                            onClick = { viewModel.setChain(coin) }
+                        )
+                    }
                 }
             }
 
@@ -550,3 +577,31 @@ private fun ConfirmRow(label: String, value: String, emphasize: Boolean = false)
 
 private fun shortenAddress(a: String): String =
     if (a.length <= 14) a else "${a.take(8)}…${a.takeLast(6)}"
+
+/** Un réseau (blockchain) et toutes les monnaies qui lui sont liées. */
+private data class SendNetworkUi(val key: String, val label: String, val coins: List<String>)
+
+/**
+ * Construit la liste des réseaux pour l'écran Envoyer. Chaque réseau regroupe
+ * ses monnaies natives, ses USDT, et les tokens personnalisés ajoutés par
+ * contrat sur cette chaîne (ETH ou BNB).
+ */
+private fun buildSendNetworks(custom: List<CustomTokenLite>): List<SendNetworkUi> = listOf(
+    SendNetworkUi("BTC", "Bitcoin", listOf("BTC")),
+    SendNetworkUi(
+        "ETH", "Ethereum",
+        listOf("ETH", "USDT-ETH") + custom.filter { it.blockchain == "ETH" }.map { it.symbol }
+    ),
+    SendNetworkUi(
+        "BNB", "BNB Chain",
+        listOf("BNB", "USDT-BNB") + custom.filter { it.blockchain == "BNB" }.map { it.symbol }
+    ),
+    SendNetworkUi("SOL", "Solana", listOf("SOL")),
+    SendNetworkUi("TRX", "Tron", listOf("TRX", "USDT"))
+)
+
+/** Étiquette courte d'une monnaie (le réseau étant déjà affiché au-dessus). */
+private fun coinLabel(sym: String): String = when (sym) {
+    "USDT-ETH", "USDT-BNB" -> "USDT"
+    else -> sym
+}

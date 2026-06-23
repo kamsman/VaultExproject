@@ -51,6 +51,8 @@
 
     <!-- Send -->
     <string name="send_title">Envoyer</string>
+    <string name="send_network_label">Réseau (blockchain)</string>
+    <string name="send_coin_label">Monnaie</string>
     <string name="recipient_address">Adresse du destinataire</string>
     <string name="amount">Montant</string>
     <string name="network_fee">Frais réseau</string>
