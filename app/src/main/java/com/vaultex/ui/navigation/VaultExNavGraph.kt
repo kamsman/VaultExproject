@@ -269,6 +269,18 @@ fun VaultExNavGraph(navController: NavHostController) {
             ReceiveAddressScreen(navController, blockchain)
         }
 
+        composable(
+            route = Routes.RECEIVE_ASSET,
+            arguments = listOf(
+                navArgument("symbol") { type = NavType.StringType },
+                navArgument("chain") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val symbol = backStackEntry.arguments?.getString("symbol") ?: "ETH"
+            val chain = backStackEntry.arguments?.getString("chain") ?: "ETH"
+            com.vaultex.ui.screens.receive.ReceiveAssetScreen(navController, symbol, chain)
+        }
+
         composable(Routes.ADD_TOKEN) {
             AddTokenScreen(navController)
         }

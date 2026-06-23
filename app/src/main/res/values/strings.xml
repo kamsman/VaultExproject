@@ -67,6 +67,17 @@
 
     <!-- Receive -->
     <string name="receive_title">Recevoir</string>
+    <string name="receive_search_asset">Rechercher un actif</string>
+    <string name="receive_section_my_assets">Mes actifs</string>
+    <string name="receive_section_all_assets">Tous les actifs</string>
+    <string name="receive_no_asset">Aucun actif trouvé</string>
+    <string name="receive_asset_title">Recevoir %1$s</string>
+    <string name="receive_scan_qr">Scanner le QR Code</string>
+    <string name="receive_your_asset_address">Votre adresse %1$s</string>
+    <string name="receive_safe_share">Ceci est votre adresse. Vous pouvez la partager en toute sécurité pour recevoir %1$s.</string>
+    <string name="receive_save_qr">Enregistrer le QR</string>
+    <string name="receive_qr_saved">QR enregistré dans la galerie</string>
+    <string name="receive_qr_save_failed">Échec de l\'enregistrement</string>
     <string name="my_address">Mon adresse</string>
     <string name="copy_address">Copier l\'adresse</string>
     <string name="share_address">Partager</string>

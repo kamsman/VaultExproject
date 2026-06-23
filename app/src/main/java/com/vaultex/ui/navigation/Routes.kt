@@ -116,6 +116,11 @@ object Routes {
 
     fun receiveAddress(blockchain: String) = "receiveAddress/$blockchain"
 
+    // Réception d'un actif précis : symbole affiché + chaîne de l'adresse.
+    const val RECEIVE_ASSET = "receiveAsset/{symbol}/{chain}"
+
+    fun receiveAsset(symbol: String, chain: String) = "receiveAsset/$symbol/$chain"
+
     const val ADD_TOKEN = "addToken"
 
     const val MANAGE_TOKENS = "manageTokens"
