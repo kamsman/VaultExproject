@@ -2,6 +2,12 @@ package com.vaultex.ui.screens.send
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -961,9 +967,46 @@ private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.(
 }
 
 @Composable
-private fun StatusHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, ringColor: Color, title: String, subtitle: String, titleColor: Color) {
-    Box(Modifier.padding(top = 8.dp), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(120.dp).clip(CircleShape).background(ringColor.copy(alpha = 0.12f)))
+private fun StatusHeader(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    ringColor: Color, title: String, subtitle: String, titleColor: Color,
+    animated: Boolean = false
+) {
+    Box(Modifier.padding(top = 8.dp).size(132.dp), contentAlignment = Alignment.Center) {
+        if (animated) {
+            // Anneau pointillé fixe + arc qui tourne en continu.
+            val transition = rememberInfiniteTransition(label = "ring")
+            val angle by transition.animateFloat(
+                initialValue = 0f, targetValue = 360f,
+                animationSpec = infiniteRepeatable(animation = tween(1300, easing = LinearEasing)),
+                label = "angle"
+            )
+            Canvas(Modifier.size(132.dp)) {
+                val stroke = 5.dp.toPx()
+                val inset = stroke * 1.5f
+                drawCircle(
+                    color = ringColor.copy(alpha = 0.22f),
+                    radius = size.minDimension / 2 - inset / 2,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 2.dp.toPx(),
+                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 12f))
+                    )
+                )
+                androidx.compose.ui.graphics.drawscope.rotate(angle) {
+                    drawArc(
+                        color = ringColor,
+                        startAngle = -90f, sweepAngle = 85f, useCenter = false,
+                        topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                        size = androidx.compose.ui.geometry.Size(size.width - 2 * inset, size.height - 2 * inset),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                    )
+                }
+            }
+        } else {
+            Box(Modifier.size(120.dp).clip(CircleShape).background(ringColor.copy(alpha = 0.12f)))
+        }
         Box(Modifier.size(88.dp).clip(CircleShape).background(ringColor), contentAlignment = Alignment.Center) {
             Icon(icon, null, tint = Color.White, modifier = Modifier.size(46.dp))
         }
@@ -1111,7 +1154,8 @@ internal fun SendProcessingScreen(detail: SendDetail) {
             Icons.Default.HourglassEmpty, AccentBlue,
             stringResource(R.string.send_processing_title),
             stringResource(R.string.send_processing_subtitle),
-            TextPrimary
+            TextPrimary,
+            animated = true
         )
         SendDetailCard(detail, showTotal = true)
         Spacer(Modifier.height(4.dp))
@@ -1151,7 +1195,8 @@ internal fun SendPendingScreen(
             Icons.Default.Schedule, orange,
             stringResource(R.string.send_pending_title),
             stringResource(R.string.send_pending_subtitle, detail.netFull),
-            orange
+            orange,
+            animated = true
         )
         SendDetailCard(detail, showTotal = true)
         Surface(shape = RoundedCornerShape(12.dp), color = orange.copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
