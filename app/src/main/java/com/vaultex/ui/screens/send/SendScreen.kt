@@ -1,5 +1,7 @@
 package com.vaultex.ui.screens.send
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +42,7 @@ import com.vaultex.R
 import com.vaultex.core.security.BiometricHelper
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.BgTertiary
@@ -149,115 +152,67 @@ fun SendScreen(navController: NavController) {
         )
     }
 
-    // Success dialog
+    // Données partagées par les écrans Confirmation / Traitement / Succès.
+    val detail = SendDetail(
+        coinShort = coinShort,
+        coinName = coinFullName(state.selectedChain, state.customToken),
+        toAddress = state.toAddress,
+        netFull = netFull,
+        amount = state.amount.ifEmpty { "0" },
+        amountFiat = amountFiat,
+        feeNative = feeEstimate,
+        feeFiat = feeFiat,
+        totalToken = formatTokenAmount(totalToken) + " " + coinShort,
+        totalFiat = totalFiat
+    )
+
+    // ── ÉCRAN SUCCÈS (plein écran) ──
     if (state.txHash != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.reset(); navController.popBackStack() },
-            icon = { Icon(Icons.Default.CheckCircle, null, tint = VaultExColors.Success) },
-            title = { Text(stringResource(R.string.send_tx_sent_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.send_tx_broadcast), fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.send_tx_hash_label), fontSize = 12.sp, color = TextSecondary)
-                    Text(
-                        state.txHash!!.take(20) + "…",
-                        fontSize = 11.sp,
-                        color = AccentBlue,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.reset(); navController.popBackStack() }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+        SendSuccessScreen(
+            detail = detail,
+            txHash = state.txHash!!,
+            explorerName = explorerName(state.selectedChain, state.customToken),
+            explorerUrl = explorerUrl(state.selectedChain, state.customToken, state.txHash!!),
+            onShare = { shareReceipt(context, detail, state.txHash!!) },
+            onDone = { viewModel.reset(); navController.popBackStack() }
         )
+        return
     }
 
-    // Écran de confirmation : récap clair (réseau / adresse / montant / frais
-    // / total) AVANT la ré-authentification et l'envoi.
-    if (showConfirm) {
-        AlertDialog(
-            onDismissRequest = { showConfirm = false },
-            icon = { Icon(Icons.Default.Send, null, tint = AccentBlue) },
-            title = { Text(stringResource(R.string.send_confirm_recap_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ConfirmRow(stringResource(R.string.send_confirm_network), netFull)
-                    ConfirmRow(stringResource(R.string.send_recipient_label), shortenAddress(state.toAddress))
-                    ConfirmRow(stringResource(R.string.amount), "${state.amount} $coinShort")
-                    ConfirmRow(stringResource(R.string.send_fee_estimate_label).trimEnd(' ', ':'), feeEstimate.ifEmpty { "—" })
-                    HorizontalDivider(color = BorderColor)
-                    ConfirmRow(
-                        stringResource(R.string.send_confirm_total),
-                        "${state.amount} $coinShort" + if (feeEstimate.isNotEmpty()) " + ${feeEstimate}" else "",
-                        emphasize = true
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showConfirm = false
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
-                        // Biométrie si disponible, sinon code de verrouillage de
-                        // l'appareil. On n'envoie sans auth que si l'appareil n'a
-                        // aucun verrouillage sécurisé (cas impossible à améliorer).
-                        val bioStatus = biometricHelper.checkAvailability()
-                        if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
-                            biometricHelper.canUseDeviceCredential()
-                        ) {
-                            biometricHelper.authenticateStrongOrCredential(
-                                title = context.getString(R.string.send_biometric_title),
-                                subtitle = context.getString(
-                                    R.string.send_biometric_subtitle,
-                                    state.amount, state.selectedChain, state.toAddress.take(12)
-                                ),
-                                onSuccess = { viewModel.send() },
-                                onError = { _, _ -> /* annulé/erreur — reste sur l'écran */ }
-                            )
-                        } else {
-                            viewModel.send()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                ) {
-                    Text(stringResource(R.string.send_confirm_cta))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-
-    // Overlay de chargement pendant l'envoi : loader « points en cercle ».
+    // ── ÉCRAN TRAITEMENT (diffusion réseau) ──
     if (state.isLoading) {
-        Dialog(
-            onDismissRequest = { },
-            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-        ) {
-            Surface(shape = RoundedCornerShape(20.dp), color = SplashNavyBottom) {
-                Column(
-                    modifier = Modifier.padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+        SendProcessingScreen(detail)
+        return
+    }
+
+    // ── ÉCRAN CONFIRMATION (plein écran) ──
+    if (showConfirm) {
+        SendConfirmScreen(
+            detail = detail,
+            onCancel = { showConfirm = false },
+            onConfirm = {
+                showConfirm = false
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
+                val bioStatus = biometricHelper.checkAvailability()
+                if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
+                    biometricHelper.canUseDeviceCredential()
                 ) {
-                    DotsCircleLoader(size = 76.dp)
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        stringResource(R.string.send_in_progress),
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                    biometricHelper.authenticateStrongOrCredential(
+                        title = context.getString(R.string.send_biometric_title),
+                        subtitle = context.getString(
+                            R.string.send_biometric_subtitle,
+                            state.amount, state.selectedChain, state.toAddress.take(12)
+                        ),
+                        onSuccess = { viewModel.send() },
+                        onError = { _, _ -> /* annulé/erreur — reste sur l'écran */ }
                     )
+                } else {
+                    viewModel.send()
                 }
             }
-        }
+        )
+        return
     }
 
     Scaffold(
@@ -732,4 +687,342 @@ private fun buildSendNetworks(custom: List<CustomTokenLite>): List<SendNetworkUi
 private fun coinLabel(sym: String): String = when (sym) {
     "USDT-ETH", "USDT-BNB" -> "USDT"
     else -> sym
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  Flux d'envoi « pro » : Confirmation → Traitement → Succès (plein écran)
+// ══════════════════════════════════════════════════════════════════════
+
+/** Détails d'une transaction d'envoi, partagés par les 3 écrans de statut. */
+internal data class SendDetail(
+    val coinShort: String,
+    val coinName: String,
+    val toAddress: String,
+    val netFull: String,
+    val amount: String,
+    val amountFiat: String?,
+    val feeNative: String,
+    val feeFiat: String?,
+    val totalToken: String,
+    val totalFiat: String?
+)
+
+private fun coinFullName(chain: String, custom: CustomTokenLite?): String = when {
+    custom != null -> custom.symbol
+    chain == "USDT" || chain == "USDT-ETH" || chain == "USDT-BNB" -> "Tether USD"
+    chain == "BTC" -> "Bitcoin"
+    chain == "ETH" -> "Ethereum"
+    chain == "BNB" -> "BNB"
+    chain == "SOL" -> "Solana"
+    chain == "TRX" -> "Tron"
+    else -> chain
+}
+
+private fun coinColorHex(coinShort: String): String = when (coinShort) {
+    "USDT" -> "#26A17B"
+    "BTC" -> "#F7931A"
+    "ETH" -> "#627EEA"
+    "BNB" -> "#F0B90B"
+    "SOL" -> "#9945FF"
+    "TRX" -> "#FF060A"
+    else -> "#3B82F6"
+}
+
+private fun explorerName(chain: String, custom: CustomTokenLite?): String {
+    val evm = custom?.blockchain
+    return when {
+        evm == "BNB" || chain == "BNB" || chain == "USDT-BNB" -> "BscScan"
+        evm == "ETH" || chain == "ETH" || chain == "USDT-ETH" -> "Etherscan"
+        chain == "BTC" -> "Blockstream"
+        chain == "SOL" -> "Solscan"
+        chain == "TRX" || chain == "USDT" -> "Tronscan"
+        else -> "Explorer"
+    }
+}
+
+private fun explorerUrl(chain: String, custom: CustomTokenLite?, hash: String): String {
+    val evm = custom?.blockchain
+    val base = when {
+        evm == "BNB" || chain == "BNB" || chain == "USDT-BNB" -> "https://bscscan.com/tx/"
+        evm == "ETH" || chain == "ETH" || chain == "USDT-ETH" -> "https://etherscan.io/tx/"
+        chain == "BTC" -> "https://blockstream.info/tx/"
+        chain == "SOL" -> "https://solscan.io/tx/"
+        chain == "TRX" || chain == "USDT" -> "https://tronscan.org/#/transaction/"
+        else -> "https://etherscan.io/tx/"
+    }
+    return base + hash
+}
+
+private fun shareReceipt(context: android.content.Context, d: SendDetail, hash: String) {
+    val text = buildString {
+        appendLine("VaultEx — Reçu de transaction")
+        appendLine("Montant : ${d.amount} ${d.coinShort}")
+        appendLine("Destinataire : ${d.toAddress}")
+        appendLine("Réseau : ${d.netFull}")
+        appendLine("Frais : ${d.feeNative}")
+        appendLine("Hash : $hash")
+    }
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text)
+    }, null))
+}
+
+private fun shorten(a: String): String =
+    if (a.length <= 18) a else "${a.take(10)}…${a.takeLast(6)}"
+
+/** Carte récap (icône monnaie + montant, Destinataire, Réseau, Frais, [Total]). */
+@Composable
+private fun SendDetailCard(detail: SendDetail, showTotal: Boolean, onCopyAddress: (() -> Unit)? = null) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(4.dp)) {
+            // Ligne monnaie + montant
+            Row(
+                Modifier.fillMaxWidth().padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.size(42.dp).clip(CircleShape)
+                        .background(runCatching { Color(android.graphics.Color.parseColor(coinColorHex(detail.coinShort))) }.getOrDefault(AccentBlue)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(detail.coinShort.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    coil.compose.AsyncImage(
+                        model = com.vaultex.ui.components.CryptoIcon.url(detail.coinShort),
+                        contentDescription = detail.coinShort,
+                        modifier = Modifier.size(42.dp).clip(CircleShape)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(detail.coinShort, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                    Text(detail.coinName, fontSize = 12.sp, color = TextSecondary)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${detail.amount} ${detail.coinShort}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                    detail.amountFiat?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
+                }
+            }
+            HorizontalDivider(color = BorderColor)
+            DetailLine(Icons.Default.Send, stringResource(R.string.send_recipient_label), shorten(detail.toAddress),
+                onCopy = onCopyAddress)
+            HorizontalDivider(color = BorderColor)
+            DetailLine(Icons.Default.Hub, stringResource(R.string.send_summary_network), detail.netFull)
+            HorizontalDivider(color = BorderColor)
+            DetailLine(Icons.Default.CreditCard, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, sub = detail.feeFiat)
+            if (showTotal) {
+                HorizontalDivider(color = BorderColor)
+                DetailLine(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_total), detail.totalToken, sub = detail.totalFiat, emphasize = true)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailLine(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    sub: String? = null,
+    emphasize: Boolean = false,
+    onCopy: (() -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(BgTertiary), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = TextSecondary, modifier = Modifier.size(17.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(label, fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, fontSize = 14.sp, fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold, color = if (emphasize) AccentBlue else TextPrimary)
+            sub?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
+        }
+        if (onCopy != null) {
+            Spacer(Modifier.width(10.dp))
+            Icon(Icons.Default.ContentCopy, null, tint = AccentBlue,
+                modifier = Modifier.size(20.dp).clickable { onCopy() })
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
+            )
+        },
+        containerColor = BgPrimary
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun StatusHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, ringColor: Color, title: String, subtitle: String, titleColor: Color) {
+    Box(Modifier.padding(top = 8.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(120.dp).clip(CircleShape).background(ringColor.copy(alpha = 0.12f)))
+        Box(Modifier.size(88.dp).clip(CircleShape).background(ringColor), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(46.dp))
+        }
+    }
+    Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = titleColor)
+    Text(subtitle, fontSize = 14.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+}
+
+@Composable
+internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    SendStatusScaffold(stringResource(R.string.send_confirm_title)) {
+        SendDetailCard(detail, showTotal = true, onCopyAddress = {
+            clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress))
+        })
+        // Avertissement irréversible
+        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFF7E6), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.WarningAmber, null, tint = Color(0xFFE6AC00), modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.send_confirm_irreversible), fontSize = 12.sp, color = Color(0xFF7A5200))
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderColor)
+            ) { Text(stringResource(R.string.cancel), color = TextPrimary, fontWeight = FontWeight.SemiBold) }
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+            ) { Text(stringResource(R.string.send_confirm_cta), color = Color.White, fontWeight = FontWeight.Bold) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.send_confirm_secured), fontSize = 11.sp, color = TextSecondary)
+        }
+    }
+}
+
+@Composable
+internal fun SendProcessingScreen(detail: SendDetail) {
+    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+        StatusHeader(
+            Icons.Default.HourglassEmpty, AccentBlue,
+            stringResource(R.string.send_processing_title),
+            stringResource(R.string.send_processing_subtitle),
+            TextPrimary
+        )
+        SendDetailCard(detail, showTotal = true)
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = AccentBlue, trackColor = BgTertiary
+        )
+        Text(stringResource(R.string.send_processing_broadcasting), fontSize = 13.sp, color = TextSecondary)
+        Surface(shape = RoundedCornerShape(12.dp), color = AccentBlue.copy(alpha = 0.08f), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(stringResource(R.string.send_processing_dont_close_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(stringResource(R.string.send_processing_dont_close_body), fontSize = 12.sp, color = TextSecondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun SendSuccessScreen(
+    detail: SendDetail,
+    txHash: String,
+    explorerName: String,
+    explorerUrl: String,
+    onShare: () -> Unit,
+    onDone: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+        StatusHeader(
+            Icons.Default.CheckCircle, AccentGreen,
+            stringResource(R.string.send_success_title),
+            stringResource(R.string.send_success_subtitle),
+            AccentGreen
+        )
+        SendDetailCard(detail, showTotal = false, onCopyAddress = {
+            clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress))
+        })
+        // Statut : diffusée
+        Surface(shape = RoundedCornerShape(12.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.send_success_status_label), fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.send_success_status_value), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+            }
+        }
+        // Transaction ID + copie
+        Surface(shape = RoundedCornerShape(12.dp), color = SurfaceColor, border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.send_success_txid), fontSize = 12.sp, color = TextSecondary)
+                    Text(shorten(txHash), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                }
+                Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(20.dp).clickable {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash))
+                })
+            }
+        }
+        OutlinedButton(
+            onClick = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) }
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentGreen),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGreen)
+        ) {
+            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
+        }
+        OutlinedButton(
+            onClick = onShare,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+        ) {
+            Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.send_success_share_receipt), fontWeight = FontWeight.SemiBold)
+        }
+        Button(
+            onClick = onDone,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+        ) { Text(stringResource(R.string.send_success_done), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+    }
 }
