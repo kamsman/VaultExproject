@@ -62,6 +62,7 @@ fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val customTokens by viewModel.customTokens.collectAsState()
+    val pendingTxs by viewModel.pendingTxs.collectAsState()
 
     // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse).
     // Sinon, pré-sélection de la chaîne depuis la page d'une crypto (#4).
@@ -166,14 +167,29 @@ fun SendScreen(navController: NavController) {
         totalFiat = totalFiat
     )
 
-    // ── ÉCRAN SUCCÈS (plein écran) ──
+    // ── ÉCRAN EN ATTENTE / SUCCÈS (plein écran) ──
     if (state.txHash != null) {
+        val hash = state.txHash!!
+        val pending = pendingTxs.firstOrNull { it.hash == hash }
+        // Tant que la transaction n'est pas confirmée → écran « En attente X/Y ».
+        if (pending != null && !pending.confirmed) {
+            SendPendingScreen(
+                detail = detail,
+                confirmations = pending.confirmations,
+                target = pending.target,
+                txHash = hash,
+                explorerName = explorerName(state.selectedChain, state.customToken),
+                explorerUrl = explorerUrl(state.selectedChain, state.customToken, hash),
+                onDone = { viewModel.reset(); navController.popBackStack() }
+            )
+            return
+        }
         SendSuccessScreen(
             detail = detail,
-            txHash = state.txHash!!,
+            txHash = hash,
             explorerName = explorerName(state.selectedChain, state.customToken),
-            explorerUrl = explorerUrl(state.selectedChain, state.customToken, state.txHash!!),
-            onShare = { shareReceipt(context, detail, state.txHash!!) },
+            explorerUrl = explorerUrl(state.selectedChain, state.customToken, hash),
+            onShare = { shareReceipt(context, detail, hash) },
             onDone = { viewModel.reset(); navController.popBackStack() }
         )
         return
@@ -949,6 +965,83 @@ internal fun SendProcessingScreen(detail: SendDetail) {
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun SendPendingScreen(
+    detail: SendDetail,
+    confirmations: Int,
+    target: Int,
+    txHash: String,
+    explorerName: String,
+    explorerUrl: String,
+    onDone: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val orange = Color(0xFFF59E0B)
+    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+        StatusHeader(
+            Icons.Default.Schedule, orange,
+            stringResource(R.string.send_pending_title),
+            stringResource(R.string.send_pending_subtitle, detail.netFull),
+            orange
+        )
+        SendDetailCard(detail, showTotal = true)
+        Surface(shape = RoundedCornerShape(12.dp), color = orange.copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Schedule, null, tint = orange, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(stringResource(R.string.send_pending_waiting_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(stringResource(R.string.send_pending_waiting_body), fontSize = 12.sp, color = TextSecondary)
+                }
+            }
+        }
+        // Compteur de confirmations X / Y
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.send_pending_confirmations), fontSize = 13.sp, color = TextSecondary)
+                Text("$confirmations / $target", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            }
+            Spacer(Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = if (target > 0) (confirmations.toFloat() / target).coerceIn(0f, 1f) else 0f,
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                color = orange, trackColor = BgTertiary
+            )
+        }
+        // Transaction ID + copie
+        Surface(shape = RoundedCornerShape(12.dp), color = SurfaceColor, border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.send_success_txid), fontSize = 12.sp, color = TextSecondary)
+                    Text(shorten(txHash), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                }
+                Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(20.dp).clickable {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash))
+                })
+            }
+        }
+        OutlinedButton(
+            onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
+        ) {
+            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
+        }
+        Button(
+            onClick = onDone,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+        ) { Text(stringResource(R.string.send_pending_back_dashboard), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        Text(stringResource(R.string.send_pending_keep_tracking), fontSize = 11.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 

@@ -54,11 +54,16 @@ class SendViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val currencyController: com.vaultex.core.session.CurrencyController,
+    private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
+    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
+
+    /** Transactions en attente de confirmation (pour l'écran « En attente X/Y »). */
+    val pendingTxs: StateFlow<List<com.vaultex.core.session.PendingTxStore.PendingTx>> = pendingTxStore.items
 
     /** Tokens personnalisés à afficher en plus des 8 chaînes natives. */
     private val _customTokens = MutableStateFlow<List<CustomTokenLite>>(emptyList())
@@ -320,6 +325,8 @@ class SendViewModel @Inject constructor(
                 is SendCryptoUseCase.Result.Success -> {
                     // Demande à l'accueil de rafraîchir vite le solde après l'envoi.
                     com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
+                    // Suivi de confirmation (badge dashboard + écran « En attente X/Y »).
+                    pendingTxManager.track(s.selectedChain, nativeUnit(effective), result.txHash)
                     _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                 }
                 is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }

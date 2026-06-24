@@ -76,8 +76,15 @@ class PortfolioViewModel @Inject constructor(
     private val currencyController: com.vaultex.core.session.CurrencyController,
     private val walletNameController: com.vaultex.core.session.WalletNameController,
     private val assetVisibility: com.vaultex.core.session.AssetVisibilityController,
-    private val tokenRepository: com.vaultex.data.repository.TokenRepository
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
+    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager
 ) : ViewModel() {
+
+    /** Symboles ayant une transaction sortante encore NON confirmée (badge « ! »). */
+    val pendingSymbols: StateFlow<Set<String>> = pendingTxStore.items
+        .map { list -> list.filter { !it.confirmed }.map { it.symbol }.toSet() }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, emptySet())
 
     /** Devise d'affichage choisie (USD/EUR/XOF). */
     val currency: StateFlow<String> = currencyController.currency
@@ -116,6 +123,8 @@ class PortfolioViewModel @Inject constructor(
     init {
         loadCachedSnapshot()
         loadPortfolio()
+        // Reprend le suivi des transactions en attente persistées (badge « ! »).
+        pendingTxManager.kick()
     }
 
     /** Affiche immédiatement le dernier portefeuille connu (offline-first). */

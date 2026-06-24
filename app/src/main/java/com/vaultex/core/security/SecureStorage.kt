@@ -162,6 +162,13 @@ class SecureStorage @Inject constructor(
 
     fun getPortfolioSnapshot(): String? = prefs.getString(KEY_PORTFOLIO_SNAPSHOT, null)
 
+    /** Transactions sortantes en attente de confirmation (JSON). */
+    fun savePendingTxs(json: String) {
+        prefs.edit().putString(KEY_PENDING_TXS, json).apply()
+    }
+
+    fun getPendingTxs(): String? = prefs.getString(KEY_PENDING_TXS, null)
+
     // ──────────────────────────────────────────────────────────
     // Persistance de l'état de lockout PIN (survit aux relances de process)
     // ──────────────────────────────────────────────────────────
@@ -220,6 +227,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_BALANCE_HIDDEN = "balance_hidden"
         private const val KEY_DB_KEY = "db_encryption_key"
         private const val KEY_PORTFOLIO_SNAPSHOT = "portfolio_snapshot"
+        private const val KEY_PENDING_TXS = "pending_txs"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"

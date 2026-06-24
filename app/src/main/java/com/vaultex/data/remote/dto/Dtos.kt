@@ -77,6 +77,7 @@ data class TronTrc20Tx(
 )
 data class TronBroadcastDto(val raw_data_hex: String, val signature: List<String>)
 data class TronBroadcastResultDto(val result: Boolean, val txid: String?, val message: String?)
+data class TronTxInfoBody(val value: String)
 data class TronCreateTxBody(
     val owner_address: String,
     val to_address: String,

@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,6 +49,7 @@ fun DashboardScreen(navController: NavHostController) {
     val walletName by viewModel.walletName.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val visibleAssets by viewModel.visibleAssets.collectAsState()
+    val pendingSymbols by viewModel.pendingSymbols.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -202,7 +204,7 @@ fun DashboardScreen(navController: NavHostController) {
                         )
                     }
                     visibleTokens.forEachIndexed { index, token ->
-                        AssetRow(token, balanceHidden, currency) {
+                        AssetRow(token, balanceHidden, currency, token.symbol in pendingSymbols) {
                             navController.navigate(Routes.tokenDetail(token.symbol))
                         }
                         if (index < visibleTokens.lastIndex) {
@@ -397,7 +399,7 @@ private fun SectionCard(
 }
 
 @Composable
-private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onClick: () -> Unit) {
+private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isPending: Boolean = false, onClick: () -> Unit) {
     val valueAmount = when (currency) {
         "EUR" -> token.valueEur
         "XOF" -> token.valueXof
@@ -431,6 +433,17 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, onC
                 contentDescription = token.symbol,
                 modifier = Modifier.size(40.dp).clip(CircleShape)
             )
+            // Badge « ! » : transaction sortante en attente de confirmation.
+            if (isPending) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).size(15.dp).clip(CircleShape)
+                        .background(Color(0xFFF59E0B))
+                        .border(1.5.dp, BgPrimary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("!", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                }
+            }
         }
         Spacer(Modifier.width(12.dp))
         // Prix unitaire de marché. Repli sur valeur/quantité si le prix stocké

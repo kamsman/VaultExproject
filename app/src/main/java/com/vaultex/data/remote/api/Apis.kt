@@ -75,6 +75,13 @@ interface TronApi {
 
     @POST("wallet/broadcasttransaction")
     suspend fun broadcast(@Body tx: com.google.gson.JsonObject): TronBroadcastResultDto
+
+    // Suivi de confirmation : infos de la tx (blockNumber + receipt) et bloc courant.
+    @POST("wallet/gettransactioninfobyid")
+    suspend fun getTransactionInfoById(@Body body: TronTxInfoBody): com.google.gson.JsonObject
+
+    @POST("wallet/getnowblock")
+    suspend fun getNowBlock(): com.google.gson.JsonObject
 }
 
 

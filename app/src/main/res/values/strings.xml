@@ -436,6 +436,13 @@
     <string name="send_success_view_on">Voir sur %1$s</string>
     <string name="send_success_share_receipt">Partager le reçu</string>
     <string name="send_success_done">Terminé</string>
+    <string name="send_pending_title">Transaction en attente</string>
+    <string name="send_pending_subtitle">En attente de confirmation sur %1$s.</string>
+    <string name="send_pending_waiting_title">En attente de confirmation</string>
+    <string name="send_pending_waiting_body">Cela peut prendre quelques minutes.</string>
+    <string name="send_pending_confirmations">Confirmations</string>
+    <string name="send_pending_back_dashboard">Retour au tableau de bord</string>
+    <string name="send_pending_keep_tracking">Le suivi continue en arrière-plan. La monnaie affiche « ! » jusqu\'à la confirmation.</string>
     <string name="security_create_pin">Créez un code PIN</string>
     <string name="pin_label">PIN</string>
     <string name="swap_result_success">Swap réussi</string>
