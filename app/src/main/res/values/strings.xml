@@ -54,6 +54,11 @@
     <string name="send_network_label">Réseau (blockchain)</string>
     <string name="send_coin_label">Monnaie</string>
     <string name="send_available_balance">Solde disponible</string>
+    <string name="send_balance_short">Solde</string>
+    <string name="send_choose_coin">Choisir une monnaie</string>
+    <string name="send_address_network_note">Vérifiez que l\'adresse est correcte et sur le réseau %1$s.</string>
+    <string name="send_security_tip_title">Conseil de sécurité</string>
+    <string name="send_security_tip_body">Vérifiez toujours l\'adresse et le réseau (%1$s). Les transactions sont irréversibles.</string>
     <string name="send_summary_network">Réseau</string>
     <string name="send_summary_fee">Frais réseau</string>
     <string name="send_summary_you_send">Tu vas envoyer</string>

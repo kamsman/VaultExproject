@@ -99,6 +99,7 @@ fun SendScreen(navController: NavController) {
     val biometricHelper = remember { BiometricHelper(context) }
     val haptic = LocalHapticFeedback.current
     var showConfirm by remember { mutableStateOf(false) }
+    var showCoinPicker by remember { mutableStateOf(false) }
 
     // Retour haptique de confirmation quand la transaction part (ou est mise en file)
     LaunchedEffect(state.txHash) {
@@ -255,70 +256,44 @@ fun SendScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // 1) Sélecteur de RÉSEAU (blockchain). 2) Monnaies de ce réseau.
-            // L'utilisateur voit ainsi toutes les monnaies liées à chaque chaîne.
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    stringResource(R.string.send_network_label),
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                ) {
-                    networks.forEach { net ->
-                        SendTokenChip(
-                            label = net.label,
-                            selected = net.key == selectedNetworkKey,
-                            // Sélectionner un réseau choisit sa première monnaie.
-                            onClick = { net.coins.firstOrNull()?.let { viewModel.setChain(it) } }
-                        )
-                    }
-                }
+            val coinColor = runCatching { Color(android.graphics.Color.parseColor(coinColorHex(coinShort))) }.getOrDefault(AccentGreen)
+            val coinBadge = coinTitle.substringAfter("(", "").removeSuffix(")").ifBlank { null }
 
-                val coins = networks.firstOrNull { it.key == selectedNetworkKey }?.coins ?: emptyList()
-                Text(
-                    stringResource(R.string.send_coin_label),
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                ) {
-                    coins.forEach { coin ->
-                        SendTokenChip(
-                            label = coinLabel(coin),
-                            selected = state.selectedChain == coin,
-                            onClick = { viewModel.setChain(coin) }
-                        )
-                    }
-                }
-            }
-
-            // ─── Carte « Solde disponible » (montant + équivalent fiat + icône) ─
-            SendCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.send_available_balance), fontSize = 12.sp, color = TextSecondary)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            (state.availableBalance ?: "—") + " " + coinShort,
-                            fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
-                        )
-                        if (availFiat != null) {
-                            Text("≈ $availFiat", fontSize = 13.sp, color = TextSecondary)
-                        }
-                    }
-                    Box(
-                        Modifier.size(46.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(coinShort.take(2), color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            // ── Carte monnaie + solde (touchez pour changer de monnaie) ──
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = SurfaceColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                onClick = { showCoinPicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(coinColor), contentAlignment = Alignment.Center) {
+                        Text(coinShort.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         coil.compose.AsyncImage(
                             model = com.vaultex.ui.components.CryptoIcon.url(coinShort),
                             contentDescription = coinShort,
-                            modifier = Modifier.size(46.dp).clip(CircleShape)
+                            modifier = Modifier.size(44.dp).clip(CircleShape)
                         )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(coinShort, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                            if (coinBadge != null) {
+                                Surface(shape = RoundedCornerShape(5.dp), color = AccentGreen.copy(alpha = 0.14f)) {
+                                    Text(coinBadge, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                        fontSize = 10.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            Icon(Icons.Default.ExpandMore, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                        }
+                        Text(coinFullName(state.selectedChain, state.customToken), fontSize = 12.sp, color = TextSecondary)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(stringResource(R.string.send_balance_short), fontSize = 11.sp, color = TextSecondary)
+                        Text((state.availableBalance ?: "—") + " " + coinShort, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                        availFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
                     }
                 }
             }
@@ -374,49 +349,54 @@ fun SendScreen(navController: NavController) {
                     "📒 " + stringResource(R.string.address_book),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = AccentBlue,
+                    color = AccentGreen,
                     modifier = Modifier.clickable { navController.navigate(Routes.ADDRESS_BOOK) }
                 )
+                Spacer(Modifier.height(10.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.send_address_network_note, netFull), fontSize = 12.sp, color = TextPrimary)
+                    }
+                }
             }
 
             // Amount card
             SendCard {
                 Text(stringResource(R.string.amount), fontSize = 13.sp, color = TextSecondary)
                 Spacer(Modifier.height(8.dp))
-                SendField(
-                    value = state.amount,
-                    onValueChange = { viewModel.setAmount(it) },
-                    placeholder = "0.00 $coinShort",
-                    keyboardType = KeyboardType.Decimal,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (amountFiat != null) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("≈ $amountFiat", fontSize = 12.sp, color = TextSecondary)
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        state.availableBalance
-                            ?.let { stringResource(R.string.send_balance_label, "$it $coinShort") }
-                            ?: stringResource(R.string.send_balance_label, "—"),
-                        fontSize = 12.sp,
-                        color = TextSecondary
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SendField(
+                        value = state.amount,
+                        onValueChange = { viewModel.setAmount(it) },
+                        placeholder = "0.00",
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f)
                     )
                     Text(
                         stringResource(R.string.max_label),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentBlue,
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentGreen,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
+                            .background(AccentGreen.copy(alpha = 0.12f))
                             .clickable { viewModel.onMaxClicked() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(22.dp).clip(CircleShape).background(coinColor), contentAlignment = Alignment.Center) {
+                            coil.compose.AsyncImage(
+                                model = com.vaultex.ui.components.CryptoIcon.url(coinShort),
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp).clip(CircleShape)
+                            )
+                        }
+                        Text(coinShort, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
+                    }
+                }
+                if (amountFiat != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("≈ $amountFiat", fontSize = 12.sp, color = TextSecondary)
                 }
             }
 
@@ -443,40 +423,60 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Carte récapitulative : Réseau / Frais réseau / Tu vas envoyer / Total.
+            // Solde disponible (ligne)
+            SendInfoRow(
+                stringResource(R.string.send_available_balance),
+                (state.availableBalance ?: "—") + " " + coinShort,
+                availFiat?.let { "≈ $it" }
+            )
+            // Frais réseau (ligne)
+            SendInfoRow(
+                stringResource(R.string.send_summary_fee),
+                feeEstimate.ifEmpty { "…" },
+                feeFiat?.let { "≈ $it" }
+            )
+            // Carte verte : Tu vas envoyer / Total
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = SurfaceLight,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                color = AccentGreen.copy(alpha = 0.10f),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SummaryRow(stringResource(R.string.send_summary_network), netFull)
-                    SummaryRow(
-                        stringResource(R.string.send_summary_fee),
-                        feeEstimate.ifEmpty { "…" },
-                        sub = feeFiat?.let { "≈ $it" }
-                    )
-                    SummaryRow(
-                        stringResource(R.string.send_summary_you_send),
-                        "${state.amount.ifEmpty { "0" }} $coinShort",
-                        sub = amountFiat?.let { "≈ $it" }
-                    )
-                    HorizontalDivider(color = BorderColor)
-                    SummaryRow(
-                        stringResource(R.string.send_summary_total),
-                        formatTokenAmount(totalToken) + " $coinShort",
-                        sub = totalFiat?.let { "≈ $it" },
-                        emphasize = true
-                    )
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.send_summary_you_send), fontSize = 13.sp, color = TextSecondary)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("${state.amount.ifEmpty { "0" }} $coinShort", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                            amountFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                        }
+                    }
+                    HorizontalDivider(color = AccentGreen.copy(alpha = 0.3f))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.send_summary_total), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(formatTokenAmount(totalToken) + " $coinShort", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentGreen)
+                            totalFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                        }
+                    }
                     if (!isNative) {
                         Text(
                             stringResource(R.string.send_summary_fee_note, nativeFeeUnit(state.selectedChain, state.customToken)),
                             fontSize = 11.sp, color = TextSecondary
                         )
+                    }
+                }
+            }
+            // Conseil de sécurité (bleu)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = AccentBlue.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                    Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(stringResource(R.string.send_security_tip_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text(stringResource(R.string.send_security_tip_body, netFull), fontSize = 12.sp, color = TextSecondary)
                     }
                 }
             }
@@ -514,7 +514,7 @@ fun SendScreen(navController: NavController) {
                 enabled = state.isAddressValid && state.amount.isNotEmpty() && !state.isLoading,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AccentBlue,
+                    containerColor = AccentGreen,
                     contentColor = Color.White
                 )
             ) {
@@ -527,6 +527,73 @@ fun SendScreen(navController: NavController) {
                 } else {
                     Text(stringResource(R.string.continue_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
+            }
+        }
+
+        // Sélecteur de monnaie (feuille du bas). La monnaie se choisit ici —
+        // plus de chips dans le formulaire, conformément à la maquette.
+        if (showCoinPicker) {
+            ModalBottomSheet(onDismissRequest = { showCoinPicker = false }, containerColor = BgPrimary) {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(stringResource(R.string.send_choose_coin), fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp, color = TextPrimary, modifier = Modifier.padding(bottom = 6.dp))
+                    networks.forEach { net ->
+                        if (net.coins.isNotEmpty()) {
+                            Text(net.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                color = TextSecondary, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
+                            net.coins.forEach { coin ->
+                                val c = customTokens.firstOrNull { it.symbol == coin }
+                                Row(
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                        .clickable { viewModel.setChain(coin); showCoinPicker = false }
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        Modifier.size(32.dp).clip(CircleShape)
+                                            .background(runCatching { Color(android.graphics.Color.parseColor(coinColorHex(coinLabel(coin)))) }.getOrDefault(AccentGreen)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        coil.compose.AsyncImage(
+                                            model = com.vaultex.ui.components.CryptoIcon.url(coinLabel(coin)),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(32.dp).clip(CircleShape)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(coinTitleOf(coin, c), fontSize = 14.sp, color = TextPrimary,
+                                        fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                                    if (state.selectedChain == coin)
+                                        Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SendInfoRow(label: String, value: String, sub: String?) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                sub?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
             }
         }
     }
