@@ -171,7 +171,7 @@ fun DashboardScreen(navController: NavHostController) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ActionChip(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
-                        AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND) }
+                        AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
                     ActionChip(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
                     ActionChip(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,

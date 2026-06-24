@@ -51,6 +51,10 @@
 
     <!-- Send -->
     <string name="send_title">Envoyer</string>
+    <string name="send_select_all">Tous</string>
+    <string name="send_select_search">Rechercher un actif</string>
+    <string name="send_select_network">Choisir le réseau</string>
+    <string name="send_select_showing">Tokens sur le réseau %1$s</string>
     <string name="send_network_label">Réseau (blockchain)</string>
     <string name="send_coin_label">Monnaie</string>
     <string name="send_available_balance">Solde disponible</string>

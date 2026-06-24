@@ -38,6 +38,9 @@ object Routes {
 
     const val SEND = "send"
 
+    // Sélection de la monnaie à envoyer (réseau + liste) AVANT le formulaire.
+    const val SEND_SELECT = "sendSelect"
+
     const val RECEIVE = "receive"
 
     const val SWAP = "swap"

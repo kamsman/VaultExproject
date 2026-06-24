@@ -264,7 +264,10 @@ fun SendScreen(navController: NavController) {
                 shape = RoundedCornerShape(16.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                onClick = { showCoinPicker = true },
+                onClick = {
+                    // Revenir à l'écran de sélection de monnaie (réseau + liste).
+                    if (!navController.popBackStack(Routes.SEND_SELECT, false)) showCoinPicker = true
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -144,6 +144,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             SendScreen(navController)
         }
 
+        composable(Routes.SEND_SELECT) {
+            com.vaultex.ui.screens.send.SendSelectScreen(navController)
+        }
+
         composable(Routes.RECEIVE) {
             ReceiveScreen(navController)
         }
