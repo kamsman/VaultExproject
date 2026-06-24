@@ -42,10 +42,12 @@ class PendingTxStore @Inject constructor(
 
     private data class Wrapper(val list: List<PendingTx> = emptyList())
 
-    private fun load(): List<PendingTx> = try {
-        val json = secureStorage.getPendingTxs() ?: return emptyList()
-        gson.fromJson(json, Wrapper::class.java)?.list ?: emptyList()
-    } catch (_: Exception) { emptyList() }
+    private fun load(): List<PendingTx> {
+        return try {
+            val json = secureStorage.getPendingTxs() ?: return emptyList()
+            gson.fromJson(json, Wrapper::class.java)?.list ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
 
     private fun persist(list: List<PendingTx>) {
         _items.value = list
