@@ -969,13 +969,107 @@ private fun StatusHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     Text(subtitle, fontSize = 14.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 }
 
+private fun composeColor(hex: String, fallback: Long = 0xFF3B82F6): Color =
+    runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(Color(fallback))
+
+/** Cercle d'icône (gris, ou vert si mis en avant). */
+@Composable
+private fun ConfirmIconCircle(icon: androidx.compose.ui.graphics.vector.ImageVector, highlight: Boolean) {
+    Box(
+        Modifier.size(38.dp).clip(CircleShape)
+            .background(if (highlight) AccentGreen.copy(alpha = 0.15f) else BgTertiary),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, tint = if (highlight) AccentGreen else TextSecondary, modifier = Modifier.size(18.dp))
+    }
+}
+
+/** Carte « label en haut, valeur en dessous (à gauche) », option copie à droite. */
+@Composable
+private fun ConfirmRowLeft(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String, value: String, onCopy: (() -> Unit)? = null, trailingBadge: String? = null
+) {
+    Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            ConfirmIconCircle(icon, false)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(label, fontSize = 12.sp, color = TextSecondary)
+                Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            }
+            if (trailingBadge != null) {
+                Surface(shape = RoundedCornerShape(5.dp), color = AccentGreen.copy(alpha = 0.14f)) {
+                    Text(trailingBadge, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                        fontSize = 10.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (onCopy != null) {
+                Spacer(Modifier.width(10.dp))
+                Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(20.dp).clickable { onCopy() })
+            }
+        }
+    }
+}
+
+/** Carte « label à gauche, valeur + sous-valeur à droite », option vert. */
+@Composable
+private fun ConfirmRowRight(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String, value: String, sub: String? = null, highlight: Boolean = false
+) {
+    Surface(shape = RoundedCornerShape(14.dp),
+        color = if (highlight) AccentGreen.copy(alpha = 0.10f) else SurfaceColor,
+        border = if (highlight) null else androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            ConfirmIconCircle(icon, highlight)
+            Spacer(Modifier.width(12.dp))
+            Text(label, fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (highlight) AccentGreen else TextPrimary)
+                sub?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val clipboard = LocalClipboardManager.current
+    val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
     SendStatusScaffold(stringResource(R.string.send_confirm_title)) {
-        SendDetailCard(detail, showTotal = true, onCopyAddress = {
-            clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress))
-        })
+        // Carte monnaie + montant (verte, mise en avant)
+        Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(42.dp).clip(CircleShape).background(composeColor(coinColorHex(detail.coinShort))), contentAlignment = Alignment.Center) {
+                    coil.compose.AsyncImage(model = com.vaultex.ui.components.CryptoIcon.url(detail.coinShort),
+                        contentDescription = detail.coinShort, modifier = Modifier.size(42.dp).clip(CircleShape))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(detail.coinShort, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        if (badge != null) Surface(shape = RoundedCornerShape(5.dp), color = AccentGreen.copy(alpha = 0.14f)) {
+                            Text(badge, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp), fontSize = 10.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Text(detail.coinName, fontSize = 12.sp, color = TextSecondary)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${detail.amount} ${detail.coinShort}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                    detail.amountFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                }
+            }
+        }
+        ConfirmRowLeft(Icons.Default.Person, stringResource(R.string.send_recipient_label), shorten(detail.toAddress),
+            onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) })
+        ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
+        ConfirmRowRight(Icons.Default.CreditCard, stringResource(R.string.amount), "${detail.amount} ${detail.coinShort}", detail.amountFiat?.let { "≈ $it" })
+        ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, detail.feeFiat?.let { "≈ $it" })
+        ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_confirm_total_deducted), detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true)
+        ConfirmRowRight(Icons.Default.Schedule, stringResource(R.string.send_confirm_eta_label), stringResource(R.string.send_confirm_eta_value), stringResource(R.string.send_confirm_eta_sub))
         // Avertissement irréversible
         Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFF7E6), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1134,13 +1228,19 @@ internal fun SendSuccessScreen(
         SendDetailCard(detail, showTotal = false, onCopyAddress = {
             clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress))
         })
-        // Statut : diffusée
+        // Statut : confirmée (cet écran n'apparaît qu'après confirmation on-chain)
+        val confirmedAt = remember {
+            java.text.SimpleDateFormat("d MMM yyyy • HH:mm", java.util.Locale.FRANCE).format(java.util.Date())
+        }
         Surface(shape = RoundedCornerShape(12.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.send_success_status_label), fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.send_success_status_value), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.send_success_status_label), fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.send_success_status_value), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+                }
+                Text(stringResource(R.string.send_success_confirmed_on, confirmedAt), fontSize = 11.sp, color = TextSecondary)
             }
         }
         // Transaction ID + copie

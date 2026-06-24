@@ -436,7 +436,12 @@
     <string name="send_success_title">Transaction envoyée !</string>
     <string name="send_success_subtitle">Votre transaction a bien été envoyée.</string>
     <string name="send_success_status_label">Statut</string>
-    <string name="send_success_status_value">Diffusée</string>
+    <string name="send_success_status_value">Confirmée</string>
+    <string name="send_success_confirmed_on">Confirmée le %1$s</string>
+    <string name="send_confirm_total_deducted">Total déduit</string>
+    <string name="send_confirm_eta_label">Arrivée estimée</string>
+    <string name="send_confirm_eta_value">~1 minute</string>
+    <string name="send_confirm_eta_sub">Après confirmation</string>
     <string name="send_success_txid">ID de transaction</string>
     <string name="send_success_view_on">Voir sur %1$s</string>
     <string name="send_success_share_receipt">Partager le reçu</string>
