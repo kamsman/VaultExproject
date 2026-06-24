@@ -248,7 +248,6 @@
     <string name="send_tx_sent_title">Transaction envoyée</string>
     <string name="send_tx_broadcast">Votre transaction a été diffusée sur le réseau.</string>
     <string name="send_tx_hash_label">Hash :</string>
-    <string name="send_network_label">Réseau</string>
     <string name="send_address_placeholder_btc">bc1... ou 1... ou 3...</string>
     <string name="send_address_placeholder_sol">Adresse Solana Base58</string>
     <string name="send_address_placeholder_generic">Adresse %1$s</string>
