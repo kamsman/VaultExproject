@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -992,7 +993,7 @@ private fun StatusHeader(
                         pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 12f))
                     )
                 )
-                androidx.compose.ui.graphics.drawscope.rotate(angle) {
+                rotate(angle) {
                     drawArc(
                         color = ringColor,
                         startAngle = -90f, sweepAngle = 85f, useCenter = false,
