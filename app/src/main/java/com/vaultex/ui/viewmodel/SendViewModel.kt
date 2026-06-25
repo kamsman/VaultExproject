@@ -253,7 +253,12 @@ class SendViewModel @Inject constructor(
             m.contains("timeout") || m.contains("timed out") ||
                 m.contains("unable to resolve host") || m.contains("failed to connect") ->
                 appContext.getString(R.string.send_err_network)
-            else -> appContext.getString(R.string.send_err_generic)
+            // Cause inconnue : on AJOUTE le message brut du réseau/nœud pour
+            // pouvoir diagnostiquer (ex. rejet de diffusion Bitcoin).
+            else -> {
+                val g = appContext.getString(R.string.send_err_generic)
+                if (!raw.isNullOrBlank()) "$g\n($raw)" else g
+            }
         }
     }
 

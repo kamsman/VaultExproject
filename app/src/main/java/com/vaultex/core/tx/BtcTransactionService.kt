@@ -54,9 +54,11 @@ class BtcTransactionService @Inject constructor() {
             tx.addOutput(Coin.valueOf(change), SegwitAddress.fromKey(params, ecKey))
         }
 
-        // Sign P2WPKH inputs: BIP143 witness signing requires UTXO value.
-        // scriptCode for P2WPKH is the P2PKH-equivalent of the key.
-        val scriptCode = ScriptBuilder.createP2PKHOutputScript(ecKey)
+        // Sign P2WPKH inputs (native SegWit, bc1…). IMPORTANT : il faut passer le
+        // scriptPubKey P2WPKH pour que bitcoinj signe via le TÉMOIN (witness) avec
+        // un scriptSig VIDE. Passer un script P2PKH le faisait signer en LEGACY
+        // (scriptSig non vide) → transaction invalide rejetée par le réseau.
+        val witnessScript = ScriptBuilder.createP2WPKHOutputScript(ecKey.pubKeyHash)
         for (utxo in selected) {
             // Blockstream returns txids in display (big-endian) order; BitcoinJ
             // TransactionOutPoint stores hashes in internal (little-endian) order.
@@ -64,7 +66,7 @@ class BtcTransactionService @Inject constructor() {
             hashBytes.reverse()
             val txHash = org.bitcoinj.core.Sha256Hash.wrap(hashBytes)
             val outPoint = TransactionOutPoint(params, utxo.outputIndex.toLong(), txHash)
-            tx.addSignedInput(outPoint, scriptCode, Coin.valueOf(utxo.valueSatoshi), ecKey, Transaction.SigHash.ALL, false)
+            tx.addSignedInput(outPoint, witnessScript, Coin.valueOf(utxo.valueSatoshi), ecKey, Transaction.SigHash.ALL, false)
         }
 
         return tx.bitcoinSerialize()
