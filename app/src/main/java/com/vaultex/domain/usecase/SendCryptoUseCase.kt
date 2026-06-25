@@ -249,7 +249,9 @@ class SendCryptoUseCase @Inject constructor(
             val signed = btcTx.signTransaction(mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }
             val txHash = try {
+                // Réponse en TEXTE BRUT (le txid) — on lit le corps tel quel.
                 bitcoinApi.broadcastTx(signedHex.toRequestBody("text/plain".toMediaType()))
+                    .string().trim()
             } catch (e: retrofit2.HttpException) {
                 // Blockstream renvoie la VRAIE raison du rejet dans le corps de la
                 // réponse (ex. « min relay fee not met », « bad-txns-… »), pas dans

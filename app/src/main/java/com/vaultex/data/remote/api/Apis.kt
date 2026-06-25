@@ -29,9 +29,12 @@ interface BitcoinApi {
     @GET("tx/{txid}")
     suspend fun getTransaction(@Path("txid") txid: String): BlockstreamTxDto
 
+    // Blockstream renvoie le TXID en TEXTE BRUT (pas du JSON). On retourne donc
+    // le corps brut (ResponseBody) pour éviter que Gson tente de le parser et
+    // échoue (« Use JsonReader.setLenient... malformed JSON »).
     @POST("tx")
     @Headers("Content-Type: text/plain")
-    suspend fun broadcastTx(@Body rawHex: RequestBody): String
+    suspend fun broadcastTx(@Body rawHex: RequestBody): okhttp3.ResponseBody
 
     @GET("fee-estimates")
     suspend fun getFeeEstimates(): Map<String, Double>
