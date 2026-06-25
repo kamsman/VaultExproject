@@ -60,11 +60,11 @@ class BtcTransactionService @Inject constructor() {
         // (scriptSig non vide) → transaction invalide rejetée par le réseau.
         val witnessScript = ScriptBuilder.createP2WPKHOutputScript(ecKey.pubKeyHash)
         for (utxo in selected) {
-            // Blockstream returns txids in display (big-endian) order; BitcoinJ
-            // TransactionOutPoint stores hashes in internal (little-endian) order.
-            val hashBytes = Utils.HEX.decode(utxo.txHash)
-            hashBytes.reverse()
-            val txHash = org.bitcoinj.core.Sha256Hash.wrap(hashBytes)
+            // Blockstream donne le txid en ordre d'AFFICHAGE (hex). Sha256Hash.wrap
+            // le stocke tel quel et TransactionOutPoint le renverse lui-même en
+            // petit-boutiste pour le fil réseau. L'ancien reverse() MANUEL doublait
+            // l'inversion → outpoint erroné → « bad-txns-inputs-missingorspent ».
+            val txHash = org.bitcoinj.core.Sha256Hash.wrap(utxo.txHash)
             val outPoint = TransactionOutPoint(params, utxo.outputIndex.toLong(), txHash)
             tx.addSignedInput(outPoint, witnessScript, Coin.valueOf(utxo.valueSatoshi), ecKey, Transaction.SigHash.ALL, false)
         }
