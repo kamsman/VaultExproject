@@ -248,8 +248,14 @@ class SendViewModel @Inject constructor(
                 appContext.getString(R.string.send_err_insufficient)
             m.contains("nonce") ->
                 appContext.getString(R.string.send_err_nonce)
-            m.contains("underpriced") || m.contains("fee too low") || m.contains("gas price") ->
+            m.contains("underpriced") || m.contains("fee too low") || m.contains("gas price") ||
+                m.contains("min relay") || m.contains("mempool min fee") ->
                 appContext.getString(R.string.send_err_fee)
+            m.contains("dust") ->
+                appContext.getString(R.string.send_err_dust)
+            m.contains("invalid address") || m.contains("bad address") || m.contains("checksum") ||
+                m.contains("base58") || m.contains("bech32") || m.contains("decode") ->
+                appContext.getString(R.string.send_err_addr_rejected)
             m.contains("timeout") || m.contains("timed out") ||
                 m.contains("unable to resolve host") || m.contains("failed to connect") ->
                 appContext.getString(R.string.send_err_network)
@@ -304,10 +310,49 @@ class SendViewModel @Inject constructor(
         )
     }
 
+    /** Symbole court affiché (USDT pour USDT-ETH / USDT-BNB). */
+    private fun displaySymbol(chain: String): String =
+        if (chain.startsWith("USDT")) "USDT" else chain
+
+    /**
+     * Contrôles AVANT l'envoi → message d'erreur PRÉCIS (montant, adresse,
+     * solde, frais/gas) au lieu d'un échec générique après diffusion.
+     */
+    private fun preflightError(s: SendState): String? {
+        val amountNum = s.amount.replace(",", ".").toDoubleOrNull()
+        val sym = displaySymbol(s.selectedChain)
+        if (s.amount.isBlank()) return appContext.getString(R.string.send_err_enter_amount)
+        if (amountNum == null || amountNum <= 0.0) return appContext.getString(R.string.send_err_invalid_amount)
+        if (s.toAddress.isBlank()) return appContext.getString(R.string.send_err_enter_address)
+        if (!s.isAddressValid) return appContext.getString(R.string.send_err_bad_address, s.selectedChain)
+
+        val available = availableFor(s.selectedChain)?.replace(",", ".")?.toDoubleOrNull()
+        val fee = s.feeNativeAmount ?: 0.0
+        val isToken = s.customToken != null || s.selectedChain.startsWith("USDT")
+
+        // Montant > solde
+        if (available != null && amountNum > available + 1e-12)
+            return appContext.getString(R.string.send_err_insufficient_balance, formatFeeAmount(available) + " " + sym)
+        // Monnaie native : garder de quoi payer les frais
+        if (!isToken && available != null && amountNum + fee > available + 1e-12)
+            return appContext.getString(R.string.send_err_keep_fee, formatFeeAmount(fee) + " " + nativeUnit(s.selectedChain))
+        // Token : il faut du natif pour le gas
+        if (isToken && fee > 0.0) {
+            val nativeSym = nativeUnit(effectiveChain(s))
+            val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
+            if (nativeBal < fee) return appContext.getString(R.string.send_err_need_gas, nativeSym)
+        }
+        // Montant sous le minimum réseau
+        val min = MINIMUM_AMOUNTS[s.selectedChain]
+        if (min != null && amountNum < min)
+            return appContext.getString(R.string.send_err_below_min, "$min $sym")
+        return null
+    }
+
     fun send() {
         val s = _state.value
         if (s.isLoading) return
-        if (!s.isAddressValid || s.amount.isEmpty()) return
+        preflightError(s)?.let { msg -> _state.update { it.copy(error = msg) }; return }
 
         // Hors-ligne : on met l'INTENTION en file. Elle sera signée (avec un
         // nonce/blockhash frais) et diffusée automatiquement, une seule fois,

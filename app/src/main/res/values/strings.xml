@@ -421,6 +421,16 @@
     <string name="send_err_fee">Frais de réseau trop bas pour le moment. Réessaie.</string>
     <string name="send_err_network">Connexion au réseau impossible. Vérifie ta connexion et réessaie.</string>
     <string name="send_err_generic">L\'envoi a échoué. Vérifie le montant, l\'adresse et ta connexion, puis réessaie.</string>
+    <string name="send_err_enter_amount">Entre le montant à envoyer.</string>
+    <string name="send_err_invalid_amount">Montant invalide. Saisis un nombre valide.</string>
+    <string name="send_err_enter_address">Entre l\'adresse du destinataire.</string>
+    <string name="send_err_bad_address">Adresse invalide pour le réseau %1$s. Vérifie l\'adresse.</string>
+    <string name="send_err_insufficient_balance">Solde insuffisant. Disponible : %1$s.</string>
+    <string name="send_err_keep_fee">Montant trop élevé : garde ~%1$s pour les frais de réseau.</string>
+    <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
+    <string name="send_err_below_min">Montant trop petit. Minimum : %1$s.</string>
+    <string name="send_err_dust">Montant trop petit pour le réseau (poussière). Augmente le montant.</string>
+    <string name="send_err_addr_rejected">Adresse de destination invalide ou rejetée par le réseau.</string>
     <string name="wallet_management_title">Mes wallets</string>
     <string name="swap_result_title">Swap effectué</string>
     <string name="send_result_title">Transaction</string>
