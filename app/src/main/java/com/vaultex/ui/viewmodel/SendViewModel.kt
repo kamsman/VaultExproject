@@ -191,8 +191,20 @@ class SendViewModel @Inject constructor(
             _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
             return
         }
-        val reserve = NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
-            ?: java.math.BigDecimal.ZERO
+        // Réserve de frais retranchée :
+        //  • Token (USDT* ou personnalisé) → gas payé en natif → réserve 0.
+        //  • Monnaie native → frais réseau RÉELS estimés × marge de sécurité.
+        // (Avant : une constante figée — ex. 0.0003 BTC — bloquait Max quand le
+        //  solde était plus petit que la réserve, alors que le vrai frais est minime.)
+        val isToken = _state.value.customToken != null || chain.startsWith("USDT")
+        val reserve = if (isToken) java.math.BigDecimal.ZERO
+            else {
+                val liveFee = _state.value.feeNativeAmount
+                if (liveFee != null && liveFee > 0.0)
+                    java.math.BigDecimal.valueOf(liveFee).multiply(java.math.BigDecimal.valueOf(1.6))
+                else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
+                    ?: java.math.BigDecimal.ZERO
+            }
         val spendable = balance.subtract(reserve)
         if (spendable.signum() <= 0) {
             _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
@@ -265,12 +277,14 @@ class SendViewModel @Inject constructor(
         // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que
         // l'envoi « tout le solde » couvre le gas. Valeurs volontairement
         // prudentes ; les tokens (USDT*) ne sont pas listés (gas payé en natif).
+        // Réserve de SECOURS (uniquement si le frais réseau live n'est pas encore
+        // chargé). Volontairement PETITE — la vraie réserve = frais live × marge.
         private val NATIVE_FEE_RESERVE = mapOf(
-            "BTC" to 0.0003,
-            "ETH" to 0.0008,
-            "BNB" to 0.0002,
-            "SOL" to 0.0001,
-            "TRX" to 2.0
+            "BTC" to 0.00002,
+            "ETH" to 0.0003,
+            "BNB" to 0.00005,
+            "SOL" to 0.00001,
+            "TRX" to 1.5
         )
 
         private val MINIMUM_AMOUNTS = mapOf(
