@@ -233,7 +233,10 @@ class SendCryptoUseCase @Inject constructor(
             val btcAddress = WalletManager.deriveAddresses(mnemonic, passphrase).btc
             val utxosDto = bitcoinApi.getUtxos(btcAddress)
             val feeEstimates = bitcoinApi.getFeeEstimates()
-            val satPerByte = (feeEstimates["6"] ?: feeEstimates["3"] ?: feeEstimates["1"] ?: 10.0).toLong()
+            // Plancher à 2 sat/vB : une estimation à ~1 sat/vB donne un taux réel
+            // limite (< min relay) → rejet 400 du nœud. On arrondit vers le haut.
+            val satPerByte = kotlin.math.ceil(feeEstimates["6"] ?: feeEstimates["3"] ?: feeEstimates["1"] ?: 10.0)
+                .toLong().coerceAtLeast(2L)
 
             val confirmedUtxos = utxosDto.filter { it.status.confirmed }.sortedByDescending { it.value }
                 .map { Utxo(txHash = it.txid, outputIndex = it.vout, valueSatoshi = it.value) }
@@ -245,7 +248,15 @@ class SendCryptoUseCase @Inject constructor(
 
             val signed = btcTx.signTransaction(mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
             val signedHex = signed.joinToString("") { "%02x".format(it) }
-            val txHash = bitcoinApi.broadcastTx(signedHex.toRequestBody("text/plain".toMediaType()))
+            val txHash = try {
+                bitcoinApi.broadcastTx(signedHex.toRequestBody("text/plain".toMediaType()))
+            } catch (e: retrofit2.HttpException) {
+                // Blockstream renvoie la VRAIE raison du rejet dans le corps de la
+                // réponse (ex. « min relay fee not met », « bad-txns-… »), pas dans
+                // le statut HTTP. On la fait remonter telle quelle.
+                val body = try { e.response()?.errorBody()?.string()?.trim()?.take(280) } catch (_: Exception) { null }
+                return Result.Error(if (!body.isNullOrBlank()) body else "Diffusion refusée (HTTP ${e.code()})")
+            }
             Result.Success(txHash)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction BTC")

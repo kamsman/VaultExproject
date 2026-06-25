@@ -393,7 +393,7 @@
     <string name="send_err_nonce">A transaction is already in progress. Wait a few seconds and try again.</string>
     <string name="send_err_fee">Network fee too low right now. Please try again.</string>
     <string name="send_err_network">Couldn\'t reach the network. Check your connection and try again.</string>
-    <string name="send_err_generic">The transfer failed. Check the amount, address and your connection, then try again.</string>
+    <string name="send_err_generic">The transfer could not be completed. Please try again.</string>
     <string name="wallet_management_title">My wallets</string>
     <string name="swap_result_title">Swap completed</string>
     <string name="send_result_title">Transaction</string>
