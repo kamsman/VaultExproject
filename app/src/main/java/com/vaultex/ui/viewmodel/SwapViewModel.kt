@@ -64,11 +64,26 @@ class SwapViewModel @Inject constructor(
         } catch (_: Exception) { 0.0 }
     }
 
-    /** Bouton MAX : remplit le montant avec tout le solde de la monnaie source. */
+    /**
+     * Bouton MAX : remplit avec le solde, en RÉSERVANT de quoi payer le gas du
+     * DÉPÔT pour une monnaie native (sinon « MAX » prend tout le BNB/ETH et il
+     * ne reste rien pour les frais → l'envoi du dépôt échoue). Pour un token
+     * (USDT), le gas est payé en natif séparément → pas de réserve.
+     */
     fun onMaxClicked() {
         val bal = _state.value.fromBalance
         if (bal <= 0.0) return
-        val txt = java.math.BigDecimal.valueOf(bal)
+        val reserve = when (_state.value.fromToken.uppercase()) {
+            "BTC" -> 0.00002
+            "ETH" -> 0.0003
+            "BNB" -> 0.00005
+            "SOL" -> 0.00001
+            "TRX" -> 1.5
+            else  -> 0.0   // USDT & tokens : gas en natif séparé
+        }
+        val spendable = bal - reserve
+        if (spendable <= 0.0) return
+        val txt = java.math.BigDecimal.valueOf(spendable)
             .setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
         setFromAmount(txt)
     }
