@@ -55,7 +55,10 @@ class SendCryptoUseCase @Inject constructor(
      * par l'UI (envoi direct en ligne) et par la file hors-ligne
      * (PendingSendWorker), afin que les deux chemins soient identiques.
      */
-    suspend fun sendByChain(chain: String, toAddress: String, amount: String): Result {
+    suspend fun sendByChain(
+        chain: String, toAddress: String, amount: String,
+        serviceFeeCrypto: Double = 0.0   // frais de service VaultEx (BTC/SOL), en unité crypto
+    ): Result {
         // Token personnalisé (ERC-20/BEP-20 ajouté par contrat). Encodé sous la
         // forme "ERC20:<ETH|BNB>:<contract>:<decimals>" pour que CE chemin unique
         // serve l'envoi direct ET la file hors-ligne (PendingSendWorker).
@@ -84,7 +87,8 @@ class SendCryptoUseCase @Inject constructor(
                 val amountSatoshi = try {
                     BigDecimal(amount).multiply(BigDecimal("100000000")).toLong()
                 } catch (_: Exception) { return Result.Error("Montant invalide") }
-                sendBtc(toAddress = toAddress, amountSatoshi = amountSatoshi)
+                val svcSat = (serviceFeeCrypto * 100_000_000.0).toLong().coerceAtLeast(0L)
+                sendBtc(toAddress = toAddress, amountSatoshi = amountSatoshi, serviceFeeSatoshi = svcSat)
             }
             "TRX" -> {
                 val amountSun = try {
@@ -225,7 +229,7 @@ class SendCryptoUseCase @Inject constructor(
 
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
-    suspend fun sendBtc(toAddress: String, amountSatoshi: Long): Result {
+    suspend fun sendBtc(toAddress: String, amountSatoshi: Long, serviceFeeSatoshi: Long = 0L): Result {
         if (!AddressValidator.isValidBtc(toAddress)) return Result.Error("Adresse BTC invalide")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
@@ -246,7 +250,11 @@ class SendCryptoUseCase @Inject constructor(
             // P2WPKH virtual size: ~68 vbytes/input (41 non-witness + 108 witness / 4)
             val feeSatoshi = (11 + 68 * inputCount + 31 * 2).toLong() * satPerByte
 
-            val signed = btcTx.signTransaction(mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos)
+            val signed = btcTx.signTransaction(
+                mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos,
+                serviceFeeSatoshi = serviceFeeSatoshi,
+                serviceFeeAddress = com.vaultex.BuildConfig.VAULTEX_FEE_RECIPIENT_BTC
+            )
             val signedHex = signed.joinToString("") { "%02x".format(it) }
             val txHash = try {
                 // Réponse en TEXTE BRUT (le txid) — on lit le corps tel quel.

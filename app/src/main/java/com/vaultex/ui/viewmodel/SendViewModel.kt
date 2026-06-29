@@ -44,7 +44,8 @@ data class SendState(
     val currency: String = "USD",
     val priceSelected: Double = 0.0,   // prix de la monnaie envoyée, dans `currency`
     val priceNative: Double = 0.0,     // prix de la monnaie des frais (gas), dans `currency`
-    val feeNativeAmount: Double? = null // montant numérique des frais (unité native)
+    val feeNativeAmount: Double? = null, // montant numérique des frais (unité native)
+    val serviceFeeAmount: Double = 0.0  // frais de service VaultEx (BTC), unité crypto
 )
 
 @HiltViewModel
@@ -133,7 +134,8 @@ class SendViewModel @Inject constructor(
                 estimatedFee = "",       // recalcul ci-dessous pour la nouvelle chaîne
                 currency = cur,
                 priceSelected = priceFor(chain, cur),
-                priceNative = priceFor(nativeUnit(eff), cur)
+                priceNative = priceFor(nativeUnit(eff), cur),
+                serviceFeeAmount = serviceFeeCrypto(chain, it.amount.replace(",", ".").toDoubleOrNull() ?: 0.0)
             )
         }
         fetchFee(eff)
@@ -173,8 +175,10 @@ class SendViewModel @Inject constructor(
     }
 
     fun setAmount(amount: String) {
-        val warning = dustWarning(_state.value.selectedChain, amount)
-        _state.update { it.copy(amount = amount, dustWarning = warning, error = null) }
+        val s = _state.value
+        val warning = dustWarning(s.selectedChain, amount)
+        val svc = serviceFeeCrypto(s.selectedChain, amount.replace(",", ".").toDoubleOrNull() ?: 0.0)
+        _state.update { it.copy(amount = amount, dustWarning = warning, error = null, serviceFeeAmount = svc) }
     }
 
     /**
@@ -205,7 +209,10 @@ class SendViewModel @Inject constructor(
                 else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
                     ?: java.math.BigDecimal.ZERO
             }
-        val spendable = balance.subtract(reserve)
+        // Le frais de service VaultEx (BTC) est aussi prélevé → on le retranche
+        // pour que MAX laisse de quoi le payer.
+        val svc = java.math.BigDecimal.valueOf(serviceFeeCrypto(chain, balance.toDouble()))
+        val spendable = balance.subtract(reserve).subtract(svc)
         if (spendable.signum() <= 0) {
             _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
             return
@@ -215,6 +222,19 @@ class SendViewModel @Inject constructor(
                 .stripTrailingZeros()
                 .toPlainString()
         )
+    }
+
+    /**
+     * Frais de service VaultEx (BTC uniquement pour l'instant — sortie ajoutée
+     * dans la même tx, coût nul). 0.5% plafonné à 0.50 USD ; nul sous la poussière.
+     */
+    private fun serviceFeeCrypto(chain: String, amount: Double): Double {
+        if (chain != "BTC" || amount <= 0.0) return 0.0
+        val byPct = amount * (com.vaultex.BuildConfig.VAULTEX_SEND_FEE_PERCENT / 100.0)
+        val priceUsd = priceFor(chain, "USD")
+        val cap = if (priceUsd > 0.0) com.vaultex.BuildConfig.VAULTEX_SEND_FEE_CAP_USD / priceUsd else byPct
+        val fee = minOf(byPct, cap)
+        return if (fee >= 0.00000546) fee else 0.0   // < poussière BTC → pas de frais
     }
 
     private fun dustWarning(chain: String, amount: String): String? {
@@ -384,7 +404,7 @@ class SendViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val result = sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount)
+            val result = sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount, s.serviceFeeAmount)
             when (result) {
                 is SendCryptoUseCase.Result.Success -> {
                     // Demande à l'accueil de rafraîchir vite le solde après l'envoi.

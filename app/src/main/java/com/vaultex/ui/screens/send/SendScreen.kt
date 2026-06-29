@@ -138,16 +138,18 @@ fun SendScreen(navController: NavController) {
     val amountNum = state.amount.replace(",", ".").toDoubleOrNull() ?: 0.0
     val availNum = state.availableBalance?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
     val feeNum = state.feeNativeAmount ?: 0.0
+    val svcFee = state.serviceFeeAmount          // frais de service VaultEx (BTC), même actif
 
     fun fiat(v: Double): String? =
         if (v > 0.0) com.vaultex.core.util.CurrencyFormat.format(v, state.currency) else null
     val availFiat = if (price > 0.0) fiat(availNum * price) else null
     val amountFiat = if (price > 0.0) fiat(amountNum * price) else null
     val feeFiat = if (state.priceNative > 0.0) fiat(feeNum * state.priceNative) else null
-    // Total : pour une monnaie native, montant + frais (même actif) ; pour un
-    // token, les frais sont payés en natif → le total dans le token = montant.
-    val totalToken = if (isNative) amountNum + feeNum else amountNum
-    val totalFiatValue = if (isNative) (amountNum + feeNum) * price else amountNum * price
+    val svcFeeFiat = if (svcFee > 0.0 && price > 0.0) fiat(svcFee * price) else null
+    // Total déduit : montant + frais réseau (si natif, même actif) + frais de
+    // service VaultEx (BTC). Pour un token, les frais réseau sont en natif.
+    val totalToken = (if (isNative) amountNum + feeNum else amountNum) + svcFee
+    val totalFiatValue = totalToken * price
     val totalFiat = if (price > 0.0) fiat(totalFiatValue) else null
 
     // Frais réseau réel (gas live), calculé par chaîne dans le ViewModel.
@@ -463,6 +465,15 @@ fun SendScreen(navController: NavController) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text("${state.amount.ifEmpty { "0" }} $coinShort", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
                             amountFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                        }
+                    }
+                    if (svcFee > 0.0) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stringResource(R.string.send_service_fee), fontSize = 13.sp, color = TextSecondary)
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(formatTokenAmount(svcFee) + " $coinShort", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
+                                svcFeeFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                            }
                         }
                     }
                     HorizontalDivider(color = AccentGreen.copy(alpha = 0.3f))

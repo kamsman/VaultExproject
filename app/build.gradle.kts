@@ -29,9 +29,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_ETH","\"0xREPLACE_WITH_YOUR_FEE_WALLET_EVM\"")
-        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TREPLACE_WITH_YOUR_FEE_WALLET_TRX\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_EVM","\"0xe97c1d479648106fdeab414a298bf89d97563f48\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TLMb88tu3HWTdQCtV4uSbgKJcpEBsR2mUj\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_BTC","\"bc1qjjt4wq46z6kftzantvckhfn03svyu6rwswwqq0\"")
+        buildConfigField("String", "VAULTEX_FEE_RECIPIENT_SOL","\"7wXTW4DH9PMtmY4zvwNxKa58xxhBUy1tG4BpfZveC3PD\"")
         buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
+        // Frais de service DIRECT sur les envois (BTC + SOL uniquement : sortie/
+        // instruction dans la même tx → coût quasi nul). 0.5% plafonné à 0.50 USD.
+        buildConfigField("double", "VAULTEX_SEND_FEE_PERCENT","0.5")
+        buildConfigField("double", "VAULTEX_SEND_FEE_CAP_USD","0.5")
         // Certificate pinning (P1) — activer en release UNE FOIS les empreintes
         // SHA-256 réelles renseignées dans NetworkModule.CERT_PINS.
         buildConfigField("boolean", "ENABLE_CERT_PINNING","false")

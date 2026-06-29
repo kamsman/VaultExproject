@@ -29,18 +29,24 @@ class BtcTransactionService @Inject constructor() {
         toAddress: String,
         amountSatoshi: Long,
         feeSatoshi: Long,
-        utxos: List<Utxo>
+        utxos: List<Utxo>,
+        serviceFeeSatoshi: Long = 0L,
+        serviceFeeAddress: String? = null
     ): ByteArray {
         val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         val ecKey = deriveKey(seed)
 
-        // Select UTXOs covering amount + fee
+        // Frais de service VaultEx ajouté comme 2e sortie DANS la même tx (coût
+        // quasi nul). Ignoré si sous le seuil de poussière (546 sat) ou sans adresse.
+        val svcFee = if (serviceFeeAddress != null && serviceFeeSatoshi > 546) serviceFeeSatoshi else 0L
+
+        // Select UTXOs covering amount + network fee + service fee
         val selected = mutableListOf<Utxo>()
         var inputTotal = 0L
         for (utxo in utxos) {
             selected.add(utxo)
             inputTotal += utxo.valueSatoshi
-            if (inputTotal >= amountSatoshi + feeSatoshi) break
+            if (inputTotal >= amountSatoshi + feeSatoshi + svcFee) break
         }
 
         val tx = Transaction(params)
@@ -49,7 +55,11 @@ class BtcTransactionService @Inject constructor() {
         val recipientAddr = Address.fromString(params, toAddress)
         tx.addOutput(Coin.valueOf(amountSatoshi), recipientAddr)
 
-        val change = inputTotal - amountSatoshi - feeSatoshi
+        if (svcFee > 0L) {
+            tx.addOutput(Coin.valueOf(svcFee), Address.fromString(params, serviceFeeAddress!!))
+        }
+
+        val change = inputTotal - amountSatoshi - feeSatoshi - svcFee
         if (change > 546) {
             tx.addOutput(Coin.valueOf(change), SegwitAddress.fromKey(params, ecKey))
         }
