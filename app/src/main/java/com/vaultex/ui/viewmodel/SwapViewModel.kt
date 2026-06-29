@@ -112,9 +112,12 @@ class SwapViewModel @Inject constructor(
                         apiKey = CHANGENOW_API_KEY
                     )
                 }
-                _state.update { it.copy(toAmount = est.estimatedAmount) }
-            } catch (_: Exception) {
-                _state.update { it.copy(toAmount = String.format("%.4f", input * 0.97)) }
+                _state.update { it.copy(toAmount = est.estimatedAmount, error = null) }
+            } catch (e: Exception) {
+                // Pas de devis : on n'affiche PAS un faux montant (ça donnait
+                // l'impression que « le montant ne change pas »). On vide + on
+                // garde la raison pour l'écran.
+                _state.update { it.copy(toAmount = "") }
             }
         }
     }
@@ -203,9 +206,19 @@ class SwapViewModel @Inject constructor(
                 }
                 trackSwapStatus(txRes.id)
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message ?: "Erreur swap") }
+                _state.update { it.copy(isLoading = false, error = changeNowError(e)) }
             }
         }
+    }
+
+    /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
+     *  au lieu d'un « HTTP 400 » opaque. */
+    private fun changeNowError(e: Throwable): String = when (e) {
+        is retrofit2.HttpException -> {
+            val body = try { e.response()?.errorBody()?.string()?.trim()?.take(220) } catch (_: Exception) { null }
+            if (!body.isNullOrBlank()) body else "Erreur ChangeNOW (HTTP ${e.code()})"
+        }
+        else -> e.message ?: "Erreur swap"
     }
 
     /** Poll ChangeNOW toutes les 20 s jusqu'à un état terminal, et synchronise l'historique local. */
