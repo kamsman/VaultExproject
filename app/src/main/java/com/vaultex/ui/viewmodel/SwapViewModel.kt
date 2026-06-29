@@ -20,6 +20,7 @@ data class SwapState(
     val toToken: String = "TRX",
     val fromAmount: String = "",
     val toAmount: String = "",
+    val fromBalance: Double = 0.0,      // solde de la monnaie source (pour MAX + affichage)
     val estimatedFee: String = "",
     val minAmount: Double? = null,
     val vaultexFeePercent: Double = SwapUseCase.VAULTEX_FEE_PERCENT,
@@ -48,8 +49,32 @@ class SwapViewModel @Inject constructor(
     private val _state = MutableStateFlow(SwapState())
     val state: StateFlow<SwapState> = _state.asStateFlow()
 
+    private val gson = com.google.gson.Gson()
+    private data class SnapLite(val tokens: List<TokLite>?)
+    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0)
+
+    init { _state.update { it.copy(fromBalance = balanceOf(it.fromToken)) } }
+
+    /** Solde de [token] lu dans l'instantané portefeuille (aucun appel réseau). */
+    private fun balanceOf(token: String): Double {
+        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
+        return try {
+            gson.fromJson(json, SnapLite::class.java)?.tokens
+                ?.firstOrNull { it.symbol == token }?.amountRaw ?: 0.0
+        } catch (_: Exception) { 0.0 }
+    }
+
+    /** Bouton MAX : remplit le montant avec tout le solde de la monnaie source. */
+    fun onMaxClicked() {
+        val bal = _state.value.fromBalance
+        if (bal <= 0.0) return
+        val txt = java.math.BigDecimal.valueOf(bal)
+            .setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+        setFromAmount(txt)
+    }
+
     fun setFromToken(token: String) {
-        _state.update { it.copy(fromToken = token) }
+        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token)) }
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -66,26 +91,30 @@ class SwapViewModel @Inject constructor(
     }
 
     fun swapTokens() = _state.update {
-        it.copy(fromToken = it.toToken, toToken = it.fromToken, fromAmount = it.toAmount, toAmount = it.fromAmount)
+        it.copy(
+            fromToken = it.toToken, toToken = it.fromToken,
+            fromAmount = it.toAmount, toAmount = it.fromAmount,
+            fromBalance = balanceOf(it.toToken)
+        )
     }
 
     private fun estimateOutput(amount: String) {
         viewModelScope.launch {
             val input = amount.toDoubleOrNull() ?: return@launch
-            val (fee, net) = SwapUseCase.applyFee(input)
+            // On échange le montant COMPLET. La commission VaultEx vient de
+            // ChangeNOW (programme partenaire), pas en rognant le montant.
             try {
                 val fromTo = "${SwapUseCase.cnTicker(_state.value.fromToken)}_${SwapUseCase.cnTicker(_state.value.toToken)}"
                 val est = withContext(Dispatchers.IO) {
                     changeNowApi.getEstimatedAmount(
-                        amount = String.format("%.6f", net),
+                        amount = String.format("%.6f", input),
                         fromTo = fromTo,
                         apiKey = CHANGENOW_API_KEY
                     )
                 }
-                _state.update { it.copy(toAmount = est.estimatedAmount, estimatedFee = String.format("%.6f", fee)) }
+                _state.update { it.copy(toAmount = est.estimatedAmount) }
             } catch (_: Exception) {
-                // Estimation locale fallback
-                _state.update { it.copy(toAmount = String.format("%.4f", net * 0.97), estimatedFee = String.format("%.6f", fee)) }
+                _state.update { it.copy(toAmount = String.format("%.4f", input * 0.97)) }
             }
         }
     }
@@ -112,7 +141,8 @@ class SwapViewModel @Inject constructor(
                     }
                     SwapUseCase.ValidationResult.Valid -> Unit
                 }
-                val (_, net) = SwapUseCase.applyFee(inputAmount)
+                // Montant COMPLET déposé/échangé (commission via ChangeNOW).
+                val net = inputAmount
 
                 // Dériver l'adresse de réception pour le toToken
                 val mnemonic = secureStorage.getMnemonic()

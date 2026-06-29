@@ -3,6 +3,7 @@ package com.vaultex.ui.screens.swap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
+import androidx.compose.ui.draw.clip
+import com.vaultex.ui.components.CryptoIcon
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
@@ -215,8 +218,12 @@ fun SwapScreen(navController: NavHostController) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val balTxt = if (state.fromBalance > 0.0)
+                            java.math.BigDecimal.valueOf(state.fromBalance)
+                                .setScale(6, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+                        else "0"
                         Text(
-                            stringResource(R.string.balance_label, "—"),
+                            stringResource(R.string.balance_label, "$balTxt ${state.fromToken}"),
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
@@ -224,7 +231,11 @@ fun SwapScreen(navController: NavHostController) {
                             stringResource(R.string.max_label),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AccentBlue
+                            color = AccentBlue,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { viewModel.onMaxClicked() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }
@@ -297,13 +308,7 @@ fun SwapScreen(navController: NavHostController) {
                         stringResource(R.string.swap_network_included)
                     )
                     Divider(color = SurfaceLight, thickness = 1.dp)
-                    // Frais de service VaultEx — distincts du réseau
-                    SummaryRow(
-                        stringResource(R.string.swap_fee_vaultex_label),
-                        "${state.vaultexFeePercent}%"
-                    )
-                    Divider(color = SurfaceLight, thickness = 1.dp)
-                    // Montant net reçu estimé
+                    // Montant reçu estimé (devis ChangeNOW, commission déjà incluse)
                     SummaryRow(
                         stringResource(R.string.swap_you_receive_est),
                         if (to != null && to > 0.0) "${String.format("%.6f", to)} ${state.toToken}" else "—",
@@ -384,9 +389,7 @@ private fun TokenPill(current: String, options: List<String>, onSelect: (String)
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(tokenColor(current), CircleShape),
+                    modifier = Modifier.size(24.dp).clip(CircleShape).background(tokenColor(current)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -394,6 +397,11 @@ private fun TokenPill(current: String, options: List<String>, onSelect: (String)
                         color = Color.White,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Bold
+                    )
+                    coil.compose.AsyncImage(
+                        model = CryptoIcon.url(current),
+                        contentDescription = current,
+                        modifier = Modifier.size(24.dp).clip(CircleShape)
                     )
                 }
                 Text(current, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
