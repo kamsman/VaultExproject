@@ -28,6 +28,7 @@ data class SwapState(
     val error: String? = null,
     val swapId: String? = null,         // ChangeNOW transaction ID
     val payinAddress: String? = null,   // adresse où envoyer pour déclencher le swap
+    val depositAmount: String? = null,  // montant EXACT à déposer (= attendu par ChangeNOW)
     val swapStatus: String? = null      // waiting/confirming/exchanging/sending/finished/failed
 )
 
@@ -73,7 +74,7 @@ class SwapViewModel @Inject constructor(
             val input = amount.toDoubleOrNull() ?: return@launch
             val (fee, net) = SwapUseCase.applyFee(input)
             try {
-                val fromTo = "${_state.value.fromToken.lowercase()}_${_state.value.toToken.lowercase()}"
+                val fromTo = "${SwapUseCase.cnTicker(_state.value.fromToken)}_${SwapUseCase.cnTicker(_state.value.toToken)}"
                 val est = withContext(Dispatchers.IO) {
                     changeNowApi.getEstimatedAmount(
                         amount = String.format("%.6f", net),
@@ -130,7 +131,7 @@ class SwapViewModel @Inject constructor(
                     return@launch
                 }
 
-                val fromTo = "${s.fromToken.lowercase()}_${s.toToken.lowercase()}"
+                val fromTo = "${SwapUseCase.cnTicker(s.fromToken)}_${SwapUseCase.cnTicker(s.toToken)}"
 
                 // Vérifier le montant minimum
                 val minRes = withContext(Dispatchers.IO) {
@@ -146,8 +147,8 @@ class SwapViewModel @Inject constructor(
                     changeNowApi.createTransaction(
                         apiKey = CHANGENOW_API_KEY,
                         body = ChangeNowTransactionBody(
-                            from = s.fromToken.lowercase(),
-                            to = s.toToken.lowercase(),
+                            from = SwapUseCase.cnTicker(s.fromToken),
+                            to = SwapUseCase.cnTicker(s.toToken),
                             address = toAddress,
                             amount = String.format("%.6f", net)
                         )
@@ -166,6 +167,7 @@ class SwapViewModel @Inject constructor(
                         isLoading = false,
                         swapId = txRes.id,
                         payinAddress = txRes.payinAddress,
+                        depositAmount = String.format("%.6f", net),
                         swapStatus = "waiting"
                     )
                 }

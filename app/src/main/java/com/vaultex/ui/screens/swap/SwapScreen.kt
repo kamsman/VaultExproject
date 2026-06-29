@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
 import com.vaultex.ui.components.VaultExBottomBar
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
@@ -49,6 +50,12 @@ import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.SwapViewModel
+
+/** Chaîne d'envoi VaultEx pour déposer le token source (notre USDT = TRC20). */
+private fun swapSendChain(fromToken: String): String = when (fromToken.uppercase()) {
+    "USDT" -> "USDT"
+    else -> fromToken.uppercase()
+}
 
 private fun tokenColor(token: String): Color = when (token.uppercase()) {
     "BTC" -> NetworkBtc
@@ -82,18 +89,20 @@ fun SwapScreen(navController: NavHostController) {
         }
     }
 
-    // Résultat du swap : afficher la payin address
+    // Résultat du swap : ordre créé → déposer les fonds vers l'adresse payin.
     if (state.payinAddress != null) {
+        val depositAmt = state.depositAmount ?: state.fromAmount
         AlertDialog(
             onDismissRequest = { viewModel.resetSwap() },
             icon = { Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue) },
             title = { Text(stringResource(R.string.swap_created_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.swap_send_instruction, state.fromAmount, state.fromToken), fontSize = 14.sp)
+                    Text(stringResource(R.string.swap_send_instruction, depositAmt, state.fromToken), fontSize = 14.sp)
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = BgTertiary
+                        color = BgTertiary,
+                        onClick = { clipboard.setText(AnnotatedString(state.payinAddress!!)) }
                     ) {
                         Text(
                             state.payinAddress!!,
@@ -103,16 +112,23 @@ fun SwapScreen(navController: NavHostController) {
                             fontWeight = FontWeight.Medium
                         )
                     }
+                    Text(stringResource(R.string.swap_tap_to_copy), fontSize = 11.sp, color = TextSecondary)
                     Text(stringResource(R.string.swap_id_label, state.swapId?.take(16) ?: ""), fontSize = 11.sp, color = TextSecondary)
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    clipboard.setText(AnnotatedString(state.payinAddress!!))
-                }) { Text(stringResource(R.string.copy_address)) }
+                    // Pré-remplit l'écran Envoyer (déjà testé + biométrie) avec le
+                    // dépôt exact et bascule dessus.
+                    com.vaultex.core.session.SwapDepositBuffer.set(
+                        swapSendChain(state.fromToken), state.payinAddress!!, depositAmt
+                    )
+                    viewModel.resetSwap()
+                    navController.navigate(Routes.SEND)
+                }) { Text(stringResource(R.string.swap_deposit_now)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.close)) }
+                TextButton(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

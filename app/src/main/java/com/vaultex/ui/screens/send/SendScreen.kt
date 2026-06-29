@@ -75,8 +75,14 @@ fun SendScreen(navController: NavController) {
     // P5 : préremplissage depuis un deep link déjà validé (chaîne + adresse).
     // Sinon, pré-sélection de la chaîne depuis la page d'une crypto (#4).
     LaunchedEffect(Unit) {
+        // Dépôt de swap (vers l'adresse payin ChangeNOW) : chaîne + adresse + montant.
+        val deposit = com.vaultex.core.session.SwapDepositBuffer.consume()
         val target = com.vaultex.core.session.DeepLinkBuffer.consume()
-        if (target != null) {
+        if (deposit != null) {
+            viewModel.setChain(deposit.chain)
+            viewModel.setToAddress(deposit.address)
+            viewModel.setAmount(deposit.amount)
+        } else if (target != null) {
             viewModel.setChain(target.chain)
             viewModel.setToAddress(target.address)
         } else {

@@ -92,11 +92,21 @@ class SwapUseCase @Inject constructor(
         return status.status
     }
 
-    private fun pair(from: String, to: String) = "${from.lowercase()}_${to.lowercase()}"
+    private fun pair(from: String, to: String) = "${cnTicker(from)}_${cnTicker(to)}"
 
     companion object {
         const val VAULTEX_FEE_PERCENT = 1.5
         const val MOBILE_MONEY_FEE_PERCENT = 1.0
+
+        /**
+         * Ticker ChangeNOW pour un symbole de l'app. ChangeNOW distingue les
+         * réseaux : notre « USDT » est du TRC20 → « usdttrc20 ». Sans ça la
+         * paire est invalide et l'API échoue.
+         */
+        fun cnTicker(token: String): String = when (token.uppercase()) {
+            "USDT" -> "usdttrc20"
+            else -> token.lowercase()
+        }
 
         /** Retourne (frais, montant net après frais). */
         fun applyFee(amount: Double): Pair<Double, Double> {
