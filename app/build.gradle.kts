@@ -38,7 +38,7 @@ android {
         // API keys read from local.properties (gitignored) — set them there, not here
         buildConfigField("String", "ETHERSCAN_KEY",   "\"${localProps.getProperty("etherscan.key",   "")}\"")
         buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")
-        buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "")}\"")
+        buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "40f55bf17c23f050450d5fa4cdab2f184b425e73e0b089b96258bc1a76c4fd4c")}\"")
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
         buildConfigField("String", "TRONGRID_KEY",    "\"${localProps.getProperty("trongrid.key",    "")}\"")
