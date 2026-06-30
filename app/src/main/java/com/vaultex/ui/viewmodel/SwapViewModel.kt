@@ -7,6 +7,7 @@ import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.ChangeNowApi
 import com.vaultex.data.remote.dto.ChangeNowTransactionBody
+import com.vaultex.domain.usecase.SendCryptoUseCase
 import com.vaultex.domain.usecase.SwapUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -30,14 +31,17 @@ data class SwapState(
     val swapId: String? = null,         // ChangeNOW transaction ID
     val payinAddress: String? = null,   // adresse où envoyer pour déclencher le swap
     val depositAmount: String? = null,  // montant EXACT à déposer (= attendu par ChangeNOW)
-    val swapStatus: String? = null      // waiting/confirming/exchanging/sending/finished/failed
+    val depositTxHash: String? = null,  // hash du dépôt envoyé automatiquement
+    val swapStatus: String? = null,     // creating/depositing/waiting/confirming/exchanging/sending/finished/failed
+    val swapInProgress: Boolean = false // un swap est en cours (overlay de suivi)
 )
 
 @HiltViewModel
 class SwapViewModel @Inject constructor(
     private val changeNowApi: ChangeNowApi,
     private val secureStorage: SecureStorage,
-    private val swapUseCase: SwapUseCase
+    private val swapUseCase: SwapUseCase,
+    private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase
 ) : ViewModel() {
 
     private var statusJob: kotlinx.coroutines.Job? = null
@@ -212,19 +216,40 @@ class SwapViewModel @Inject constructor(
                 )
                 _state.update {
                     it.copy(
-                        isLoading = false,
                         swapId = txRes.id,
                         payinAddress = txRes.payinAddress,
                         depositAmount = String.format("%.6f", net),
-                        swapStatus = "waiting"
+                        swapInProgress = true,
+                        swapStatus = "depositing"
                     )
                 }
-                trackSwapStatus(txRes.id)
+
+                // DÉPÔT AUTOMATIQUE (comme Trust Wallet) : on envoie nous-mêmes les
+                // fonds vers l'adresse payin via le moteur d'envoi déjà testé.
+                val depChain = swapSendChainOf(s.fromToken)
+                val dep = withContext(Dispatchers.IO) {
+                    sendCryptoUseCase.sendByChain(depChain, txRes.payinAddress, String.format("%.6f", net))
+                }
+                when (dep) {
+                    is SendCryptoUseCase.Result.Success -> {
+                        _state.update { it.copy(isLoading = false, depositTxHash = dep.txHash, swapStatus = "waiting") }
+                        com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
+                        trackSwapStatus(txRes.id)
+                    }
+                    is SendCryptoUseCase.Result.Error -> {
+                        _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
+                            error = "Dépôt échoué : ${dep.message}") }
+                    }
+                }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = changeNowError(e)) }
+                _state.update { it.copy(isLoading = false, swapInProgress = false, error = changeNowError(e)) }
             }
         }
     }
+
+    /** Chaîne d'envoi pour déposer la monnaie source (notre USDT = TRC20). */
+    private fun swapSendChainOf(fromToken: String): String =
+        if (fromToken.uppercase() == "USDT") "USDT" else fromToken.uppercase()
 
     /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
      *  au lieu d'un « HTTP 400 » opaque. */

@@ -31,9 +31,9 @@ class SwapUseCase @Inject constructor(
         if (fromToken.equals(toToken, ignoreCase = true)) {
             return ValidationResult.Invalid(ValidationResult.Reason.SAME_TOKEN)
         }
-        val (_, net) = applyFee(amount)
+        // On échange le montant COMPLET → on compare le minimum au montant réel.
         val min = getMinAmount(fromToken, toToken)
-        if (min != null && net < min) {
+        if (min != null && amount < min) {
             return ValidationResult.Invalid(ValidationResult.Reason.BELOW_MINIMUM)
         }
         return ValidationResult.Valid

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -76,11 +78,9 @@ fun SwapScreen(navController: NavHostController) {
     val state by viewModel.state.collectAsState()
     val clipboard = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
-
-    // Retour haptique quand l'échange est créé (adresse de dépôt disponible)
-    LaunchedEffect(state.payinAddress) {
-        if (state.payinAddress != null) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-    }
+    val context = LocalContext.current as androidx.fragment.app.FragmentActivity
+    val biometricHelper = remember { com.vaultex.core.security.BiometricHelper(context) }
+    var showConfirm by remember { mutableStateOf(false) }
 
     val tokens = listOf("ETH", "BNB", "USDT", "BTC", "SOL", "TRX")
 
@@ -92,46 +92,68 @@ fun SwapScreen(navController: NavHostController) {
         }
     }
 
-    // Résultat du swap : ordre créé → déposer les fonds vers l'adresse payin.
-    if (state.payinAddress != null) {
-        val depositAmt = state.depositAmount ?: state.fromAmount
+    // 1) CONFIRMATION (récap) → biométrie → l'app crée l'ordre ET dépose
+    //    automatiquement (façon Trust Wallet), sans détour par l'écran Envoyer.
+    if (showConfirm) {
         AlertDialog(
-            onDismissRequest = { viewModel.resetSwap() },
+            onDismissRequest = { showConfirm = false },
             icon = { Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue) },
-            title = { Text(stringResource(R.string.swap_created_title)) },
+            title = { Text(stringResource(R.string.swap_exchange)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.swap_send_instruction, depositAmt, state.fromToken), fontSize = 14.sp)
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = BgTertiary,
-                        onClick = { clipboard.setText(AnnotatedString(state.payinAddress!!)) }
-                    ) {
-                        Text(
-                            state.payinAddress!!,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(10.dp),
-                            color = AccentBlue,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Text(stringResource(R.string.swap_tap_to_copy), fontSize = 11.sp, color = TextSecondary)
-                    Text(stringResource(R.string.swap_id_label, state.swapId?.take(16) ?: ""), fontSize = 11.sp, color = TextSecondary)
+                    Text(
+                        "${state.fromAmount} ${state.fromToken}  →  ≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}",
+                        fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
+                    )
+                    Text("${stringResource(R.string.swap_via)} ChangeNOW", fontSize = 13.sp, color = TextSecondary)
+                    Text(stringResource(R.string.swap_confirm_hint), fontSize = 11.sp, color = TextSecondary)
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    // Pré-remplit l'écran Envoyer (déjà testé + biométrie) avec le
-                    // dépôt exact et bascule dessus.
-                    com.vaultex.core.session.SwapDepositBuffer.set(
-                        swapSendChain(state.fromToken), state.payinAddress!!, depositAmt
-                    )
-                    viewModel.resetSwap()
-                    navController.navigate(Routes.SEND)
-                }) { Text(stringResource(R.string.swap_deposit_now)) }
+                    showConfirm = false
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val bio = biometricHelper.checkAvailability()
+                    if (bio == com.vaultex.core.security.BiometricHelper.BiometricStatus.AVAILABLE ||
+                        biometricHelper.canUseDeviceCredential()
+                    ) {
+                        biometricHelper.authenticateStrongOrCredential(
+                            title = context.getString(R.string.swap_exchange),
+                            subtitle = "${state.fromAmount} ${state.fromToken} → ${state.toToken}",
+                            onSuccess = { viewModel.executeSwap() },
+                            onError = { _, _ -> }
+                        )
+                    } else viewModel.executeSwap()
+                }) { Text(stringResource(R.string.swap_confirm_cta)) }
             },
-            dismissButton = {
-                TextButton(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.cancel)) }
+            dismissButton = { TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+
+    // 2) SUIVI du swap : dépôt auto + statut ChangeNOW en temps réel.
+    if (state.swapInProgress) {
+        val finished = state.swapStatus == "finished"
+        val failed = state.swapStatus in listOf("failed", "refunded", "expired")
+        LaunchedEffect(finished) { if (finished) haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+        AlertDialog(
+            onDismissRequest = { if (finished || failed) viewModel.resetSwap() },
+            icon = {
+                if (finished) Icon(Icons.Default.CheckCircle, null, tint = VaultExColors.Success)
+                else Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue)
+            },
+            title = { Text(stringResource(if (finished) R.string.swap_done_title else R.string.swap_progress_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (!finished && !failed) CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(30.dp), strokeWidth = 3.dp)
+                    Text(swapStatusLabel(state.swapStatus), fontSize = 14.sp, color = TextPrimary)
+                    if (state.toAmount.isNotEmpty())
+                        Text("≈ ${state.toAmount} ${state.toToken}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                    state.swapId?.let { Text(stringResource(R.string.swap_id_label, it.take(16)), fontSize = 11.sp, color = TextSecondary) }
+                }
+            },
+            confirmButton = {
+                if (finished || failed) Button(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.send_success_done)) }
+                else TextButton(onClick = { viewModel.resetSwap() }) { Text(stringResource(R.string.close)) }
             }
         )
     }
@@ -164,7 +186,7 @@ fun SwapScreen(navController: NavHostController) {
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.executeSwap()
+                        showConfirm = true
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -434,3 +456,15 @@ private fun SummaryRow(label: String, value: String, valueColor: Color = TextPri
         Text(label, fontSize = 13.sp, color = TextSecondary)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
     }
+
+/** Libellé clair de l'étape d'un swap ChangeNOW (statut → français). */
+private fun swapStatusLabel(status: String?): String = when (status) {
+    "depositing" -> "Envoi du dépôt…"
+    "waiting"    -> "En attente du dépôt sur le réseau…"
+    "confirming" -> "Confirmation du dépôt…"
+    "exchanging" -> "Échange en cours…"
+    "sending"    -> "Envoi vers ton wallet…"
+    "finished"   -> "Terminé ! Les fonds arrivent dans ton solde."
+    "failed", "refunded", "expired" -> "Échec ou remboursement."
+    else         -> "Traitement…"
+}

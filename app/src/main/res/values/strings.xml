@@ -271,6 +271,9 @@
     <string name="swap_id_label">ID : %1$s…</string>
     <string name="swap_deposit_now">Déposer maintenant</string>
     <string name="swap_tap_to_copy">Touchez l\'adresse pour la copier</string>
+    <string name="swap_confirm_hint">L\'app va déposer automatiquement et suivre l\'échange. Transaction irréversible.</string>
+    <string name="swap_confirm_cta">Confirmer l\'échange</string>
+    <string name="swap_progress_title">Échange en cours</string>
     <string name="swap_mode_same_chain">Même chaîne (1inch)</string>
     <string name="swap_mode_cross_chain">Cross-chain (ChangeNOW)</string>
     <string name="swap_you_send">Vous envoyez</string>
