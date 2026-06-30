@@ -47,25 +47,37 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.ui.components.CryptoIcon
 import com.vaultex.ui.navigation.Routes
+import com.vaultex.ui.theme.AccentRed
+import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BorderColor
 import com.vaultex.ui.theme.NetworkBnb
 import com.vaultex.ui.theme.NetworkBtc
 import com.vaultex.ui.theme.NetworkEth
 import com.vaultex.ui.theme.NetworkSol
 import com.vaultex.ui.theme.NetworkTrx
+import com.vaultex.ui.theme.Surface as SurfaceColor
+import com.vaultex.ui.theme.SurfaceLight
+import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.SwapViewModel
 
-/* ───────────────────────── Palette sombre / violet (prototype) ───────────────────────── */
-private val SwapBg = Color(0xFF0B0E16)
-private val SwapCard = Color(0xFF161B26)
-private val SwapCardAlt = Color(0xFF1B2130)
-private val SwapBorder = Color(0xFF252B3A)
+/* ───────────────────────── Palette violet (accents fixes) ─────────────────────────
+ * Les fonds / textes suivent le thème ACTUEL de l'app (clair ou sombre) via les
+ * accesseurs @Composable ci-dessous ; seuls le violet et le vert restent constants. */
 private val SwapPurple = Color(0xFF7C5CFC)
-private val SwapPurpleDim = Color(0xFF2A2546)
 private val SwapGreen = Color(0xFF22C55E)
-private val SwapGreenDim = Color(0xFF15301F)
-private val SwapText = Color(0xFFF5F6FA)
-private val SwapTextDim = Color(0xFF8A91A3)
-private val SwapTextFaint = Color(0xFF5B6275)
+
+private val swapBg: Color        @Composable get() = BgPrimary
+private val swapCard: Color      @Composable get() = SurfaceColor
+private val swapCardAlt: Color   @Composable get() = SurfaceLight
+private val swapBorder: Color    @Composable get() = BorderColor
+private val swapText: Color      @Composable get() = TextPrimary
+private val swapTextDim: Color   @Composable get() = TextSecondary
+private val swapTextFaint: Color @Composable get() = TextMuted
+private val swapPurpleDim: Color @Composable get() = SwapPurple.copy(alpha = 0.16f)
+private val swapGreenDim: Color  @Composable get() = SwapGreen.copy(alpha = 0.14f)
+private val swapErrBg: Color     @Composable get() = AccentRed.copy(alpha = 0.12f)
 
 private fun tokenColor(token: String): Color = when (token.uppercase()) {
     "BTC" -> NetworkBtc
@@ -203,7 +215,7 @@ private fun SwapFormScreen(
     else "0"
 
     Scaffold(
-        containerColor = SwapBg,
+        containerColor = swapBg,
         topBar = {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -211,14 +223,14 @@ private fun SwapFormScreen(
             ) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour") { navController.popBackStack() }
                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = SwapText)
-                    Text("Échangez vos cryptos", fontSize = 12.sp, color = SwapTextDim)
+                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
+                    Text("Échangez vos cryptos", fontSize = 12.sp, color = swapTextDim)
                 }
                 BoxIconButton(Icons.Default.History, "Historique") { navController.navigate(Routes.HISTORY) }
             }
         },
         bottomBar = {
-            Column(Modifier.background(SwapBg)) {
+            Column(Modifier.background(swapBg)) {
                 Button(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(54.dp),
@@ -256,8 +268,8 @@ private fun SwapFormScreen(
 
             // Inversion
             Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-                Surface(onClick = onInvert, shape = CircleShape, color = SwapCardAlt,
-                    border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.size(44.dp)) {
+                Surface(onClick = onInvert, shape = CircleShape, color = swapCardAlt,
+                    border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(44.dp)) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.SwapVert, "Inverser", tint = SwapPurple, modifier = Modifier.size(22.dp))
                     }
@@ -276,16 +288,16 @@ private fun SwapFormScreen(
             Spacer(Modifier.height(12.dp))
 
             // ─── Détails ───
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
                     val rate = if (fromAmt > 0.0 && toAmt > 0.0)
                         "1 ${state.fromToken} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${state.toToken}" else "—"
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Taux", rate, chevron = true)
-                    Divider(color = SwapBorder, thickness = 1.dp)
+                    Divider(color = swapBorder, thickness = 1.dp)
                     val feeTxt = if (fromAmt > 0.0)
                         "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${state.fromToken}" else "—"
                     SwapDetailRow(Icons.Default.Info, "Frais (inclus)", feeTxt, valueColor = SwapGreen)
-                    Divider(color = SwapBorder, thickness = 1.dp)
+                    Divider(color = swapBorder, thickness = 1.dp)
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Délai estimé", "2 - 5 min", valueColor = SwapPurple, showIcon = false)
                 }
             }
@@ -293,29 +305,29 @@ private fun SwapFormScreen(
             Spacer(Modifier.height(12.dp))
 
             // ─── Fournisseur ───
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(SwapPurpleDim), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(swapPurpleDim), contentAlignment = Alignment.Center) {
                         Text("N", fontWeight = FontWeight.Bold, color = SwapPurple, fontSize = 14.sp)
                     }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Fournisseur", fontSize = 11.sp, color = SwapTextDim)
-                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapText)
+                        Text("Fournisseur", fontSize = 11.sp, color = swapTextDim)
+                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
                     }
                     Surface(shape = RoundedCornerShape(6.dp), color = SwapPurple.copy(alpha = 0.16f)) {
                         Text("Meilleur taux", modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             fontSize = 11.sp, color = SwapPurple, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.ChevronRight, null, tint = SwapTextFaint, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                 }
             }
 
             if (state.error != null) {
                 Spacer(Modifier.height(12.dp))
-                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF3A1A1A), modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error!!, fontSize = 13.sp, color = Color(0xFFFF6B6B), modifier = Modifier.padding(12.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = swapErrBg, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -339,18 +351,18 @@ private fun SwapConfirmScreen(
     val minReceive = if (toAmt > 0.0) String.format("%.6f", toAmt * 0.98).trimEnd('0').trimEnd('.') else "—"
 
     Scaffold(
-        containerColor = SwapBg,
+        containerColor = swapBg,
         topBar = {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour", onBack)
                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = SwapText)
-                    Text("Vérifiez et confirmez", fontSize = 12.sp, color = SwapTextDim)
+                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
+                    Text("Vérifiez et confirmez", fontSize = 12.sp, color = swapTextDim)
                 }
             }
         },
         bottomBar = {
-            Column(Modifier.background(SwapBg).padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -365,7 +377,7 @@ private fun SwapConfirmScreen(
                     else Text("Confirmer le swap", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("Le taux sera valable pendant 00:29", fontSize = 12.sp, color = SwapTextDim,
+                Text("Le taux sera valable pendant 00:29", fontSize = 12.sp, color = swapTextDim,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             }
         }
@@ -374,41 +386,41 @@ private fun SwapConfirmScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Vérifiez les détails", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SwapText,
+            Text("Vérifiez les détails", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText,
                 modifier = Modifier.padding(top = 4.dp))
 
             // Carte récap envoi/réception
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     ConfirmAmountRow("Vous envoyez", state.fromToken, "${state.fromAmount} ${state.fromToken}", fromFiat)
                     Box(Modifier.padding(start = 4.dp, top = 6.dp, bottom = 6.dp)) {
-                        Icon(Icons.Default.SwapVert, null, tint = SwapTextFaint, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.SwapVert, null, tint = swapTextFaint, modifier = Modifier.size(20.dp))
                     }
                     ConfirmAmountRow("Vous recevez", state.toToken, "${state.toAmount.ifEmpty { "—" }} ${state.toToken}", toFiat)
                 }
             }
 
             // Carte détails
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
                     ConfirmRow("Fournisseur", "ChangeNOW", chevron = true)
-                    Divider(color = SwapBorder)
+                    Divider(color = swapBorder)
                     val rate = if (fromAmt > 0.0 && toAmt > 0.0)
                         "1 ${state.fromToken} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${state.toToken}" else "—"
                     ConfirmRow("Taux", rate)
-                    Divider(color = SwapBorder)
+                    Divider(color = swapBorder)
                     val feeTxt = if (fromAmt > 0.0)
                         "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${state.fromToken}" else "—"
                     ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
-                    Divider(color = SwapBorder)
+                    Divider(color = swapBorder)
                     ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
-                    Divider(color = SwapBorder)
+                    Divider(color = swapBorder)
                     ConfirmRow("Délai estimé", "2 - 5 min", valueColor = SwapPurple)
                 }
             }
 
             // Estimation
-            Surface(shape = RoundedCornerShape(12.dp), color = SwapGreenDim, modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(12.dp), color = swapGreenDim, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, null, tint = SwapGreen, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
@@ -420,22 +432,22 @@ private fun SwapConfirmScreen(
             }
 
             // Avertissement réseau
-            Surface(shape = RoundedCornerShape(12.dp), color = SwapCardAlt, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("Soyez attentif au réseau", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SwapText)
+                    Text("Soyez attentif au réseau", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = swapText)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         buildAnnotatedString(
                             "Le dépôt se fait sur le réseau ", swapNetworkLong(state.fromToken), ". L'app dépose automatiquement, vous n'avez rien à copier."
                         ),
-                        fontSize = 12.sp, color = SwapTextDim, lineHeight = 16.sp
+                        fontSize = 12.sp, color = swapTextDim, lineHeight = 16.sp
                     )
                 }
             }
 
             if (state.error != null) {
-                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF3A1A1A), modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error!!, fontSize = 13.sp, color = Color(0xFFFF6B6B), modifier = Modifier.padding(12.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = swapErrBg, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
                 }
             }
             Spacer(Modifier.height(4.dp))
@@ -463,19 +475,19 @@ private fun SwapTrackingScreen(
     val payoutAddr = "votre portefeuille"
 
     Scaffold(
-        containerColor = SwapBg,
+        containerColor = swapBg,
         topBar = {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 BoxIconButton(Icons.Default.ArrowBack, "Fermer", onClose)
                 Text(
                     if (finished) "Swap terminé !" else if (failed) "Swap échoué" else "Swap en cours",
-                    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = SwapText,
+                    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText,
                     modifier = Modifier.weight(1f).padding(start = 14.dp)
                 )
             }
         },
         bottomBar = {
-            Column(Modifier.background(SwapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = {
                         val msg = "Swap VaultEx : ${state.fromAmount} ${state.fromToken} → ≈ ${state.toAmount} ${state.toToken}" +
@@ -497,8 +509,8 @@ private fun SwapTrackingScreen(
                     onClick = onHistory,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, SwapBorder),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SwapText)
+                    border = BorderStroke(1.dp, swapBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = swapText)
                 ) { Text("Voir dans l'historique", fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
             }
         }
@@ -512,24 +524,24 @@ private fun SwapTrackingScreen(
             // Deux logos + flèche
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 TokenBadgeWithCheck(state.fromToken, finished)
-                Icon(Icons.Default.ChevronRight, null, tint = SwapTextFaint, modifier = Modifier.size(26.dp))
+                Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(26.dp))
                 TokenBadgeWithCheck(state.toToken, finished)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${state.fromAmount} ${state.fromToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapText)
-                    Text(swapNetworkBadge(state.fromToken), fontSize = 11.sp, color = SwapTextDim)
+                    Text("${state.fromAmount} ${state.fromToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text(swapNetworkBadge(state.fromToken), fontSize = 11.sp, color = swapTextDim)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapText)
-                    Text(swapNetworkBadge(state.toToken), fontSize = 11.sp, color = SwapTextDim)
+                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text(swapNetworkBadge(state.toToken), fontSize = 11.sp, color = swapTextDim)
                 }
             }
 
             // Grand cercle d'état
             Box(
                 Modifier.size(72.dp).clip(CircleShape)
-                    .background(if (finished) SwapGreen else if (failed) Color(0xFF7A2222) else SwapPurpleDim),
+                    .background(if (finished) SwapGreen else if (failed) AccentRed else swapPurpleDim),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -540,12 +552,12 @@ private fun SwapTrackingScreen(
             }
 
             // Détails / frise
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Détails de la transaction", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapText, modifier = Modifier.weight(1f))
+                        Text("Détails de la transaction", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText, modifier = Modifier.weight(1f))
                         val statusTxt = if (finished) "Réussie" else if (failed) "Échouée" else "En cours"
-                        val statusCol = if (finished) SwapGreen else if (failed) Color(0xFFFF6B6B) else SwapPurple
+                        val statusCol = if (finished) SwapGreen else if (failed) AccentRed else SwapPurple
                         Surface(shape = RoundedCornerShape(6.dp), color = statusCol.copy(alpha = 0.16f)) {
                             Text(statusTxt, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, color = statusCol, fontWeight = FontWeight.SemiBold)
                         }
@@ -560,12 +572,12 @@ private fun SwapTrackingScreen(
             }
 
             // Adresse de réception
-            Surface(shape = RoundedCornerShape(16.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Vous recevez", fontSize = 12.sp, color = SwapTextDim)
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SwapText)
+                    Text("Vous recevez", fontSize = 12.sp, color = swapTextDim)
+                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
                     Spacer(Modifier.height(8.dp))
-                    Text("À l'adresse de $payoutAddr", fontSize = 12.sp, color = SwapTextDim)
+                    Text("À l'adresse de $payoutAddr", fontSize = 12.sp, color = swapTextDim)
                     state.swapId?.let { id ->
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically,
@@ -581,8 +593,8 @@ private fun SwapTrackingScreen(
             }
 
             if (failed && state.error != null) {
-                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF3A1A1A), modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error!!, fontSize = 13.sp, color = Color(0xFFFF6B6B), modifier = Modifier.padding(12.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = swapErrBg, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -594,8 +606,8 @@ private fun SwapTrackingScreen(
 
 @Composable
 private fun BoxIconButton(icon: ImageVector, desc: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = SwapCard, border = BorderStroke(1.dp, SwapBorder), modifier = Modifier.size(40.dp)) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, desc, tint = SwapText, modifier = Modifier.size(20.dp)) }
+    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, desc, tint = swapText, modifier = Modifier.size(20.dp)) }
     }
 }
 
@@ -612,7 +624,7 @@ private fun TokenBadgeWithCheck(token: String, finished: Boolean) {
     Box(contentAlignment = Alignment.BottomEnd) {
         TokenLogo(token, 56)
         if (finished) {
-            Box(Modifier.size(22.dp).clip(CircleShape).background(SwapBg).padding(2.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(22.dp).clip(CircleShape).background(swapBg).padding(2.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.fillMaxSize().clip(CircleShape).background(SwapGreen), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
                 }
@@ -627,22 +639,22 @@ private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.size(22.dp).clip(CircleShape)
-                    .background(if (done) SwapGreen else if (active) SwapPurple else SwapCardAlt),
+                    .background(if (done) SwapGreen else if (active) SwapPurple else swapCardAlt),
                 contentAlignment = Alignment.Center
             ) {
                 when {
                     done -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
                     active -> CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(12.dp))
-                    else -> Box(Modifier.size(6.dp).clip(CircleShape).background(SwapTextFaint))
+                    else -> Box(Modifier.size(6.dp).clip(CircleShape).background(swapTextFaint))
                 }
             }
-            if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else SwapBorder))
+            if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else swapBorder))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.padding(bottom = if (last) 0.dp else 16.dp)) {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                color = if (done || active) SwapText else SwapTextDim)
-            subtitle?.let { Text(it, fontSize = 11.sp, color = SwapTextDim) }
+                color = if (done || active) swapText else swapTextDim)
+            subtitle?.let { Text(it, fontSize = 11.sp, color = swapTextDim) }
         }
     }
 }
@@ -653,20 +665,20 @@ private fun ConfirmAmountRow(label: String, token: String, amount: String, fiat:
         TokenLogo(token, 40)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 12.sp, color = SwapTextDim)
-            Text(amount, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SwapText)
+            Text(label, fontSize = 12.sp, color = swapTextDim)
+            Text(amount, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
         }
-        if (fiat.isNotEmpty()) Text(fiat, fontSize = 12.sp, color = SwapTextDim)
+        if (fiat.isNotEmpty()) Text(fiat, fontSize = 12.sp, color = swapTextDim)
     }
 }
 
 @Composable
-private fun ConfirmRow(label: String, value: String, valueColor: Color = SwapText, chevron: Boolean = false) {
+private fun ConfirmRow(label: String, value: String, valueColor: Color = swapText, chevron: Boolean = false) {
     Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 13.sp, color = SwapTextDim)
+        Text(label, fontSize = 13.sp, color = swapTextDim)
         Spacer(Modifier.weight(1f))
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor, textAlign = TextAlign.End)
-        if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = SwapTextFaint, modifier = Modifier.size(16.dp)) }
+        if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(16.dp)) }
     }
 }
 
@@ -696,15 +708,15 @@ private fun SwapCoinCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = SwapCard,
-        border = BorderStroke(if (highlight) 1.5.dp else 1.dp, if (highlight) SwapPurple else SwapBorder),
+        color = swapCard,
+        border = BorderStroke(if (highlight) 1.5.dp else 1.dp, if (highlight) SwapPurple else swapBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, fontSize = 12.sp, color = SwapTextDim)
+                Text(label, fontSize = 12.sp, color = swapTextDim)
                 Spacer(Modifier.weight(1f))
-                rightLabel?.let { Text(it, fontSize = 12.sp, color = SwapTextDim) }
+                rightLabel?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
                 if (onMax != null) {
                     Spacer(Modifier.width(8.dp))
                     Surface(shape = RoundedCornerShape(6.dp), color = SwapPurple.copy(alpha = 0.16f),
@@ -717,15 +729,15 @@ private fun SwapCoinCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 var expanded by remember { mutableStateOf(false) }
                 Box {
-                    Surface(shape = RoundedCornerShape(12.dp), color = SwapCardAlt,
+                    Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt,
                         modifier = Modifier.clickable { expanded = true }) {
                         Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TokenLogo(token, 34)
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(token, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = SwapText)
-                                    Icon(Icons.Default.ArrowDropDown, null, tint = SwapTextDim, modifier = Modifier.size(18.dp))
+                                    Text(token, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                    Icon(Icons.Default.ArrowDropDown, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
                                 }
                                 Surface(shape = RoundedCornerShape(4.dp), color = SwapPurple.copy(alpha = 0.16f)) {
                                     Text(swapNetworkBadge(token), modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
@@ -734,9 +746,28 @@ private fun SwapCoinCard(
                             }
                         }
                     }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.background(swapCard).widthIn(min = 220.dp)
+                    ) {
                         tokens.forEach { t ->
-                            DropdownMenuItem(text = { Text(t) }, onClick = { onTokenSelect(t); expanded = false })
+                            val selected = t == token
+                            DropdownMenuItem(
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        TokenLogo(t, 32)
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(t, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                            Text(swapNetworkBadge(t), fontSize = 11.sp, color = swapTextDim)
+                                        }
+                                        if (selected) Icon(Icons.Default.Check, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                                    }
+                                },
+                                onClick = { onTokenSelect(t); expanded = false }
+                            )
                         }
                     }
                 }
@@ -747,16 +778,16 @@ private fun SwapCoinCard(
                             value = amount,
                             onValueChange = onAmountChange,
                             singleLine = true,
-                            textStyle = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, color = SwapText, textAlign = TextAlign.End),
+                            textStyle = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapText, textAlign = TextAlign.End),
                             cursorBrush = SolidColor(SwapPurple),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.widthIn(min = 60.dp),
-                            decorationBox = { inner -> Box(contentAlignment = Alignment.CenterEnd) { if (amount.isEmpty()) Text("0", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = SwapTextFaint); inner() } }
+                            decorationBox = { inner -> Box(contentAlignment = Alignment.CenterEnd) { if (amount.isEmpty()) Text("0", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapTextFaint); inner() } }
                         )
                     } else {
-                        Text(amount.ifEmpty { "0" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = SwapText)
+                        Text(amount.ifEmpty { "0" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapText)
                     }
-                    fiat?.let { Text(it, fontSize = 12.sp, color = SwapTextDim) }
+                    fiat?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
                 }
             }
         }
@@ -769,23 +800,23 @@ private fun SwapDetailRow(
     icon: ImageVector,
     label: String,
     value: String,
-    valueColor: Color = SwapText,
+    valueColor: Color = swapText,
     chevron: Boolean = false,
     showIcon: Boolean = true
 ) {
     Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (showIcon) { Icon(icon, null, tint = SwapTextDim, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(10.dp)) }
-        Text(label, fontSize = 13.sp, color = SwapTextDim)
+        if (showIcon) { Icon(icon, null, tint = swapTextDim, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(10.dp)) }
+        Text(label, fontSize = 13.sp, color = swapTextDim)
         Spacer(Modifier.weight(1f))
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
-        if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = SwapTextFaint, modifier = Modifier.size(16.dp)) }
+        if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(16.dp)) }
     }
 }
 
 /** Barre de navigation sombre (prototype) : Accueil / Recevoir / Swap / Envoyer / Portefeuille. */
 @Composable
 private fun SwapBottomNav(navController: NavHostController) {
-    Surface(color = SwapCard, modifier = Modifier.fillMaxWidth()) {
+    Surface(color = swapCard, modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -801,7 +832,7 @@ private fun SwapBottomNav(navController: NavHostController) {
 
 @Composable
 private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    val col = if (selected) SwapPurple else SwapTextDim
+    val col = if (selected) SwapPurple else swapTextDim
     Column(
         Modifier.clip(RoundedCornerShape(10.dp)).clickable { onClick() }.padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally

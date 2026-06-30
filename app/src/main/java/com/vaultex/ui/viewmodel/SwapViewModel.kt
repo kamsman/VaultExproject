@@ -88,7 +88,10 @@ class SwapViewModel @Inject constructor(
      */
     fun onMaxClicked() {
         val bal = _state.value.fromBalance
-        if (bal <= 0.0) return
+        if (bal <= 0.0) {
+            _state.update { it.copy(error = "Solde ${_state.value.fromToken} insuffisant : aucun fonds à échanger.") }
+            return
+        }
         val reserve = when (_state.value.fromToken.uppercase()) {
             "BTC" -> 0.00002
             "ETH" -> 0.0003
