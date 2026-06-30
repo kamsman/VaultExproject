@@ -109,7 +109,25 @@ class SwapViewModel @Inject constructor(
         }
         val txt = java.math.BigDecimal.valueOf(spendable)
             .setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+        // On affiche d'abord le montant MAX (et on lance le devis).
         setFromAmount(txt)
+        // Puis on vérifie EN MÊME TEMPS si ce MAX atteint le minimum requis pour
+        // la paire : s'il y a des fonds mais qu'ils sont insuffisants pour swap,
+        // on garde le montant affiché ET on prévient l'utilisateur.
+        val fromTok = _state.value.fromToken
+        val toTok = _state.value.toToken
+        viewModelScope.launch {
+            val min = swapUseCase.getMinAmount(fromTok, toTok) ?: return@launch
+            _state.update { st ->
+                if (st.fromAmount == txt && spendable < min) {
+                    val minTxt = java.math.BigDecimal.valueOf(min).stripTrailingZeros().toPlainString()
+                    st.copy(
+                        minAmount = min,
+                        error = "Max $txt $fromTok — insuffisant pour échanger (minimum $minTxt $fromTok)."
+                    )
+                } else st.copy(minAmount = min)
+            }
+        }
     }
 
     fun setFromToken(token: String) {
