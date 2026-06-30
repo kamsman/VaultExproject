@@ -1,5 +1,7 @@
 package com.vaultex.ui.screens.swap
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +22,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CallReceived
 import androidx.compose.material.icons.outlined.CallMade
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -29,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -217,16 +219,13 @@ private fun SwapFormScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                BoxIconButton(Icons.Default.ArrowBack, "Retour") { navController.popBackStack() }
-                Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
+                Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
                     Text("Échangez vos cryptos", fontSize = 12.sp, color = swapTextDim)
                 }
-                BoxIconButton(Icons.Default.History, "Historique") { navController.navigate(Routes.HISTORY) }
+                BoxIconButton(Icons.Default.History, "Historique", Modifier.align(Alignment.CenterEnd)) { navController.navigate(Routes.HISTORY) }
             }
         },
         bottomBar = {
@@ -266,12 +265,22 @@ private fun SwapFormScreen(
                 fiat = fromFiat, onMax = onMax, highlight = true
             )
 
-            // Inversion
+            // Inversion (le bouton fait un demi-tour à chaque clic → preuve visuelle de l'échange)
+            var invertSpin by remember { mutableStateOf(0f) }
+            val spinAngle by animateFloatAsState(
+                targetValue = invertSpin,
+                animationSpec = tween(durationMillis = 420),
+                label = "swapInvertSpin"
+            )
             Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-                Surface(onClick = onInvert, shape = CircleShape, color = swapCardAlt,
-                    border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(44.dp)) {
+                Surface(
+                    onClick = { invertSpin += 180f; onInvert() },
+                    shape = CircleShape, color = swapCardAlt,
+                    border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(44.dp)
+                ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.SwapVert, "Inverser", tint = SwapPurple, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Default.SwapVert, "Inverser", tint = SwapPurple,
+                            modifier = Modifier.size(22.dp).rotate(spinAngle))
                     }
                 }
             }
@@ -353,9 +362,9 @@ private fun SwapConfirmScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                BoxIconButton(Icons.Default.ArrowBack, "Retour", onBack)
-                Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart), onClick = onBack)
+                Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
                     Text("Vérifiez et confirmez", fontSize = 12.sp, color = swapTextDim)
                 }
@@ -477,12 +486,12 @@ private fun SwapTrackingScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                BoxIconButton(Icons.Default.ArrowBack, "Fermer", onClose)
+            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                BoxIconButton(Icons.Default.ArrowBack, "Fermer", Modifier.align(Alignment.CenterStart), onClick = onClose)
                 Text(
                     if (finished) "Swap terminé !" else if (failed) "Swap échoué" else "Swap en cours",
                     fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText,
-                    modifier = Modifier.weight(1f).padding(start = 14.dp)
+                    modifier = Modifier.align(Alignment.Center)
                 )
             }
         },
@@ -605,8 +614,8 @@ private fun SwapTrackingScreen(
 /* ───────────────────────── Composants partagés ───────────────────────── */
 
 @Composable
-private fun BoxIconButton(icon: ImageVector, desc: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)) {
+private fun BoxIconButton(icon: ImageVector, desc: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = modifier.size(40.dp)) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, desc, tint = swapText, modifier = Modifier.size(20.dp)) }
     }
 }
@@ -825,7 +834,6 @@ private fun SwapBottomNav(navController: NavHostController) {
             NavItem(Icons.Outlined.CallReceived, "Recevoir", false) { navController.navigate(Routes.RECEIVE) }
             NavItem(Icons.Outlined.SwapHoriz, "Swap", true) { }
             NavItem(Icons.Outlined.CallMade, "Envoyer", false) { navController.navigate(Routes.SEND) }
-            NavItem(Icons.Outlined.AccountBalanceWallet, "Portefeuille", false) { navController.navigate(Routes.PORTFOLIO) }
         }
     }
 }
