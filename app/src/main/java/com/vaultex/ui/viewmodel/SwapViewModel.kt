@@ -22,6 +22,8 @@ data class SwapState(
     val fromAmount: String = "",
     val toAmount: String = "",
     val fromBalance: Double = 0.0,      // solde de la monnaie source (pour MAX + affichage)
+    val fromPriceUsd: Double = 0.0,     // prix USD de la monnaie source (pour « ≈ $ »)
+    val toPriceUsd: Double = 0.0,       // prix USD de la monnaie cible
     val estimatedFee: String = "",
     val minAmount: Double? = null,
     val vaultexFeePercent: Double = SwapUseCase.VAULTEX_FEE_PERCENT,
@@ -55,18 +57,28 @@ class SwapViewModel @Inject constructor(
 
     private val gson = com.google.gson.Gson()
     private data class SnapLite(val tokens: List<TokLite>?)
-    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0)
+    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0)
 
-    init { _state.update { it.copy(fromBalance = balanceOf(it.fromToken)) } }
+    init {
+        _state.update { it.copy(
+            fromBalance = balanceOf(it.fromToken),
+            fromPriceUsd = priceUsdOf(it.fromToken),
+            toPriceUsd = priceUsdOf(it.toToken)
+        ) }
+    }
+
+    private fun snapTok(token: String): TokLite? {
+        val json = secureStorage.getPortfolioSnapshot() ?: return null
+        return try {
+            gson.fromJson(json, SnapLite::class.java)?.tokens?.firstOrNull { it.symbol == token }
+        } catch (_: Exception) { null }
+    }
 
     /** Solde de [token] lu dans l'instantané portefeuille (aucun appel réseau). */
-    private fun balanceOf(token: String): Double {
-        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
-        return try {
-            gson.fromJson(json, SnapLite::class.java)?.tokens
-                ?.firstOrNull { it.symbol == token }?.amountRaw ?: 0.0
-        } catch (_: Exception) { 0.0 }
-    }
+    private fun balanceOf(token: String): Double = snapTok(token)?.amountRaw ?: 0.0
+
+    /** Prix USD de [token] (instantané portefeuille). */
+    private fun priceUsdOf(token: String): Double = snapTok(token)?.priceUsd ?: 0.0
 
     /**
      * Bouton MAX : remplit avec le solde, en RÉSERVANT de quoi payer le gas du
@@ -98,13 +110,13 @@ class SwapViewModel @Inject constructor(
     }
 
     fun setFromToken(token: String) {
-        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token)) }
+        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token)) }
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
 
     fun setToToken(token: String) {
-        _state.update { it.copy(toToken = token) }
+        _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token)) }
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -118,7 +130,8 @@ class SwapViewModel @Inject constructor(
         it.copy(
             fromToken = it.toToken, toToken = it.fromToken,
             fromAmount = it.toAmount, toAmount = it.fromAmount,
-            fromBalance = balanceOf(it.toToken)
+            fromBalance = balanceOf(it.toToken),
+            fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken)
         )
     }
 

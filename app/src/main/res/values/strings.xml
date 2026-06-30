@@ -274,6 +274,13 @@
     <string name="swap_confirm_hint">L\'app va déposer automatiquement et suivre l\'échange. Transaction irréversible.</string>
     <string name="swap_confirm_cta">Confirmer l\'échange</string>
     <string name="swap_progress_title">Échange en cours</string>
+    <string name="swap_you_send_label">Vous envoyez</string>
+    <string name="swap_you_receive_label">Vous recevez</string>
+    <string name="swap_fee_included">Frais (inclus)</string>
+    <string name="swap_eta">Délai estimé</string>
+    <string name="swap_eta_value">2 - 5 min</string>
+    <string name="swap_provider">Fournisseur</string>
+    <string name="swap_best_rate">Meilleur taux</string>
     <string name="swap_mode_same_chain">Même chaîne (1inch)</string>
     <string name="swap_mode_cross_chain">Cross-chain (ChangeNOW)</string>
     <string name="swap_you_send">Vous envoyez</string>

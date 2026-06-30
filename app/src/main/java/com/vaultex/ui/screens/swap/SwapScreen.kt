@@ -8,12 +8,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
@@ -200,7 +205,7 @@ fun SwapScreen(navController: NavHostController) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VaultExColors.TextOnPrimary, strokeWidth = 2.dp)
                     } else {
                         Text(
-                            stringResource(R.string.swap_exchange),
+                            stringResource(R.string.continue_btn),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = VaultExColors.TextOnPrimary
@@ -217,146 +222,88 @@ fun SwapScreen(navController: NavHostController) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // Carte « De »
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = SurfaceColor,
-                border = BorderStroke(1.dp, BorderColor),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.label_from), fontSize = 12.sp, color = TextSecondary)
-                    TokenPill(state.fromToken, tokens) { viewModel.setFromToken(it) }
-                    AmountField(
-                        value = state.fromAmount,
-                        onValueChange = { viewModel.setFromAmount(it) },
-                        enabled = true,
-                        placeholder = "0.00"
-                    )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val balTxt = if (state.fromBalance > 0.0)
-                            java.math.BigDecimal.valueOf(state.fromBalance)
-                                .setScale(6, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
-                        else "0"
-                        Text(
-                            stringResource(R.string.balance_label, "$balTxt ${state.fromToken}"),
-                            fontSize = 12.sp,
-                            color = TextSecondary
-                        )
-                        Text(
-                            stringResource(R.string.max_label),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AccentBlue,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { viewModel.onMaxClicked() }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
+            val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
+            val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
+            val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ $" + String.format("%,.2f", fromAmt * state.fromPriceUsd) else null
+            val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ $" + String.format("%,.2f", toAmt * state.toPriceUsd) else null
+            val balTxt = if (state.fromBalance > 0.0)
+                java.math.BigDecimal.valueOf(state.fromBalance).setScale(4, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+            else "0"
 
-            // Bouton d'inversion
-            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                Surface(
-                    onClick = { viewModel.swapTokens() },
-                    shape = CircleShape,
-                    color = SurfaceColor,
-                    border = BorderStroke(1.dp, BorderColor),
-                    modifier = Modifier.size(42.dp)
-                ) {
+            // ─── Vous envoyez ───
+            SwapCoinCard(
+                label = stringResource(R.string.swap_you_send_label),
+                rightLabel = stringResource(R.string.balance_label, "$balTxt ${state.fromToken}"),
+                token = state.fromToken, tokens = tokens, onTokenSelect = { viewModel.setFromToken(it) },
+                amount = state.fromAmount, editable = true, onAmountChange = { viewModel.setFromAmount(it) },
+                fiat = fromFiat, onMax = { viewModel.onMaxClicked() }, highlight = true
+            )
+
+            // Inversion
+            Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+                Surface(onClick = { viewModel.swapTokens() }, shape = CircleShape, color = SurfaceColor,
+                    border = BorderStroke(1.dp, BorderColor), modifier = Modifier.size(40.dp)) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.SwapVert,
-                            contentDescription = stringResource(R.string.swap_invert_tokens),
-                            tint = AccentBlue,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Default.SwapVert, stringResource(R.string.swap_invert_tokens), tint = AccentBlue, modifier = Modifier.size(20.dp))
                     }
                 }
             }
 
-            // Carte « Vers »
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = SurfaceColor,
-                border = BorderStroke(1.dp, BorderColor),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.swap_to_label), fontSize = 12.sp, color = TextSecondary)
-                    TokenPill(state.toToken, tokens) { viewModel.setToToken(it) }
-                    AmountField(
-                        value = if (state.toAmount.isNotEmpty()) "≈ ${state.toAmount}" else "",
-                        onValueChange = {},
-                        enabled = false,
-                        placeholder = "≈ 0.00"
-                    )
+            // ─── Vous recevez ───
+            SwapCoinCard(
+                label = stringResource(R.string.swap_you_receive_label),
+                rightLabel = null,
+                token = state.toToken, tokens = tokens, onTokenSelect = { viewModel.setToToken(it) },
+                amount = state.toAmount, editable = false, onAmountChange = {},
+                fiat = toFiat, onMax = null, highlight = false
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // ─── Détails : Taux / Frais (inclus) / Délai estimé ───
+            Surface(shape = RoundedCornerShape(16.dp), color = SurfaceColor, border = BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(horizontal = 14.dp)) {
+                    val rate = if (fromAmt > 0.0 && toAmt > 0.0)
+                        "1 ${state.fromToken} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${state.toToken}" else "—"
+                    SwapDetailRow(Icons.Default.ShowChart, stringResource(R.string.swap_rate), rate, chevron = true)
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    val feeTxt = if (fromAmt > 0.0)
+                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${state.fromToken}" else "—"
+                    SwapDetailRow(Icons.Default.Receipt, stringResource(R.string.swap_fee_included), feeTxt, valueColor = VaultExColors.Success)
+                    Divider(color = SurfaceLight, thickness = 1.dp)
+                    SwapDetailRow(Icons.Default.Schedule, stringResource(R.string.swap_eta), stringResource(R.string.swap_eta_value), valueColor = AccentBlue)
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // Récapitulatif taux / frais / route
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = SurfaceColor,
-                border = BorderStroke(1.dp, BorderColor),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
-                    val from = state.fromAmount.toDoubleOrNull()
-                    val to = state.toAmount.toDoubleOrNull()
-                    val rateValue = if (from != null && from > 0.0 && to != null && to > 0.0)
-                        stringResource(
-                            R.string.swap_rate_format,
-                            state.fromToken,
-                            String.format("%.2f", to / from),
-                            state.toToken
-                        )
-                    else "—"
-                    SummaryRow(stringResource(R.string.swap_rate), rateValue)
-                    Divider(color = SurfaceLight, thickness = 1.dp)
-                    // Frais réseau (gas) — inclus dans le devis ChangeNOW
-                    SummaryRow(
-                        stringResource(R.string.swap_network_fee),
-                        stringResource(R.string.swap_network_included)
-                    )
-                    Divider(color = SurfaceLight, thickness = 1.dp)
-                    // Montant reçu estimé (devis ChangeNOW, commission déjà incluse)
-                    SummaryRow(
-                        stringResource(R.string.swap_you_receive_est),
-                        if (to != null && to > 0.0) "${String.format("%.6f", to)} ${state.toToken}" else "—",
-                        valueColor = TextPrimary
-                    )
-                    Divider(color = SurfaceLight, thickness = 1.dp)
-                    SummaryRow(
-                        stringResource(R.string.swap_via),
-                        "ChangeNOW",
-                        valueColor = AccentBlue
-                    )
+            // ─── Fournisseur ───
+            Surface(shape = RoundedCornerShape(16.dp), color = SurfaceColor, border = BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(BgTertiary), contentAlignment = Alignment.Center) {
+                        Text("N", fontWeight = FontWeight.Bold, color = TextSecondary, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.swap_provider), fontSize = 11.sp, color = TextSecondary)
+                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                    }
+                    Surface(shape = RoundedCornerShape(6.dp), color = AccentBlue.copy(alpha = 0.12f)) {
+                        Text(stringResource(R.string.swap_best_rate), modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            fontSize = 11.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
-            // Erreur
             if (state.error != null) {
                 Spacer(Modifier.height(12.dp))
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = AccentRed.copy(alpha = 0.1f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Surface(shape = RoundedCornerShape(10.dp), color = AccentRed.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
                     Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
                 }
             }
-
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -467,4 +414,117 @@ private fun swapStatusLabel(status: String?): String = when (status) {
     "finished"   -> "Terminé ! Les fonds arrivent dans ton solde."
     "failed", "refunded", "expired" -> "Échec ou remboursement."
     else         -> "Traitement…"
+}
+
+/** Réseau lisible d'une monnaie (badge sous le symbole). */
+private fun swapNetworkBadge(token: String): String = when (token.uppercase()) {
+    "USDT" -> "TRC20"
+    "BTC" -> "Bitcoin"
+    "ETH" -> "Ethereum"
+    "BNB" -> "BNB Chain"
+    "SOL" -> "Solana"
+    "TRX" -> "Tron"
+    else -> token
+}
+
+/** Carte « Vous envoyez / Vous recevez » (logo + sélecteur + montant + ≈ $). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwapCoinCard(
+    label: String,
+    rightLabel: String?,
+    token: String,
+    tokens: List<String>,
+    onTokenSelect: (String) -> Unit,
+    amount: String,
+    editable: Boolean,
+    onAmountChange: (String) -> Unit,
+    fiat: String?,
+    onMax: (() -> Unit)?,
+    highlight: Boolean
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceColor,
+        border = BorderStroke(if (highlight) 1.5.dp else 1.dp, if (highlight) AccentBlue else BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, fontSize = 12.sp, color = TextSecondary)
+                Spacer(Modifier.weight(1f))
+                rightLabel?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
+                if (onMax != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text("MAX", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onMax() }.padding(horizontal = 6.dp, vertical = 2.dp))
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Sélecteur de monnaie
+                var expanded by remember { mutableStateOf(false) }
+                Box {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { expanded = true }) {
+                        Box(Modifier.size(38.dp).clip(CircleShape).background(tokenColor(token)), contentAlignment = Alignment.Center) {
+                            Text(token.take(2).uppercase(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            coil.compose.AsyncImage(model = CryptoIcon.url(token), contentDescription = token, modifier = Modifier.size(38.dp).clip(CircleShape))
+                        }
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(token, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                                Icon(Icons.Default.ArrowDropDown, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+                            }
+                            Surface(shape = RoundedCornerShape(4.dp), color = AccentBlue.copy(alpha = 0.12f)) {
+                                Text(swapNetworkBadge(token), modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                    fontSize = 9.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        tokens.forEach { t ->
+                            DropdownMenuItem(text = { Text(t) }, onClick = { onTokenSelect(t); expanded = false })
+                        }
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    if (editable) {
+                        BasicTextField(
+                            value = amount,
+                            onValueChange = onAmountChange,
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary, textAlign = androidx.compose.ui.text.style.TextAlign.End),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.widthIn(min = 60.dp),
+                            decorationBox = { inner -> Box(contentAlignment = Alignment.CenterEnd) { if (amount.isEmpty()) Text("0", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextMuted); inner() } }
+                        )
+                    } else {
+                        Text(amount.ifEmpty { "0" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    }
+                    fiat?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
+                }
+            }
+        }
+    }
+}
+
+/** Ligne de détail (icône + libellé à gauche, valeur à droite). */
+@Composable
+private fun SwapDetailRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    valueColor: Color = TextPrimary,
+    chevron: Boolean = false
+) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, fontSize = 13.sp, color = TextSecondary)
+        Spacer(Modifier.weight(1f))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
+        if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(16.dp)) }
+    }
 }
