@@ -97,7 +97,7 @@ class SwapViewModel @Inject constructor(
             "ETH" -> 0.0003
             "BNB" -> 0.00005
             "SOL" -> 0.00001
-            "TRX" -> 0.5
+            "TRX" -> 1.1   // bande passante brûlée + activation éventuelle du destinataire
             else  -> 0.0   // USDT & tokens : gas en natif séparé
         }
         val spendable = bal - reserve

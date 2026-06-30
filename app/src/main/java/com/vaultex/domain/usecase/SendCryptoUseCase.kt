@@ -289,7 +289,7 @@ class SendCryptoUseCase @Inject constructor(
                 TronCreateTxBody(owner_address = ownerHex, to_address = toHex, amount = amountSun)
             )
             val rawDataHex = rawTx.get("raw_data_hex")?.takeIf { !it.isJsonNull }?.asString
-                ?: return Result.Error("Création transaction TRX échouée")
+                ?: return Result.Error(tronCreateError(rawTx))
 
             // Étape 3 — Signer le SHA-256 du raw_data
             val signature = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
@@ -446,6 +446,24 @@ class SendCryptoUseCase @Inject constructor(
         BigInteger((rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
             .result as? String ?: "0x0").removePrefix("0x"), 16)
     } catch (_: Exception) { BigInteger.valueOf(default) }
+
+    /**
+     * Traduit l'échec d'un `createtransaction` TronGrid (qui renvoie un champ
+     * "Error" au lieu de `raw_data_hex`) en message clair plutôt qu'un opaque
+     * « Création transaction TRX échouée ».
+     */
+    private fun tronCreateError(resp: com.google.gson.JsonObject): String {
+        val raw = resp.get("Error")?.takeIf { !it.isJsonNull }?.asString
+            ?: resp.toString().take(180)
+        val low = raw.lowercase()
+        return when {
+            "balance is not sufficient" in low || "insufficient" in low ->
+                "Solde TRX insuffisant : gardez au moins ~1,1 TRX pour les frais réseau (et l'activation du destinataire)."
+            "validate" in low && "contract" in low ->
+                "Transaction TRX refusée par le réseau : $raw"
+            else -> "Création TRX échouée : $raw"
+        }
+    }
 
     /** Convertit une adresse Tron Base58Check en hex sans 0x (ex: "41XXXX...") */
     private fun tronAddrToHex(address: String): String =
