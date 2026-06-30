@@ -82,11 +82,16 @@ class SwapViewModel @Inject constructor(
             "ETH" -> 0.0003
             "BNB" -> 0.00005
             "SOL" -> 0.00001
-            "TRX" -> 1.5
+            "TRX" -> 0.5
             else  -> 0.0   // USDT & tokens : gas en natif séparé
         }
         val spendable = bal - reserve
-        if (spendable <= 0.0) return
+        if (spendable <= 0.0) {
+            // Solde trop faible pour couvrir les frais du dépôt → message clair
+            // (au lieu d'un MAX silencieux qui « ne fait rien »).
+            _state.update { it.copy(error = "Solde trop faible pour couvrir les frais réseau.") }
+            return
+        }
         val txt = java.math.BigDecimal.valueOf(spendable)
             .setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
         setFromAmount(txt)

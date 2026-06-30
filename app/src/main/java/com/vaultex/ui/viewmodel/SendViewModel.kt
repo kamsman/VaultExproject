@@ -315,7 +315,7 @@ class SendViewModel @Inject constructor(
             "ETH" to 0.0003,
             "BNB" to 0.00005,
             "SOL" to 0.00001,
-            "TRX" to 1.5
+            "TRX" to 0.5   // un transfert TRX coûte ~0.27 TRX (souvent gratuit) — 1.5 bloquait Max
         )
 
         private val MINIMUM_AMOUNTS = mapOf(
