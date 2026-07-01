@@ -53,10 +53,12 @@ class VaultExFcmService : FirebaseMessagingService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val logo = android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(body)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setLargeIcon(logo)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

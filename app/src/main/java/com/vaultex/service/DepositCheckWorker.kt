@@ -83,8 +83,12 @@ class DepositCheckWorker @AssistedInject constructor(
     private fun notify(symbol: String, amount: Double) {
         val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)
             .stripTrailingZeros().toPlainString()
+        val logo = android.graphics.BitmapFactory.decodeResource(
+            applicationContext.resources, R.mipmap.ic_launcher
+        )
         val n = NotificationCompat.Builder(applicationContext, VaultExApplication.FCM_DEFAULT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setLargeIcon(logo)
             .setContentTitle("Fonds reçus")
             .setContentText("Vous avez reçu $amt $symbol")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

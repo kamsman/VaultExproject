@@ -333,8 +333,10 @@ class HistoryViewModel @Inject constructor(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val logo = android.graphics.BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setLargeIcon(logo)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
