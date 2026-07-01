@@ -78,7 +78,8 @@ class PortfolioViewModel @Inject constructor(
     private val assetVisibility: com.vaultex.core.session.AssetVisibilityController,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
-    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager
+    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
+    private val pushRegistrar: com.vaultex.service.PushRegistrar
 ) : ViewModel() {
 
     /** Symboles ayant une transaction sortante encore NON confirmée (badge « ! »). */
@@ -125,6 +126,9 @@ class PortfolioViewModel @Inject constructor(
         loadPortfolio()
         // Reprend le suivi des transactions en attente persistées (badge « ! »).
         pendingTxManager.kick()
+        // Enregistre le jeton FCM + adresses pour les push « Fonds reçus » (sans
+        // effet si la Cloud Function n'est pas déployée).
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { pushRegistrar.registerBlocking() }
     }
 
     /** Affiche immédiatement le dernier portefeuille connu (offline-first). */
