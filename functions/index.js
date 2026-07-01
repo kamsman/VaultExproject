@@ -28,6 +28,10 @@ const db = admin.firestore();
 /* ─────────────────────────── Contrat USDT TRC20 ─────────────────────────── */
 const USDT_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
+/* Secret pour protéger l'envoi d'annonces. CHANGE-le si tu veux (garde-le privé).
+ * Idéalement, remplace par process.env.ANNOUNCE_SECRET via `firebase functions:config`. */
+const ANNOUNCE_SECRET = process.env.ANNOUNCE_SECRET || "vtx_7Kd9Qp2Rm4Xt8Ls1Wz6Yb3Nc5Vg0Hj";
+
 /* Seuils « poussière » : en dessous, on considère que c'est du bruit d'arrondi. */
 const DUST = { BTC: 5e-7, ETH: 1e-6, BNB: 1e-6, SOL: 1e-6, TRX: 1e-3, USDT: 1e-3 };
 
@@ -178,7 +182,7 @@ exports.sendAnnouncement = functions.https.onRequest(async (req, res) => {
   try {
     const body = req.body || {};
     const secret = req.query.secret || body.secret;
-    if (secret !== "CHANGE_MOI_SECRET") return res.status(403).json({ error: "interdit" });
+    if (secret !== ANNOUNCE_SECRET) return res.status(403).json({ error: "interdit" });
     const title = body.title || "VaultEx";
     const text = body.body || "";
     const snap = await db.collection("devices").get();

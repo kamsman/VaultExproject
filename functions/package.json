@@ -2,7 +2,7 @@
   "name": "vaultex-functions",
   "description": "Cloud Functions VaultEx : notifications push (dépôts reçus + annonces)",
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "private": true,
