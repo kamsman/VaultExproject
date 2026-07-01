@@ -119,7 +119,10 @@ fun DashboardScreen(navController: NavHostController) {
         ) {
             // ─── En-tête « Bonjour 👋 / Mon Wallet » + cloche notifications ───
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
                         // Nom du wallet (affichage seul ; édition dans Paramètres)
@@ -131,6 +134,7 @@ fun DashboardScreen(navController: NavHostController) {
                         )
                     }
                     BadgedBox(
+                        modifier = Modifier.padding(top = 6.dp, end = 8.dp),
                         badge = {
                             if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
                                 Text(if (unreadNotifs > 99) "99+" else unreadNotifs.toString(), fontSize = 10.sp)
