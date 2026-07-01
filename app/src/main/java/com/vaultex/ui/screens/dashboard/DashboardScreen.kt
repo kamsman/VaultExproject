@@ -50,6 +50,7 @@ fun DashboardScreen(navController: NavHostController) {
     val currency by viewModel.currency.collectAsState()
     val visibleAssets by viewModel.visibleAssets.collectAsState()
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
+    val unreadNotifs by viewModel.unreadNotifs.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -116,17 +117,30 @@ fun DashboardScreen(navController: NavHostController) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ─── En-tête « Bonjour 👋 / Mon Wallet » ───
+            // ─── En-tête « Bonjour 👋 / Mon Wallet » + cloche notifications ───
             item {
-                Column {
-                    Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
-                    // Nom du wallet (affichage seul ; édition dans Paramètres)
-                    Text(
-                        walletName.ifEmpty { stringResource(R.string.my_wallet) },
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
+                        // Nom du wallet (affichage seul ; édition dans Paramètres)
+                        Text(
+                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+                    BadgedBox(
+                        badge = {
+                            if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
+                                Text(if (unreadNotifs > 99) "99+" else unreadNotifs.toString(), fontSize = 10.sp)
+                            }
+                        }
+                    ) {
+                        IconButton(onClick = { navController.navigate(Routes.NOTIFICATION_CENTER) }) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = TextPrimary)
+                        }
+                    }
                 }
             }
 

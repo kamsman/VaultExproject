@@ -79,8 +79,12 @@ class PortfolioViewModel @Inject constructor(
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
-    private val pushRegistrar: com.vaultex.service.PushRegistrar
+    private val pushRegistrar: com.vaultex.service.PushRegistrar,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter
 ) : ViewModel() {
+
+    /** Nombre de notifications non lues (pastille cloche du Dashboard). */
+    val unreadNotifs: StateFlow<Int> = notificationCenter.unreadCount
 
     /** Symboles ayant une transaction sortante encore NON confirmée (badge « ! »). */
     val pendingSymbols: StateFlow<Set<String>> = pendingTxStore.items

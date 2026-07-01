@@ -51,6 +51,7 @@ class HistoryViewModel @Inject constructor(
     @Named("etherscan") private val etherscanApi: EtherscanApi,
     @Named("bscscan") private val bscScanApi: EtherscanApi,
     private val solanaRpc: SolanaRpcApi,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -144,7 +145,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount TRX", "Transaction TRON confirmée")
+                    sendLocalNotification("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX")
                 }
             }
         } catch (_: Exception) {}
@@ -176,7 +177,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée")
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol)
                 }
             }
         } catch (_: Exception) {}
@@ -210,7 +211,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée")
+                    sendLocalNotification("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC")
                 }
             }
         } catch (_: Exception) {}
@@ -251,7 +252,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming && status == "confirmed") {
-                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée")
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol)
                 }
             }
         } catch (_: Exception) {}
@@ -317,7 +318,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount SOL", "Transaction Solana confirmée")
+                    sendLocalNotification("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL")
                 }
             }
         } catch (_: Exception) {}
@@ -325,7 +326,7 @@ class HistoryViewModel @Inject constructor(
 
     // ─── Notification ────────────────────────────────────────────────
 
-    private fun sendLocalNotification(title: String, body: String) {
+    private fun sendLocalNotification(title: String, body: String, symbol: String? = null) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -333,7 +334,8 @@ class HistoryViewModel @Inject constructor(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val logo = android.graphics.BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+        notificationCenter.push(title, body, symbol)
+        val logo = com.vaultex.service.NotifLogo.forSymbol(context, symbol)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setLargeIcon(logo)

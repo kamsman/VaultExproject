@@ -49,6 +49,9 @@ object Routes {
 
     const val NOTIFICATIONS = "notifications"
 
+    // Centre de notifications in-app (dépôts, alertes, annonces) + compteur non-lus.
+    const val NOTIFICATION_CENTER = "notificationCenter"
+
     const val TOKEN_DETAIL = "tokenDetail/{symbol}"
 
     fun tokenDetail(symbol: String) = "tokenDetail/$symbol"

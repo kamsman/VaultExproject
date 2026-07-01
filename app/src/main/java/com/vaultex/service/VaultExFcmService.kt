@@ -18,7 +18,11 @@ import com.vaultex.app.MainActivity
  * - Alertes prix configurées par l'utilisateur
  * - Confirmation de transactions reçues
  */
+@dagger.hilt.android.AndroidEntryPoint
 class VaultExFcmService : FirebaseMessagingService() {
+
+    @javax.inject.Inject
+    lateinit var notificationCenter: com.vaultex.core.session.NotificationCenter
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -31,6 +35,7 @@ class VaultExFcmService : FirebaseMessagingService() {
         val title = message.notification?.title ?: message.data["title"] ?: "VaultEx"
         val body = message.notification?.body ?: message.data["body"] ?: ""
         showNotification(title, body)
+        notificationCenter.push(title, body, message.data["symbol"])
     }
 
     private fun showNotification(title: String, body: String) {

@@ -168,6 +168,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             AlertsScreen(navController)
         }
 
+        composable(Routes.NOTIFICATION_CENTER) {
+            com.vaultex.ui.screens.notifications.NotificationCenterScreen(navController)
+        }
+
         composable(
             route = Routes.TOKEN_DETAIL,
             arguments = listOf(navArgument("symbol") { type = NavType.StringType })

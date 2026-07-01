@@ -43,7 +43,8 @@ class DepositCheckWorker @AssistedInject constructor(
     @Named("bnb") private val bnbRpc: EvmRpcApi,
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
-    private val tronApi: TronApi
+    private val tronApi: TronApi,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -83,19 +84,20 @@ class DepositCheckWorker @AssistedInject constructor(
     private fun notify(symbol: String, amount: Double) {
         val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)
             .stripTrailingZeros().toPlainString()
-        val logo = android.graphics.BitmapFactory.decodeResource(
-            applicationContext.resources, R.mipmap.ic_launcher
-        )
+        val title = "Fonds reçus"
+        val body = "Vous avez reçu $amt $symbol"
+        val logo = NotifLogo.forSymbol(applicationContext, symbol)  // logo de la crypto reçue
         val n = NotificationCompat.Builder(applicationContext, VaultExApplication.FCM_DEFAULT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setLargeIcon(logo)
-            .setContentTitle("Fonds reçus")
-            .setContentText("Vous avez reçu $amt $symbol")
+            .setContentTitle(title)
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
         applicationContext.getSystemService(NotificationManager::class.java)
             .notify("dep_$symbol".hashCode(), n)
+        notificationCenter.push(title, body, symbol)
     }
 
     // ─── Soldes par chaîne (mêmes appels que PortfolioViewModel) ───

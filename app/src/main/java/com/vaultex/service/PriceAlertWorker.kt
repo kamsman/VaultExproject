@@ -26,7 +26,8 @@ class PriceAlertWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val priceAlertDao: PriceAlertDao,
-    private val coinGeckoApi: CoinGeckoApi
+    private val coinGeckoApi: CoinGeckoApi,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -71,19 +72,20 @@ class PriceAlertWorker @AssistedInject constructor(
                 NotificationManager.IMPORTANCE_HIGH
             )
         )
+        val title = applicationContext.getString(R.string.alert_triggered_title, symbol)
+        val body = applicationContext.getString(
+            R.string.alert_triggered_body, symbol, condition, fmt.format(target), fmt.format(current)
+        )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(applicationContext.getString(R.string.alert_triggered_title, symbol))
-            .setContentText(
-                applicationContext.getString(
-                    R.string.alert_triggered_body,
-                    symbol, condition, fmt.format(target), fmt.format(current)
-                )
-            )
+            .setLargeIcon(NotifLogo.forSymbol(applicationContext, symbol))
+            .setContentTitle(title)
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
         manager.notify(symbol.hashCode(), notification)
+        notificationCenter.push(title, body, symbol)
     }
 
     companion object {
