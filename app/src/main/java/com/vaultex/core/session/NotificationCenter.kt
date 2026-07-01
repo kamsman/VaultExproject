@@ -64,11 +64,13 @@ class NotificationCenter @Inject constructor(
     /** Vide le centre de notifications. */
     fun clear() = apply(emptyList())
 
-    private fun load(): List<NotifItem> = try {
-        val json = prefs.getString(KEY, null) ?: return emptyList()
-        gson.fromJson(json, object : TypeToken<List<NotifItem>>() {}.type) ?: emptyList()
-    } catch (_: Exception) {
-        emptyList()
+    private fun load(): List<NotifItem> {
+        return try {
+            val json = prefs.getString(KEY, null) ?: return emptyList()
+            gson.fromJson(json, object : TypeToken<List<NotifItem>>() {}.type) ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun save(list: List<NotifItem>) {
