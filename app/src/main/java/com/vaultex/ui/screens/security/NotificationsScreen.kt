@@ -1,9 +1,11 @@
 package com.vaultex.ui.screens.security
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -16,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -160,6 +164,71 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                         .fillMaxWidth()
                         .padding(12.dp)
                 )
+            }
+
+            Spacer(Modifier.height(20.dp))
+            FcmTokenCard()
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Jeton FCM de l'appareil — sert à envoyer un push de TEST depuis la console
+ * Firebase (Cloud Messaging → « Envoyer un message test ») sans backend.
+ * Ne s'affiche que si Firebase est correctement configuré (vrai google-services.json).
+ */
+@Composable
+private fun FcmTokenCard() {
+    val clipboard = LocalClipboardManager.current
+    var token by remember { mutableStateOf<String?>(null) }
+    var failed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                .addOnCompleteListener { t ->
+                    if (t.isSuccessful && !t.result.isNullOrBlank()) token = t.result else failed = true
+                }
+        } catch (_: Exception) { failed = true }
+    }
+
+    Text(
+        "Jeton push (test)",
+        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextMuted,
+        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+    )
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            when {
+                token != null -> {
+                    Text(
+                        token!!,
+                        fontSize = 11.sp, color = TextSecondary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            clipboard.setText(AnnotatedString(token!!))
+                        }
+                    ) {
+                        Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Copier le jeton", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue)
+                    }
+                }
+                failed -> Text(
+                    "Firebase n'est pas encore configuré. Ajoutez le vrai google-services.json pour activer le push.",
+                    fontSize = 12.sp, color = AccentOrange
+                )
+                else -> Text("Chargement du jeton…", fontSize = 12.sp, color = TextSecondary)
             }
         }
     }
