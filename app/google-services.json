@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "vaultex-placeholder",
-    "storage_bucket": "vaultex-placeholder.appspot.com"
+    "project_number": "869250575254",
+    "project_id": "vaultex-1fe79",
+    "storage_bucket": "vaultex-1fe79.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:869250575254:android:c19a3acb38c6a1b003cbb7",
         "android_client_info": {
           "package_name": "com.vaultex"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDUMMYPLACEHOLDERKEY0000000000000000"
+          "current_key": "AIzaSyDySbgIaSpgKN84B_8ss7VF5yOjU9kGfug"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:1111111111111111111111",
+        "mobilesdk_app_id": "1:869250575254:android:e382ed5fe4f595db03cbb7",
         "android_client_info": {
           "package_name": "com.vaultex.debug"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDUMMYPLACEHOLDERKEY0000000000000000"
+          "current_key": "AIzaSyDySbgIaSpgKN84B_8ss7VF5yOjU9kGfug"
         }
       ],
       "services": {
