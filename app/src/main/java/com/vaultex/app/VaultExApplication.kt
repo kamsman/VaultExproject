@@ -54,14 +54,29 @@ class VaultExApplication : Application(), Configuration.Provider {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            HistoryViewModel.CHANNEL_ID,
-            "Transactions VaultEx",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Notifications pour les transactions crypto reçues"
-        }
         val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
+        // Canal transactions (notifs locales existantes).
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                HistoryViewModel.CHANNEL_ID,
+                "Transactions VaultEx",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = "Notifications pour les transactions crypto reçues" }
+        )
+        // Canal PUSH par défaut (FCM / console Firebase). DOIT exister sinon les
+        // messages « notification » reçus en arrière-plan sont ignorés par le SDK.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                FCM_DEFAULT_CHANNEL_ID,
+                "Notifications VaultEx",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = "Alertes et messages push VaultEx" }
+        )
+    }
+
+    companion object {
+        // Doit correspondre au meta-data default_notification_channel_id du manifeste
+        // ET au CHANNEL_ID de VaultExFcmService.
+        const val FCM_DEFAULT_CHANNEL_ID = "vaultex_notifications"
     }
 }
