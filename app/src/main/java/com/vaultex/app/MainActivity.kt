@@ -1,10 +1,15 @@
 package com.vaultex.app
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +59,21 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var themeController: ThemeController
 
+    // Demande de permission notifications (Android 13+). Sans elle, AUCUNE
+    // notification (alertes prix, push) n'apparaît — elle est refusée par défaut.
+    private val notifPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* résultat ignoré */ }
+
+    /** Demande POST_NOTIFICATIONS si nécessaire (uniquement sur Android 13+). */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
@@ -99,6 +119,9 @@ class MainActivity : FragmentActivity() {
             }
             return
         }
+
+        // Android 13+ : demander l'autorisation d'afficher des notifications.
+        ensureNotificationPermission()
 
         setContent {
 
