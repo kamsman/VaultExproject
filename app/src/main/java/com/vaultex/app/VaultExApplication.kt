@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import com.vaultex.BuildConfig
 import com.vaultex.core.monitoring.CrashReporter
 import com.vaultex.core.security.DeviceIntegrity
+import com.vaultex.service.DepositCheckWorker
 import com.vaultex.service.PendingSendWorker
 import com.vaultex.service.PriceAlertWorker
 import com.vaultex.ui.viewmodel.HistoryViewModel
@@ -31,6 +32,7 @@ class VaultExApplication : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannel()
         schedulePriceAlertChecks()
+        scheduleDepositChecks()
         // Reprend les envois mis en file lors d'une session précédente
         // (le worker attend tout seul le retour du réseau).
         PendingSendWorker.enqueue(this)
@@ -50,6 +52,15 @@ class VaultExApplication : Application(), Configuration.Provider {
             PriceAlertWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES).build()
+        )
+    }
+
+    /** Détection locale des dépôts reçus toutes les 15 minutes (secours du push). */
+    private fun scheduleDepositChecks() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            DepositCheckWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<DepositCheckWorker>(15, TimeUnit.MINUTES).build()
         )
     }
 
