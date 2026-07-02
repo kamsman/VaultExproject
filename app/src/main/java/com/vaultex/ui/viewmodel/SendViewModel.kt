@@ -57,6 +57,7 @@ class SendViewModel @Inject constructor(
     private val currencyController: com.vaultex.core.session.CurrencyController,
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
+    private val toastController: com.vaultex.core.session.ToastController,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -412,6 +413,9 @@ class SendViewModel @Inject constructor(
                     // Suivi de confirmation (badge dashboard + écran « En attente X/Y »).
                     pendingTxManager.track(s.selectedChain, nativeUnit(effective), result.txHash)
                     _state.update { it.copy(isLoading = false, txHash = result.txHash) }
+                    // Toast maison : logo de la crypto + confirmation de l'envoi.
+                    val sym = s.selectedChain.substringBefore("-")
+                    toastController.show("Envoi effectué : ${s.amount} $sym", sym)
                 }
                 is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
             }

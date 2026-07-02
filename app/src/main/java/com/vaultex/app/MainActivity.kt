@@ -59,6 +59,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var themeController: ThemeController
 
+    @Inject
+    lateinit var toastController: com.vaultex.core.session.ToastController
+
     // Demande de permission notifications (Android 13+). Sans elle, AUCUNE
     // notification (alertes prix, push) n'apparaît — elle est refusée par défaut.
     private val notifPermissionLauncher =
@@ -157,7 +160,11 @@ class MainActivity : FragmentActivity() {
                     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                 }
 
-                VaultExNavGraph(navController)
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                    VaultExNavGraph(navController)
+                    // Toasts maison (logo + texte) affichés par-dessus toute l'app.
+                    com.vaultex.ui.components.ToastHost(toastController)
+                }
             }
         }
     }
