@@ -43,8 +43,12 @@ class SwapViewModel @Inject constructor(
     private val changeNowApi: ChangeNowApi,
     private val secureStorage: SecureStorage,
     private val swapUseCase: SwapUseCase,
-    private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase
+    private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
+
+    /** Raccourci ressources (respecte la langue choisie). */
+    private fun str(id: Int, vararg args: Any): String = appContext.getString(id, *args)
 
     private var statusJob: kotlinx.coroutines.Job? = null
 
@@ -90,7 +94,7 @@ class SwapViewModel @Inject constructor(
         val tok = _state.value.fromToken
         val bal = _state.value.fromBalance
         if (bal <= 0.0) {
-            _state.update { it.copy(error = "Solde $tok : 0 — aucun fonds à échanger. Reçois ou dépose d'abord des $tok.") }
+            _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_no_funds, tok)) }
             return
         }
         val reserve = when (tok.uppercase()) {
@@ -105,10 +109,7 @@ class SwapViewModel @Inject constructor(
         if (spendable <= 0.0) {
             // Solde présent mais trop faible pour couvrir le gas du dépôt → message
             // chiffré et clair (solde réel + réserve nécessaire).
-            val balTxt = trimNum(bal)
-            val resTxt = trimNum(reserve)
-            _state.update { it.copy(error =
-                "Solde $tok trop faible : $balTxt $tok disponible, mais il faut garder ~$resTxt $tok pour les frais réseau du dépôt.") }
+            _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_low_gas, tok, trimNum(bal), trimNum(reserve))) }
             return
         }
         val txt = java.math.BigDecimal.valueOf(spendable)
@@ -125,10 +126,7 @@ class SwapViewModel @Inject constructor(
             _state.update { st ->
                 if (st.fromAmount == txt && spendable < min) {
                     val minTxt = java.math.BigDecimal.valueOf(min).stripTrailingZeros().toPlainString()
-                    st.copy(
-                        minAmount = min,
-                        error = "Max $txt $fromTok — insuffisant pour échanger (minimum $minTxt $fromTok)."
-                    )
+                    st.copy(minAmount = min, error = str(com.vaultex.R.string.swap_msg_max_below_min, txt, fromTok, minTxt))
                 } else st.copy(minAmount = min)
             }
         }
@@ -181,7 +179,7 @@ class SwapViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Pas de devis : on n'affiche PAS un faux montant, on vide ET on
                 // montre la vraie raison (ex. montant sous le minimum de la paire).
-                _state.update { it.copy(toAmount = "", error = "Devis indisponible : ${changeNowError(e)}") }
+                _state.update { it.copy(toAmount = "", error = str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))) }
             }
         }
     }
@@ -190,7 +188,7 @@ class SwapViewModel @Inject constructor(
         val s = _state.value
         if (s.isLoading) return
         val inputAmount = s.fromAmount.toDoubleOrNull() ?: run {
-            _state.update { it.copy(error = "Entrez un montant valide à échanger.") }
+            _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_enter_amount)) }
             return
         }
         viewModelScope.launch {
@@ -200,13 +198,13 @@ class SwapViewModel @Inject constructor(
                     is SwapUseCase.ValidationResult.Invalid -> {
                         val msg = when (validation.reason) {
                             SwapUseCase.ValidationResult.Reason.INVALID_AMOUNT ->
-                                "Entrez un montant valide à échanger."
+                                str(com.vaultex.R.string.swap_msg_enter_amount)
                             SwapUseCase.ValidationResult.Reason.SAME_TOKEN ->
-                                "Choisissez deux monnaies différentes (${s.fromToken} → ${s.toToken})."
+                                str(com.vaultex.R.string.swap_msg_same_coin)
                             SwapUseCase.ValidationResult.Reason.BELOW_MINIMUM -> {
                                 val min = swapUseCase.getMinAmount(s.fromToken, s.toToken)
-                                if (min != null) "Montant sous le minimum : il faut au moins ${trimNum(min)} ${s.fromToken} pour ${s.fromToken}→${s.toToken}."
-                                else "Montant sous le minimum requis pour ${s.fromToken}→${s.toToken}."
+                                if (min != null) str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), s.fromToken)
+                                else str(com.vaultex.R.string.swap_msg_below_min_generic, s.fromToken, s.toToken)
                             }
                         }
                         _state.update { it.copy(isLoading = false, error = msg) }
@@ -230,7 +228,7 @@ class SwapViewModel @Inject constructor(
                         else          -> addresses.eth
                     }
                 } else {
-                    _state.update { it.copy(isLoading = false, error = "Portefeuille non initialisé — reconnecte-toi puis réessaie.") }
+                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_wallet)) }
                     return@launch
                 }
 
@@ -241,7 +239,7 @@ class SwapViewModel @Inject constructor(
                     changeNowApi.getMinAmount(fromTo, CHANGENOW_API_KEY)
                 }
                 if (net < minRes.minAmount) {
-                    _state.update { it.copy(isLoading = false, error = "Montant sous le minimum : il faut au moins ${minRes.minAmount} ${s.fromToken} pour cette paire.") }
+                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_below_min, trimNum(minRes.minAmount), s.fromToken)) }
                     return@launch
                 }
 
@@ -289,7 +287,7 @@ class SwapViewModel @Inject constructor(
                     }
                     is SendCryptoUseCase.Result.Error -> {
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
-                            error = "Dépôt échoué : ${dep.message}") }
+                            error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
                     }
                 }
             } catch (e: Exception) {
@@ -314,13 +312,19 @@ class SwapViewModel @Inject constructor(
         java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
 
     /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
-     *  au lieu d'un « HTTP 400 » opaque. */
-    private fun changeNowError(e: Throwable): String = when (e) {
-        is retrofit2.HttpException -> {
+     *  ou un message clair pour les pannes réseau (hors-ligne, délai dépassé). */
+    private fun changeNowError(e: Throwable): String = when {
+        e is java.net.UnknownHostException ->
+            str(com.vaultex.R.string.msg_offline)
+        e is java.net.SocketTimeoutException ->
+            str(com.vaultex.R.string.msg_timeout)
+        e is java.io.IOException ->
+            str(com.vaultex.R.string.msg_offline)
+        e is retrofit2.HttpException -> {
             val body = try { e.response()?.errorBody()?.string()?.trim()?.take(220) } catch (_: Exception) { null }
-            if (!body.isNullOrBlank()) body else "Erreur ChangeNOW (HTTP ${e.code()})"
+            if (!body.isNullOrBlank()) body else str(com.vaultex.R.string.swap_msg_generic)
         }
-        else -> e.message ?: "Erreur swap"
+        else -> e.message ?: str(com.vaultex.R.string.swap_msg_generic)
     }
 
     /** Poll ChangeNOW toutes les 20 s jusqu'à un état terminal, et synchronise l'historique local. */

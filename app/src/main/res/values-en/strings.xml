@@ -573,4 +573,33 @@
     <string name="passphrase_label">BIP39 passphrase (optional)</string>
     <string name="passphrase_hint">13th word — leave empty if you had none</string>
     <string name="passphrase_placeholder">Passphrase</string>
+
+    <!-- Swap messages -->
+    <string name="swap_msg_no_funds">No %1$s balance. Receive some %1$s first.</string>
+    <string name="swap_msg_low_gas">%1$s balance too low: %2$s available, keep ~%3$s %1$s for network fees.</string>
+    <string name="swap_msg_max_below_min">Max %1$s %2$s: below the minimum (%3$s %2$s).</string>
+    <string name="swap_msg_quote_failed">Quote unavailable. %1$s</string>
+    <string name="swap_msg_enter_amount">Enter an amount to swap.</string>
+    <string name="swap_msg_same_coin">Choose two different coins.</string>
+    <string name="swap_msg_below_min">Minimum %1$s %2$s for this pair.</string>
+    <string name="swap_msg_below_min_generic">Amount below the minimum for %1$s→%2$s.</string>
+    <string name="swap_msg_wallet">Wallet not loaded. Reopen the app and try again.</string>
+    <string name="swap_msg_deposit_failed">Deposit failed. %1$s</string>
+    <string name="swap_msg_generic">Swap failed. Please try again.</string>
+
+    <!-- Common network messages -->
+    <string name="msg_offline">No connection. Check your network and try again.</string>
+    <string name="msg_timeout">Timed out. Try again in a moment.</string>
+
+    <!-- Send messages -->
+    <string name="send_err_enter_amount">Enter the amount to send.</string>
+    <string name="send_err_invalid_amount">Invalid amount. Enter a valid number.</string>
+    <string name="send_err_enter_address">Enter the recipient address.</string>
+    <string name="send_err_bad_address">Invalid address for the %1$s network. Check the address.</string>
+    <string name="send_err_insufficient_balance">Insufficient balance. Available: %1$s.</string>
+    <string name="send_err_keep_fee">Amount too high: keep ~%1$s for network fees.</string>
+    <string name="send_err_need_gas">You need a little %1$s on your address to pay network fees.</string>
+    <string name="send_err_below_min">Amount too small. Minimum: %1$s.</string>
+    <string name="send_err_dust">Amount too small for the network (dust). Increase it.</string>
+    <string name="send_err_addr_rejected">Destination address invalid or rejected by the network.</string>
 </resources>

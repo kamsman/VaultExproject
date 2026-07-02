@@ -676,4 +676,21 @@
     <string name="picker_theme_system_desc">Suivre le thème de l\'appareil</string>
     <string name="picker_autolock_title">Verrouillage automatique</string>
     <string name="picker_autolock_subtitle">Définissez le délai avant verrouillage automatique de VaultEx</string>
+
+    <!-- Messages Swap (harmonisés, tutoiement, courts) -->
+    <string name="swap_msg_no_funds">Solde %1$s vide. Reçois d\'abord des %1$s.</string>
+    <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
+    <string name="swap_msg_max_below_min">Max %1$s %2$s : sous le minimum (%3$s %2$s).</string>
+    <string name="swap_msg_quote_failed">Devis indisponible. %1$s</string>
+    <string name="swap_msg_enter_amount">Entre un montant à échanger.</string>
+    <string name="swap_msg_same_coin">Choisis deux monnaies différentes.</string>
+    <string name="swap_msg_below_min">Minimum %1$s %2$s pour cette paire.</string>
+    <string name="swap_msg_below_min_generic">Montant sous le minimum pour %1$s→%2$s.</string>
+    <string name="swap_msg_wallet">Portefeuille non chargé. Rouvre l\'app et réessaie.</string>
+    <string name="swap_msg_deposit_failed">Dépôt échoué. %1$s</string>
+    <string name="swap_msg_generic">Échec de l\'échange. Réessaie.</string>
+
+    <!-- Messages réseau communs -->
+    <string name="msg_offline">Pas de connexion. Vérifie ton réseau et réessaie.</string>
+    <string name="msg_timeout">Délai dépassé. Réessaie dans un instant.</string>
 </resources>

@@ -573,4 +573,33 @@
     <string name="passphrase_label">عبارة مرور BIP39 (اختياري)</string>
     <string name="passphrase_hint">الكلمة الـ13 — اتركها فارغة إن لم تكن لديك</string>
     <string name="passphrase_placeholder">عبارة المرور</string>
+
+    <!-- رسائل التبادل (Swap) -->
+    <string name="swap_msg_no_funds">لا يوجد رصيد %1$s. استلم بعض %1$s أولاً.</string>
+    <string name="swap_msg_low_gas">رصيد %1$s منخفض جداً: %2$s متاح، احتفظ بـ ~%3$s %1$s لرسوم الشبكة.</string>
+    <string name="swap_msg_max_below_min">الحد الأقصى %1$s %2$s: أقل من الحد الأدنى (%3$s %2$s).</string>
+    <string name="swap_msg_quote_failed">التسعير غير متاح. %1$s</string>
+    <string name="swap_msg_enter_amount">أدخل مبلغاً للتبادل.</string>
+    <string name="swap_msg_same_coin">اختر عملتين مختلفتين.</string>
+    <string name="swap_msg_below_min">الحد الأدنى %1$s %2$s لهذا الزوج.</string>
+    <string name="swap_msg_below_min_generic">المبلغ أقل من الحد الأدنى لـ %1$s→%2$s.</string>
+    <string name="swap_msg_wallet">المحفظة غير محمّلة. أعد فتح التطبيق وحاول مجدداً.</string>
+    <string name="swap_msg_deposit_failed">فشل الإيداع. %1$s</string>
+    <string name="swap_msg_generic">فشل التبادل. حاول مجدداً.</string>
+
+    <!-- رسائل الشبكة المشتركة -->
+    <string name="msg_offline">لا يوجد اتصال. تحقق من شبكتك وحاول مجدداً.</string>
+    <string name="msg_timeout">انتهت المهلة. حاول مجدداً بعد لحظات.</string>
+
+    <!-- رسائل الإرسال -->
+    <string name="send_err_enter_amount">أدخل المبلغ المراد إرساله.</string>
+    <string name="send_err_invalid_amount">مبلغ غير صالح. أدخل رقماً صحيحاً.</string>
+    <string name="send_err_enter_address">أدخل عنوان المستلم.</string>
+    <string name="send_err_bad_address">عنوان غير صالح لشبكة %1$s. تحقق من العنوان.</string>
+    <string name="send_err_insufficient_balance">رصيد غير كافٍ. المتاح: %1$s.</string>
+    <string name="send_err_keep_fee">المبلغ مرتفع جداً: احتفظ بـ ~%1$s لرسوم الشبكة.</string>
+    <string name="send_err_need_gas">تحتاج القليل من %1$s في عنوانك لدفع رسوم الشبكة.</string>
+    <string name="send_err_below_min">المبلغ صغير جداً. الحد الأدنى: %1$s.</string>
+    <string name="send_err_dust">المبلغ صغير جداً للشبكة (غبار). قم بزيادته.</string>
+    <string name="send_err_addr_rejected">عنوان الوجهة غير صالح أو مرفوض من الشبكة.</string>
 </resources>
