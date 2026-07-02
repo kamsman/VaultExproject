@@ -437,31 +437,17 @@ private fun CurrencyPickerDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf(
-        "USD" to "Dollar (USD)",
-        "EUR" to "Euro (EUR)",
-        "XOF" to "Franc CFA (XOF)"
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.currency)) },
-        text = {
-            Column {
-                options.forEach { (code, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(code) }.padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = current == code, onClick = { onPick(code) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, fontSize = 15.sp, color = TextPrimary)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-        }
+    com.vaultex.ui.components.OptionPickerSheet(
+        title = stringResource(R.string.picker_currency_title),
+        subtitle = stringResource(R.string.picker_currency_subtitle),
+        options = listOf(
+            com.vaultex.ui.components.PickerOption("USD", "Dollar (USD)", stringResource(R.string.currency_usd_desc), emoji = "🇺🇸"),
+            com.vaultex.ui.components.PickerOption("EUR", "Euro (EUR)", stringResource(R.string.currency_eur_desc), emoji = "🇪🇺"),
+            com.vaultex.ui.components.PickerOption("XOF", "Franc CFA (XOF)", stringResource(R.string.currency_xof_desc), emoji = "🇧🇫")
+        ),
+        selected = current,
+        onConfirm = onPick,
+        onDismiss = onDismiss
     )
 }
 
@@ -471,31 +457,17 @@ private fun LanguagePickerDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf(
-        "fr" to stringResource(R.string.lang_french),
-        "en" to stringResource(R.string.lang_english),
-        "ar" to stringResource(R.string.lang_arabic)
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.language)) },
-        text = {
-            Column {
-                options.forEach { (code, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(code) }.padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = current == code, onClick = { onPick(code) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, fontSize = 15.sp, color = TextPrimary)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-        }
+    com.vaultex.ui.components.OptionPickerSheet(
+        title = stringResource(R.string.picker_language_title),
+        subtitle = stringResource(R.string.picker_language_subtitle),
+        options = listOf(
+            com.vaultex.ui.components.PickerOption("fr", stringResource(R.string.lang_french), emoji = "🇫🇷"),
+            com.vaultex.ui.components.PickerOption("en", stringResource(R.string.lang_english), emoji = "🇺🇸"),
+            com.vaultex.ui.components.PickerOption("ar", stringResource(R.string.lang_arabic), emoji = "🇸🇦")
+        ),
+        selected = current,
+        onConfirm = onPick,
+        onDismiss = onDismiss
     )
 }
 
@@ -505,31 +477,27 @@ private fun ThemePickerDialog(
     onPick: (com.vaultex.ui.theme.ThemeMode) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf(
-        com.vaultex.ui.theme.ThemeMode.LIGHT to stringResource(R.string.theme_light),
-        com.vaultex.ui.theme.ThemeMode.DARK to stringResource(R.string.theme_dark),
-        com.vaultex.ui.theme.ThemeMode.SYSTEM to stringResource(R.string.theme_system)
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_theme)) },
-        text = {
-            Column {
-                options.forEach { (mode, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(mode) }.padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = current == mode, onClick = { onPick(mode) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, fontSize = 15.sp, color = TextPrimary)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-        }
+    com.vaultex.ui.components.OptionPickerSheet(
+        title = stringResource(R.string.picker_theme_title),
+        subtitle = stringResource(R.string.picker_theme_subtitle),
+        options = listOf(
+            com.vaultex.ui.components.PickerOption(
+                com.vaultex.ui.theme.ThemeMode.LIGHT, stringResource(R.string.theme_light),
+                icon = Icons.Default.LightMode
+            ),
+            com.vaultex.ui.components.PickerOption(
+                com.vaultex.ui.theme.ThemeMode.DARK, stringResource(R.string.theme_dark),
+                icon = Icons.Default.DarkMode
+            ),
+            com.vaultex.ui.components.PickerOption(
+                com.vaultex.ui.theme.ThemeMode.SYSTEM, stringResource(R.string.theme_system),
+                sublabel = stringResource(R.string.picker_theme_system_desc),
+                icon = Icons.Default.PhoneAndroid
+            )
+        ),
+        selected = current,
+        onConfirm = onPick,
+        onDismiss = onDismiss
     )
 }
 

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Pin
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -103,27 +104,33 @@ fun SecurityScreen(navController: NavHostController) {
                     )
                 }
                 SecurityRowDivider()
-                var expanded by remember { mutableStateOf(false) }
+                var showAutoLockSheet by remember { mutableStateOf(false) }
                 SecurityRow(
                     icon = Icons.Default.Timer,
                     title = stringResource(R.string.security_auto_lock),
-                    onClick = { expanded = true }
+                    onClick = { showAutoLockSheet = true }
                 ) {
-                    Box {
-                        Text(
-                            autoLockLabel(state.autoLockMinutes),
-                            fontSize = 14.sp,
-                            color = TextSecondary
-                        )
-                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            autoLockOptions.forEach { minutes ->
-                                DropdownMenuItem(
-                                    text = { Text(autoLockLabel(minutes)) },
-                                    onClick = { viewModel.setAutoLockMinutes(minutes); expanded = false }
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        autoLockLabel(state.autoLockMinutes),
+                        fontSize = 14.sp,
+                        color = TextSecondary
+                    )
+                }
+                if (showAutoLockSheet) {
+                    com.vaultex.ui.components.OptionPickerSheet(
+                        title = stringResource(R.string.picker_autolock_title),
+                        subtitle = stringResource(R.string.picker_autolock_subtitle),
+                        options = autoLockOptions.map { minutes ->
+                            com.vaultex.ui.components.PickerOption(
+                                value = minutes,
+                                label = autoLockLabel(minutes),
+                                icon = if (minutes == 0) Icons.Default.Lock else Icons.Default.Schedule
+                            )
+                        },
+                        selected = state.autoLockMinutes,
+                        onConfirm = { viewModel.setAutoLockMinutes(it); showAutoLockSheet = false },
+                        onDismiss = { showAutoLockSheet = false }
+                    )
                 }
             }
 

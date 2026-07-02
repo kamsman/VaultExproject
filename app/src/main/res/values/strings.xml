@@ -664,4 +664,16 @@
     <string name="passphrase_label">Passphrase BIP39 (optionnel)</string>
     <string name="passphrase_hint">13e mot — laissez vide si vous n\'en aviez pas</string>
     <string name="passphrase_placeholder">Passphrase</string>
+    <string name="picker_currency_title">Choisir une devise</string>
+    <string name="picker_currency_subtitle">Devise d\'affichage et de conversion</string>
+    <string name="currency_usd_desc">Devise mondiale</string>
+    <string name="currency_eur_desc">Devise européenne</string>
+    <string name="currency_xof_desc">Devise d\'Afrique de l\'Ouest</string>
+    <string name="picker_language_title">Choisir une langue</string>
+    <string name="picker_language_subtitle">Sélectionnez votre langue préférée</string>
+    <string name="picker_theme_title">Apparence</string>
+    <string name="picker_theme_subtitle">Choisissez le thème de l\'application</string>
+    <string name="picker_theme_system_desc">Suivre le thème de l\'appareil</string>
+    <string name="picker_autolock_title">Verrouillage automatique</string>
+    <string name="picker_autolock_subtitle">Définissez le délai avant verrouillage automatique de VaultEx</string>
 </resources>
