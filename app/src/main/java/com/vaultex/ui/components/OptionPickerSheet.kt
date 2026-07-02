@@ -59,7 +59,13 @@ fun <T> OptionPickerSheet(
         containerColor = BgPrimary,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+        Column(
+            Modifier
+                .navigationBarsPadding()          // les boutons restent AU-DESSUS de la barre système
+                .imePadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+        ) {
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             subtitle?.let {
                 Spacer(Modifier.height(2.dp))
