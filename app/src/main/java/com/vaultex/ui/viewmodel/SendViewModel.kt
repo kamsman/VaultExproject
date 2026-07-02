@@ -176,10 +176,13 @@ class SendViewModel @Inject constructor(
     }
 
     fun setAmount(amount: String) {
+        // Clavier français : normaliser la virgule décimale en point partout
+        // (l'état sert directement aux couches réseau).
+        val normalized = amount.replace(',', '.')
         val s = _state.value
-        val warning = dustWarning(s.selectedChain, amount)
-        val svc = serviceFeeCrypto(s.selectedChain, amount.replace(",", ".").toDoubleOrNull() ?: 0.0)
-        _state.update { it.copy(amount = amount, dustWarning = warning, error = null, serviceFeeAmount = svc) }
+        val warning = dustWarning(s.selectedChain, normalized)
+        val svc = serviceFeeCrypto(s.selectedChain, normalized.toDoubleOrNull() ?: 0.0)
+        _state.update { it.copy(amount = normalized, dustWarning = warning, error = null, serviceFeeAmount = svc) }
     }
 
     /**

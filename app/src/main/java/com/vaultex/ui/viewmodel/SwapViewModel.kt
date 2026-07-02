@@ -143,8 +143,11 @@ class SwapViewModel @Inject constructor(
     }
 
     fun setFromAmount(amount: String) {
-        _state.update { it.copy(fromAmount = amount, error = null) }
-        if (amount.isNotEmpty()) estimateOutput(amount)
+        // Clavier français : la virgule décimale devient un point (sinon
+        // toDoubleOrNull échoue et le devis ne part jamais).
+        val normalized = amount.replace(',', '.')
+        _state.update { it.copy(fromAmount = normalized, error = null) }
+        if (normalized.isNotEmpty()) estimateOutput(normalized)
     }
 
     fun swapTokens() = _state.update {
@@ -165,17 +168,16 @@ class SwapViewModel @Inject constructor(
                 val fromTo = "${SwapUseCase.cnTicker(_state.value.fromToken)}_${SwapUseCase.cnTicker(_state.value.toToken)}"
                 val est = withContext(Dispatchers.IO) {
                     changeNowApi.getEstimatedAmount(
-                        amount = String.format("%.6f", input),
+                        amount = apiAmount(input),
                         fromTo = fromTo,
                         apiKey = CHANGENOW_API_KEY
                     )
                 }
                 _state.update { it.copy(toAmount = est.estimatedAmount, error = null) }
             } catch (e: Exception) {
-                // Pas de devis : on n'affiche PAS un faux montant (ça donnait
-                // l'impression que « le montant ne change pas »). On vide + on
-                // garde la raison pour l'écran.
-                _state.update { it.copy(toAmount = "") }
+                // Pas de devis : on n'affiche PAS un faux montant, on vide ET on
+                // montre la vraie raison (ex. montant sous le minimum de la paire).
+                _state.update { it.copy(toAmount = "", error = "Devis indisponible : ${changeNowError(e)}") }
             }
         }
     }
@@ -241,7 +243,7 @@ class SwapViewModel @Inject constructor(
                             from = SwapUseCase.cnTicker(s.fromToken),
                             to = SwapUseCase.cnTicker(s.toToken),
                             address = toAddress,
-                            amount = String.format("%.6f", net)
+                            amount = apiAmount(net)
                         )
                     )
                 }
@@ -249,7 +251,7 @@ class SwapViewModel @Inject constructor(
                     swapId = txRes.id,
                     fromToken = s.fromToken,
                     toToken = s.toToken,
-                    amount = String.format("%.6f", net),
+                    amount = apiAmount(net),
                     payinAddress = txRes.payinAddress,
                     payoutAddress = toAddress
                 )
@@ -257,7 +259,7 @@ class SwapViewModel @Inject constructor(
                     it.copy(
                         swapId = txRes.id,
                         payinAddress = txRes.payinAddress,
-                        depositAmount = String.format("%.6f", net),
+                        depositAmount = apiAmount(net),
                         swapInProgress = true,
                         swapStatus = "depositing"
                     )
@@ -267,7 +269,7 @@ class SwapViewModel @Inject constructor(
                 // fonds vers l'adresse payin via le moteur d'envoi déjà testé.
                 val depChain = swapSendChainOf(s.fromToken)
                 val dep = withContext(Dispatchers.IO) {
-                    sendCryptoUseCase.sendByChain(depChain, txRes.payinAddress, String.format("%.6f", net))
+                    sendCryptoUseCase.sendByChain(depChain, txRes.payinAddress, apiAmount(net))
                 }
                 when (dep) {
                     is SendCryptoUseCase.Result.Success -> {
@@ -289,6 +291,13 @@ class SwapViewModel @Inject constructor(
     /** Chaîne d'envoi pour déposer la monnaie source (notre USDT = TRC20). */
     private fun swapSendChainOf(fromToken: String): String =
         if (fromToken.uppercase() == "USDT") "USDT" else fromToken.uppercase()
+
+    /**
+     * Format de montant pour les APIs : TOUJOURS un point décimal (Locale.US).
+     * Sur un téléphone en français, String.format("%.6f") produit « 0,0078 »
+     * (virgule) → URL ChangeNOW invalide → devis/dépôt échouent silencieusement.
+     */
+    private fun apiAmount(v: Double): String = String.format(java.util.Locale.US, "%.6f", v)
 
     /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
      *  au lieu d'un « HTTP 400 » opaque. */
