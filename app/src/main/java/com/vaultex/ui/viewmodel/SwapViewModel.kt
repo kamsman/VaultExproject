@@ -87,12 +87,13 @@ class SwapViewModel @Inject constructor(
      * (USDT), le gas est payé en natif séparément → pas de réserve.
      */
     fun onMaxClicked() {
+        val tok = _state.value.fromToken
         val bal = _state.value.fromBalance
         if (bal <= 0.0) {
-            _state.update { it.copy(error = "Solde ${_state.value.fromToken} insuffisant : aucun fonds à échanger.") }
+            _state.update { it.copy(error = "Solde $tok : 0 — aucun fonds à échanger. Reçois ou dépose d'abord des $tok.") }
             return
         }
-        val reserve = when (_state.value.fromToken.uppercase()) {
+        val reserve = when (tok.uppercase()) {
             "BTC" -> 0.00002
             "ETH" -> 0.0003
             "BNB" -> 0.00005
@@ -102,9 +103,12 @@ class SwapViewModel @Inject constructor(
         }
         val spendable = bal - reserve
         if (spendable <= 0.0) {
-            // Solde trop faible pour couvrir les frais du dépôt → message clair
-            // (au lieu d'un MAX silencieux qui « ne fait rien »).
-            _state.update { it.copy(error = "Solde trop faible pour couvrir les frais réseau.") }
+            // Solde présent mais trop faible pour couvrir le gas du dépôt → message
+            // chiffré et clair (solde réel + réserve nécessaire).
+            val balTxt = trimNum(bal)
+            val resTxt = trimNum(reserve)
+            _state.update { it.copy(error =
+                "Solde $tok trop faible : $balTxt $tok disponible, mais il faut garder ~$resTxt $tok pour les frais réseau du dépôt.") }
             return
         }
         val txt = java.math.BigDecimal.valueOf(spendable)
@@ -186,7 +190,7 @@ class SwapViewModel @Inject constructor(
         val s = _state.value
         if (s.isLoading) return
         val inputAmount = s.fromAmount.toDoubleOrNull() ?: run {
-            _state.update { it.copy(error = "Montant invalide") }
+            _state.update { it.copy(error = "Entrez un montant valide à échanger.") }
             return
         }
         viewModelScope.launch {
@@ -195,9 +199,15 @@ class SwapViewModel @Inject constructor(
                 when (val validation = swapUseCase.validate(s.fromToken, s.toToken, inputAmount)) {
                     is SwapUseCase.ValidationResult.Invalid -> {
                         val msg = when (validation.reason) {
-                            SwapUseCase.ValidationResult.Reason.INVALID_AMOUNT -> "Montant invalide"
-                            SwapUseCase.ValidationResult.Reason.SAME_TOKEN -> "Choisissez deux tokens différents"
-                            SwapUseCase.ValidationResult.Reason.BELOW_MINIMUM -> "Montant inférieur au minimum requis"
+                            SwapUseCase.ValidationResult.Reason.INVALID_AMOUNT ->
+                                "Entrez un montant valide à échanger."
+                            SwapUseCase.ValidationResult.Reason.SAME_TOKEN ->
+                                "Choisissez deux monnaies différentes (${s.fromToken} → ${s.toToken})."
+                            SwapUseCase.ValidationResult.Reason.BELOW_MINIMUM -> {
+                                val min = swapUseCase.getMinAmount(s.fromToken, s.toToken)
+                                if (min != null) "Montant sous le minimum : il faut au moins ${trimNum(min)} ${s.fromToken} pour ${s.fromToken}→${s.toToken}."
+                                else "Montant sous le minimum requis pour ${s.fromToken}→${s.toToken}."
+                            }
                         }
                         _state.update { it.copy(isLoading = false, error = msg) }
                         return@launch
@@ -220,7 +230,7 @@ class SwapViewModel @Inject constructor(
                         else          -> addresses.eth
                     }
                 } else {
-                    _state.update { it.copy(isLoading = false, error = "Wallet non initialisé") }
+                    _state.update { it.copy(isLoading = false, error = "Portefeuille non initialisé — reconnecte-toi puis réessaie.") }
                     return@launch
                 }
 
@@ -231,7 +241,7 @@ class SwapViewModel @Inject constructor(
                     changeNowApi.getMinAmount(fromTo, CHANGENOW_API_KEY)
                 }
                 if (net < minRes.minAmount) {
-                    _state.update { it.copy(isLoading = false, error = "Montant minimum : ${minRes.minAmount} ${s.fromToken}") }
+                    _state.update { it.copy(isLoading = false, error = "Montant sous le minimum : il faut au moins ${minRes.minAmount} ${s.fromToken} pour cette paire.") }
                     return@launch
                 }
 
@@ -298,6 +308,10 @@ class SwapViewModel @Inject constructor(
      * (virgule) → URL ChangeNOW invalide → devis/dépôt échouent silencieusement.
      */
     private fun apiAmount(v: Double): String = String.format(java.util.Locale.US, "%.6f", v)
+
+    /** Nombre lisible (jusqu'à 8 décimales, sans zéros inutiles) pour les messages. */
+    private fun trimNum(v: Double): String =
+        java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
 
     /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
      *  au lieu d'un « HTTP 400 » opaque. */

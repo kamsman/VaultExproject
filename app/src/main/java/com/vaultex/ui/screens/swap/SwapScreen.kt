@@ -212,9 +212,14 @@ private fun SwapFormScreen(
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
     val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format("%,.2f", fromAmt * state.fromPriceUsd) + " $" else null
     val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format("%,.2f", toAmt * state.toPriceUsd) + " $" else null
-    val balTxt = if (state.fromBalance > 0.0)
-        java.math.BigDecimal.valueOf(state.fromBalance).setScale(4, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
-    else "0"
+    // Affiche le vrai solde : si trop petit pour 4 décimales (ex. 0,00003 BNB
+    // arrondi à « 0 »), on montre jusqu'à 8 décimales pour ne pas mentir.
+    val balTxt = if (state.fromBalance > 0.0) {
+        val bd4 = java.math.BigDecimal.valueOf(state.fromBalance).setScale(4, java.math.RoundingMode.DOWN).stripTrailingZeros()
+        if (bd4.signum() == 0)
+            java.math.BigDecimal.valueOf(state.fromBalance).setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+        else bd4.toPlainString()
+    } else "0"
 
     Scaffold(
         containerColor = swapBg,

@@ -260,6 +260,38 @@ fun SendScreen(navController: NavController) {
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
+        bottomBar = {
+            // « Continuer » + message d'erreur épinglés en bas → toujours visibles
+            // sans avoir à scroller (au-dessus de la barre système).
+            Column(
+                Modifier.background(BgPrimary).fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (state.error != null) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = AccentRed.copy(alpha = 0.08f), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                            Text(state.error!!, fontSize = 13.sp, color = AccentRed)
+                        }
+                    }
+                }
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        showConfirm = true
+                    },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    enabled = state.isAddressValid && state.amount.isNotEmpty() && !state.isLoading,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen, contentColor = Color.White)
+                ) {
+                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    else Text(stringResource(R.string.continue_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
+        },
         containerColor = BgPrimary
     ) { padding ->
         Column(
@@ -267,8 +299,8 @@ fun SendScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
             val coinColor = runCatching { Color(android.graphics.Color.parseColor(coinColorHex(coinShort))) }.getOrDefault(AccentGreen)
@@ -508,53 +540,7 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Error message
-            if (state.error != null) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AccentRed.copy(alpha = 0.08f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
-                        Text(state.error!!, fontSize = 13.sp, color = AccentRed)
-                    }
-                }
-            }
-
-            Spacer(Modifier.weight(1f, fill = false))
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    // Étape de confirmation explicite (récap) avant la ré-auth.
-                    showConfirm = true
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                enabled = state.isAddressValid && state.amount.isNotEmpty() && !state.isLoading,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AccentGreen,
-                    contentColor = Color.White
-                )
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(stringResource(R.string.continue_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
+            Spacer(Modifier.height(4.dp))
         }
 
         // Sélecteur de monnaie (feuille du bas). La monnaie se choisit ici —
