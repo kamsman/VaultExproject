@@ -1,63 +1,151 @@
 package com.vaultex.ui.components
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
-import com.vaultex.ui.theme.AccentBlue
-import com.vaultex.ui.theme.Surface
+import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.TextMuted
 
+/* Dégradé bleu → violet (accent fixe, comme le prototype). */
+private val NavBlue = Color(0xFF3B82F6)
+private val NavPurple = Color(0xFF7C5CFC)
+private val NavGradient = Brush.linearGradient(listOf(NavBlue, NavPurple))
+
 /**
- * Bottom bar à 4 onglets du prototype v2 :
- * Accueil · Marché · Swap · Réglages
+ * Barre de navigation flottante (prototype) : carte arrondie à bordure dégradée,
+ * 5 onglets — Accueil · Marché · [Swap au centre, gros bouton rond] · Historique
+ * · Paramètres. Le bouton Swap central est surélevé avec un anneau pointillé.
+ * Suit le thème actuel (fond = surface du thème) ; le violet/bleu reste fixe.
  */
 @Composable
 fun VaultExBottomBar(navController: NavHostController) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-    val items = listOf(
-        Triple(Routes.DASHBOARD, Icons.Default.Home, stringResource(R.string.tab_home)),
-        Triple(Routes.MARKET, Icons.Default.TrendingUp, stringResource(R.string.tab_market)),
-        Triple(Routes.SWAP, Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)),
-        Triple(Routes.SETTINGS, Icons.Default.Settings, stringResource(R.string.tab_settings))
-    )
-
-    NavigationBar(containerColor = Surface, windowInsets = NavigationBarDefaults.windowInsets) {
-        items.forEach { (route, icon, label) ->
-            NavigationBarItem(
-                selected = currentRoute == route,
-                onClick = {
-                    navController.navigate(route) {
-                        popUpTo(Routes.DASHBOARD) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = { Icon(icon, contentDescription = label) },
-                label = { Text(label, fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = AccentBlue,
-                    selectedTextColor = AccentBlue,
-                    unselectedIconColor = TextMuted,
-                    unselectedTextColor = TextMuted,
-                    indicatorColor = Surface
-                )
-            )
+    fun go(route: String) {
+        navController.navigate(route) {
+            popUpTo(Routes.DASHBOARD) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
         }
+    }
+
+    Box(
+        Modifier.fillMaxWidth().navigationBarsPadding().height(86.dp)
+    ) {
+        // ─── Barre (fond + bordure dégradée) ───
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .height(62.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceColor)
+                .border(1.dp, NavGradient, RoundedCornerShape(22.dp))
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavTab(Icons.Default.Home, stringResource(R.string.tab_home), currentRoute == Routes.DASHBOARD, Modifier.weight(1f)) { go(Routes.DASHBOARD) }
+            NavTab(Icons.Default.TrendingUp, stringResource(R.string.tab_market), currentRoute == Routes.MARKET, Modifier.weight(1f)) { go(Routes.MARKET) }
+            // Emplacement central : uniquement le libellé (le bouton flotte au-dessus).
+            Box(Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
+                Text(
+                    stringResource(R.string.tab_swap),
+                    fontSize = 11.sp,
+                    fontWeight = if (currentRoute == Routes.SWAP) FontWeight.Bold else FontWeight.Normal,
+                    color = if (currentRoute == Routes.SWAP) NavBlue else TextMuted,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+            NavTab(Icons.Default.History, stringResource(R.string.tab_history), currentRoute == Routes.HISTORY, Modifier.weight(1f)) { go(Routes.HISTORY) }
+            NavTab(Icons.Default.Settings, stringResource(R.string.tab_settings), currentRoute == Routes.SETTINGS, Modifier.weight(1f)) { go(Routes.SETTINGS) }
+        }
+
+        // ─── Bouton Swap central, surélevé + anneau pointillé ───
+        Box(
+            Modifier.align(Alignment.TopCenter).size(64.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(64.dp)) {
+                drawCircle(
+                    color = NavPurple.copy(alpha = 0.7f),
+                    radius = size.minDimension / 2f - 1.dp.toPx(),
+                    style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 9f), 0f))
+                )
+            }
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .shadow(10.dp, CircleShape, clip = false)
+                    .clip(CircleShape)
+                    .background(NavGradient)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { go(Routes.SWAP) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Repeat, contentDescription = stringResource(R.string.tab_swap), tint = Color.White, modifier = Modifier.size(26.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavTab(icon: ImageVector, label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val color = if (selected) NavBlue else TextMuted
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = color)
+        // Indicateur de sélection (petit trait violet).
+        Spacer(Modifier.height(3.dp))
+        Box(
+            Modifier.width(16.dp).height(3.dp).clip(RoundedCornerShape(2.dp))
+                .background(if (selected) NavPurple else Color.Transparent)
+        )
     }
 }
