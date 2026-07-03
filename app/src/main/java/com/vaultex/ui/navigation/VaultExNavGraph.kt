@@ -26,7 +26,6 @@ import com.vaultex.ui.screens.send.SendScreen
 import com.vaultex.ui.screens.receive.ReceiveScreen
 import com.vaultex.ui.screens.swap.SwapScreen
 import com.vaultex.ui.screens.history.HistoryScreen
-import com.vaultex.ui.screens.mobilemoney.MobileMoneyScreen
 import com.vaultex.ui.screens.auth.PanicPinScreen
 import com.vaultex.ui.screens.auth.BiometricSetupScreen
 import com.vaultex.ui.screens.walletmanager.WalletManagerScreen
@@ -158,10 +157,6 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.HISTORY) {
             HistoryScreen(navController)
-        }
-
-        composable(Routes.MOBILE_MONEY) {
-            MobileMoneyScreen(navController)
         }
 
         composable(Routes.NOTIFICATIONS) {

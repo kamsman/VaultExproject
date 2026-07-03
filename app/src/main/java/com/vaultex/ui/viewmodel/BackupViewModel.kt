@@ -1,7 +1,9 @@
 package com.vaultex.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.PinManager
 import com.vaultex.core.security.PinVerificationResult
 import com.vaultex.core.security.SecureStorage
@@ -15,27 +17,46 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/** Action protégée par PIN/biométrie sur l'écran Sauvegarde. */
+enum class BackupAuthAction { PHRASE, KEY }
+
 data class BackupState(
     val mnemonic: String? = null,
     val isRevealed: Boolean = false,
     val showPinDialog: Boolean = false,
     val pinInput: String = "",
-    val pinError: String? = null
+    val pinError: String? = null,
+    val pendingAction: BackupAuthAction? = null,
+    val selectedChain: String = "BTC",
+    val exportedKey: String? = null,
+    val phraseBackedUp: Boolean = false
 )
 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val pinManager: PinManager,
-    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(BackupState())
+    private val prefs = appContext.getSharedPreferences("vaultex_backup", Context.MODE_PRIVATE)
+
+    private val _state = MutableStateFlow(
+        BackupState(phraseBackedUp = prefs.getBoolean(KEY_BACKED_UP, false))
+    )
     val state: StateFlow<BackupState> = _state.asStateFlow()
 
-    fun requestReveal() {
-        _state.update { it.copy(showPinDialog = true, pinInput = "", pinError = null) }
+    /** Demande d'affichage de la phrase (PIN ou biométrie d'abord). */
+    fun requestReveal() = _state.update {
+        it.copy(showPinDialog = true, pendingAction = BackupAuthAction.PHRASE, pinInput = "", pinError = null)
     }
+
+    /** Demande d'export de la clé privée de la chaîne sélectionnée. */
+    fun requestExport() = _state.update {
+        it.copy(showPinDialog = true, pendingAction = BackupAuthAction.KEY, pinInput = "", pinError = null)
+    }
+
+    fun selectChain(chain: String) = _state.update { it.copy(selectedChain = chain, exportedKey = null) }
 
     fun setPinInput(v: String) {
         if (v.length <= 6 && v.all { it.isDigit() }) {
@@ -44,14 +65,18 @@ class BackupViewModel @Inject constructor(
         }
     }
 
+    /** Succès biométrique : même effet qu'un PIN valide. */
+    fun onAuthSuccess() {
+        val action = _state.value.pendingAction ?: return
+        _state.update { it.copy(showPinDialog = false, pinInput = "", pinError = null) }
+        perform(action)
+    }
+
     private fun verifyPin(pin: String) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.Default) { pinManager.verifyPin(pin) }
             when (result) {
-                is PinVerificationResult.Valid -> {
-                    val mnemonic = secureStorage.getMnemonic()
-                    _state.update { it.copy(showPinDialog = false, isRevealed = true, mnemonic = mnemonic, pinInput = "") }
-                }
+                is PinVerificationResult.Valid -> onAuthSuccess()
                 is PinVerificationResult.Invalid ->
                     _state.update { it.copy(pinError = appContext.getString(com.vaultex.R.string.pin_wrong_attempts, result.remainingAttempts), pinInput = "") }
                 is PinVerificationResult.Locked ->
@@ -62,7 +87,39 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    fun dismissPinDialog() = _state.update { it.copy(showPinDialog = false, pinInput = "", pinError = null) }
+    private fun perform(action: BackupAuthAction) {
+        when (action) {
+            BackupAuthAction.PHRASE -> {
+                val mnemonic = secureStorage.getMnemonic()
+                // La phrase a été vue → on marque la sauvegarde comme faite (statut).
+                prefs.edit().putBoolean(KEY_BACKED_UP, true).apply()
+                _state.update { it.copy(isRevealed = true, mnemonic = mnemonic, phraseBackedUp = true) }
+            }
+            BackupAuthAction.KEY -> viewModelScope.launch {
+                val chain = _state.value.selectedChain
+                val key = withContext(Dispatchers.Default) {
+                    try {
+                        val mnemonic = secureStorage.getMnemonic() ?: return@withContext null
+                        WalletManager.exportPrivateKey(mnemonic, secureStorage.getPassphrase(), chain)
+                    } catch (_: Exception) { null }
+                }
+                _state.update {
+                    if (key != null) it.copy(exportedKey = key)
+                    else it.copy(pinError = appContext.getString(com.vaultex.R.string.backup_load_error))
+                }
+            }
+        }
+    }
+
+    fun dismissPinDialog() = _state.update {
+        it.copy(showPinDialog = false, pinInput = "", pinError = null, pendingAction = null)
+    }
 
     fun hide() = _state.update { it.copy(mnemonic = null, isRevealed = false) }
+
+    fun hideKey() = _state.update { it.copy(exportedKey = null) }
+
+    companion object {
+        private const val KEY_BACKED_UP = "phrase_backed_up"
+    }
 }

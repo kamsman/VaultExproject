@@ -185,7 +185,7 @@ fun DashboardScreen(navController: NavHostController) {
                 item { PortfolioDonutCard(funded) }
             }
 
-            // ─── 4 actions pastel ───
+            // ─── 3 actions pastel (MoMo retiré pour le moment) ───
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ActionChip(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
@@ -194,8 +194,6 @@ fun DashboardScreen(navController: NavHostController) {
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
                     ActionChip(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
-                    ActionChip(stringResource(R.string.momo_label), Icons.Default.PhoneAndroid,
-                        AccentOrange, Modifier.weight(1f)) { navController.navigate(Routes.MOBILE_MONEY) }
                 }
             }
 

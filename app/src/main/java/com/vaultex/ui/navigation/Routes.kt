@@ -62,8 +62,6 @@ object Routes {
 
     fun coinDetail(coinId: String) = "coinDetail/$coinId"
 
-    const val MOBILE_MONEY = "mobileMoney"
-
     const val BACKUP = "backup"
 
     const val PANIC_PIN = "panicPin"

@@ -96,7 +96,6 @@ class SwapUseCase @Inject constructor(
 
     companion object {
         const val VAULTEX_FEE_PERCENT = 1.5
-        const val MOBILE_MONEY_FEE_PERCENT = 1.0
 
         /**
          * Ticker ChangeNOW pour un symbole de l'app. ChangeNOW distingue les

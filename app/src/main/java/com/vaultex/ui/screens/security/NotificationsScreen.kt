@@ -43,7 +43,6 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
     var loginAlerts by rememberSaveable { mutableStateOf(true) }
     var lowBalanceAlerts by rememberSaveable { mutableStateOf(false) }
     var pinChangeAlerts by rememberSaveable { mutableStateOf(true) }
-    var momoAlerts by rememberSaveable { mutableStateOf(true) }
     var threshold by rememberSaveable { mutableStateOf("") }
 
     Scaffold(
@@ -113,13 +112,6 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                         title = stringResource(R.string.notif_pin_change),
                         checked = pinChangeAlerts,
                         onCheckedChange = { pinChangeAlerts = it }
-                    )
-                    NotifDivider()
-                    NotifToggleRow(
-                        icon = Icons.Default.PhoneAndroid,
-                        title = stringResource(R.string.notif_momo_alerts),
-                        checked = momoAlerts,
-                        onCheckedChange = { momoAlerts = it }
                     )
                 }
             }

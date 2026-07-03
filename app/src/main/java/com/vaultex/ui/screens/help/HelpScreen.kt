@@ -69,8 +69,7 @@ fun HelpScreen(navController: NavHostController) {
         stringResource(R.string.help_q_fees) to stringResource(R.string.help_a_fees),
         stringResource(R.string.help_q_secure) to stringResource(R.string.help_a_secure),
         stringResource(R.string.help_q_recover) to stringResource(R.string.help_a_recover),
-        stringResource(R.string.help_q_momo) to stringResource(R.string.help_a_momo)
-    )
+            )
     val filtered = if (query.isBlank()) faq
         else faq.filter { it.first.contains(query, true) || it.second.contains(query, true) }
 
