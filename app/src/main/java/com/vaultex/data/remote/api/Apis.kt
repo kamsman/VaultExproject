@@ -128,6 +128,10 @@ interface CoinGeckoApi {
         @Query("vs_currency") vsCurrency: String = "usd",
         @Query("days") days: Int
     ): CoinGeckoChartDto
+
+    // Cap. de marché totale + dominance BTC (bandeau de l'écran Marché).
+    @GET("global")
+    suspend fun getGlobal(): com.vaultex.data.remote.dto.CoinGeckoGlobalDto
 }
 
 /**

@@ -3,13 +3,19 @@ package com.vaultex.ui.screens.market
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,24 +44,11 @@ import com.vaultex.ui.theme.Surface
 import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
-import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.MarketViewModel
 import java.text.NumberFormat
 import java.util.Locale
-import kotlin.random.Random
 
-private data class CoinRow(
-    val id: String,
-    val name: String,
-    val symbol: String,
-    val priceXof: String,
-    val change24h: Double,
-    val marketCap: String,
-    val color: Color,
-    val imageUrl: String = ""
-)
-
-private enum class MarketFilter { ALL, GAINERS, LOSERS }
+private enum class MarketFilter { ALL, GAINERS, LOSERS, FAVORITES }
 
 @Composable
 fun MarketScreen(navController: NavHostController) {
@@ -63,94 +56,240 @@ fun MarketScreen(navController: NavHostController) {
     val viewModel: MarketViewModel = hiltViewModel()
     val markets by viewModel.markets.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val global by viewModel.global.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
-
-    // Données live CoinGecko (en XOF) ; repli sur une liste statique en cas d'échec.
-    val liveCoins = markets.map { dto ->
-        CoinRow(
-            id = dto.id,
-            name = dto.name,
-            symbol = dto.symbol.uppercase(),
-            priceXof = formatMarketUsd(dto.currentPrice),
-            change24h = dto.change24h,
-            marketCap = "",
-            color = marketColor(dto.symbol),
-            imageUrl = dto.image ?: ""
-        )
-    }
-    val coins = if (liveCoins.isNotEmpty()) liveCoins else FALLBACK_COINS
 
     var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
 
-    val filtered = coins
+    val filtered = markets
         .filter { it.name.contains(searchQuery, true) || it.symbol.contains(searchQuery, true) }
         .filter {
             when (filter) {
                 MarketFilter.ALL -> true
                 MarketFilter.GAINERS -> it.change24h > 0
                 MarketFilter.LOSERS -> it.change24h < 0
+                MarketFilter.FAVORITES -> it.id in favorites
             }
         }
+    val topGainers = markets.filter { it.change24h > 0 }.sortedByDescending { it.change24h }.take(6)
 
     Scaffold(
         bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-
-            // ─── Titre large ───
-            Text(
-                stringResource(R.string.market_title),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
-            )
-
-            // ─── Recherche ───
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Surface,
-                    unfocusedContainerColor = Surface,
-                    focusedBorderColor = AccentBlue,
-                    unfocusedBorderColor = BorderColor
-                )
-            )
-
-            // ─── Filtres Tout / Gainers / Losers ───
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterPill(stringResource(R.string.market_filter_all), filter == MarketFilter.ALL) { filter = MarketFilter.ALL }
-                FilterPill(stringResource(R.string.market_filter_gainers), filter == MarketFilter.GAINERS) { filter = MarketFilter.GAINERS }
-                FilterPill(stringResource(R.string.market_filter_losers), filter == MarketFilter.LOSERS) { filter = MarketFilter.LOSERS }
-            }
-
-            // ─── Liste des cryptos (skeleton au 1er chargement) ───
-            if (isLoading && markets.isEmpty()) {
-                HistoryListSkeleton()
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 12.dp)
+        ) {
+            // ─── Titre + cloche ───
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(filtered, key = { it.id }) { coin ->
-                        CoinCard(coin) { navController.navigate(Routes.coinDetail(coin.id)) }
+                    Text(
+                        stringResource(R.string.market_title),
+                        fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
+                        Icon(Icons.Default.Notifications, stringResource(R.string.notifications), tint = TextPrimary)
                     }
                 }
             }
+
+            // ─── Bandeau global : cap. totale + dominance BTC ───
+            global?.let { g ->
+                item {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        GlobalStatCard(
+                            title = stringResource(R.string.market_cap_total),
+                            value = compactUsd(g.totalMcapUsd),
+                            change = g.mcapChange24h,
+                            modifier = Modifier.weight(1f)
+                        )
+                        GlobalStatCard(
+                            title = stringResource(R.string.market_btc_dominance),
+                            value = String.format(Locale.US, "%.1f%%", g.btcDominance),
+                            change = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // ─── Recherche ───
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Surface,
+                        unfocusedContainerColor = Surface,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = BorderColor
+                    )
+                )
+            }
+
+            // ─── Filtres Tous / Gagnants / Perdants / Favoris ───
+            item {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterPill(stringResource(R.string.market_filter_all), filter == MarketFilter.ALL) { filter = MarketFilter.ALL }
+                    FilterPill(stringResource(R.string.market_filter_gainers) + " ↗", filter == MarketFilter.GAINERS) { filter = MarketFilter.GAINERS }
+                    FilterPill(stringResource(R.string.market_filter_losers) + " ↘", filter == MarketFilter.LOSERS) { filter = MarketFilter.LOSERS }
+                    FilterPill(stringResource(R.string.market_filter_favs) + " ★", filter == MarketFilter.FAVORITES) { filter = MarketFilter.FAVORITES }
+                }
+            }
+
+            // ─── Top gagnants (cartes horizontales) ───
+            if (topGainers.isNotEmpty() && filter == MarketFilter.ALL && searchQuery.isBlank()) {
+                item {
+                    Column(Modifier.padding(top = 12.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("🚀 " + stringResource(R.string.market_top_gainers), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            topGainers.forEach { dto ->
+                                GainerCard(dto) { navController.navigate(Routes.coinDetail(dto.id)) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ─── Liste des cryptos ───
+            if (isLoading && markets.isEmpty()) {
+                item { HistoryListSkeleton() }
+            } else {
+                item {
+                    Text(
+                        stringResource(R.string.market_all_cryptos),
+                        fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
+                items(filtered, key = { it.id }) { dto ->
+                    CoinRowCard(
+                        dto = dto,
+                        isFavorite = dto.id in favorites,
+                        onToggleFavorite = { viewModel.toggleFavorite(dto.id) },
+                        onAlert = { navController.navigate(Routes.NOTIFICATIONS) },
+                        onClick = { navController.navigate(Routes.coinDetail(dto.id)) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlobalStatCard(title: String, value: String, change: Double?, modifier: Modifier) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, fontSize = 12.sp, color = TextSecondary)
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
+            change?.let {
+                Text(
+                    (if (it >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", it) + " (24h)",
+                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (it >= 0) AccentGreen else AccentRed
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GainerCard(dto: CoinGeckoMarketDto, onClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.width(120.dp).clickable(onClick = onClick)
+    ) {
+        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            coil.compose.AsyncImage(model = dto.image, contentDescription = dto.symbol, modifier = Modifier.size(30.dp).clip(CircleShape))
+            Text(dto.symbol.uppercase(), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
+            Text("$" + formatMarketUsd(dto.currentPrice), fontSize = 12.sp, color = TextSecondary)
+            Text("+" + String.format(Locale.US, "%.2f%%", dto.change24h), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
+            Sparkline(dto.sparkline_in_7d?.price ?: emptyList(), AccentGreen, Modifier.fillMaxWidth().height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun CoinRowCard(
+    dto: CoinGeckoMarketDto,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onAlert: () -> Unit,
+    onClick: () -> Unit
+) {
+    val isPositive = dto.change24h >= 0
+    val changeColor = if (isPositive) AccentGreen else AccentRed
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface)
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            coil.compose.AsyncImage(
+                model = dto.image, contentDescription = dto.symbol,
+                modifier = Modifier.size(40.dp).clip(CircleShape)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(dto.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary, maxLines = 1)
+                Text(dto.symbol.uppercase(), fontSize = 11.sp, color = TextSecondary)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("$" + formatMarketUsd(dto.currentPrice), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
+                Spacer(Modifier.height(2.dp))
+                Sparkline(dto.sparkline_in_7d?.price ?: emptyList(), changeColor, Modifier.size(width = 56.dp, height = 18.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.Surface(shape = RoundedCornerShape(8.dp), color = changeColor.copy(alpha = 0.13f)) {
+                Text(
+                    "${if (isPositive) "+" else ""}${String.format(Locale.US, "%.2f", dto.change24h)}%",
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = changeColor,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                Icons.Default.NotificationsNone, stringResource(R.string.alerts_title), tint = TextSecondary,
+                modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onAlert)
+            )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                stringResource(R.string.market_filter_favs),
+                tint = if (isFavorite) Color(0xFFF5B301) else TextSecondary,
+                modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onToggleFavorite)
+            )
         }
     }
 }
@@ -173,85 +312,35 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** Vraie mini-courbe 7 j (données CoinGecko), sous-échantillonnée pour rester légère. */
 @Composable
-private fun CoinCard(coin: CoinRow, onClick: () -> Unit) {
-    val isPositive = coin.change24h >= 0
-    val changeColor = if (isPositive) AccentGreen else AccentRed
-
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (coin.imageUrl.isNotEmpty()) {
-                coil.compose.AsyncImage(
-                    model = coin.imageUrl,
-                    contentDescription = coin.symbol,
-                    modifier = Modifier.size(46.dp).clip(CircleShape)
-                )
-            } else {
-                Box(
-                    modifier = Modifier.size(46.dp).clip(CircleShape).background(coin.color),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        coin.symbol.take(2),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(coin.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                Text(coin.symbol, fontSize = 12.sp, color = TextSecondary)
-            }
-            MiniSparkline(
-                seed = coin.id.hashCode(),
-                color = changeColor,
-                modifier = Modifier.size(width = 64.dp, height = 28.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text("$" + coin.priceXof, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
-                Text(
-                    "${if (isPositive) "+" else ""}${String.format("%.1f", coin.change24h)}%",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = changeColor
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiniSparkline(seed: Int, color: Color, modifier: Modifier = Modifier) {
+private fun Sparkline(prices: List<Double>, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        val random = Random(seed)
-        val points = 18
-        val step = size.width / (points - 1)
-        var y = size.height * 0.5f
+        if (prices.size < 2) return@Canvas
+        val pts = if (prices.size > 40) prices.filterIndexed { i, _ -> i % (prices.size / 40) == 0 } else prices
+        val min = pts.min(); val max = pts.max()
+        val range = (max - min).takeIf { it > 0 } ?: 1.0
+        val step = size.width / (pts.size - 1)
         val path = Path()
-        path.moveTo(0f, y)
-        for (i in 1 until points) {
-            y = (y + (random.nextFloat() - 0.5f) * size.height * 0.8f)
-                .coerceIn(size.height * 0.1f, size.height * 0.9f)
-            path.lineTo(i * step, y)
+        pts.forEachIndexed { i, p ->
+            val x = i * step
+            val y = size.height * (1f - ((p - min) / range).toFloat())
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
-        drawPath(path, color = color, style = Stroke(width = 2.5f))
+        drawPath(path, color = color, style = Stroke(width = 2f))
     }
 }
 
-/** Prix en FCFA : grands nombres sans décimale, petits montants à 2 décimales. */
+/** Cap. de marché compacte : 3,52 T$, 70,1 Md$… */
+private fun compactUsd(v: Double): String = when {
+    v >= 1e12 -> String.format(Locale.US, "$%.2fT", v / 1e12)
+    v >= 1e9 -> String.format(Locale.US, "$%.1fB", v / 1e9)
+    v >= 1e6 -> String.format(Locale.US, "$%.1fM", v / 1e6)
+    else -> String.format(Locale.US, "$%,.0f", v)
+}
+
 /** Prix en USD : 4 décimales sous 1 $, 2 décimales sinon, sans décimale au-delà de 1000. */
-private fun formatMarketUsd(value: Double): String =
+internal fun formatMarketUsd(value: Double): String =
     NumberFormat.getNumberInstance(Locale.FRANCE).apply {
         maximumFractionDigits = when {
             value < 1.0 -> 4
@@ -259,25 +348,3 @@ private fun formatMarketUsd(value: Double): String =
             else -> 0
         }
     }.format(value)
-
-private fun marketColor(symbol: String): Color = when (symbol.uppercase()) {
-    "BTC"  -> VaultExColors.BitcoinOrange
-    "ETH"  -> VaultExColors.EthereumBlue
-    "BNB"  -> VaultExColors.BnbYellow
-    "SOL"  -> VaultExColors.SolanaGreen
-    "TRX"  -> VaultExColors.TronRed
-    "USDT" -> Color(0xFF26A17B)
-    "USDC" -> Color(0xFF2775CA)
-    else   -> Color(0xFF1A6FE8)
-}
-
-/** Repli affiché si l'appel CoinGecko échoue (jamais d'écran vide). */
-private val FALLBACK_COINS = listOf(
-    CoinRow("bitcoin", "Bitcoin", "BTC", "65 000", 2.4, "", VaultExColors.BitcoinOrange),
-    CoinRow("ethereum", "Ethereum", "ETH", "3 200", 3.1, "", VaultExColors.EthereumBlue),
-    CoinRow("binancecoin", "BNB", "BNB", "600", -0.8, "", VaultExColors.BnbYellow),
-    CoinRow("solana", "Solana", "SOL", "150", 7.2, "", VaultExColors.SolanaGreen),
-    CoinRow("tron", "Tron", "TRX", "0.12", 5.1, "", VaultExColors.TronRed),
-    CoinRow("tether", "Tether", "USDT", "1.00", 0.01, "", Color(0xFF26A17B)),
-    CoinRow("usd-coin", "USD Coin", "USDC", "1.00", 0.0, "", Color(0xFF2775CA)),
-)

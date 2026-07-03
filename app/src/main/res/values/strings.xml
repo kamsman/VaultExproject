@@ -727,6 +727,11 @@
 
     <!-- Messages réseau communs -->
     <string name="dash_market_overview">Aperçu du marché</string>
+    <string name="market_filter_favs">Favoris</string>
+    <string name="market_top_gainers">Top gagnants</string>
+    <string name="market_cap_total">Cap. marché totale</string>
+    <string name="market_btc_dominance">Dominance BTC</string>
+    <string name="market_all_cryptos">Toutes les cryptomonnaies</string>
     <string name="msg_offline">Pas de connexion. Vérifie ton réseau et réessaie.</string>
     <string name="msg_timeout">Délai dépassé. Réessaie dans un instant.</string>
     <string name="swap_msg_pair_unavailable">La paire %1$s→%2$s n\'est pas disponible pour le moment.</string>

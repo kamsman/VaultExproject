@@ -123,10 +123,20 @@ data class CoinGeckoMarketDto(
     @SerializedName("price_change_percentage_24h") val change24h: Double,
     @SerializedName("high_24h") val high24h: Double = 0.0,
     @SerializedName("low_24h") val low24h: Double = 0.0,
+    @SerializedName("ath") val ath: Double = 0.0,
+    @SerializedName("circulating_supply") val circulatingSupply: Double = 0.0,
     val sparkline_in_7d: SparklineDto? = null
 )
 data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
+
+// Données globales du marché (cap totale, dominance BTC).
+data class CoinGeckoGlobalDto(val data: CoinGeckoGlobalData? = null)
+data class CoinGeckoGlobalData(
+    @SerializedName("total_market_cap") val totalMarketCap: Map<String, Double> = emptyMap(),
+    @SerializedName("market_cap_percentage") val marketCapPercentage: Map<String, Double> = emptyMap(),
+    @SerializedName("market_cap_change_percentage_24h_usd") val mcapChange24h: Double = 0.0
+)
 
 // ─── CHANGENOW ─────────────────────────────────────────────────────
 data class ChangeNowEstimateDto(

@@ -54,4 +54,24 @@ class MarketRepository @Inject constructor(
     suspend fun getMarketChart(coinId: String, days: Int): CoinGeckoChartDto {
         return api.getMarketChart(coinId, days = days)
     }
+
+    /** Stats globales (cap. totale USD, variation 24 h, dominance BTC), avec cache. */
+    data class GlobalStats(val totalMcapUsd: Double, val mcapChange24h: Double, val btcDominance: Double)
+
+    @Volatile private var globalCache: GlobalStats? = null
+    @Volatile private var globalTime: Long = 0L
+
+    suspend fun getGlobal(): GlobalStats? {
+        val now = System.currentTimeMillis()
+        globalCache?.let { if (now - globalTime < cacheTtlMs) return it }
+        val d = api.getGlobal().data ?: return globalCache
+        val stats = GlobalStats(
+            totalMcapUsd = d.totalMarketCap["usd"] ?: 0.0,
+            mcapChange24h = d.mcapChange24h,
+            btcDominance = d.marketCapPercentage["btc"] ?: 0.0
+        )
+        globalCache = stats
+        globalTime = now
+        return stats
+    }
 }

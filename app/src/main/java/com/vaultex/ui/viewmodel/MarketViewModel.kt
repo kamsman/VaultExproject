@@ -14,11 +14,27 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MarketViewModel @Inject constructor(
-    private val repository: MarketRepository
+    private val repository: MarketRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val _markets = MutableStateFlow<List<CoinGeckoMarketDto>>(emptyList())
     val markets: StateFlow<List<CoinGeckoMarketDto>> = _markets
+
+    // ─── Bandeau global : cap. totale + dominance BTC ───────────
+    private val _global = MutableStateFlow<MarketRepository.GlobalStats?>(null)
+    val global: StateFlow<MarketRepository.GlobalStats?> = _global
+
+    // ─── Favoris (persistés localement, étoile de la liste) ─────
+    private val favPrefs = appContext.getSharedPreferences("vaultex_market_favs", android.content.Context.MODE_PRIVATE)
+    private val _favorites = MutableStateFlow(favPrefs.getStringSet("ids", emptySet()) ?: emptySet())
+    val favorites: StateFlow<Set<String>> = _favorites
+
+    fun toggleFavorite(coinId: String) {
+        val next = _favorites.value.toMutableSet().apply { if (!add(coinId)) remove(coinId) }
+        _favorites.value = next
+        favPrefs.edit().putStringSet("ids", next).apply()
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -71,6 +87,13 @@ class MarketViewModel @Inject constructor(
             } finally {
                 _isLoading.value = false
             }
+        }
+        // Bandeau global (best-effort : le Marché reste utilisable sans).
+        viewModelScope.launch {
+            try {
+                val g = withContext(Dispatchers.IO) { repository.getGlobal() }
+                if (g != null) _global.value = g
+            } catch (_: Exception) { /* bandeau simplement absent */ }
         }
     }
 
