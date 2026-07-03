@@ -640,9 +640,7 @@
     <string name="wallet_keys_desc">مفاتيحك الخاصة مخزّنة على جهازك فقط.</string>
     <string name="balance_today">اليوم</string>
     <string name="alerts_new_subtitle">احصل على إشعار عندما يصل السعر إلى هدفك</string>
-    <string name="alerts_above">أعلى من</string>
     <string name="alerts_above_desc">نبّهني إذا تجاوز السعر الهدف</string>
-    <string name="alerts_below">أدنى من</string>
     <string name="alerts_below_desc">نبّهني إذا انخفض السعر تحت الهدف</string>
     <string name="alerts_step_target">3. السعر المستهدف (FCFA)</string>
     <string name="alerts_step_summary">الملخص</string>

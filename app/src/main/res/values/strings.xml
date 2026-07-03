@@ -743,9 +743,7 @@
     <string name="wallet_keys_desc">Vos clés privées sont stockées uniquement sur votre appareil.</string>
     <string name="balance_today">Aujourd\'hui</string>
     <string name="alerts_new_subtitle">Soyez notifié lorsque le prix atteint votre cible</string>
-    <string name="alerts_above">Au-dessus de</string>
     <string name="alerts_above_desc">Être alerté si le prix dépasse la cible</string>
-    <string name="alerts_below">En-dessous de</string>
     <string name="alerts_below_desc">Être alerté si le prix passe sous la cible</string>
     <string name="alerts_step_target">3. Prix cible (FCFA)</string>
     <string name="alerts_step_summary">Résumé</string>

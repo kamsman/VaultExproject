@@ -640,9 +640,7 @@
     <string name="wallet_keys_desc">Your private keys are stored only on your device.</string>
     <string name="balance_today">Today</string>
     <string name="alerts_new_subtitle">Get notified when the price hits your target</string>
-    <string name="alerts_above">Above</string>
     <string name="alerts_above_desc">Alert me if the price goes above the target</string>
-    <string name="alerts_below">Below</string>
     <string name="alerts_below_desc">Alert me if the price drops below the target</string>
     <string name="alerts_step_target">3. Target price (FCFA)</string>
     <string name="alerts_step_summary">Summary</string>
