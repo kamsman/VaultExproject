@@ -166,6 +166,11 @@ class SwapViewModel @Inject constructor(
     private fun estimateOutput(amount: String) {
         viewModelScope.launch {
             val input = amount.toDoubleOrNull() ?: return@launch
+            if (input <= 0.0) {
+                // « 0 » ou saisie incomplète : on vide le résultat sans appeler l'API.
+                _state.update { it.copy(toAmount = "") }
+                return@launch
+            }
             // On échange le montant COMPLET. La commission VaultEx vient de
             // ChangeNOW (programme partenaire), pas en rognant le montant.
             try {
@@ -311,11 +316,14 @@ class SwapViewModel @Inject constructor(
         if (fromToken.uppercase() == "USDT") "USDT" else fromToken.uppercase()
 
     /**
-     * Format de montant pour les APIs : TOUJOURS un point décimal (Locale.US).
-     * Sur un téléphone en français, String.format("%.6f") produit « 0,0078 »
-     * (virgule) → URL ChangeNOW invalide → devis/dépôt échouent silencieusement.
+     * Format de montant pour les APIs : point décimal garanti (toPlainString),
+     * 8 décimales max, arrondi VERS LE BAS. L'ancien format 6 décimales
+     * transformait 0.00000001 en « 0.000000 » et pouvait ARRONDIR AU-DESSUS du
+     * solde (dépôt refusé) pour les montants à 8 décimales (BTC, MAX…).
      */
-    private fun apiAmount(v: Double): String = String.format(java.util.Locale.US, "%.6f", v)
+    private fun apiAmount(v: Double): String =
+        java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN)
+            .stripTrailingZeros().toPlainString()
 
     /** Nombre lisible (jusqu'à 8 décimales, sans zéros inutiles) pour les messages. */
     private fun trimNum(v: Double): String =
