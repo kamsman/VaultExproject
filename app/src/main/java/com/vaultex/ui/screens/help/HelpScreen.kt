@@ -12,12 +12,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,12 +45,14 @@ import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 
-/**
- * Canaux de contact du support. À MODIFIER avec tes vraies coordonnées :
- * le numéro WhatsApp au format international SANS « + » ni espaces.
- */
+/** Canaux de contact du support VaultEx. */
 private const val SUPPORT_EMAIL = "support@vaultex.app"
-private const val SUPPORT_WHATSAPP = "2250700000000" // ← À REMPLACER par ton numéro
+// Les mails partent vers les deux adresses (aucun message perdu si l'une n'est pas relevée).
+private const val SUPPORT_EMAILS = "support@vaultex.app,mouminekoanda0@gmail.com"
+private const val SUPPORT_WHATSAPP = "22672306526"           // wa.me : international sans « + »
+private const val SUPPORT_TELEGRAM = "https://t.me/vaultexWallet"
+private const val SUPPORT_PHONE = "+226 79 38 84 55"
+private const val SUPPORT_PHONE_DIAL = "+22679388455"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,6 +141,19 @@ fun HelpScreen(navController: NavHostController) {
                 }
             }
             ContactRow(
+                icon = Icons.Default.Send,
+                iconBg = Color(0xFF229ED9),
+                title = "Telegram",
+                subtitle = "@vaultexWallet"
+            ) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(SUPPORT_TELEGRAM))
+                    )
+                }
+            }
+            ContactRow(
                 icon = Icons.Default.Email,
                 iconBg = AccentBlue,
                 title = stringResource(R.string.help_email),
@@ -145,7 +162,20 @@ fun HelpScreen(navController: NavHostController) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_SENDTO,
-                            android.net.Uri.parse("mailto:$SUPPORT_EMAIL?subject=VaultEx%20Support"))
+                            android.net.Uri.parse("mailto:$SUPPORT_EMAILS?subject=VaultEx%20Support"))
+                    )
+                }
+            }
+            ContactRow(
+                icon = Icons.Default.Call,
+                iconBg = Color(0xFF7C5CFC),
+                title = stringResource(R.string.help_call),
+                subtitle = SUPPORT_PHONE
+            ) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_DIAL,
+                            android.net.Uri.parse("tel:$SUPPORT_PHONE_DIAL"))
                     )
                 }
             }

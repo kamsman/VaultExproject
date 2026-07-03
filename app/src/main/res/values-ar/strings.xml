@@ -499,6 +499,7 @@
     <string name="help_no_result">لا نتائج. تواصل مع الدعم أدناه.</string>
     <string name="help_whatsapp">واتساب</string>
     <string name="help_whatsapp_subtitle">رد سريع طوال أيام الأسبوع</string>
+    <string name="help_call">اتصال</string>
     <string name="help_a_create">من شاشة الترحيب، اختر «إنشاء محفظة جديدة». اكتب كلماتك الـ12 بالترتيب واحفظها بعيداً عن الإنترنت (على ورق)، ثم عيّن رمز PIN. هذه الكلمات الـ12 هي الطريقة الوحيدة لاستعادة محفظتك.</string>
     <string name="help_a_send">الرئيسية → إرسال → اختر العملة → الصق أو امسح العنوان → أدخل المبلغ (أو MAX) → متابعة → أكّد بالبصمة أو PIN. تحقق دائماً من العنوان والشبكة: المعاملات لا رجعة فيها.</string>
     <string name="help_q_receive">كيف أستقبل العملات الرقمية؟</string>

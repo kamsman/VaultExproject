@@ -590,6 +590,7 @@
     <string name="help_no_result">Aucun résultat. Contacte le support ci-dessous.</string>
     <string name="help_whatsapp">WhatsApp</string>
     <string name="help_whatsapp_subtitle">Réponse rapide 7j/7</string>
+    <string name="help_call">Appeler</string>
     <string name="help_a_create">Depuis l\'écran d\'accueil, choisis « Créer un nouveau wallet ». Note tes 12 mots dans l\'ordre, garde-les hors ligne (papier), puis définis ton PIN. Ces 12 mots sont la SEULE façon de récupérer ton wallet.</string>
     <string name="help_a_send">Accueil → Envoyer → choisis la monnaie → colle ou scanne l\'adresse → entre le montant (ou MAX) → Continuer → confirme avec ton empreinte ou PIN. Vérifie toujours l\'adresse et le réseau : une transaction est irréversible.</string>
     <string name="help_q_receive">Comment recevoir des cryptos ?</string>
