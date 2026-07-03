@@ -623,6 +623,7 @@
     <string name="swap_msg_generic">فشل التبادل. حاول مجدداً.</string>
 
     <!-- رسائل الشبكة المشتركة -->
+    <string name="dash_market_overview">نظرة على السوق</string>
     <string name="msg_offline">لا يوجد اتصال. تحقق من شبكتك وحاول مجدداً.</string>
     <string name="msg_timeout">انتهت المهلة. حاول مجدداً بعد لحظات.</string>
     <string name="swap_msg_pair_unavailable">الزوج %1$s→%2$s غير متاح حالياً.</string>

@@ -726,6 +726,7 @@
     <string name="swap_msg_generic">Échec de l\'échange. Réessaie.</string>
 
     <!-- Messages réseau communs -->
+    <string name="dash_market_overview">Aperçu du marché</string>
     <string name="msg_offline">Pas de connexion. Vérifie ton réseau et réessaie.</string>
     <string name="msg_timeout">Délai dépassé. Réessaie dans un instant.</string>
     <string name="swap_msg_pair_unavailable">La paire %1$s→%2$s n\'est pas disponible pour le moment.</string>

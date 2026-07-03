@@ -623,6 +623,7 @@
     <string name="swap_msg_generic">Swap failed. Please try again.</string>
 
     <!-- Common network messages -->
+    <string name="dash_market_overview">Market Overview</string>
     <string name="msg_offline">No connection. Check your network and try again.</string>
     <string name="msg_timeout">Timed out. Try again in a moment.</string>
     <string name="swap_msg_pair_unavailable">The %1$s→%2$s pair is not available right now.</string>

@@ -1,9 +1,12 @@
 package com.vaultex.ui.screens.dashboard
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +54,7 @@ fun DashboardScreen(navController: NavHostController) {
     val visibleAssets by viewModel.visibleAssets.collectAsState()
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
+    val recentTxs by viewModel.recentTxs.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -117,11 +121,12 @@ fun DashboardScreen(navController: NavHostController) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ─── En-tête « Bonjour 👋 / Mon Wallet » + cloche notifications ───
+            // ─── En-tête « Bonjour 👋 / Mon Wallet » + scan · cloche · réglages ───
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
@@ -133,18 +138,17 @@ fun DashboardScreen(navController: NavHostController) {
                             color = TextPrimary
                         )
                     }
+                    HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
                     BadgedBox(
-                        modifier = Modifier.padding(top = 6.dp, end = 8.dp),
                         badge = {
                             if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
                                 Text(if (unreadNotifs > 99) "99+" else unreadNotifs.toString(), fontSize = 10.sp)
                             }
                         }
                     ) {
-                        IconButton(onClick = { navController.navigate(Routes.NOTIFICATION_CENTER) }) {
-                            Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = TextPrimary)
-                        }
+                        HeaderSquareButton(Icons.Default.Notifications) { navController.navigate(Routes.NOTIFICATION_CENTER) }
                     }
+                    HeaderSquareButton(Icons.Default.Settings) { navController.navigate(Routes.SETTINGS) }
                 }
             }
 
@@ -169,6 +173,29 @@ fun DashboardScreen(navController: NavHostController) {
                     isFromCache = state.isFromCache,
                     modifier = Modifier.padding(start = 4.dp)
                 )
+                // ─── Ligne wallet : nom + Copier / QR (modèle) ───
+                Spacer(Modifier.height(8.dp))
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val clip = androidx.compose.ui.platform.LocalClipboardManager.current
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = AccentBlue.copy(alpha = 0.10f)) {
+                        Text(
+                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
+                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    WalletMiniButton(Icons.Default.ContentCopy, stringResource(R.string.copy)) {
+                        viewModel.fetchMainAddress { addr ->
+                            if (addr != null) {
+                                clip.setText(androidx.compose.ui.text.AnnotatedString(addr))
+                                android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    WalletMiniButton(Icons.Default.QrCode, "QR") { navController.navigate(Routes.RECEIVE) }
+                }
                 state.error?.let { err ->
                     Text(
                         err,
@@ -185,15 +212,40 @@ fun DashboardScreen(navController: NavHostController) {
                 item { PortfolioDonutCard(funded) }
             }
 
-            // ─── 3 actions pastel (MoMo retiré pour le moment) ───
+            // ─── 3 tuiles d'action (modèle, sans MoMo) ───
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ActionChip(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
+                    ActionTile(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
                         AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
-                    ActionChip(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
+                    ActionTile(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
-                    ActionChip(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
+                    ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
+                }
+            }
+
+            // ─── Aperçu du marché (cartes horizontales, modèle) ───
+            val majors = listOf("BTC", "ETH", "SOL", "BNB")
+                .mapNotNull { sym -> state.tokens.firstOrNull { it.symbol == sym } }
+            if (majors.isNotEmpty()) {
+                item {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.dash_market_overview), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                            Text(
+                                stringResource(R.string.see_all) + " →",
+                                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue,
+                                modifier = Modifier.clickable { navController.navigate(Routes.MARKET) }
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            majors.forEach { t -> MarketMiniCard(t) { navController.navigate(Routes.tokenDetail(t.symbol)) } }
+                        }
+                    }
                 }
             }
 
@@ -241,19 +293,28 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Récent ───
+            // ─── Activité récente (3 dernières transactions réelles) ───
             item {
                 SectionCard(
                     title = stringResource(R.string.recent_title),
-                    linkLabel = stringResource(R.string.history_title),
+                    linkLabel = stringResource(R.string.see_all),
                     onLinkClick = { navController.navigate(Routes.HISTORY) }
                 ) {
-                    Text(
-                        stringResource(R.string.recent_empty),
-                        color = TextSecondary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
+                    if (recentTxs.isEmpty()) {
+                        Text(
+                            stringResource(R.string.recent_empty),
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        recentTxs.forEachIndexed { index, tx ->
+                            RecentTxRow(tx) { navController.navigate(Routes.historyDetail(tx.hash)) }
+                            if (index < recentTxs.lastIndex) {
+                                HorizontalDivider(color = SurfaceLight, thickness = 1.dp)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -571,6 +632,145 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
                     }
                 }
             }
+        }
+    }
+}
+
+/* ───────────────────── Composants du modèle (en-tête / marché / activité) ───────────────────── */
+
+/** Bouton carré arrondi de l'en-tête (scan · cloche · réglages). */
+@Composable
+private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.size(40.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(19.dp))
+        }
+    }
+}
+
+/** Petit bouton « Copier » / « QR » de la ligne wallet. */
+@Composable
+private fun WalletMiniButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(5.dp))
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        }
+    }
+}
+
+/** Tuile d'action (icône ronde pastel + titre + sous-titre « Crypto »). */
+@Composable
+private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = com.vaultex.ui.theme.Surface,
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("Crypto", fontSize = 11.sp, color = TextSecondary)
+        }
+    }
+}
+
+/** Carte marché compacte : logo + symbole, prix $, variation 24 h + mini-courbe. */
+@Composable
+private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
+    val up = token.changePercent24h >= 0
+    val trendColor = if (up) AccentGreen else AccentRed
+    Surface(onClick = onClick, shape = RoundedCornerShape(14.dp), color = com.vaultex.ui.theme.Surface, modifier = Modifier.width(128.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                coil.compose.AsyncImage(
+                    model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
+                    contentDescription = token.symbol,
+                    modifier = Modifier.size(20.dp).clip(CircleShape)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(token.symbol, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
+            }
+            Text(
+                "$" + String.format(Locale.US, "%,.2f", token.priceUsd),
+                fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary
+            )
+            Text(
+                (if (up) "▲ " else "▼ ") + String.format(Locale.US, "%.1f", kotlin.math.abs(token.changePercent24h)) + "%",
+                fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = trendColor
+            )
+            // Mini-courbe DÉCORATIVE (déterministe par symbole) — pas de données
+            // historiques ici ; la vraie courbe est sur l'écran Marché.
+            Canvas(Modifier.fillMaxWidth().height(20.dp)) {
+                val rnd = kotlin.random.Random(token.symbol.hashCode())
+                val n = 10
+                var prev = androidx.compose.ui.geometry.Offset(0f, size.height * (0.3f + rnd.nextFloat() * 0.4f))
+                for (i in 1..n) {
+                    val next = androidx.compose.ui.geometry.Offset(
+                        size.width * i / n,
+                        size.height * (0.15f + rnd.nextFloat() * 0.7f)
+                    )
+                    drawLine(trendColor, prev, next, strokeWidth = 2f)
+                    prev = next
+                }
+            }
+        }
+    }
+}
+
+/** Ligne d'activité récente : icône par type + titre + adresse courte + montant/date. */
+@Composable
+private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onClick: () -> Unit) {
+    val (icon, tint, sign) = when (tx.type) {
+        "received" -> Triple(Icons.Default.ArrowDownward, AccentGreen, "+")
+        "sent" -> Triple(Icons.Default.ArrowUpward, AccentRed, "-")
+        else -> Triple(Icons.Default.SwapHoriz, Color(0xFF7C5CFC), "")
+    }
+    val title = when (tx.type) {
+        "received" -> stringResource(R.string.received) + " " + tx.tokenSymbol
+        "sent" -> stringResource(R.string.sent) + " " + tx.tokenSymbol
+        else -> "Swap " + tx.tokenSymbol
+    }
+    val ref = when (tx.type) {
+        "received" -> tx.fromAddress
+        "sent" -> tx.toAddress
+        else -> tx.hash
+    }
+    val short = if (ref.length > 12) ref.take(6) + "…" + ref.takeLast(4) else ref
+    val date = java.text.SimpleDateFormat("dd/MM HH:mm", Locale.FRANCE).format(java.util.Date(tx.timestamp))
+    val amountSym = if (tx.type == "swap") tx.tokenSymbol.substringBefore("→") else tx.tokenSymbol
+
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(tint.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(17.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(short, fontSize = 11.sp, color = TextSecondary)
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text("$sign${tx.amount} $amountSym", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tint)
+            Text(date, fontSize = 11.sp, color = TextSecondary)
         }
     }
 }

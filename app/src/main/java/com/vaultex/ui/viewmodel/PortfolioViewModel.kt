@@ -80,11 +80,31 @@ class PortfolioViewModel @Inject constructor(
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     private val pushRegistrar: com.vaultex.service.PushRegistrar,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao
 ) : ViewModel() {
 
     /** Nombre de notifications non lues (pastille cloche du Dashboard). */
     val unreadNotifs: StateFlow<Int> = notificationCenter.unreadCount
+
+    /** 3 dernières transactions (section « Activité récente » du Dashboard). */
+    val recentTxs: StateFlow<List<com.vaultex.data.local.entity.TransactionEntity>> =
+        transactionDao.observeAll()
+            .map { list -> list.sortedByDescending { it.timestamp }.take(3) }
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Adresse EVM principale (ETH/BNB) pour le bouton « Copier » du Dashboard. */
+    fun fetchMainAddress(onReady: (String?) -> Unit) {
+        viewModelScope.launch {
+            val addr = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val m = secureStorage.getMnemonic() ?: return@withContext null
+                    com.vaultex.core.crypto.WalletManager.deriveAddresses(m, secureStorage.getPassphrase()).eth
+                } catch (_: Exception) { null }
+            }
+            onReady(addr)
+        }
+    }
 
     /** Symboles ayant une transaction sortante encore NON confirmée (badge « ! »). */
     val pendingSymbols: StateFlow<Set<String>> = pendingTxStore.items
