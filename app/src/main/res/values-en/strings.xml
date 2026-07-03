@@ -590,6 +590,7 @@
     <!-- Common network messages -->
     <string name="msg_offline">No connection. Check your network and try again.</string>
     <string name="msg_timeout">Timed out. Try again in a moment.</string>
+    <string name="swap_msg_pair_unavailable">The %1$s→%2$s pair is not available right now.</string>
 
     <!-- Send messages -->
     <string name="send_err_enter_amount">Enter the amount to send.</string>

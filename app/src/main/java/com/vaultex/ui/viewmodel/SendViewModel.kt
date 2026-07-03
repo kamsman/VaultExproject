@@ -64,6 +64,10 @@ class SendViewModel @Inject constructor(
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
 
+    /** Ressources dans la langue CHOISIE dans l'app (pas celle du système). */
+    private fun locStr(id: Int, vararg args: Any): String =
+        com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
+
     /** Transactions en attente de confirmation (pour l'écran « En attente X/Y »). */
     val pendingTxs: StateFlow<List<com.vaultex.core.session.PendingTxStore.PendingTx>> = pendingTxStore.items
 
@@ -196,7 +200,7 @@ class SendViewModel @Inject constructor(
         val chain = _state.value.selectedChain
         val balance = availableFor(chain)?.toBigDecimalOrNull()
         if (balance == null || balance.signum() <= 0) {
-            _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
+            _state.update { it.copy(error = locStr(R.string.send_no_balance)) }
             return
         }
         // Réserve de frais retranchée :
@@ -218,7 +222,7 @@ class SendViewModel @Inject constructor(
         val svc = java.math.BigDecimal.valueOf(serviceFeeCrypto(chain, balance.toDouble()))
         val spendable = balance.subtract(reserve).subtract(svc)
         if (spendable.signum() <= 0) {
-            _state.update { it.copy(error = appContext.getString(R.string.send_no_balance)) }
+            _state.update { it.copy(error = locStr(R.string.send_no_balance)) }
             return
         }
         setAmount(
@@ -269,24 +273,24 @@ class SendViewModel @Inject constructor(
         val m = (raw ?: "").lowercase()
         return when {
             m.contains("insufficient funds") || m.contains("overshot") || m.contains("tx cost") ->
-                appContext.getString(R.string.send_err_insufficient)
+                locStr(R.string.send_err_insufficient)
             m.contains("nonce") ->
-                appContext.getString(R.string.send_err_nonce)
+                locStr(R.string.send_err_nonce)
             m.contains("underpriced") || m.contains("fee too low") || m.contains("gas price") ||
                 m.contains("min relay") || m.contains("mempool min fee") ->
-                appContext.getString(R.string.send_err_fee)
+                locStr(R.string.send_err_fee)
             m.contains("dust") ->
-                appContext.getString(R.string.send_err_dust)
+                locStr(R.string.send_err_dust)
             m.contains("invalid address") || m.contains("bad address") || m.contains("checksum") ||
                 m.contains("base58") || m.contains("bech32") || m.contains("decode") ->
-                appContext.getString(R.string.send_err_addr_rejected)
+                locStr(R.string.send_err_addr_rejected)
             m.contains("timeout") || m.contains("timed out") ||
                 m.contains("unable to resolve host") || m.contains("failed to connect") ->
-                appContext.getString(R.string.send_err_network)
+                locStr(R.string.send_err_network)
             // Cause inconnue : on AJOUTE le message brut du réseau/nœud pour
             // pouvoir diagnostiquer (ex. rejet de diffusion Bitcoin).
             else -> {
-                val g = appContext.getString(R.string.send_err_generic)
+                val g = locStr(R.string.send_err_generic)
                 if (!raw.isNullOrBlank()) "$g\n($raw)" else g
             }
         }
@@ -345,10 +349,10 @@ class SendViewModel @Inject constructor(
     private fun preflightError(s: SendState): String? {
         val amountNum = s.amount.replace(",", ".").toDoubleOrNull()
         val sym = displaySymbol(s.selectedChain)
-        if (s.amount.isBlank()) return appContext.getString(R.string.send_err_enter_amount)
-        if (amountNum == null || amountNum <= 0.0) return appContext.getString(R.string.send_err_invalid_amount)
-        if (s.toAddress.isBlank()) return appContext.getString(R.string.send_err_enter_address)
-        if (!s.isAddressValid) return appContext.getString(R.string.send_err_bad_address, s.selectedChain)
+        if (s.amount.isBlank()) return locStr(R.string.send_err_enter_amount)
+        if (amountNum == null || amountNum <= 0.0) return locStr(R.string.send_err_invalid_amount)
+        if (s.toAddress.isBlank()) return locStr(R.string.send_err_enter_address)
+        if (!s.isAddressValid) return locStr(R.string.send_err_bad_address, s.selectedChain)
 
         val available = availableFor(s.selectedChain)?.replace(",", ".")?.toDoubleOrNull()
         val fee = s.feeNativeAmount ?: 0.0
@@ -356,20 +360,20 @@ class SendViewModel @Inject constructor(
 
         // Montant > solde
         if (available != null && amountNum > available + 1e-12)
-            return appContext.getString(R.string.send_err_insufficient_balance, formatFeeAmount(available) + " " + sym)
+            return locStr(R.string.send_err_insufficient_balance, formatFeeAmount(available) + " " + sym)
         // Monnaie native : garder de quoi payer les frais
         if (!isToken && available != null && amountNum + fee > available + 1e-12)
-            return appContext.getString(R.string.send_err_keep_fee, formatFeeAmount(fee) + " " + nativeUnit(s.selectedChain))
+            return locStr(R.string.send_err_keep_fee, formatFeeAmount(fee) + " " + nativeUnit(s.selectedChain))
         // Token : il faut du natif pour le gas
         if (isToken && fee > 0.0) {
             val nativeSym = nativeUnit(effectiveChain(s))
             val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
-            if (nativeBal < fee) return appContext.getString(R.string.send_err_need_gas, nativeSym)
+            if (nativeBal < fee) return locStr(R.string.send_err_need_gas, nativeSym)
         }
         // Montant sous le minimum réseau
         val min = MINIMUM_AMOUNTS[s.selectedChain]
         if (min != null && amountNum < min)
-            return appContext.getString(R.string.send_err_below_min, "$min $sym")
+            return locStr(R.string.send_err_below_min, "$min $sym")
         return null
     }
 

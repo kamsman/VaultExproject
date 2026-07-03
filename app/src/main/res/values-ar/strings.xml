@@ -590,6 +590,7 @@
     <!-- رسائل الشبكة المشتركة -->
     <string name="msg_offline">لا يوجد اتصال. تحقق من شبكتك وحاول مجدداً.</string>
     <string name="msg_timeout">انتهت المهلة. حاول مجدداً بعد لحظات.</string>
+    <string name="swap_msg_pair_unavailable">الزوج %1$s→%2$s غير متاح حالياً.</string>
 
     <!-- رسائل الإرسال -->
     <string name="send_err_enter_amount">أدخل المبلغ المراد إرساله.</string>

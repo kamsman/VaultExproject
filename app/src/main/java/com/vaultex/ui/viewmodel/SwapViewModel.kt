@@ -47,8 +47,10 @@ class SwapViewModel @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
-    /** Raccourci ressources (respecte la langue choisie). */
-    private fun str(id: Int, vararg args: Any): String = appContext.getString(id, *args)
+    /** Raccourci ressources — via LocaleManager pour respecter la langue CHOISIE
+     *  dans l'app (le contexte application, lui, suit la langue du système). */
+    private fun str(id: Int, vararg args: Any): String =
+        com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
 
     private var statusJob: kotlinx.coroutines.Job? = null
 
@@ -168,15 +170,23 @@ class SwapViewModel @Inject constructor(
             // ChangeNOW (programme partenaire), pas en rognant le montant.
             try {
                 val fromTo = "${SwapUseCase.cnTicker(_state.value.fromToken)}_${SwapUseCase.cnTicker(_state.value.toToken)}"
+                // Réseau lent : on retente UNE fois automatiquement sur timeout /
+                // coupure avant d'afficher une erreur à l'utilisateur.
                 val est = withContext(Dispatchers.IO) {
-                    changeNowApi.getEstimatedAmount(
-                        amount = apiAmount(input),
-                        fromTo = fromTo,
-                        apiKey = CHANGENOW_API_KEY
-                    )
+                    try {
+                        changeNowApi.getEstimatedAmount(amount = apiAmount(input), fromTo = fromTo, apiKey = CHANGENOW_API_KEY)
+                    } catch (e: Exception) {
+                        if (e is java.net.SocketTimeoutException || e is java.net.UnknownHostException) {
+                            kotlinx.coroutines.delay(1200)
+                            changeNowApi.getEstimatedAmount(amount = apiAmount(input), fromTo = fromTo, apiKey = CHANGENOW_API_KEY)
+                        } else throw e
+                    }
                 }
+                // Ignorer les devis obsolètes (l'utilisateur a déjà changé le montant).
+                if (_state.value.fromAmount != amount) return@launch
                 _state.update { it.copy(toAmount = est.estimatedAmount, error = null) }
             } catch (e: Exception) {
+                if (_state.value.fromAmount != amount) return@launch
                 // Pas de devis : on n'affiche PAS un faux montant, on vide ET on
                 // montre la vraie raison (ex. montant sous le minimum de la paire).
                 _state.update { it.copy(toAmount = "", error = str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))) }
@@ -321,10 +331,39 @@ class SwapViewModel @Inject constructor(
         e is java.io.IOException ->
             str(com.vaultex.R.string.msg_offline)
         e is retrofit2.HttpException -> {
-            val body = try { e.response()?.errorBody()?.string()?.trim()?.take(220) } catch (_: Exception) { null }
-            if (!body.isNullOrBlank()) body else str(com.vaultex.R.string.swap_msg_generic)
+            val body = try { e.response()?.errorBody()?.string()?.trim()?.take(400) } catch (_: Exception) { null }
+            parseChangeNowBody(body) ?: str(com.vaultex.R.string.swap_msg_generic)
         }
         else -> e.message ?: str(com.vaultex.R.string.swap_msg_generic)
+    }
+
+    /**
+     * Traduit le JSON d'erreur ChangeNOW ({"error":"deposit_too_small","message":
+     * "Out of min amount 0.14…"}) en message lisible, au lieu d'afficher le JSON
+     * brut à l'utilisateur.
+     */
+    private fun parseChangeNowBody(body: String?): String? {
+        if (body.isNullOrBlank()) return null
+        return try {
+            val obj = gson.fromJson(body, com.google.gson.JsonObject::class.java)
+            val err = obj.get("error")?.takeIf { !it.isJsonNull }?.asString
+            val msg = obj.get("message")?.takeIf { !it.isJsonNull }?.asString
+            when {
+                err == "deposit_too_small" || msg?.contains("min amount", true) == true -> {
+                    val min = Regex("""[0-9]+(?:\.[0-9]+)?""").find(msg ?: "")?.value
+                    if (min != null) str(com.vaultex.R.string.swap_msg_below_min, min, _state.value.fromToken)
+                    else str(com.vaultex.R.string.swap_msg_below_min_generic, _state.value.fromToken, _state.value.toToken)
+                }
+                err == "pair_is_inactive" || err == "unavailable_pair" || err == "not_valid_pair" ->
+                    str(com.vaultex.R.string.swap_msg_pair_unavailable, _state.value.fromToken, _state.value.toToken)
+                !msg.isNullOrBlank() -> msg
+                !err.isNullOrBlank() -> err
+                else -> null
+            }
+        } catch (_: Exception) {
+            // Pas du JSON : texte brut court plutôt que rien.
+            body.take(160)
+        }
     }
 
     /** Poll ChangeNOW toutes les 20 s jusqu'à un état terminal, et synchronise l'historique local. */
