@@ -1,6 +1,8 @@
 package com.vaultex.ui.screens.notifications
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -192,49 +194,182 @@ private fun AlertCard(
     }
 }
 
+/** Formulaire « Nouvelle alerte » pleine page (maquette : token, condition, cible, résumé). */
 @Composable
 private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, String) -> Unit) {
     var token by remember { mutableStateOf("BTC") }
     var condition by remember { mutableStateOf("au-dessus de") }
     var target by remember { mutableStateOf("") }
-    val tokens = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT")
-    val conditions = listOf("au-dessus de", "en-dessous de")
+    val mainTokens = listOf("BTC", "ETH", "BNB", "SOL")
+    val otherTokens = listOf("TRX", "USDT")
+    val isAbove = condition.startsWith("au-dessus")
+    val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
 
-    AlertDialog(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.alerts_new)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.alerts_token_label), fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    tokens.take(3).forEach { t ->
-                        FilterChip(selected = token == t, onClick = { token = t }, label = { Text(t) })
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(color = VaultExColors.Background, modifier = Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxSize()
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // En-tête « Nouvelle alerte »
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(VaultExColors.BluePrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Notifications, null, tint = VaultExColors.BluePrimary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(stringResource(R.string.alerts_new), fontWeight = FontWeight.Bold, fontSize = 17.sp, color = VaultExColors.TextPrimary)
+                        Text(stringResource(R.string.alerts_new_subtitle), fontSize = 12.sp, color = VaultExColors.TextSecondary)
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    tokens.drop(3).forEach { t ->
-                        FilterChip(selected = token == t, onClick = { token = t }, label = { Text(t) })
+
+                // 1. Token
+                Text("1. Token", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary)
+                Row(
+                    Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    (mainTokens + otherTokens).forEach { t ->
+                        val sel = token == t
+                        Surface(
+                            onClick = { token = t },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (sel) VaultExColors.BluePrimary.copy(alpha = 0.10f) else VaultExColors.CardBackground,
+                            border = androidx.compose.foundation.BorderStroke(if (sel) 1.5.dp else 1.dp, if (sel) VaultExColors.BluePrimary else VaultExColors.Border)
+                        ) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                coil.compose.AsyncImage(
+                                    model = com.vaultex.ui.components.CryptoIcon.url(t),
+                                    contentDescription = t,
+                                    modifier = Modifier.size(20.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(t, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultExColors.TextPrimary)
+                            }
+                        }
                     }
                 }
-                Text(stringResource(R.string.alerts_condition_label), fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                conditions.forEach { c ->
-                    FilterChip(selected = condition == c, onClick = { condition = c }, label = { Text(c) })
+
+                // 2. Condition (deux cartes radio)
+                Text("2. Condition", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ConditionCard(
+                        selected = isAbove,
+                        title = stringResource(R.string.alerts_above),
+                        desc = stringResource(R.string.alerts_above_desc),
+                        up = true, modifier = Modifier.weight(1f)
+                    ) { condition = "au-dessus de" }
+                    ConditionCard(
+                        selected = !isAbove,
+                        title = stringResource(R.string.alerts_below),
+                        desc = stringResource(R.string.alerts_below_desc),
+                        up = false, modifier = Modifier.weight(1f)
+                    ) { condition = "en-dessous de" }
                 }
+
+                // 3. Prix cible (FCFA)
+                Text(stringResource(R.string.alerts_step_target), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary)
                 OutlinedTextField(
-                    value = target, onValueChange = { target = it },
-                    label = { Text(stringResource(R.string.alerts_target_price)) }, singleLine = true,
-                    shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()
+                    value = target,
+                    onValueChange = { target = it.replace(',', '.') },
+                    prefix = { Text("FCFA  ", fontSize = 14.sp, color = VaultExColors.TextSecondary) },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                target.toDoubleOrNull()?.let {
+                    Text("≈ ${fmt.format(it.toLong())} FCFA", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                }
+
+                // 5. Résumé
+                Text(stringResource(R.string.alerts_step_summary), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary)
+                Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)) {
+                    Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        coil.compose.AsyncImage(
+                            model = com.vaultex.ui.components.CryptoIcon.url(token),
+                            contentDescription = token,
+                            modifier = Modifier.size(30.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(token, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary)
+                            Text(
+                                condition.replaceFirstChar { it.uppercase() } + " " +
+                                    (target.toDoubleOrNull()?.let { fmt.format(it.toLong()) } ?: "—") + " FCFA",
+                                fontSize = 12.sp, color = VaultExColors.TextSecondary
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.alerts_active_until),
+                            fontSize = 11.sp, color = VaultExColors.Success, fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Annuler / Créer l'alerte
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, VaultExColors.BluePrimary)
+                    ) { Text(stringResource(R.string.cancel), color = VaultExColors.BluePrimary, fontWeight = FontWeight.SemiBold) }
+                    Button(
+                        onClick = { onConfirm(token, condition, target) },
+                        enabled = target.toDoubleOrNull() != null,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
+                    ) {
+                        Icon(Icons.Default.Notifications, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.alerts_create_cta), fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+/** Carte de condition (Au-dessus ↗ / En-dessous ↘) avec radio, comme la maquette. */
+@Composable
+private fun ConditionCard(
+    selected: Boolean, title: String, desc: String, up: Boolean,
+    modifier: Modifier, onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) VaultExColors.BluePrimary.copy(alpha = 0.08f) else VaultExColors.CardBackground,
+        border = androidx.compose.foundation.BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) VaultExColors.BluePrimary else VaultExColors.Border),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = selected, onClick = onClick, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (up) "↗" else "↘", fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    color = if (up) VaultExColors.Success else VaultExColors.Error
                 )
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(token, condition, target) },
-                enabled = target.toDoubleOrNull() != null,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-            ) { Text(stringResource(R.string.create)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
-    )
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultExColors.TextPrimary)
+            Text(desc, fontSize = 11.sp, color = VaultExColors.TextSecondary, lineHeight = 14.sp)
+        }
+    }
 }

@@ -737,6 +737,15 @@
     <string name="coin_supply">Offre en circulation</string>
     <string name="coin_ath">Plus haut historique</string>
     <string name="coin_alert">Alerte</string>
+    <string name="alerts_new_subtitle">Soyez notifié lorsque le prix atteint votre cible</string>
+    <string name="alerts_above">Au-dessus de</string>
+    <string name="alerts_above_desc">Être alerté si le prix dépasse la cible</string>
+    <string name="alerts_below">En-dessous de</string>
+    <string name="alerts_below_desc">Être alerté si le prix passe sous la cible</string>
+    <string name="alerts_step_target">3. Prix cible (FCFA)</string>
+    <string name="alerts_step_summary">Résumé</string>
+    <string name="alerts_active_until">Actif</string>
+    <string name="alerts_create_cta">Créer l\'alerte</string>
     <string name="msg_offline">Pas de connexion. Vérifie ton réseau et réessaie.</string>
     <string name="msg_timeout">Délai dépassé. Réessaie dans un instant.</string>
     <string name="swap_msg_pair_unavailable">La paire %1$s→%2$s n\'est pas disponible pour le moment.</string>

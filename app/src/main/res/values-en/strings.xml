@@ -634,6 +634,15 @@
     <string name="coin_supply">Circulating supply</string>
     <string name="coin_ath">All-time high</string>
     <string name="coin_alert">Alert</string>
+    <string name="alerts_new_subtitle">Get notified when the price hits your target</string>
+    <string name="alerts_above">Above</string>
+    <string name="alerts_above_desc">Alert me if the price goes above the target</string>
+    <string name="alerts_below">Below</string>
+    <string name="alerts_below_desc">Alert me if the price drops below the target</string>
+    <string name="alerts_step_target">3. Target price (FCFA)</string>
+    <string name="alerts_step_summary">Summary</string>
+    <string name="alerts_active_until">Active</string>
+    <string name="alerts_create_cta">Create alert</string>
     <string name="msg_offline">No connection. Check your network and try again.</string>
     <string name="msg_timeout">Timed out. Try again in a moment.</string>
     <string name="swap_msg_pair_unavailable">The %1$s→%2$s pair is not available right now.</string>

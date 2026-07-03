@@ -634,6 +634,15 @@
     <string name="coin_supply">المعروض المتداول</string>
     <string name="coin_ath">أعلى سعر تاريخي</string>
     <string name="coin_alert">تنبيه</string>
+    <string name="alerts_new_subtitle">احصل على إشعار عندما يصل السعر إلى هدفك</string>
+    <string name="alerts_above">أعلى من</string>
+    <string name="alerts_above_desc">نبّهني إذا تجاوز السعر الهدف</string>
+    <string name="alerts_below">أدنى من</string>
+    <string name="alerts_below_desc">نبّهني إذا انخفض السعر تحت الهدف</string>
+    <string name="alerts_step_target">3. السعر المستهدف (FCFA)</string>
+    <string name="alerts_step_summary">الملخص</string>
+    <string name="alerts_active_until">نشط</string>
+    <string name="alerts_create_cta">إنشاء التنبيه</string>
     <string name="msg_offline">لا يوجد اتصال. تحقق من شبكتك وحاول مجدداً.</string>
     <string name="msg_timeout">انتهت المهلة. حاول مجدداً بعد لحظات.</string>
     <string name="swap_msg_pair_unavailable">الزوج %1$s→%2$s غير متاح حالياً.</string>
