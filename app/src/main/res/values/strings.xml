@@ -741,6 +741,7 @@
     <string name="wallet_mgr_none_desc">Vous n\'avez pas encore de portefeuille. Créez-en un nouveau ou importez un portefeuille existant pour commencer.</string>
     <string name="wallet_keys_title">Vos clés, votre contrôle</string>
     <string name="wallet_keys_desc">Vos clés privées sont stockées uniquement sur votre appareil.</string>
+    <string name="balance_today">Aujourd\'hui</string>
     <string name="alerts_new_subtitle">Soyez notifié lorsque le prix atteint votre cible</string>
     <string name="alerts_above">Au-dessus de</string>
     <string name="alerts_above_desc">Être alerté si le prix dépasse la cible</string>

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -350,61 +351,90 @@ private fun BalanceCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Brush.verticalGradient(listOf(AccentBlue, AccentBlueDark)))
-            .padding(20.dp)
+            .background(
+                Brush.linearGradient(listOf(Color(0xFF2B2E8C), Color(0xFF1B1464), Color(0xFF12102E)))
+            )
     ) {
-        // Œil Show/Hide en haut à droite
-        IconButton(
-            onClick = onToggleHidden,
-            modifier = Modifier.align(Alignment.TopEnd).size(28.dp)
+        // Courbe violette décorative à droite (maquette) — pas d'historique de
+        // solde disponible localement, la forme est stable (déterministe).
+        Canvas(
+            Modifier.align(Alignment.CenterEnd)
+                .fillMaxWidth(0.52f)
+                .height(120.dp)
+                .padding(end = 6.dp)
         ) {
-            Icon(
-                if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                contentDescription = stringResource(if (hidden) R.string.balance_show else R.string.balance_hide),
-                tint = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.size(20.dp)
-            )
+            val rnd = kotlin.random.Random(42)
+            val n = 26
+            val pts = (0..n).map { i ->
+                val trend = 0.85f - 0.55f * (i / n.toFloat())            // montée vers la droite
+                (trend + (rnd.nextFloat() - 0.5f) * 0.22f).coerceIn(0.08f, 0.95f)
+            }
+            val step = size.width / n
+            val line = Path()
+            pts.forEachIndexed { i, v ->
+                val x = i * step; val y = v * size.height
+                if (i == 0) line.moveTo(x, y) else line.lineTo(x, y)
+            }
+            // Halo dégradé sous la courbe
+            val fill = Path().apply {
+                addPath(line)
+                lineTo(size.width, size.height); lineTo(0f, size.height); close()
+            }
+            drawPath(fill, Brush.verticalGradient(listOf(Color(0xFF9B6CFF).copy(alpha = 0.30f), Color.Transparent)))
+            drawPath(line, Color(0xFFA855F7), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
         }
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                stringResource(R.string.total_balance),
-                color = Color.White.copy(alpha = 0.75f),
-                fontSize = 13.sp
-            )
-            Spacer(Modifier.height(6.dp))
+
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.total_balance),
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = stringResource(if (hidden) R.string.balance_show else R.string.balance_hide),
+                    tint = Color(0xFFB39DFF),
+                    modifier = Modifier.size(18.dp).clip(CircleShape).clickable(onClick = onToggleHidden)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     if (hidden) masked else primaryText,
-                    color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold
+                    color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.width(6.dp))
-                Text(currency, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(currency, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 5.dp))
             }
             Spacer(Modifier.height(4.dp))
             Text(
                 if (hidden) masked else "≈ $secondaryText",
                 color = Color.White.copy(alpha = 0.75f),
-                fontSize = 13.sp
+                fontSize = 14.sp
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             val positive = changePercent >= 0
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (positive) Color(0xFFB9F3DC) else Color(0xFFFBD1D1)
-            ) {
-                Text(
-                    "%+.1f%%".format(changePercent),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    color = if (positive) Color(0xFF067A53) else Color(0xFFB42318),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (positive) Color(0xFF86EFAC) else Color(0xFFFBD1D1)
+                ) {
+                    Text(
+                        "%+.1f%%".format(changePercent),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        color = if (positive) Color(0xFF14532D) else Color(0xFFB42318),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.balance_today), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
             }
             if (isLoading) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color.White,
