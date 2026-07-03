@@ -113,9 +113,63 @@ fun WalletManagerScreen(navController: NavController) {
             }
 
             if (wallets.isEmpty()) {
+                // ─── État vide (maquette) : illustration + 2 boutons ───
                 item {
-                    Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.wallet_mgr_empty), color = TextSecondary)
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Illustration : portefeuille + bouclier
+                            Box(contentAlignment = Alignment.BottomStart) {
+                                Box(
+                                    Modifier.size(110.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.10f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.AccountBalanceWallet, null, tint = AccentBlue, modifier = Modifier.size(52.dp))
+                                }
+                                Box(
+                                    Modifier.size(38.dp).clip(CircleShape).background(AccentBlue),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            Spacer(Modifier.height(18.dp))
+                            Text(stringResource(R.string.wallet_mgr_none_title), fontWeight = FontWeight.Bold, fontSize = 19.sp, color = TextPrimary)
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.wallet_mgr_none_desc),
+                                fontSize = 13.sp, color = TextSecondary, lineHeight = 19.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(Modifier.height(20.dp))
+                            Button(
+                                onClick = { navController.navigate(Routes.ONBOARDING) },
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                            ) {
+                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.create_wallet), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = { navController.navigate(Routes.IMPORT_WALLET) },
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue)
+                            ) {
+                                Icon(Icons.Default.FileDownload, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.import_wallet), color = AccentBlue, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -127,6 +181,30 @@ fun WalletManagerScreen(navController: NavController) {
                     onActivate = { viewModel.activateWallet(wallet.id) },
                     onDelete = { viewModel.deleteWallet(wallet.id) }
                 )
+            }
+
+            // ─── « Vos clés, votre contrôle » (maquette) ───
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Routes.BACKUP) }
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.10f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Shield, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.wallet_keys_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                            Text(stringResource(R.string.wallet_keys_desc), fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
+                        }
+                        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                    }
+                }
             }
         }
     }

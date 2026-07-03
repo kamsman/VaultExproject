@@ -2,6 +2,7 @@ package com.vaultex.ui.screens.addressbook
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -61,6 +62,8 @@ fun AddressBookScreen(navController: NavHostController) {
 
     var searchQuery by remember { mutableStateOf("") }
     var contactToDelete by remember { mutableStateOf<ContactEntity?>(null) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
     if (ui.showAddDialog) {
         AddContactDialog(
@@ -143,11 +146,34 @@ fun AddressBookScreen(navController: NavHostController) {
                 onValueChange = { searchQuery = it },
                 placeholder = stringResource(R.string.contacts_search)
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            val filtered = remember(contacts, searchQuery) {
-                if (searchQuery.isBlank()) contacts
-                else contacts.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            // ─── Filtre par réseau (maquette) ───
+            var chainFilter by remember { mutableStateOf("Tous") }
+            val chains = listOf("Tous", "ETH", "BNB", "TRX", "SOL", "BTC", "USDT")
+            Row(
+                Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                chains.forEach { c ->
+                    val sel = chainFilter == c
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50))
+                            .background(if (sel) AccentBlue else SurfaceColor)
+                            .clickable { chainFilter = c }
+                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        Text(c, fontSize = 12.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                            color = if (sel) Color.White else TextSecondary)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            val filtered = remember(contacts, searchQuery, chainFilter) {
+                contacts
+                    .filter { searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) }
+                    .filter { chainFilter == "Tous" || it.addressesJson.contains("\"$chainFilter\"", ignoreCase = true) }
             }
 
             if (filtered.isEmpty()) {
@@ -171,7 +197,14 @@ fun AddressBookScreen(navController: NavHostController) {
                     contentPadding = PaddingValues(bottom = 96.dp)
                 ) {
                     items(filtered, key = { it.id }) { contact ->
-                        ContactCard(contact, onClick = { contactToDelete = contact })
+                        ContactCard(
+                            contact,
+                            onCopy = { addr ->
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(addr))
+                                android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onDelete = { contactToDelete = contact }
+                        )
                     }
                 }
             }
@@ -216,7 +249,7 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit, placehol
 }
 
 @Composable
-private fun ContactCard(contact: ContactEntity, onClick: () -> Unit) {
+private fun ContactCard(contact: ContactEntity, onCopy: (String) -> Unit, onDelete: () -> Unit) {
     val addresses = runCatching {
         val json = JSONObject(contact.addressesJson)
         json.keys().asSequence().map { chain -> chain to json.getString(chain) }.toList()
@@ -235,7 +268,7 @@ private fun ContactCard(contact: ContactEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .clickable { addresses.firstOrNull()?.let { (_, a) -> onCopy(a) } }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -280,12 +313,14 @@ private fun ContactCard(contact: ContactEntity, onClick: () -> Unit) {
                     }
                 }
             }
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = TextMuted,
-                modifier = Modifier.size(20.dp)
-            )
+            IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -293,12 +328,19 @@ private fun ContactCard(contact: ContactEntity, onClick: () -> Unit) {
 @Composable
 private fun ChainBadge(chain: String) {
     val color = chainColor(chain)
-    Box(
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        coil.compose.AsyncImage(
+            model = com.vaultex.ui.components.CryptoIcon.url(chain),
+            contentDescription = chain,
+            modifier = Modifier.size(12.dp).clip(CircleShape)
+        )
+        Spacer(Modifier.width(4.dp))
         Text(
             chain.uppercase(),
             fontSize = 10.sp,

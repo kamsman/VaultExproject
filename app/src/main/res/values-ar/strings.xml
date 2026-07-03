@@ -634,6 +634,10 @@
     <string name="coin_supply">المعروض المتداول</string>
     <string name="coin_ath">أعلى سعر تاريخي</string>
     <string name="coin_alert">تنبيه</string>
+    <string name="wallet_mgr_none_title">لا توجد محفظة</string>
+    <string name="wallet_mgr_none_desc">ليس لديك محفظة بعد. أنشئ محفظة جديدة أو استورد محفظة موجودة للبدء.</string>
+    <string name="wallet_keys_title">مفاتيحك، تحكّمك</string>
+    <string name="wallet_keys_desc">مفاتيحك الخاصة مخزّنة على جهازك فقط.</string>
     <string name="alerts_new_subtitle">احصل على إشعار عندما يصل السعر إلى هدفك</string>
     <string name="alerts_above">أعلى من</string>
     <string name="alerts_above_desc">نبّهني إذا تجاوز السعر الهدف</string>

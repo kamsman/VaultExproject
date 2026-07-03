@@ -634,6 +634,10 @@
     <string name="coin_supply">Circulating supply</string>
     <string name="coin_ath">All-time high</string>
     <string name="coin_alert">Alert</string>
+    <string name="wallet_mgr_none_title">No wallet</string>
+    <string name="wallet_mgr_none_desc">You don\'t have a wallet yet. Create a new one or import an existing wallet to get started.</string>
+    <string name="wallet_keys_title">Your keys, your control</string>
+    <string name="wallet_keys_desc">Your private keys are stored only on your device.</string>
     <string name="alerts_new_subtitle">Get notified when the price hits your target</string>
     <string name="alerts_above">Above</string>
     <string name="alerts_above_desc">Alert me if the price goes above the target</string>
