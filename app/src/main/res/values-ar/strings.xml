@@ -629,6 +629,11 @@
     <string name="market_cap_total">إجمالي القيمة السوقية</string>
     <string name="market_btc_dominance">هيمنة BTC</string>
     <string name="market_all_cryptos">جميع العملات الرقمية</string>
+    <string name="coin_your_balance">رصيدك</string>
+    <string name="coin_gain_24h">الربح (24س)</string>
+    <string name="coin_supply">المعروض المتداول</string>
+    <string name="coin_ath">أعلى سعر تاريخي</string>
+    <string name="coin_alert">تنبيه</string>
     <string name="msg_offline">لا يوجد اتصال. تحقق من شبكتك وحاول مجدداً.</string>
     <string name="msg_timeout">انتهت المهلة. حاول مجدداً بعد لحظات.</string>
     <string name="swap_msg_pair_unavailable">الزوج %1$s→%2$s غير متاح حالياً.</string>

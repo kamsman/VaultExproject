@@ -9,6 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +47,8 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
 
     val chart by viewModel.chart.collectAsState()
     val chartLoading by viewModel.chartLoading.collectAsState()
-    val periods = listOf("24H", "7J", "1M", "1A")
+    val favorites by viewModel.favorites.collectAsState()
+    val periods = listOf("24H", "7J", "1M", "3M", "1A")
     var selectedPeriod by remember { mutableStateOf("7J") }
 
     LaunchedEffect(coinId, selectedPeriod) {
@@ -63,6 +70,16 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
+                    }
+                },
+                actions = {
+                    val isFav = coinId in favorites
+                    IconButton(onClick = { viewModel.toggleFavorite(coinId) }) {
+                        Icon(
+                            if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = stringResource(R.string.market_filter_favs),
+                            tint = if (isFav) Color(0xFFF5B301) else TextSecondary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgSecondary)
@@ -120,7 +137,18 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+            // « SYMBOLE · Nom  #rang » (maquette)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("$symbol · ${c.name}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                if (c.rank > 0) {
+                    Surface(shape = RoundedCornerShape(6.dp), color = BgPrimary) {
+                        Text("#${c.rank}", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             Text(
                 "$" + usdFmt.format(c.currentPrice),
                 fontSize = 30.sp,
@@ -140,6 +168,36 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     fontWeight = FontWeight.SemiBold,
                     color = if (positive) AccentGreen else AccentRed
                 )
+            }
+
+            // ─── « Votre solde / Gain 24h » si l'utilisateur détient la monnaie ───
+            val holding = remember(symbol) { viewModel.holdingOf(symbol) }
+            if (holding != null) {
+                Spacer(Modifier.height(14.dp))
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = BgPrimary),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    Row(Modifier.padding(vertical = 14.dp)) {
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(stringResource(R.string.coin_your_balance), fontSize = 12.sp, color = TextSecondary)
+                            Spacer(Modifier.height(4.dp))
+                            Text(trimAmount(holding.amount) + " " + symbol, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
+                            Text("≈ $" + usdFmt.format(holding.valueUsd), fontSize = 12.sp, color = TextSecondary)
+                        }
+                        VerticalDivider(Modifier.height(52.dp), color = BorderColor)
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(stringResource(R.string.coin_gain_24h), fontSize = 12.sp, color = TextSecondary)
+                            Spacer(Modifier.height(4.dp))
+                            val gainTok = holding.amount * c.change24h / 100.0
+                            val gainUsd = holding.valueUsd * c.change24h / 100.0
+                            val gCol = if (c.change24h >= 0) AccentGreen else AccentRed
+                            Text((if (gainTok >= 0) "+" else "") + trimAmount(gainTok) + " " + symbol, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = gCol)
+                            Text("≈ $" + usdFmt.format(kotlin.math.abs(gainUsd)) + " (${"%+.2f".format(c.change24h)}%)", fontSize = 12.sp, color = gCol)
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -193,48 +251,45 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
             }
 
-            // Cartes de stats 2×2
+            // ─── 4 actions rondes : Envoyer · Recevoir · Swap · Alerte (maquette) ───
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = BgPrimary),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                Row(Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
+                            navController.navigate(Routes.SEND_SELECT)
+                        }
+                        CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
+                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                            navController.navigate(Routes.RECEIVE)
+                        }
+                        CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
+                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
+                            navController.navigate(Routes.SWAP)
+                        }
+                        CircleAction(Icons.Default.NotificationsNone, stringResource(R.string.coin_alert)) {
+                            navController.navigate(Routes.NOTIFICATIONS)
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // ─── Stats 3×2 : Cap / Volume / Offre — High / Low / ATH (maquette) ───
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatCard(stringResource(R.string.market_cap), "$" + compact(c.marketCap), Modifier.weight(1f))
                     StatCard(stringResource(R.string.coin_volume_label), "$" + compact(c.volume24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_supply), compact(c.circulatingSupply) + " " + symbol, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatCard(stringResource(R.string.coin_high_24h), "$" + usdFmt.format(c.high24h), Modifier.weight(1f))
                     StatCard(stringResource(R.string.coin_low_24h), "$" + usdFmt.format(c.low24h), Modifier.weight(1f))
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            // Boutons d'action
-            Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = {
-                        com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
-                        navController.navigate(Routes.SWAP)
-                    },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                ) {
-                    Text(stringResource(R.string.coin_buy_swap), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                }
-                OutlinedButton(
-                    onClick = {
-                        com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
-                        navController.navigate(Routes.RECEIVE)
-                    },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue)
-                ) {
-                    Text(
-                        stringResource(R.string.receive_token_fmt, symbol),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = AccentBlue
-                    )
+                    StatCard(stringResource(R.string.coin_ath), "$" + usdFmt.format(c.ath), Modifier.weight(1f))
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -247,8 +302,30 @@ private fun daysForPeriod(period: String): Int = when (period) {
     "24H" -> 1
     "7J" -> 7
     "1M" -> 30
+    "3M" -> 90
     "1A" -> 365
     else -> 7
+}
+
+/** Montant lisible (8 décimales max, sans zéros inutiles). */
+private fun trimAmount(v: Double): String =
+    java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN)
+        .stripTrailingZeros().toPlainString()
+
+/** Bouton d'action rond (icône bleue sur pastille + libellé). */
+@Composable
+private fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(46.dp).clip(CircleShape).background(AccentBlue)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(21.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+    }
 }
 
 /** Courbe de prix dessinée au Canvas (sans dépendance externe). */

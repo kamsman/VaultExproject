@@ -629,6 +629,11 @@
     <string name="market_cap_total">Total market cap</string>
     <string name="market_btc_dominance">BTC Dominance</string>
     <string name="market_all_cryptos">All cryptocurrencies</string>
+    <string name="coin_your_balance">Your balance</string>
+    <string name="coin_gain_24h">Gain (24h)</string>
+    <string name="coin_supply">Circulating supply</string>
+    <string name="coin_ath">All-time high</string>
+    <string name="coin_alert">Alert</string>
     <string name="msg_offline">No connection. Check your network and try again.</string>
     <string name="msg_timeout">Timed out. Try again in a moment.</string>
     <string name="swap_msg_pair_unavailable">The %1$s→%2$s pair is not available right now.</string>

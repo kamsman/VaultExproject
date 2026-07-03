@@ -15,8 +15,23 @@ import javax.inject.Inject
 @HiltViewModel
 class MarketViewModel @Inject constructor(
     private val repository: MarketRepository,
+    private val secureStorage: com.vaultex.core.security.SecureStorage,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
+
+    // ─── Solde détenu d'une monnaie (carte « Votre solde » du détail) ───
+    data class Holding(val amount: Double, val valueUsd: Double)
+    private data class SnapLite(val tokens: List<TokLite>?)
+    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0)
+
+    fun holdingOf(symbol: String): Holding? {
+        return try {
+            val json = secureStorage.getPortfolioSnapshot() ?: return null
+            val t = com.google.gson.Gson().fromJson(json, SnapLite::class.java)
+                ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) } ?: return null
+            if (t.amountRaw > 0.0) Holding(t.amountRaw, t.amountRaw * t.priceUsd) else null
+        } catch (_: Exception) { null }
+    }
 
     private val _markets = MutableStateFlow<List<CoinGeckoMarketDto>>(emptyList())
     val markets: StateFlow<List<CoinGeckoMarketDto>> = _markets
