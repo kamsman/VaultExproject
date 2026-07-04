@@ -44,6 +44,7 @@ class SwapViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -54,8 +55,54 @@ class SwapViewModel @Inject constructor(
 
     private var statusJob: kotlinx.coroutines.Job? = null
 
+    /** Un actif échangeable : identité app + ticker ChangeNOW + chaînes dépôt/réception. */
+    data class SwapAsset(
+        val key: String,        // identifiant interne = symbole dans le portefeuille
+        val base: String,       // symbole affiché (et logo)
+        val badge: String,      // réseau court (TRC20, ERC20…)
+        val network: String,    // réseau long (écran de confirmation)
+        val cn: String,         // ticker ChangeNOW
+        val chain: String,      // chaîne de l'adresse de RÉCEPTION (BTC/ETH/BNB/SOL/TRX)
+        val sendChain: String,  // chaîne du moteur d'envoi pour le DÉPÔT
+        val contract: String? = null, // contrat (auto-ajout au portefeuille à la réception)
+        val decimals: Int = 18
+    )
+
     companion object {
         private val CHANGENOW_API_KEY get() = ApiKeys.CHANGENOW
+
+        /**
+         * Registre des actifs échangeables. Contrainte non-custodial : uniquement
+         * des monnaies déposables ET recevables sur nos 5 chaînes. Les tokens
+         * ERC-20 utilisent le moteur d'envoi générique ("ERC20:ETH:contrat:déc").
+         */
+        val SWAP_ASSETS: List<SwapAsset> = listOf(
+            SwapAsset("BTC", "BTC", "Bitcoin", "Bitcoin", "btc", "BTC", "BTC"),
+            SwapAsset("ETH", "ETH", "Ethereum", "Ethereum", "eth", "ETH", "ETH"),
+            SwapAsset("BNB", "BNB", "BNB Chain", "BNB Chain (BEP20)", "bnbbsc", "BNB", "BNB"),
+            SwapAsset("SOL", "SOL", "Solana", "Solana", "sol", "SOL", "SOL"),
+            SwapAsset("TRX", "TRX", "Tron", "Tron", "trx", "TRX", "TRX"),
+            SwapAsset("USDT", "USDT", "TRC20", "Tron (TRC20)", "usdttrc20", "TRX", "USDT"),
+            SwapAsset("USDT-ETH", "USDT", "ERC20", "Ethereum (ERC20)", "usdterc20", "ETH", "USDT-ETH",
+                contract = "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals = 6),
+            SwapAsset("USDT-BNB", "USDT", "BEP20", "BNB Chain (BEP20)", "usdtbsc", "BNB", "USDT-BNB",
+                contract = "0x55d398326f99059fF775485246999027B3197955", decimals = 18),
+            SwapAsset("USDC", "USDC", "ERC20", "Ethereum (ERC20)", "usdc", "ETH",
+                "ERC20:ETH:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48:6",
+                contract = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals = 6),
+            SwapAsset("DAI", "DAI", "ERC20", "Ethereum (ERC20)", "dai", "ETH",
+                "ERC20:ETH:0x6B175474E89094C44Da98b954EedeAC495271d0F:18",
+                contract = "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals = 18),
+            SwapAsset("LINK", "LINK", "ERC20", "Ethereum (ERC20)", "link", "ETH",
+                "ERC20:ETH:0x514910771AF9Ca656af840dff83E8264EcF986CA:18",
+                contract = "0x514910771AF9Ca656af840dff83E8264EcF986CA", decimals = 18),
+            SwapAsset("SHIB", "SHIB", "ERC20", "Ethereum (ERC20)", "shib", "ETH",
+                "ERC20:ETH:0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE:18",
+                contract = "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", decimals = 18)
+        )
+
+        fun assetOf(key: String): SwapAsset =
+            SWAP_ASSETS.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SWAP_ASSETS[0]
     }
 
     private val _state = MutableStateFlow(SwapState())
@@ -174,7 +221,7 @@ class SwapViewModel @Inject constructor(
             // On échange le montant COMPLET. La commission VaultEx vient de
             // ChangeNOW (programme partenaire), pas en rognant le montant.
             try {
-                val fromTo = "${SwapUseCase.cnTicker(_state.value.fromToken)}_${SwapUseCase.cnTicker(_state.value.toToken)}"
+                val fromTo = "${assetOf(_state.value.fromToken).cn}_${assetOf(_state.value.toToken).cn}"
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.
                 val est = withContext(Dispatchers.IO) {
@@ -230,24 +277,24 @@ class SwapViewModel @Inject constructor(
                 // Montant COMPLET déposé/échangé (commission via ChangeNOW).
                 val net = inputAmount
 
-                // Dériver l'adresse de réception pour le toToken
+                // Dériver l'adresse de réception : la chaîne vient du registre.
                 val mnemonic = secureStorage.getMnemonic()
                 val toAddress = if (mnemonic != null) {
                     val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
-                    when (s.toToken.uppercase()) {
-                        "ETH", "USDC" -> addresses.eth
-                        "BNB"         -> addresses.bnb
-                        "BTC"         -> addresses.btc
-                        "SOL"         -> addresses.sol
-                        "TRX", "USDT" -> addresses.trx
-                        else          -> addresses.eth
+                    when (assetOf(s.toToken).chain) {
+                        "ETH" -> addresses.eth
+                        "BNB" -> addresses.bnb
+                        "BTC" -> addresses.btc
+                        "SOL" -> addresses.sol
+                        "TRX" -> addresses.trx
+                        else  -> addresses.eth
                     }
                 } else {
                     _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_wallet)) }
                     return@launch
                 }
 
-                val fromTo = "${SwapUseCase.cnTicker(s.fromToken)}_${SwapUseCase.cnTicker(s.toToken)}"
+                val fromTo = "${assetOf(s.fromToken).cn}_${assetOf(s.toToken).cn}"
 
                 // Vérifier le montant minimum
                 val minRes = withContext(Dispatchers.IO) {
@@ -263,8 +310,8 @@ class SwapViewModel @Inject constructor(
                     changeNowApi.createTransaction(
                         apiKey = CHANGENOW_API_KEY,
                         body = ChangeNowTransactionBody(
-                            from = SwapUseCase.cnTicker(s.fromToken),
-                            to = SwapUseCase.cnTicker(s.toToken),
+                            from = assetOf(s.fromToken).cn,
+                            to = assetOf(s.toToken).cn,
                             address = toAddress,
                             amount = apiAmount(net)
                         )
@@ -278,6 +325,24 @@ class SwapViewModel @Inject constructor(
                     payinAddress = txRes.payinAddress,
                     payoutAddress = toAddress
                 )
+                // Token ERC-20/BEP-20 reçu : on l'ajoute au portefeuille pour que
+                // le solde reçu soit VISIBLE (sinon le user croit ne rien recevoir).
+                val toAsset = assetOf(s.toToken)
+                if (toAsset.contract != null && toAsset.key != "USDT-ETH" && toAsset.key != "USDT-BNB") {
+                    try {
+                        tokenRepository.addToken(
+                            com.vaultex.data.local.entity.TokenEntity(
+                                contractAddress = toAsset.contract,
+                                blockchain = if (toAsset.chain == "BNB") "BNB" else "ETH",
+                                symbol = toAsset.base,
+                                name = toAsset.base,
+                                decimals = toAsset.decimals,
+                                iconUrl = com.vaultex.ui.components.CryptoIcon.url(toAsset.base),
+                                isCustom = true
+                            )
+                        )
+                    } catch (_: Exception) { /* déjà présent : sans effet */ }
+                }
                 _state.update {
                     it.copy(
                         swapId = txRes.id,
@@ -311,9 +376,8 @@ class SwapViewModel @Inject constructor(
         }
     }
 
-    /** Chaîne d'envoi pour déposer la monnaie source (notre USDT = TRC20). */
-    private fun swapSendChainOf(fromToken: String): String =
-        if (fromToken.uppercase() == "USDT") "USDT" else fromToken.uppercase()
+    /** Chaîne d'envoi pour déposer la monnaie source (registre des actifs). */
+    private fun swapSendChainOf(fromToken: String): String = assetOf(fromToken).sendChain
 
     /**
      * Format de montant pour les APIs : point décimal garanti (toPlainString),

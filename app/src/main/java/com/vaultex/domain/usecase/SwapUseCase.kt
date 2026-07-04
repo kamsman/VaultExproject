@@ -103,8 +103,10 @@ class SwapUseCase @Inject constructor(
          * paire est invalide et l'API échoue.
          */
         fun cnTicker(token: String): String = when (token.uppercase()) {
-            "USDT" -> "usdttrc20"   // notre USDT = TRC20
-            "BNB"  -> "bnbbsc"      // BNB de BNB Chain (BSC) — « bnb » = ancienne Beacon Chain
+            "USDT" -> "usdttrc20"       // notre USDT = TRC20
+            "USDT-ETH" -> "usdterc20"   // USDT sur Ethereum
+            "USDT-BNB" -> "usdtbsc"     // USDT sur BNB Chain
+            "BNB"  -> "bnbbsc"          // BNB de BNB Chain (BSC) — « bnb » = ancienne Beacon Chain
             else   -> token.lowercase()
         }
 

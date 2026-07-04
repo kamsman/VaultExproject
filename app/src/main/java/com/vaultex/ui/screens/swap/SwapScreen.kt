@@ -90,33 +90,10 @@ private fun tokenColor(token: String): Color = when (token.uppercase()) {
     else -> SwapPurple
 }
 
-/** Réseau lisible d'une monnaie (badge sous le symbole). */
-private fun swapNetworkBadge(token: String): String = when (token.uppercase()) {
-    "USDT" -> "TRC20"
-    "BTC" -> "Bitcoin"
-    "ETH" -> "Ethereum"
-    "BNB" -> "BNB Chain"
-    "SOL" -> "Solana"
-    "TRX" -> "Tron"
-    else -> token
-}
-
-/** Nom de réseau « long » (écran de confirmation). */
-private fun swapNetworkLong(token: String): String = when (token.uppercase()) {
-    "USDT" -> "Tron (TRC20)"
-    "BTC" -> "Bitcoin"
-    "ETH" -> "Ethereum"
-    "BNB" -> "BNB Chain (BEP20)"
-    "SOL" -> "Solana"
-    "TRX" -> "Tron"
-    else -> token
-}
-
-/** Chaîne d'envoi VaultEx pour déposer le token source (notre USDT = TRC20). */
-private fun swapSendChain(fromToken: String): String = when (fromToken.uppercase()) {
-    "USDT" -> "USDT"
-    else -> fromToken.uppercase()
-}
+/* Affichage d'un actif : tout vient du registre du ViewModel (12 actifs). */
+private fun swapBaseOf(key: String): String = SwapViewModel.assetOf(key).base
+private fun swapNetworkBadge(key: String): String = SwapViewModel.assetOf(key).badge
+private fun swapNetworkLong(key: String): String = SwapViewModel.assetOf(key).network
 
 /** Rang d'avancement d'un statut ChangeNOW (pour la frise). */
 private fun statusRank(status: String?): Int = when (status) {
@@ -141,13 +118,12 @@ fun SwapScreen(navController: NavHostController) {
     // "form" | "confirm" — le suivi (state.swapInProgress) prend la priorité.
     var screen by remember { mutableStateOf("form") }
 
-    val tokens = listOf("ETH", "BNB", "USDT", "BTC", "SOL", "TRX")
+    val tokens = SwapViewModel.SWAP_ASSETS.map { it.key }
 
     // Pré-sélection « De » depuis la page d'une crypto.
     LaunchedEffect(Unit) {
         com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
-            val t = if (sym == "USDT-ETH" || sym == "USDT-BNB") "USDT" else sym
-            if (t in tokens) viewModel.setFromToken(t)
+            if (tokens.any { it.equals(sym, ignoreCase = true) }) viewModel.setFromToken(sym)
         }
     }
 
@@ -159,7 +135,7 @@ fun SwapScreen(navController: NavHostController) {
         ) {
             biometricHelper.authenticateStrongOrCredential(
                 title = "Confirmer le swap",
-                subtitle = "${state.fromAmount} ${state.fromToken} → ${state.toToken}",
+                subtitle = "${state.fromAmount} ${swapBaseOf(state.fromToken)} → ${swapBaseOf(state.toToken)}",
                 onSuccess = { viewModel.executeSwap() },
                 onError = { _, _ -> }
             )
@@ -264,7 +240,7 @@ private fun SwapFormScreen(
             // ─── Vous envoyez ───
             SwapCoinCard(
                 label = "Vous envoyez",
-                rightLabel = "Solde : $balTxt ${state.fromToken}",
+                rightLabel = "Solde : $balTxt ${swapBaseOf(state.fromToken)}",
                 token = state.fromToken, tokens = tokens, onTokenSelect = onFromToken,
                 amount = state.fromAmount, editable = true, onAmountChange = onAmount,
                 fiat = fromFiat, onMax = onMax, highlight = true
@@ -305,11 +281,11 @@ private fun SwapFormScreen(
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
                     val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                        "1 ${state.fromToken} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${state.toToken}" else "—"
+                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Taux", rate, chevron = true)
                     Divider(color = swapBorder, thickness = 1.dp)
                     val feeTxt = if (fromAmt > 0.0)
-                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${state.fromToken}" else "—"
+                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
                     SwapDetailRow(Icons.Default.Info, "Frais (inclus)", feeTxt, valueColor = SwapGreen)
                     Divider(color = swapBorder, thickness = 1.dp)
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Délai estimé", "2 - 5 min", valueColor = SwapPurple, showIcon = false)
@@ -406,11 +382,11 @@ private fun SwapConfirmScreen(
             // Carte récap envoi/réception
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    ConfirmAmountRow("Vous envoyez", state.fromToken, "${state.fromAmount} ${state.fromToken}", fromFiat)
+                    ConfirmAmountRow("Vous envoyez", state.fromToken, "${state.fromAmount} ${swapBaseOf(state.fromToken)}", fromFiat)
                     Box(Modifier.padding(start = 4.dp, top = 6.dp, bottom = 6.dp)) {
                         Icon(Icons.Default.SwapVert, null, tint = swapTextFaint, modifier = Modifier.size(20.dp))
                     }
-                    ConfirmAmountRow("Vous recevez", state.toToken, "${state.toAmount.ifEmpty { "—" }} ${state.toToken}", toFiat)
+                    ConfirmAmountRow("Vous recevez", state.toToken, "${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", toFiat)
                 }
             }
 
@@ -420,11 +396,11 @@ private fun SwapConfirmScreen(
                     ConfirmRow("Fournisseur", "ChangeNOW", chevron = true)
                     Divider(color = swapBorder)
                     val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                        "1 ${state.fromToken} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${state.toToken}" else "—"
+                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
                     ConfirmRow("Taux", rate)
                     Divider(color = swapBorder)
                     val feeTxt = if (fromAmt > 0.0)
-                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${state.fromToken}" else "—"
+                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
                     ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
                     Divider(color = swapBorder)
                     ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
@@ -439,7 +415,7 @@ private fun SwapConfirmScreen(
                     Icon(Icons.Default.Info, null, tint = SwapGreen, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "Le montant que vous recevrez est estimé. Vous recevrez au moins $minReceive ${state.toToken}",
+                        "Le montant que vous recevrez est estimé. Vous recevrez au moins $minReceive ${swapBaseOf(state.toToken)}",
                         fontSize = 12.sp, color = SwapGreen, lineHeight = 16.sp
                     )
                 }
@@ -504,7 +480,7 @@ private fun SwapTrackingScreen(
             Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = {
-                        val msg = "Swap VaultEx : ${state.fromAmount} ${state.fromToken} → ≈ ${state.toAmount} ${state.toToken}" +
+                        val msg = "Swap VaultEx : ${state.fromAmount} ${swapBaseOf(state.fromToken)} → ≈ ${state.toAmount} ${swapBaseOf(state.toToken)}" +
                             (state.swapId?.let { "\nID : $it" } ?: "")
                         val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "text/plain"; putExtra(android.content.Intent.EXTRA_TEXT, msg)
@@ -543,11 +519,11 @@ private fun SwapTrackingScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${state.fromAmount} ${state.fromToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text("${state.fromAmount} ${swapBaseOf(state.fromToken)}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
                     Text(swapNetworkBadge(state.fromToken), fontSize = 11.sp, color = swapTextDim)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
                     Text(swapNetworkBadge(state.toToken), fontSize = 11.sp, color = swapTextDim)
                 }
             }
@@ -580,7 +556,7 @@ private fun SwapTrackingScreen(
                     TimelineStep("Transaction créée", null, done = rank >= 0 || finished, active = false, last = false)
                     TimelineStep("Confirmations réseau ${swapNetworkBadge(state.fromToken)}", null, done = rank > 2 || finished, active = rank in 1..2 && !finished, last = false)
                     TimelineStep("Échange effectué", "Par ChangeNOW", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
-                    TimelineStep("Envoi des ${state.toToken}", swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
+                    TimelineStep("Envoi des ${swapBaseOf(state.toToken)}", swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
                     TimelineStep("Terminé", null, done = finished, active = false, last = true)
                 }
             }
@@ -589,7 +565,7 @@ private fun SwapTrackingScreen(
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Vous recevez", fontSize = 12.sp, color = swapTextDim)
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${state.toToken}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
+                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
                     Spacer(Modifier.height(8.dp))
                     Text("À l'adresse de $payoutAddr", fontSize = 12.sp, color = swapTextDim)
                     state.swapId?.let { id ->
@@ -750,7 +726,7 @@ private fun SwapCoinCard(
                             TokenLogo(token, 34)
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(token, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                    Text(swapBaseOf(token), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
                                     Icon(Icons.Default.ArrowDropDown, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
                                 }
                                 Surface(shape = RoundedCornerShape(4.dp), color = SwapPurple.copy(alpha = 0.16f)) {
@@ -774,7 +750,7 @@ private fun SwapCoinCard(
                                         TokenLogo(t, 32)
                                         Spacer(Modifier.width(12.dp))
                                         Column(Modifier.weight(1f)) {
-                                            Text(t, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                            Text(swapBaseOf(t), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
                                             Text(swapNetworkBadge(t), fontSize = 11.sp, color = swapTextDim)
                                         }
                                         if (selected) Icon(Icons.Default.Check, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
