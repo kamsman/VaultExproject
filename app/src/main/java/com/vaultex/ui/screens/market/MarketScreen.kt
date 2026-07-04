@@ -48,7 +48,7 @@ import com.vaultex.ui.viewmodel.MarketViewModel
 import java.text.NumberFormat
 import java.util.Locale
 
-private enum class MarketFilter { ALL, GAINERS, LOSERS, FAVORITES }
+private enum class MarketFilter { ALL, SWAPPABLE, GAINERS, LOSERS, FAVORITES }
 
 @Composable
 fun MarketScreen(navController: NavHostController) {
@@ -69,6 +69,7 @@ fun MarketScreen(navController: NavHostController) {
         .filter {
             when (filter) {
                 MarketFilter.ALL -> true
+                MarketFilter.SWAPPABLE -> it.symbol.uppercase() in com.vaultex.ui.viewmodel.SwapViewModel.SWAPPABLE_SYMBOLS
                 MarketFilter.GAINERS -> it.change24h > 0
                 MarketFilter.LOSERS -> it.change24h < 0
                 MarketFilter.FAVORITES -> it.id in favorites
@@ -150,6 +151,7 @@ fun MarketScreen(navController: NavHostController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterPill(stringResource(R.string.market_filter_all), filter == MarketFilter.ALL) { filter = MarketFilter.ALL }
+                    FilterPill(stringResource(R.string.market_swappable) + " ⇄", filter == MarketFilter.SWAPPABLE) { filter = MarketFilter.SWAPPABLE }
                     FilterPill(stringResource(R.string.market_filter_gainers) + " ↗", filter == MarketFilter.GAINERS) { filter = MarketFilter.GAINERS }
                     FilterPill(stringResource(R.string.market_filter_losers) + " ↘", filter == MarketFilter.LOSERS) { filter = MarketFilter.LOSERS }
                     FilterPill(stringResource(R.string.market_filter_favs) + " ★", filter == MarketFilter.FAVORITES) { filter = MarketFilter.FAVORITES }
@@ -263,7 +265,15 @@ private fun CoinRowCard(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(dto.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary, maxLines = 1)
-                Text(dto.symbol.uppercase(), fontSize = 11.sp, color = TextSecondary)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(dto.symbol.uppercase(), fontSize = 11.sp, color = TextSecondary)
+                    if (dto.symbol.uppercase() in com.vaultex.ui.viewmodel.SwapViewModel.SWAPPABLE_SYMBOLS) {
+                        androidx.compose.material3.Surface(shape = RoundedCornerShape(5.dp), color = AccentGreen.copy(alpha = 0.13f)) {
+                            Text(stringResource(R.string.market_swappable), fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                color = AccentGreen, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                        }
+                    }
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("$" + formatMarketUsd(dto.currentPrice), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)

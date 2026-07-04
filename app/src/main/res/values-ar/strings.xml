@@ -634,6 +634,8 @@
     <string name="coin_supply">المعروض المتداول</string>
     <string name="coin_ath">أعلى سعر تاريخي</string>
     <string name="coin_alert">تنبيه</string>
+    <string name="market_swappable">قابل للتبادل</string>
+    <string name="coin_view_only">للعرض فقط — لا يمكن تبادل هذه العملة في VaultEx بعد.</string>
     <string name="wallet_mgr_none_title">لا توجد محفظة</string>
     <string name="wallet_mgr_none_desc">ليس لديك محفظة بعد. أنشئ محفظة جديدة أو استورد محفظة موجودة للبدء.</string>
     <string name="wallet_keys_title">مفاتيحك، تحكّمك</string>

@@ -98,11 +98,33 @@ class SwapViewModel @Inject constructor(
                 contract = "0x514910771AF9Ca656af840dff83E8264EcF986CA", decimals = 18),
             SwapAsset("SHIB", "SHIB", "ERC20", "Ethereum (ERC20)", "shib", "ETH",
                 "ERC20:ETH:0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE:18",
-                contract = "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", decimals = 18)
+                contract = "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", decimals = 18),
+            SwapAsset("PEPE", "PEPE", "ERC20", "Ethereum (ERC20)", "pepe", "ETH",
+                "ERC20:ETH:0x6982508145454Ce325dDbE47a25d4ec3d2311933:18",
+                contract = "0x6982508145454Ce325dDbE47a25d4ec3d2311933", decimals = 18),
+            SwapAsset("UNI", "UNI", "ERC20", "Ethereum (ERC20)", "uni", "ETH",
+                "ERC20:ETH:0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984:18",
+                contract = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", decimals = 18),
+            SwapAsset("AAVE", "AAVE", "ERC20", "Ethereum (ERC20)", "aave", "ETH",
+                "ERC20:ETH:0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9:18",
+                contract = "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", decimals = 18),
+            SwapAsset("WBTC", "WBTC", "ERC20", "Ethereum (ERC20)", "wbtc", "ETH",
+                "ERC20:ETH:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599:8",
+                contract = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", decimals = 8),
+            SwapAsset("CAKE", "CAKE", "BEP20", "BNB Chain (BEP20)", "cake", "BNB",
+                "ERC20:BNB:0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82:18",
+                contract = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals = 18)
         )
 
         fun assetOf(key: String): SwapAsset =
             SWAP_ASSETS.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SWAP_ASSETS[0]
+
+        /** Actif correspondant à un SYMBOLE d'affichage (Marché) — USDT → variante TRC20. */
+        fun assetForSymbol(symbol: String): SwapAsset? =
+            SWAP_ASSETS.firstOrNull { it.base.equals(symbol, ignoreCase = true) }
+
+        /** Symboles échangeables (badge « Échangeable » du Marché). */
+        val SWAPPABLE_SYMBOLS: Set<String> = SWAP_ASSETS.map { it.base.uppercase() }.toSet()
     }
 
     private val _state = MutableStateFlow(SwapState())

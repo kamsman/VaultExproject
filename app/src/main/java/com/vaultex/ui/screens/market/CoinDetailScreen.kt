@@ -252,27 +252,40 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
 
             // ─── 4 actions rondes : Envoyer · Recevoir · Swap · Alerte (maquette) ───
+            // Actions : seulement si la monnaie est réellement supportée par le
+            // wallet (registre du swap). Sinon : consultation + alerte uniquement.
+            val supported = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = BgPrimary),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
-                Row(Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
-                            navController.navigate(Routes.SEND_SELECT)
-                        }
-                        CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
-                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
-                            navController.navigate(Routes.RECEIVE)
-                        }
-                        CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
-                            com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
-                            navController.navigate(Routes.SWAP)
+                Column {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        if (supported != null) {
+                            CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
+                                navController.navigate(Routes.SEND_SELECT)
+                            }
+                            CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
+                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                navController.navigate(Routes.RECEIVE)
+                            }
+                            CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
+                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                navController.navigate(Routes.SWAP)
+                            }
                         }
                         CircleAction(Icons.Default.NotificationsNone, stringResource(R.string.coin_alert)) {
                             navController.navigate(Routes.NOTIFICATIONS)
                         }
+                    }
+                    if (supported == null) {
+                        Text(
+                            stringResource(R.string.coin_view_only),
+                            fontSize = 12.sp, color = TextSecondary,
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
                     }
                 }
             }
