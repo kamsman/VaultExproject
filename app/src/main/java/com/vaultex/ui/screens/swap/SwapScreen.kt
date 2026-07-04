@@ -16,6 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
@@ -39,6 +42,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -717,49 +721,31 @@ private fun SwapCoinCard(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                var expanded by remember { mutableStateOf(false) }
-                Box {
-                    Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt,
-                        modifier = Modifier.clickable { expanded = true }) {
-                        Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TokenLogo(token, 34)
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(swapBaseOf(token), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
-                                    Icon(Icons.Default.ArrowDropDown, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
-                                }
-                                Surface(shape = RoundedCornerShape(4.dp), color = SwapPurple.copy(alpha = 0.16f)) {
-                                    Text(swapNetworkBadge(token), modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                                        fontSize = 9.sp, color = SwapPurple, fontWeight = FontWeight.SemiBold)
-                                }
+                var showPicker by remember { mutableStateOf(false) }
+                Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt,
+                    modifier = Modifier.clickable { showPicker = true }) {
+                    Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TokenLogo(token, 34)
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(swapBaseOf(token), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                Icon(Icons.Default.ArrowDropDown, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
+                            }
+                            Surface(shape = RoundedCornerShape(4.dp), color = SwapPurple.copy(alpha = 0.16f)) {
+                                Text(swapNetworkBadge(token), modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                    fontSize = 9.sp, color = SwapPurple, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        modifier = Modifier.background(swapCard).widthIn(min = 220.dp)
-                    ) {
-                        tokens.forEach { t ->
-                            val selected = t == token
-                            DropdownMenuItem(
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        TokenLogo(t, 32)
-                                        Spacer(Modifier.width(12.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(swapBaseOf(t), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
-                                            Text(swapNetworkBadge(t), fontSize = 11.sp, color = swapTextDim)
-                                        }
-                                        if (selected) Icon(Icons.Default.Check, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
-                                    }
-                                },
-                                onClick = { onTokenSelect(t); expanded = false }
-                            )
-                        }
-                    }
+                }
+                if (showPicker) {
+                    TokenPickerSheet(
+                        tokens = tokens,
+                        current = token,
+                        onSelect = { onTokenSelect(it); showPicker = false },
+                        onDismiss = { showPicker = false }
+                    )
                 }
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
@@ -828,5 +814,141 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick
     ) {
         Icon(icon, label, tint = col, modifier = Modifier.size(22.dp))
         Text(label, fontSize = 10.sp, color = col, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+    }
+}
+
+/* ─────────────── Feuille « Choisir une crypto » (maquette) ─────────────── */
+
+/** Nom complet d'un actif (ligne du sélecteur). */
+private fun swapFullName(key: String): String = when (SwapViewModel.assetOf(key).base.uppercase()) {
+    "BTC" -> "Bitcoin"; "ETH" -> "Ethereum"; "BNB" -> "BNB Chain"; "SOL" -> "Solana"
+    "TRX" -> "Tron"; "USDT" -> "Tether USD"; "USDC" -> "USD Coin"; "DAI" -> "Dai Stablecoin"
+    "LINK" -> "Chainlink"; "SHIB" -> "Shiba Inu"; "PEPE" -> "Pepe"; "UNI" -> "Uniswap"
+    "AAVE" -> "Aave"; "WBTC" -> "Wrapped Bitcoin"; "CAKE" -> "PancakeSwap"
+    else -> SwapViewModel.assetOf(key).base
+}
+
+/** Couleur du badge réseau (TRC20 violet, ERC20 bleu, BEP20 jaune). */
+private fun badgeColor(badge: String): Color = when (badge.uppercase()) {
+    "TRC20" -> SwapPurple
+    "ERC20" -> Color(0xFF3B82F6)
+    "BEP20" -> Color(0xFFF5B301)
+    else -> Color(0xFF3B82F6)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TokenPickerSheet(
+    tokens: List<String>,
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    val filtered = tokens.filter { key ->
+        val a = SwapViewModel.assetOf(key)
+        query.isBlank() || a.base.contains(query, true) ||
+            swapFullName(key).contains(query, true) || a.badge.contains(query, true)
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = swapBg) {
+        Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp)) {
+            // Titre + fermer
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(com.vaultex.R.string.swap_pick_crypto),
+                    fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText, modifier = Modifier.weight(1f))
+                Surface(onClick = onDismiss, shape = CircleShape, color = swapCardAlt, modifier = Modifier.size(34.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Close, stringResource(com.vaultex.R.string.close), tint = swapText, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // Recherche
+            Surface(shape = RoundedCornerShape(14.dp), color = swapCard,
+                border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Search, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    BasicTextField(
+                        value = query, onValueChange = { query = it }, singleLine = true,
+                        textStyle = TextStyle(fontSize = 14.sp, color = swapText),
+                        cursorBrush = SolidColor(SwapPurple),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { inner ->
+                            if (query.isEmpty()) Text(stringResource(com.vaultex.R.string.swap_search_crypto), fontSize = 14.sp, color = swapTextFaint)
+                            inner()
+                        }
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // Liste des actifs
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.weight(1f, fill = false).heightIn(max = 440.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(filtered.size) { i ->
+                    val key = filtered[i]
+                    val a = SwapViewModel.assetOf(key)
+                    val selected = key.equals(current, ignoreCase = true)
+                    val isTokenBadge = a.badge.uppercase() in listOf("TRC20", "ERC20", "BEP20")
+                    Surface(
+                        onClick = { onSelect(key) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (selected) SwapPurple.copy(alpha = 0.10f) else swapCard,
+                        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) SwapPurple else swapBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TokenLogo(key, 38)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(a.base, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
+                                Text(swapFullName(key), fontSize = 12.sp, color = swapTextDim)
+                            }
+                            if (selected) {
+                                Box(Modifier.size(22.dp).clip(CircleShape).background(SwapPurple), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                                }
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            if (isTokenBadge) {
+                                val bc = badgeColor(a.badge)
+                                Surface(shape = RoundedCornerShape(8.dp), color = bc.copy(alpha = 0.14f)) {
+                                    Text(a.badge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = bc,
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp))
+                                }
+                            } else if (!selected) {
+                                Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // Bandeau « Transactions sécurisées »
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = SwapPurple.copy(alpha = 0.10f),
+                border = BorderStroke(1.dp, SwapPurple.copy(alpha = 0.30f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(SwapPurple.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Shield, null, tint = SwapPurple, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(stringResource(com.vaultex.R.string.swap_secure_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = swapText)
+                        Text(stringResource(com.vaultex.R.string.swap_secure_desc), fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
     }
 }

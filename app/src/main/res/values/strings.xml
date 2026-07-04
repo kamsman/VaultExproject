@@ -738,6 +738,10 @@
     <string name="coin_ath">Plus haut historique</string>
     <string name="coin_alert">Alerte</string>
     <string name="market_swappable">Échangeable</string>
+    <string name="swap_pick_crypto">Choisir une crypto</string>
+    <string name="swap_search_crypto">Rechercher une crypto</string>
+    <string name="swap_secure_title">Transactions sécurisées</string>
+    <string name="swap_secure_desc">Vos fonds sont protégés par un chiffrement de niveau bancaire.</string>
     <string name="coin_view_only">Consultation seulement — cette monnaie n\'est pas encore échangeable dans VaultEx.</string>
     <string name="wallet_mgr_none_title">Aucun portefeuille</string>
     <string name="wallet_mgr_none_desc">Vous n\'avez pas encore de portefeuille. Créez-en un nouveau ou importez un portefeuille existant pour commencer.</string>

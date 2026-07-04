@@ -635,6 +635,10 @@
     <string name="coin_ath">All-time high</string>
     <string name="coin_alert">Alert</string>
     <string name="market_swappable">Swappable</string>
+    <string name="swap_pick_crypto">Choose a crypto</string>
+    <string name="swap_search_crypto">Search a crypto</string>
+    <string name="swap_secure_title">Secure transactions</string>
+    <string name="swap_secure_desc">Your funds are protected with bank-grade encryption.</string>
     <string name="coin_view_only">View only — this coin can\'t be swapped in VaultEx yet.</string>
     <string name="wallet_mgr_none_title">No wallet</string>
     <string name="wallet_mgr_none_desc">You don\'t have a wallet yet. Create a new one or import an existing wallet to get started.</string>
