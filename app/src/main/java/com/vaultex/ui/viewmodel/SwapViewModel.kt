@@ -132,7 +132,7 @@ class SwapViewModel @Inject constructor(
 
     private val gson = com.google.gson.Gson()
     private data class SnapLite(val tokens: List<TokLite>?)
-    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0)
+    private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0, val priceXof: Double = 0.0)
 
     init {
         _state.update { it.copy(
@@ -154,6 +154,12 @@ class SwapViewModel @Inject constructor(
 
     /** Prix USD de [token] (instantané portefeuille). */
     private fun priceUsdOf(token: String): Double = snapTok(token)?.priceUsd ?: 0.0
+
+    /** (solde, valeur en XOF) d'un actif — lignes du sélecteur de crypto. */
+    fun balanceInfo(key: String): Pair<Double, Double> {
+        val t = snapTok(key) ?: return 0.0 to 0.0
+        return t.amountRaw to t.amountRaw * t.priceXof
+    }
 
     /**
      * Bouton MAX : remplit avec le solde, en RÉSERVANT de quoi payer le gas du

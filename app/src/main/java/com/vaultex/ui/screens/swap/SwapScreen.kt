@@ -161,6 +161,7 @@ fun SwapScreen(navController: NavHostController) {
             navController = navController,
             state = state,
             tokens = tokens,
+            balanceInfo = viewModel::balanceInfo,
             onFromToken = viewModel::setFromToken,
             onToToken = viewModel::setToToken,
             onAmount = viewModel::setFromAmount,
@@ -181,6 +182,7 @@ private fun SwapFormScreen(
     navController: NavHostController,
     state: com.vaultex.ui.viewmodel.SwapState,
     tokens: List<String>,
+    balanceInfo: (String) -> Pair<Double, Double>,
     onFromToken: (String) -> Unit,
     onToToken: (String) -> Unit,
     onAmount: (String) -> Unit,
@@ -245,7 +247,7 @@ private fun SwapFormScreen(
             SwapCoinCard(
                 label = "Vous envoyez",
                 rightLabel = "Solde : $balTxt ${swapBaseOf(state.fromToken)}",
-                token = state.fromToken, tokens = tokens, onTokenSelect = onFromToken,
+                token = state.fromToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onFromToken,
                 amount = state.fromAmount, editable = true, onAmountChange = onAmount,
                 fiat = fromFiat, onMax = onMax, highlight = true
             )
@@ -274,7 +276,7 @@ private fun SwapFormScreen(
             SwapCoinCard(
                 label = "Vous recevez",
                 rightLabel = null,
-                token = state.toToken, tokens = tokens, onTokenSelect = onToToken,
+                token = state.toToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onToToken,
                 amount = state.toAmount, editable = false, onAmountChange = {},
                 fiat = toFiat, onMax = null, highlight = false
             )
@@ -692,6 +694,7 @@ private fun SwapCoinCard(
     rightLabel: String?,
     token: String,
     tokens: List<String>,
+    balanceInfo: (String) -> Pair<Double, Double>,
     onTokenSelect: (String) -> Unit,
     amount: String,
     editable: Boolean,
@@ -743,6 +746,7 @@ private fun SwapCoinCard(
                     TokenPickerSheet(
                         tokens = tokens,
                         current = token,
+                        balanceInfo = balanceInfo,
                         onSelect = { onTokenSelect(it); showPicker = false },
                         onDismiss = { showPicker = false }
                     )
@@ -828,6 +832,15 @@ private fun swapFullName(key: String): String = when (SwapViewModel.assetOf(key)
     else -> SwapViewModel.assetOf(key).base
 }
 
+/** Montant du sélecteur : 8 décimales pour les natifs, 2 pour les gros soldes. */
+private fun pickerAmount(v: Double): String =
+    if (v <= 0.0) "0.00"
+    else java.math.BigDecimal.valueOf(v).setScale(if (v >= 1.0) 2 else 8, java.math.RoundingMode.DOWN)
+        .stripTrailingZeros().toPlainString()
+
+private fun pickerXof(v: Double): String =
+    java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).format(v.toLong())
+
 /** Couleur du badge réseau (TRC20 violet, ERC20 bleu, BEP20 jaune). */
 private fun badgeColor(badge: String): Color = when (badge.uppercase()) {
     "TRC20" -> SwapPurple
@@ -841,6 +854,7 @@ private fun badgeColor(badge: String): Color = when (badge.uppercase()) {
 private fun TokenPickerSheet(
     tokens: List<String>,
     current: String,
+    balanceInfo: (String) -> Pair<Double, Double>,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -856,7 +870,7 @@ private fun TokenPickerSheet(
             // Titre + fermer
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(com.vaultex.R.string.swap_pick_crypto),
-                    fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText, modifier = Modifier.weight(1f))
+                    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText, modifier = Modifier.weight(1f))
                 Surface(onClick = onDismiss, shape = CircleShape, color = swapCardAlt, modifier = Modifier.size(34.dp)) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Close, stringResource(com.vaultex.R.string.close), tint = swapText, modifier = Modifier.size(16.dp))
@@ -868,7 +882,7 @@ private fun TokenPickerSheet(
             // Recherche
             Surface(shape = RoundedCornerShape(14.dp), color = swapCard,
                 border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Search, null, tint = swapTextDim, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     BasicTextField(
@@ -888,41 +902,52 @@ private fun TokenPickerSheet(
             // Liste des actifs
             androidx.compose.foundation.lazy.LazyColumn(
                 modifier = Modifier.weight(1f, fill = false).heightIn(max = 440.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(filtered.size) { i ->
                     val key = filtered[i]
                     val a = SwapViewModel.assetOf(key)
                     val selected = key.equals(current, ignoreCase = true)
                     val isTokenBadge = a.badge.uppercase() in listOf("TRC20", "ERC20", "BEP20")
+                    val (bal, xof) = balanceInfo(key)
                     Surface(
                         onClick = { onSelect(key) },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (selected) SwapPurple.copy(alpha = 0.10f) else swapCard,
-                        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) SwapPurple else swapBorder),
+                        border = BorderStroke(if (selected) 1.2.dp else 1.dp, if (selected) SwapPurple else swapBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                            TokenLogo(key, 38)
-                            Spacer(Modifier.width(12.dp))
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TokenLogo(key, 32)
+                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(a.base, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
-                                Text(swapFullName(key), fontSize = 12.sp, color = swapTextDim)
+                                Text(a.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = swapText)
+                                Text(swapFullName(key), fontSize = 11.sp, color = swapTextDim)
                             }
-                            if (selected) {
-                                Box(Modifier.size(22.dp).clip(CircleShape).background(SwapPurple), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
-                                }
-                                Spacer(Modifier.width(8.dp))
+                            // Solde + ≈ XOF (comme la maquette)
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    pickerAmount(bal),
+                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                    color = if (bal > 0.0) swapText else swapTextDim
+                                )
+                                Text("≈ " + pickerXof(xof) + " XOF", fontSize = 10.sp, color = swapTextDim)
                             }
+                            Spacer(Modifier.width(8.dp))
                             if (isTokenBadge) {
                                 val bc = badgeColor(a.badge)
-                                Surface(shape = RoundedCornerShape(8.dp), color = bc.copy(alpha = 0.14f)) {
-                                    Text(a.badge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = bc,
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp))
+                                Surface(shape = RoundedCornerShape(6.dp), color = bc.copy(alpha = 0.14f)) {
+                                    Text(a.badge, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = bc,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
                                 }
-                            } else if (!selected) {
-                                Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            if (selected) {
+                                Box(Modifier.size(19.dp).clip(CircleShape).background(SwapPurple), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                                }
+                            } else {
+                                Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -938,13 +963,13 @@ private fun TokenPickerSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(SwapPurple.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Shield, null, tint = SwapPurple, modifier = Modifier.size(20.dp))
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(SwapPurple.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Shield, null, tint = SwapPurple, modifier = Modifier.size(17.dp))
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text(stringResource(com.vaultex.R.string.swap_secure_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = swapText)
-                        Text(stringResource(com.vaultex.R.string.swap_secure_desc), fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp)
+                        Text(stringResource(com.vaultex.R.string.swap_secure_title), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = swapText)
+                        Text(stringResource(com.vaultex.R.string.swap_secure_desc), fontSize = 10.sp, color = swapTextDim, lineHeight = 13.sp)
                     }
                 }
             }
