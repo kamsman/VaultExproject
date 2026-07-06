@@ -140,17 +140,35 @@ class MainActivity : FragmentActivity() {
                 =========================
                  */
                 val lifecycleOwner = LocalLifecycleOwner.current
+                // Écrans où il ne faut PAS forcer le PIN (auth / onboarding / le PIN lui-même).
+                val authRoutes = remember {
+                    setOf(
+                        Routes.SPLASH, Routes.PIN_UNLOCK, Routes.WELCOME, Routes.FIRST_LAUNCH,
+                        Routes.ONBOARDING, Routes.MNEMONIC_DISPLAY, Routes.MNEMONIC_VERIFY,
+                        Routes.IMPORT_WALLET, Routes.PIN_SETUP, Routes.BIOMETRIC_SETUP, Routes.PANIC_PIN
+                    )
+                }
                 DisposableEffect(lifecycleOwner) {
+                    fun forceUnlock() {
+                        sessionLock.lock()
+                        navController.navigate(Routes.PIN_UNLOCK) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                     val observer = LifecycleEventObserver { _, event ->
                         when (event) {
                             Lifecycle.Event.ON_STOP -> sessionLock.onEnterBackground()
                             Lifecycle.Event.ON_START -> {
-                                if (sessionLock.shouldLockOnForeground()) {
-                                    sessionLock.lock()
-                                    navController.navigate(Routes.PIN_UNLOCK) {
-                                        popUpTo(0) { inclusive = true }
-                                        launchSingleTop = true
-                                    }
+                                val current = navController.currentDestination?.route
+                                when {
+                                    // Auto-verrouillage après le délai passé en arrière-plan.
+                                    sessionLock.shouldLockOnForeground() -> forceUnlock()
+                                    // GARDE-FOU : session verrouillée mais l'app affiche un
+                                    // écran protégé (retour arrière depuis le PIN, restauration
+                                    // d'état de navigation, démarrage « chaud ») → on force le PIN.
+                                    sessionLock.requiresUnlock() && current != null && current !in authRoutes -> forceUnlock()
+                                    else -> {}
                                 }
                             }
                             else -> {}

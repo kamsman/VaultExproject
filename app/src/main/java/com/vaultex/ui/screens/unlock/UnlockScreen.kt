@@ -35,6 +35,12 @@ fun UnlockScreen(navController: NavHostController) {
     val state by viewModel.state.collectAsState()
     val activity = LocalContext.current as? FragmentActivity
 
+    // Retour arrière sur l'écran de verrouillage : mettre l'app en arrière-plan
+    // (comme le bouton Accueil) SANS détruire l'Activity ni contourner le verrou.
+    androidx.activity.compose.BackHandler(enabled = true) {
+        activity?.moveTaskToBack(true)
+    }
+
     // Navigation post-unlock
     LaunchedEffect(state.isUnlocked) {
         if (state.isUnlocked) {

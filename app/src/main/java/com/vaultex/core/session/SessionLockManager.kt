@@ -30,6 +30,15 @@ class SessionLockManager @Inject constructor(
         backgroundedAt = 0L
     }
 
+    /**
+     * Un déverrouillage est-il requis MAINTENANT ? Vrai si un wallet existe mais
+     * la session n'est pas déverrouillée. Garde-fou au retour au premier plan :
+     * si l'app n'est pas sur un écran d'authentification, on force le PIN (couvre
+     * le retour arrière depuis l'écran de verrouillage, la restauration d'état de
+     * navigation, les démarrages « chauds »…).
+     */
+    fun requiresUnlock(): Boolean = secureStorage.hasMnemonic() && !isUnlocked
+
     /** Appelé quand l'app passe en arrière-plan. */
     fun onEnterBackground() {
         if (isUnlocked) backgroundedAt = System.currentTimeMillis()
