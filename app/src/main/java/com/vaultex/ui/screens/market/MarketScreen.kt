@@ -58,6 +58,7 @@ fun MarketScreen(navController: NavHostController) {
     val isLoading by viewModel.isLoading.collectAsState()
     val global by viewModel.global.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
+    val isStale by viewModel.isStale.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
@@ -98,6 +99,24 @@ fun MarketScreen(navController: NavHostController) {
                     )
                     IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
                         Icon(Icons.Default.Notifications, stringResource(R.string.notifications), tint = TextPrimary)
+                    }
+                }
+            }
+
+            // ─── Bandeau hors ligne (données du cache) ───
+            if (isStale && markets.isNotEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.offline_cached),
+                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFB45309),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }

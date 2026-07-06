@@ -54,6 +54,10 @@ class MarketViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    /** true = la liste affichée vient du cache (hors ligne). */
+    private val _isStale = MutableStateFlow(false)
+    val isStale: StateFlow<Boolean> = _isStale
+
     // ─── Détail d'UNE pièce (écran CoinDetail) ─────────────────
     private val _coin = MutableStateFlow<CoinGeckoMarketDto?>(null)
     val coin: StateFlow<CoinGeckoMarketDto?> = _coin
@@ -97,6 +101,7 @@ class MarketViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 _markets.value = withContext(Dispatchers.IO) { repository.getMarkets() }
+                _isStale.value = repository.lastFromCache
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
