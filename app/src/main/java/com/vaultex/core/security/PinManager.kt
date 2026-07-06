@@ -24,6 +24,9 @@ class PinManager @Inject constructor(
         private const val MAX_ATTEMPTS = 5
     }
 
+    /** Un PIN principal est-il déjà défini ? (distingue création vs changement). */
+    fun hasPin(): Boolean = !secureStorage.getPinHash().isNullOrBlank()
+
     fun setPin(pin: String, isPanic: Boolean = false) {
         require(pin.length == 6 && pin.all { it.isDigit() }) { "PIN doit être 6 chiffres" }
         val salt = ByteArray(SALT_LENGTH).also { SecureRandom().nextBytes(it) }

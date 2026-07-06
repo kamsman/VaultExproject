@@ -78,6 +78,9 @@ object Routes {
 
     const val SECURITY = "security"
 
+    // Journal des déverrouillages (Notifications sécurité → Historique des connexions).
+    const val LOGIN_HISTORY = "loginHistory"
+
     const val PENDING_SENDS = "pendingSends"
 
     const val SCANNER = "scanner"

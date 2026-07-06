@@ -44,7 +44,8 @@ class DepositCheckWorker @AssistedInject constructor(
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -73,13 +74,38 @@ class DepositCheckWorker @AssistedInject constructor(
                 prefs.edit().putString(key, bal.toString()).apply()
                 if (before == null) continue                 // 1er passage : on mémorise
                 val delta = bal - before
-                if (delta > c.dust) notify(c.symbol, delta)
+                if (delta > c.dust && notifPrefs.txAlerts.value) notify(c.symbol, delta)
             }
+            checkLowBalance()
             Result.success()
         } catch (_: Exception) {
             Result.retry()
         }
     }
+
+    /** Alerte « solde bas » : notifie UNE fois au passage sous le seuil (XOF). */
+    private fun checkLowBalance() {
+        if (!notifPrefs.lowBalanceAlerts.value) return
+        try {
+            val json = secureStorage.getPortfolioSnapshot() ?: return
+            val total = com.google.gson.Gson().fromJson(json, SnapMini::class.java)?.totalBalanceXof ?: return
+            val threshold = notifPrefs.thresholdXof.value.toDouble()
+            if (total < threshold && !notifPrefs.lowBalanceNotified) {
+                val title = applicationContext.getString(com.vaultex.R.string.notif_lowbal_title)
+                val body = applicationContext.getString(
+                    com.vaultex.R.string.notif_lowbal_body,
+                    java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).format(threshold.toLong())
+                )
+                com.vaultex.core.util.LocalNotifier.show(applicationContext, title, body)
+                notificationCenter.push(title, body)
+                notifPrefs.lowBalanceNotified = true
+            } else if (total >= threshold) {
+                notifPrefs.lowBalanceNotified = false   // réarmé quand on repasse au-dessus
+            }
+        } catch (_: Exception) { }
+    }
+
+    private data class SnapMini(val totalBalanceXof: Double = 0.0)
 
     private fun notify(symbol: String, amount: Double) {
         val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)

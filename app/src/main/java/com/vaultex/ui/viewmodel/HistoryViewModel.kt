@@ -52,6 +52,7 @@ class HistoryViewModel @Inject constructor(
     @Named("bscscan") private val bscScanApi: EtherscanApi,
     private val solanaRpc: SolanaRpcApi,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -327,6 +328,7 @@ class HistoryViewModel @Inject constructor(
     // ─── Notification ────────────────────────────────────────────────
 
     private fun sendLocalNotification(title: String, body: String, symbol: String? = null) {
+        if (!notifPrefs.txAlerts.value) return   // Alertes transactions désactivées
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

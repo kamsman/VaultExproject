@@ -30,6 +30,8 @@ class OnboardingViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val pinManager: PinManager,
     private val sessionLock: com.vaultex.core.session.SessionLockManager,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -85,7 +87,16 @@ class OnboardingViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     secureStorage.saveMnemonic(mnemonicStr)
                     secureStorage.savePassphrase(_passphrase.value.trim())
+                    val isChange = pinManager.hasPin()
                     pinManager.setPin(pin)
+                    if (isChange) try {
+                        if (notifPrefs.pinChangeAlerts.value) {
+                            val t = context.getString(com.vaultex.R.string.notif_pin_title)
+                            val b = context.getString(com.vaultex.R.string.notif_pin_body)
+                            notificationCenter.push(t, b)
+                            com.vaultex.core.util.LocalNotifier.show(context, t, b)
+                        }
+                    } catch (_: Exception) { }
                     AppLaunchManager.setWalletCreated(context, true)
                 }
                 _mnemonic.value = emptyList() // efface de la RAM

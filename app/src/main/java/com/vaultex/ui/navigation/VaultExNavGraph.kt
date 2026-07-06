@@ -191,6 +191,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             SecurityScreen(navController)
         }
 
+        composable(Routes.LOGIN_HISTORY) {
+            com.vaultex.ui.screens.security.LoginHistoryScreen(navController)
+        }
+
         composable(Routes.PENDING_SENDS) {
             PendingSendsScreen(navController)
         }

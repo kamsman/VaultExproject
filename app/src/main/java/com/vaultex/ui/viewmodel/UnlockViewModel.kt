@@ -22,6 +22,8 @@ class UnlockViewModel @Inject constructor(
     private val pinManager: PinManager,
     private val secureStorage: com.vaultex.core.security.SecureStorage,
     private val sessionLock: com.vaultex.core.session.SessionLockManager,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -54,6 +56,16 @@ class UnlockViewModel @Inject constructor(
             when (val result = pinManager.verifyPin(pin)) {
                 is PinVerificationResult.Valid -> {
                     sessionLock.markUnlocked()
+                    // Journal des connexions + alerte si activée (Notifications sécurité).
+                    try {
+                        notifPrefs.recordLogin()
+                        if (notifPrefs.loginAlerts.value) {
+                            val title = appContext.getString(com.vaultex.R.string.notif_login_title)
+                            val body = appContext.getString(com.vaultex.R.string.notif_login_body)
+                            notificationCenter.push(title, body)
+                            com.vaultex.core.util.LocalNotifier.show(appContext, title, body)
+                        }
+                    } catch (_: Exception) { }
                     _state.update { it.copy(isUnlocked = true) }
                 }
                 is PinVerificationResult.Invalid ->
