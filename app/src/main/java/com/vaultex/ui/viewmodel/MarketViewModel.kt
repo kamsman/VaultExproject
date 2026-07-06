@@ -58,6 +58,10 @@ class MarketViewModel @Inject constructor(
     private val _isStale = MutableStateFlow(false)
     val isStale: StateFlow<Boolean> = _isStale
 
+    /** true = le chargement a échoué ET aucune donnée (cache vide) → écran « réessayer ». */
+    private val _loadError = MutableStateFlow(false)
+    val loadError: StateFlow<Boolean> = _loadError
+
     // ─── Détail d'UNE pièce (écran CoinDetail) ─────────────────
     private val _coin = MutableStateFlow<CoinGeckoMarketDto?>(null)
     val coin: StateFlow<CoinGeckoMarketDto?> = _coin
@@ -100,10 +104,13 @@ class MarketViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _markets.value = withContext(Dispatchers.IO) { repository.getMarkets() }
+                val list = withContext(Dispatchers.IO) { repository.getMarkets() }
+                _markets.value = list
                 _isStale.value = repository.lastFromCache
+                _loadError.value = list.isEmpty()
             } catch (e: Exception) {
                 e.printStackTrace()
+                _loadError.value = _markets.value.isEmpty()
             } finally {
                 _isLoading.value = false
             }

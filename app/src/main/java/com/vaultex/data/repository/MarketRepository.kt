@@ -56,7 +56,13 @@ class MarketRepository @Inject constructor(
         // rate-limit) et le cache reste rempli pour l'écran détail.
         if (cache.isNotEmpty() && now - cacheTime < cacheTtlMs) return cache
         return try {
-            val list = api.getMarkets(vsCurrency = "usd")
+            val list = try {
+                api.getMarkets(vsCurrency = "usd")
+            } catch (e: Exception) {
+                // Réseau lent / rate-limit passager : un réessai après 1,5 s.
+                kotlinx.coroutines.delay(1500)
+                api.getMarkets(vsCurrency = "usd")
+            }
             if (list.isNotEmpty()) {
                 cache = list
                 cacheTime = now

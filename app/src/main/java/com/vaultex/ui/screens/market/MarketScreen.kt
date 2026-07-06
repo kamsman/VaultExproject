@@ -59,6 +59,7 @@ fun MarketScreen(navController: NavHostController) {
     val global by viewModel.global.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
     val isStale by viewModel.isStale.collectAsState()
+    val loadError by viewModel.loadError.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
@@ -200,6 +201,27 @@ fun MarketScreen(navController: NavHostController) {
             // ─── Liste des cryptos ───
             if (isLoading && markets.isEmpty()) {
                 item { HistoryListSkeleton() }
+            } else if (loadError && markets.isEmpty()) {
+                // Chargement échoué ET aucun cache (1re ouverture hors ligne /
+                // rate-limit CoinGecko) : message + bouton « Actualiser » manuel.
+                item {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.coin_load_error),
+                            color = TextSecondary, fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = { viewModel.loadMarkets() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        ) { Text(stringResource(R.string.history_refresh)) }
+                    }
+                }
             } else {
                 item {
                     Text(
