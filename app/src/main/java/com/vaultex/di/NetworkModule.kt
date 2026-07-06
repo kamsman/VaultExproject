@@ -251,7 +251,10 @@ object NetworkModule {
     }
 
     @Provides @Singleton
-    fun provideMarketRepository(api: CoinGeckoApi): MarketRepository = MarketRepository(api)
+    fun provideMarketRepository(
+        api: CoinGeckoApi,
+        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context
+    ): MarketRepository = MarketRepository(api, context)
 
     @Provides @Singleton
     fun providePriceRepository(api: CoinGeckoApi): PriceRepository = PriceRepository(api)
