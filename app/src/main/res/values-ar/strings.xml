@@ -385,6 +385,9 @@
     <string name="wallet_rename_hint">أدخل اسمًا</string>
     <string name="save">حفظ</string>
     <string name="profile_remove_photo">إزالة الصورة</string>
+    <string name="profile_photo_title">صورة الملف الشخصي</string>
+    <string name="profile_change_photo">تغيير الصورة</string>
+    <string name="profile_add_photo">إضافة صورة</string>
     <string name="manage_assets_title">إدارة الأصول</string>
     <string name="manage_assets_hint">فعّل العملات التي تريد عرضها في «أصولي». العملة التي لها رصيد تبقى مرئية دائمًا.</string>
     <string name="manage_assets_action">إدارة الأصول</string>
@@ -669,6 +672,12 @@
     <string name="send_err_addr_rejected">عنوان الوجهة غير صالح أو مرفوض من الشبكة.</string>
     <string name="notif_login_title">تسجيل دخول جديد</string>
     <string name="notif_login_body">تم فتح محفظتك للتو.</string>
+    <string name="notif_sent_title">تم الإرسال</string>
+    <string name="notif_sent_body">لقد أرسلت %1$s %2$s.</string>
+    <string name="notif_swap_done_title">اكتمل التبادل</string>
+    <string name="notif_swap_done_body">تم تبديل %1$s %2$s إلى %3$s.</string>
+    <string name="notif_swap_failed_title">فشل التبادل</string>
+    <string name="notif_swap_failed_body">لم يكتمل تبادل %1$s ← %2$s.</string>
     <string name="notif_lowbal_title">رصيد منخفض</string>
     <string name="notif_lowbal_body">انخفض رصيدك الإجمالي تحت %1$s XOF.</string>
     <string name="notif_pin_title">تم تغيير رمز PIN</string>

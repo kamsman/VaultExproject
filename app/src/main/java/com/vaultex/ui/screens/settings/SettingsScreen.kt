@@ -28,6 +28,7 @@ import com.vaultex.R
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.BgTertiary
 import com.vaultex.ui.theme.BorderColor
@@ -50,6 +51,8 @@ fun SettingsScreen(navController: NavHostController) {
     var showWalletNameDialog by remember { mutableStateOf(false) }
     // Photo de profil (#4) : version pour forcer le rechargement après changement.
     var photoVersion by remember { mutableStateOf(0) }
+    // Aperçu plein écran de la photo (voir / changer / retirer).
+    var showPhotoDialog by remember { mutableStateOf(false) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && com.vaultex.core.session.ProfilePhotoStore.save(context, uri)) photoVersion++
     }
@@ -93,6 +96,19 @@ fun SettingsScreen(navController: NavHostController) {
         )
     }
 
+    if (showPhotoDialog) {
+        ProfilePhotoDialog(
+            photoVersion = photoVersion,
+            onChange = { showPhotoDialog = false; photoPicker.launch("image/*") },
+            onRemove = {
+                com.vaultex.core.session.ProfilePhotoStore.delete(context)
+                photoVersion++
+                showPhotoDialog = false
+            },
+            onDismiss = { showPhotoDialog = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -127,13 +143,17 @@ fun SettingsScreen(navController: NavHostController) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        // Avatar : photo si définie, sinon initiales. Tap = choisir une photo.
+                        // Avatar : photo si définie, sinon initiales. Tap = aperçu
+                        // plein écran (voir/changer/retirer) si photo, sinon choisir.
                         Box(
                             Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
                                 .background(AccentBlue)
-                                .clickable { photoPicker.launch("image/*") },
+                                .clickable {
+                                    if (hasPhoto) showPhotoDialog = true
+                                    else photoPicker.launch("image/*")
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             if (hasPhoto) {
@@ -322,6 +342,71 @@ fun SettingsScreen(navController: NavHostController) {
                     }
                 }
             }
+            }
+        }
+    }
+}
+
+/** Aperçu plein écran de la photo de profil : voir en grand, changer, retirer. */
+@Composable
+private fun ProfilePhotoDialog(
+    photoVersion: Int,
+    onChange: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val file = remember(photoVersion) { com.vaultex.core.session.ProfilePhotoStore.file(context) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    stringResource(R.string.profile_photo_title),
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                coil.compose.AsyncImage(
+                    model = coil.request.ImageRequest.Builder(context)
+                        .data(file)
+                        .memoryCacheKey("profile-${file.lastModified()}")
+                        .diskCacheKey("profile-${file.lastModified()}")
+                        .build(),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.profile_change_photo))
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onRemove,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRed)
+                ) {
+                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.profile_remove_photo))
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.close), color = TextSecondary)
+                }
             }
         }
     }

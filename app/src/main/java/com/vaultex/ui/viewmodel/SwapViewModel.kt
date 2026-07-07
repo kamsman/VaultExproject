@@ -45,6 +45,8 @@ class SwapViewModel @Inject constructor(
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -485,7 +487,30 @@ class SwapViewModel @Inject constructor(
                 val remote = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
-                    if (remote in listOf("finished", "failed", "refunded", "expired")) return@launch
+                    if (remote in listOf("finished", "failed", "refunded", "expired")) {
+                        // Centre de notifications (cloche) : trace le swap terminé,
+                        // au même titre que les envois/réceptions. Respecte
+                        // l'interrupteur « Alertes transactions ».
+                        if (notifPrefs.txAlerts.value) {
+                            val st = _state.value
+                            val fromSym = assetOf(st.fromToken).base
+                            val toSym = assetOf(st.toToken).base
+                            if (remote == "finished") {
+                                notificationCenter.push(
+                                    str(com.vaultex.R.string.notif_swap_done_title),
+                                    str(com.vaultex.R.string.notif_swap_done_body, st.fromAmount, fromSym, toSym),
+                                    toSym
+                                )
+                            } else {
+                                notificationCenter.push(
+                                    str(com.vaultex.R.string.notif_swap_failed_title),
+                                    str(com.vaultex.R.string.notif_swap_failed_body, fromSym, toSym),
+                                    fromSym
+                                )
+                            }
+                        }
+                        return@launch
+                    }
                 }
             }
         }

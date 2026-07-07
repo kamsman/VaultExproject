@@ -385,6 +385,9 @@
     <string name="wallet_rename_hint">Enter a name</string>
     <string name="save">Save</string>
     <string name="profile_remove_photo">Remove photo</string>
+    <string name="profile_photo_title">Profile photo</string>
+    <string name="profile_change_photo">Change photo</string>
+    <string name="profile_add_photo">Add a photo</string>
     <string name="manage_assets_title">Manage assets</string>
     <string name="manage_assets_hint">Enable the coins to show in “My assets”. A coin with a balance always stays visible.</string>
     <string name="manage_assets_action">Manage assets</string>
@@ -669,6 +672,12 @@
     <string name="send_err_addr_rejected">Destination address invalid or rejected by the network.</string>
     <string name="notif_login_title">New sign-in</string>
     <string name="notif_login_body">Your wallet was just unlocked.</string>
+    <string name="notif_sent_title">Sent</string>
+    <string name="notif_sent_body">You sent %1$s %2$s.</string>
+    <string name="notif_swap_done_title">Swap complete</string>
+    <string name="notif_swap_done_body">%1$s %2$s swapped to %3$s.</string>
+    <string name="notif_swap_failed_title">Swap failed</string>
+    <string name="notif_swap_failed_body">The %1$s → %2$s swap did not complete.</string>
     <string name="notif_lowbal_title">Low balance</string>
     <string name="notif_lowbal_body">Your total balance dropped below %1$s XOF.</string>
     <string name="notif_pin_title">PIN changed</string>

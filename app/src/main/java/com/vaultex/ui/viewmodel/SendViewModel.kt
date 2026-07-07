@@ -58,6 +58,8 @@ class SendViewModel @Inject constructor(
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     private val toastController: com.vaultex.core.session.ToastController,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -448,6 +450,15 @@ class SendViewModel @Inject constructor(
                     // Toast maison : logo de la crypto + confirmation de l'envoi.
                     val sym = s.selectedChain.substringBefore("-")
                     toastController.show("Envoi effectué : ${s.amount} $sym", sym)
+                    // Centre de notifications (cloche) : trace l'envoi, comme les
+                    // réceptions. Respecte l'interrupteur « Alertes transactions ».
+                    if (notifPrefs.txAlerts.value) {
+                        notificationCenter.push(
+                            locStr(R.string.notif_sent_title),
+                            locStr(R.string.notif_sent_body, s.amount, sym),
+                            sym
+                        )
+                    }
                 }
                 is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
             }

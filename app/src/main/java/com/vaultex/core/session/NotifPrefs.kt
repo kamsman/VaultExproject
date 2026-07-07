@@ -25,7 +25,10 @@ class NotifPrefs @Inject constructor(
     private val _txAlerts = MutableStateFlow(prefs.getBoolean("tx", true))
     val txAlerts: StateFlow<Boolean> = _txAlerts
 
-    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", true))
+    // Défaut DÉSACTIVÉ : la notification « Nouvelle connexion » à chaque
+    // déverrouillage n'est pas nécessaire. L'utilisateur peut l'activer dans
+    // « Notifications sécurité » s'il le souhaite.
+    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", false))
     val loginAlerts: StateFlow<Boolean> = _loginAlerts
 
     private val _lowBalanceAlerts = MutableStateFlow(prefs.getBoolean("lowbal", false))
@@ -36,6 +39,17 @@ class NotifPrefs @Inject constructor(
 
     private val _thresholdXof = MutableStateFlow(prefs.getLong("threshold", 25_000L))
     val thresholdXof: StateFlow<Long> = _thresholdXof
+
+    init {
+        // Migration UNIQUE : l'ancienne version activait « Alertes connexion »
+        // par défaut. On la désactive une seule fois pour les installs existants
+        // (le tester ne verra plus « Nouvelle connexion » à chaque déverrouillage).
+        // L'utilisateur peut toujours la réactiver dans « Notifications sécurité ».
+        if (!prefs.getBoolean("mig_login_off_v1", false)) {
+            _loginAlerts.value = false
+            prefs.edit().putBoolean("login", false).putBoolean("mig_login_off_v1", true).apply()
+        }
+    }
 
     fun setTxAlerts(v: Boolean) { _txAlerts.value = v; prefs.edit().putBoolean("tx", v).apply() }
     fun setLoginAlerts(v: Boolean) { _loginAlerts.value = v; prefs.edit().putBoolean("login", v).apply() }
