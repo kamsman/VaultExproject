@@ -53,6 +53,7 @@ fun DashboardScreen(navController: NavHostController) {
     val currency by viewModel.currency.collectAsState()
     val visibleAssets by viewModel.visibleAssets.collectAsState()
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
+    val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
@@ -120,9 +121,31 @@ fun DashboardScreen(navController: NavHostController) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // ─── Rangée d'icônes fine : scan · cloche · réglages ───
+            // On garde ces accès rapides mais SANS le grand en-tête « Bonjour »,
+            // pour que la carte de solde reste tout en haut.
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(Modifier.weight(1f))
+                    HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
+                    BadgedBox(
+                        badge = {
+                            if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
+                                Text(if (unreadNotifs > 99) "99+" else unreadNotifs.toString(), fontSize = 10.sp)
+                            }
+                        }
+                    ) {
+                        HeaderSquareButton(Icons.Default.Notifications) { navController.navigate(Routes.NOTIFICATION_CENTER) }
+                    }
+                    HeaderSquareButton(Icons.Default.Settings) { navController.navigate(Routes.SETTINGS) }
+                }
+            }
+
             // ─── Carte solde (dégradé bleu, USD + ≈ XOF) ───
-            // L'app s'ouvre DIRECTEMENT sur le solde (plus d'en-tête « Bonjour »).
-            // Notifications : cloche de l'écran Marché ; Réglages : barre du bas.
             item {
                 BalanceCard(
                     currency = currency,
@@ -613,6 +636,22 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
 }
 
 /* ───────────────────── Composants du modèle (en-tête / marché / activité) ───────────────────── */
+
+/** Bouton carré arrondi (scan · cloche · réglages). */
+@Composable
+private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.size(40.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(19.dp))
+        }
+    }
+}
 
 /** Tuile d'action (icône ronde pastel + titre + sous-titre « Crypto »). */
 @Composable
