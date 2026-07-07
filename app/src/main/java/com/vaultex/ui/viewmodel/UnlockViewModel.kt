@@ -59,7 +59,10 @@ class UnlockViewModel @Inject constructor(
                     // Journal des connexions + alerte si activée (Notifications sécurité).
                     try {
                         notifPrefs.recordLogin()
-                        if (notifPrefs.loginAlerts.value) {
+                        // Au plus UNE alerte connexion par 24 h (plus de notification
+                        // à chaque saisie du PIN).
+                        if (notifPrefs.shouldNotifyLogin()) {
+                            notifPrefs.markLoginNotified()
                             val title = appContext.getString(com.vaultex.R.string.notif_login_title)
                             val body = appContext.getString(com.vaultex.R.string.notif_login_body)
                             notificationCenter.push(title, body)

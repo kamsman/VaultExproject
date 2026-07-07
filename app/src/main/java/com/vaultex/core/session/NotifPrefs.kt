@@ -25,10 +25,10 @@ class NotifPrefs @Inject constructor(
     private val _txAlerts = MutableStateFlow(prefs.getBoolean("tx", true))
     val txAlerts: StateFlow<Boolean> = _txAlerts
 
-    // Défaut DÉSACTIVÉ : la notification « Nouvelle connexion » à chaque
-    // déverrouillage n'est pas nécessaire. L'utilisateur peut l'activer dans
-    // « Notifications sécurité » s'il le souhaite.
-    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", false))
+    // « Alertes connexion » : désormais LIMITÉE à une notification par 24 h
+    // (voir shouldNotifyLogin). Plus de « Nouvelle connexion » à CHAQUE
+    // déverrouillage — au plus une fois par jour.
+    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", true))
     val loginAlerts: StateFlow<Boolean> = _loginAlerts
 
     private val _lowBalanceAlerts = MutableStateFlow(prefs.getBoolean("lowbal", false))
@@ -41,14 +41,26 @@ class NotifPrefs @Inject constructor(
     val thresholdXof: StateFlow<Long> = _thresholdXof
 
     init {
-        // Migration UNIQUE : l'ancienne version activait « Alertes connexion »
-        // par défaut. On la désactive une seule fois pour les installs existants
-        // (le tester ne verra plus « Nouvelle connexion » à chaque déverrouillage).
-        // L'utilisateur peut toujours la réactiver dans « Notifications sécurité ».
-        if (!prefs.getBoolean("mig_login_off_v1", false)) {
-            _loginAlerts.value = false
-            prefs.edit().putBoolean("login", false).putBoolean("mig_login_off_v1", true).apply()
+        // Migration v2 : rétablit « Alertes connexion » (l'ancienne v1 l'avait
+        // coupée). Elle n'est plus gênante car désormais PLAFONNÉE à 1×/24 h.
+        // Ne s'exécute qu'une seule fois.
+        if (!prefs.getBoolean("mig_login_v2", false)) {
+            _loginAlerts.value = true
+            prefs.edit().putBoolean("login", true).putBoolean("mig_login_v2", true).apply()
         }
+    }
+
+    // ─── Anti-spam « connexion » : au plus UNE notification toutes les 24 h ───
+    private val loginThrottleMs = 24L * 60 * 60 * 1000   // 24 heures
+
+    /** true si l'alerte connexion est active ET si aucune n'a été envoyée
+     *  depuis 24 h → évite une notification à chaque déverrouillage. */
+    fun shouldNotifyLogin(now: Long = System.currentTimeMillis()): Boolean =
+        _loginAlerts.value && (now - prefs.getLong("login_notified_at", 0L) >= loginThrottleMs)
+
+    /** Mémorise l'instant de la dernière alerte connexion envoyée. */
+    fun markLoginNotified(now: Long = System.currentTimeMillis()) {
+        prefs.edit().putLong("login_notified_at", now).apply()
     }
 
     fun setTxAlerts(v: Boolean) { _txAlerts.value = v; prefs.edit().putBoolean("tx", v).apply() }
