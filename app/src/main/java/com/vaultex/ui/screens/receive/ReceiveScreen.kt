@@ -94,7 +94,12 @@ fun ReceiveScreen(navController: NavController) {
             pendingSymbol = null
             navController.navigate(Routes.receiveAsset(match.symbol, match.chainKey))
         } else if (assets.isNotEmpty()) {
+            // Actif pas encore détenu (token du registre non ajouté au
+            // portefeuille) : on ouvre quand même sa réception via SA chaîne —
+            // l'adresse native/EVM reçoit le token sans ajout préalable.
+            val asset = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(sym)
             pendingSymbol = null
+            if (asset != null) navController.navigate(Routes.receiveAsset(asset.base, asset.chain))
         }
     }
 

@@ -113,6 +113,31 @@ class SendViewModel @Inject constructor(
         s.customToken?.let { "ERC20:${it.blockchain}:${it.contractAddress}:${it.decimals}" }
             ?: s.selectedChain
 
+    /**
+     * Sélection d'une monnaie depuis la page Marché (« Envoyer »). Chaîne native
+     * ou variante USDT → sélection directe. Token du registre d'échange
+     * (ERC-20 / BEP-20) → AUTO-ajout au portefeuille via son contrat CONNU, pour
+     * qu'il soit envoyable IMMÉDIATEMENT, sans que l'utilisateur ait à saisir
+     * l'adresse du contrat à la main. Le tout AVANT setChain, donc pas de course
+     * (la monnaie est déjà dans _customTokens quand on sélectionne la chaîne).
+     */
+    fun selectAsset(symbol: String) {
+        viewModelScope.launch {
+            if (symbol in NATIVE_CHAINS) { setChain(symbol); return@launch }
+            val asset = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
+                ?: com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS.firstOrNull { it.key.equals(symbol, ignoreCase = true) }
+                ?: return@launch   // symbole inconnu : on n'y touche pas
+            com.vaultex.ui.viewmodel.SwapViewModel.tokenEntityFor(asset)?.let { entity ->
+                if (_customTokens.value.none { it.symbol == entity.symbol }) {
+                    try { tokenRepository.addToken(entity) } catch (_: Exception) { /* déjà présent */ }
+                    _customTokens.value = _customTokens.value +
+                        CustomTokenLite(entity.symbol, entity.contractAddress, entity.decimals, entity.blockchain)
+                }
+            }
+            setChain(symbol)
+        }
+    }
+
     fun setChain(chain: String) {
         // Un token personnalisé est identifié par son symbole (chip). On le
         // reconnaît seulement s'il ne porte pas le nom d'une chaîne native.

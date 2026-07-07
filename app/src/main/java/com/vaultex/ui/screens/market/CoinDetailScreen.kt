@@ -264,7 +264,11 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         if (supported != null) {
                             CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
-                                navController.navigate(Routes.SEND_SELECT)
+                                // Ouvre le formulaire d'envoi DIRECTEMENT sur cette
+                                // monnaie ; le token du registre est auto-ajouté au
+                                // portefeuille (contrat connu) côté SendViewModel.
+                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                navController.navigate(Routes.SEND)
                             }
                             CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
                                 com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)

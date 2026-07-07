@@ -125,6 +125,29 @@ class SwapViewModel @Inject constructor(
 
         /** Symboles échangeables (badge « Échangeable » du Marché). */
         val SWAPPABLE_SYMBOLS: Set<String> = SWAP_ASSETS.map { it.base.uppercase() }.toSet()
+
+        /**
+         * TokenEntity à enregistrer dans le portefeuille pour un actif ERC-20 /
+         * BEP-20 du registre (contrat CONNU). Renvoie null pour les natifs et
+         * les variantes USDT, déjà gérés nativement par Envoyer / Recevoir.
+         *
+         * Grâce à ce contrat connu, l'app AUTO-ajoute la monnaie quand on tape
+         * « Envoyer » / « Recevoir » depuis sa page Marché : plus besoin d'aller
+         * chercher l'adresse du contrat à la main.
+         */
+        fun tokenEntityFor(asset: SwapAsset): com.vaultex.data.local.entity.TokenEntity? {
+            val contract = asset.contract ?: return null
+            if (asset.key == "USDT-ETH" || asset.key == "USDT-BNB") return null
+            return com.vaultex.data.local.entity.TokenEntity(
+                contractAddress = contract,
+                blockchain = if (asset.chain == "BNB") "BNB" else "ETH",
+                symbol = asset.base,
+                name = asset.base,
+                decimals = asset.decimals,
+                iconUrl = com.vaultex.ui.components.CryptoIcon.url(asset.base),
+                isCustom = true
+            )
+        }
     }
 
     private val _state = MutableStateFlow(SwapState())
@@ -355,21 +378,8 @@ class SwapViewModel @Inject constructor(
                 )
                 // Token ERC-20/BEP-20 reçu : on l'ajoute au portefeuille pour que
                 // le solde reçu soit VISIBLE (sinon le user croit ne rien recevoir).
-                val toAsset = assetOf(s.toToken)
-                if (toAsset.contract != null && toAsset.key != "USDT-ETH" && toAsset.key != "USDT-BNB") {
-                    try {
-                        tokenRepository.addToken(
-                            com.vaultex.data.local.entity.TokenEntity(
-                                contractAddress = toAsset.contract,
-                                blockchain = if (toAsset.chain == "BNB") "BNB" else "ETH",
-                                symbol = toAsset.base,
-                                name = toAsset.base,
-                                decimals = toAsset.decimals,
-                                iconUrl = com.vaultex.ui.components.CryptoIcon.url(toAsset.base),
-                                isCustom = true
-                            )
-                        )
-                    } catch (_: Exception) { /* déjà présent : sans effet */ }
+                tokenEntityFor(assetOf(s.toToken))?.let { entity ->
+                    try { tokenRepository.addToken(entity) } catch (_: Exception) { /* déjà présent */ }
                 }
                 _state.update {
                     it.copy(

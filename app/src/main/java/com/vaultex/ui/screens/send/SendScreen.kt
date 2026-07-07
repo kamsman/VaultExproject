@@ -87,12 +87,10 @@ fun SendScreen(navController: NavController) {
             viewModel.setToAddress(target.address)
         } else {
             com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
-                // Chaînes natives OU symbole d'un token personnalisé enregistré.
-                if (sym in listOf("BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB") ||
-                    customTokens.any { it.symbol == sym }
-                ) {
-                    viewModel.setChain(sym)
-                }
+                // Chaîne native, USDT, OU token du registre d'échange : selectAsset
+                // AUTO-ajoute le token (ERC-20/BEP-20) via son contrat connu s'il
+                // n'est pas encore dans le portefeuille, puis le sélectionne.
+                viewModel.selectAsset(sym)
             }
         }
     }
