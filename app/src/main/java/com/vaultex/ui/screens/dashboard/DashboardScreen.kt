@@ -50,11 +50,9 @@ fun DashboardScreen(navController: NavHostController) {
     val viewModel: PortfolioViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val balanceHidden by viewModel.balanceHidden.collectAsState()
-    val walletName by viewModel.walletName.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val visibleAssets by viewModel.visibleAssets.collectAsState()
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
-    val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
@@ -122,38 +120,9 @@ fun DashboardScreen(navController: NavHostController) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ─── En-tête « Bonjour 👋 / Mon Wallet » + scan · cloche · réglages ───
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.dashboard_greeting), fontSize = 14.sp, color = TextSecondary)
-                        // Nom du wallet (affichage seul ; édition dans Paramètres)
-                        Text(
-                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                    }
-                    HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
-                    BadgedBox(
-                        badge = {
-                            if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
-                                Text(if (unreadNotifs > 99) "99+" else unreadNotifs.toString(), fontSize = 10.sp)
-                            }
-                        }
-                    ) {
-                        HeaderSquareButton(Icons.Default.Notifications) { navController.navigate(Routes.NOTIFICATION_CENTER) }
-                    }
-                    HeaderSquareButton(Icons.Default.Settings) { navController.navigate(Routes.SETTINGS) }
-                }
-            }
-
             // ─── Carte solde (dégradé bleu, USD + ≈ XOF) ───
+            // L'app s'ouvre DIRECTEMENT sur le solde (plus d'en-tête « Bonjour »).
+            // Notifications : cloche de l'écran Marché ; Réglages : barre du bas.
             item {
                 BalanceCard(
                     currency = currency,
@@ -644,22 +613,6 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
 }
 
 /* ───────────────────── Composants du modèle (en-tête / marché / activité) ───────────────────── */
-
-/** Bouton carré arrondi de l'en-tête (scan · cloche · réglages). */
-@Composable
-private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.size(40.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(19.dp))
-        }
-    }
-}
 
 /** Tuile d'action (icône ronde pastel + titre + sous-titre « Crypto »). */
 @Composable
