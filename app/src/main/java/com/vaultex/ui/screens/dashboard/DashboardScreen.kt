@@ -174,29 +174,6 @@ fun DashboardScreen(navController: NavHostController) {
                     isFromCache = state.isFromCache,
                     modifier = Modifier.padding(start = 4.dp)
                 )
-                // ─── Ligne wallet : nom + Copier / QR (modèle) ───
-                Spacer(Modifier.height(8.dp))
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                val clip = androidx.compose.ui.platform.LocalClipboardManager.current
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(shape = RoundedCornerShape(8.dp), color = AccentBlue.copy(alpha = 0.10f)) {
-                        Text(
-                            walletName.ifEmpty { stringResource(R.string.my_wallet) },
-                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    WalletMiniButton(Icons.Default.ContentCopy, stringResource(R.string.copy)) {
-                        viewModel.fetchMainAddress { addr ->
-                            if (addr != null) {
-                                clip.setText(androidx.compose.ui.text.AnnotatedString(addr))
-                                android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                    WalletMiniButton(Icons.Default.QrCode, "QR") { navController.navigate(Routes.RECEIVE) }
-                }
                 state.error?.let { err ->
                     Text(
                         err,
@@ -680,23 +657,6 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(19.dp))
-        }
-    }
-}
-
-/** Petit bouton « Copier » / « QR » de la ligne wallet. */
-@Composable
-private fun WalletMiniButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-    ) {
-        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(5.dp))
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         }
     }
 }
