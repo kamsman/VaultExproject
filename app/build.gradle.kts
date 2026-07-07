@@ -15,6 +15,21 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+// ─── Signature RELEASE ────────────────────────────────────────────────────
+// Identifiants lus depuis keystore.properties (gitignoré) OU variables
+// d'environnement (CI). Aucun secret n'est versionné. Si le keystore est absent
+// (machine sans les secrets, CI de test…), la release se construit NON signée
+// au lieu d'échouer — voir keystore.properties.example.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) load(f.inputStream())
+}
+fun signingValue(prop: String, env: String): String? =
+    keystoreProps.getProperty(prop) ?: System.getenv(env)
+
+val releaseStorePath = signingValue("storeFile", "VAULTEX_STORE_FILE")
+val hasReleaseKeystore = releaseStorePath != null && rootProject.file(releaseStorePath).exists()
+
 android {
     namespace = "com.vaultex"
     compileSdk = 34
@@ -56,6 +71,23 @@ android {
         buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
     }
 
+    signingConfigs {
+        // Créée UNIQUEMENT si le keystore est présent → les builds sans secrets
+        // (debug, CI de test) ne cassent pas.
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(releaseStorePath!!)
+                storePassword = signingValue("storePassword", "VAULTEX_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "VAULTEX_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "VAULTEX_KEY_PASSWORD")
+                // Signatures v1+v2+v3 : compatibilité large + intégrité APK.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -63,6 +95,8 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Certificate pinning actif en production (P1)
             buildConfigField("boolean", "ENABLE_CERT_PINNING", "true")
+            // Signature applied uniquement si le keystore est disponible.
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
         }
         debug {
             isDebuggable = true

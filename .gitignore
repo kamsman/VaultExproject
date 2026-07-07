@@ -11,4 +11,8 @@ local.properties
 *.apk
 *.aab
 *.keystore
+*.jks
+# Identifiants de signature release — JAMAIS versionnés
+keystore.properties
+*.p12
 google-services.json
