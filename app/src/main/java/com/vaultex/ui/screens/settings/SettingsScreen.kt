@@ -286,6 +286,10 @@ fun SettingsScreen(navController: NavHostController) {
             }
 
             // ─── Prototypes (en développement) ───
+            // Section RÉSERVÉE au développement (raccourcis vers d'anciens écrans
+            // prototypes). Masquée dans les builds release : inutile pour les
+            // vrais utilisateurs, elle n'apparaît qu'en debug.
+            if (com.vaultex.BuildConfig.DEBUG) {
             item { SectionTitle(stringResource(R.string.settings_section_prototypes)) }
             item {
                 SectionCard {
@@ -317,6 +321,7 @@ fun SettingsScreen(navController: NavHostController) {
                         navController.navigate(Routes.SECURITY_SETUP)
                     }
                 }
+            }
             }
         }
     }

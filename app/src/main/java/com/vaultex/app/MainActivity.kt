@@ -10,11 +10,16 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -45,7 +50,9 @@ import com.vaultex.core.session.LocaleManager
 import com.vaultex.core.session.SessionLockManager
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.navigation.VaultExNavGraph
+import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.ThemeController
+import com.vaultex.ui.theme.ThemeMode
 import com.vaultex.ui.theme.VaultExTheme
 
 import dagger.hilt.android.AndroidEntryPoint
@@ -132,6 +139,25 @@ class MainActivity : FragmentActivity() {
             val themeMode by themeController.mode.collectAsState()
 
             VaultExTheme(themeMode = themeMode) {
+
+                // Barres système (icônes + couleurs) alignées sur le thème RÉSOLU.
+                // Sans ça, en mode CLAIR les icônes de la barre d'état restaient
+                // blanches (invisibles sur fond blanc) : réglage codé en dur dans
+                // themes.xml. Ici, tout suit le thème effectif (système par défaut).
+                val barsView = LocalView.current
+                val darkTheme = when (themeMode) {
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                }
+                val barColor = BgPrimary
+                SideEffect {
+                    window.statusBarColor = barColor.toArgb()
+                    window.navigationBarColor = barColor.toArgb()
+                    val controller = WindowCompat.getInsetsController(window, barsView)
+                    controller.isAppearanceLightStatusBars = !darkTheme
+                    controller.isAppearanceLightNavigationBars = !darkTheme
+                }
 
                 val navController = rememberNavController()
 

@@ -5,15 +5,17 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,42 +56,69 @@ fun UnlockScreen(navController: NavHostController) {
         }
     }
 
+    val bioEnabled = viewModel.isBiometricEnabled() && activity != null
+    fun launchBiometric() {
+        if (activity == null) return
+        BiometricHelper(activity).authenticate(
+            title = activity.getString(R.string.biometric_title),
+            subtitle = activity.getString(R.string.biometric_subtitle),
+            onSuccess = { viewModel.onBiometricSuccess() },
+            onError = { _, _ -> }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BgSecondary)
-            .padding(24.dp),
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(72.dp))
+        Spacer(Modifier.weight(0.6f))
 
-        // Diamant bleu + titre
-        Box(Modifier.size(52.dp).rotate(45f).clip(RoundedCornerShape(6.dp)).background(AccentBlue))
+        // ─── Bouclier + cadenas (maquette) ───
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Filled.Shield,
+                contentDescription = null,
+                tint = AccentBlue.copy(alpha = 0.14f),
+                modifier = Modifier.size(104.dp)
+            )
+            Icon(
+                Icons.Filled.Lock,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(42.dp)
+            )
+        }
+
         Spacer(Modifier.height(20.dp))
         Text(
-            stringResource(R.string.app_name),
-            color = TextPrimary,
-            fontSize = 28.sp,
+            stringResource(R.string.unlock_enter_pin),
+            color = AccentBlue,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
-        Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.unlock_enter_pin), color = TextSecondary, fontSize = 14.sp)
 
-        Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(28.dp))
 
-        // Points du PIN
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        // ─── 6 cercles (vides = bordés, remplis = pleins) ───
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             repeat(6) { i ->
+                val filled = i < state.pin.length
                 Box(
-                    modifier = Modifier.size(14.dp).clip(CircleShape)
-                        .background(if (i < state.pin.length) AccentBlue else BgTertiary)
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (filled) AccentBlue else Color.Transparent)
+                        .border(1.5.dp, AccentBlue.copy(alpha = if (filled) 1f else 0.45f), CircleShape)
                 )
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
 
-        // Erreur / verrouillage
+        // ─── Erreur / verrouillage ───
         val msg = when {
             state.lockedSeconds > 0 -> {
                 val min = state.lockedSeconds / 60
@@ -108,32 +137,57 @@ fun UnlockScreen(navController: NavHostController) {
             modifier = Modifier.height(20.dp)
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Pavé numérique — cercles clairs bordés
+        // ─── Pavé numérique 3×4 (empreinte · 0 · effacer sur la dernière ligne) ───
+        val rows = listOf(
+            listOf("1", "2", "3"),
+            listOf("4", "5", "6"),
+            listOf("7", "8", "9"),
+            listOf("bio", "0", "del")
+        )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            val digits = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫")
-            digits.chunked(3).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(26.dp)) {
-                    row.forEach { d ->
-                        if (d.isEmpty()) {
-                            Spacer(Modifier.size(70.dp))
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .clip(CircleShape)
-                                    .border(1.dp, BorderColor, CircleShape)
-                                    .background(BgSecondary)
-                                    .clickable(enabled = state.lockedSeconds == 0L) {
-                                        if (d == "⌫") viewModel.onBackspace() else viewModel.onDigit(d)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(d, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            rows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(30.dp)) {
+                    row.forEach { key ->
+                        when (key) {
+                            "bio" -> {
+                                if (bioEnabled) {
+                                    PinKey(onClick = { launchBiometric() }) {
+                                        Icon(
+                                            Icons.Filled.Fingerprint,
+                                            contentDescription = stringResource(R.string.unlock_use_fingerprint),
+                                            tint = AccentBlue,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.size(72.dp))
+                                }
+                            }
+                            "del" -> {
+                                PinKey(
+                                    enabled = state.pin.isNotEmpty(),
+                                    onClick = { viewModel.onBackspace() }
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Backspace,
+                                        contentDescription = stringResource(R.string.back),
+                                        tint = AccentBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            else -> {
+                                PinKey(
+                                    enabled = state.lockedSeconds == 0L,
+                                    onClick = { viewModel.onDigit(key) }
+                                ) {
+                                    Text(key, color = AccentBlue, fontSize = 26.sp, fontWeight = FontWeight.Medium)
+                                }
                             }
                         }
                     }
@@ -143,31 +197,31 @@ fun UnlockScreen(navController: NavHostController) {
 
         Spacer(Modifier.weight(1f))
 
-        // Biométrie — icône d'empreinte (au lieu d'un texte)
-        if (viewModel.isBiometricEnabled() && activity != null) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, BorderColor, CircleShape)
-                    .clickable {
-                        BiometricHelper(activity).authenticate(
-                            title = activity.getString(R.string.biometric_title),
-                            subtitle = activity.getString(R.string.biometric_subtitle),
-                            onSuccess = { viewModel.onBiometricSuccess() },
-                            onError = { _, _ -> }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Fingerprint,
-                    contentDescription = stringResource(R.string.unlock_use_fingerprint),
-                    tint = AccentBlue,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
+        // ─── Pied de page « vaultex wallet » ───
+        Text(
+            stringResource(R.string.app_name).lowercase() + " wallet",
+            color = TextMuted,
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(20.dp))
+    }
+}
+
+/** Touche ronde bordée du pavé PIN (maquette : cercle bleu clair, fond transparent). */
+@Composable
+private fun PinKey(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .clip(CircleShape)
+            .border(1.dp, AccentBlue.copy(alpha = 0.35f), CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
