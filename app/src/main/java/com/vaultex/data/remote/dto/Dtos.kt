@@ -93,7 +93,7 @@ data class TronTriggerSmartContractBody(
     val contract_address: String,
     val function_selector: String,
     val parameter: String,
-    val fee_limit: Long = 10_000_000,
+    val fee_limit: Long = 100_000_000,   // 100 TRX : couvre un transfert TRC-20 sans énergie stakée
     val call_value: Long = 0
 )
 data class TronTriggerSmartContractDto(

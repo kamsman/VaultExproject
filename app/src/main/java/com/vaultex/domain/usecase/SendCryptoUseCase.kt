@@ -102,10 +102,7 @@ class SendCryptoUseCase @Inject constructor(
                 } catch (_: Exception) { return Result.Error("Montant invalide") }
                 sendSol(toAddress = toAddress, lamports = lamports)
             }
-            "USDT" -> {
-                val amountUsdt = amount.toDoubleOrNull() ?: return Result.Error("Montant invalide")
-                sendUsdtTrc20(toAddress = toAddress, amountUsdt = amountUsdt)
-            }
+            "USDT" -> sendUsdtTrc20(toAddress = toAddress, amountUsdt = amount)
             "USDT-ETH" -> {
                 val amountWei = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000")).toBigInteger() // 6 décimales
@@ -246,9 +243,29 @@ class SendCryptoUseCase @Inject constructor(
                 .map { Utxo(txHash = it.txid, outputIndex = it.vout, valueSatoshi = it.value) }
             if (confirmedUtxos.isEmpty()) return Result.Error("Aucun UTXO confirmé disponible")
 
-            val inputCount = confirmedUtxos.size.coerceAtMost(10)
-            // P2WPKH virtual size: ~68 vbytes/input (41 non-witness + 108 witness / 4)
-            val feeSatoshi = (11 + 68 * inputCount + 31 * 2).toLong() * satPerByte
+            // Frais = f(nombre d'entrées RÉELLEMENT dépensées). Le signataire choisit
+            // les UTXO au plus juste (tri décroissant, arrêt dès que montant+frais est
+            // couvert) ; on simule EXACTEMENT la même sélection ici pour que les frais
+            // correspondent aux entrées signées.
+            // Ancien bug : frais calculés pour min(nUTXO, 10) entrées → surpaiement
+            // massif (petit envoi depuis un gros portefeuille) OU sous-paiement quand
+            // > 10 entrées étaient nécessaires (aucun plafond côté signature) → tx
+            // rejetée « min relay fee not met ». La sortie de frais de service n'était
+            // pas non plus comptée dans la taille estimée.
+            val svcFee = if (serviceFeeSatoshi > 546) serviceFeeSatoshi else 0L
+            val outCount = 2 + (if (svcFee > 0L) 1 else 0)   // destinataire + change (+ frais service)
+            var inputTotal = 0L
+            var usedInputs = 0
+            var feeSatoshi = 0L
+            for (u in confirmedUtxos) {
+                usedInputs++
+                inputTotal += u.valueSatoshi
+                // vsize P2WPKH : ~11 vB d'entête + ~68 vB/entrée + ~31 vB/sortie.
+                feeSatoshi = (11L + 68L * usedInputs + 31L * outCount) * satPerByte
+                if (inputTotal >= amountSatoshi + feeSatoshi + svcFee) break
+            }
+            if (inputTotal < amountSatoshi + feeSatoshi + svcFee)
+                return Result.Error("Solde insuffisant pour couvrir le montant et les frais réseau")
 
             val signed = btcTx.signTransaction(
                 mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos,
@@ -307,7 +324,7 @@ class SendCryptoUseCase @Inject constructor(
 
     // ─── USDT TRC20 — flux : Trigger → Signer → Broadcast → Hash ────
 
-    suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: Double): Result {
+    suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: String): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
@@ -315,7 +332,11 @@ class SendCryptoUseCase @Inject constructor(
             // Étape 1 — Préparer les paramètres hex + ABI-encode transfer(address,uint256)
             val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
             val contractHex = tronAddrToHex(USDT_TRC20_CONTRACT)
-            val amountMicro = (amountUsdt * 1_000_000).toLong()
+            // Montant en micro-USDT via BigDecimal (EXACT). L'ancien passage par
+            // Double perdait des sous-unités (20,02 → 20019999 au lieu de 20020000).
+            val amountMicro = try {
+                BigDecimal(amountUsdt.replace(",", ".")).multiply(BigDecimal("1000000")).toLong()
+            } catch (_: Exception) { return Result.Error("Montant invalide") }
             val parameter   = buildTrc20Param(toAddress, amountMicro)
 
             // Étape 2 — Déclencher le smart contract (génère la tx non signée)
@@ -325,7 +346,10 @@ class SendCryptoUseCase @Inject constructor(
                     contract_address  = contractHex,
                     function_selector = "transfer(address,uint256)",
                     parameter         = parameter,
-                    fee_limit         = 10_000_000
+                    // 100 TRX : un transfert TRC-20 sans énergie stakée brûle
+                    // ~13-30 TRX. L'ancien plafond de 10 TRX faisait échouer le
+                    // transfert (OUT_OF_ENERGY) EN BRÛLANT quand même les 10 TRX.
+                    fee_limit         = 100_000_000
                 )
             )
             val triggerResult = triggerRes.getAsJsonObject("result")
