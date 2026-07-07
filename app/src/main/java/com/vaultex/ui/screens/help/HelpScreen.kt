@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -46,11 +47,11 @@ import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 
 /** Canaux de contact du support VaultEx. */
-private const val SUPPORT_EMAIL = "support@vaultex.app"
-// Les mails partent vers les deux adresses (aucun message perdu si l'une n'est pas relevée).
-private const val SUPPORT_EMAILS = "support@vaultex.app,mouminekoanda0@gmail.com"
+private const val SUPPORT_EMAIL = "vaultexteams@gmail.com"
+private const val SUPPORT_EMAILS = "vaultexteams@gmail.com"
 private const val SUPPORT_WHATSAPP = "22672306526"           // wa.me : international sans « + »
 private const val SUPPORT_TELEGRAM = "https://t.me/vaultexWallet"
+private const val SUPPORT_FACEBOOK = "https://www.facebook.com/profile.php?id=61591429450182"
 private const val SUPPORT_PHONE = "+226 79 38 84 55"
 private const val SUPPORT_PHONE_DIAL = "+22679388455"
 
@@ -149,6 +150,19 @@ fun HelpScreen(navController: NavHostController) {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
                             android.net.Uri.parse(SUPPORT_TELEGRAM))
+                    )
+                }
+            }
+            ContactRow(
+                icon = Icons.Default.Public,
+                iconBg = Color(0xFF1877F2),
+                title = "Facebook",
+                subtitle = "VaultEx"
+            ) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(SUPPORT_FACEBOOK))
                     )
                 }
             }
