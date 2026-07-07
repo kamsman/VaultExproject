@@ -462,7 +462,12 @@ class SendCryptoUseCase @Inject constructor(
         val baseFeeHex = (blockRes.result as? Map<String, Any>)
             ?.get("baseFeePerGas") as? String ?: "0x0"
         val baseFee = BigInteger(baseFeeHex.removePrefix("0x").ifEmpty { "0" }, 16)
-        val maxFee = baseFee.multiply(BigInteger.TWO).add(maxPriority)
+        // Repli : si le nœud ne renvoie pas baseFeePerGas (baseFee = 0), maxFee
+        // tomberait à ~1 gwei (sous le prix du marché) → tx ETH rejetée « max fee
+        // per gas less than block base fee ». On se rabat alors sur eth_gasPrice.
+        val effectiveBase = if (baseFee.signum() > 0) baseFee
+            else fetchLegacyGasPrice(rpc, 20_000_000_000L)   // 20 gwei par défaut
+        val maxFee = effectiveBase.multiply(BigInteger.TWO).add(maxPriority)
         return Pair(maxPriority, maxFee)
     }
 
