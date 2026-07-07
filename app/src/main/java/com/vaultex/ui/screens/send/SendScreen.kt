@@ -376,11 +376,11 @@ fun SendScreen(navController: NavController) {
                             .clickable { navController.navigate(Routes.SCANNER) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            stringResource(R.string.qr_label),
-                            color = AccentBlue,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                        Icon(
+                            Icons.Default.QrCodeScanner,
+                            contentDescription = stringResource(R.string.qr_label),
+                            tint = AccentBlue,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
