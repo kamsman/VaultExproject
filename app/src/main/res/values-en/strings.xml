@@ -498,6 +498,9 @@
     <string name="token_search_btn">Search</string>
     <string name="manage_tokens_title">My tokens</string>
     <string name="add_token_title">Add token</string>
+    <string name="add_token_security_title">Security tip</string>
+    <string name="add_token_security_body">Make sure the contract address is correct and comes from a trusted source to avoid fraudulent tokens.</string>
+    <string name="add_token_keys_safe">Your private keys never leave your device.</string>
     <string name="add_token_contract_label">Contract address</string>
     <string name="add_token_detected">Detected information</string>
     <string name="add_token_symbol">Symbol</string>

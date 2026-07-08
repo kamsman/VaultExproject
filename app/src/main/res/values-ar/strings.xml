@@ -498,6 +498,9 @@
     <string name="token_search_btn">بحث</string>
     <string name="manage_tokens_title">رموزي</string>
     <string name="add_token_title">إضافة رمز</string>
+    <string name="add_token_security_title">نصيحة أمان</string>
+    <string name="add_token_security_body">تأكد من صحة عنوان العقد وأنه من مصدر موثوق لتجنب الرموز الاحتيالية.</string>
+    <string name="add_token_keys_safe">مفاتيحك الخاصة لا تغادر جهازك أبدًا.</string>
     <string name="add_token_contract_label">عنوان العقد</string>
     <string name="add_token_detected">المعلومات المكتشفة</string>
     <string name="add_token_symbol">الرمز</string>

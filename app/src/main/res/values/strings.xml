@@ -589,6 +589,9 @@
     <string name="add_token_detect">Détecter</string>
     <string name="add_token_detecting">Lecture du contrat…</string>
     <string name="add_token_paste_hint">Collez l\'adresse du contrat (0x…) puis touchez Détecter.</string>
+    <string name="add_token_security_title">Conseil de sécurité</string>
+    <string name="add_token_security_body">Assurez-vous que l\'adresse du contrat est correcte et provient d\'une source fiable pour éviter les tokens frauduleux.</string>
+    <string name="add_token_keys_safe">Vos clés privées ne quittent jamais votre appareil.</string>
     <string name="add_token_not_found">Contrat introuvable ou réseau indisponible. Vérifiez l\'adresse et le réseau.</string>
     <string name="add_token_invalid_address">Adresse de contrat invalide (doit commencer par 0x et faire 42 caractères).</string>
     <string name="add_token_added">Token ajouté. Le solde apparaîtra dans « Mes actifs ».</string>

@@ -141,7 +141,6 @@ fun DashboardScreen(navController: NavHostController) {
                     ) {
                         HeaderSquareButton(Icons.Default.Notifications) { navController.navigate(Routes.NOTIFICATION_CENTER) }
                     }
-                    HeaderSquareButton(Icons.Default.Settings) { navController.navigate(Routes.SETTINGS) }
                 }
             }
 
