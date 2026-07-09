@@ -319,6 +319,8 @@
     <string name="settings_version">Version</string>
     <string name="settings_version_value">VaultEx 1.0.0</string>
     <string name="settings_help">Aide &amp; Support</string>
+    <string name="settings_whitepaper">Livre blanc VaultEx (PDF)</string>
+    <string name="settings_whitepaper_sub">Documents &amp; support — télécharger</string>
     <string name="settings_help_subtitle">FAQ, contact</string>
     <string name="backup_warning_title">Ne partagez jamais votre phrase secrète</string>
     <string name="backup_warning_body">Quiconque connaît votre phrase peut accéder à tous vos fonds.</string>

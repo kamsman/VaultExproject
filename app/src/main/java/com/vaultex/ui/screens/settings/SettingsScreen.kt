@@ -38,6 +38,10 @@ import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.SettingsViewModel
 
+/** Livre blanc VaultEx (PDF) — téléchargement direct depuis Google Drive. */
+private const val WHITEPAPER_URL =
+    "https://drive.google.com/uc?export=download&id=1vW-rLpkl6Ws0GisCw_2tu3gq-6BZI5ZG"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
@@ -295,6 +299,19 @@ fun SettingsScreen(navController: NavHostController) {
                     RowDivider()
                     SettingsRow(Icons.Default.Help, stringResource(R.string.settings_help)) {
                         navController.navigate(Routes.HELP)
+                    }
+                    RowDivider()
+                    // Documents & support : téléchargement du livre blanc (PDF
+                    // hébergé sur Google Drive, ouvert dans le navigateur).
+                    SettingsRow(Icons.Default.Description, stringResource(R.string.settings_whitepaper)) {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(WHITEPAPER_URL)
+                                )
+                            )
+                        }
                     }
                     RowDivider()
                     SettingsValueRow(

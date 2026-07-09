@@ -279,6 +279,8 @@
     <string name="settings_version">Version</string>
     <string name="settings_version_value">VaultEx 1.0.0</string>
     <string name="settings_help">Help &amp; Support</string>
+    <string name="settings_whitepaper">VaultEx Whitepaper (PDF)</string>
+    <string name="settings_whitepaper_sub">Documents &amp; support — download</string>
     <string name="settings_help_subtitle">FAQ, contact</string>
     <string name="backup_warning_title">Never share your secret phrase</string>
     <string name="backup_warning_body">Anyone who knows your phrase can access all your funds.</string>

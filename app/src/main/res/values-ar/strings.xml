@@ -279,6 +279,8 @@
     <string name="settings_version">الإصدار</string>
     <string name="settings_version_value">VaultEx 1.0.0</string>
     <string name="settings_help">المساعدة &amp; الدعم</string>
+    <string name="settings_whitepaper">الكتاب الأبيض VaultEx (PDF)</string>
+    <string name="settings_whitepaper_sub">المستندات والدعم — تنزيل</string>
     <string name="settings_help_subtitle">الأسئلة الشائعة، التواصل</string>
     <string name="backup_warning_title">لا تشارك عبارتك السرية أبدًا</string>
     <string name="backup_warning_body">أي شخص يعرف عبارتك يمكنه الوصول إلى جميع أموالك.</string>
