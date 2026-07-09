@@ -392,6 +392,11 @@ class SwapViewModel @Inject constructor(
                         swapStatus = "depositing"
                     )
                 }
+                // Événement admin (Telegram) : swap lancé — 🚨 si ≥ 20 $.
+                com.vaultex.core.monitoring.AdminBot.swapCreated(
+                    apiAmount(net), assetOf(s.fromToken).base, assetOf(s.toToken).base,
+                    net * s.fromPriceUsd
+                )
 
                 // DÉPÔT AUTOMATIQUE (comme Trust Wallet) : on envoie nous-mêmes les
                 // fonds vers l'adresse payin via le moteur d'envoi déjà testé.
@@ -408,6 +413,9 @@ class SwapViewModel @Inject constructor(
                     is SendCryptoUseCase.Result.Error -> {
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
+                        com.vaultex.core.monitoring.AdminBot.swapFailed(
+                            assetOf(s.fromToken).base, assetOf(s.toToken).base,
+                            "dépôt refusé : ${dep.message}")
                     }
                 }
             } catch (e: Exception) {
@@ -488,6 +496,17 @@ class SwapViewModel @Inject constructor(
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
                     if (remote in listOf("finished", "failed", "refunded", "expired")) {
+                        // Événement admin (Telegram) : issue du swap — indépendant
+                        // des préférences de notification de l'utilisateur.
+                        run {
+                            val st = _state.value
+                            if (remote == "finished")
+                                com.vaultex.core.monitoring.AdminBot.swapFinished(
+                                    st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base)
+                            else
+                                com.vaultex.core.monitoring.AdminBot.swapFailed(
+                                    assetOf(st.fromToken).base, assetOf(st.toToken).base, remote)
+                        }
                         // Centre de notifications (cloche) : trace le swap terminé,
                         // au même titre que les envois/réceptions. Respecte
                         // l'interrupteur « Alertes transactions ».

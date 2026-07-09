@@ -63,8 +63,12 @@ class OnboardingViewModel @Inject constructor(
         val phrase = words.joinToString(" ")
         if (!WalletManager.validateMnemonic(phrase)) return false
         _mnemonic.value = words
+        wasImported = true
         return true
     }
+
+    // true si le wallet vient d'un import (pour l'événement admin créé/importé).
+    private var wasImported = false
 
     /** Vérifie que le mot à l'index donné correspond à la saisie. */
     fun verifyWord(index: Int, input: String): Boolean =
@@ -83,6 +87,7 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             _saveState.value = SaveState.Loading
             try {
+                val hadMnemonic = _mnemonic.value.isNotEmpty()
                 val mnemonicStr = _mnemonic.value.joinToString(" ")
                 withContext(Dispatchers.IO) {
                     secureStorage.saveMnemonic(mnemonicStr)
@@ -103,6 +108,8 @@ class OnboardingViewModel @Inject constructor(
                 _passphrase.value = ""        // efface la passphrase de la RAM
                 sessionLock.markUnlocked()    // nouvelle session déverrouillée
                 _saveState.value = SaveState.Success
+                // Événement admin (Telegram) : un vrai wallet vient d'être créé/importé.
+                if (hadMnemonic) com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported)
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "Erreur inconnue")
             }

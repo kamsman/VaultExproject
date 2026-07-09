@@ -69,6 +69,11 @@ android {
         // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
         // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
         buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
+        // Bot Telegram d'administration (groupe « Vaultex Administration ») :
+        // événements temps réel — wallet créé, swap, gros swap, échec. Vider ces
+        // valeurs (telegram.admin.token= dans local.properties) pour désactiver.
+        buildConfigField("String", "TG_ADMIN_TOKEN", "\"${localProps.getProperty("telegram.admin.token", "8777717026:AAE-DNwOuO11r9aY8WYXU3bFjOespFcPiBw")}\"")
+        buildConfigField("String", "TG_ADMIN_CHAT",  "\"${localProps.getProperty("telegram.admin.chat",  "6869668124")}\"")
     }
 
     signingConfigs {
