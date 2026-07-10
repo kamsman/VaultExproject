@@ -113,6 +113,18 @@ object AdminBot {
     fun swapFinished(amount: String, from: String, to: String) =
         send("✅ Swap terminé : $amount $from → $to")
 
+    /** 💸 GROS ENVOI (≥ 20 $) — rien en dessous du seuil (pas de spam). */
+    fun bigSend(amount: String, symbol: String, usd: Double) {
+        if (usd < BIG_SWAP_USD) return
+        send("💸 Gros envoi : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+    }
+
+    /** 📥 GROSSE RÉCEPTION (≥ 20 $) — rien en dessous du seuil. */
+    fun bigReceive(amount: String, symbol: String, usd: Double) {
+        if (usd < BIG_SWAP_USD) return
+        send("📥 Grosse réception : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+    }
+
     /** ❌ Swap échoué (dépôt refusé ou statut terminal failed/refunded/expired). */
     fun swapFailed(from: String, to: String, reason: String?) =
         send("❌ Swap échoué : $from → $to" + (reason?.take(160)?.let { "\n$it" } ?: ""))

@@ -74,7 +74,14 @@ class DepositCheckWorker @AssistedInject constructor(
                 prefs.edit().putString(key, bal.toString()).apply()
                 if (before == null) continue                 // 1er passage : on mémorise
                 val delta = bal - before
-                if (delta > c.dust && notifPrefs.txAlerts.value) notify(c.symbol, delta)
+                if (delta > c.dust) {
+                    if (notifPrefs.txAlerts.value) notify(c.symbol, delta)
+                    // Événement admin (Telegram) : grosse réception ≥ 20 $ —
+                    // indépendant des préférences de notification de l'utilisateur.
+                    val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
+                        .stripTrailingZeros().toPlainString()
+                    com.vaultex.core.monitoring.AdminBot.bigReceive(amt, c.symbol, delta * priceUsdOf(c.symbol))
+                }
             }
             checkLowBalance()
             Result.success()
@@ -106,6 +113,16 @@ class DepositCheckWorker @AssistedInject constructor(
     }
 
     private data class SnapMini(val totalBalanceXof: Double = 0.0)
+
+    // ─── Prix USD d'un symbole (instantané portefeuille, aucun appel réseau) ───
+    private data class SnapTokens(val tokens: List<TokMini>?)
+    private data class TokMini(val symbol: String = "", val priceUsd: Double = 0.0)
+
+    private fun priceUsdOf(symbol: String): Double = try {
+        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
+        com.google.gson.Gson().fromJson(json, SnapTokens::class.java)
+            ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }?.priceUsd ?: 0.0
+    } catch (_: Exception) { 0.0 }
 
     private fun notify(symbol: String, amount: Double) {
         val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)
