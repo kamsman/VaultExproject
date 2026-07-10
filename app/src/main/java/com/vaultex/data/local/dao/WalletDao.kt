@@ -57,6 +57,9 @@ interface TokenDao {
     @Query("SELECT * FROM tokens WHERE isCustom = 1 AND isHidden = 0")
     suspend fun getCustom(): List<TokenEntity>
 
+    @Query("SELECT * FROM tokens WHERE isCustom = 1")
+    suspend fun getAllCustom(): List<TokenEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(token: TokenEntity)
 

@@ -97,6 +97,13 @@ class WalletStore @Inject constructor(
         if (id == secureStorage.activeWalletId()) return false
         walletDao.delete(id)
         secureStorage.deleteWalletSecrets(id)
+        // Sa liste de tokens personnalisés disparaît avec lui.
+        try {
+            appContext.getSharedPreferences(
+                com.vaultex.data.repository.TokenRepository.OWNERSHIP_PREFS,
+                android.content.Context.MODE_PRIVATE
+            ).edit().remove(id).apply()
+        } catch (_: Exception) { }
         return true
     }
 
