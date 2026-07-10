@@ -31,7 +31,8 @@ class WalletStore @Inject constructor(
     private val secureStorage: SecureStorage,
     private val walletDao: WalletDao,
     private val transactionDao: TransactionDao,
-    private val pendingSendDao: PendingSendDao
+    private val pendingSendDao: PendingSendDao,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) {
 
     /**
@@ -103,6 +104,14 @@ class WalletStore @Inject constructor(
         secureStorage.clearWalletCaches()
         try { transactionDao.deleteAll() } catch (_: Exception) { }
         try { pendingSendDao.deleteAll() } catch (_: Exception) { }
+        // Soldes de référence du détecteur de dépôts : remis à zéro, sinon il
+        // comparerait le solde du NOUVEAU wallet à celui de l'ancien et
+        // enverrait de fausses notifications « dépôt reçu ». Après cette purge,
+        // son premier passage re-mémorise sans notifier.
+        try {
+            appContext.getSharedPreferences("deposit_check_prefs", android.content.Context.MODE_PRIVATE)
+                .edit().clear().apply()
+        } catch (_: Exception) { }
         // Force l'accueil à recharger les soldes du nouveau wallet dès son retour.
         BalanceRefreshSignal.signalTxSent()
     }
