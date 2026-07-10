@@ -98,9 +98,10 @@ class OnboardingViewModel @Inject constructor(
             try {
                 val hadMnemonic = _mnemonic.value.isNotEmpty()
                 val mnemonicStr = _mnemonic.value.joinToString(" ")
+                var created: com.vaultex.data.local.entity.WalletEntity? = null
                 withContext(Dispatchers.IO) {
                     if (hadMnemonic) {
-                        walletStore.addWallet(
+                        created = walletStore.addWallet(
                             mnemonic = mnemonicStr,
                             passphrase = _passphrase.value.trim(),
                             imported = wasImported
@@ -124,8 +125,11 @@ class OnboardingViewModel @Inject constructor(
                 _passphrase.value = ""        // efface la passphrase de la RAM
                 sessionLock.markUnlocked()    // nouvelle session déverrouillée
                 _saveState.value = SaveState.Success
-                // Événement admin (Telegram) : un vrai wallet vient d'être créé/importé.
-                if (hadMnemonic) com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported)
+                // Événement admin (Telegram) : wallet créé/importé, avec son
+                // nom (« Wallet 2 ») et son code unique pour le suivi.
+                created?.let {
+                    com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported, it.name, it.id)
+                }
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "Erreur inconnue")
             }

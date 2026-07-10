@@ -667,7 +667,6 @@ private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: 
             }
             Spacer(Modifier.height(8.dp))
             Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("Crypto", fontSize = 11.sp, color = TextSecondary)
         }
     }
 }

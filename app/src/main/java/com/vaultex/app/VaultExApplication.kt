@@ -30,6 +30,8 @@ class VaultExApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Bot Telegram admin : code d'installation (VX-XXXXXX) apposé aux événements.
+        com.vaultex.core.monitoring.AdminBot.init(this)
         createNotificationChannel()
         schedulePriceAlertChecks()
         scheduleDepositChecks()

@@ -33,6 +33,30 @@ object AdminBot {
     /** Seuil « gros swap » (valeur en USD ≈ USDT). */
     const val BIG_SWAP_USD = 20.0
 
+    // ─── Code d'installation : SUIVI intelligent sans données personnelles ───
+    // Un code court, unique PAR TÉLÉPHONE (généré au premier lancement, stable
+    // ensuite), apposé sur chaque message. L'admin peut ainsi relier les
+    // événements d'un même utilisateur (wallet créé → swaps → échecs) et
+    // compter les installations, sans identité ni adresse.
+    @Volatile private var appContext: android.content.Context? = null
+
+    fun init(context: android.content.Context) { appContext = context.applicationContext }
+
+    private val installCode: String by lazy {
+        try {
+            val prefs = appContext!!.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
+            prefs.getString("install_code", null) ?: run {
+                val code = "VX-" + java.util.UUID.randomUUID().toString()
+                    .replace("-", "").take(6).uppercase(Locale.US)
+                prefs.edit().putString("install_code", code).apply()
+                code
+            }
+        } catch (_: Exception) { "VX-??????" }
+    }
+
+    /** Signature apposée en bas de chaque message. */
+    private fun signature(): String = "🆔 $installCode"
+
     fun send(text: String) {
         val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
         val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT
@@ -41,7 +65,7 @@ object AdminBot {
             try {
                 val body = okhttp3.FormBody.Builder()
                     .add("chat_id", chat)
-                    .add("text", text)
+                    .add("text", text + "\n" + signature())
                     .build()
                 val req = okhttp3.Request.Builder()
                     .url("https://api.telegram.org/bot$token/sendMessage")
@@ -65,11 +89,18 @@ object AdminBot {
         }
     }
 
-    /** 👤 Nouveau wallet créé ou importé (fin d'onboarding). */
-    fun walletCreated(imported: Boolean) = send(
-        if (imported) "👤 Wallet importé sur VaultEx"
-        else "👤 Nouveau wallet créé sur VaultEx"
-    )
+    /**
+     * 👤 Nouveau wallet créé ou importé. [name] = « Wallet 2 »… et [walletId]
+     * = code unique (w_xxxxxxxx) → suivi précis de CHAQUE wallet de l'install.
+     */
+    fun walletCreated(imported: Boolean, name: String = "", walletId: String = "") {
+        val head = if (imported) "👤 Wallet importé sur VaultEx" else "👤 Nouveau wallet créé sur VaultEx"
+        val detail = buildString {
+            if (name.isNotBlank()) append("\n📛 $name")
+            if (walletId.isNotBlank()) append(" · code $walletId")
+        }
+        send(head + detail)
+    }
 
     /** 🔄 / 🚨 Swap lancé (dépôt en cours). [usd] ≈ contre-valeur du montant. */
     fun swapCreated(amount: String, from: String, to: String, usd: Double) {
