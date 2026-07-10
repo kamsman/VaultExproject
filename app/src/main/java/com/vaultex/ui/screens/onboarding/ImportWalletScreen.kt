@@ -37,6 +37,16 @@ fun ImportWalletScreen(
     var passphrase by remember { mutableStateOf("") }
     var errorRes by remember { mutableStateOf<Int?>(null) }
 
+    // Chemin « AJOUT d'un wallet » (PIN déjà posé) : succès → accueil du
+    // NOUVEAU wallet actif.
+    val saveState by viewModel.saveState.collectAsState()
+    LaunchedEffect(saveState) {
+        if (saveState is OnboardingViewModel.SaveState.Success) {
+            viewModel.resetSaveState()
+            navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
+        }
+    }
+
     val words = mnemonic
         .lowercase()
         .replace("\n", " ")
@@ -200,6 +210,9 @@ fun ImportWalletScreen(
                         mnemonic.isBlank() -> errorRes = R.string.import_error_empty
                         wordCount != 12 -> errorRes = R.string.import_error_count
                         !viewModel.setImportedMnemonic(words) -> errorRes = R.string.import_error_invalid
+                        // AJOUT d'un wallet (PIN d'app déjà posé) : enregistrement
+                        // direct, sans redemander de PIN.
+                        viewModel.hasPin() -> viewModel.saveWallet(null)
                         else -> navController.navigate(Routes.PIN_SETUP) {
                             popUpTo(Routes.WELCOME) { inclusive = true }
                         }

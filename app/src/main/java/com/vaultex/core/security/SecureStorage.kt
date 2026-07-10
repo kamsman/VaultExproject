@@ -37,43 +37,87 @@ class SecureStorage @Inject constructor(
     /**
      * Sauvegarde la mnémonique en double-chiffrement.
      */
-    fun saveMnemonic(mnemonic: String) {
-        val encrypted = keystoreManager.encrypt(mnemonic.toByteArray(Charsets.UTF_8))
-        val base64 = android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
-        prefs.edit().putString(KEY_MNEMONIC, base64).apply()
+    // ─────────────────────────────────────────────────────────────────────
+    // MULTI-WALLET : chaque wallet a son propre seed chiffré, indexé par id.
+    // L'API historique (saveMnemonic/getMnemonic/getPassphrase/hasMnemonic)
+    // opère TOUJOURS sur le wallet ACTIF → tout le code aval (dérivation, envoi,
+    // swap, soldes) suit le wallet actif sans modification.
+    // ─────────────────────────────────────────────────────────────────────
+    private fun enc(s: String): String =
+        android.util.Base64.encodeToString(keystoreManager.encrypt(s.toByteArray(Charsets.UTF_8)), android.util.Base64.NO_WRAP)
+    private fun dec(b64: String?): String? {
+        if (b64 == null) return null
+        return try { String(keystoreManager.decrypt(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)), Charsets.UTF_8) } catch (_: Exception) { null }
+    }
+    private fun mnKey(id: String) = "mnemonic_$id"
+    private fun psKey(id: String) = "passphrase_$id"
+
+    fun activeWalletId(): String? = prefs.getString(KEY_ACTIVE_WALLET, null)
+    fun setActiveWalletId(id: String) { prefs.edit().putString(KEY_ACTIVE_WALLET, id).apply() }
+
+    /** Enregistre le seed (+ passphrase) d'UN wallet donné, sans toucher aux autres. */
+    fun saveWalletSecrets(walletId: String, mnemonic: String, passphrase: String) {
+        val e = prefs.edit()
+        e.putString(mnKey(walletId), enc(mnemonic))
+        if (passphrase.isEmpty()) e.remove(psKey(walletId)) else e.putString(psKey(walletId), enc(passphrase))
+        e.apply()
+    }
+    fun getMnemonicFor(walletId: String): String? = dec(prefs.getString(mnKey(walletId), null))
+    fun getPassphraseFor(walletId: String): String = dec(prefs.getString(psKey(walletId), null)) ?: ""
+    fun hasWalletSecrets(walletId: String): Boolean = prefs.contains(mnKey(walletId))
+    fun deleteWalletSecrets(walletId: String) {
+        prefs.edit().remove(mnKey(walletId)).remove(psKey(walletId)).apply()
     }
 
     /**
-     * Récupère la mnémonique déchiffrée.
+     * Renvoie l'id du wallet actif, en migrant AU BESOIN l'ancien wallet unique
+     * (KEY_MNEMONIC) vers le stockage multi-wallet. Idempotent.
      */
-    fun getMnemonic(): String? {
-        val base64 = prefs.getString(KEY_MNEMONIC, null) ?: return null
-        return try {
-            val encrypted = android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)
-            String(keystoreManager.decrypt(encrypted), Charsets.UTF_8)
-        } catch (e: Exception) {
-            null
+    @Synchronized
+    fun ensureActiveWallet(): String? {
+        activeWalletId()?.let { if (hasWalletSecrets(it)) return it }
+        val legacy = prefs.getString(KEY_MNEMONIC, null)
+        if (legacy != null) {
+            val id = LEGACY_WALLET_ID
+            val e = prefs.edit()
+            e.putString(mnKey(id), legacy)                                  // déjà chiffré : déplacé tel quel
+            prefs.getString(KEY_PASSPHRASE, null)?.let { e.putString(psKey(id), it) }
+            e.putString(KEY_ACTIVE_WALLET, id)
+            e.apply()
+            return id
         }
+        return activeWalletId()?.takeIf { hasWalletSecrets(it) }
     }
 
-    fun hasMnemonic(): Boolean = prefs.contains(KEY_MNEMONIC)
+    /** Écrit dans le wallet ACTIF (crée un id par défaut s'il n'y en a pas encore). */
+    fun saveMnemonic(mnemonic: String) {
+        val id = activeWalletId() ?: LEGACY_WALLET_ID.also { setActiveWalletId(it) }
+        prefs.edit().putString(mnKey(id), enc(mnemonic)).apply()
+    }
+
+    /** Mnémonique déchiffrée du wallet ACTIF. */
+    fun getMnemonic(): String? {
+        val id = ensureActiveWallet() ?: return null
+        return getMnemonicFor(id)
+    }
+
+    fun hasMnemonic(): Boolean {
+        val id = ensureActiveWallet() ?: return false
+        return hasWalletSecrets(id)
+    }
 
     /**
-     * Passphrase BIP39 optionnelle (« 13e mot »). Chiffrée comme la
-     * mnémonique. Vide = BIP39 standard (compatibilité ascendante).
+     * Passphrase BIP39 optionnelle (« 13e mot ») du wallet ACTIF.
      */
     fun savePassphrase(passphrase: String) {
-        if (passphrase.isEmpty()) { prefs.edit().remove(KEY_PASSPHRASE).apply(); return }
-        val encrypted = keystoreManager.encrypt(passphrase.toByteArray(Charsets.UTF_8))
-        val base64 = android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
-        prefs.edit().putString(KEY_PASSPHRASE, base64).apply()
+        val id = activeWalletId() ?: LEGACY_WALLET_ID.also { setActiveWalletId(it) }
+        if (passphrase.isEmpty()) { prefs.edit().remove(psKey(id)).apply(); return }
+        prefs.edit().putString(psKey(id), enc(passphrase)).apply()
     }
 
     fun getPassphrase(): String {
-        val base64 = prefs.getString(KEY_PASSPHRASE, null) ?: return ""
-        return try {
-            String(keystoreManager.decrypt(android.util.Base64.decode(base64, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
-        } catch (_: Exception) { "" }
+        val id = ensureActiveWallet() ?: return ""
+        return getPassphraseFor(id)
     }
 
     fun savePin(pinHash: String) {
@@ -169,6 +213,19 @@ class SecureStorage @Inject constructor(
 
     fun getPendingTxs(): String? = prefs.getString(KEY_PENDING_TXS, null)
 
+    /**
+     * Vide les caches PROPRES à un wallet (solde, tx en attente, actifs visibles)
+     * — appelé lors d'un changement de wallet actif pour que le nouveau wallet
+     * n'affiche jamais les montants de l'ancien.
+     */
+    fun clearWalletCaches() {
+        prefs.edit()
+            .remove(KEY_PORTFOLIO_SNAPSHOT)
+            .remove(KEY_PENDING_TXS)
+            .remove(KEY_VISIBLE_ASSETS)
+            .apply()
+    }
+
     // ──────────────────────────────────────────────────────────
     // Persistance de l'état de lockout PIN (survit aux relances de process)
     // ──────────────────────────────────────────────────────────
@@ -217,8 +274,10 @@ class SecureStorage @Inject constructor(
         rpcPrefs.getString("rpc_$chain", default) ?: default
 
     companion object {
-        private const val KEY_MNEMONIC = "encrypted_mnemonic"
-        private const val KEY_PASSPHRASE = "encrypted_passphrase"
+        private const val KEY_MNEMONIC = "encrypted_mnemonic"        // legacy (wallet unique)
+        private const val KEY_PASSPHRASE = "encrypted_passphrase"    // legacy
+        private const val KEY_ACTIVE_WALLET = "active_wallet_id"
+        const val LEGACY_WALLET_ID = "w_1"
         private const val KEY_PIN_HASH = "pin_hash"
         private const val KEY_PANIC_PIN_HASH = "panic_pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"

@@ -33,6 +33,16 @@ fun MnemonicVerifyScreen(
 ) {
     val mnemonic by viewModel.mnemonic.collectAsState()
 
+    // Chemin « AJOUT d'un wallet » (PIN déjà posé, pas de re-setup) : dès que
+    // l'enregistrement réussit, on repart sur l'accueil du NOUVEAU wallet.
+    val saveState by viewModel.saveState.collectAsState()
+    LaunchedEffect(saveState) {
+        if (saveState is OnboardingViewModel.SaveState.Success) {
+            viewModel.resetSaveState()
+            navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
+        }
+    }
+
     // Pool mélangé (stable tant que la mnémonique ne change pas)
     val shuffled = remember(mnemonic) { mnemonic.withIndex().shuffled() }
 
@@ -174,8 +184,14 @@ fun MnemonicVerifyScreen(
                     val words = selected.map { shuffled[it].value }
                     val allCorrect = words.withIndex().all { (i, w) -> viewModel.verifyWord(i, w) }
                     if (allCorrect) {
-                        navController.navigate(Routes.PIN_SETUP) {
-                            popUpTo(Routes.WELCOME) { inclusive = true }
+                        if (viewModel.hasPin()) {
+                            // AJOUT d'un wallet (le PIN d'app existe déjà) : on
+                            // enregistre directement, sans redemander de PIN.
+                            viewModel.saveWallet(null)
+                        } else {
+                            navController.navigate(Routes.PIN_SETUP) {
+                                popUpTo(Routes.WELCOME) { inclusive = true }
+                            }
                         }
                     } else {
                         showError = true

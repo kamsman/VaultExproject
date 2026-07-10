@@ -82,7 +82,9 @@ fun WalletManagerScreen(navController: NavController) {
                         leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, tint = AccentBlue) },
                         onClick = {
                             fabMenuExpanded = false
-                            navController.navigate(Routes.ONBOARDING)
+                            // Directement le nouveau seed (l'intro n'a pas de sens
+                            // pour un utilisateur qui a déjà un wallet).
+                            navController.navigate(Routes.MNEMONIC_DISPLAY)
                         }
                     )
                     DropdownMenuItem(
@@ -149,7 +151,7 @@ fun WalletManagerScreen(navController: NavController) {
                             )
                             Spacer(Modifier.height(20.dp))
                             Button(
-                                onClick = { navController.navigate(Routes.ONBOARDING) },
+                                onClick = { navController.navigate(Routes.MNEMONIC_DISPLAY) },
                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
@@ -178,7 +180,13 @@ fun WalletManagerScreen(navController: NavController) {
                 WalletCard(
                     number = index + 1,
                     wallet = wallet,
-                    onActivate = { viewModel.activateWallet(wallet.id) },
+                    onActivate = {
+                        viewModel.activateWallet(wallet.id) {
+                            // Bascule réussie : accueil NEUF (pile vidée) pour que
+                            // les soldes du wallet précédent ne restent pas en RAM.
+                            navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
+                        }
+                    },
                     onDelete = { viewModel.deleteWallet(wallet.id) }
                 )
             }

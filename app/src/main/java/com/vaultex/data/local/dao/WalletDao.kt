@@ -15,6 +15,9 @@ interface WalletDao {
     @Query("SELECT * FROM wallets WHERE id = :id")
     suspend fun getById(id: String): WalletEntity?
 
+    @Query("SELECT COUNT(*) FROM wallets")
+    suspend fun count(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(wallet: WalletEntity)
 
@@ -86,6 +89,9 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET status = :status, confirmations = :conf WHERE hash = :hash")
     suspend fun updateStatus(hash: String, status: String, conf: Int)
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -143,4 +149,7 @@ interface PendingSendDao {
 
     @Query("DELETE FROM pending_sends WHERE status = 'SENT'")
     suspend fun clearSent()
+
+    @Query("DELETE FROM pending_sends")
+    suspend fun deleteAll()
 }

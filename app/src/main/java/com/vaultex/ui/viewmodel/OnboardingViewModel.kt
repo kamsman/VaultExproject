@@ -32,8 +32,12 @@ class OnboardingViewModel @Inject constructor(
     private val sessionLock: com.vaultex.core.session.SessionLockManager,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val walletStore: com.vaultex.core.session.WalletStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    /** true si un PIN d'app existe déjà (ajout d'un wallet ≠ premier onboarding). */
+    fun hasPin(): Boolean = pinManager.hasPin()
 
     // Mnémonique en mémoire uniquement le temps de l'onboarding
     private val _mnemonic = MutableStateFlow<List<String>>(emptyList())
@@ -52,6 +56,7 @@ class OnboardingViewModel @Inject constructor(
             val words = WalletManager.generateMnemonic()
             _mnemonic.value = words
             verifyWordIndex = words.indices.random()
+            wasImported = false
         }
     }
 
@@ -80,28 +85,39 @@ class OnboardingViewModel @Inject constructor(
     fun setPassphrase(value: String) { _passphrase.value = value }
 
     /**
-     * Sauvegarde la mnémonique (chiffrée) + la passphrase BIP39 (chiffrée)
-     * + le PIN (hashé PBKDF2). Efface la mnémonique de la mémoire ensuite.
+     * Enregistre le wallet via WalletStore (MULTI-WALLETS : chaque seed a son
+     * propre emplacement chiffré — créer un wallet n'écrase JAMAIS le
+     * précédent) puis pose le PIN.
+     *
+     * [pin] null = un PIN existe déjà (ajout d'un wallet depuis le
+     * gestionnaire) : on garde le PIN actuel, on n'y touche pas.
      */
-    fun saveWallet(pin: String) {
+    fun saveWallet(pin: String?) {
         viewModelScope.launch {
             _saveState.value = SaveState.Loading
             try {
                 val hadMnemonic = _mnemonic.value.isNotEmpty()
                 val mnemonicStr = _mnemonic.value.joinToString(" ")
                 withContext(Dispatchers.IO) {
-                    secureStorage.saveMnemonic(mnemonicStr)
-                    secureStorage.savePassphrase(_passphrase.value.trim())
-                    val isChange = pinManager.hasPin()
-                    pinManager.setPin(pin)
-                    if (isChange) try {
-                        if (notifPrefs.pinChangeAlerts.value) {
-                            val t = context.getString(com.vaultex.R.string.notif_pin_title)
-                            val b = context.getString(com.vaultex.R.string.notif_pin_body)
-                            notificationCenter.push(t, b)
-                            com.vaultex.core.util.LocalNotifier.show(context, t, b)
-                        }
-                    } catch (_: Exception) { }
+                    if (hadMnemonic) {
+                        walletStore.addWallet(
+                            mnemonic = mnemonicStr,
+                            passphrase = _passphrase.value.trim(),
+                            imported = wasImported
+                        )
+                    }
+                    if (pin != null) {
+                        val isChange = pinManager.hasPin()
+                        pinManager.setPin(pin)
+                        if (isChange) try {
+                            if (notifPrefs.pinChangeAlerts.value) {
+                                val t = context.getString(com.vaultex.R.string.notif_pin_title)
+                                val b = context.getString(com.vaultex.R.string.notif_pin_body)
+                                notificationCenter.push(t, b)
+                                com.vaultex.core.util.LocalNotifier.show(context, t, b)
+                            }
+                        } catch (_: Exception) { }
+                    }
                     AppLaunchManager.setWalletCreated(context, true)
                 }
                 _mnemonic.value = emptyList() // efface de la RAM
