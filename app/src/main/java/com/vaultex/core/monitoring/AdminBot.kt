@@ -47,8 +47,21 @@ object AdminBot {
                     .url("https://api.telegram.org/bot$token/sendMessage")
                     .post(body)
                     .build()
-                client.newCall(req).execute().close()
-            } catch (_: Exception) { /* jamais bloquant, jamais visible */ }
+                client.newCall(req).execute().use { resp ->
+                    // Diagnostic (logcat, debug uniquement) : la RAISON exacte d'un
+                    // échec Telegram (token révoqué = 401, chat non démarré = 403,
+                    // chat_id inconnu = 400…) sans jamais gêner l'utilisateur.
+                    if (com.vaultex.BuildConfig.DEBUG && !resp.isSuccessful) {
+                        android.util.Log.w(
+                            "AdminBot",
+                            "sendMessage HTTP ${resp.code} : ${resp.body?.string()?.take(200)}"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Jamais bloquant, jamais visible pour l'utilisateur.
+                if (com.vaultex.BuildConfig.DEBUG) android.util.Log.w("AdminBot", "send failed", e)
+            }
         }
     }
 
