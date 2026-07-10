@@ -118,11 +118,13 @@ class DepositCheckWorker @AssistedInject constructor(
     private data class SnapTokens(val tokens: List<TokMini>?)
     private data class TokMini(val symbol: String = "", val priceUsd: Double = 0.0)
 
-    private fun priceUsdOf(symbol: String): Double = try {
-        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
-        com.google.gson.Gson().fromJson(json, SnapTokens::class.java)
-            ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }?.priceUsd ?: 0.0
-    } catch (_: Exception) { 0.0 }
+    private fun priceUsdOf(symbol: String): Double {
+        return try {
+            val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
+            com.google.gson.Gson().fromJson(json, SnapTokens::class.java)
+                ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }?.priceUsd ?: 0.0
+        } catch (_: Exception) { 0.0 }
+    }
 
     private fun notify(symbol: String, amount: Double) {
         val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)
