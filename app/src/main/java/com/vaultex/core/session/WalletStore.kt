@@ -60,7 +60,11 @@ class WalletStore @Inject constructor(
      */
     suspend fun addWallet(mnemonic: String, passphrase: String, imported: Boolean): WalletEntity {
         ensureRegistered()   // l'ancien wallet doit être listé AVANT d'ajouter le nouveau
-        val id = "w_" + java.util.UUID.randomUUID().toString().take(8)
+        // Id garanti UNIQUE : une collision écraserait le seed d'un autre wallet.
+        var id: String
+        do {
+            id = "w_" + java.util.UUID.randomUUID().toString().take(8)
+        } while (secureStorage.hasWalletSecrets(id) || walletDao.getById(id) != null)
         secureStorage.saveWalletSecrets(id, mnemonic, passphrase)
         val count = try { walletDao.count() } catch (_: Exception) { 0 }
         val entity = WalletEntity(

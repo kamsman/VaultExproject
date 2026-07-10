@@ -66,7 +66,12 @@ class SecureStorage @Inject constructor(
     fun getPassphraseFor(walletId: String): String = dec(prefs.getString(psKey(walletId), null)) ?: ""
     fun hasWalletSecrets(walletId: String): Boolean = prefs.contains(mnKey(walletId))
     fun deleteWalletSecrets(walletId: String) {
-        prefs.edit().remove(mnKey(walletId)).remove(psKey(walletId)).apply()
+        val e = prefs.edit().remove(mnKey(walletId)).remove(psKey(walletId))
+        // Le wallet migré garde une copie sous les anciennes clés (héritage
+        // pré-multi-wallets) : on l'efface aussi, sinon son seed resterait sur
+        // l'appareil après suppression — et pourrait être re-migré par erreur.
+        if (walletId == LEGACY_WALLET_ID) e.remove(KEY_MNEMONIC).remove(KEY_PASSPHRASE)
+        e.apply()
     }
 
     /**
