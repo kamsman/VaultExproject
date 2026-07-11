@@ -213,24 +213,13 @@ fun SettingsScreen(navController: NavHostController) {
             }
 
             // ─── Sécurité ───
+            // Un SEUL point d'entrée « Sécurité » : l'écran dédié regroupe déjà
+            // Changer le PIN, Biométrie, Verrouillage auto, PIN de panique,
+            // Tentatives max, Notifications et Effacer le wallet. On évite ainsi
+            // la duplication de ces réglages ici.
             item { SectionTitle(stringResource(R.string.security)) }
             item {
                 SectionCard {
-                    SettingsRow(Icons.Default.Pin, stringResource(R.string.security_change_pin)) {
-                        navController.navigate(Routes.PIN_SETUP)
-                    }
-                    RowDivider()
-                    SettingsToggleRow(
-                        icon = Icons.Default.Fingerprint,
-                        title = stringResource(R.string.settings_biometric),
-                        checked = state.isBiometricEnabled,
-                        onCheckedChange = viewModel::setBiometric
-                    )
-                    RowDivider()
-                    SettingsRow(Icons.Default.Warning, stringResource(R.string.panic_pin_title)) {
-                        navController.navigate(Routes.PANIC_PIN)
-                    }
-                    RowDivider()
                     SettingsRow(Icons.Default.Security, stringResource(R.string.security)) {
                         navController.navigate(Routes.SECURITY)
                     }
