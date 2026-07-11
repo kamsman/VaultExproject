@@ -501,6 +501,19 @@ class SwapViewModel @Inject constructor(
                 val remote = statusDto?.status
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
+                    // Dès l'étape « sending », ChangeNOW a DIFFUSÉ le versement et
+                    // fournit un payoutHash : la monnaie reçue est en route mais pas
+                    // encore confirmée sur sa chaîne. On affiche donc le badge « En
+                    // attente » sur le dashboard le plus tôt possible (track() ignore
+                    // les doublons, l'appeler à chaque tour est sans effet). Le badge
+                    // s'efface tout seul dès la confirmation on-chain du versement.
+                    statusDto?.payoutHash?.takeIf { it.isNotBlank() }?.let { payHash ->
+                        pendingTxManager.track(
+                            assetOf(_state.value.toToken).base,
+                            assetOf(_state.value.toToken).chain,
+                            payHash
+                        )
+                    }
                     if (remote in listOf("finished", "failed", "refunded", "expired")) {
                         // Événement admin (Telegram) : issue du swap — indépendant
                         // des préférences de notification de l'utilisateur.
@@ -512,20 +525,6 @@ class SwapViewModel @Inject constructor(
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(
                                     assetOf(st.fromToken).base, assetOf(st.toToken).base, remote)
-                        }
-                        // « finished » = ChangeNOW a DIFFUSÉ le versement, mais le
-                        // crypto reçu doit encore être confirmé sur sa chaîne avant
-                        // d'apparaître dans le solde. On enregistre le hash sortant
-                        // pour afficher le badge « En attente » sur la monnaie reçue
-                        // — il disparaîtra automatiquement dès la confirmation.
-                        if (remote == "finished") {
-                            statusDto?.payoutHash?.takeIf { it.isNotBlank() }?.let { payHash ->
-                                pendingTxManager.track(
-                                    assetOf(_state.value.toToken).base,
-                                    assetOf(_state.value.toToken).chain,
-                                    payHash
-                                )
-                            }
                         }
                         // Centre de notifications (cloche) : trace le swap terminé,
                         // au même titre que les envois/réceptions. Respecte
