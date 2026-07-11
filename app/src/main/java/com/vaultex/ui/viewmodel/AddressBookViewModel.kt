@@ -43,20 +43,31 @@ class AddressBookViewModel @Inject constructor(
 
     fun saveContact() {
         val s = _ui.value
-        if (s.newName.isBlank() || s.newAddress.isBlank()) {
+        val addr = s.newAddress.trim()
+        if (s.newName.isBlank() || addr.isBlank()) {
             _ui.update { it.copy(error = "Nom et adresse requis") }
             return
         }
+        // VALIDATION : l'adresse doit être valide POUR le réseau choisi. Sans ça,
+        // on pourrait enregistrer une adresse erronée/du mauvais réseau et
+        // envoyer des fonds dans le vide en la sélectionnant plus tard.
+        if (!com.vaultex.core.validation.AddressValidator.isValid(addr, s.newChain)) {
+            _ui.update { it.copy(error = "Adresse ${s.newChain} invalide") }
+            return
+        }
         viewModelScope.launch {
+            // JSON construit avec Gson (échappement correct) plutôt que par
+            // concaténation de chaînes.
+            val json = com.google.gson.Gson().toJson(mapOf(s.newChain to addr))
             val contact = ContactEntity(
                 id = UUID.randomUUID().toString(),
                 name = s.newName.trim(),
-                addressesJson = """{"${s.newChain}":"${s.newAddress.trim()}"}""",
+                addressesJson = json,
                 notes = null,
                 avatarColor = (0xFF3B82F6).toInt()
             )
             contactDao.insert(contact)
-            _ui.update { it.copy(showAddDialog = false) }
+            _ui.update { it.copy(showAddDialog = false, error = null) }
         }
     }
 
