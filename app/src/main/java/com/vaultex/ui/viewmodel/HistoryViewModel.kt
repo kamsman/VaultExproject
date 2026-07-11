@@ -146,7 +146,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX")
+                    sendLocalNotification("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp)
                 }
             }
         } catch (_: Exception) {}
@@ -178,7 +178,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol)
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp)
                 }
             }
         } catch (_: Exception) {}
@@ -212,7 +212,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC")
+                    sendLocalNotification("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp)
                 }
             }
         } catch (_: Exception) {}
@@ -253,7 +253,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming && status == "confirmed") {
-                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol)
+                    sendLocalNotification("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp)
                 }
             }
         } catch (_: Exception) {}
@@ -319,7 +319,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    sendLocalNotification("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL")
+                    sendLocalNotification("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp)
                 }
             }
         } catch (_: Exception) {}
@@ -327,8 +327,22 @@ class HistoryViewModel @Inject constructor(
 
     // ─── Notification ────────────────────────────────────────────────
 
-    private fun sendLocalNotification(title: String, body: String, symbol: String? = null) {
+    /**
+     * true si l'horodatage est RÉCENT (< 15 min). Sans ce garde-fou, la 1re
+     * synchro (ou une re-synchro après changement de wallet / réinstall, qui
+     * repeuple la base vide) redéclencherait une notif « Vous avez reçu… » pour
+     * CHAQUE ancienne réception → « des notifications sans que rien ne se
+     * passe ». Normalise secondes→ms (les timestamps ne sont pas homogènes).
+     */
+    private fun isRecentTx(ts: Long): Boolean {
+        if (ts <= 0L) return false
+        val ms = if (ts < 1_000_000_000_000L) ts * 1000L else ts
+        return System.currentTimeMillis() - ms in 0 until 15 * 60 * 1000L
+    }
+
+    private fun sendLocalNotification(title: String, body: String, symbol: String? = null, timestamp: Long) {
         if (!notifPrefs.txAlerts.value) return   // Alertes transactions désactivées
+        if (!isRecentTx(timestamp)) return       // ancienne tx (backfill) → pas de notif
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
