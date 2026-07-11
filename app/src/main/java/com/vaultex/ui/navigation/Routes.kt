@@ -21,6 +21,7 @@ object Routes {
      */
 
     const val PIN_SETUP = "pinSetup"
+    const val PIN_CHANGE_VERIFY = "pinChangeVerify"
 
     const val PIN_UNLOCK = "pinUnlock"
 

@@ -730,4 +730,6 @@
     <string name="panic2_how3">You will be signed out automatically</string>
     <string name="panic2_how4">Your wallet can be restored with your secret phrase</string>
     <string name="panic2_saved">Panic PIN enabled</string>
+    <string name="change_pin_verify_title">Confirm your current PIN</string>
+    <string name="change_pin_verify_subtitle">Verification required before changing the PIN</string>
 </resources>

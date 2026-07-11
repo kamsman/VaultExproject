@@ -83,7 +83,7 @@ fun SecurityScreen(navController: NavHostController) {
                 SecurityRow(
                     icon = Icons.Default.Pin,
                     title = stringResource(R.string.security_change_pin),
-                    onClick = { navController.navigate(Routes.PIN_SETUP) }
+                    onClick = { navController.navigate(Routes.PIN_CHANGE_VERIFY) }
                 ) {
                     Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(20.dp))
                 }

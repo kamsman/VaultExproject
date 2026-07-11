@@ -821,4 +821,6 @@
     <string name="panic2_how3">Vous serez automatiquement déconnecté</string>
     <string name="panic2_how4">Votre wallet pourra être restauré avec votre phrase secrète</string>
     <string name="panic2_saved">PIN de panique activé</string>
+    <string name="change_pin_verify_title">Confirmez votre PIN actuel</string>
+    <string name="change_pin_verify_subtitle">Vérification requise avant de changer le PIN</string>
 </resources>

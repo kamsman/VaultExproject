@@ -98,6 +98,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             PinSetupScreen(navController, onboardingViewModel)
         }
 
+        composable(Routes.PIN_CHANGE_VERIFY) {
+            com.vaultex.ui.screens.security.ChangePinVerifyScreen(navController)
+        }
+
         composable(Routes.PIN_UNLOCK) {
             UnlockScreen(navController)
         }
