@@ -47,6 +47,7 @@ class SwapViewModel @Inject constructor(
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -408,6 +409,10 @@ class SwapViewModel @Inject constructor(
                     is SendCryptoUseCase.Result.Success -> {
                         _state.update { it.copy(isLoading = false, depositTxHash = dep.txHash, swapStatus = "waiting") }
                         com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
+                        // Le dépôt alimente le badge « En attente » du dashboard : si le
+                        // user quitte l'écran de suivi, la monnaie source reste marquée
+                        // comme transaction en cours jusqu'à confirmation on-chain.
+                        pendingTxManager.track(assetOf(s.fromToken).base, assetOf(s.fromToken).chain, dep.txHash)
                         trackSwapStatus(txRes.id)
                     }
                     is SendCryptoUseCase.Result.Error -> {
