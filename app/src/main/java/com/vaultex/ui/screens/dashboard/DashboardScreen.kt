@@ -545,6 +545,20 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
                         fontWeight = FontWeight.Medium
                     )
                 }
+                // Badge « En attente » VISIBLE (au lieu du petit « ! ») : une
+                // transaction sortante attend sa confirmation on-chain.
+                if (isPending) {
+                    Surface(shape = RoundedCornerShape(4.dp), color = Color(0xFFF59E0B).copy(alpha = 0.16f)) {
+                        Row(
+                            Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(Icons.Default.Schedule, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(10.dp))
+                            Text(stringResource(R.string.tx_pending), fontSize = 9.sp, color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
             Text(
                 stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),

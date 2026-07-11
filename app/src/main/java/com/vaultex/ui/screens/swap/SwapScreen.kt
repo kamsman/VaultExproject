@@ -484,23 +484,15 @@ private fun SwapTrackingScreen(
         },
         bottomBar = {
             Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Bouton PRINCIPAL « Nouveau swap » (remplace « Partager le reçu ») :
+                // toujours actif — pendant le traitement, l'échange se termine tout
+                // seul en arrière-plan, l'utilisateur n'a pas à attendre.
                 Button(
-                    onClick = {
-                        val msg = "Swap VaultEx : ${state.fromAmount} ${swapBaseOf(state.fromToken)} → ≈ ${state.toAmount} ${swapBaseOf(state.toToken)}" +
-                            (state.swapId?.let { "\nID : $it" } ?: "")
-                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"; putExtra(android.content.Intent.EXTRA_TEXT, msg)
-                        }
-                        context.startActivity(android.content.Intent.createChooser(send, "Partager le reçu"))
-                    },
-                    enabled = finished,
+                    onClick = onClose,   // resetSwap → formulaire vierge
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SwapPurple, contentColor = Color.White,
-                        disabledContainerColor = SwapPurple.copy(alpha = 0.30f)
-                    )
-                ) { Text("Partager le reçu", fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                    colors = ButtonDefaults.buttonColors(containerColor = SwapPurple, contentColor = Color.White)
+                ) { Text("Nouveau swap", fontWeight = FontWeight.Bold, fontSize = 15.sp) }
                 OutlinedButton(
                     onClick = onHistory,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -544,6 +536,20 @@ private fun SwapTrackingScreen(
                     finished -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(40.dp))
                     failed -> Text("!", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     else -> CircularProgressIndicator(color = SwapPurple, strokeWidth = 4.dp, modifier = Modifier.size(40.dp))
+                }
+            }
+
+            // Message « pas besoin d'attendre » pendant le traitement (2–5 min).
+            if (!finished && !failed) {
+                Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Le dépôt est envoyé ✓. L'échange se termine tout seul en 2 à 5 min — pas besoin d'attendre ici. Tu peux lancer un nouveau swap ; les fonds reçus apparaîtront dans ton solde et l'historique.",
+                            fontSize = 12.sp, color = swapText, lineHeight = 16.sp
+                        )
+                    }
                 }
             }
 
