@@ -381,6 +381,7 @@
     <string name="pin_setup_create_title">Créer votre code PIN</string>
     <string name="pin_setup_protect_subtitle">Ce PIN protège l\'accès à votre wallet</string>
     <string name="unlock_enter_pin">Saisissez votre PIN</string>
+    <string name="unlock_verifying">Vérification…</string>
     <string name="unlock_use_fingerprint">🔑 Utiliser l\'empreinte</string>
     <string name="biometric_screen_title">Biométrie</string>
     <string name="biometric_activate">Activer</string>

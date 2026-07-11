@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.vaultex.core.security.PinManager
 import com.vaultex.core.security.PinVerificationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class UnlockState(
@@ -14,7 +16,8 @@ data class UnlockState(
     val error: String? = null,
     val lockedSeconds: Long = 0L,
     val isUnlocked: Boolean = false,
-    val panicTriggered: Boolean = false
+    val panicTriggered: Boolean = false,
+    val isVerifying: Boolean = false   // PBKDF2 en cours (retour visuel « Vérification… »)
 )
 
 @HiltViewModel
@@ -53,7 +56,12 @@ class UnlockViewModel @Inject constructor(
 
     private fun verify(pin: String) {
         viewModelScope.launch {
-            when (val result = pinManager.verifyPin(pin)) {
+            _state.update { it.copy(isVerifying = true) }
+            // PBKDF2 (100k itérations) est volontairement coûteux : on l'exécute
+            // hors du thread principal pour NE PAS figer l'écran au 6ᵉ chiffre.
+            val result = withContext(Dispatchers.Default) { pinManager.verifyPin(pin) }
+            _state.update { it.copy(isVerifying = false) }
+            when (result) {
                 is PinVerificationResult.Valid -> {
                     sessionLock.markUnlocked()
                     // Journal des connexions + alerte si activée (Notifications sécurité).
