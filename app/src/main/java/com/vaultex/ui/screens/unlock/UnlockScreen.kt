@@ -118,39 +118,24 @@ fun UnlockScreen(navController: NavHostController) {
 
         Spacer(Modifier.height(12.dp))
 
-        // ─── Vérification (PBKDF2) / erreur / verrouillage ───
-        // Pendant le calcul du hash, on affiche « Vérification… » (neutre) au lieu
-        // de laisser croire à un blocage. Sinon on montre l'erreur/le verrou (rouge).
-        Box(Modifier.height(20.dp), contentAlignment = Alignment.Center) {
-            if (state.isVerifying) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CircularProgressIndicator(color = AccentBlue, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                    Text(
-                        stringResource(R.string.unlock_verifying),
-                        color = AccentBlue,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                val msg = when {
-                    state.lockedSeconds > 0 -> {
-                        val min = state.lockedSeconds / 60
-                        val sec = state.lockedSeconds % 60
-                        val duration = if (min > 0) "${min}min ${sec}s" else "${sec}s"
-                        stringResource(R.string.pin_locked, duration)
-                    }
-                    state.error != null -> state.error
-                    else -> ""
-                }
-                Text(
-                    msg ?: "",
-                    color = AccentRed,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
-                )
+        // ─── Erreur / verrouillage ───
+        val msg = when {
+            state.lockedSeconds > 0 -> {
+                val min = state.lockedSeconds / 60
+                val sec = state.lockedSeconds % 60
+                val duration = if (min > 0) "${min}min ${sec}s" else "${sec}s"
+                stringResource(R.string.pin_locked, duration)
             }
+            state.error != null -> state.error
+            else -> ""
         }
+        Text(
+            msg ?: "",
+            color = AccentRed,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.height(20.dp)
+        )
 
         Spacer(Modifier.height(20.dp))
 

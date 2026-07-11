@@ -16,8 +16,7 @@ data class UnlockState(
     val error: String? = null,
     val lockedSeconds: Long = 0L,
     val isUnlocked: Boolean = false,
-    val panicTriggered: Boolean = false,
-    val isVerifying: Boolean = false   // PBKDF2 en cours (retour visuel « Vérification… »)
+    val panicTriggered: Boolean = false
 )
 
 @HiltViewModel
@@ -56,11 +55,9 @@ class UnlockViewModel @Inject constructor(
 
     private fun verify(pin: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isVerifying = true) }
             // PBKDF2 (100k itérations) est volontairement coûteux : on l'exécute
             // hors du thread principal pour NE PAS figer l'écran au 6ᵉ chiffre.
             val result = withContext(Dispatchers.Default) { pinManager.verifyPin(pin) }
-            _state.update { it.copy(isVerifying = false) }
             when (result) {
                 is PinVerificationResult.Valid -> {
                     sessionLock.markUnlocked()

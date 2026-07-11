@@ -341,7 +341,6 @@
     <string name="pin_setup_create_title">أنشئ رمز PIN الخاص بك</string>
     <string name="pin_setup_protect_subtitle">يحمي رمز PIN هذا الوصول إلى محفظتك</string>
     <string name="unlock_enter_pin">أدخل رمز PIN الخاص بك</string>
-    <string name="unlock_verifying">جارٍ التحقق…</string>
     <string name="unlock_use_fingerprint">🔑 استخدام البصمة</string>
     <string name="biometric_screen_title">القياسات الحيوية</string>
     <string name="biometric_activate">تفعيل</string>
