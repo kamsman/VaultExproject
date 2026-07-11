@@ -25,28 +25,34 @@ class NotifPrefs @Inject constructor(
     private val _txAlerts = MutableStateFlow(prefs.getBoolean("tx", true))
     val txAlerts: StateFlow<Boolean> = _txAlerts
 
-    // « Alertes connexion » : désormais LIMITÉE à une notification par 24 h
-    // (voir shouldNotifyLogin). Plus de « Nouvelle connexion » à CHAQUE
-    // déverrouillage — au plus une fois par jour.
-    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", true))
+    // « Alertes connexion » : OFF par défaut (l'utilisateur l'active s'il veut
+    // surveiller les accès). Quand active, elle est PLAFONNÉE à 1×/24 h.
+    private val _loginAlerts = MutableStateFlow(prefs.getBoolean("login", false))
     val loginAlerts: StateFlow<Boolean> = _loginAlerts
 
     private val _lowBalanceAlerts = MutableStateFlow(prefs.getBoolean("lowbal", false))
     val lowBalanceAlerts: StateFlow<Boolean> = _lowBalanceAlerts
 
-    private val _pinChangeAlerts = MutableStateFlow(prefs.getBoolean("pin", true))
+    // « Changement PIN » : OFF par défaut (c'est souvent l'utilisateur lui-même
+    // qui change son PIN → notification peu utile).
+    private val _pinChangeAlerts = MutableStateFlow(prefs.getBoolean("pin", false))
     val pinChangeAlerts: StateFlow<Boolean> = _pinChangeAlerts
 
     private val _thresholdXof = MutableStateFlow(prefs.getLong("threshold", 25_000L))
     val thresholdXof: StateFlow<Long> = _thresholdXof
 
     init {
-        // Migration v2 : rétablit « Alertes connexion » (l'ancienne v1 l'avait
-        // coupée). Elle n'est plus gênante car désormais PLAFONNÉE à 1×/24 h.
-        // Ne s'exécute qu'une seule fois.
-        if (!prefs.getBoolean("mig_login_v2", false)) {
-            _loginAlerts.value = true
-            prefs.edit().putBoolean("login", true).putBoolean("mig_login_v2", true).apply()
+        // v3 : « Alertes connexion » et « Changement PIN » désormais OFF par
+        // défaut. Applique ce nouveau défaut UNE fois aux installs existants qui
+        // les avaient activées automatiquement (v2 forçait la connexion à ON).
+        if (!prefs.getBoolean("mig_defaults_v3", false)) {
+            _loginAlerts.value = false
+            _pinChangeAlerts.value = false
+            prefs.edit()
+                .putBoolean("login", false)
+                .putBoolean("pin", false)
+                .putBoolean("mig_defaults_v3", true)
+                .apply()
         }
     }
 
