@@ -241,7 +241,17 @@ class SendCryptoUseCase @Inject constructor(
 
             val confirmedUtxos = utxosDto.filter { it.status.confirmed }.sortedByDescending { it.value }
                 .map { Utxo(txHash = it.txid, outputIndex = it.vout, valueSatoshi = it.value) }
-            if (confirmedUtxos.isEmpty()) return Result.Error("Aucun UTXO confirmé disponible")
+            if (confirmedUtxos.isEmpty()) {
+                // On ne dépense QUE des entrées confirmées : dépenser du BTC à 0
+                // confirmation est risqué (la transaction entrante peut encore être
+                // remplacée/rejetée, ce qui invaliderait l'envoi). On distingue le
+                // BTC « en cours de confirmation » d'un solde réellement vide.
+                val hasUnconfirmed = utxosDto.any { !it.status.confirmed && it.value > 0 }
+                return if (hasUnconfirmed)
+                    Result.Error("Ton BTC vient d'arriver et attend sa confirmation sur le réseau Bitcoin (souvent 10 à 30 min). Réessaie une fois qu'il est confirmé.")
+                else
+                    Result.Error("Aucun BTC disponible à envoyer.")
+            }
 
             // Frais = f(nombre d'entrées RÉELLEMENT dépensées). Le signataire choisit
             // les UTXO au plus juste (tri décroissant, arrêt dès que montant+frais est
