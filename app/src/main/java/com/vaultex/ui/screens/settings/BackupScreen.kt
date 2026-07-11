@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +57,20 @@ fun BackupScreen(navController: NavController) {
     val viewModel: BackupViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val clipboard = LocalClipboardManager.current
+    val clipScope = rememberCoroutineScope()
+    val ctx = LocalContext.current
+
+    // Copie SÉCURISÉE d'un secret : place au presse-papiers puis l'EFFACE
+    // automatiquement après 60 s, pour qu'une clé privée ne traîne pas et
+    // qu'une autre app ne puisse pas la lire indéfiniment.
+    fun copySecret(value: String) {
+        clipboard.setText(AnnotatedString(value))
+        android.widget.Toast.makeText(ctx, ctx.getString(R.string.backup_copied_autoclear), android.widget.Toast.LENGTH_LONG).show()
+        clipScope.launch {
+            kotlinx.coroutines.delay(60_000)
+            runCatching { clipboard.setText(AnnotatedString("")) }
+        }
+    }
 
     // Biométrie (empreinte) en alternative au PIN, comme la maquette.
     val activity = LocalContext.current as? androidx.fragment.app.FragmentActivity
@@ -259,7 +274,7 @@ fun BackupScreen(navController: NavController) {
                             }
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                                    .clickable { clipboard.setText(AnnotatedString(state.exportedKey!!)) }
+                                    .clickable { copySecret(state.exportedKey!!) }
                                     .padding(6.dp)) {
                                 Icon(Icons.Default.ContentCopy, null, tint = P, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))

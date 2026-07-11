@@ -732,4 +732,5 @@
     <string name="panic2_saved">Panic PIN enabled</string>
     <string name="change_pin_verify_title">Confirm your current PIN</string>
     <string name="change_pin_verify_subtitle">Verification required before changing the PIN</string>
+    <string name="backup_copied_autoclear">Copied — will be cleared from clipboard in 60 s</string>
 </resources>
