@@ -733,4 +733,6 @@
     <string name="change_pin_verify_title">أكّد رمز PIN الحالي</string>
     <string name="change_pin_verify_subtitle">التحقق مطلوب قبل تغيير رمز PIN</string>
     <string name="backup_copied_autoclear">تم النسخ — سيُمحى من الحافظة خلال 60 ثانية</string>
+    <string name="network_offline">غير متصل</string>
+    <string name="network_testing">جارٍ الاختبار…</string>
 </resources>

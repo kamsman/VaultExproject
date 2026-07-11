@@ -824,4 +824,6 @@
     <string name="change_pin_verify_title">Confirmez votre PIN actuel</string>
     <string name="change_pin_verify_subtitle">Vérification requise avant de changer le PIN</string>
     <string name="backup_copied_autoclear">Copié — sera effacé du presse-papiers dans 60 s</string>
+    <string name="network_offline">Hors ligne</string>
+    <string name="network_testing">Test…</string>
 </resources>

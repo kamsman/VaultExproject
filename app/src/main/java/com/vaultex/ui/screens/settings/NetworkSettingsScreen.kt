@@ -33,6 +33,7 @@ import com.vaultex.ui.theme.NetworkTrx
 import com.vaultex.ui.theme.Surface
 import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextPrimary
+import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.NetworkSettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +51,14 @@ fun NetworkSettingsScreen(navController: NavHostController) {
     val scope = rememberCoroutineScope()
     // chain -> latence mesurée en ms (LATENCY_FAILED si échec)
     val latencies = remember { mutableStateMapOf<String, Long>() }
+
+    // Test AUTOMATIQUE de chaque endpoint à l'ouverture → le badge affiche le
+    // VRAI statut (Connecté / Hors ligne) au lieu d'un « Connecté » codé en dur.
+    LaunchedEffect(Unit) {
+        state.entries.forEach { e ->
+            scope.launch { latencies[e.chain] = measureLatency(e.current) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -125,7 +134,7 @@ fun NetworkSettingsScreen(navController: NavHostController) {
                                 color = TextPrimary,
                                 modifier = Modifier.weight(1f)
                             )
-                            ConnectedPill()
+                            StatusPill(latencies[entry.chain])
                         }
 
                         TextField(
@@ -223,25 +232,22 @@ private fun chainColor(chain: String): Color = when (chain) {
 }
 
 @Composable
-private fun ConnectedPill() {
+private fun StatusPill(latencyMs: Long?) {
+    // null = test en cours ; LATENCY_FAILED = injoignable ; sinon = connecté.
+    val (color, label) = when {
+        latencyMs == null -> TextMuted to stringResource(R.string.network_testing)
+        latencyMs == LATENCY_FAILED -> AccentRed to stringResource(R.string.network_offline)
+        else -> AccentGreen to stringResource(R.string.network_connected)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .background(AccentGreen.copy(alpha = 0.12f), RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        Box(
-            Modifier
-                .size(6.dp)
-                .background(AccentGreen, CircleShape)
-        )
+        Box(Modifier.size(6.dp).background(color, CircleShape))
         Spacer(Modifier.width(5.dp))
-        Text(
-            stringResource(R.string.network_connected),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = AccentGreen
-        )
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = color)
     }
 }
 
