@@ -735,4 +735,6 @@
     <string name="backup_copied_autoclear">تم النسخ — سيُمحى من الحافظة خلال 60 ثانية</string>
     <string name="network_offline">غير متصل</string>
     <string name="network_testing">جارٍ الاختبار…</string>
+    <string name="settings_section_advanced">متقدّم</string>
+    <string name="settings_advanced_hint">للمستخدمين المتقدّمين</string>
 </resources>

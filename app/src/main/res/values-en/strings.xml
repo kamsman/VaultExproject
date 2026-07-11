@@ -735,4 +735,6 @@
     <string name="backup_copied_autoclear">Copied — will be cleared from clipboard in 60 s</string>
     <string name="network_offline">Offline</string>
     <string name="network_testing">Testing…</string>
+    <string name="settings_section_advanced">Advanced</string>
+    <string name="settings_advanced_hint">For advanced users</string>
 </resources>

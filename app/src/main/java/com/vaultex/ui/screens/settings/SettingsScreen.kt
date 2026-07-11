@@ -252,14 +252,10 @@ fun SettingsScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Réseau ───
+            // ─── Préférences ───
             item { SectionTitle(stringResource(R.string.settings_section_network)) }
             item {
                 SectionCard {
-                    SettingsRow(Icons.Default.NetworkWifi, stringResource(R.string.settings_rpc_item)) {
-                        navController.navigate(Routes.NETWORK_SETTINGS)
-                    }
-                    RowDivider()
                     SettingsValueRow(Icons.Default.AttachMoney, stringResource(R.string.currency), state.selectedCurrency) {
                         showCurrencyDialog = true
                     }
@@ -308,6 +304,20 @@ fun SettingsScreen(navController: NavHostController) {
                         stringResource(R.string.settings_about),
                         stringResource(R.string.settings_version_short)
                     )
+                }
+            }
+
+            // ─── Avancé (utilisateurs avertis) ───
+            // Rangé tout en bas : la majorité des utilisateurs n'a pas à toucher
+            // aux nœuds RPC. Reste accessible comme soupape (nœud HS/rate-limit).
+            item { SectionTitle(stringResource(R.string.settings_section_advanced)) }
+            item {
+                SectionCard {
+                    SettingsValueRow(
+                        Icons.Default.NetworkWifi,
+                        stringResource(R.string.settings_rpc_item),
+                        stringResource(R.string.settings_advanced_hint)
+                    ) { navController.navigate(Routes.NETWORK_SETTINGS) }
                 }
             }
 

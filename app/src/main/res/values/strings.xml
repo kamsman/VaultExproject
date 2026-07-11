@@ -826,4 +826,6 @@
     <string name="backup_copied_autoclear">Copié — sera effacé du presse-papiers dans 60 s</string>
     <string name="network_offline">Hors ligne</string>
     <string name="network_testing">Test…</string>
+    <string name="settings_section_advanced">Avancé</string>
+    <string name="settings_advanced_hint">Pour utilisateurs avancés</string>
 </resources>
