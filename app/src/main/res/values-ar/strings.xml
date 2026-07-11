@@ -708,8 +708,8 @@
     <string name="secnotif_pin_change_sub">تعديل رمز PIN الخاص بك</string>
     <string name="secnotif_history">سجلّ تسجيلات الدخول</string>
     <string name="secnotif_history_sub">عرض الأنشطة الأخيرة</string>
-    <string name="secnotif_devices">الأجهزة المتصلة</string>
-    <string name="secnotif_devices_sub">إدارة أجهزتك المصرّح بها</string>
+    <string name="secnotif_devices">هذا الجهاز</string>
+    <string name="secnotif_devices_sub">يعمل VaultEx على هذا الجهاز فقط</string>
     <string name="secnotif_state_title">حالة الإشعارات</string>
     <string name="secnotif_state_sub">جميع تفضيلاتك محدّثة</string>
     <string name="secnotif_uptodate">محدّث</string>

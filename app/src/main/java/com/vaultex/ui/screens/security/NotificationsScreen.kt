@@ -227,7 +227,8 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                     }
                     HorizontalDivider(color = SurfaceLight)
                     CenterRow(Icons.Default.Lock, AccentBlue, stringResource(R.string.secnotif_pin_change), stringResource(R.string.secnotif_pin_change_sub)) {
-                        navController.navigate(Routes.PIN_SETUP)
+                        // Passe par la vérification du PIN actuel (comme l'écran Sécurité).
+                        navController.navigate(Routes.PIN_CHANGE_VERIFY)
                     }
                     HorizontalDivider(color = SurfaceLight)
                     CenterRow(Icons.Default.History, AccentGreen, stringResource(R.string.secnotif_history), stringResource(R.string.secnotif_history_sub)) {

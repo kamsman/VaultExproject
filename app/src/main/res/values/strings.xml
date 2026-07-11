@@ -799,8 +799,8 @@
     <string name="secnotif_pin_change_sub">Modifier votre code PIN</string>
     <string name="secnotif_history">Historique des connexions</string>
     <string name="secnotif_history_sub">Voir les dernières activités</string>
-    <string name="secnotif_devices">Appareils connectés</string>
-    <string name="secnotif_devices_sub">Gérer vos appareils autorisés</string>
+    <string name="secnotif_devices">Cet appareil</string>
+    <string name="secnotif_devices_sub">VaultEx fonctionne uniquement ici</string>
     <string name="secnotif_state_title">État des notifications</string>
     <string name="secnotif_state_sub">Toutes vos préférences sont à jour</string>
     <string name="secnotif_uptodate">À jour</string>

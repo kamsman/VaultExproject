@@ -708,8 +708,8 @@
     <string name="secnotif_pin_change_sub">Change your PIN code</string>
     <string name="secnotif_history">Sign-in history</string>
     <string name="secnotif_history_sub">See recent activity</string>
-    <string name="secnotif_devices">Connected devices</string>
-    <string name="secnotif_devices_sub">Manage your authorized devices</string>
+    <string name="secnotif_devices">This device</string>
+    <string name="secnotif_devices_sub">VaultEx runs only on this device</string>
     <string name="secnotif_state_title">Notification status</string>
     <string name="secnotif_state_sub">All your preferences are up to date</string>
     <string name="secnotif_uptodate">Up to date</string>
