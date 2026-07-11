@@ -80,8 +80,8 @@ class SwapUseCase @Inject constructor(
         )
     }
 
-    /** Met à jour le statut local d'un swap depuis ChangeNOW. Retourne le statut distant. */
-    suspend fun refreshSwapStatus(swapId: String): String? {
+    /** Met à jour le statut local d'un swap depuis ChangeNOW. Retourne le statut distant complet. */
+    suspend fun refreshSwapStatus(swapId: String): com.vaultex.data.remote.dto.ChangeNowStatusDto? {
         val status = getStatus(swapId) ?: return null
         val localStatus = when (status.status) {
             "finished" -> "confirmed"
@@ -89,7 +89,7 @@ class SwapUseCase @Inject constructor(
             else -> "pending"
         }
         transactionDao.updateStatus(swapId, localStatus, if (localStatus == "confirmed") 1 else 0)
-        return status.status
+        return status
     }
 
     private fun pair(from: String, to: String) = "${cnTicker(from)}_${cnTicker(to)}"

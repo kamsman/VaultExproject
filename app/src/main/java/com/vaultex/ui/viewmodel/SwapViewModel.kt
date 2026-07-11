@@ -497,7 +497,8 @@ class SwapViewModel @Inject constructor(
         statusJob = viewModelScope.launch {
             repeat(90) { // ~30 min max
                 kotlinx.coroutines.delay(20_000)
-                val remote = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
+                val statusDto = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
+                val remote = statusDto?.status
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
                     if (remote in listOf("finished", "failed", "refunded", "expired")) {
@@ -511,6 +512,20 @@ class SwapViewModel @Inject constructor(
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(
                                     assetOf(st.fromToken).base, assetOf(st.toToken).base, remote)
+                        }
+                        // « finished » = ChangeNOW a DIFFUSÉ le versement, mais le
+                        // crypto reçu doit encore être confirmé sur sa chaîne avant
+                        // d'apparaître dans le solde. On enregistre le hash sortant
+                        // pour afficher le badge « En attente » sur la monnaie reçue
+                        // — il disparaîtra automatiquement dès la confirmation.
+                        if (remote == "finished") {
+                            statusDto?.payoutHash?.takeIf { it.isNotBlank() }?.let { payHash ->
+                                pendingTxManager.track(
+                                    assetOf(_state.value.toToken).base,
+                                    assetOf(_state.value.toToken).chain,
+                                    payHash
+                                )
+                            }
                         }
                         // Centre de notifications (cloche) : trace le swap terminé,
                         // au même titre que les envois/réceptions. Respecte

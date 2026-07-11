@@ -170,7 +170,11 @@ data class ChangeNowStatusDto(
     val status: String,  // waiting, confirming, exchanging, sending, finished, failed
     @SerializedName("amountFrom") val amountFrom: String? = null,
     @SerializedName("amountTo") val amountTo: String? = null,
-    val hash: String? = null
+    val hash: String? = null,
+    // Hash du paiement SORTANT de ChangeNOW vers le portefeuille (dispo à
+    // « finished ») : sert à afficher le badge « En attente » sur la monnaie
+    // reçue tant que le versement n'est pas confirmé sur sa chaîne.
+    @SerializedName("payoutHash") val payoutHash: String? = null
 )
 
 // ─── FLUTTERWAVE ───────────────────────────────────────────────

@@ -679,8 +679,8 @@
     <string name="notif_login_body">Your wallet was just unlocked.</string>
     <string name="notif_sent_title">Sent</string>
     <string name="notif_sent_body">You sent %1$s %2$s.</string>
-    <string name="notif_swap_done_title">Swap complete</string>
-    <string name="notif_swap_done_body">%1$s %2$s swapped to %3$s.</string>
+    <string name="notif_swap_done_title">Exchange done ✓</string>
+    <string name="notif_swap_done_body">%1$s %2$s → %3$s. Your %3$s is on its way (network confirmation in progress).</string>
     <string name="notif_swap_failed_title">Swap failed</string>
     <string name="notif_swap_failed_body">The %1$s → %2$s swap did not complete.</string>
     <string name="notif_lowbal_title">Low balance</string>

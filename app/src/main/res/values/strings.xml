@@ -770,8 +770,8 @@
     <string name="notif_login_body">Votre wallet vient d\'être déverrouillé.</string>
     <string name="notif_sent_title">Envoi effectué</string>
     <string name="notif_sent_body">Vous avez envoyé %1$s %2$s.</string>
-    <string name="notif_swap_done_title">Swap terminé</string>
-    <string name="notif_swap_done_body">%1$s %2$s échangés en %3$s.</string>
+    <string name="notif_swap_done_title">Échange effectué ✓</string>
+    <string name="notif_swap_done_body">%1$s %2$s → %3$s. Ton %3$s arrive sous peu (confirmation réseau en cours).</string>
     <string name="notif_swap_failed_title">Swap échoué</string>
     <string name="notif_swap_failed_body">L\'échange %1$s → %2$s n\'a pas abouti.</string>
     <string name="notif_lowbal_title">Solde bas</string>

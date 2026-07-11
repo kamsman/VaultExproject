@@ -679,8 +679,8 @@
     <string name="notif_login_body">تم فتح محفظتك للتو.</string>
     <string name="notif_sent_title">تم الإرسال</string>
     <string name="notif_sent_body">لقد أرسلت %1$s %2$s.</string>
-    <string name="notif_swap_done_title">اكتمل التبادل</string>
-    <string name="notif_swap_done_body">تم تبديل %1$s %2$s إلى %3$s.</string>
+    <string name="notif_swap_done_title">تم التبادل ✓</string>
+    <string name="notif_swap_done_body">%1$s %2$s ← %3$s. سيصل %3$s قريبًا (جارٍ تأكيد الشبكة).</string>
     <string name="notif_swap_failed_title">فشل التبادل</string>
     <string name="notif_swap_failed_body">لم يكتمل تبادل %1$s ← %2$s.</string>
     <string name="notif_lowbal_title">رصيد منخفض</string>
