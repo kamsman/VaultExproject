@@ -38,6 +38,8 @@ import com.vaultex.ui.theme.NetworkSol
 import com.vaultex.ui.theme.NetworkTrx
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.TextMuted
+import com.vaultex.ui.theme.BorderColor
+import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
@@ -372,7 +374,8 @@ private fun AddContactDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = onNameChange,
-                    label = { Text(stringResource(R.string.contacts_name)) },
+                    placeholder = { Text(stringResource(R.string.contacts_name)) },
+                    leadingIcon = { Icon(Icons.Default.Person, null, tint = AccentBlue) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -380,29 +383,40 @@ private fun AddContactDialog(
                 OutlinedTextField(
                     value = address,
                     onValueChange = onAddressChange,
-                    label = { Text(stringResource(R.string.contacts_address)) },
+                    placeholder = { Text(stringResource(R.string.contacts_address)) },
+                    leadingIcon = { Icon(Icons.Default.Contacts, null, tint = AccentBlue) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
+                // ─── Sélecteur de réseau avec vraies icônes crypto (maquette) ───
+                Text(stringResource(R.string.contacts_network), fontSize = 12.sp, color = AccentBlue, fontWeight = FontWeight.SemiBold)
                 var expanded by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedTextField(
-                        value = chain,
-                        onValueChange = {},
-                        label = { Text(stringResource(R.string.contacts_network)) },
-                        readOnly = true,
+                    Surface(
                         shape = RoundedCornerShape(12.dp),
-                        trailingIcon = {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                            }
-                        },
+                        color = SurfaceLight,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                        onClick = { expanded = true },
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CoinIcon(chain)
+                            Spacer(Modifier.width(10.dp))
+                            Text(chain, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ArrowDropDown, null, tint = TextSecondary)
+                        }
+                    }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         chains.forEach { c ->
-                            DropdownMenuItem(text = { Text(c) }, onClick = { onChainChange(c); expanded = false })
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CoinIcon(c); Spacer(Modifier.width(10.dp)); Text(c)
+                                    }
+                                },
+                                onClick = { onChainChange(c); expanded = false }
+                            )
                         }
                     }
                 }
@@ -421,4 +435,19 @@ private fun AddContactDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = TextSecondary) }
         }
     )
+}
+
+/** Petite icône ronde de crypto (dropdown réseau du carnet d'adresses). */
+@Composable
+private fun CoinIcon(chain: String) {
+    Box(
+        Modifier.size(26.dp).clip(androidx.compose.foundation.shape.CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        coil.compose.AsyncImage(
+            model = com.vaultex.ui.components.CryptoIcon.url(chain),
+            contentDescription = chain,
+            modifier = Modifier.size(26.dp).clip(androidx.compose.foundation.shape.CircleShape)
+        )
+    }
 }
