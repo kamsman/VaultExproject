@@ -480,7 +480,8 @@
     <string name="security_section_advanced">Advanced</string>
     <string name="security_max_attempts">Max attempts</string>
     <string name="security_wipe_wallet">Wipe wallet</string>
-    <string name="security_wipe_warning">Erases ALL wallets and data on this device, then restarts the app. Your funds remain on the blockchain: you can recover them by re-importing your recovery phrase. Without your phrase, your funds are lost forever.</string>
+    <string name="security_wipe_warn_1">This action is irreversible. All wallets on this device will be erased.</string>
+    <string name="security_wipe_warn_2">Make sure you have backed up your recovery phrase — it is the only way to recover your funds.</string>
     <string name="notif_security_title">Security notifications</string>
     <string name="notif_tx_alerts">Transaction alerts</string>
     <string name="notif_login_alerts">Login alerts</string>

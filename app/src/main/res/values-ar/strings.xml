@@ -480,7 +480,8 @@
     <string name="security_section_advanced">متقدم</string>
     <string name="security_max_attempts">الحد الأقصى للمحاولات</string>
     <string name="security_wipe_wallet">مسح المحفظة</string>
-    <string name="security_wipe_warning">يمسح كل المحافظ والبيانات على هذا الجهاز ثم يعيد تشغيل التطبيق. تبقى أموالك على البلوكشين: يمكنك استعادتها بإعادة استيراد عبارة الاسترداد. بدون عبارتك، ستفقد أموالك نهائيًا.</string>
+    <string name="security_wipe_warn_1">هذا الإجراء لا رجعة فيه. سيتم مسح كل المحافظ على هذا الجهاز.</string>
+    <string name="security_wipe_warn_2">تأكد من حفظ عبارة الاسترداد — فهي الوسيلة الوحيدة لاستعادة أموالك.</string>
     <string name="notif_security_title">إشعارات الأمان</string>
     <string name="notif_tx_alerts">تنبيهات المعاملات</string>
     <string name="notif_login_alerts">تنبيهات تسجيل الدخول</string>

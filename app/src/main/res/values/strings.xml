@@ -559,7 +559,8 @@
     <string name="security_section_advanced">Avancé</string>
     <string name="security_max_attempts">Tentatives max</string>
     <string name="security_wipe_wallet">Effacer le wallet</string>
-    <string name="security_wipe_warning">Efface TOUS les wallets et données de cet appareil, puis redémarre l\'application. Tes fonds restent sur la blockchain : tu pourras les retrouver en réimportant ta phrase de récupération. Sans ta phrase, tes fonds seront définitivement perdus.</string>
+    <string name="security_wipe_warn_1">Cette action est irréversible. Tous les wallets de cet appareil seront effacés.</string>
+    <string name="security_wipe_warn_2">Assurez-vous d\'avoir sauvegardé la phrase de récupération — c\'est le seul moyen de retrouver vos fonds.</string>
     <string name="notif_security_title">Notifications sécurité</string>
     <string name="notif_tx_alerts">Alertes transactions</string>
     <string name="notif_login_alerts">Alertes connexion</string>

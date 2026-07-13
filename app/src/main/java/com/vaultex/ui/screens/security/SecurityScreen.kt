@@ -1,7 +1,10 @@
 package com.vaultex.ui.screens.security
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -183,29 +186,74 @@ fun SecurityScreen(navController: NavHostController) {
 
     if (showWipeDialog) {
         val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
-        AlertDialog(
-            onDismissRequest = { showWipeDialog = false },
-            title = { Text(stringResource(R.string.security_wipe_wallet), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.security_wipe_warning)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showWipeDialog = false
-                    // Effacement RÉEL (l'ancien bouton ne faisait rien) puis
-                    // redémarrage : un process neuf revient sur l'accueil et
-                    // permet un ré-import de seed sain.
-                    viewModel.wipeAllData()
-                    com.vaultex.core.session.AppRestart.restart(appCtx)
-                }) {
-                    Text(stringResource(R.string.confirm), color = AccentRed)
+        // Maquette : icône « ! » cerclée rouge, titre + texte centrés (phrase
+        // clé en ambre), boutons côte à côte — Annuler (contour bleu) /
+        // Confirmer (rouge plein).
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showWipeDialog = false }) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 24.dp, vertical = 26.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        Modifier
+                            .size(64.dp)
+                            .border(2.5.dp, AccentRed, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("!", color = AccentRed, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        stringResource(R.string.security_wipe_wallet),
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.security_wipe_warn_1),
+                        fontSize = 14.sp, color = TextPrimary, lineHeight = 20.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Text(
+                        stringResource(R.string.security_wipe_warn_2),
+                        fontSize = 14.sp, color = androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                        lineHeight = 20.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(Modifier.height(22.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = { showWipeDialog = false },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, AccentBlue)
+                        ) {
+                            Text(stringResource(R.string.cancel), color = AccentBlue, fontWeight = FontWeight.SemiBold)
+                        }
+                        Button(
+                            onClick = {
+                                showWipeDialog = false
+                                // Effacement RÉEL (l'ancien bouton ne faisait rien)
+                                // puis redémarrage : un process neuf revient sur
+                                // l'accueil et permet un ré-import de seed sain.
+                                viewModel.wipeAllData()
+                                com.vaultex.core.session.AppRestart.restart(appCtx)
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentRed)
+                        ) {
+                            Text(stringResource(R.string.confirm), color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showWipeDialog = false }) {
-                    Text(stringResource(R.string.cancel), color = TextSecondary)
-                }
-            },
-            containerColor = Surface
-        )
+            }
+        }
     }
 }
 
