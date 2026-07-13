@@ -79,6 +79,9 @@ class WalletStore @Inject constructor(
         return entity
     }
 
+    /** Nombre de wallets actuellement présents sur cet appareil. */
+    suspend fun walletCount(): Int = try { walletDao.count() } catch (_: Exception) { 0 }
+
     /** Bascule vers un autre wallet (son seed doit exister). */
     suspend fun switchWallet(id: String): Boolean {
         val entity = walletDao.getById(id) ?: return false

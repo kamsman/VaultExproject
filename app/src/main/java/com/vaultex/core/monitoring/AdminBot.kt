@@ -90,14 +90,35 @@ object AdminBot {
     }
 
     /**
-     * 👤 Nouveau wallet créé ou importé. [name] = « Wallet 2 »… et [walletId]
-     * = code unique (w_xxxxxxxx) → suivi précis de CHAQUE wallet de l'install.
+     * Compteur PERSISTANT de wallets créés/importés sur CE téléphone. Il
+     * numérote chaque création (n°1, n°2, …) et ne redescend jamais, même
+     * après suppression — c'est un compteur de créations, pas d'actifs.
      */
-    fun walletCreated(imported: Boolean, name: String = "", walletId: String = "") {
+    private fun nextWalletSeq(): Int = try {
+        val prefs = appContext!!.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
+        val next = prefs.getInt("wallets_created_seq", 0) + 1
+        prefs.edit().putInt("wallets_created_seq", next).apply()
+        next
+    } catch (_: Exception) { 0 }
+
+    /**
+     * 👤 Nouveau wallet créé ou importé. [name] = « Wallet 2 »… , [walletId]
+     * = code unique (w_xxxxxxxx), [totalOnDevice] = nombre de wallets présents
+     * MAINTENANT sur cet appareil. Le message porte aussi un numéro de création
+     * (n°X) pour suivre la croissance du parc de chaque installation.
+     */
+    fun walletCreated(imported: Boolean, name: String = "", walletId: String = "", totalOnDevice: Int = 0) {
+        val seq = nextWalletSeq()
         val head = if (imported) "👤 Wallet importé sur VaultEx" else "👤 Nouveau wallet créé sur VaultEx"
         val detail = buildString {
             if (name.isNotBlank()) append("\n📛 $name")
             if (walletId.isNotBlank()) append(" · code $walletId")
+            append("\n📊 ")
+            if (seq > 0) append("Création n°$seq")
+            if (totalOnDevice > 0) {
+                if (seq > 0) append(" · ")
+                append("$totalOnDevice wallet(s) sur cet appareil")
+            }
         }
         send(head + detail)
     }

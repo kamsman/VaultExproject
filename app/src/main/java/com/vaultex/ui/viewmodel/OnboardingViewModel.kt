@@ -126,9 +126,11 @@ class OnboardingViewModel @Inject constructor(
                 sessionLock.markUnlocked()    // nouvelle session déverrouillée
                 _saveState.value = SaveState.Success
                 // Événement admin (Telegram) : wallet créé/importé, avec son
-                // nom (« Wallet 2 ») et son code unique pour le suivi.
+                // nom (« Wallet 2 »), son code unique et le nombre de wallets
+                // actuellement présents sur cet appareil (suivi du parc).
                 created?.let {
-                    com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported, it.name, it.id)
+                    val total = withContext(Dispatchers.IO) { walletStore.walletCount() }
+                    com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported, it.name, it.id, total)
                 }
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "Erreur inconnue")
