@@ -73,7 +73,9 @@ android {
         // événements temps réel — wallet créé, swap, gros swap, échec. Vider ces
         // valeurs (telegram.admin.token= dans local.properties) pour désactiver.
         buildConfigField("String", "TG_ADMIN_TOKEN", "\"${localProps.getProperty("telegram.admin.token", "8777717026:AAE-DNwOuO11r9aY8WYXU3bFjOespFcPiBw")}\"")
-        buildConfigField("String", "TG_ADMIN_CHAT",  "\"${localProps.getProperty("telegram.admin.chat",  "6869668124")}\"")
+        // ID NÉGATIF = le supergroupe « Vaultex Administration » (un id positif
+        // enverrait en chat privé). Récupéré via getUpdates après ajout du bot.
+        buildConfigField("String", "TG_ADMIN_CHAT",  "\"${localProps.getProperty("telegram.admin.chat",  "-1003902027026")}\"")
     }
 
     signingConfigs {
