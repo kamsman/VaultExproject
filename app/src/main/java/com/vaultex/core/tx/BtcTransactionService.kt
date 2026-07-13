@@ -6,7 +6,9 @@ import org.bitcoinj.core.ECKey
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.SegwitAddress
 import org.bitcoinj.core.Transaction
+import org.bitcoinj.core.TransactionInput
 import org.bitcoinj.core.TransactionOutPoint
+import org.bitcoinj.core.TransactionWitness
 import org.bitcoinj.core.Utils
 import org.bitcoinj.crypto.ChildNumber
 import org.bitcoinj.crypto.HDKeyDerivation
@@ -64,11 +66,13 @@ class BtcTransactionService @Inject constructor() {
             tx.addOutput(Coin.valueOf(change), SegwitAddress.fromKey(params, ecKey))
         }
 
-        // Sign P2WPKH inputs (native SegWit, bc1…). IMPORTANT : il faut passer le
-        // scriptPubKey P2WPKH pour que bitcoinj signe via le TÉMOIN (witness) avec
-        // un scriptSig VIDE. Passer un script P2PKH le faisait signer en LEGACY
-        // (scriptSig non vide) → transaction invalide rejetée par le réseau.
-        val witnessScript = ScriptBuilder.createP2WPKHOutputScript(ecKey.pubKeyHash)
+        // 1) Ajouter TOUTES les entrées (non signées) AVANT de signer quoi que
+        // ce soit. BIP143 : le sighash de CHAQUE entrée engage hashPrevouts /
+        // hashSequence = la liste de TOUTES les entrées. L'ancien code utilisait
+        // addSignedInput (signe à l'ajout) : avec ≥ 2 UTXO, la signature de
+        // l'entrée 0 devenait invalide dès l'ajout de l'entrée 1 → rejet nœud
+        // « mempool-script-verify-flag-failed (Signature must be zero…), input 0 ».
+        // Un envoi à 1 seul UTXO passait, ce qui masquait le bug.
         for (utxo in selected) {
             // Blockstream donne le txid en ordre d'AFFICHAGE (hex). Sha256Hash.wrap
             // le stocke tel quel et TransactionOutPoint le renverse lui-même en
@@ -76,7 +80,20 @@ class BtcTransactionService @Inject constructor() {
             // l'inversion → outpoint erroné → « bad-txns-inputs-missingorspent ».
             val txHash = org.bitcoinj.core.Sha256Hash.wrap(utxo.txHash)
             val outPoint = TransactionOutPoint(params, utxo.outputIndex.toLong(), txHash)
-            tx.addSignedInput(outPoint, witnessScript, Coin.valueOf(utxo.valueSatoshi), ecKey, Transaction.SigHash.ALL, false)
+            tx.addInput(TransactionInput(params, tx, ByteArray(0), outPoint, Coin.valueOf(utxo.valueSatoshi)))
+        }
+
+        // 2) Signer chaque entrée maintenant que la transaction est COMPLÈTE.
+        // scriptCode BIP143 d'un P2WPKH = forme P2PKH de la clé — exactement ce
+        // que bitcoinj fait en interne dans addSignedInput ; le scriptSig reste
+        // vide (déjà posé à l'étape 1), la signature va dans le témoin (witness).
+        val scriptCode = ScriptBuilder.createP2PKHOutputScript(ecKey)
+        selected.forEachIndexed { index, utxo ->
+            val sig = tx.calculateWitnessSignature(
+                index, ecKey, scriptCode, Coin.valueOf(utxo.valueSatoshi),
+                Transaction.SigHash.ALL, false
+            )
+            tx.getInput(index.toLong()).witness = TransactionWitness.redeemP2WPKH(sig, ecKey)
         }
 
         return tx.bitcoinSerialize()
