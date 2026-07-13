@@ -58,22 +58,91 @@ object AdminBot {
     private fun signature(): String = "🆔 $installCode"
 
     // ─── 📲 Nouvelle installation : annoncée UNE SEULE FOIS par téléphone ───
+
+    /** Préfixe du message ÉPINGLÉ servant de compteur global d'installations. */
+    private const val COUNTER_PREFIX = "📌 VaultEx — installations : "
+
+    /**
+     * Compteur GLOBAL d'installations SANS serveur : le total vit dans le
+     * message épinglé du groupe. Chaque nouvelle installation le lit
+     * (getChat → pinned_message), l'incrémente (editMessageText) et reçoit
+     * son numéro. Premier passage : crée le message et l'épingle (le bot
+     * doit être ADMIN du groupe avec le droit « Épingler des messages »).
+     * Renvoie 0 si indisponible (réseau/droits) → annonce sans numéro.
+     */
+    private fun bumpInstallCounter(token: String, chat: String): Int = try {
+        val body = client.newCall(
+            okhttp3.Request.Builder()
+                .url("https://api.telegram.org/bot$token/getChat?chat_id=$chat").build()
+        ).execute().use { it.body?.string() } ?: ""
+        val pinned = org.json.JSONObject(body).optJSONObject("result")?.optJSONObject("pinned_message")
+        val text = pinned?.optString("text") ?: ""
+        if (pinned != null && text.startsWith(COUNTER_PREFIX)) {
+            val n = (text.removePrefix(COUNTER_PREFIX).trim().toIntOrNull() ?: 0) + 1
+            client.newCall(
+                okhttp3.Request.Builder()
+                    .url("https://api.telegram.org/bot$token/editMessageText")
+                    .post(
+                        okhttp3.FormBody.Builder()
+                            .add("chat_id", chat)
+                            .add("message_id", pinned.getInt("message_id").toString())
+                            .add("text", COUNTER_PREFIX + n)
+                            .build()
+                    ).build()
+            ).execute().close()
+            n
+        } else {
+            // Premier passage : créer le compteur puis l'épingler (sans notif).
+            val resp = client.newCall(
+                okhttp3.Request.Builder()
+                    .url("https://api.telegram.org/bot$token/sendMessage")
+                    .post(
+                        okhttp3.FormBody.Builder()
+                            .add("chat_id", chat).add("text", COUNTER_PREFIX + "1").build()
+                    ).build()
+            ).execute().use { it.body?.string() } ?: ""
+            val mid = org.json.JSONObject(resp).optJSONObject("result")?.optInt("message_id") ?: 0
+            if (mid > 0) {
+                client.newCall(
+                    okhttp3.Request.Builder()
+                        .url("https://api.telegram.org/bot$token/pinChatMessage")
+                        .post(
+                            okhttp3.FormBody.Builder()
+                                .add("chat_id", chat)
+                                .add("message_id", mid.toString())
+                                .add("disable_notification", "true")
+                                .build()
+                        ).build()
+                ).execute().close()
+            }
+            1
+        }
+    } catch (_: Exception) { 0 }
+
     /**
      * Premier lancement de l'app : compte les installations réelles (avant même
      * la création d'un wallet) avec la langue, la version Android et la version
      * de l'app — sans aucune donnée personnelle. Idempotent (flag persistant).
+     * Le numéro global (n°X) vient du compteur épinglé du groupe.
      */
     fun announceInstallOnce() {
         try {
             val prefs = appContext!!.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
             if (prefs.getBoolean("install_announced", false)) return
             prefs.edit().putBoolean("install_announced", true).apply()
+            val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
+            val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT
+            if (token.isBlank() || chat.isBlank()) return
             val lang = Locale.getDefault().language.uppercase(Locale.US)
-            send(
-                "📲 Nouvelle installation VaultEx" +
-                    "\n🌍 Langue $lang · Android ${android.os.Build.VERSION.RELEASE}" +
-                    " · v${com.vaultex.BuildConfig.VERSION_NAME}"
-            )
+            scope.launch {
+                val n = bumpInstallCounter(token, chat)
+                val numTxt = if (n > 0) " n°$n" else ""
+                send(
+                    "📲 Nouvelle installation VaultEx$numTxt" +
+                        "\n🌍 Langue $lang · Android ${android.os.Build.VERSION.RELEASE}" +
+                        " · v${com.vaultex.BuildConfig.VERSION_NAME}"
+                )
+            }
         } catch (_: Exception) { }
     }
 

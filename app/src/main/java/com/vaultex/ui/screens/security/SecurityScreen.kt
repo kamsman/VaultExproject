@@ -182,12 +182,20 @@ fun SecurityScreen(navController: NavHostController) {
     }
 
     if (showWipeDialog) {
+        val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
         AlertDialog(
             onDismissRequest = { showWipeDialog = false },
             title = { Text(stringResource(R.string.security_wipe_wallet), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.wallet_mgr_delete_warning)) },
+            text = { Text(stringResource(R.string.security_wipe_warning)) },
             confirmButton = {
-                TextButton(onClick = { showWipeDialog = false }) {
+                TextButton(onClick = {
+                    showWipeDialog = false
+                    // Effacement RÉEL (l'ancien bouton ne faisait rien) puis
+                    // redémarrage : un process neuf revient sur l'accueil et
+                    // permet un ré-import de seed sain.
+                    viewModel.wipeAllData()
+                    com.vaultex.core.session.AppRestart.restart(appCtx)
+                }) {
                     Text(stringResource(R.string.confirm), color = AccentRed)
                 }
             },

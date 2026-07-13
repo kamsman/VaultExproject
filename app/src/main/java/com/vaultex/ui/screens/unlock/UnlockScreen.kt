@@ -49,10 +49,14 @@ fun UnlockScreen(navController: NavHostController) {
             navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
         }
     }
-    // Panic PIN → reset complet
+    // Panic PIN → reset complet PUIS redémarrage du process. Naviguer vers
+    // l'accueil dans le MÊME process laissait des singletons morts (base Room
+    // supprimée mais ouverte, prefs liées à la clé détruite) : tout ré-import
+    // de seed échouait ensuite. Un process neuf répare tout ça.
+    val appCtx = LocalContext.current.applicationContext
     LaunchedEffect(state.panicTriggered) {
         if (state.panicTriggered) {
-            navController.navigate(Routes.WELCOME) { popUpTo(0) { inclusive = true } }
+            com.vaultex.core.session.AppRestart.restart(appCtx)
         }
     }
 

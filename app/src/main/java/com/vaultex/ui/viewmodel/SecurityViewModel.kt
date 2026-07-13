@@ -38,4 +38,12 @@ class SecurityViewModel @Inject constructor(
         secureStorage.setAutoLockMinutes(minutes)
         _state.update { it.copy(autoLockMinutes = minutes) }
     }
+
+    /**
+     * « Effacer le wallet » : efface TOUT l'appareil (tous les wallets, PIN,
+     * historique, caches) — même effacement que le PIN de panique. Les fonds
+     * restent sur la blockchain : ré-importables avec la phrase de récupération.
+     * L'appelant DOIT redémarrer le process juste après (AppRestart.restart).
+     */
+    fun wipeAllData() = secureStorage.nukeAllData()
 }

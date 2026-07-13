@@ -264,6 +264,10 @@ class SecureStorage @Inject constructor(
         keystoreManager.destroyMasterKey()
         // P2 : effacer aussi la base chiffrée (historique, contacts, alertes…)
         context.deleteDatabase("vaultex.db")
+        // Flag de routage « wallet créé » : sans cet effacement, l'app
+        // redemanderait au prochain démarrage un PIN… qui n'existe plus
+        // (écran de déverrouillage infranchissable au lieu de l'accueil).
+        try { com.vaultex.core.session.AppLaunchManager.setWalletCreated(context, false) } catch (_: Exception) { }
     }
 
     private val rpcPrefs: SharedPreferences by lazy { RpcPrefs.get(context) }
