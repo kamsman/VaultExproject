@@ -519,9 +519,13 @@ class SwapViewModel @Inject constructor(
                         // des préférences de notification de l'utilisateur.
                         run {
                             val st = _state.value
-                            if (remote == "finished")
+                            if (remote == "finished") {
+                                // Commission VaultEx (1,5 % du montant) en USD — suivi du revenu.
+                                val usdFee = (st.fromAmount.toDoubleOrNull() ?: 0.0) *
+                                    (SwapUseCase.VAULTEX_FEE_PERCENT / 100.0) * st.fromPriceUsd
                                 com.vaultex.core.monitoring.AdminBot.swapFinished(
-                                    st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base)
+                                    st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
+                            }
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(
                                     assetOf(st.fromToken).base, assetOf(st.toToken).base, remote)

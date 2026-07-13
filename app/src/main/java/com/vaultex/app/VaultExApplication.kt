@@ -32,6 +32,11 @@ class VaultExApplication : Application(), Configuration.Provider {
         super.onCreate()
         // Bot Telegram admin : code d'installation (VX-XXXXXX) apposé aux événements.
         com.vaultex.core.monitoring.AdminBot.init(this)
+        // 📲 Compte les installations réelles (une seule annonce par téléphone).
+        com.vaultex.core.monitoring.AdminBot.announceInstallOnce()
+        // 💥 Rapport de crash Telegram — s'AJOUTE devant le handler existant
+        // (Crashlytics/système), ne remplace rien.
+        com.vaultex.core.monitoring.AdminBot.installCrashHandler()
         createNotificationChannel()
         schedulePriceAlertChecks()
         scheduleDepositChecks()

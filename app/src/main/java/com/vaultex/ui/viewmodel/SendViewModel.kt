@@ -463,7 +463,13 @@ class SendViewModel @Inject constructor(
                         )
                     }
                 }
-                is SendCryptoUseCase.Result.Error   -> _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
+                is SendCryptoUseCase.Result.Error   -> {
+                    _state.update { it.copy(isLoading = false, error = friendlyError(result.message)) }
+                    // Événement admin (Telegram) : échec d'envoi avec la raison
+                    // TECHNIQUE (pas le message traduit) → pannes récurrentes visibles.
+                    com.vaultex.core.monitoring.AdminBot.sendFailed(
+                        s.selectedChain.substringBefore("-"), result.message)
+                }
             }
         }
     }

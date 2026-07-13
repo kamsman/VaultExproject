@@ -57,6 +57,72 @@ object AdminBot {
     /** Signature apposée en bas de chaque message. */
     private fun signature(): String = "🆔 $installCode"
 
+    // ─── 📲 Nouvelle installation : annoncée UNE SEULE FOIS par téléphone ───
+    /**
+     * Premier lancement de l'app : compte les installations réelles (avant même
+     * la création d'un wallet) avec la langue, la version Android et la version
+     * de l'app — sans aucune donnée personnelle. Idempotent (flag persistant).
+     */
+    fun announceInstallOnce() {
+        try {
+            val prefs = appContext!!.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
+            if (prefs.getBoolean("install_announced", false)) return
+            prefs.edit().putBoolean("install_announced", true).apply()
+            val lang = Locale.getDefault().language.uppercase(Locale.US)
+            send(
+                "📲 Nouvelle installation VaultEx" +
+                    "\n🌍 Langue $lang · Android ${android.os.Build.VERSION.RELEASE}" +
+                    " · v${com.vaultex.BuildConfig.VERSION_NAME}"
+            )
+        } catch (_: Exception) { }
+    }
+
+    // ─── 💥 Crashs : rapport minimal en temps réel ────────────────────────
+    /**
+     * Installe un rapporteur de crash qui envoie le type d'erreur + l'endroit
+     * (première frame VaultEx de la pile) puis RELAIE au handler existant
+     * (Crashlytics / système) — il ne remplace rien, il s'ajoute devant.
+     * Envoi SYNCHRONE court (le process meurt juste après le handler).
+     */
+    fun installCrashHandler() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, e ->
+            try {
+                val where = e.stackTrace.firstOrNull { it.className.startsWith("com.vaultex") }
+                    ?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
+                    ?: e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                sendSync(
+                    "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
+                        " · Android ${android.os.Build.VERSION.RELEASE}" +
+                        "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +
+                        "\n📍 $where"
+                )
+            } catch (_: Exception) { }
+            previous?.uncaughtException(thread, e)
+        }
+    }
+
+    /** Envoi bloquant (≤ ~4 s) — réservé au handler de crash. */
+    private fun sendSync(text: String) {
+        val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
+        val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT
+        if (token.isBlank() || chat.isBlank()) return
+        try {
+            val body = okhttp3.FormBody.Builder()
+                .add("chat_id", chat)
+                .add("text", text + "\n" + signature())
+                .build()
+            val req = okhttp3.Request.Builder()
+                .url("https://api.telegram.org/bot$token/sendMessage")
+                .post(body)
+                .build()
+            okhttp3.OkHttpClient.Builder()
+                .callTimeout(4, TimeUnit.SECONDS)
+                .build()
+                .newCall(req).execute().close()
+        } catch (_: Exception) { }
+    }
+
     fun send(text: String) {
         val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
         val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT
@@ -130,9 +196,18 @@ object AdminBot {
         send("$head : $amount $from → $to$usdTxt")
     }
 
-    /** ✅ Swap terminé avec succès. */
-    fun swapFinished(amount: String, from: String, to: String) =
-        send("✅ Swap terminé : $amount $from → $to")
+    /**
+     * ✅ Swap terminé avec succès. [usdFee] = commission VaultEx estimée
+     * (1,5 % du montant, en contre-valeur USD) — suivi du revenu.
+     */
+    fun swapFinished(amount: String, from: String, to: String, usdFee: Double = 0.0) {
+        val feeTxt = if (usdFee > 0.0) String.format(Locale.US, "\n💰 Commission ≈ $%.2f", usdFee) else ""
+        send("✅ Swap terminé : $amount $from → $to$feeTxt")
+    }
+
+    /** ❌ Envoi échoué (raison technique) — détecte les pannes récurrentes (RPC, frais…). */
+    fun sendFailed(symbol: String, reason: String?) =
+        send("❌ Envoi échoué : $symbol" + (reason?.take(160)?.let { "\n$it" } ?: ""))
 
     /** 💸 GROS ENVOI (≥ 20 $) — rien en dessous du seuil (pas de spam). */
     fun bigSend(amount: String, symbol: String, usd: Double) {
