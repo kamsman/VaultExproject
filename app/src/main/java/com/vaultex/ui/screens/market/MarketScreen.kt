@@ -293,12 +293,10 @@ private fun CoinRowCard(
     val isPositive = dto.change24h >= 0
     val changeColor = if (isPositive) AccentGreen else AccentRed
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface)
-    ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    // Maquette : ligne À PLAT (sans fond de carte), séparée par un fin trait —
+    // rendu identique en thème clair et sombre.
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             coil.compose.AsyncImage(
                 model = dto.image, contentDescription = dto.symbol,
                 modifier = Modifier.size(40.dp).clip(CircleShape)
@@ -342,6 +340,11 @@ private fun CoinRowCard(
                 modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onToggleFavorite)
             )
         }
+        HorizontalDivider(
+            color = BorderColor,
+            thickness = 1.dp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
     }
 }
 

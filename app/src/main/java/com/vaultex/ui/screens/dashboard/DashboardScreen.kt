@@ -442,29 +442,25 @@ private fun SectionCard(
     onLinkClick: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                Text(
-                    "$linkLabel →",
-                    color = AccentBlue,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable(onClick = onLinkClick)
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            content()
+    // Maquette : section À PLAT (sans fond de carte), identique clair/sombre —
+    // les lignes sont séparées par de fins séparateurs.
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+            Text(
+                "$linkLabel →",
+                color = AccentBlue,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable(onClick = onLinkClick)
+            )
         }
+        Spacer(Modifier.height(8.dp))
+        content()
     }
 }
 
@@ -597,12 +593,8 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
         Color(android.graphics.Color.parseColor(hex))
     } catch (_: Exception) { fallbackColor }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
+    // Maquette : bloc À PLAT, sans fond de carte (clair et sombre).
+    Column(Modifier.fillMaxWidth()) {
             Text(
                 stringResource(R.string.portfolio_repartition),
                 fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary
@@ -639,7 +631,6 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
                     }
                 }
             }
-        }
     }
 }
 
@@ -661,22 +652,18 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/** Tuile d'action (icône ronde pastel + titre + sous-titre « Crypto »). */
+/** Action (maquette) : GRAND cercle pastel + libellé, SANS fond de carte. */
 @Composable
 private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: Modifier, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = com.vaultex.ui.theme.Surface,
-        modifier = modifier
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(42.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Box(Modifier.size(56.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
         }
+        Spacer(Modifier.height(8.dp))
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
@@ -685,8 +672,9 @@ private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: 
 private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
     val up = token.changePercent24h >= 0
     val trendColor = if (up) AccentGreen else AccentRed
-    Surface(onClick = onClick, shape = RoundedCornerShape(14.dp), color = com.vaultex.ui.theme.Surface, modifier = Modifier.width(128.dp)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Maquette : colonne À PLAT (sans fond de carte), clair et sombre.
+    Box(Modifier.width(128.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick)) {
+        Column(Modifier.padding(vertical = 8.dp, horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 coil.compose.AsyncImage(
                     model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
