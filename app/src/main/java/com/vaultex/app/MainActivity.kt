@@ -23,6 +23,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import androidx.navigation.compose.rememberNavController
 
 import androidx.compose.foundation.layout.Arrangement
@@ -133,6 +136,28 @@ class MainActivity : FragmentActivity() {
 
         // Android 13+ : demander l'autorisation d'afficher des notifications.
         ensureNotificationPermission()
+
+        // ─── Détection RAPIDE des dépôts quand l'app est OUVERTE ───
+        // Le worker périodique tourne au mieux toutes les 15 min (minimum
+        // imposé par Android en arrière-plan). Au premier plan, on relance la
+        // MÊME vérification toutes les 30 s : un dépôt reçu pendant que
+        // l'utilisateur regarde l'app est signalé en secondes, plus en minutes.
+        // (Le vrai temps réel en arrière-plan vient de la Cloud Function
+        // checkDeposits + push FCM, une fois déployée.)
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    androidx.work.WorkManager.getInstance(this@MainActivity).enqueueUniqueWork(
+                        com.vaultex.service.DepositCheckWorker.WORK_NAME + "_fg",
+                        androidx.work.ExistingWorkPolicy.KEEP,
+                        androidx.work.OneTimeWorkRequest.Builder(
+                            com.vaultex.service.DepositCheckWorker::class.java
+                        ).build()
+                    )
+                    kotlinx.coroutines.delay(30_000L)
+                }
+            }
+        }
 
         setContent {
 
