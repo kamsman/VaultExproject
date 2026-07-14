@@ -315,14 +315,9 @@ private fun BalanceCard(
         else com.vaultex.core.util.CurrencyFormat.format(usd, "USD")
     val masked = "••••••"
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.linearGradient(listOf(Color(0xFF2B2E8C), Color(0xFF1B1464), Color(0xFF12102E)))
-            )
-    ) {
+    // Maquette : bloc SANS fond (à plat sur l'écran), identique en clair et en
+    // sombre — les couleurs de texte viennent du thème et s'adaptent seules.
+    Box(modifier = Modifier.fillMaxWidth()) {
         // Courbe violette décorative à droite (maquette) — pas d'historique de
         // solde disponible localement, la forme est stable (déterministe).
         Canvas(
@@ -352,18 +347,18 @@ private fun BalanceCard(
             drawPath(line, Color(0xFFA855F7), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
         }
 
-        Column(Modifier.padding(20.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.total_balance),
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                    color = TextPrimary,
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.width(8.dp))
                 Icon(
                     if (hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                     contentDescription = stringResource(if (hidden) R.string.balance_show else R.string.balance_hide),
-                    tint = Color(0xFFB39DFF),
+                    tint = TextMuted,
                     modifier = Modifier.size(18.dp).clip(CircleShape).clickable(onClick = onToggleHidden)
                 )
             }
@@ -371,16 +366,16 @@ private fun BalanceCard(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     if (hidden) masked else primaryText,
-                    color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold
+                    color = TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.width(6.dp))
-                Text(currency, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                Text(currency, color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 5.dp))
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hidden) masked else "≈ $secondaryText",
-                color = Color.White.copy(alpha = 0.75f),
+                if (hidden) masked else "= $secondaryText",
+                color = TextSecondary,
                 fontSize = 14.sp
             )
             Spacer(Modifier.height(10.dp))
@@ -399,14 +394,14 @@ private fun BalanceCard(
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.balance_today), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                Text(stringResource(R.string.balance_today), color = TextSecondary, fontSize = 13.sp)
             }
             if (isLoading) {
                 Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.25f)
+                    color = AccentBlue,
+                    trackColor = AccentBlue.copy(alpha = 0.20f)
                 )
             }
         }
