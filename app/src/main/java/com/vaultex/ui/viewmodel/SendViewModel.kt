@@ -282,10 +282,15 @@ class SendViewModel @Inject constructor(
         return if (fee >= 0.00000546) fee else 0.0   // < poussière BTC → pas de frais
     }
 
+    /** Décimal lisible pour l'utilisateur : 0.0001 — jamais la notation
+     *  scientifique « 1.0E-4 » produite par Double.toString(). */
+    private fun plainAmount(v: Double): String =
+        java.math.BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()
+
     private fun dustWarning(chain: String, amount: String): String? {
         val value = amount.replace(",", ".").toDoubleOrNull() ?: return null
         val minimum = MINIMUM_AMOUNTS[chain] ?: return null
-        return if (value < minimum) "$minimum $chain" else null
+        return if (value < minimum) "${plainAmount(minimum)} $chain" else null
     }
 
     /** Lit le solde de [chain] dans l'instantané portefeuille (aucun appel réseau). */
@@ -410,7 +415,7 @@ class SendViewModel @Inject constructor(
         // Montant sous le minimum réseau
         val min = MINIMUM_AMOUNTS[s.selectedChain]
         if (min != null && amountNum < min)
-            return locStr(R.string.send_err_below_min, "$min $sym")
+            return locStr(R.string.send_err_below_min, "${plainAmount(min)} $sym")
         return null
     }
 
