@@ -391,8 +391,47 @@ class SendCryptoUseCase @Inject constructor(
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
         return try {
-            val fromPubKey = Base58.decode(WalletManager.deriveAddresses(mnemonic, passphrase).sol)
+            val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).sol
+            val fromPubKey = Base58.decode(fromAddress)
             val toPubKey = Base58.decode(toAddress)
+
+            // ── Règle Solana « rent-exempt » : un compte système ne peut PAS
+            // rester avec un résidu entre 1 lamport et ~0.00089 SOL (890 880
+            // lamports). Il doit être vidé à 0 EXACTEMENT, ou garder au moins ce
+            // minimum. Sans ces garde-fous, le nœud rejette en simulation avec
+            // le message opaque « Transaction simulation failed ».
+            val rentMin = 890_880L
+            val feeLamports = 5_000L
+            @Suppress("UNCHECKED_CAST")
+            val balanceLamports = (
+                (solanaRpc.rpcCall(JsonRpcRequest("getBalance", mutableListOf(fromAddress as Any)))
+                    .result as? Map<String, Any>)?.get("value") as? Number
+            )?.toLong()
+            if (balanceLamports != null) {
+                val remainder = balanceLamports - lamports - feeLamports
+                if (remainder < 0L)
+                    return Result.Error("Solde insuffisant pour couvrir le montant et les frais réseau")
+                if (remainder in 1L until rentMin) {
+                    val maxAll = java.math.BigDecimal.valueOf(balanceLamports - feeLamports)
+                        .movePointLeft(9).stripTrailingZeros().toPlainString()
+                    return Result.Error(
+                        "Solana n'autorise pas à laisser moins de 0.0009 SOL sur ton compte. " +
+                            "Envoie tout ($maxAll SOL) ou réduis le montant pour garder au moins 0.0009 SOL."
+                    )
+                }
+            }
+            // Destinataire NEUF (compte inexistant) : le premier dépôt doit être
+            // ≥ au minimum rent-exempt, sinon le réseau refuse la création.
+            if (lamports < rentMin) {
+                @Suppress("UNCHECKED_CAST")
+                val toInfo = (solanaRpc.rpcCall(
+                    JsonRpcRequest("getAccountInfo", mutableListOf(toAddress as Any))
+                ).result as? Map<String, Any>)
+                if (toInfo != null && toInfo["value"] == null)
+                    return Result.Error(
+                        "Cette adresse est un compte Solana tout neuf : le premier envoi doit être d'au moins 0.0009 SOL."
+                    )
+            }
 
             val bhRes = solanaRpc.rpcCall(
                 JsonRpcRequest("getLatestBlockhash", mutableListOf(mapOf("commitment" to "finalized") as Any))

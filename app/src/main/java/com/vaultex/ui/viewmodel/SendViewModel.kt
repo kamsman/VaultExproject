@@ -237,6 +237,16 @@ class SendViewModel @Inject constructor(
         //  solde était plus petit que la réserve, alors que le vrai frais est minime.)
         val isToken = _state.value.customToken != null || chain.startsWith("USDT")
         val reserve = if (isToken) java.math.BigDecimal.ZERO
+            else if (chain == "SOL") {
+                // SOL : frais FIXE (5000 lamports/signature) → réserve EXACTE,
+                // sans marge. La marge ×1.6 laissait ~0.000003 SOL de résidu, or
+                // Solana refuse un compte laissé entre 1 lamport et le minimum
+                // « rent-exempt » (~0.00089 SOL) → « simulation failed ». MAX
+                // doit vider le compte à 0 pile.
+                java.math.BigDecimal.valueOf(
+                    _state.value.feeNativeAmount?.takeIf { it > 0.0 } ?: 0.000005
+                )
+            }
             else {
                 val liveFee = _state.value.feeNativeAmount
                 if (liveFee != null && liveFee > 0.0)
