@@ -173,6 +173,13 @@ fun DashboardScreen(navController: NavHostController) {
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
+                // Trait léger sous le bloc de solde (maquette) : délimite la
+                // section sans réintroduire de fond de carte.
+                HorizontalDivider(
+                    color = SurfaceLight,
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(top = 14.dp)
+                )
             }
 
             // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───
