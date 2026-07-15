@@ -659,18 +659,24 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/** Action (maquette) : GRAND cercle pastel + libellé, SANS fond de carte. */
+/** Action (maquette) : tuile carrée arrondie BORDÉE, icône monochrome + libellé. */
 @Composable
 private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier = modifier.clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = modifier
     ) {
-        Box(Modifier.size(56.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
+        Column(
+            Modifier.padding(vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(26.dp))
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
-        Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
@@ -679,9 +685,9 @@ private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: 
 private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
     val up = token.changePercent24h >= 0
     val trendColor = if (up) AccentGreen else AccentRed
-    // Maquette : colonne À PLAT (sans fond de carte), clair et sombre.
-    Box(Modifier.width(128.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick)) {
-        Column(Modifier.padding(vertical = 8.dp, horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Maquette (mise à jour) : carte à fond léger, comme les tuiles d'action.
+    Surface(onClick = onClick, shape = RoundedCornerShape(14.dp), color = com.vaultex.ui.theme.Surface, modifier = Modifier.width(148.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 coil.compose.AsyncImage(
                     model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
