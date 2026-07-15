@@ -88,6 +88,18 @@ class HistoryViewModel @Inject constructor(
                 val mnemonic = secureStorage.getMnemonic() ?: return@launch
                 val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
                 withContext(Dispatchers.IO) {
+                    // Purge UNE FOIS des historiques BTC/SOL : les anciennes lignes
+                    // portaient notre propre adresse en De ET À (insertIgnore ne
+                    // les corrigerait jamais). Elles se resynchronisent juste
+                    // après avec la vraie contrepartie.
+                    val fixPrefs = context.getSharedPreferences("history_fixes", android.content.Context.MODE_PRIVATE)
+                    if (!fixPrefs.getBoolean("addr_fix_v1", false)) {
+                        try {
+                            transactionDao.deleteByBlockchain("BTC")
+                            transactionDao.deleteByBlockchain("SOL")
+                            fixPrefs.edit().putBoolean("addr_fix_v1", true).apply()
+                        } catch (_: Exception) { }
+                    }
                     fetchTronHistory(addresses.trx)
                     fetchBtcHistory(addresses.btc)
                     fetchEvmHistory(etherscanApi, addresses.eth, "ETH", "ETH", ApiKeys.ETHERSCAN)
@@ -196,12 +208,19 @@ class HistoryViewModel @Inject constructor(
                 val netSatoshi = if (isIncoming) received - sent else sent - received
                 val amount = "%.6f".format(netSatoshi / 1e8)
 
+                // Contrepartie RÉELLE (l'ancien code mettait NOTRE adresse dans
+                // De ET À) : en envoi → la plus grosse sortie qui n'est pas à
+                // nous ; en réception → la première entrée qui n'est pas à nous.
+                val counterOut = tx.vout.filter { it.address != null && it.address != address }
+                    .maxByOrNull { it.value }?.address
+                val counterIn = tx.vin.mapNotNull { it.prevout?.address }.firstOrNull { it != address }
+
                 val entity = TransactionEntity(
                     hash = tx.txid,
                     type = if (isIncoming) "received" else "sent",
                     blockchain = "BTC",
-                    fromAddress = address,
-                    toAddress = address,
+                    fromAddress = if (isIncoming) (counterIn ?: "") else address,
+                    toAddress = if (isIncoming) address else (counterOut ?: address),
                     amount = amount,
                     tokenSymbol = "BTC",
                     fee = "%.6f".format(tx.fee / 1e8),
@@ -294,21 +313,42 @@ class HistoryViewModel @Inject constructor(
                 val preBalances = meta?.get("preBalances") as? List<Double>
                 val postBalances = meta?.get("postBalances") as? List<Double>
 
-                // Index 0 = fee payer / sender
-                val pre0 = preBalances?.getOrNull(0) ?: 0.0
-                val post0 = postBalances?.getOrNull(0) ?: 0.0
+                // L'ancien code supposait qu'on est TOUJOURS l'index 0 (payeur de
+                // frais) : vrai pour un envoi, FAUX pour une réception → montant
+                // et sens erronés. On repère NOTRE index dans accountKeys, et la
+                // contrepartie = le compte dont le solde a le plus bougé dans
+                // l'autre sens (De/À affichaient notre propre adresse des 2 côtés).
+                @Suppress("UNCHECKED_CAST")
+                val accountKeys = ((txData?.get("transaction") as? Map<String, Any>)
+                    ?.get("message") as? Map<String, Any>)
+                    ?.get("accountKeys") as? List<Map<String, Any>>
+                val pubkeys = accountKeys?.mapNotNull { it["pubkey"] as? String } ?: emptyList()
+                val myIdx = pubkeys.indexOf(address).let { if (it < 0) 0 else it }
+
+                val preMe = preBalances?.getOrNull(myIdx) ?: 0.0
+                val postMe = postBalances?.getOrNull(myIdx) ?: 0.0
                 val fee = (meta?.get("fee") as? Double) ?: 0.0
-                val delta = post0 - pre0 + fee  // positive = received, negative = sent
+                val feePaidByMe = if (myIdx == 0) fee else 0.0
+                val delta = postMe - preMe + feePaidByMe  // >0 = reçu, <0 = envoyé
                 val isIncoming = delta > 0
                 val lamports = Math.abs(delta).toLong()
                 val amount = "%.6f".format(lamports / 1e9)
+
+                var counterparty = ""
+                var bestMove = 0.0
+                pubkeys.forEachIndexed { i, pk ->
+                    if (i == myIdx) return@forEachIndexed
+                    val d = (postBalances?.getOrNull(i) ?: 0.0) - (preBalances?.getOrNull(i) ?: 0.0)
+                    if (isIncoming) { if (d < bestMove) { bestMove = d; counterparty = pk } }
+                    else { if (d > bestMove) { bestMove = d; counterparty = pk } }
+                }
 
                 val entity = TransactionEntity(
                     hash = signature,
                     type = if (isIncoming) "received" else "sent",
                     blockchain = "SOL",
-                    fromAddress = address,
-                    toAddress = address,
+                    fromAddress = if (isIncoming) counterparty else address,
+                    toAddress = if (isIncoming) address else counterparty.ifEmpty { address },
                     amount = amount,
                     tokenSymbol = "SOL",
                     fee = "%.6f".format(fee / 1e9),

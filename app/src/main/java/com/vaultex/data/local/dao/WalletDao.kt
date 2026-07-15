@@ -95,6 +95,9 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM transactions WHERE blockchain = :blockchain")
+    suspend fun deleteByBlockchain(blockchain: String)
 }
 
 @Dao
