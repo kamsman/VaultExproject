@@ -347,7 +347,12 @@ class PortfolioViewModel @Inject constructor(
         bnbAddress: String,
         prevBySymbol: Map<String, TokenBalance>
     ): List<TokenBalance> = coroutineScope {
-        val customs = withContext(Dispatchers.IO) { tokenRepository.getCustom() }
+        val initial = withContext(Dispatchers.IO) { tokenRepository.getCustom() }
+        // Découverte AUTO des tokens du registre reçus mais jamais activés :
+        // sans elle, des SHIB envoyés vers ce wallet restaient INVISIBLES
+        // (le solde n'était jamais interrogé) alors qu'ils sont sur la chaîne.
+        val added = withContext(Dispatchers.IO) { discoverRegistryTokens(ethAddress, bnbAddress, initial) }
+        val customs = if (added) withContext(Dispatchers.IO) { tokenRepository.getCustom() } else initial
         if (customs.isEmpty()) return@coroutineScope emptyList()
         // Index du dernier état connu par contrat (pour ne jamais remettre à 0).
         val prevByContract = prevBySymbol.values
@@ -411,6 +416,43 @@ class PortfolioViewModel @Inject constructor(
                 )
             }
         }.map { it.await() }
+    }
+
+    /** Une seule sonde par session : ~9 eth_call, pas à chaque refresh. */
+    @Volatile private var registryScanned = false
+
+    /**
+     * Sonde les contrats CONNUS du registre d'échange (SHIB, USDC, DAI, CAKE…)
+     * absents de la liste du wallet, et active automatiquement ceux dont le
+     * solde on-chain est > 0. Répond au cas réel : « mes SHIB sont partis du
+     * wallet A mais ne sont jamais arrivés sur B » — ils étaient bien sur la
+     * chaîne, mais B n'affichait pas le token. @return true si ajout(s).
+     */
+    private suspend fun discoverRegistryTokens(
+        ethAddress: String,
+        bnbAddress: String,
+        customs: List<com.vaultex.data.local.entity.TokenEntity>
+    ): Boolean {
+        if (registryScanned) return false
+        registryScanned = true
+        val known = customs.map { it.contractAddress.lowercase() }.toSet()
+        var added = false
+        com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
+            .mapNotNull { com.vaultex.ui.viewmodel.SwapViewModel.tokenEntityFor(it) }
+            .filter { it.contractAddress.lowercase() !in known }
+            .forEach { entity ->
+                val isBnb = entity.blockchain == "BNB"
+                val bal = fetchErc20Balance(
+                    if (isBnb) bnbRpc else ethRpc,
+                    entity.contractAddress,
+                    if (isBnb) bnbAddress else ethAddress,
+                    entity.decimals
+                )
+                if ((bal ?: 0.0) > 0.0) {
+                    try { tokenRepository.addToken(entity); added = true } catch (_: Exception) { }
+                }
+            }
+        return added
     }
 
     private suspend fun fetchErc20Balance(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double? = try {
