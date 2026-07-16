@@ -106,9 +106,14 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
-    /** Symboles ayant une transaction sortante encore NON confirmée (badge « ! »). */
-    val pendingSymbols: StateFlow<Set<String>> = pendingTxStore.items
-        .map { list -> list.filter { !it.confirmed }.map { it.symbol }.toSet() }
+    /** Fonds ENTRANTS non confirmés (ex. BTC en mempool) — alimente aussi le badge. */
+    private val _incomingPending = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Symboles avec une transaction NON confirmée — sortante (suivi d'envoi)
+     *  OU entrante (dépôt en mempool) : badge « En attente » du dashboard. */
+    val pendingSymbols: StateFlow<Set<String>> = kotlinx.coroutines.flow.combine(
+        pendingTxStore.items, _incomingPending
+    ) { list, incoming -> list.filter { !it.confirmed }.map { it.symbol }.toSet() + incoming }
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, emptySet())
 
     /** Devise d'affichage choisie (USD/EUR/XOF). */
@@ -476,6 +481,14 @@ class PortfolioViewModel @Inject constructor(
 
     private suspend fun fetchBtcBalance(address: String): Double? = try {
         val info = bitcoinApi.getAddressInfo(address)
+        // Fonds ENTRANTS encore en mempool (0 confirmation) : le solde confirmé
+        // ne bouge pas avant le premier bloc (10-30 min) — sans signal, c'est la
+        // panique « il a envoyé mais je n'ai rien reçu ». On allume le badge
+        // « En attente » sur la ligne BTC dès que des fonds arrivent.
+        val incomingSat = info.mempoolStats.fundedSum - info.mempoolStats.spentSum
+        _incomingPending.value =
+            if (incomingSat > 0) _incomingPending.value + "BTC"
+            else _incomingPending.value - "BTC"
         (info.chainStats.fundedSum - info.chainStats.spentSum) / 1e8
     } catch (_: Exception) { null }
 
