@@ -126,6 +126,22 @@ class PortfolioViewModel @Inject constructor(
     val visibleAssets: StateFlow<Set<String>> = assetVisibility.visible
     fun toggleAssetVisible(symbol: String) = assetVisibility.toggle(symbol)
 
+    /**
+     * Retire un token PERSONNALISÉ (ajouté par contrat) de CE wallet — même
+     * s'il a un solde. Contrairement aux monnaies natives, ce n'est pas une
+     * perte : le token reste sur la blockchain à ton adresse, il suffit de
+     * ré-ajouter le même contrat pour le revoir. Ne supprime la définition
+     * globale que si plus AUCUN wallet ne le possède (TokenRepository.delete).
+     */
+    fun removeCustomToken(contractAddress: String, blockchain: String) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { tokenRepository.delete(contractAddress, blockchain) }
+                loadPortfolio(silent = true)
+            } catch (_: Exception) { }
+        }
+    }
+
     private val _state = MutableStateFlow(PortfolioState(isLoading = true))
     val state: StateFlow<PortfolioState> = _state.asStateFlow()
 

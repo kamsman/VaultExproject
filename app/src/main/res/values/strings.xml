@@ -435,6 +435,10 @@
     <string name="manage_assets_title">Gérer les actifs</string>
     <string name="manage_assets_hint">Active les monnaies à afficher dans « Mes actifs ». Une monnaie avec un solde reste toujours visible.</string>
     <string name="manage_assets_action">Gérer les actifs</string>
+    <string name="manage_assets_custom_title">TOKENS AJOUTÉS PAR CONTRAT</string>
+    <string name="manage_assets_remove">Retirer</string>
+    <string name="manage_assets_remove_title">Retirer %1$s ?</string>
+    <string name="manage_assets_remove_body">%1$s disparaîtra de ce wallet, même si tu en détiens. Tes fonds restent sur la blockchain : tu pourras les revoir à tout moment en ré-ajoutant le même contrat.</string>
     <string name="send_balance_label">Solde : %1$s</string>
     <string name="send_err_insufficient">Fonds insuffisants pour couvrir le montant et les frais de réseau.</string>
     <string name="send_err_nonce">Conflit de transaction en cours. Patiente quelques secondes et réessaie.</string>

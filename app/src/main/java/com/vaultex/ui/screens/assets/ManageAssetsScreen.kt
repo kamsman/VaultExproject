@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,6 +77,72 @@ fun ManageAssetsScreen(navController: NavController) {
                     checked = held || symbol in visible,
                     onToggle = { viewModel.toggleAssetVisible(symbol) }
                 )
+            }
+            // ─── Tokens personnalisés (ajoutés par contrat) : RETRAIT, pas un
+            // simple interrupteur — contrairement aux monnaies natives, ils
+            // peuvent être entièrement retirés de ce wallet (même avec un
+            // solde) : le token reste sur la blockchain, ré-ajoutable via son
+            // contrat à tout moment.
+            val customTokens = state.tokens.filter { it.isCustom }
+            if (customTokens.isNotEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.manage_assets_custom_title),
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                    )
+                }
+                items(customTokens, key = { it.contractAddress ?: it.symbol }) { token ->
+                    var showConfirm by remember { mutableStateOf(false) }
+                    Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(38.dp).clip(CircleShape).background(AccentBlue), contentAlignment = Alignment.Center) {
+                                Text(token.symbol.take(2), color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                coil.compose.AsyncImage(
+                                    model = CryptoIcon.urlFor(token.symbol, token.contractAddress, token.blockchain.ticker),
+                                    contentDescription = token.symbol,
+                                    modifier = Modifier.size(38.dp).clip(CircleShape)
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(token.symbol, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+                                Text(
+                                    if (token.blockchain.ticker == "BNB") "BNB Chain · BEP20" else "Ethereum · ERC20",
+                                    fontSize = 11.sp, color = TextSecondary
+                                )
+                            }
+                            IconButton(onClick = { showConfirm = true }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.manage_assets_remove),
+                                    tint = com.vaultex.ui.theme.AccentRed
+                                )
+                            }
+                        }
+                    }
+                    if (showConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showConfirm = false },
+                            title = { Text(stringResource(R.string.manage_assets_remove_title, token.symbol)) },
+                            text = { Text(stringResource(R.string.manage_assets_remove_body, token.symbol)) },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showConfirm = false
+                                    token.contractAddress?.let { addr ->
+                                        viewModel.removeCustomToken(addr, token.blockchain.ticker)
+                                    }
+                                }) { Text(stringResource(R.string.manage_assets_remove), color = com.vaultex.ui.theme.AccentRed) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) }
+                            }
+                        )
+                    }
+                }
             }
             item {
                 Spacer(Modifier.height(6.dp))

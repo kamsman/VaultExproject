@@ -395,6 +395,10 @@
     <string name="manage_assets_title">Manage assets</string>
     <string name="manage_assets_hint">Enable the coins to show in “My assets”. A coin with a balance always stays visible.</string>
     <string name="manage_assets_action">Manage assets</string>
+    <string name="manage_assets_custom_title">TOKENS ADDED BY CONTRACT</string>
+    <string name="manage_assets_remove">Remove</string>
+    <string name="manage_assets_remove_title">Remove %1$s?</string>
+    <string name="manage_assets_remove_body">%1$s will disappear from this wallet, even if you hold some. Your funds stay on the blockchain: you can see them again anytime by re-adding the same contract.</string>
     <string name="send_balance_label">Balance: %1$s</string>
     <string name="send_err_insufficient">Not enough funds to cover the amount plus network fees.</string>
     <string name="send_err_nonce">A transaction is already in progress. Wait a few seconds and try again.</string>

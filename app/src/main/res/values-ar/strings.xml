@@ -395,6 +395,10 @@
     <string name="manage_assets_title">إدارة الأصول</string>
     <string name="manage_assets_hint">فعّل العملات التي تريد عرضها في «أصولي». العملة التي لها رصيد تبقى مرئية دائمًا.</string>
     <string name="manage_assets_action">إدارة الأصول</string>
+    <string name="manage_assets_custom_title">الرموز المضافة عبر العقد</string>
+    <string name="manage_assets_remove">إزالة</string>
+    <string name="manage_assets_remove_title">إزالة %1$s؟</string>
+    <string name="manage_assets_remove_body">سيختفي %1$s من هذه المحفظة حتى لو كان لديك رصيد منه. تبقى أموالك على البلوكشين: يمكنك رؤيتها مرة أخرى في أي وقت بإعادة إضافة نفس العقد.</string>
     <string name="send_balance_label">الرصيد: %1$s</string>
     <string name="send_err_insufficient">رصيد غير كافٍ لتغطية المبلغ ورسوم الشبكة.</string>
     <string name="send_err_nonce">هناك معاملة قيد التنفيذ. انتظر بضع ثوانٍ وحاول مرة أخرى.</string>
