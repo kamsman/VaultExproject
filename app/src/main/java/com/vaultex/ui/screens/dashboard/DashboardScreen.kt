@@ -502,7 +502,7 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
                 fontSize = 13.sp
             )
             coil.compose.AsyncImage(
-                model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
+                model = com.vaultex.ui.components.CryptoIcon.urlFor(token.symbol, token.contractAddress, token.blockchain.ticker),
                 contentDescription = token.symbol,
                 modifier = Modifier.size(40.dp).clip(CircleShape)
             )

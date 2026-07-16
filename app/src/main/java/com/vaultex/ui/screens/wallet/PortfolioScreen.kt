@@ -236,7 +236,7 @@ private fun PortfolioTokenRow(token: TokenBalance, share: Double, onClick: () ->
                     fontSize = 13.sp
                 )
                 coil.compose.AsyncImage(
-                    model = com.vaultex.ui.components.CryptoIcon.url(token.symbol),
+                    model = com.vaultex.ui.components.CryptoIcon.urlFor(token.symbol, token.contractAddress, token.blockchain.ticker),
                     contentDescription = token.symbol,
                     modifier = Modifier.size(40.dp).clip(CircleShape)
                 )

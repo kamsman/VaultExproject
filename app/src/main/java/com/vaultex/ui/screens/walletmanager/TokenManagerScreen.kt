@@ -142,6 +142,8 @@ fun TokenManagerScreen(navController: NavController) {
                                 value = "≈ " + CurrencyFormat.format(valueOf(sym), currency),
                                 held = held,
                                 checked = held || sym in visible,
+                                contractAddress = tokenBySym[sym]?.contractAddress,
+                                chainTicker = tokenBySym[sym]?.blockchain?.ticker,
                                 onToggle = { viewModel.toggleAssetVisible(sym) }
                             )
                             if (i < symbols.lastIndex) HorizontalDivider(color = SurfaceLight, thickness = 1.dp)
@@ -217,7 +219,9 @@ fun TokenManagerScreen(navController: NavController) {
 @Composable
 private fun TokenRow(
     symbol: String, name: String, amount: String, value: String,
-    held: Boolean, checked: Boolean, onToggle: () -> Unit
+    held: Boolean, checked: Boolean,
+    contractAddress: String? = null, chainTicker: String? = null,
+    onToggle: () -> Unit
 ) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -226,7 +230,7 @@ private fun TokenRow(
         Box(Modifier.size(40.dp).clip(CircleShape).background(BgTertiary), contentAlignment = Alignment.Center) {
             Text(symbol.take(2).uppercase(), color = TextSecondary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             coil.compose.AsyncImage(
-                model = CryptoIcon.url(iconSymbol(symbol)),
+                model = CryptoIcon.urlFor(iconSymbol(symbol), contractAddress, chainTicker),
                 contentDescription = symbol,
                 modifier = Modifier.size(40.dp).clip(CircleShape)
             )
