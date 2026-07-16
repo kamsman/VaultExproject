@@ -392,6 +392,23 @@ fun SendScreen(navController: NavController) {
                         color = AccentRed
                     )
                 }
+                // ⚠️ « Address poisoning » : l'adresse saisie RESSEMBLE à une
+                // adresse connue (carnet / envois passés) sans être identique —
+                // signature typique d'une adresse-piège copiée de l'historique.
+                if (state.poisonWarning) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(shape = RoundedCornerShape(10.dp), color = AccentRed.copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.send_poison_warning),
+                                fontSize = 12.sp, color = AccentRed,
+                                fontWeight = FontWeight.SemiBold, lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 Text(
                     "📒 " + stringResource(R.string.address_book),

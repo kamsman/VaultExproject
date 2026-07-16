@@ -360,6 +360,7 @@
     <string name="balance_label">Balance: %1$s</string>
     <string name="send_recipient_label">Recipient</string>
     <string name="send_token_network_warning">Important: the recipient must accept the %1$s network. Sending to another network (e.g. a misconfigured exchange deposit) can be permanently lost.</string>
+    <string name="send_poison_warning">Warning: this address LOOKS LIKE one you use (same first and last characters) but is NOT identical. This is the signature of an “address poisoning” scam. Check every character before sending.</string>
     <string name="send_form_title">Send %1$s</string>
     <string name="send_form_recipient_label">Recipient address</string>
     <string name="send_form_address_placeholder">0x address or .eth</string>

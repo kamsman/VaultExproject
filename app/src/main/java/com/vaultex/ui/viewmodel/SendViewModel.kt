@@ -45,7 +45,9 @@ data class SendState(
     val priceSelected: Double = 0.0,   // prix de la monnaie envoyée, dans `currency`
     val priceNative: Double = 0.0,     // prix de la monnaie des frais (gas), dans `currency`
     val feeNativeAmount: Double? = null, // montant numérique des frais (unité native)
-    val serviceFeeAmount: Double = 0.0  // frais de service VaultEx (BTC), unité crypto
+    val serviceFeeAmount: Double = 0.0, // frais de service VaultEx (BTC), unité crypto
+    // Adresse valide mais SOSIE d'une adresse connue (address poisoning probable).
+    val poisonWarning: Boolean = false
 )
 
 @HiltViewModel
@@ -60,8 +62,27 @@ class SendViewModel @Inject constructor(
     private val toastController: com.vaultex.core.session.ToastController,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    private val contactDao: com.vaultex.data.local.dao.ContactDao,
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
+
+    // ─── Anti « address poisoning » ─────────────────────────────────────
+    // Adresses de CONFIANCE (carnet + destinataires déjà utilisés). Une
+    // adresse saisie qui RESSEMBLE à l'une d'elles (mêmes premiers/derniers
+    // caractères) sans être identique = très probablement une adresse
+    // empoisonnée copiée depuis l'historique → alerte rouge.
+    @Volatile private var knownAddresses: Set<String> = emptySet()
+
+    private fun isPoisonLookalike(addr: String): Boolean {
+        val a = addr.trim()
+        if (a.length < 12) return false
+        return knownAddresses.any { k ->
+            k.length >= 12 && !k.equals(a, ignoreCase = true) &&
+                k.take(5).equals(a.take(5), ignoreCase = true) &&
+                k.takeLast(4).equals(a.takeLast(4), ignoreCase = true)
+        }
+    }
 
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
@@ -96,6 +117,15 @@ class SendViewModel @Inject constructor(
                     CustomTokenLite(it.symbol, it.contractAddress, it.decimals, it.blockchain)
                 }
             } catch (_: Exception) { emptyList() }
+        }
+        // Adresses de confiance pour la détection d'« address poisoning ».
+        viewModelScope.launch {
+            knownAddresses = try {
+                val contacts = contactDao.observeAll().first().map { it.address }
+                val pastSends = transactionDao.observeAll().first()
+                    .filter { it.type == "sent" }.map { it.toAddress }
+                (contacts + pastSends).filter { it.isNotBlank() }.toSet()
+            } catch (_: Exception) { emptySet() }
         }
     }
 
@@ -203,7 +233,13 @@ class SendViewModel @Inject constructor(
         // Token personnalisé → adresse EVM (0x…) ; sinon validation par chaîne.
         val valid = if (s.customToken != null) AddressValidator.isValidEvm(address)
             else AddressValidator.isValid(address, s.selectedChain)
-        _state.update { it.copy(toAddress = address, isAddressValid = valid) }
+        _state.update {
+            it.copy(
+                toAddress = address,
+                isAddressValid = valid,
+                poisonWarning = valid && isPoisonLookalike(address)
+            )
+        }
     }
 
     fun setAmount(amount: String) {
