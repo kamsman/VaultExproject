@@ -204,7 +204,10 @@ class SwapViewModel @Inject constructor(
             "BTC" -> 0.00002
             "ETH" -> 0.0003
             "BNB" -> 0.00005
-            "SOL" -> 0.00001
+            // SOL : frais FIXE (5000 lamports). Réserve EXACTE : le compte doit
+            // se vider à 0 pile — un résidu < 0.00089 SOL (rent-exempt) ferait
+            // rejeter le dépôt du swap par le réseau.
+            "SOL" -> 0.000005
             "TRX" -> 1.1   // bande passante brûlée + activation éventuelle du destinataire
             else  -> 0.0   // USDT & tokens : gas en natif séparé
         }
@@ -333,20 +336,24 @@ class SwapViewModel @Inject constructor(
 
                 // Dériver l'adresse de réception : la chaîne vient du registre.
                 val mnemonic = secureStorage.getMnemonic()
-                val toAddress = if (mnemonic != null) {
-                    val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
-                    when (assetOf(s.toToken).chain) {
-                        "ETH" -> addresses.eth
-                        "BNB" -> addresses.bnb
-                        "BTC" -> addresses.btc
-                        "SOL" -> addresses.sol
-                        "TRX" -> addresses.trx
-                        else  -> addresses.eth
-                    }
-                } else {
+                if (mnemonic == null) {
                     _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_wallet)) }
                     return@launch
                 }
+                val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
+                fun addrFor(chain: String) = when (chain) {
+                    "ETH" -> addresses.eth
+                    "BNB" -> addresses.bnb
+                    "BTC" -> addresses.btc
+                    "SOL" -> addresses.sol
+                    "TRX" -> addresses.trx
+                    else  -> addresses.eth
+                }
+                val toAddress = addrFor(assetOf(s.toToken).chain)
+                // Adresse de REMBOURSEMENT = notre adresse sur la chaîne source.
+                // Sans elle, un swap échoué/expiré côté ChangeNOW laisse les
+                // fonds chez eux (récupération uniquement via leur support).
+                val refundAddress = addrFor(assetOf(s.fromToken).chain)
 
                 val fromTo = "${assetOf(s.fromToken).cn}_${assetOf(s.toToken).cn}"
 
@@ -367,7 +374,8 @@ class SwapViewModel @Inject constructor(
                             from = assetOf(s.fromToken).cn,
                             to = assetOf(s.toToken).cn,
                             address = toAddress,
-                            amount = apiAmount(net)
+                            amount = apiAmount(net),
+                            refundAddress = refundAddress
                         )
                     )
                 }
@@ -495,8 +503,15 @@ class SwapViewModel @Inject constructor(
     fun trackSwapStatus(swapId: String) {
         statusJob?.cancel()
         statusJob = viewModelScope.launch {
-            repeat(90) { // ~30 min max
-                kotlinx.coroutines.delay(20_000)
+            // Un swap DEPUIS BTC attend ses confirmations (souvent > 30 min) :
+            // l'ancien plafond de 30 min arrêtait le suivi EN SILENCE et la notif
+            // de fin ne partait jamais. On suit jusqu'à 4 h : toutes les 20 s la
+            // première demi-heure, puis toutes les 60 s.
+            var elapsedMs = 0L
+            while (elapsedMs < 4 * 60 * 60_000L) {
+                val stepMs = if (elapsedMs < 30 * 60_000L) 20_000L else 60_000L
+                kotlinx.coroutines.delay(stepMs)
+                elapsedMs += stepMs
                 val statusDto = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
                 val remote = statusDto?.status
                 if (remote != null) {
