@@ -121,8 +121,15 @@ class SendViewModel @Inject constructor(
         // Adresses de confiance pour la détection d'« address poisoning ».
         viewModelScope.launch {
             knownAddresses = try {
-                val contacts = contactDao.observeAll().first().map { it.address }
-                val pastSends = transactionDao.observeAll().first()
+                // Carnet : chaque contact stocke ses adresses en JSON {chaîne: adresse}.
+                val parser = com.google.gson.Gson()
+                val contacts: List<String> = contactDao.observeAll().first().flatMap { c ->
+                    try {
+                        (parser.fromJson(c.addressesJson, Map::class.java) as? Map<*, *>)
+                            ?.values?.mapNotNull { it as? String } ?: emptyList()
+                    } catch (_: Exception) { emptyList() }
+                }
+                val pastSends: List<String> = transactionDao.observeAll().first()
                     .filter { it.type == "sent" }.map { it.toAddress }
                 (contacts + pastSends).filter { it.isNotBlank() }.toSet()
             } catch (_: Exception) { emptySet() }
