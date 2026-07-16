@@ -408,6 +408,21 @@ fun SendScreen(navController: NavController) {
                         Text(stringResource(R.string.send_address_network_note, netFull), fontSize = 12.sp, color = TextPrimary)
                     }
                 }
+                // USDT / token : avertissement RENFORCÉ — un envoi vers un
+                // dépôt d'exchange configuré sur un AUTRE réseau est PERDU.
+                if (state.selectedChain.startsWith("USDT") || state.customToken != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF59E0B).copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.send_token_network_warning, netFull),
+                                fontSize = 12.sp, color = TextPrimary, lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
             }
 
             // Amount card

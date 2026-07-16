@@ -359,6 +359,7 @@
     <string name="approx_xof">≈ %1$s XOF</string>
     <string name="balance_label">الرصيد: %1$s</string>
     <string name="send_recipient_label">المستلم</string>
+    <string name="send_token_network_warning">مهم: يجب أن يقبل المستلم شبكة %1$s. الإرسال إلى شبكة أخرى (مثل إيداع منصة مُعدّ بشكل خاطئ) قد يُفقد نهائيًا.</string>
     <string name="send_form_title">إرسال %1$s</string>
     <string name="send_form_recipient_label">عنوان المستلم</string>
     <string name="send_form_address_placeholder">0x عنوان أو ‎.eth</string>

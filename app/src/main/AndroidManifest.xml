@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Exemption d'optimisation batterie : les surcouches agressives (Tecno,
+         Infinix, itel, Xiaomi…) tuent les workers en arrière-plan → plus
+         aucune notification de dépôt. Demandée UNE fois au premier lancement. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.fingerprint" android:required="false" />

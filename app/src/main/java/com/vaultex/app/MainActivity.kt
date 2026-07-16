@@ -92,6 +92,29 @@ class MainActivity : FragmentActivity() {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
 
+    /**
+     * Exemption d'optimisation batterie, demandée UNE seule fois. Les surcouches
+     * agressives (Tecno/Infinix/itel = Transsion, Xiaomi…) — très répandues sur
+     * notre marché — tuent les workers en arrière-plan : sans exemption, plus
+     * AUCUNE notification de dépôt ni d'alerte prix n'arrive.
+     */
+    private fun ensureBatteryExemption() {
+        try {
+            val prefs = getSharedPreferences("vaultex_boot", MODE_PRIVATE)
+            if (prefs.getBoolean("battery_asked", false)) return
+            prefs.edit().putBoolean("battery_asked", true).apply()
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                )
+            }
+        } catch (_: Exception) { /* refus/indispo : sans impact sur l'app */ }
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         // P5 : deep link reçu alors que l'app tourne déjà
@@ -136,6 +159,9 @@ class MainActivity : FragmentActivity() {
 
         // Android 13+ : demander l'autorisation d'afficher des notifications.
         ensureNotificationPermission()
+        // Surcouches Transsion/Xiaomi : exemption batterie pour que les
+        // notifications de dépôt continuent d'arriver en arrière-plan.
+        ensureBatteryExemption()
 
         // ─── Détection RAPIDE des dépôts quand l'app est OUVERTE ───
         // Le worker périodique tourne au mieux toutes les 15 min (minimum

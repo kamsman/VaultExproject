@@ -61,6 +61,7 @@
     <string name="send_balance_short">Solde</string>
     <string name="send_choose_coin">Choisir une monnaie</string>
     <string name="send_address_network_note">Vérifiez que l\'adresse est correcte et sur le réseau %1$s.</string>
+    <string name="send_token_network_warning">Important : le destinataire doit accepter le réseau %1$s. Un envoi vers un autre réseau (ex. dépôt d\'exchange mal configuré) peut être définitivement perdu.</string>
     <string name="send_security_tip_title">Conseil de sécurité</string>
     <string name="send_security_tip_body">Vérifiez toujours l\'adresse et le réseau (%1$s). Les transactions sont irréversibles.</string>
     <string name="send_summary_network">Réseau</string>

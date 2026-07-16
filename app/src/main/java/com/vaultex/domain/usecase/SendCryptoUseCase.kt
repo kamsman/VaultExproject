@@ -205,15 +205,40 @@ class SendCryptoUseCase @Inject constructor(
             // « out of gas » sur certains BEP-20/ERC-20).
             val gasLimit = estimatedGas.max(BigInteger.valueOf(100_000L))
 
-            val signed = if (chainId == 1L) {
+            val signed: String
+            val feePerGas: BigInteger
+            if (chainId == 1L) {
                 val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
-                evmTx.signErc20TransferEip1559(mnemonic, passphrase, contractAddress, toAddress,
+                feePerGas = maxFee
+                signed = evmTx.signErc20TransferEip1559(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, maxPriority, maxFee, gasLimit, nonce, chainId)
             } else {
                 val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
-                evmTx.signErc20Transfer(mnemonic, passphrase, contractAddress, toAddress,
+                feePerGas = gasPrice
+                signed = evmTx.signErc20Transfer(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, gasPrice, gasLimit, nonce, chainId)
             }
+
+            // ── Garde-fou gas : un token se paie en NATIF (ETH/BNB). Sans assez
+            // de natif, le nœud rejetterait avec un message opaque — on bloque
+            // AVANT avec le montant manquant, en clair.
+            try {
+                val balHex = rpc.rpcCall(JsonRpcRequest("eth_getBalance",
+                    mutableListOf(fromAddress as Any, "latest" as Any))).result as? String
+                if (balHex != null) {
+                    val nativeBal = BigInteger(balHex.removePrefix("0x").ifEmpty { "0" }, 16)
+                    val gasCost = gasLimit.multiply(feePerGas)
+                    if (nativeBal < gasCost) {
+                        val unit = if (chainId == 1L) "ETH" else "BNB"
+                        val need = java.math.BigDecimal(gasCost).movePointLeft(18)
+                            .setScale(6, java.math.RoundingMode.UP).stripTrailingZeros().toPlainString()
+                        return Result.Error(
+                            "Les frais réseau d'un envoi de token se paient en $unit : " +
+                                "il te faut au moins ~$need $unit sur ce wallet. Recharge d'abord ton $unit."
+                        )
+                    }
+                }
+            } catch (_: Exception) { /* lecture du solde impossible : on laisse le réseau trancher */ }
 
             val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
                 mutableListOf(signed as Any)))
@@ -338,6 +363,32 @@ class SendCryptoUseCase @Inject constructor(
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
+
+        // ── Garde-fous Tron (pièges réels, AVANT de brûler des frais) ──
+        // 1) Adresse destinataire JAMAIS activée : un transfert TRC-20 vers un
+        //    compte inexistant échoue en consommant quand même l'énergie. Il
+        //    faut d'abord activer l'adresse avec un peu de TRX.
+        // 2) Frais : sans énergie stakée, un transfert USDT brûle ~13-30 TRX.
+        //    Avec un solde TRX trop bas, l'envoi échouerait en brûlant les
+        //    frais → on bloque avec un message clair.
+        try {
+            val toAccount = tronApi.getAccount(toAddress)
+            if (toAccount.data.isEmpty())
+                return Result.Error(
+                    "Cette adresse Tron est toute neuve (jamais activée). " +
+                        "Envoie-lui d'abord un peu de TRX (ex. 2 TRX) pour l'activer, puis renvoie l'USDT."
+                )
+            val myAccount = tronApi.getAccount(tronTx.deriveAddress(mnemonic, passphrase))
+            val myTrx = (myAccount.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
+            if (myTrx < 15.0)
+                return Result.Error(
+                    "Un envoi USDT (TRC20) consomme environ 15 TRX de frais réseau — " +
+                        "tu as ${"%.2f".format(java.util.Locale.US, myTrx)} TRX. Recharge d'abord ton TRX."
+                )
+        } catch (_: Exception) {
+            // API TronGrid indisponible : on n'empêche pas l'envoi, le réseau tranchera.
+        }
+
         return try {
             // Étape 1 — Préparer les paramètres hex + ABI-encode transfer(address,uint256)
             val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
