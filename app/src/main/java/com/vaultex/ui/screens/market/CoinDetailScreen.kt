@@ -251,10 +251,20 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
             }
 
-            // ─── 4 actions rondes : Envoyer · Recevoir · Swap · Alerte (maquette) ───
-            // Actions : seulement si la monnaie est réellement supportée par le
-            // wallet (registre du swap). Sinon : consultation + alerte uniquement.
+            // ─── Actions : Envoyer · Recevoir · (Swap) · Alerte ───
+            // 3 niveaux réels de support :
+            //  🟢 Échangeable (registre swap)         → Envoyer + Recevoir + Swap
+            //  🔵 Existe sur Ethereum/BSC (hors registre) → Envoyer + Recevoir seuls
+            //  ⚪ Ni l'un ni l'autre                    → consultation + alerte
             val supported = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
+            val receivable by viewModel.receivableToken.collectAsState()
+            val receivableChecking by viewModel.receivableChecking.collectAsState()
+            LaunchedEffect(coinId, supported) {
+                // Inutile de sonder ETH/BSC : déjà pleinement pris en charge.
+                if (supported == null) viewModel.checkReceivable(coinId)
+            }
+            val receiveOnlyKey = receivable?.symbol
+
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = BgPrimary),
@@ -262,34 +272,60 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             ) {
                 Column {
                     Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        if (supported != null) {
+                        if (supported != null || receiveOnlyKey != null) {
+                            val bufferKey = supported?.key ?: receiveOnlyKey!!
                             CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
                                 // Ouvre le formulaire d'envoi DIRECTEMENT sur cette
-                                // monnaie ; le token du registre est auto-ajouté au
-                                // portefeuille (contrat connu) côté SendViewModel.
-                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                // monnaie ; le token (registre OU déjà résolu par
+                                // contrat ETH/BSC) est reconnu côté SendViewModel.
+                                com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
                                 navController.navigate(Routes.SEND)
                             }
                             CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
-                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
                                 navController.navigate(Routes.RECEIVE)
                             }
-                            CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
-                                com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
-                                navController.navigate(Routes.SWAP)
+                            if (supported != null) {
+                                CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
+                                    com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
+                                    navController.navigate(Routes.SWAP)
+                                }
                             }
                         }
                         CircleAction(Icons.Default.NotificationsNone, stringResource(R.string.coin_alert)) {
                             navController.navigate(Routes.NOTIFICATIONS)
                         }
                     }
-                    if (supported == null) {
-                        Text(
-                            stringResource(R.string.coin_view_only),
-                            fontSize = 12.sp, color = TextSecondary,
-                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                    when {
+                        supported != null -> {}
+                        receivableChecking -> {
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(color = AccentBlue, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.coin_checking_network), fontSize = 12.sp, color = TextSecondary)
+                            }
+                        }
+                        receiveOnlyKey != null -> {
+                            val netLabel = if (receivable?.chainTicker == "BNB") "BEP20 · BNB Chain" else "ERC20 · Ethereum"
+                            Text(
+                                stringResource(R.string.coin_receive_only, netLabel),
+                                fontSize = 12.sp, color = TextSecondary,
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        else -> {
+                            Text(
+                                stringResource(R.string.coin_view_only),
+                                fontSize = 12.sp, color = TextSecondary,
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 }
             }

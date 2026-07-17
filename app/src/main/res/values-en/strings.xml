@@ -656,6 +656,8 @@
     <string name="swap_secure_title">Secure transactions</string>
     <string name="swap_secure_desc">Your funds are protected with bank-grade encryption.</string>
     <string name="coin_view_only">View only — this coin can\'t be swapped in VaultEx yet.</string>
+    <string name="coin_checking_network">Checking network…</string>
+    <string name="coin_receive_only">Sendable and receivable via %1$s. Not yet swappable in VaultEx.</string>
     <string name="wallet_mgr_none_title">No wallet</string>
     <string name="wallet_mgr_none_desc">You don\'t have a wallet yet. Create a new one or import an existing wallet to get started.</string>
     <string name="wallet_keys_title">Your keys, your control</string>

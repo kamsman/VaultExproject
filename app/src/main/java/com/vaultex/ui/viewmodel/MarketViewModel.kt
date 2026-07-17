@@ -16,6 +16,9 @@ import javax.inject.Inject
 class MarketViewModel @Inject constructor(
     private val repository: MarketRepository,
     private val secureStorage: com.vaultex.core.security.SecureStorage,
+    private val coinGeckoApi: com.vaultex.data.remote.api.CoinGeckoApi,
+    private val tokenInfoService: com.vaultex.core.tx.TokenInfoService,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -89,6 +92,71 @@ class MarketViewModel @Inject constructor(
                 _coinError.value = true
             } finally {
                 _coinLoading.value = false
+            }
+        }
+    }
+
+    // ─── Monnaie du marché NON échangeable mais RECEVABLE via Ethereum/BSC ───
+    // Beaucoup de monnaies listées existent en réalité en tant que token
+    // ERC-20/BEP-20 sans être dans le registre swap. On le détecte via les
+    // « platforms » CoinGecko, validées EN VRAI sur la chaîne (comme l'ajout
+    // manuel d'un token) avant d'activer Envoyer/Recevoir — jamais de contrat
+    // non vérifié.
+    data class ReceivableToken(val symbol: String, val contractAddress: String, val chainTicker: String)
+
+    private val _receivableToken = MutableStateFlow<ReceivableToken?>(null)
+    val receivableToken: StateFlow<ReceivableToken?> = _receivableToken
+
+    private val _receivableChecking = MutableStateFlow(false)
+    val receivableChecking: StateFlow<Boolean> = _receivableChecking
+
+    private var receivableCheckedForId: String? = null
+
+    /**
+     * À appeler UNIQUEMENT si la monnaie n'est pas déjà dans le registre swap
+     * (vérification faite côté écran). Résout un éventuel contrat ETH/BSC,
+     * le valide sur la chaîne, puis l'enregistre comme token personnalisé
+     * pour que Envoyer/Recevoir fonctionnent via le circuit déjà existant.
+     */
+    fun checkReceivable(coinId: String) {
+        if (receivableCheckedForId == coinId) return
+        receivableCheckedForId = coinId
+        _receivableToken.value = null
+        viewModelScope.launch {
+            _receivableChecking.value = true
+            try {
+                val detail = withContext(Dispatchers.IO) { coinGeckoApi.getCoinPlatforms(coinId) }
+                val platforms = detail.platforms ?: emptyMap()
+                // Ethereum d'abord (marché le plus liquide), puis BSC.
+                val candidates = listOfNotNull(
+                    platforms["ethereum"]?.takeIf { it.isNotBlank() }?.let { "ETH" to it },
+                    platforms["binance-smart-chain"]?.takeIf { it.isNotBlank() }?.let { "BNB" to it }
+                )
+                for ((chainTicker, contract) in candidates) {
+                    val info = withContext(Dispatchers.IO) { tokenInfoService.fetch(chainTicker, contract) }
+                    if (info != null) {
+                        try {
+                            tokenRepository.addToken(
+                                com.vaultex.data.local.entity.TokenEntity(
+                                    contractAddress = contract,
+                                    blockchain = chainTicker,
+                                    symbol = info.symbol,
+                                    name = info.symbol,
+                                    decimals = info.decimals,
+                                    iconUrl = null,
+                                    isCustom = true,
+                                    isHidden = false
+                                )
+                            )
+                        } catch (_: Exception) { /* déjà présent : sans impact */ }
+                        _receivableToken.value = ReceivableToken(info.symbol, contract, chainTicker)
+                        break
+                    }
+                }
+            } catch (_: Exception) {
+                // API indisponible : on reste sur « consultation seule », sans bloquer l'écran.
+            } finally {
+                _receivableChecking.value = false
             }
         }
     }

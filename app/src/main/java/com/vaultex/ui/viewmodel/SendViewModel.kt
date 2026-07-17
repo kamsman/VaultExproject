@@ -163,6 +163,10 @@ class SendViewModel @Inject constructor(
     fun selectAsset(symbol: String) {
         viewModelScope.launch {
             if (symbol in NATIVE_CHAINS) { setChain(symbol); return@launch }
+            // Token personnalisé DÉJÀ enregistré (ex. résolu depuis la fiche
+            // Marché d'une monnaie non échangeable via son contrat ETH/BSC) :
+            // pas besoin du registre swap, setChain() le reconnaît par symbole.
+            if (_customTokens.value.any { it.symbol == symbol }) { setChain(symbol); return@launch }
             val asset = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
                 ?: com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS.firstOrNull { it.key.equals(symbol, ignoreCase = true) }
                 ?: return@launch   // symbole inconnu : on n'y touche pas

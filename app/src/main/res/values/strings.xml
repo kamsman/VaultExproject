@@ -759,6 +759,8 @@
     <string name="swap_secure_title">Transactions sécurisées</string>
     <string name="swap_secure_desc">Vos fonds sont protégés par un chiffrement de niveau bancaire.</string>
     <string name="coin_view_only">Consultation seulement — cette monnaie n\'est pas encore échangeable dans VaultEx.</string>
+    <string name="coin_checking_network">Vérification du réseau…</string>
+    <string name="coin_receive_only">Envoyable et recevable via %1$s. Pas encore échangeable au swap dans VaultEx.</string>
     <string name="wallet_mgr_none_title">Aucun portefeuille</string>
     <string name="wallet_mgr_none_desc">Vous n\'avez pas encore de portefeuille. Créez-en un nouveau ou importez un portefeuille existant pour commencer.</string>
     <string name="wallet_keys_title">Vos clés, votre contrôle</string>

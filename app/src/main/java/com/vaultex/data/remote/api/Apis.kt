@@ -129,6 +129,19 @@ interface CoinGeckoApi {
         @Query("days") days: Int
     ): CoinGeckoChartDto
 
+    // Détail léger d'une pièce : sert uniquement à lire ses adresses de
+    // contrat par réseau (platforms). Toutes les sections lourdes désactivées.
+    @GET("coins/{id}")
+    suspend fun getCoinPlatforms(
+        @Path("id") coinId: String,
+        @Query("localization") localization: Boolean = false,
+        @Query("tickers") tickers: Boolean = false,
+        @Query("market_data") marketData: Boolean = false,
+        @Query("community_data") communityData: Boolean = false,
+        @Query("developer_data") developerData: Boolean = false,
+        @Query("sparkline") sparkline: Boolean = false
+    ): com.vaultex.data.remote.dto.CoinGeckoDetailDto
+
     // Cap. de marché totale + dominance BTC (bandeau de l'écran Marché).
     @GET("global")
     suspend fun getGlobal(): com.vaultex.data.remote.dto.CoinGeckoGlobalDto

@@ -130,6 +130,14 @@ data class CoinGeckoMarketDto(
 data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
 
+// Détail léger d'une pièce — uniquement ses adresses de contrat par réseau
+// (« platforms »). Clés utiles : "ethereum" et "binance-smart-chain".
+// CoinGecko renvoie une chaîne VIDE (pas null) pour un réseau sans contrat.
+data class CoinGeckoDetailDto(
+    val id: String,
+    val platforms: Map<String, String>? = null
+)
+
 // Données globales du marché (cap totale, dominance BTC).
 data class CoinGeckoGlobalDto(val data: CoinGeckoGlobalData? = null)
 data class CoinGeckoGlobalData(
