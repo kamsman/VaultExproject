@@ -658,6 +658,8 @@
     <string name="coin_view_only">View only — this coin can\'t be swapped in VaultEx yet.</string>
     <string name="coin_checking_network">Checking network…</string>
     <string name="coin_receive_only">Sendable and receivable via %1$s. Not yet swappable in VaultEx.</string>
+    <string name="notif_swap_started_title">Swap started</string>
+    <string name="notif_swap_started_body">%1$s %2$s → %3$s in progress.</string>
     <string name="wallet_mgr_none_title">No wallet</string>
     <string name="wallet_mgr_none_desc">You don\'t have a wallet yet. Create a new one or import an existing wallet to get started.</string>
     <string name="wallet_keys_title">Your keys, your control</string>

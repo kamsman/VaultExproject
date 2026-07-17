@@ -658,6 +658,8 @@
     <string name="coin_view_only">للعرض فقط — لا يمكن تبادل هذه العملة في VaultEx بعد.</string>
     <string name="coin_checking_network">جارٍ التحقق من الشبكة…</string>
     <string name="coin_receive_only">يمكن إرسالها واستلامها عبر %1$s. غير قابلة للتبادل بعد في VaultEx.</string>
+    <string name="notif_swap_started_title">بدأ التبادل</string>
+    <string name="notif_swap_started_body">%1$s %2$s ← %3$s جارٍ.</string>
     <string name="wallet_mgr_none_title">لا توجد محفظة</string>
     <string name="wallet_mgr_none_desc">ليس لديك محفظة بعد. أنشئ محفظة جديدة أو استورد محفظة موجودة للبدء.</string>
     <string name="wallet_keys_title">مفاتيحك، تحكّمك</string>

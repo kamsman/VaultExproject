@@ -392,6 +392,17 @@ class SwapViewModel @Inject constructor(
                 tokenEntityFor(assetOf(s.toToken))?.let { entity ->
                     try { tokenRepository.addToken(entity) } catch (_: Exception) { /* déjà présent */ }
                 }
+                // Cloche : notifie DÈS LA CRÉATION, au même instant que l'entrée
+                // « Récent » (swapUseCase.recordSwap ci-dessus) — sinon la cloche
+                // ne sonnait qu'à la fin (minutes plus tard) alors que « Récent »
+                // affichait déjà le swap : désalignement signalé en test réel.
+                if (notifPrefs.txAlerts.value) {
+                    notificationCenter.push(
+                        str(com.vaultex.R.string.notif_swap_started_title),
+                        str(com.vaultex.R.string.notif_swap_started_body, s.fromAmount, assetOf(s.fromToken).base, assetOf(s.toToken).base),
+                        assetOf(s.fromToken).base
+                    )
+                }
                 _state.update {
                     it.copy(
                         swapId = txRes.id,

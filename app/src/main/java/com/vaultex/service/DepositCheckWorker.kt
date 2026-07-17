@@ -1,13 +1,9 @@
 package com.vaultex.service
 
-import android.app.NotificationManager
 import android.content.Context
-import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.vaultex.R
-import com.vaultex.app.VaultExApplication
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.BitcoinApi
@@ -45,7 +41,8 @@ class DepositCheckWorker @AssistedInject constructor(
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
-    private val notifPrefs: com.vaultex.core.session.NotifPrefs
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    private val syncService: com.vaultex.core.tx.TransactionSyncService
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -66,6 +63,10 @@ class DepositCheckWorker @AssistedInject constructor(
                 Quad("USDT", addr.trx, 1e-3) { fetchUsdtTrc20(addr.trx) }
             )
 
+            // Chaînes à synchroniser (dédoublonné : TRX + USDT partagent la
+            // même adresse Tron → un seul appel syncTron() couvre les deux).
+            val toSync = mutableSetOf<String>()
+
             for (c in checks) {
                 if (c.address.isBlank()) continue
                 val bal = withContext(Dispatchers.IO) { c.fetch() } ?: continue
@@ -75,7 +76,10 @@ class DepositCheckWorker @AssistedInject constructor(
                 if (before == null) continue                 // 1er passage : on mémorise
                 val delta = bal - before
                 if (delta > c.dust) {
-                    if (notifPrefs.txAlerts.value) notify(c.symbol, delta)
+                    when (c.symbol) {
+                        "TRX", "USDT" -> toSync.add("TRX")
+                        else -> toSync.add(c.symbol)
+                    }
                     // Événement admin (Telegram) : grosse réception ≥ 20 $ —
                     // indépendant des préférences de notification de l'utilisateur.
                     val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
@@ -83,6 +87,25 @@ class DepositCheckWorker @AssistedInject constructor(
                     com.vaultex.core.monitoring.AdminBot.bigReceive(amt, c.symbol, delta * priceUsdOf(c.symbol))
                 }
             }
+
+            // Récupère le VRAI hash de la transaction reçue (via le même
+            // service que l'écran Historique) et notifie la cloche à ce
+            // moment-là : sans ça, cette détection RAPIDE (toutes les ~15 min,
+            // ou ~30 s app ouverte) notifiait à l'instant mais ne pouvait
+            // écrire aucune entrée dans « Récent » (elle ne connaît que le
+            // montant, pas le hash) — désalignement signalé en test réel.
+            withContext(Dispatchers.IO) {
+                for (chain in toSync) {
+                    when (chain) {
+                        "BTC" -> syncService.syncBtc(addr.btc)
+                        "ETH" -> syncService.syncEth(addr.eth)
+                        "BNB" -> syncService.syncBnb(addr.bnb)
+                        "SOL" -> syncService.syncSol(addr.sol)
+                        "TRX" -> syncService.syncTron(addr.trx)
+                    }
+                }
+            }
+
             checkLowBalance()
             Result.success()
         } catch (_: Exception) {
@@ -124,25 +147,6 @@ class DepositCheckWorker @AssistedInject constructor(
             com.google.gson.Gson().fromJson(json, SnapTokens::class.java)
                 ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }?.priceUsd ?: 0.0
         } catch (_: Exception) { 0.0 }
-    }
-
-    private fun notify(symbol: String, amount: Double) {
-        val amt = BigDecimal.valueOf(amount).setScale(6, RoundingMode.DOWN)
-            .stripTrailingZeros().toPlainString()
-        val title = "Fonds reçus"
-        val body = "Vous avez reçu $amt $symbol"
-        val logo = NotifLogo.forSymbol(applicationContext, symbol)  // logo de la crypto reçue
-        val n = NotificationCompat.Builder(applicationContext, VaultExApplication.FCM_DEFAULT_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setLargeIcon(logo)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
-        applicationContext.getSystemService(NotificationManager::class.java)
-            .notify("dep_$symbol".hashCode(), n)
-        notificationCenter.push(title, body, symbol)
     }
 
     // ─── Soldes par chaîne (mêmes appels que PortfolioViewModel) ───
