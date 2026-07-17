@@ -67,6 +67,17 @@ class SendViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
+    /** Notre propre adresse sur [chain] (BTC/ETH/BNB/SOL/TRX) — pour l'entrée
+     *  locale « Récent » créée immédiatement après un envoi réussi. */
+    private suspend fun myAddressFor(chain: String): String = try {
+        val mnemonic = secureStorage.getMnemonic() ?: ""
+        val a = com.vaultex.core.crypto.WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
+        when (chain) {
+            "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb; "SOL" -> a.sol; "TRX" -> a.trx
+            else -> ""
+        }
+    } catch (_: Exception) { "" }
+
     // ─── Anti « address poisoning » ─────────────────────────────────────
     // Adresses de CONFIANCE (carnet + destinataires déjà utilisés). Une
     // adresse saisie qui RESSEMBLE à l'une d'elles (mêmes premiers/derniers
@@ -507,7 +518,33 @@ class SendViewModel @Inject constructor(
                     // Demande à l'accueil de rafraîchir vite le solde après l'envoi.
                     com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
                     // Suivi de confirmation (badge dashboard + écran « En attente X/Y »).
-                    pendingTxManager.track(s.selectedChain, nativeUnit(effective), result.txHash)
+                    val nativeChain = nativeUnit(effective)
+                    pendingTxManager.track(s.selectedChain, nativeChain, result.txHash)
+                    // Entrée LOCALE immédiate dans « Récent » (Dashboard) : sans
+                    // ceci, la cloche notifiait à l'instant mais « Récent » restait
+                    // vide jusqu'à la prochaine synchro d'Historique (déclenchée
+                    // seulement en ouvrant cet écran) — désalignement signalé en
+                    // test réel. PendingTxManager mettra le statut à jour tout
+                    // seul (« confirmé ») dès la confirmation on-chain.
+                    try {
+                        val myAddr = myAddressFor(nativeChain)
+                        transactionDao.insert(
+                            com.vaultex.data.local.entity.TransactionEntity(
+                                hash = result.txHash,
+                                type = "sent",
+                                blockchain = nativeChain,
+                                fromAddress = myAddr,
+                                toAddress = s.toAddress,
+                                amount = s.amount,
+                                tokenSymbol = s.customToken?.symbol ?: displaySymbol(s.selectedChain),
+                                fee = formatFeeAmount(s.feeNativeAmount ?: 0.0),
+                                status = "pending",
+                                timestamp = System.currentTimeMillis(),
+                                confirmations = 0,
+                                blockNumber = null
+                            )
+                        )
+                    } catch (_: Exception) { }
                     _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                     // Toast maison : logo de la crypto + confirmation de l'envoi.
                     val sym = s.selectedChain.substringBefore("-")

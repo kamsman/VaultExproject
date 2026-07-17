@@ -35,8 +35,46 @@ class PendingSendWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val pendingSendDao: PendingSendDao,
-    private val sendCryptoUseCase: SendCryptoUseCase
+    private val sendCryptoUseCase: SendCryptoUseCase,
+    private val secureStorage: com.vaultex.core.security.SecureStorage,
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
+    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs
 ) : CoroutineWorker(appContext, params) {
+
+    /** Chaîne native qui paie les frais (BTC/ETH/BNB/SOL/TRX), à partir du
+     *  code stocké dans la file (natif, "USDT*", ou "ERC20:<ETH|BNB>:contrat:déc"). */
+    private fun nativeUnit(chain: String): String = when {
+        chain.startsWith("ERC20:") -> if (chain.split(":").getOrNull(1) == "BNB") "BNB" else "ETH"
+        chain == "ETH" || chain == "USDT-ETH" -> "ETH"
+        chain == "BNB" || chain == "USDT-BNB" -> "BNB"
+        chain == "SOL" -> "SOL"
+        chain == "TRX" || chain == "USDT" -> "TRX"
+        else -> chain
+    }
+
+    /** Symbole affiché : ticker réel du token pour un contrat ERC-20/BEP-20. */
+    private suspend fun displaySymbol(chain: String): String = when {
+        chain.startsWith("ERC20:") -> {
+            val contract = chain.split(":").getOrNull(2)
+            try {
+                tokenRepository.getCustom().firstOrNull { it.contractAddress.equals(contract, ignoreCase = true) }?.symbol
+            } catch (_: Exception) { null } ?: "Token"
+        }
+        chain.startsWith("USDT") -> "USDT"
+        else -> chain
+    }
+
+    private suspend fun myAddressFor(chain: String): String = try {
+        val mnemonic = secureStorage.getMnemonic() ?: ""
+        val a = com.vaultex.core.crypto.WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
+        when (chain) {
+            "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb; "SOL" -> a.sol; "TRX" -> a.trx
+            else -> ""
+        }
+    } catch (_: Exception) { "" }
 
     override suspend fun doWork(): Result {
         val pending = try {
@@ -58,8 +96,43 @@ class PendingSendWorker @AssistedInject constructor(
             }
 
             when (res) {
-                is SendCryptoUseCase.Result.Success ->
+                is SendCryptoUseCase.Result.Success -> {
                     pendingSendDao.updateResult(item.id, STATUS_SENT, res.txHash, null, attempts)
+                    // Aligne cet envoi (parti hors-ligne, diffusé maintenant) sur le
+                    // MÊME comportement qu'un envoi en ligne : badge de suivi,
+                    // entrée immédiate dans « Récent », notification cloche —
+                    // sans quoi un envoi mis en file restait invisible partout
+                    // sauf dans l'écran « Transactions en attente ».
+                    try {
+                        val nativeChain = nativeUnit(item.chain)
+                        pendingTxManager.track(item.chain, nativeChain, res.txHash)
+                        val myAddr = myAddressFor(nativeChain)
+                        val sym = displaySymbol(item.chain)
+                        transactionDao.insert(
+                            com.vaultex.data.local.entity.TransactionEntity(
+                                hash = res.txHash,
+                                type = "sent",
+                                blockchain = nativeChain,
+                                fromAddress = myAddr,
+                                toAddress = item.toAddress,
+                                amount = item.amount,
+                                tokenSymbol = sym,
+                                fee = "0",
+                                status = "pending",
+                                timestamp = System.currentTimeMillis(),
+                                confirmations = 0,
+                                blockNumber = null
+                            )
+                        )
+                        if (notifPrefs.txAlerts.value) {
+                            notificationCenter.push(
+                                "Envoi effectué",
+                                "Envoi de ${item.amount} $sym confirmé (mis en file hors-ligne)",
+                                sym
+                            )
+                        }
+                    } catch (_: Exception) { }
+                }
                 is SendCryptoUseCase.Result.Error ->
                     pendingSendDao.updateResult(item.id, STATUS_FAILED, null, res.message, attempts)
             }

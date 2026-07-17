@@ -20,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class PendingTxManager @Inject constructor(
     private val store: PendingTxStore,
-    private val checker: ConfirmationChecker
+    private val checker: ConfirmationChecker,
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
@@ -57,7 +58,14 @@ class PendingTxManager @Inject constructor(
                             store.remove(tx.hash)
                         } else {
                             store.update(tx.hash, status.confirmations, status.confirmed, now)
-                            if (status.confirmed) anyConfirmedNow = true
+                            if (status.confirmed) {
+                                anyConfirmedNow = true
+                                // Aligne « Récent » (Dashboard) sur la confirmation
+                                // réelle : l'entrée locale créée à l'envoi passe de
+                                // « pending » à « confirmed » sans attendre la
+                                // prochaine synchro d'Historique.
+                                try { transactionDao.updateStatus(tx.hash, "confirmed", status.confirmations) } catch (_: Exception) { }
+                            }
                         }
                     }
                     // Une confirmation peut changer le solde → on demande un refresh.
