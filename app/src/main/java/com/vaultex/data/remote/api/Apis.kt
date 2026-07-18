@@ -208,5 +208,20 @@ interface EtherscanApi {
         @Query("sort") sort: String = "desc",
         @Query("apikey") apiKey: String = ""
     ): EtherscanResponse
+
+    // Transferts de TOKENS ERC-20/BEP-20 de l'adresse (action=tokentx) —
+    // absents de txlist, qui ne liste que les transactions natives.
+    @GET("api")
+    suspend fun getTokenTransactions(
+        @Query("module") module: String = "account",
+        @Query("action") action: String = "tokentx",
+        @Query("address") address: String,
+        @Query("startblock") startBlock: Long = 0L,
+        @Query("endblock") endBlock: Long = 99_999_999L,
+        @Query("page") page: Int = 1,
+        @Query("offset") offset: Int = 50,
+        @Query("sort") sort: String = "desc",
+        @Query("apikey") apiKey: String = ""
+    ): EtherscanResponse
 }
 

@@ -42,7 +42,8 @@ class DepositCheckWorker @AssistedInject constructor(
     private val tronApi: TronApi,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
-    private val syncService: com.vaultex.core.tx.TransactionSyncService
+    private val syncService: com.vaultex.core.tx.TransactionSyncService,
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -88,6 +89,33 @@ class DepositCheckWorker @AssistedInject constructor(
                 }
             }
 
+            // ─── Tokens ERC-20/BEP-20 du wallet (SHIB, USDC…) : surveillance
+            // des soldes de CONTRATS. Sans elle, un token reçu n'avait ni
+            // cloche, ni « Récent », ni Historique — seul le solde finissait
+            // par bouger (panique « mes SHIB ne sont jamais arrivés »).
+            try {
+                val customs = withContext(Dispatchers.IO) { tokenRepository.getCustom() }
+                for (t in customs) {
+                    val isBnb = t.blockchain == "BNB"
+                    val holder = if (isBnb) addr.bnb else addr.eth
+                    if (holder.isBlank()) continue
+                    val bal = withContext(Dispatchers.IO) {
+                        fetchErc20(if (isBnb) bnbRpc else ethRpc, t.contractAddress, holder, t.decimals)
+                    } ?: continue
+                    val key = "bal_tok_${t.contractAddress.lowercase()}"
+                    val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
+                    prefs.edit().putString(key, bal.toString()).apply()
+                    if (before == null) continue             // 1er passage : on mémorise
+                    val delta = bal - before
+                    if (delta > 1e-9) {
+                        toSync.add(if (isBnb) "BNB_TOKENS" else "ETH_TOKENS")
+                        val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
+                            .stripTrailingZeros().toPlainString()
+                        com.vaultex.core.monitoring.AdminBot.bigReceive(amt, t.symbol, delta * priceUsdOf(t.symbol))
+                    }
+                }
+            } catch (_: Exception) { }
+
             // Récupère le VRAI hash de la transaction reçue (via le même
             // service que l'écran Historique) et notifie la cloche à ce
             // moment-là : sans ça, cette détection RAPIDE (toutes les ~15 min,
@@ -102,6 +130,8 @@ class DepositCheckWorker @AssistedInject constructor(
                         "BNB" -> syncService.syncBnb(addr.bnb)
                         "SOL" -> syncService.syncSol(addr.sol)
                         "TRX" -> syncService.syncTron(addr.trx)
+                        "ETH_TOKENS" -> syncService.syncEthTokens(addr.eth)
+                        "BNB_TOKENS" -> syncService.syncBnbTokens(addr.bnb)
                     }
                 }
             }
@@ -161,6 +191,18 @@ class DepositCheckWorker @AssistedInject constructor(
     private suspend fun fetchBtc(address: String): Double? = try {
         val info = bitcoinApi.getAddressInfo(address)
         (info.chainStats.fundedSum - info.chainStats.spentSum) / 1e8
+    } catch (_: Exception) { null }
+
+    /** Solde d'un token ERC-20/BEP-20 via eth_call(balanceOf) — même appel
+     *  que PortfolioViewModel.fetchErc20Balance. */
+    private suspend fun fetchErc20(rpc: EvmRpcApi, contract: String, address: String, decimals: Int): Double? = try {
+        val paddedAddr = address.removePrefix("0x").padStart(64, '0')
+        val res = rpc.rpcCall(JsonRpcRequest("eth_call",
+            mutableListOf(mapOf("to" to contract, "data" to "0x70a08231$paddedAddr") as Any, "latest" as Any)))
+        val hex = res.result as? String
+        if (res.error != null || hex == null) null
+        else BigInteger(hex.removePrefix("0x").ifEmpty { "0" }, 16)
+            .toBigDecimal().divide(BigDecimal.TEN.pow(decimals)).toDouble()
     } catch (_: Exception) { null }
 
     private suspend fun fetchSol(address: String): Double? = try {

@@ -210,6 +210,54 @@ class TransactionSyncService @Inject constructor(
         } catch (_: Exception) {}
     }
 
+    // ─── Transferts de TOKENS ERC-20 / BEP-20 (tokentx) ───────────────
+    // txlist ne liste QUE les transactions natives : sans cette synchro,
+    // un SHIB/USDC reçu n'apparaissait ni dans « Récent », ni dans
+    // l'Historique, ni à la cloche — seul le solde finissait par bouger
+    // (la panique « mes SHIB ne sont jamais arrivés » du test réel).
+
+    suspend fun syncEthTokens(address: String) = syncEvmTokens(etherscanApi, address, "ETH", ApiKeys.ETHERSCAN)
+    suspend fun syncBnbTokens(address: String) = syncEvmTokens(bscScanApi, address, "BNB", ApiKeys.BSCSCAN)
+
+    private suspend fun syncEvmTokens(api: EtherscanApi, address: String, blockchain: String, apiKey: String) {
+        try {
+            val response = api.getTokenTransactions(address = address, apiKey = apiKey)
+            if (response.status != "1") return
+            for (tx in response.result ?: emptyList()) {
+                val isIncoming = tx.to.equals(address, ignoreCase = true)
+                val decimals = tx.tokenDecimal?.toIntOrNull() ?: 18
+                val raw = tx.value.toBigDecimalOrNull() ?: BigDecimal.ZERO
+                val amount = "%.6f".format(raw.divide(BigDecimal.TEN.pow(decimals)).toDouble())
+                val symbol = tx.tokenSymbol?.takeIf { it.isNotBlank() } ?: "TOKEN"
+
+                val entity = TransactionEntity(
+                    hash = tx.hash,
+                    type = if (isIncoming) "received" else "sent",
+                    blockchain = blockchain,
+                    fromAddress = tx.from,
+                    toAddress = tx.to,
+                    amount = amount,
+                    tokenSymbol = symbol,
+                    fee = "0",
+                    status = "confirmed",
+                    timestamp = tx.timeStamp.toLongOrNull()?.times(1000) ?: System.currentTimeMillis(),
+                    confirmations = tx.confirmations.toIntOrNull() ?: 1,
+                    blockNumber = null
+                )
+                // REPLACE volontaire : pour NOS envois de tokens, la synchro
+                // native insère déjà le même hash comme « 0 ETH envoyé » (l'appel
+                // du contrat) — on remplace ce bruit par l'info du token, bien
+                // plus parlante. La notification, elle, ne part que si la ligne
+                // n'existait pas encore (pas de doublon à chaque synchro).
+                val existedBefore = transactionDao.getHash(tx.hash) != null
+                transactionDao.insert(entity)
+                if (!existedBefore && isIncoming) {
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     // ─── SOLANA ──────────────────────────────────────────────────────
 
     suspend fun syncSol(address: String) {

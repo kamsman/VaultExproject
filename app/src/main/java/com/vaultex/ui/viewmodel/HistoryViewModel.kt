@@ -87,6 +87,10 @@ class HistoryViewModel @Inject constructor(
                     syncService.syncEth(addresses.eth)
                     syncService.syncBnb(addresses.bnb)
                     syncService.syncSol(addresses.sol)
+                    // Transferts de TOKENS (SHIB, USDC…) — APRÈS la synchro
+                    // native : leur REPLACE remplace la ligne « 0 ETH » porteuse.
+                    syncService.syncEthTokens(addresses.eth)
+                    syncService.syncBnbTokens(addresses.bnb)
                 }
             } catch (_: Exception) {
             } finally {

@@ -235,6 +235,10 @@ data class EtherscanTx(
     @SerializedName("timeStamp") val timeStamp: String,
     val gasUsed: String,
     val gasPrice: String,
-    val isError: String,    // "0" = success, "1" = failed
-    val confirmations: String = "0"
+    // Absent des réponses tokentx (un transfert de token listé a réussi).
+    val isError: String = "0",
+    val confirmations: String = "0",
+    // Présents UNIQUEMENT dans les réponses tokentx (transferts ERC-20/BEP-20).
+    @SerializedName("tokenSymbol") val tokenSymbol: String? = null,
+    @SerializedName("tokenDecimal") val tokenDecimal: String? = null
 )
