@@ -157,10 +157,21 @@ exports.checkDeposits = functions.pubsub.schedule("every 2 minutes").onRun(async
 
     for (const n of notifs) {
       try {
+        // DATA-ONLY (pas de bloc `notification`) : indispensable pour que
+        // l'app soit TOUJOURS réveillée (onMessageReceived), y compris fermée
+        // ou en arrière-plan. C'est elle qui affiche la notif ET l'ajoute au
+        // centre de notifications (la cloche). Avec un bloc `notification`, le
+        // système Android affichait tout seul en arrière-plan SANS appeler
+        // l'app → le message n'entrait jamais dans la cloche.
         await admin.messaging().send({
           token: d.token,
-          notification: { title: "Fonds reçus", body: `Vous avez reçu ${trim(n.amount)} ${n.sym}` },
-          data: { type: "deposit", symbol: n.sym, amount: String(n.amount) },
+          data: {
+            type: "deposit",
+            title: "Fonds reçus",
+            body: `Vous avez reçu ${trim(n.amount)} ${n.sym}`,
+            symbol: n.sym,
+            amount: String(n.amount),
+          },
           android: { priority: "high" },
         });
       } catch (e) {
@@ -192,9 +203,11 @@ exports.sendAnnouncement = functions.https.onRequest(async (req, res) => {
     let sent = 0;
     for (let i = 0; i < tokens.length; i += 500) {
       const batch = tokens.slice(i, i + 500);
+      // DATA-ONLY (voir checkDeposits) : l'app affiche l'annonce ET l'ajoute
+      // à la cloche, même reçue en arrière-plan.
       const resp = await admin.messaging().sendEachForMulticast({
         tokens: batch,
-        notification: { title, body: text },
+        data: { type: "announcement", title, body: text },
         android: { priority: "high" },
       });
       sent += resp.successCount;

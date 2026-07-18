@@ -32,10 +32,14 @@ class VaultExFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+        // Fonctionne pour les messages « data-only » (titre/corps dans data,
+        // envoyés par nos Cloud Functions) ET les messages « notification »
+        // (console Firebase). L'affichage passe TOUJOURS en premier ; la mise à
+        // jour de la cloche est protégée pour ne jamais l'empêcher.
         val title = message.notification?.title ?: message.data["title"] ?: "VaultEx"
         val body = message.notification?.body ?: message.data["body"] ?: ""
         showNotification(title, body)
-        notificationCenter.push(title, body, message.data["symbol"])
+        try { notificationCenter.push(title, body, message.data["symbol"]) } catch (_: Exception) {}
     }
 
     private fun showNotification(title: String, body: String) {
