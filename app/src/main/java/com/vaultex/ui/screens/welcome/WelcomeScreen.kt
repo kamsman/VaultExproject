@@ -69,11 +69,9 @@ fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = stringResource(R.string.app_name),
-                    color = Color.White,
+                com.vaultex.ui.components.VaultexWordmark(
                     fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
+                    color = Color.White
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))

@@ -45,10 +45,9 @@ fun HomeScreen(navController: NavHostController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        stringResource(R.string.app_name),
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                    com.vaultex.ui.components.VaultexWordmark(
+                        fontSize = 20.sp,
+                        color = com.vaultex.ui.components.VaultexBrandBlue
                     )
                 },
                 actions = {

@@ -201,12 +201,11 @@ fun UnlockScreen(navController: NavHostController) {
 
         Spacer(Modifier.weight(1f))
 
-        // ─── Pied de page « vaultex wallet » ───
-        Text(
-            stringResource(R.string.app_name).lowercase() + " wallet",
-            color = TextMuted,
-            fontSize = 13.sp
-        )
+        // ─── Pied de page « VAULTEX wallet » ───
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            com.vaultex.ui.components.VaultexWordmark(fontSize = 13.sp, color = AccentBlue)
+            Text("wallet", color = TextMuted, fontSize = 13.sp)
+        }
         Spacer(Modifier.height(20.dp))
     }
 }

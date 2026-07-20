@@ -81,11 +81,9 @@ fun SplashScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(28.dp))
 
-            Text(
-                text = stringResource(R.string.app_name),
-                color = Color.White,
+            com.vaultex.ui.components.VaultexWordmark(
                 fontSize = 38.sp,
-                fontWeight = FontWeight.Bold
+                color = Color.White
             )
 
             Spacer(Modifier.height(8.dp))
