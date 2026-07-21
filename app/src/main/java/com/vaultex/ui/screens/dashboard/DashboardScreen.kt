@@ -156,7 +156,18 @@ fun DashboardScreen(navController: NavHostController) {
                 LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
                 var depositDismissed by FirstDepositBannerState.dismissed
                 val telegramDismissed by TelegramBannerState.dismissed
+                var backupDismissed by BackupReminderBannerState.dismissed
                 val hasFunds = state.totalBalanceUsd > 0.01
+                // Vrai statut : le MÊME indicateur que l'écran Sauvegarde (mis à
+                // true dès que l'utilisateur y a révélé sa phrase une fois) —
+                // le bandeau s'éteint pour de bon dès la confirmation réelle,
+                // pas juste au clic sur « fermer ». Relu à chaque passage sur le
+                // Dashboard (pas remember figé) : si l'utilisateur confirme sa
+                // sauvegarde puis revient ici, le bandeau doit disparaître
+                // SANS attendre un redémarrage de l'app.
+                val phraseBackedUp = bannerContext
+                    .getSharedPreferences("vaultex_backup", android.content.Context.MODE_PRIVATE)
+                    .getBoolean("phrase_backed_up", false)
                 val slots = buildList<@Composable () -> Unit> {
                     // Fermable pour la session en cours SEULEMENT (mémoire
                     // PROCESS, pas rememberSaveable qu'Android peut restaurer
@@ -172,6 +183,22 @@ fun DashboardScreen(navController: NavHostController) {
                             ctaIcon = Icons.Default.ArrowDownward,
                             onDismiss = { depositDismissed = true },
                             onCtaClick = { navController.navigate(Routes.RECEIVE) }
+                        )
+                    }
+                    // Fermable pour la session SEULEMENT (comme le premier
+                    // dépôt) : la seed protège les fonds, un rappel qui
+                    // disparaîtrait pour de bon au premier clic sur « fermer »
+                    // serait dangereux. Ne s'éteint VRAIMENT que lorsque la
+                    // phrase a été révélée sur l'écran Sauvegarde.
+                    if (!phraseBackedUp && !backupDismissed) add {
+                        DashboardBanner(
+                            icon = Icons.Default.Shield,
+                            title = stringResource(R.string.dashboard_backup_title),
+                            body = stringResource(R.string.dashboard_backup_body),
+                            ctaLabel = stringResource(R.string.dashboard_backup_cta),
+                            ctaIcon = Icons.Default.Shield,
+                            onDismiss = { backupDismissed = true },
+                            onCtaClick = { navController.navigate(Routes.BACKUP) }
                         )
                     }
                     // Fermeture DURABLE (préférences) : simple rappel marketing,
@@ -395,6 +422,13 @@ fun DashboardScreen(navController: NavHostController) {
 /** Fermeture du bandeau « premier dépôt » — mémoire PROCESS uniquement,
  *  se réinitialise à chaque nouveau lancement de l'app (voir usage). */
 private object FirstDepositBannerState {
+    val dismissed = mutableStateOf(false)
+}
+
+/** Fermeture SESSION du rappel de sauvegarde — même règle que le premier
+ *  dépôt (sécurité des fonds) : revient à chaque ouverture tant que la
+ *  phrase n'a pas été VRAIMENT révélée sur l'écran Sauvegarde. */
+private object BackupReminderBannerState {
     val dismissed = mutableStateOf(false)
 }
 

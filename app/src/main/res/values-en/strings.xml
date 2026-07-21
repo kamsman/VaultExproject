@@ -125,6 +125,9 @@
     <string name="dashboard_telegram_title">Join the VaultEx community</string>
     <string name="dashboard_telegram_body">News, support and chat with other users.</string>
     <string name="dashboard_telegram_cta">Join the group</string>
+    <string name="dashboard_backup_title">Have you backed up your recovery phrase?</string>
+    <string name="dashboard_backup_body">It\'s the only way to recover your funds if you lose your phone.</string>
+    <string name="dashboard_backup_cta">Check my backup</string>
     <string name="active">Active</string>
 
     <!-- Onboarding / Auth (group A) -->

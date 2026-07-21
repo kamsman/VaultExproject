@@ -156,6 +156,9 @@
     <string name="dashboard_telegram_title">Rejoins la communauté VaultEx</string>
     <string name="dashboard_telegram_body">Actualités, support et échanges avec les autres utilisateurs.</string>
     <string name="dashboard_telegram_cta">Rejoindre le groupe</string>
+    <string name="dashboard_backup_title">As-tu sauvegardé ta phrase de récupération ?</string>
+    <string name="dashboard_backup_body">C\'est le seul moyen de retrouver tes fonds en cas de perte du téléphone.</string>
+    <string name="dashboard_backup_cta">Vérifier ma sauvegarde</string>
     <string name="active">Actif</string>
 
     <!-- Onboarding / Auth (groupe A) -->

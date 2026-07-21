@@ -125,6 +125,9 @@
     <string name="dashboard_telegram_title">انضم إلى مجتمع VaultEx</string>
     <string name="dashboard_telegram_body">أخبار ودعم ونقاش مع مستخدمين آخرين.</string>
     <string name="dashboard_telegram_cta">انضم إلى المجموعة</string>
+    <string name="dashboard_backup_title">هل قمت بحفظ عبارة الاسترداد الخاصة بك؟</string>
+    <string name="dashboard_backup_body">إنها الطريقة الوحيدة لاستعادة أموالك في حال فقدان هاتفك.</string>
+    <string name="dashboard_backup_cta">تحقق من نسختي الاحتياطية</string>
     <string name="active">نشط</string>
 
     <!-- Onboarding / Auth (groupe A) -->
