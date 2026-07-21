@@ -122,6 +122,9 @@
     <string name="dashboard_first_deposit_title">قم بأول إيداع لك</string>
     <string name="dashboard_first_deposit_body">محفظتك فارغة. استلم بعض العملات المشفّرة لتبدأ استخدامها.</string>
     <string name="dashboard_first_deposit_cta">استلام الأموال</string>
+    <string name="dashboard_telegram_title">انضم إلى مجتمع VaultEx</string>
+    <string name="dashboard_telegram_body">أخبار ودعم ونقاش مع مستخدمين آخرين.</string>
+    <string name="dashboard_telegram_cta">انضم إلى المجموعة</string>
     <string name="active">نشط</string>
 
     <!-- Onboarding / Auth (groupe A) -->

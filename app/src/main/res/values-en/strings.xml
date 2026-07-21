@@ -122,6 +122,9 @@
     <string name="dashboard_first_deposit_title">Make your first deposit</string>
     <string name="dashboard_first_deposit_body">Your wallet is empty. Receive some crypto to start using it.</string>
     <string name="dashboard_first_deposit_cta">Receive funds</string>
+    <string name="dashboard_telegram_title">Join the VaultEx community</string>
+    <string name="dashboard_telegram_body">News, support and chat with other users.</string>
+    <string name="dashboard_telegram_cta">Join the group</string>
     <string name="active">Active</string>
 
     <!-- Onboarding / Auth (group A) -->

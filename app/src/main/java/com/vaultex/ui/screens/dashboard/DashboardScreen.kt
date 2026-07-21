@@ -1,5 +1,6 @@
 package com.vaultex.ui.screens.dashboard
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -147,64 +148,64 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Bandeau « premier dépôt » : tant qu'aucun fond n'est reçu,
-            // rappelé à CHAQUE ouverture de l'app (fermable pour la session en
-            // cours, mais réapparaît au prochain lancement) — un wallet vide
-            // sans ce rappel se fait vite oublier par un débutant. ───
+            // ─── Carrousel de bandeaux (défilement auto, 6 s par bandeau) :
+            // « premier dépôt » (tant qu'aucun fond n'est reçu) + « rejoindre
+            // Telegram ». Un seul actif → affiché fixe, sans rotation inutile.
             item {
-                // État mémoire PROCESS (pas rememberSaveable) : Android peut
-                // restaurer un Bundle après un kill système, ce qui aurait
-                // gardé le bandeau fermé au « réouvre » suivant. Ici, seul un
-                // vrai nouveau lancement du process réinitialise le flag —
-                // exactement la règle demandée : fermable pour la session,
-                // revient à chaque ouverture tant qu'aucun dépôt n'est reçu.
-                var dismissed by FirstDepositBannerState.dismissed
+                val bannerContext = androidx.compose.ui.platform.LocalContext.current
+                LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
+                var depositDismissed by FirstDepositBannerState.dismissed
+                val telegramDismissed by TelegramBannerState.dismissed
                 val hasFunds = state.totalBalanceUsd > 0.01
-                if (!hasFunds && !dismissed && !state.isLoading) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = AccentBlue.copy(alpha = 0.10f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.AccountBalanceWallet, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        stringResource(R.string.dashboard_first_deposit_title),
-                                        color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                val slots = buildList<@Composable () -> Unit> {
+                    // Fermable pour la session en cours SEULEMENT (mémoire
+                    // PROCESS, pas rememberSaveable qu'Android peut restaurer
+                    // après un kill système) : réapparaît à CHAQUE nouveau
+                    // lancement tant qu'aucun dépôt n'est reçu — un wallet vide
+                    // oublié sans rappel reste vide pour de bon.
+                    if (!hasFunds && !depositDismissed) add {
+                        DashboardBanner(
+                            icon = Icons.Default.AccountBalanceWallet,
+                            title = stringResource(R.string.dashboard_first_deposit_title),
+                            body = stringResource(R.string.dashboard_first_deposit_body),
+                            ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
+                            ctaIcon = Icons.Default.ArrowDownward,
+                            onDismiss = { depositDismissed = true },
+                            onCtaClick = { navController.navigate(Routes.RECEIVE) }
+                        )
+                    }
+                    // Fermeture DURABLE (préférences) : simple rappel marketing,
+                    // pas critique pour les fonds — le rerappeler à chaque
+                    // ouverture serait lassant une fois le groupe rejoint/fermé.
+                    if (!telegramDismissed) add {
+                        DashboardBanner(
+                            icon = Icons.Default.Chat,
+                            title = stringResource(R.string.dashboard_telegram_title),
+                            body = stringResource(R.string.dashboard_telegram_body),
+                            ctaLabel = stringResource(R.string.dashboard_telegram_cta),
+                            ctaIcon = Icons.Default.Send,
+                            onDismiss = { TelegramBannerState.dismiss(bannerContext) },
+                            onCtaClick = {
+                                bannerContext.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(TELEGRAM_COMMUNITY_URL)
                                     )
-                                    Text(
-                                        stringResource(R.string.dashboard_first_deposit_body),
-                                        color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp
-                                    )
-                                }
-                                Spacer(Modifier.width(6.dp))
-                                IconButton(onClick = { dismissed = true }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            // Bouton d'action (CTA) : va directement recevoir des
-                            // fonds — pas besoin de chercher l'écran soi-même.
-                            Button(
-                                onClick = { navController.navigate(Routes.RECEIVE) },
-                                modifier = Modifier.fillMaxWidth().height(42.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = com.vaultex.ui.components.VaultexBrandBlue,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    stringResource(R.string.dashboard_first_deposit_cta),
-                                    fontSize = 13.sp, fontWeight = FontWeight.Bold
                                 )
                             }
+                        )
+                    }
+                }
+                if (slots.isNotEmpty() && !state.isLoading) {
+                    var index by remember(slots.size) { mutableStateOf(0) }
+                    LaunchedEffect(slots.size) {
+                        while (slots.size > 1) {
+                            kotlinx.coroutines.delay(6_000L)
+                            index = (index + 1) % slots.size
                         }
+                    }
+                    Crossfade(targetState = index.coerceIn(0, slots.lastIndex), label = "dashboard_banner") { i ->
+                        slots[i]()
                     }
                 }
             }
@@ -395,6 +396,81 @@ fun DashboardScreen(navController: NavHostController) {
  *  se réinitialise à chaque nouveau lancement de l'app (voir usage). */
 private object FirstDepositBannerState {
     val dismissed = mutableStateOf(false)
+}
+
+/** Lien d'invitation du groupe Telegram COMMUNAUTÉ (public) — distinct du
+ *  groupe admin privé « Vaultex Administration » utilisé pour le monitoring. */
+private const val TELEGRAM_COMMUNITY_URL = "https://t.me/+TAgIGCHKMKpjZGI0"
+
+/** Fermeture DURABLE (persistée) du bandeau Telegram : simple rappel
+ *  marketing, pas critique comme le rappel de dépôt — le rerappeler à
+ *  chaque ouverture après que l'utilisateur l'a fermé serait lassant. */
+private object TelegramBannerState {
+    private const val PREFS = "vaultex_dashboard_banners"
+    private const val KEY = "telegram_dismissed"
+    private var initialized = false
+    val dismissed = mutableStateOf(false)
+
+    fun init(context: android.content.Context) {
+        if (initialized) return
+        initialized = true
+        dismissed.value = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            .getBoolean(KEY, false)
+    }
+
+    fun dismiss(context: android.content.Context) {
+        dismissed.value = true
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY, true).apply()
+    }
+}
+
+/** Bandeau générique du carrousel Dashboard : icône + titre + texte + bouton
+ *  d'action + fermeture. Même style pour « premier dépôt » et « Telegram ». */
+@Composable
+private fun DashboardBanner(
+    icon: ImageVector,
+    title: String,
+    body: String,
+    ctaLabel: String,
+    ctaIcon: ImageVector,
+    onDismiss: () -> Unit,
+    onCtaClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = AccentBlue.copy(alpha = 0.10f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(body, color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp)
+                }
+                Spacer(Modifier.width(6.dp))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onCtaClick,
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = com.vaultex.ui.components.VaultexBrandBlue,
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(ctaIcon, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(ctaLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
 
 @Composable
