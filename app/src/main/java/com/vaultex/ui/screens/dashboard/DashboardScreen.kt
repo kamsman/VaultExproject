@@ -218,6 +218,9 @@ fun DashboardScreen(navController: NavHostController) {
                                         android.net.Uri.parse(TELEGRAM_COMMUNITY_URL)
                                     )
                                 )
+                                // Cliquer « Rejoindre » = engagé → on ne relance
+                                // plus (fermeture DURABLE, comme le ✕).
+                                TelegramBannerState.dismiss(bannerContext)
                             }
                         )
                     }
