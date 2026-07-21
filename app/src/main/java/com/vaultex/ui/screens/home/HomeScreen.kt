@@ -45,10 +45,7 @@ fun HomeScreen(navController: NavHostController) {
         topBar = {
             TopAppBar(
                 title = {
-                    com.vaultex.ui.components.VaultexWordmark(
-                        fontSize = 20.sp,
-                        color = com.vaultex.ui.components.VaultexBrandBlue
-                    )
+                    com.vaultex.ui.components.VaultexWordmark(height = 22.dp)
                 },
                 actions = {
                     IconButton(onClick = { viewModel.toggleBalanceVisibility() }) {

@@ -121,6 +121,76 @@ fun DashboardScreen(navController: NavHostController) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // ─── Bandeau HORS CONNEXION : se met à jour EN DIRECT (pas un
+            // simple message d'erreur après un appel raté) ; le user sait
+            // immédiatement pourquoi rien ne se rafraîchit. ───
+            item {
+                val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
+                if (offline) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AccentRed.copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CloudOff, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.dashboard_offline),
+                                color = AccentRed, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ─── Bandeau « premier dépôt » : tant qu'aucun fond n'est reçu,
+            // rappelé à CHAQUE ouverture de l'app (fermable pour la session en
+            // cours, mais réapparaît au prochain lancement) — un wallet vide
+            // sans ce rappel se fait vite oublier par un débutant. ───
+            item {
+                // État mémoire PROCESS (pas rememberSaveable) : Android peut
+                // restaurer un Bundle après un kill système, ce qui aurait
+                // gardé le bandeau fermé au « réouvre » suivant. Ici, seul un
+                // vrai nouveau lancement du process réinitialise le flag —
+                // exactement la règle demandée : fermable pour la session,
+                // revient à chaque ouverture tant qu'aucun dépôt n'est reçu.
+                var dismissed by FirstDepositBannerState.dismissed
+                val hasFunds = state.totalBalanceUsd > 0.01
+                if (!hasFunds && !dismissed && !state.isLoading) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = AccentBlue.copy(alpha = 0.10f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AccountBalanceWallet, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.dashboard_first_deposit_title),
+                                    color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    stringResource(R.string.dashboard_first_deposit_body),
+                                    color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            IconButton(onClick = { dismissed = true }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
             // ─── Rangée d'icônes fine : scan · cloche · réglages ───
             // On garde ces accès rapides mais SANS le grand en-tête « Bonjour »,
             // pour que la carte de solde reste tout en haut.
@@ -301,6 +371,12 @@ fun DashboardScreen(navController: NavHostController) {
         )
         }
     }
+}
+
+/** Fermeture du bandeau « premier dépôt » — mémoire PROCESS uniquement,
+ *  se réinitialise à chaque nouveau lancement de l'app (voir usage). */
+private object FirstDepositBannerState {
+    val dismissed = mutableStateOf(false)
 }
 
 @Composable

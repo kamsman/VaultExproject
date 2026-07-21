@@ -203,7 +203,7 @@ fun UnlockScreen(navController: NavHostController) {
 
         // ─── Pied de page « VAULTEX wallet » ───
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            com.vaultex.ui.components.VaultexWordmark(fontSize = 13.sp, color = AccentBlue)
+            com.vaultex.ui.components.VaultexWordmark(height = 15.dp)
             Text("wallet", color = TextMuted, fontSize = 13.sp)
         }
         Spacer(Modifier.height(20.dp))

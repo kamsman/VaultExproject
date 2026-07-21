@@ -69,8 +69,7 @@ fun FirstLaunchSplash(onFinished: () -> Unit) {
             }
             Spacer(Modifier.height(24.dp))
             com.vaultex.ui.components.VaultexWordmark(
-                fontSize = 36.sp,
-                color = Color.White,
+                height = 38.dp,
                 modifier = Modifier.alpha(textAlpha.value)
             )
             Spacer(Modifier.height(8.dp))
