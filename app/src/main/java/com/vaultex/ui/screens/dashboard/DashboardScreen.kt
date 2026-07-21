@@ -153,9 +153,12 @@ fun DashboardScreen(navController: NavHostController) {
             // Telegram ». Un seul actif → affiché fixe, sans rotation inutile.
             item {
                 val bannerContext = androidx.compose.ui.platform.LocalContext.current
-                LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
-                var depositDismissed by FirstDepositBannerState.dismissed
-                val telegramDismissed by TelegramBannerState.dismissed
+                LaunchedEffect(Unit) {
+                    FirstDepositBannerState.init(bannerContext)
+                    TelegramBannerState.init(bannerContext)
+                }
+                val depositDismissed by FirstDepositBannerState.dismissed
+                val telegramHidden by TelegramBannerState.hidden
                 var backupDismissed by BackupReminderBannerState.dismissed
                 val hasFunds = state.totalBalanceUsd > 0.01
                 // Statut PAR WALLET, lu via le ViewModel (clé alignée sur
@@ -178,7 +181,7 @@ fun DashboardScreen(navController: NavHostController) {
                             body = stringResource(R.string.dashboard_first_deposit_body),
                             ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
                             ctaIcon = Icons.Default.ArrowDownward,
-                            onDismiss = { depositDismissed = true },
+                            onDismiss = { FirstDepositBannerState.dismiss(bannerContext) },
                             onCtaClick = { navController.navigate(Routes.RECEIVE) }
                         )
                     }
@@ -199,10 +202,9 @@ fun DashboardScreen(navController: NavHostController) {
                             onCtaClick = { navController.navigate(Routes.BACKUP) }
                         )
                     }
-                    // Fermeture DURABLE (préférences) : simple rappel marketing,
-                    // pas critique pour les fonds — le rerappeler à chaque
-                    // ouverture serait lassant une fois le groupe rejoint/fermé.
-                    if (!telegramDismissed) add {
+                    // Rappel marketing NON définitif : réapparaît ~1×/semaine
+                    // (fenêtre de 7 jours après le dernier ✕ ou clic « Rejoindre »).
+                    if (!telegramHidden) add {
                         DashboardBanner(
                             accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
                             icon = Icons.Default.Chat,
@@ -421,15 +423,33 @@ fun DashboardScreen(navController: NavHostController) {
     }
 }
 
-/** Fermeture du bandeau « premier dépôt » — mémoire PROCESS uniquement,
- *  se réinitialise à chaque nouveau lancement de l'app (voir usage). */
+private const val DASHBOARD_BANNER_PREFS = "vaultex_dashboard_banners"
+
+/** Fermeture DÉFINITIVE (persistée) du bandeau « premier dépôt » : moins
+ *  insistant qu'avant — un ✕ le retire pour de bon. Il disparaît aussi tout
+ *  seul dès qu'un premier fonds arrive (géré côté condition d'affichage). */
 private object FirstDepositBannerState {
+    private const val KEY = "deposit_dismissed"
+    private var initialized = false
     val dismissed = mutableStateOf(false)
+
+    fun init(context: android.content.Context) {
+        if (initialized) return
+        initialized = true
+        dismissed.value = context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
+            .getBoolean(KEY, false)
+    }
+
+    fun dismiss(context: android.content.Context) {
+        dismissed.value = true
+        context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY, true).apply()
+    }
 }
 
-/** Fermeture SESSION du rappel de sauvegarde — même règle que le premier
- *  dépôt (sécurité des fonds) : revient à chaque ouverture tant que la
- *  phrase n'a pas été VRAIMENT révélée sur l'écran Sauvegarde. */
+/** Fermeture SESSION du rappel de sauvegarde — sécurité des fonds : revient à
+ *  chaque ouverture tant que la phrase n'a pas été VRAIMENT révélée sur
+ *  l'écran Sauvegarde (le ✕ n'est qu'un « pas maintenant »). */
 private object BackupReminderBannerState {
     val dismissed = mutableStateOf(false)
 }
@@ -438,26 +458,28 @@ private object BackupReminderBannerState {
  *  groupe admin privé « Vaultex Administration » utilisé pour le monitoring. */
 private const val TELEGRAM_COMMUNITY_URL = "https://t.me/+TAgIGCHKMKpjZGI0"
 
-/** Fermeture DURABLE (persistée) du bandeau Telegram : simple rappel
- *  marketing, pas critique comme le rappel de dépôt — le rerappeler à
- *  chaque ouverture après que l'utilisateur l'a fermé serait lassant. */
+/** Bandeau Telegram : rappel marketing NON définitif — il réapparaît ~1 fois
+ *  par semaine. On mémorise l'INSTANT du dernier refus (✕ ou clic « Rejoindre »)
+ *  et on le re-masque tant qu'on est dans la fenêtre de 7 jours. */
 private object TelegramBannerState {
-    private const val PREFS = "vaultex_dashboard_banners"
-    private const val KEY = "telegram_dismissed"
+    private const val KEY_LAST_DISMISS = "telegram_last_dismiss"
+    private const val WEEK_MS = 7L * 24 * 60 * 60 * 1000
     private var initialized = false
-    val dismissed = mutableStateOf(false)
+    /** true = masqué POUR L'INSTANT (dans la fenêtre de 7 jours). */
+    val hidden = mutableStateOf(false)
 
     fun init(context: android.content.Context) {
         if (initialized) return
         initialized = true
-        dismissed.value = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            .getBoolean(KEY, false)
+        val last = context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_DISMISS, 0L)
+        hidden.value = last > 0L && (System.currentTimeMillis() - last < WEEK_MS)
     }
 
     fun dismiss(context: android.content.Context) {
-        dismissed.value = true
-        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY, true).apply()
+        hidden.value = true
+        context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
+            .edit().putLong(KEY_LAST_DISMISS, System.currentTimeMillis()).apply()
     }
 }
 
