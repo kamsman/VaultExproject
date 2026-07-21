@@ -509,8 +509,20 @@ private fun DashboardBanner(
                 Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text(body, color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp)
+                    // minLines = maxLines : titre et corps occupent TOUJOURS le
+                    // même nombre de lignes quel que soit le texte (ou la langue)
+                    // → tous les bandeaux ont la MÊME hauteur, donc l'écran ne
+                    // « saute » plus au changement de slide (crossfade).
+                    Text(
+                        title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                        minLines = 2, maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text(
+                        body, color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp,
+                        minLines = 2, maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
                 }
                 Spacer(Modifier.width(6.dp))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
