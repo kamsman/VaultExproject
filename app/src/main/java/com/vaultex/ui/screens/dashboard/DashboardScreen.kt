@@ -166,25 +166,43 @@ fun DashboardScreen(navController: NavHostController) {
                         color = AccentBlue.copy(alpha = 0.10f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.AccountBalanceWallet, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.dashboard_first_deposit_title),
-                                    color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    stringResource(R.string.dashboard_first_deposit_body),
-                                    color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp
-                                )
+                        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AccountBalanceWallet, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.dashboard_first_deposit_title),
+                                        color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        stringResource(R.string.dashboard_first_deposit_body),
+                                        color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp
+                                    )
+                                }
+                                Spacer(Modifier.width(6.dp))
+                                IconButton(onClick = { dismissed = true }, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
+                                }
                             }
-                            Spacer(Modifier.width(6.dp))
-                            IconButton(onClick = { dismissed = true }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.height(10.dp))
+                            // Bouton d'action (CTA) : va directement recevoir des
+                            // fonds — pas besoin de chercher l'écran soi-même.
+                            Button(
+                                onClick = { navController.navigate(Routes.RECEIVE) },
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = com.vaultex.ui.components.VaultexBrandBlue,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    stringResource(R.string.dashboard_first_deposit_cta),
+                                    fontSize = 13.sp, fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }

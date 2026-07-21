@@ -152,6 +152,7 @@
     <string name="dashboard_offline">Vous êtes hors connexion</string>
     <string name="dashboard_first_deposit_title">Fais ton premier dépôt</string>
     <string name="dashboard_first_deposit_body">Ton wallet est vide. Reçois de la crypto pour commencer à l\'utiliser.</string>
+    <string name="dashboard_first_deposit_cta">Recevoir des fonds</string>
     <string name="active">Actif</string>
 
     <!-- Onboarding / Auth (groupe A) -->
