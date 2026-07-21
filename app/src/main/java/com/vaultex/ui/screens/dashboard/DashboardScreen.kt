@@ -250,6 +250,8 @@ fun DashboardScreen(navController: NavHostController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Logo de marque (logo_tex.png) à gauche de la barre du haut.
+                    com.vaultex.ui.components.VaultexWordmark(height = 26.dp)
                     Spacer(Modifier.weight(1f))
                     HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
                     BadgedBox(

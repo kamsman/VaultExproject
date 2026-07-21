@@ -77,7 +77,7 @@ fun VaultExBottomBar(navController: NavHostController) {
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavTab(Icons.Default.Home, stringResource(R.string.tab_home), currentRoute == Routes.DASHBOARD, Modifier.weight(1f)) { go(Routes.DASHBOARD) }
+            NavTabImage(R.drawable.logorond, stringResource(R.string.tab_home), currentRoute == Routes.DASHBOARD, Modifier.weight(1f)) { go(Routes.DASHBOARD) }
             NavTab(Icons.Default.TrendingUp, stringResource(R.string.tab_market), currentRoute == Routes.MARKET, Modifier.weight(1f)) { go(Routes.MARKET) }
             // Emplacement central : uniquement le libellé (le bouton flotte au-dessus).
             Box(Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
@@ -142,6 +142,39 @@ private fun NavTab(icon: ImageVector, label: String, selected: Boolean, modifier
         Spacer(Modifier.height(2.dp))
         Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = color)
         // Indicateur de sélection (petit trait violet).
+        Spacer(Modifier.height(3.dp))
+        Box(
+            Modifier.width(16.dp).height(3.dp).clip(RoundedCornerShape(2.dp))
+                .background(if (selected) NavPurple else Color.Transparent)
+        )
+    }
+}
+
+/** Onglet avec une IMAGE ronde (ex. logorond.png pour Accueil) au lieu d'une
+ *  icône vectorielle. Le logo garde ses couleurs (pas de teinte) ; l'état
+ *  sélectionné se lit sur le libellé + le trait violet, comme les autres. */
+@Composable
+private fun NavTabImage(imageRes: Int, label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val color = if (selected) NavBlue else TextMuted
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(imageRes),
+            contentDescription = label,
+            modifier = Modifier.size(24.dp).clip(CircleShape)
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = color)
         Spacer(Modifier.height(3.dp))
         Box(
             Modifier.width(16.dp).height(3.dp).clip(RoundedCornerShape(2.dp))
