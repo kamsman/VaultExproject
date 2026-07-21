@@ -41,8 +41,15 @@ class BackupViewModel @Inject constructor(
 
     private val prefs = appContext.getSharedPreferences("vaultex_backup", Context.MODE_PRIVATE)
 
+    /** Clé PAR WALLET : sans ça, un flag global marquerait un NOUVEAU wallet
+     *  comme « déjà sauvegardé » simplement parce qu'un ancien l'était. */
+    private fun backedUpKey(): String {
+        val id = secureStorage.activeWalletId() ?: "legacy"
+        return "phrase_backed_up_$id"
+    }
+
     private val _state = MutableStateFlow(
-        BackupState(phraseBackedUp = prefs.getBoolean(KEY_BACKED_UP, false))
+        BackupState(phraseBackedUp = prefs.getBoolean(backedUpKey(), false))
     )
     val state: StateFlow<BackupState> = _state.asStateFlow()
 
@@ -91,8 +98,9 @@ class BackupViewModel @Inject constructor(
         when (action) {
             BackupAuthAction.PHRASE -> {
                 val mnemonic = secureStorage.getMnemonic()
-                // La phrase a été vue → on marque la sauvegarde comme faite (statut).
-                prefs.edit().putBoolean(KEY_BACKED_UP, true).apply()
+                // La phrase a été vue → on marque la sauvegarde comme faite (statut),
+                // pour CE wallet précisément.
+                prefs.edit().putBoolean(backedUpKey(), true).apply()
                 _state.update { it.copy(isRevealed = true, mnemonic = mnemonic, phraseBackedUp = true) }
             }
             BackupAuthAction.KEY -> viewModelScope.launch {
@@ -118,8 +126,4 @@ class BackupViewModel @Inject constructor(
     fun hide() = _state.update { it.copy(mnemonic = null, isRevealed = false) }
 
     fun hideKey() = _state.update { it.copy(exportedKey = null) }
-
-    companion object {
-        private const val KEY_BACKED_UP = "phrase_backed_up"
-    }
 }

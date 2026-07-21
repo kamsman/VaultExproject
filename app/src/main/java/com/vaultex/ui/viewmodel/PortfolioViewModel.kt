@@ -81,7 +81,8 @@ class PortfolioViewModel @Inject constructor(
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     private val pushRegistrar: com.vaultex.service.PushRegistrar,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
-    private val transactionDao: com.vaultex.data.local.dao.TransactionDao
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     /** Nombre de notifications non lues (pastille cloche du Dashboard). */
@@ -125,6 +126,15 @@ class PortfolioViewModel @Inject constructor(
     /** Monnaies activées dans « Mes actifs » (en plus de celles ayant un solde). */
     val visibleAssets: StateFlow<Set<String>> = assetVisibility.visible
     fun toggleAssetVisible(symbol: String) = assetVisibility.toggle(symbol)
+
+    /** true si la phrase du wallet ACTIF a déjà été révélée sur l'écran
+     *  Sauvegarde (clé PAR WALLET, alignée sur BackupViewModel) — pilote le
+     *  bandeau « As-tu sauvegardé ta phrase ? » du Dashboard. */
+    fun isPhraseBackedUp(): Boolean {
+        val id = secureStorage.activeWalletId() ?: "legacy"
+        return appContext.getSharedPreferences("vaultex_backup", android.content.Context.MODE_PRIVATE)
+            .getBoolean("phrase_backed_up_$id", false)
+    }
 
     /**
      * Retire un token PERSONNALISÉ (ajouté par contrat) de CE wallet — même

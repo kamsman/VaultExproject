@@ -158,16 +158,12 @@ fun DashboardScreen(navController: NavHostController) {
                 val telegramDismissed by TelegramBannerState.dismissed
                 var backupDismissed by BackupReminderBannerState.dismissed
                 val hasFunds = state.totalBalanceUsd > 0.01
-                // Vrai statut : le MÊME indicateur que l'écran Sauvegarde (mis à
-                // true dès que l'utilisateur y a révélé sa phrase une fois) —
-                // le bandeau s'éteint pour de bon dès la confirmation réelle,
-                // pas juste au clic sur « fermer ». Relu à chaque passage sur le
-                // Dashboard (pas remember figé) : si l'utilisateur confirme sa
-                // sauvegarde puis revient ici, le bandeau doit disparaître
-                // SANS attendre un redémarrage de l'app.
-                val phraseBackedUp = bannerContext
-                    .getSharedPreferences("vaultex_backup", android.content.Context.MODE_PRIVATE)
-                    .getBoolean("phrase_backed_up", false)
+                // Statut PAR WALLET, lu via le ViewModel (clé alignée sur
+                // BackupViewModel). Relu à chaque passage sur le Dashboard : si
+                // l'utilisateur confirme sa sauvegarde puis revient, le bandeau
+                // disparaît sans redémarrage. Un flag global aurait masqué le
+                // rappel pour un NOUVEAU wallet non sauvegardé.
+                val phraseBackedUp = viewModel.isPhraseBackedUp()
                 val slots = buildList<@Composable () -> Unit> {
                     // Fermable pour la session en cours SEULEMENT (mémoire
                     // PROCESS, pas rememberSaveable qu'Android peut restaurer
@@ -176,6 +172,7 @@ fun DashboardScreen(navController: NavHostController) {
                     // oublié sans rappel reste vide pour de bon.
                     if (!hasFunds && !depositDismissed) add {
                         DashboardBanner(
+                            accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
                             icon = Icons.Default.AccountBalanceWallet,
                             title = stringResource(R.string.dashboard_first_deposit_title),
                             body = stringResource(R.string.dashboard_first_deposit_body),
@@ -192,6 +189,7 @@ fun DashboardScreen(navController: NavHostController) {
                     // phrase a été révélée sur l'écran Sauvegarde.
                     if (!phraseBackedUp && !backupDismissed) add {
                         DashboardBanner(
+                            accent = Color(0xFFF59E0B),   // ambre : rappel de sécurité (seed)
                             icon = Icons.Default.Shield,
                             title = stringResource(R.string.dashboard_backup_title),
                             body = stringResource(R.string.dashboard_backup_body),
@@ -206,6 +204,7 @@ fun DashboardScreen(navController: NavHostController) {
                     // ouverture serait lassant une fois le groupe rejoint/fermé.
                     if (!telegramDismissed) add {
                         DashboardBanner(
+                            accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
                             icon = Icons.Default.Chat,
                             title = stringResource(R.string.dashboard_telegram_title),
                             body = stringResource(R.string.dashboard_telegram_body),
@@ -463,6 +462,7 @@ private object TelegramBannerState {
  *  d'action + fermeture. Même style pour « premier dépôt » et « Telegram ». */
 @Composable
 private fun DashboardBanner(
+    accent: Color,
     icon: ImageVector,
     title: String,
     body: String,
@@ -471,14 +471,17 @@ private fun DashboardBanner(
     onDismiss: () -> Unit,
     onCtaClick: () -> Unit
 ) {
+    // Même MODÈLE pour les 3 bandeaux (taille, forme, disposition) ; seule la
+    // couleur d'accent change (fond teinté + icône + bouton) pour les
+    // distinguer d'un coup d'œil. Bouton toujours plein, texte blanc.
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = AccentBlue.copy(alpha = 0.10f),
+        color = accent.copy(alpha = 0.10f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -495,7 +498,7 @@ private fun DashboardBanner(
                 modifier = Modifier.fillMaxWidth().height(42.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = com.vaultex.ui.components.VaultexBrandBlue,
+                    containerColor = accent,
                     contentColor = Color.White
                 )
             ) {
