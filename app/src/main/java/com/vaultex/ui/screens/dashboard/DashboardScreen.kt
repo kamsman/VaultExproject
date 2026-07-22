@@ -153,11 +153,8 @@ fun DashboardScreen(navController: NavHostController) {
             // Telegram ». Un seul actif → affiché fixe, sans rotation inutile.
             item {
                 val bannerContext = androidx.compose.ui.platform.LocalContext.current
-                LaunchedEffect(Unit) {
-                    FirstDepositBannerState.init(bannerContext)
-                    TelegramBannerState.init(bannerContext)
-                }
-                val depositDismissed by FirstDepositBannerState.dismissed
+                LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
+                var depositDismissed by FirstDepositBannerState.dismissed
                 val telegramHidden by TelegramBannerState.hidden
                 var backupDismissed by BackupReminderBannerState.dismissed
                 val hasFunds = state.totalBalanceUsd > 0.01
@@ -169,8 +166,8 @@ fun DashboardScreen(navController: NavHostController) {
                 val phraseBackedUp = viewModel.isPhraseBackedUp()
                 val slots = buildList<@Composable () -> Unit> {
                     // S'affiche UNIQUEMENT si le wallet est vide (solde 0).
-                    // Fermeture DÉFINITIVE au ✕ (persistée) ; disparaît aussi
-                    // seul dès le premier fonds reçu.
+                    // Fermeture SESSION au ✕ (revient au prochain lancement) ;
+                    // disparaît pour de bon dès le premier fonds reçu.
                     if (!hasFunds && !depositDismissed) add {
                         DashboardBanner(
                             accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
@@ -179,7 +176,7 @@ fun DashboardScreen(navController: NavHostController) {
                             body = stringResource(R.string.dashboard_first_deposit_body),
                             ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
                             ctaIcon = Icons.Default.ArrowDownward,
-                            onDismiss = { FirstDepositBannerState.dismiss(bannerContext) },
+                            onDismiss = { depositDismissed = true },
                             onCtaClick = { navController.navigate(Routes.RECEIVE) }
                         )
                     }
@@ -427,26 +424,13 @@ fun DashboardScreen(navController: NavHostController) {
 
 private const val DASHBOARD_BANNER_PREFS = "vaultex_dashboard_banners"
 
-/** Fermeture DÉFINITIVE (persistée) du bandeau « premier dépôt » : moins
- *  insistant qu'avant — un ✕ le retire pour de bon. Il disparaît aussi tout
- *  seul dès qu'un premier fonds arrive (géré côté condition d'affichage). */
+/** Fermeture SESSION du bandeau « premier dépôt » (mémoire process) : un ✕ le
+ *  retire pour la session, mais il REVIENT à chaque ouverture tant que le
+ *  wallet est vide — sinon un wallet vide fermé une fois n'aurait plus AUCUN
+ *  rappel et l'écran resterait vide (défaut signalé). Disparaît pour de bon
+ *  dès qu'un premier fonds arrive (géré côté condition d'affichage). */
 private object FirstDepositBannerState {
-    private const val KEY = "deposit_dismissed"
-    private var initialized = false
     val dismissed = mutableStateOf(false)
-
-    fun init(context: android.content.Context) {
-        if (initialized) return
-        initialized = true
-        dismissed.value = context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
-            .getBoolean(KEY, false)
-    }
-
-    fun dismiss(context: android.content.Context) {
-        dismissed.value = true
-        context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY, true).apply()
-    }
 }
 
 /** Fermeture SESSION du rappel de sauvegarde — sécurité des fonds : revient à
