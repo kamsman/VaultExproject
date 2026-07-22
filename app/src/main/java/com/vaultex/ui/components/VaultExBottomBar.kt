@@ -168,8 +168,10 @@ private fun NavTabImage(imageRes: Int, label: String, selected: Boolean, modifie
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(imageRes),
+        // Coil (décodage hors thread principal, downsampling, tolérant aux
+        // fichiers illisibles) — évite tout blocage/crash au démarrage.
+        coil.compose.AsyncImage(
+            model = imageRes,
             contentDescription = label,
             modifier = Modifier.size(24.dp).clip(CircleShape)
         )

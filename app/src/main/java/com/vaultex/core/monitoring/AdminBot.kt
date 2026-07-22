@@ -160,13 +160,21 @@ object AdminBot {
                 val where = e.stackTrace.firstOrNull { it.className.startsWith("com.vaultex") }
                     ?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
                     ?: e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
-                sendSync(
-                    "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
-                        " · Android ${android.os.Build.VERSION.RELEASE}" +
-                        "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +
-                        "\n📍 $where"
-                )
-            } catch (_: Exception) { }
+                val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
+                    " · Android ${android.os.Build.VERSION.RELEASE}" +
+                    "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +
+                    "\n📍 $where"
+                // Envoi sur un thread SÉPARÉ, borné à 1,5 s : si le réseau est
+                // lent/bloqué (proxy), on ne fige JAMAIS le thread qui plante —
+                // sinon un crash au démarrage se transformait en ANR
+                // « failed to complete startup » masquant la vraie erreur.
+                val t = Thread { try { sendSync(msg) } catch (_: Throwable) {} }
+                t.isDaemon = true
+                t.start()
+                t.join(1_500L)
+            } catch (_: Throwable) { }
+            // Relaie TOUJOURS au handler système : la vraie stack apparaît dans
+            // logcat (FATAL EXCEPTION / AndroidRuntime) pour le diagnostic.
             previous?.uncaughtException(thread, e)
         }
     }
