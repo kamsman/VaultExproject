@@ -128,22 +128,23 @@ fun DashboardScreen(navController: NavHostController) {
             item {
                 val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
                 if (offline) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = AccentRed.copy(alpha = 0.12f),
-                        modifier = Modifier.fillMaxWidth()
+                    // Bandeau COMPACT (fine puce centrée) : présent mais discret,
+                    // ne mange pas l'espace en haut du dashboard.
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(50))
+                            .background(AccentRed.copy(alpha = 0.12f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.CloudOff, null, tint = AccentRed, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                stringResource(R.string.dashboard_offline),
-                                color = AccentRed, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Icon(Icons.Default.CloudOff, null, tint = AccentRed, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.dashboard_offline),
+                            color = AccentRed, fontSize = 11.sp, fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

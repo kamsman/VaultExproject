@@ -118,7 +118,7 @@
     <string name="create">Create</string>
     <string name="add">Add</string>
     <string name="close">Close</string>
-    <string name="dashboard_offline">You are offline</string>
+    <string name="dashboard_offline">Offline</string>
     <string name="dashboard_first_deposit_title">Make your first deposit</string>
     <string name="dashboard_first_deposit_body">Your wallet is empty. Receive some crypto to start using it.</string>
     <string name="dashboard_first_deposit_cta">Receive funds</string>
