@@ -168,11 +168,9 @@ fun DashboardScreen(navController: NavHostController) {
                 // rappel pour un NOUVEAU wallet non sauvegardé.
                 val phraseBackedUp = viewModel.isPhraseBackedUp()
                 val slots = buildList<@Composable () -> Unit> {
-                    // Fermable pour la session en cours SEULEMENT (mémoire
-                    // PROCESS, pas rememberSaveable qu'Android peut restaurer
-                    // après un kill système) : réapparaît à CHAQUE nouveau
-                    // lancement tant qu'aucun dépôt n'est reçu — un wallet vide
-                    // oublié sans rappel reste vide pour de bon.
+                    // S'affiche UNIQUEMENT si le wallet est vide (solde 0).
+                    // Fermeture DÉFINITIVE au ✕ (persistée) ; disparaît aussi
+                    // seul dès le premier fonds reçu.
                     if (!hasFunds && !depositDismissed) add {
                         DashboardBanner(
                             accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
@@ -185,12 +183,14 @@ fun DashboardScreen(navController: NavHostController) {
                             onCtaClick = { navController.navigate(Routes.RECEIVE) }
                         )
                     }
-                    // Fermable pour la session SEULEMENT (comme le premier
-                    // dépôt) : la seed protège les fonds, un rappel qui
-                    // disparaîtrait pour de bon au premier clic sur « fermer »
-                    // serait dangereux. Ne s'éteint VRAIMENT que lorsque la
-                    // phrase a été révélée sur l'écran Sauvegarde.
-                    if (!phraseBackedUp && !backupDismissed) add {
+                    // PHILOSOPHIE B : le rappel de sauvegarde n'apparaît QUE si
+                    // le wallet a des fonds (quelque chose à protéger). Wallet
+                    // vide → priorité au dépôt ; wallet financé → priorité à la
+                    // sauvegarde. Jamais 3 bannières en même temps.
+                    // Fermable pour la session SEULEMENT (le ✕ est un « pas
+                    // maintenant ») : ne s'éteint VRAIMENT que lorsque la phrase
+                    // a été révélée sur l'écran Sauvegarde.
+                    if (hasFunds && !phraseBackedUp && !backupDismissed) add {
                         DashboardBanner(
                             accent = Color(0xFFF59E0B),   // ambre : rappel de sécurité (seed)
                             icon = Icons.Default.Shield,

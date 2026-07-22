@@ -66,10 +66,10 @@ class WalletStore @Inject constructor(
             id = "w_" + java.util.UUID.randomUUID().toString().take(8)
         } while (secureStorage.hasWalletSecrets(id) || walletDao.getById(id) != null)
         secureStorage.saveWalletSecrets(id, mnemonic, passphrase)
-        val count = try { walletDao.count() } catch (_: Exception) { 0 }
+        val number = nextWalletNumber()
         val entity = WalletEntity(
             id = id,
-            name = if (imported) "Wallet importé ${count + 1}" else "Wallet ${count + 1}",
+            name = if (imported) "Wallet importé $number" else "Wallet $number",
             isActive = true,
             createdAt = System.currentTimeMillis()
         )
@@ -81,6 +81,21 @@ class WalletStore @Inject constructor(
 
     /** Nombre de wallets actuellement présents sur cet appareil. */
     suspend fun walletCount(): Int = try { walletDao.count() } catch (_: Exception) { 0 }
+
+    /**
+     * Prochain NUMÉRO de wallet — compteur MONOTONE qui ne se répète jamais,
+     * même après suppression d'un wallet du milieu. L'ancien calcul (count + 1)
+     * pouvait produire deux « Wallet 3 » (supprimer le 2 puis en créer un).
+     * Baseline = max(compteur mémorisé, nombre actuel) → couvre les installs
+     * existants qui n'avaient pas ce compteur.
+     */
+    private suspend fun nextWalletNumber(): Int {
+        val prefs = appContext.getSharedPreferences("vaultex_wallet_seq", android.content.Context.MODE_PRIVATE)
+        val current = try { walletDao.count() } catch (_: Exception) { 0 }
+        val next = maxOf(prefs.getInt("last_number", 0), current) + 1
+        prefs.edit().putInt("last_number", next).apply()
+        return next
+    }
 
     /** Bascule vers un autre wallet (son seed doit exister). */
     suspend fun switchWallet(id: String): Boolean {
