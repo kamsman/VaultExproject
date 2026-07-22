@@ -57,7 +57,7 @@ fun WalletManagementScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(16.dp))
 
-            Button(onClick = { navController.navigate(Routes.SETTINGS_IMPORT_WALLET) }) {
+            Button(onClick = { navController.navigate(Routes.walletAddVerify("settingsImport")) }) {
                 Text(stringResource(R.string.import_wallet))
             }
         }

@@ -32,21 +32,27 @@ import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.ChangePinVerifyViewModel
 
 /**
- * Confirme le PIN ACTUEL (ou la biométrie) avant d'autoriser la création d'un
- * nouveau PIN. Succès → PIN_SETUP. Panique → l'app a été effacée → WELCOME.
+ * Confirme le PIN ACTUEL (ou la biométrie) avant une action sensible. Générique :
+ * l'appelant décide de la suite via [onVerified] (changer le PIN, ajouter un
+ * wallet…). Panique → l'app a été effacée → WELCOME (toujours interne).
+ *
+ * [title]/[subtitle] permettent d'adapter le message selon le contexte.
  */
 @Composable
-fun ChangePinVerifyScreen(navController: NavHostController) {
+fun ChangePinVerifyScreen(
+    navController: NavHostController,
+    title: String? = null,
+    subtitle: String? = null,
+    onVerified: () -> Unit = {
+        navController.navigate(Routes.PIN_SETUP) { popUpTo(Routes.SECURITY) { inclusive = false } }
+    }
+) {
     val viewModel: ChangePinVerifyViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val activity = LocalContext.current as? FragmentActivity
 
     LaunchedEffect(state.verified) {
-        if (state.verified) {
-            navController.navigate(Routes.PIN_SETUP) {
-                popUpTo(Routes.SECURITY) { inclusive = false }
-            }
-        }
+        if (state.verified) onVerified()
     }
     LaunchedEffect(state.panicTriggered) {
         if (state.panicTriggered) {
@@ -76,9 +82,9 @@ fun ChangePinVerifyScreen(navController: NavHostController) {
             Icon(Icons.Filled.Lock, null, tint = AccentBlue, modifier = Modifier.size(42.dp))
         }
         Spacer(Modifier.height(18.dp))
-        Text(stringResource(R.string.change_pin_verify_title), color = AccentBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(title ?: stringResource(R.string.change_pin_verify_title), color = AccentBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.change_pin_verify_subtitle), color = TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+        Text(subtitle ?: stringResource(R.string.change_pin_verify_subtitle), color = TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
 
         Spacer(Modifier.height(26.dp))
 

@@ -84,7 +84,7 @@ fun WalletManagerScreen(navController: NavController) {
                             fabMenuExpanded = false
                             // Directement le nouveau seed (l'intro n'a pas de sens
                             // pour un utilisateur qui a déjà un wallet).
-                            navController.navigate(Routes.MNEMONIC_DISPLAY)
+                            navController.navigate(Routes.walletAddVerify("create"))
                         }
                     )
                     DropdownMenuItem(
@@ -92,7 +92,7 @@ fun WalletManagerScreen(navController: NavController) {
                         leadingIcon = { Icon(Icons.Default.FileDownload, contentDescription = null, tint = AccentBlue) },
                         onClick = {
                             fabMenuExpanded = false
-                            navController.navigate(Routes.IMPORT_WALLET)
+                            navController.navigate(Routes.walletAddVerify("import"))
                         }
                     )
                 }
@@ -151,7 +151,7 @@ fun WalletManagerScreen(navController: NavController) {
                             )
                             Spacer(Modifier.height(20.dp))
                             Button(
-                                onClick = { navController.navigate(Routes.MNEMONIC_DISPLAY) },
+                                onClick = { navController.navigate(Routes.walletAddVerify("create")) },
                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
@@ -162,7 +162,7 @@ fun WalletManagerScreen(navController: NavController) {
                             }
                             Spacer(Modifier.height(10.dp))
                             OutlinedButton(
-                                onClick = { navController.navigate(Routes.IMPORT_WALLET) },
+                                onClick = { navController.navigate(Routes.walletAddVerify("import")) },
                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                 shape = RoundedCornerShape(14.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue)

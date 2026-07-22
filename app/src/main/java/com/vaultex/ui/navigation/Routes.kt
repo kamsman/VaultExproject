@@ -23,6 +23,10 @@ object Routes {
     const val PIN_SETUP = "pinSetup"
     const val PIN_CHANGE_VERIFY = "pinChangeVerify"
 
+    // Vérification PIN/biométrie AVANT d'ajouter un wallet. mode = create|import.
+    const val WALLET_ADD_VERIFY = "walletAddVerify/{mode}"
+    fun walletAddVerify(mode: String) = "walletAddVerify/$mode"
+
     const val PIN_UNLOCK = "pinUnlock"
 
     /*

@@ -102,6 +102,27 @@ fun VaultExNavGraph(navController: NavHostController) {
             com.vaultex.ui.screens.security.ChangePinVerifyScreen(navController)
         }
 
+        // Vérification PIN/biométrie avant d'ajouter un wallet (sécurité :
+        // empêche un ajout depuis un téléphone déverrouillé laissé sans
+        // surveillance). Succès → écran de création OU d'import selon le mode.
+        composable(Routes.WALLET_ADD_VERIFY) { backStackEntry ->
+            val mode = backStackEntry.arguments?.getString("mode") ?: "create"
+            val dest = when (mode) {
+                "import" -> Routes.IMPORT_WALLET
+                "settingsImport" -> Routes.SETTINGS_IMPORT_WALLET
+                else -> Routes.MNEMONIC_DISPLAY
+            }
+            com.vaultex.ui.screens.security.ChangePinVerifyScreen(
+                navController = navController,
+                subtitle = androidx.compose.ui.res.stringResource(com.vaultex.R.string.wallet_add_verify_subtitle),
+                onVerified = {
+                    navController.navigate(dest) {
+                        popUpTo(Routes.WALLET_ADD_VERIFY) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Routes.PIN_UNLOCK) {
             UnlockScreen(navController)
         }
