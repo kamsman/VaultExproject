@@ -22,7 +22,7 @@ import com.vaultex.ui.theme.TextSecondary
 
 /**
  * Affiche un document légal (CGU ou politique de confidentialité) embarqué dans
- * l'app (assets/*.md). Consultable HORS LIGNE : ces textes doivent rester
+ * les assets de l'app. Consultable HORS LIGNE : ces textes doivent rester
  * accessibles même sans réseau, notamment avant d'accepter les conditions.
  *
  * Rendu simple : le Markdown est mis en forme à la volée (titres, listes,
