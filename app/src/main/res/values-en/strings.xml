@@ -766,4 +766,14 @@
     <string name="legal_privacy_title">Privacy Policy</string>
     <string name="legal_load_error">Document unavailable.</string>
     <string name="welcome_terms_accept">I have read and accept the:</string>
+    <string name="welcome_headline_pre">Your next-generation</string>
+    <string name="welcome_headline_accent">secure</string>
+    <string name="welcome_headline_post">crypto wallet</string>
+    <string name="welcome_subtitle_pitch">100&#37; non-custodial. Your keys, your crypto, your control.</string>
+    <string name="welcome_trust_footer">Secure · Private · Decentralised</string>
+    <string name="onboarding_welcome_pre">Welcome to</string>
+    <string name="onboarding_multichain_pre">Multi-</string>
+    <string name="onboarding_multichain_accent">Blockchain</string>
+    <string name="onboarding_noncustodial_pre">100&#37;</string>
+    <string name="onboarding_noncustodial_accent">Non-Custodial</string>
 </resources>

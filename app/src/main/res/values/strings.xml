@@ -857,4 +857,14 @@
     <string name="legal_privacy_title">Politique de confidentialité</string>
     <string name="legal_load_error">Document indisponible.</string>
     <string name="welcome_terms_accept">J\'ai lu et j\'accepte les :</string>
+    <string name="welcome_headline_pre">Votre wallet crypto</string>
+    <string name="welcome_headline_accent">sécurisé</string>
+    <string name="welcome_headline_post">nouvelle génération</string>
+    <string name="welcome_subtitle_pitch">100&#37; non-custodial. Vos clés, vos cryptos, votre contrôle.</string>
+    <string name="welcome_trust_footer">Sécurisé · Privé · Décentralisé</string>
+    <string name="onboarding_welcome_pre">Bienvenue sur</string>
+    <string name="onboarding_multichain_pre">Multi-</string>
+    <string name="onboarding_multichain_accent">Blockchain</string>
+    <string name="onboarding_noncustodial_pre">100&#37;</string>
+    <string name="onboarding_noncustodial_accent">Non-Custodial</string>
 </resources>

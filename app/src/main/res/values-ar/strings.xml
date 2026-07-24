@@ -766,4 +766,14 @@
     <string name="legal_privacy_title">سياسة الخصوصية</string>
     <string name="legal_load_error">المستند غير متاح.</string>
     <string name="welcome_terms_accept">لقد قرأت وأوافق على:</string>
+    <string name="welcome_headline_pre">محفظتك المشفّرة</string>
+    <string name="welcome_headline_accent">الآمنة</string>
+    <string name="welcome_headline_post">من الجيل الجديد</string>
+    <string name="welcome_subtitle_pitch">غير وصائية 100&#37;. مفاتيحك، عملاتك، تحكّمك.</string>
+    <string name="welcome_trust_footer">آمن · خاص · لا مركزي</string>
+    <string name="onboarding_welcome_pre">مرحبًا بك في</string>
+    <string name="onboarding_multichain_pre">متعددة</string>
+    <string name="onboarding_multichain_accent">البلوكشين</string>
+    <string name="onboarding_noncustodial_pre">100&#37;</string>
+    <string name="onboarding_noncustodial_accent">غير وصائية</string>
 </resources>
