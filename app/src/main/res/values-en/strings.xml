@@ -765,4 +765,5 @@
     <string name="legal_terms_title">Terms of Use</string>
     <string name="legal_privacy_title">Privacy Policy</string>
     <string name="legal_load_error">Document unavailable.</string>
+    <string name="welcome_terms_accept">I have read and accept the:</string>
 </resources>
