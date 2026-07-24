@@ -20,6 +20,10 @@ object Routes {
     =========================
      */
 
+    // Documents légaux embarqués (type = terms | privacy).
+    const val LEGAL = "legal/{doc}"
+    fun legal(doc: String) = "legal/$doc"
+
     const val PIN_SETUP = "pinSetup"
     const val PIN_CHANGE_VERIFY = "pinChangeVerify"
 

@@ -102,6 +102,14 @@ fun VaultExNavGraph(navController: NavHostController) {
             com.vaultex.ui.screens.security.ChangePinVerifyScreen(navController)
         }
 
+        // Documents légaux (CGU / confidentialité), lus depuis les assets.
+        composable(Routes.LEGAL) { backStackEntry ->
+            com.vaultex.ui.screens.legal.LegalScreen(
+                navController = navController,
+                docType = backStackEntry.arguments?.getString("doc") ?: "terms"
+            )
+        }
+
         // Vérification PIN/biométrie avant d'ajouter un wallet (sécurité :
         // empêche un ajout depuis un téléphone déverrouillé laissé sans
         // surveillance). Succès → écran de création OU d'import selon le mode.

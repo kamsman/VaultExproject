@@ -762,4 +762,7 @@
     <string name="network_testing">Testing…</string>
     <string name="settings_section_advanced">Advanced</string>
     <string name="settings_advanced_hint">For advanced users</string>
+    <string name="legal_terms_title">Terms of Use</string>
+    <string name="legal_privacy_title">Privacy Policy</string>
+    <string name="legal_load_error">Document unavailable.</string>
 </resources>

@@ -299,6 +299,16 @@ fun SettingsScreen(navController: NavHostController) {
                         }
                     }
                     RowDivider()
+                    // Documents légaux (obligatoires Play Store) — embarqués
+                    // dans l'app, donc consultables même hors connexion.
+                    SettingsRow(Icons.Default.Gavel, stringResource(R.string.legal_terms_title)) {
+                        navController.navigate(Routes.legal("terms"))
+                    }
+                    RowDivider()
+                    SettingsRow(Icons.Default.PrivacyTip, stringResource(R.string.legal_privacy_title)) {
+                        navController.navigate(Routes.legal("privacy"))
+                    }
+                    RowDivider()
                     SettingsValueRow(
                         Icons.Default.Info,
                         stringResource(R.string.settings_about),

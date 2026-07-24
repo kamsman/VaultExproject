@@ -853,4 +853,7 @@
     <string name="network_testing">Test…</string>
     <string name="settings_section_advanced">Avancé</string>
     <string name="settings_advanced_hint">Pour utilisateurs avancés</string>
+    <string name="legal_terms_title">Conditions d\'utilisation</string>
+    <string name="legal_privacy_title">Politique de confidentialité</string>
+    <string name="legal_load_error">Document indisponible.</string>
 </resources>
