@@ -135,7 +135,7 @@
     <!-- Onboarding / Auth (group A) -->
     <string name="onboarding_page1_desc">The next-generation secure crypto wallet.</string>
     <string name="onboarding_page2_title">Multi-Blockchain</string>
-    <string name="onboarding_page2_desc">Ethereum, BNB, Polygon, Arbitrum and Base.</string>
+    <string name="onboarding_page2_desc">Bitcoin, Ethereum, BNB Chain, Solana and Tron.</string>
     <string name="onboarding_page3_title">100%% Non-Custodial</string>
     <string name="onboarding_page3_desc">Your keys. Your crypto. Your control.</string>
     <string name="onboarding_skip">Skip</string>

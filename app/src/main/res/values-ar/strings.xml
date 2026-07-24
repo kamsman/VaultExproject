@@ -135,7 +135,7 @@
     <!-- Onboarding / Auth (groupe A) -->
     <string name="onboarding_page1_desc">محفظة العملات المشفّرة الآمنة من الجيل الجديد.</string>
     <string name="onboarding_page2_title">متعددة البلوكشين</string>
-    <string name="onboarding_page2_desc">Ethereum وBNB وPolygon وArbitrum وBase.</string>
+    <string name="onboarding_page2_desc">Bitcoin وEthereum وBNB Chain وSolana وTron.</string>
     <string name="onboarding_page3_title">غير وصائية 100%%</string>
     <string name="onboarding_page3_desc">مفاتيحك. عملاتك المشفّرة. تحكّمك.</string>
     <string name="onboarding_skip">تخطٍّ</string>
