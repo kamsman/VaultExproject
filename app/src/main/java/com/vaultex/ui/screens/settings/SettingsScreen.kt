@@ -321,44 +321,10 @@ fun SettingsScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Prototypes (en développement) ───
-            // Section RÉSERVÉE au développement (raccourcis vers d'anciens écrans
-            // prototypes). Masquée dans les builds release : inutile pour les
-            // vrais utilisateurs, elle n'apparaît qu'en debug.
-            if (com.vaultex.BuildConfig.DEBUG) {
-            item { SectionTitle(stringResource(R.string.settings_section_prototypes)) }
-            item {
-                SectionCard {
-                    SettingsRow(Icons.Default.Home, stringResource(R.string.proto_home)) {
-                        navController.navigate(Routes.HOME)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.PieChart, stringResource(R.string.proto_portfolio)) {
-                        navController.navigate(Routes.PORTFOLIO)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.Send, stringResource(R.string.proto_send_v2)) {
-                        navController.navigate(Routes.SEND_FORM)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.SwapHoriz, stringResource(R.string.proto_swap_v2)) {
-                        navController.navigate(Routes.SWAP_CONFIRM)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.QrCode, stringResource(R.string.proto_receive_v2)) {
-                        navController.navigate(Routes.RECEIVE_NETWORK)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.AccountBalanceWallet, stringResource(R.string.proto_wallet_mgmt)) {
-                        navController.navigate(Routes.WALLET_MANAGEMENT)
-                    }
-                    RowDivider()
-                    SettingsRow(Icons.Default.Shield, stringResource(R.string.proto_security_setup)) {
-                        navController.navigate(Routes.SECURITY_SETUP)
-                    }
-                }
-            }
-            }
+            // Section « Prototypes (en développement) » RETIRÉE : ces raccourcis
+            // vers d'anciens écrans de maquette n'ont plus lieu d'être, l'app
+            // étant complète. Les écrans eux-mêmes restent dans le code (routes
+            // toujours déclarées) mais ne sont plus accessibles depuis l'UI.
         }
     }
 }

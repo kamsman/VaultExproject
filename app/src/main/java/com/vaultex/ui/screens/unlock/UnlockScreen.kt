@@ -8,8 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -80,23 +78,7 @@ fun UnlockScreen(navController: NavHostController) {
     ) {
         Spacer(Modifier.weight(0.6f))
 
-        // ─── Bouclier + cadenas (maquette) ───
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                Icons.Filled.Shield,
-                contentDescription = null,
-                tint = AccentBlue.copy(alpha = 0.14f),
-                modifier = Modifier.size(104.dp)
-            )
-            Icon(
-                Icons.Filled.Lock,
-                contentDescription = null,
-                tint = AccentBlue,
-                modifier = Modifier.size(42.dp)
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
+        // Écran épuré : plus de bouclier/cadenas décoratif au-dessus du titre.
         Text(
             stringResource(R.string.unlock_enter_pin),
             color = AccentBlue,
@@ -202,7 +184,12 @@ fun UnlockScreen(navController: NavHostController) {
         Spacer(Modifier.weight(1f))
 
         // ─── Pied de page « VAULTEX wallet » ───
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Espacement NÉGATIF : le PNG du logo comporte une marge transparente
+        // sur les côtés ; sans ce rattrapage, « wallet » paraît détaché.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy((-4).dp)
+        ) {
             com.vaultex.ui.components.VaultexWordmark(height = 15.dp)
             Text("wallet", color = TextMuted, fontSize = 13.sp)
         }

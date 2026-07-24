@@ -128,22 +128,19 @@ fun DashboardScreen(navController: NavHostController) {
             item {
                 val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
                 if (offline) {
-                    // Bandeau COMPACT (fine puce centrée) : présent mais discret,
-                    // ne mange pas l'espace en haut du dashboard.
+                    // Simple mention DISCRÈTE (pas de fond ni de couleur d'alerte) :
+                    // informe sans dramatiser — les données en cache restent
+                    // affichées normalement.
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(50))
-                            .background(AccentRed.copy(alpha = 0.12f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.CloudOff, null, tint = AccentRed, modifier = Modifier.size(13.dp))
+                        Icon(Icons.Default.CloudOff, null, tint = TextMuted, modifier = Modifier.size(13.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
                             stringResource(R.string.dashboard_offline),
-                            color = AccentRed, fontSize = 11.sp, fontWeight = FontWeight.Medium
+                            color = TextMuted, fontSize = 11.sp
                         )
                     }
                 }
