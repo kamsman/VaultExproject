@@ -15,8 +15,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -146,7 +148,41 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Badge RÉSEAU proéminent : dire au payeur sur quel réseau envoyer.
+            // Une confusion USDT (TRC20 vs ERC20 vs BEP20) peut coûter les fonds.
+            val netLong = receiveNetworkLong(symbol, chainKey)
+            Surface(shape = RoundedCornerShape(50), color = AccentBlue.copy(alpha = 0.14f)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Language, null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.receive_network_label, netLong),
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue
+                    )
+                }
+            }
+
+            // Avertissement FORT pour les tokens (USDT* / ERC20 / BEP20) : un
+            // envoi sur le mauvais réseau peut être perdu. Inutile pour les
+            // natifs (une adresse BTC ne reçoit que du BTC, pas d'ambiguïté).
+            val isToken = symbol.startsWith("USDT") || symbol !in listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+            if (isToken) {
+                Spacer(Modifier.height(10.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF59E0B).copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.receive_network_warning, netLong),
+                            fontSize = 12.sp, color = TextPrimary, lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
 
             Text(stringResource(R.string.receive_your_asset_address, title), fontSize = 13.sp, color = TextSecondary)
             Spacer(Modifier.height(8.dp))
@@ -201,6 +237,21 @@ private fun ReceiveAction(icon: androidx.compose.ui.graphics.vector.ImageVector,
         Spacer(Modifier.height(6.dp))
         Text(label, fontSize = 12.sp, color = TextSecondary)
     }
+}
+
+/** Nom de réseau LISIBLE (pour le badge + l'avertissement de réception). */
+private fun receiveNetworkLong(symbol: String, chainKey: String): String = when {
+    symbol == "USDT" -> "Tron · TRC20"
+    symbol == "USDT-ETH" -> "Ethereum · ERC20"
+    symbol == "USDT-BNB" -> "BNB Chain · BEP20"
+    symbol == "BTC" -> "Bitcoin"
+    symbol == "ETH" -> "Ethereum"
+    symbol == "BNB" -> "BNB Chain"
+    symbol == "SOL" -> "Solana"
+    symbol == "TRX" -> "Tron"
+    chainKey == "BNB" -> "BNB Chain · BEP20"
+    chainKey == "ETH" -> "Ethereum · ERC20"
+    else -> chainKey
 }
 
 /** Titre d'un actif à recevoir, à partir du symbole + chaîne de l'adresse. */

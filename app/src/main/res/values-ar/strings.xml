@@ -59,6 +59,8 @@
 
     <!-- Receive -->
     <string name="receive_title">استلام</string>
+    <string name="receive_network_label">الشبكة: %1$s</string>
+    <string name="receive_network_warning">يجب على المُرسِل الإرسال عبر شبكة %1$s. الإرسال عبر شبكة أخرى قد يُفقد نهائيًا.</string>
     <string name="my_address">عنواني</string>
     <string name="copy_address">نسخ العنوان</string>
     <string name="share_address">مشاركة</string>

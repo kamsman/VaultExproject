@@ -59,6 +59,8 @@
 
     <!-- Receive -->
     <string name="receive_title">Receive</string>
+    <string name="receive_network_label">Network: %1$s</string>
+    <string name="receive_network_warning">The sender MUST send on the %1$s network. Sending on another network may be permanently lost.</string>
     <string name="my_address">My address</string>
     <string name="copy_address">Copy address</string>
     <string name="share_address">Share</string>
