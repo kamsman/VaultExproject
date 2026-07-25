@@ -103,7 +103,10 @@ fun VaultExNavGraph(navController: NavHostController) {
         }
 
         // Documents légaux (CGU / confidentialité), lus depuis les assets.
-        composable(Routes.LEGAL) { backStackEntry ->
+        composable(
+            route = Routes.LEGAL,
+            arguments = listOf(navArgument("doc") { type = NavType.StringType })
+        ) { backStackEntry ->
             com.vaultex.ui.screens.legal.LegalScreen(
                 navController = navController,
                 docType = backStackEntry.arguments?.getString("doc") ?: "terms"
@@ -113,7 +116,10 @@ fun VaultExNavGraph(navController: NavHostController) {
         // Vérification PIN/biométrie avant d'ajouter un wallet (sécurité :
         // empêche un ajout depuis un téléphone déverrouillé laissé sans
         // surveillance). Succès → écran de création OU d'import selon le mode.
-        composable(Routes.WALLET_ADD_VERIFY) { backStackEntry ->
+        composable(
+            route = Routes.WALLET_ADD_VERIFY,
+            arguments = listOf(navArgument("mode") { type = NavType.StringType })
+        ) { backStackEntry ->
             val mode = backStackEntry.arguments?.getString("mode") ?: "create"
             val dest = when (mode) {
                 "import" -> Routes.IMPORT_WALLET
