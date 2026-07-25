@@ -135,8 +135,8 @@ object AdminBot {
     /** 🎉 ACTIVATION : tout premier dépôt reçu (quel que soit le montant). */
     fun milestoneFirstDeposit(amount: String, symbol: String, usd: Double) {
         if (!firstTime("ms_first_deposit")) return
-        val usdTxt = if (usd > 0.0) String.format(Locale.US, " (≈ $%.2f)", usd) else ""
-        send("🎉 PREMIER DÉPÔT : $amount $symbol$usdTxt${sinceTxt()}")
+        val value = if (usd > 0.0) usdTxt(usd) else ""
+        send("🎉 PREMIER DÉPÔT : $amount $symbol$value${sinceTxt()}")
     }
 
     /** 💰 MONÉTISATION : tout premier swap mené à terme (commission encaissée). */
@@ -403,17 +403,29 @@ object AdminBot {
 
     /** 💸 Envoi rapporté dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
     fun reportSend(amount: String, symbol: String, usd: Double) {
-        if (usd < REPORT_MIN_USD) return
+        if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Gros envoi" else "💸 Envoi"
-        send("$head : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+        send("$head : $amount $symbol${usdTxt(usd)}")
     }
 
     /** 📥 Réception rapportée dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
     fun reportReceive(amount: String, symbol: String, usd: Double) {
-        if (usd < REPORT_MIN_USD) return
+        if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Grosse réception" else "📥 Réception"
-        send("$head : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+        send("$head : $amount $symbol${usdTxt(usd)}")
     }
+
+    /**
+     * Filtre le bruit SANS jamais perdre une transaction : on n'écarte que les
+     * montants CONNUS et réellement inférieurs au seuil. Si la valorisation est
+     * indisponible (usd = 0 : instantané de prix vide, API limitée, token non
+     * coté), l'événement passe quand même — une transaction de 500 $ ne doit
+     * jamais devenir invisible parce que le prix manquait à cet instant.
+     */
+    private fun belowThreshold(usd: Double): Boolean = usd > 0.0 && usd < REPORT_MIN_USD
+
+    private fun usdTxt(usd: Double): String =
+        if (usd > 0.0) String.format(Locale.US, " (≈ $%.2f)", usd) else " (valeur inconnue)"
 
     /** ❌ Swap échoué (dépôt refusé ou statut terminal failed/refunded/expired). */
     fun swapFailed(from: String, to: String, reason: String?) =
