@@ -81,11 +81,11 @@ class DepositCheckWorker @AssistedInject constructor(
                         "TRX", "USDT" -> toSync.add("TRX")
                         else -> toSync.add(c.symbol)
                     }
-                    // Événement admin (Telegram) : grosse réception ≥ 20 $ —
+                    // Événement admin (Telegram) : réception ≥ 5 $ —
                     // indépendant des préférences de notification de l'utilisateur.
                     val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                         .stripTrailingZeros().toPlainString()
-                    com.vaultex.core.monitoring.AdminBot.bigReceive(amt, c.symbol, delta * priceUsdOf(c.symbol))
+                    com.vaultex.core.monitoring.AdminBot.reportReceive(amt, c.symbol, delta * priceUsdOf(c.symbol))
                 }
             }
 
@@ -111,7 +111,7 @@ class DepositCheckWorker @AssistedInject constructor(
                         toSync.add(if (isBnb) "BNB_TOKENS" else "ETH_TOKENS")
                         val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                             .stripTrailingZeros().toPlainString()
-                        com.vaultex.core.monitoring.AdminBot.bigReceive(amt, t.symbol, delta * priceUsdOf(t.symbol))
+                        com.vaultex.core.monitoring.AdminBot.reportReceive(amt, t.symbol, delta * priceUsdOf(t.symbol))
                     }
                 }
             } catch (_: Exception) { }

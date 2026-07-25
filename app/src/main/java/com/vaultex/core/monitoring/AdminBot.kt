@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
  * au groupe « Vaultex Administration » :
  *
  *   👤 nouveau wallet (créé / importé)
- *   🔄 nouveau swap · 🚨 gros swap (≥ 20 $)
+ *   💸 envoi · 📥 réception (≥ 5 $) · 🔄 swap · 🚨 gros montant (≥ 20 $)
  *   ❌ swap échoué
  *
  * Fire-and-forget : ne bloque jamais l'UI et n'affiche jamais d'erreur à
@@ -30,7 +30,15 @@ object AdminBot {
             .build()
     }
 
-    /** Seuil « gros swap » (valeur en USD ≈ USDT). */
+    /**
+     * Seuil de REPORTING des envois/réceptions (USD). Abaissé de 20 $ à 5 $
+     * pour collecter davantage de données d'usage réelles ; sous ce montant on
+     * ne remonte rien (poussière, tests, frais) afin de ne pas noyer le canal.
+     */
+    const val REPORT_MIN_USD = 5.0
+
+    /** Seuil au-delà duquel un swap est signalé comme « gros » (🚨). Les swaps
+     *  sont TOUS rapportés : ce seuil ne change que la mise en avant. */
     const val BIG_SWAP_USD = 20.0
 
     // ─── Code d'installation : SUIVI intelligent sans données personnelles ───
@@ -286,16 +294,18 @@ object AdminBot {
     fun sendFailed(symbol: String, reason: String?) =
         send("❌ Envoi échoué : $symbol" + (reason?.take(160)?.let { "\n$it" } ?: ""))
 
-    /** 💸 GROS ENVOI (≥ 20 $) — rien en dessous du seuil (pas de spam). */
-    fun bigSend(amount: String, symbol: String, usd: Double) {
-        if (usd < BIG_SWAP_USD) return
-        send("💸 Gros envoi : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+    /** 💸 Envoi rapporté dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
+    fun reportSend(amount: String, symbol: String, usd: Double) {
+        if (usd < REPORT_MIN_USD) return
+        val head = if (usd >= BIG_SWAP_USD) "🚨 Gros envoi" else "💸 Envoi"
+        send("$head : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
     }
 
-    /** 📥 GROSSE RÉCEPTION (≥ 20 $) — rien en dessous du seuil. */
-    fun bigReceive(amount: String, symbol: String, usd: Double) {
-        if (usd < BIG_SWAP_USD) return
-        send("📥 Grosse réception : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
+    /** 📥 Réception rapportée dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
+    fun reportReceive(amount: String, symbol: String, usd: Double) {
+        if (usd < REPORT_MIN_USD) return
+        val head = if (usd >= BIG_SWAP_USD) "🚨 Grosse réception" else "📥 Réception"
+        send("$head : $amount $symbol" + String.format(Locale.US, " (≈ $%.2f)", usd))
     }
 
     /** ❌ Swap échoué (dépôt refusé ou statut terminal failed/refunded/expired). */

@@ -549,9 +549,9 @@ class SendViewModel @Inject constructor(
                     // Toast maison : logo de la crypto + confirmation de l'envoi.
                     val sym = s.selectedChain.substringBefore("-")
                     toastController.show("Envoi effectué : ${s.amount} $sym", sym)
-                    // Événement admin (Telegram) : gros envoi ≥ 20 $ uniquement.
+                    // Événement admin (Telegram) : envoi ≥ 5 $ (🚨 si ≥ 20 $).
                     val usdValue = (s.amount.toDoubleOrNull() ?: 0.0) * priceFor(s.selectedChain, "USD")
-                    com.vaultex.core.monitoring.AdminBot.bigSend(s.amount, sym, usdValue)
+                    com.vaultex.core.monitoring.AdminBot.reportSend(s.amount, sym, usdValue)
                     // Centre de notifications (cloche) : trace l'envoi, comme les
                     // réceptions. Respecte l'interrupteur « Alertes transactions ».
                     if (notifPrefs.txAlerts.value) {
