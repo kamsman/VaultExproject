@@ -90,8 +90,47 @@ object AdminBot {
         return ((System.currentTimeMillis() - at) / 86_400_000L).toInt()
     }
 
-    private fun sinceTxt(): String =
-        daysSinceInstall().let { if (it >= 0) " · J+$it après installation" else "" }
+    /**
+     * Délai depuis l'installation, en granularité utile : les heures sur les
+     * deux premiers jours (savoir si l'activation est immédiate ou non est
+     * bien plus parlant que « J+0 »), puis en jours.
+     */
+    private fun sinceTxt(): String {
+        val at = prefs()?.getLong(KEY_INSTALL_AT, 0L) ?: 0L
+        if (at <= 0L) return ""
+        val ms = System.currentTimeMillis() - at
+        if (ms < 0L) return ""
+        val hours = ms / 3_600_000L
+        return when {
+            hours < 1L -> " · moins d'1 h après installation"
+            hours < 48L -> " · ${hours} h après installation"
+            else -> " · J+${hours / 24L} après installation"
+        }
+    }
+
+    /**
+     * Contexte marché : pays de la carte SIM (ou du réseau, sinon la locale)
+     * et nom de l'opérateur. Aucune permission requise, aucune donnée
+     * personnelle — sert à savoir QUELS marchés UEMOA répondent.
+     */
+    private fun marketContext(): String = try {
+        val tm = appContext?.getSystemService(android.content.Context.TELEPHONY_SERVICE)
+            as? android.telephony.TelephonyManager
+        val iso = listOf(tm?.simCountryIso, tm?.networkCountryIso, Locale.getDefault().country)
+            .firstOrNull { !it.isNullOrBlank() }.orEmpty()
+        val carrier = tm?.networkOperatorName?.takeIf { it.isNotBlank() }
+        buildString {
+            if (iso.isNotBlank()) append(iso.uppercase(Locale.US))
+            if (carrier != null) {
+                if (isNotEmpty()) append(" · ")
+                append(carrier)
+            }
+        }
+    } catch (_: Exception) { "" }
+
+    /** Marque et modèle de l'appareil — pour cibler les tests (Tecno, Samsung…). */
+    private fun deviceModel(): String =
+        "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim()
 
     /** 🎉 ACTIVATION : tout premier dépôt reçu (quel que soit le montant). */
     fun milestoneFirstDeposit(amount: String, symbol: String, usd: Double) {
@@ -210,9 +249,12 @@ object AdminBot {
             scope.launch {
                 val n = bumpInstallCounter(token, chat)
                 val numTxt = if (n > 0) " n°$n" else ""
+                val market = marketContext()
+                val marketTxt = if (market.isNotBlank()) "$market · " else ""
                 send(
                     "📲 Nouvelle installation VaultEx$numTxt" +
-                        "\n🌍 Langue $lang · Android ${android.os.Build.VERSION.RELEASE}" +
+                        "\n🌍 ${marketTxt}Langue $lang" +
+                        "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
                         " · v${com.vaultex.BuildConfig.VERSION_NAME}"
                 )
             }
@@ -234,7 +276,7 @@ object AdminBot {
                     ?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
                     ?: e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
-                    " · Android ${android.os.Build.VERSION.RELEASE}" +
+                    "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
                     "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +
                     "\n📍 $where"
                 // Envoi sur un thread SÉPARÉ, borné à 1,5 s : si le réseau est

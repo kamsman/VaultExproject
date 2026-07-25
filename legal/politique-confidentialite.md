@@ -49,7 +49,8 @@ Ces données servent **exclusivement** à l'envoi de notifications. Elles ne son
 Afin de corriger les dysfonctionnements, l'Application peut transmettre des **informations techniques anonymes** :
 
 - type d'erreur rencontrée et emplacement dans le code ;
-- version de l'Application, version d'Android, langue de l'appareil ;
+- version de l'Application, version d'Android, langue de l'appareil, marque et modèle du téléphone ;
+- pays de la carte SIM (ou du réseau) et nom de l'opérateur mobile — indication de marché uniquement, jamais votre numéro de téléphone ;
 - événements techniques d'usage — installation, création ou import de portefeuille, envoi et réception (montant et cryptomonnaie concernés), échange réalisé ou échoué, sauvegarde de la phrase effectuée, ainsi que des jalons d'usage (premier dépôt, premier échange, portefeuille resté inutilisé) — associés à un **identifiant d'installation aléatoire** (ex. « VX-8F3A1C ») et à la date d'installation.
 
 Ces informations **ne contiennent ni votre identité, ni vos adresses de portefeuille, ni vos clés, ni votre phrase de récupération**. Elles servent uniquement à assurer le bon fonctionnement et la sécurité du service.
