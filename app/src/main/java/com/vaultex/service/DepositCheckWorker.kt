@@ -81,7 +81,7 @@ class DepositCheckWorker @AssistedInject constructor(
                         "TRX", "USDT" -> toSync.add("TRX")
                         else -> toSync.add(c.symbol)
                     }
-                    // Événement admin (Telegram) : réception ≥ 5 $ —
+                    // Événement admin (Telegram) : réception ≥ 1 $ —
                     // indépendant des préférences de notification de l'utilisateur.
                     val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                         .stripTrailingZeros().toPlainString()

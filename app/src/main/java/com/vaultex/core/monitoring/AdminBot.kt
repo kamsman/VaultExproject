@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
  * au groupe « Vaultex Administration » :
  *
  *   👤 nouveau wallet (créé / importé)
- *   💸 envoi · 📥 réception (≥ 5 $) · 🔄 swap · 🚨 gros montant (≥ 20 $)
+ *   💸 envoi · 📥 réception (≥ 1 $) · 🔄 swap · 🚨 gros montant (≥ 20 $)
  *   ❌ swap échoué
  *
  * Fire-and-forget : ne bloque jamais l'UI et n'affiche jamais d'erreur à
@@ -31,11 +31,11 @@ object AdminBot {
     }
 
     /**
-     * Seuil de REPORTING des envois/réceptions (USD). Abaissé de 20 $ à 5 $
-     * pour collecter davantage de données d'usage réelles ; sous ce montant on
-     * ne remonte rien (poussière, tests, frais) afin de ne pas noyer le canal.
+     * Seuil de REPORTING des envois/réceptions (USD). Fixé bas (1 $) pour
+     * observer l'usage réel presque intégralement ; en dessous, on ne remonte
+     * rien — poussière, arrondis et frais ne doivent pas noyer le canal.
      */
-    const val REPORT_MIN_USD = 5.0
+    const val REPORT_MIN_USD = 1.0
 
     /** Seuil au-delà duquel un swap est signalé comme « gros » (🚨). Les swaps
      *  sont TOUS rapportés : ce seuil ne change que la mise en avant. */
