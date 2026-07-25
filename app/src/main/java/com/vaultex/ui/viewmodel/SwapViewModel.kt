@@ -551,6 +551,9 @@ class SwapViewModel @Inject constructor(
                                     (SwapUseCase.VAULTEX_FEE_PERCENT / 100.0) * st.fromPriceUsd
                                 com.vaultex.core.monitoring.AdminBot.swapFinished(
                                     st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
+                                // Jalon de MONÉTISATION : tout premier swap abouti.
+                                com.vaultex.core.monitoring.AdminBot.milestoneFirstSwap(
+                                    assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
                             }
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(

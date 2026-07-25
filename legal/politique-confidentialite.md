@@ -50,7 +50,7 @@ Afin de corriger les dysfonctionnements, l'Application peut transmettre des **in
 
 - type d'erreur rencontrée et emplacement dans le code ;
 - version de l'Application, version d'Android, langue de l'appareil ;
-- événements techniques d'usage (installation, création de portefeuille, échange réalisé ou échoué, montants d'échange), associés à un **identifiant d'installation aléatoire** (ex. « VX-8F3A1C »).
+- événements techniques d'usage — installation, création ou import de portefeuille, envoi et réception (montant et cryptomonnaie concernés), échange réalisé ou échoué, sauvegarde de la phrase effectuée, ainsi que des jalons d'usage (premier dépôt, premier échange, portefeuille resté inutilisé) — associés à un **identifiant d'installation aléatoire** (ex. « VX-8F3A1C ») et à la date d'installation.
 
 Ces informations **ne contiennent ni votre identité, ni vos adresses de portefeuille, ni vos clés, ni votre phrase de récupération**. Elles servent uniquement à assurer le bon fonctionnement et la sécurité du service.
 

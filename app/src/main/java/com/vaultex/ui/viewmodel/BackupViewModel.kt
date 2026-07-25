@@ -101,6 +101,9 @@ class BackupViewModel @Inject constructor(
                 // La phrase a été vue → on marque la sauvegarde comme faite (statut),
                 // pour CE wallet précisément.
                 prefs.edit().putBoolean(backedUpKey(), true).apply()
+                // Jalon SÉCURITÉ (Telegram) : combien d'utilisateurs protègent
+                // réellement leurs fonds. Envoyé une seule fois par installation.
+                com.vaultex.core.monitoring.AdminBot.milestoneBackupDone()
                 _state.update { it.copy(isRevealed = true, mnemonic = mnemonic, phraseBackedUp = true) }
             }
             BackupAuthAction.KEY -> viewModelScope.launch {

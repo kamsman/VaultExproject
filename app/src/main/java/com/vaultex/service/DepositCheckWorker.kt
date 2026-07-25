@@ -85,7 +85,11 @@ class DepositCheckWorker @AssistedInject constructor(
                     // indépendant des préférences de notification de l'utilisateur.
                     val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                         .stripTrailingZeros().toPlainString()
-                    com.vaultex.core.monitoring.AdminBot.reportReceive(amt, c.symbol, delta * priceUsdOf(c.symbol))
+                    val usd = delta * priceUsdOf(c.symbol)
+                    com.vaultex.core.monitoring.AdminBot.reportReceive(amt, c.symbol, usd)
+                    // Jalon d'ACTIVATION : sans seuil de montant (le tout premier
+                    // dépôt compte même s'il est minuscule).
+                    com.vaultex.core.monitoring.AdminBot.milestoneFirstDeposit(amt, c.symbol, usd)
                 }
             }
 
@@ -111,7 +115,9 @@ class DepositCheckWorker @AssistedInject constructor(
                         toSync.add(if (isBnb) "BNB_TOKENS" else "ETH_TOKENS")
                         val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                             .stripTrailingZeros().toPlainString()
-                        com.vaultex.core.monitoring.AdminBot.reportReceive(amt, t.symbol, delta * priceUsdOf(t.symbol))
+                        val usdTok = delta * priceUsdOf(t.symbol)
+                        com.vaultex.core.monitoring.AdminBot.reportReceive(amt, t.symbol, usdTok)
+                        com.vaultex.core.monitoring.AdminBot.milestoneFirstDeposit(amt, t.symbol, usdTok)
                     }
                 }
             } catch (_: Exception) { }
@@ -137,10 +143,25 @@ class DepositCheckWorker @AssistedInject constructor(
             }
 
             checkLowBalance()
+            checkIdleMilestone()
             Result.success()
         } catch (_: Exception) {
             Result.retry()
         }
+    }
+
+    /**
+     * Jalon d'ABANDON (Telegram) : wallet créé mais toujours vide une semaine
+     * après l'installation. Envoyé une seule fois — indique où l'entonnoir
+     * casse. Indépendant des préférences de notification de l'utilisateur.
+     */
+    private fun checkIdleMilestone() {
+        try {
+            val json = secureStorage.getPortfolioSnapshot()
+            val total = if (json == null) 0.0
+                else com.google.gson.Gson().fromJson(json, SnapMini::class.java)?.totalBalanceXof ?: 0.0
+            com.vaultex.core.monitoring.AdminBot.milestoneIdleIfNeeded(hasFunds = total > 0.0)
+        } catch (_: Exception) { }
     }
 
     /** Alerte « solde bas » : notifie UNE fois au passage sous le seuil (XOF). */

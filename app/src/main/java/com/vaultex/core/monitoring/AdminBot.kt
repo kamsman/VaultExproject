@@ -65,6 +65,67 @@ object AdminBot {
     /** Signature apposée en bas de chaque message. */
     private fun signature(): String = "🆔 $installCode"
 
+    // ─── Jalons : événements envoyés UNE SEULE FOIS par installation ──────
+    // Ils mesurent l'entonnoir réel (installation → dépôt → swap) sans
+    // générer de bruit : un message par utilisateur et par jalon, à vie.
+
+    private const val KEY_INSTALL_AT = "install_at"
+
+    private fun prefs(): android.content.SharedPreferences? =
+        appContext?.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
+
+    /** Vrai UNE seule fois pour [key] : marque aussitôt le jalon comme atteint. */
+    private fun firstTime(key: String): Boolean {
+        val p = prefs() ?: return false
+        if (p.getBoolean(key, false)) return false
+        p.edit().putBoolean(key, true).apply()
+        return true
+    }
+
+    /** Jours écoulés depuis l'installation, ou -1 si la date est inconnue
+     *  (installations antérieures à l'ajout de ce suivi). */
+    private fun daysSinceInstall(): Int {
+        val at = prefs()?.getLong(KEY_INSTALL_AT, 0L) ?: 0L
+        if (at <= 0L) return -1
+        return ((System.currentTimeMillis() - at) / 86_400_000L).toInt()
+    }
+
+    private fun sinceTxt(): String =
+        daysSinceInstall().let { if (it >= 0) " · J+$it après installation" else "" }
+
+    /** 🎉 ACTIVATION : tout premier dépôt reçu (quel que soit le montant). */
+    fun milestoneFirstDeposit(amount: String, symbol: String, usd: Double) {
+        if (!firstTime("ms_first_deposit")) return
+        val usdTxt = if (usd > 0.0) String.format(Locale.US, " (≈ $%.2f)", usd) else ""
+        send("🎉 PREMIER DÉPÔT : $amount $symbol$usdTxt${sinceTxt()}")
+    }
+
+    /** 💰 MONÉTISATION : tout premier swap mené à terme (commission encaissée). */
+    fun milestoneFirstSwap(from: String, to: String, usdFee: Double) {
+        if (!firstTime("ms_first_swap")) return
+        val feeTxt = if (usdFee > 0.0) String.format(Locale.US, " · commission ≈ $%.2f", usdFee) else ""
+        send("💰 PREMIER SWAP réussi : $from → $to$feeTxt${sinceTxt()}")
+    }
+
+    /** 🔐 SÉCURITÉ : l'utilisateur a réellement consulté sa phrase de récupération. */
+    fun milestoneBackupDone() {
+        if (!firstTime("ms_backup")) return
+        send("🔐 Phrase de récupération sauvegardée${sinceTxt()}")
+    }
+
+    /**
+     * 📉 ABANDON : wallet créé mais toujours vide au bout d'une semaine.
+     * Signalé une seule fois — c'est LE signal qui dit où l'entonnoir casse
+     * (l'utilisateur n'a aucun moyen simple d'alimenter son wallet).
+     */
+    fun milestoneIdleIfNeeded(hasFunds: Boolean) {
+        if (hasFunds) return
+        val d = daysSinceInstall()
+        if (d < 7) return
+        if (!firstTime("ms_idle")) return
+        send("📉 Wallet toujours vide $d jours après l'installation (aucun dépôt reçu)")
+    }
+
     // ─── 📲 Nouvelle installation : annoncée UNE SEULE FOIS par téléphone ───
 
     /** Préfixe du message ÉPINGLÉ servant de compteur global d'installations. */
@@ -137,7 +198,11 @@ object AdminBot {
         try {
             val prefs = appContext!!.getSharedPreferences("vaultex_admin_bot", android.content.Context.MODE_PRIVATE)
             if (prefs.getBoolean("install_announced", false)) return
-            prefs.edit().putBoolean("install_announced", true).apply()
+            // Date d'installation : sert à dater tous les jalons (« J+3 »).
+            prefs.edit()
+                .putBoolean("install_announced", true)
+                .putLong(KEY_INSTALL_AT, System.currentTimeMillis())
+                .apply()
             val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
             val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT
             if (token.isBlank() || chat.isBlank()) return
