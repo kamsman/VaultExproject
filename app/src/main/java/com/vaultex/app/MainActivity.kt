@@ -13,10 +13,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -28,7 +31,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import androidx.navigation.compose.rememberNavController
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -226,6 +231,18 @@ class MainActivity : FragmentActivity() {
                         Routes.IMPORT_WALLET, Routes.PIN_SETUP, Routes.BIOMETRIC_SETUP, Routes.PANIC_PIN
                     )
                 }
+                /*
+                BOUCLIER DE CONFIDENTIALITÉ
+                Le verrouillage était décidé au retour au premier plan (ON_START) :
+                l'image restaurée par le système était donc le DERNIER écran dessiné
+                — le tableau de bord, soldes affichés — qui « flashait » avant le PIN.
+                On couvre désormais l'app dès ON_PAUSE, tant qu'elle est encore
+                visible : c'est le bouclier qui est mémorisé et restauré, et il ne
+                tombe qu'une fois l'écran de PIN réellement dessiné.
+                 */
+                val shield = remember { mutableStateOf(false) }
+                val reveal = remember { mutableStateOf(false) }
+
                 DisposableEffect(lifecycleOwner) {
                     fun forceUnlock() {
                         sessionLock.lock()
@@ -236,7 +253,16 @@ class MainActivity : FragmentActivity() {
                     }
                     val observer = LifecycleEventObserver { _, event ->
                         when (event) {
+                            // Encore au premier plan : on a le temps de dessiner
+                            // le bouclier avant que l'app ne parte en arrière-plan.
+                            Lifecycle.Event.ON_PAUSE -> {
+                                val current = navController.currentDestination?.route
+                                if (current != null && current !in authRoutes) shield.value = true
+                            }
                             Lifecycle.Event.ON_STOP -> sessionLock.onEnterBackground()
+                            // Le bouclier ne se retire pas ici mais après stabilisation
+                            // de la navigation (LaunchedEffect ci-dessous).
+                            Lifecycle.Event.ON_RESUME -> reveal.value = true
                             Lifecycle.Event.ON_START -> {
                                 val current = navController.currentDestination?.route
                                 when {
@@ -256,13 +282,42 @@ class MainActivity : FragmentActivity() {
                     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                 }
 
-                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                // Retrait du bouclier : on laisse passer deux images pour que la
+                // navigation forcée vers le PIN (décidée en ON_START) soit non
+                // seulement appliquée mais DESSINÉE. Si aucun verrouillage n'a eu
+                // lieu, le délai (~30 ms) est imperceptible.
+                LaunchedEffect(reveal.value) {
+                    if (!reveal.value) return@LaunchedEffect
+                    withFrameNanos { }
+                    withFrameNanos { }
+                    shield.value = false
+                    reveal.value = false
+                }
+
+                Box(Modifier.fillMaxSize()) {
                     VaultExNavGraph(navController)
                     // Toasts maison (logo + texte) affichés par-dessus toute l'app.
                     com.vaultex.ui.components.ToastHost(toastController)
+                    // Par-dessus TOUT, y compris les toasts.
+                    if (shield.value) PrivacyShield()
                 }
             }
         }
+    }
+}
+
+/**
+ * Écran opaque affiché pendant que l'app quitte / revient au premier plan.
+ * Volontairement identique au démarrage (fond de l'app + logo) : l'utilisateur
+ * voit une reprise nette, jamais ses montants.
+ */
+@Composable
+private fun PrivacyShield() {
+    Box(
+        modifier = Modifier.fillMaxSize().background(BgPrimary),
+        contentAlignment = Alignment.Center
+    ) {
+        com.vaultex.ui.components.VaultexWordmark(height = 40.dp)
     }
 }
 

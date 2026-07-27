@@ -1,5 +1,7 @@
 package com.vaultex.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -137,7 +139,16 @@ fun VaultExNavGraph(navController: NavHostController) {
             )
         }
 
-        composable(Routes.PIN_UNLOCK) {
+        // Écran de PIN : AUCUNE animation d'entrée/sortie. Le fondu enchaîné par
+        // défaut (700 ms) laissait voir le tableau de bord — donc les soldes —
+        // pendant toute la transition au retour d'arrière-plan.
+        composable(
+            Routes.PIN_UNLOCK,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
+        ) {
             UnlockScreen(navController)
         }
 
