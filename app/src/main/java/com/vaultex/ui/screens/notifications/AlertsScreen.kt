@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.notifications
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -33,6 +34,8 @@ fun AlertsScreen(navController: NavController) {
     val viewModel: AlertsViewModel = hiltViewModel()
     val alerts by viewModel.alerts.collectAsState()
     val currentPrices by viewModel.currentPricesXof.collectAsState()
+    val movesEnabled by viewModel.movesEnabled.collectAsState()
+    val moveThreshold by viewModel.moveThreshold.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -55,29 +58,28 @@ fun AlertsScreen(navController: NavController) {
         },
         containerColor = VaultExColors.Background
     ) { padding ->
-        if (alerts.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(64.dp), tint = VaultExColors.Border)
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.alerts_empty), color = VaultExColors.TextSecondary)
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { showAddDialog = true },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
-                    ) { Text(stringResource(R.string.alerts_create)) }
-                }
+        // Liste unique : les alertes AUTOMATIQUES restent visibles même
+        // lorsqu'aucune alerte de cible n'a été créée — sinon l'utilisateur
+        // croirait n'avoir aucune surveillance active alors qu'il en a une.
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (currentPrices.isNotEmpty()) {
+                item { LivePricesBanner(currentPrices) }
             }
-        } else {
-            LazyColumn(
-                Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (currentPrices.isNotEmpty()) {
-                    item { LivePricesBanner(currentPrices) }
-                }
+            item {
+                AutoMovesCard(
+                    enabled = movesEnabled,
+                    threshold = moveThreshold,
+                    onToggle = viewModel::setMovesEnabled,
+                    onThresholdChange = viewModel::setMoveThreshold
+                )
+            }
+            if (alerts.isEmpty()) {
+                item { EmptyAlertsBlock(onCreate = { showAddDialog = true }) }
+            } else {
                 items(alerts, key = { it.id }) { alert ->
                     AlertCard(
                         alert = alert,
@@ -98,6 +100,116 @@ fun AlertsScreen(navController: NavController) {
                 showAddDialog = false
             }
         )
+    }
+}
+
+/**
+ * Alertes AUTOMATIQUES de variation — activées par défaut, sans rien à créer.
+ * Présentées en tête de l'écran : c'est la surveillance dont l'utilisateur
+ * bénéficie déjà, les alertes de cible en dessous n'étant qu'un complément.
+ */
+@Composable
+private fun AutoMovesCard(
+    enabled: Boolean,
+    threshold: Int,
+    onToggle: (Boolean) -> Unit,
+    onThresholdChange: (Int) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = VaultExColors.CardBackground)
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = VaultExColors.BluePrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.price_moves_section),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = VaultExColors.TextPrimary
+                    )
+                    Text(
+                        stringResource(R.string.price_moves_toggle),
+                        fontSize = 12.sp,
+                        color = VaultExColors.TextSecondary
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onToggle)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(
+                    if (enabled) R.string.price_moves_desc else R.string.price_moves_off_hint
+                ),
+                fontSize = 12.sp,
+                color = VaultExColors.TextSecondary
+            )
+            // Le seuil n'a de sens que si les alertes sont actives.
+            if (enabled) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.price_moves_threshold),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VaultExColors.TextPrimary
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.vaultex.core.session.PriceMoveSettings.THRESHOLD_CHOICES.forEach { percent ->
+                        val selected = percent == threshold
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (selected) VaultExColors.BluePrimary
+                                    else VaultExColors.Background
+                                )
+                                .clickable { onThresholdChange(percent) }
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.price_moves_threshold_value, percent),
+                                fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) androidx.compose.ui.graphics.Color.White
+                                        else VaultExColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Message affiché quand aucune alerte de CIBLE n'a encore été créée. */
+@Composable
+private fun EmptyAlertsBlock(onCreate: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 26.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.Notifications,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = VaultExColors.Border
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(R.string.alerts_empty), color = VaultExColors.TextSecondary)
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = onCreate,
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
+        ) { Text(stringResource(R.string.alerts_create)) }
     }
 }
 

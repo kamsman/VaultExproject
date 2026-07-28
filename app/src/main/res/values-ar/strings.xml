@@ -776,4 +776,17 @@
     <string name="onboarding_multichain_accent">البلوكشين</string>
     <string name="onboarding_noncustodial_pre">100&#37;</string>
     <string name="onboarding_noncustodial_accent">غير وصائية</string>
+
+    <!-- تنبيهات تلقائية لتغيّر الأسعار (مفعّلة افتراضياً) -->
+    <string name="price_moves_channel">تغيّرات الأسعار</string>
+    <string name="price_move_up_title">📈 ارتفاع %1$s</string>
+    <string name="price_move_down_title">📉 انخفاض %1$s</string>
+    <string name="price_move_body">%1$s خلال 24 ساعة — %2$s FCFA</string>
+    <string name="price_move_body_no_price">%1$s خلال 24 ساعة</string>
+    <string name="price_moves_section">تنبيهات تلقائية</string>
+    <string name="price_moves_toggle">الارتفاع والانخفاض</string>
+    <string name="price_moves_desc">تصلك إشعارات عند تحرّك عملة بقوة خلال 24 ساعة، دون أي إعداد.</string>
+    <string name="price_moves_threshold">نبّهني ابتداءً من</string>
+    <string name="price_moves_threshold_value">%1$d %%</string>
+    <string name="price_moves_off_hint">لن تصلك بعد الآن أي تنبيهات تلقائية للتغيّرات.</string>
 </resources>

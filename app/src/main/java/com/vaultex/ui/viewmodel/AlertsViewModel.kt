@@ -3,6 +3,7 @@ package com.vaultex.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaultex.data.local.entity.PriceAlertEntity
+import com.vaultex.core.session.PriceMoveSettings
 import com.vaultex.data.remote.api.CoinGeckoApi
 import com.vaultex.domain.usecase.PriceAlertUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,8 +19,28 @@ import javax.inject.Inject
 @HiltViewModel
 class AlertsViewModel @Inject constructor(
     private val priceAlertUseCase: PriceAlertUseCase,
-    private val coinGeckoApi: CoinGeckoApi
+    private val coinGeckoApi: CoinGeckoApi,
+    private val moveSettings: PriceMoveSettings
 ) : ViewModel() {
+
+    /* ─── Alertes automatiques de variation (actives par défaut) ───────────
+       Réglages exposés à l'écran. Le worker relit les mêmes préférences à
+       chaque exécution : aucune resynchronisation n'est nécessaire. */
+    private val _movesEnabled = MutableStateFlow(moveSettings.enabled)
+    val movesEnabled: StateFlow<Boolean> = _movesEnabled
+
+    private val _moveThreshold = MutableStateFlow(moveSettings.thresholdPercent)
+    val moveThreshold: StateFlow<Int> = _moveThreshold
+
+    fun setMovesEnabled(enabled: Boolean) {
+        moveSettings.enabled = enabled
+        _movesEnabled.value = enabled
+    }
+
+    fun setMoveThreshold(percent: Int) {
+        moveSettings.thresholdPercent = percent
+        _moveThreshold.value = percent
+    }
 
     val alerts: StateFlow<List<PriceAlertEntity>> = priceAlertUseCase.observeAlerts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

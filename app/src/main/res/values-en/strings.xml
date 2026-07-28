@@ -776,4 +776,17 @@
     <string name="onboarding_multichain_accent">Blockchain</string>
     <string name="onboarding_noncustodial_pre">100&#37;</string>
     <string name="onboarding_noncustodial_accent">Non-Custodial</string>
+
+    <!-- Automatic price movement alerts (on by default) -->
+    <string name="price_moves_channel">Price movements</string>
+    <string name="price_move_up_title">📈 %1$s is up</string>
+    <string name="price_move_down_title">📉 %1$s is down</string>
+    <string name="price_move_body">%1$s over 24h — %2$s FCFA</string>
+    <string name="price_move_body_no_price">%1$s over 24h</string>
+    <string name="price_moves_section">Automatic alerts</string>
+    <string name="price_moves_toggle">Rises and falls</string>
+    <string name="price_moves_desc">Get notified when a coin moves sharply over 24 hours. Nothing to set up.</string>
+    <string name="price_moves_threshold">Notify me from</string>
+    <string name="price_moves_threshold_value">%1$d %%</string>
+    <string name="price_moves_off_hint">You will no longer receive any automatic movement alerts.</string>
 </resources>
