@@ -101,11 +101,38 @@ class NotificationHub @Inject constructor(
                 // silence, sans bannière. C'est le détail qui fait toute la
                 // différence entre « visible » et « découverte plus tard ».
                 .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                // PASTILLE CHIFFRÉE sur l'icône de l'application, y compris
+                // quand l'app est fermée. Les lanceurs qui savent l'afficher
+                // (Samsung, Transsion/HiOS, Xiaomi) lisent ce nombre ; les
+                // autres se contentent du point. On donne le nombre de
+                // notifications NON LUES : le chiffre de l'icône dit alors
+                // exactement la même chose que la cloche dans l'application.
+                .setNumber(center.unreadCount.value)
                 .build()
+            val manager = context.getSystemService(NotificationManager::class.java)
             // Identifiant DÉRIVÉ DE LA CLÉ : republier le même événement
             // remplace la notification au lieu d'en ajouter une seconde.
-            context.getSystemService(NotificationManager::class.java)
-                ?.notify(key.hashCode(), notification)
+            manager?.notify(key.hashCode(), notification)
+
+            /*
+            RÉSUMÉ DE GROUPE. Sans lui, un groupe déclaré n'est jamais replié :
+            au-delà de quelques événements la barre système est saturée, et
+            surtout la pastille de l'icône ne totalise rien. Le résumé porte le
+            compte global ; les enfants restent consultables en le dépliant.
+             */
+            val summary = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(context.getString(R.string.app_name))
+                .setGroup(GROUP)
+                .setGroupSummary(true)
+                .setAutoCancel(true)
+                .setContentIntent(pending)
+                .setNumber(center.unreadCount.value)
+                // Le résumé n'alerte pas : ce sont les enfants qui le font
+                // (GROUP_ALERT_CHILDREN), sinon la bannière sonnerait deux fois.
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+                .build()
+            manager?.notify(SUMMARY_ID, summary)
         } catch (_: Exception) {
             // Permission notifications refusée : la cloche reste alimentée.
         }
@@ -120,6 +147,20 @@ class NotificationHub @Inject constructor(
      */
     fun postBellOnly(title: String, body: String, symbol: String? = null) {
         center.push(title, body, symbol)
+    }
+
+    /**
+     * Efface les notifications système de VaultEx.
+     *
+     * Appelé quand l'utilisateur ouvre le centre de notifications : sans cela,
+     * la cloche retomberait à zéro pendant que la pastille de l'icône et la
+     * barre système continueraient d'afficher des messages. Les deux comptes
+     * doivent toujours raconter la même chose.
+     */
+    fun clearSystemNotifications() {
+        try {
+            context.getSystemService(NotificationManager::class.java)?.cancelAll()
+        } catch (_: Exception) { }
     }
 
     private fun isDuplicate(key: String): Boolean {
@@ -141,6 +182,9 @@ class NotificationHub @Inject constructor(
         private const val PREFS = "vaultex_notif_dedup"
         private const val GROUP = "vaultex_events"
         private const val MAX_KEYS = 200
+
+        /** Identifiant fixe du résumé de groupe (une seule instance). */
+        private const val SUMMARY_ID = 424242
 
         /**
          * Fenêtre pendant laquelle un même événement n'est plus renotifié.

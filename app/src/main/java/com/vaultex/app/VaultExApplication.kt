@@ -79,7 +79,11 @@ class VaultExApplication : Application(), Configuration.Provider {
                 HistoryViewModel.CHANNEL_ID,
                 "Transactions VaultEx",
                 NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "Notifications pour les transactions crypto reçues" }
+            ).apply {
+                description = "Notifications pour les transactions crypto reçues"
+                // Pastille sur l'icône du lanceur, y compris app fermée.
+                setShowBadge(true)
+            }
         )
         // Canal PUSH par défaut (FCM / console Firebase). DOIT exister sinon les
         // messages « notification » reçus en arrière-plan sont ignorés par le SDK.
@@ -88,7 +92,10 @@ class VaultExApplication : Application(), Configuration.Provider {
                 FCM_DEFAULT_CHANNEL_ID,
                 "Notifications VaultEx",
                 NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "Alertes et messages push VaultEx" }
+            ).apply {
+                description = "Alertes et messages push VaultEx"
+                setShowBadge(true)
+            }
         )
     }
 

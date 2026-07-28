@@ -9,11 +9,24 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NotificationCenterViewModel @Inject constructor(
-    private val notificationCenter: NotificationCenter
+    private val notificationCenter: NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub
 ) : ViewModel() {
 
     val items: StateFlow<List<NotifItem>> = notificationCenter.items
 
-    fun markAllRead() = notificationCenter.markAllRead()
-    fun clear() = notificationCenter.clear()
+    /**
+     * L'utilisateur a VU la liste : on remet à zéro la cloche ET la barre
+     * système. Les deux comptes doivent rester cohérents — sinon la pastille
+     * de l'icône continuerait d'annoncer des messages déjà lus.
+     */
+    fun markAllRead() {
+        notificationCenter.markAllRead()
+        hub.clearSystemNotifications()
+    }
+
+    fun clear() {
+        notificationCenter.clear()
+        hub.clearSystemNotifications()
+    }
 }
