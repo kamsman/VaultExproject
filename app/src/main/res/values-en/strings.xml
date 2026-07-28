@@ -789,4 +789,8 @@
     <string name="price_moves_threshold">Notify me from</string>
     <string name="price_moves_threshold_value">%1$d %%</string>
     <string name="price_moves_off_hint">You will no longer receive any automatic movement alerts.</string>
+
+    <!-- Anti-phishing -->
+    <string name="error_app_repackaged">This copy of VaultEx is not genuine: its signature does not match the official app. NEVER enter your recovery phrase here. Uninstall it and reinstall VaultEx from an official source.</string>
+    <string name="send_new_recipient_warning">First time sending to this address: compare it character by character with the one your recipient gave you.</string>
 </resources>

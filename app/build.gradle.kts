@@ -92,6 +92,12 @@ android {
         // ID NÉGATIF = le supergroupe « Vaultex Administration » (un id positif
         // enverrait en chat privé). Récupéré via getUpdates après ajout du bot.
         buildConfigField("String", "TG_ADMIN_CHAT",  "\"${secret("telegram.admin.chat")}\"")
+        // Empreinte SHA-256 du certificat de signature RELEASE. Vide = contrôle
+        // anti-repackaging inactif (builds de dev). À renseigner une fois la
+        // première release signée :
+        //   keytool -printcert -jarfile app-release.apk
+        // Voir AppIntegrity.kt pour ce que ce contrôle empêche exactement.
+        buildConfigField("String", "APP_SIGNATURE_SHA256", "\"${secret("app.signature.sha256")}\"")
     }
 
     signingConfigs {

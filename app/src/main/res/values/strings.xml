@@ -880,4 +880,8 @@
     <string name="price_moves_threshold">Prévenez-moi à partir de</string>
     <string name="price_moves_threshold_value">%1$d %%</string>
     <string name="price_moves_off_hint">Vous ne recevrez plus aucune alerte automatique de variation.</string>
+
+    <!-- Anti-phishing -->
+    <string name="error_app_repackaged">Cette copie de VaultEx n\'est pas authentique : sa signature ne correspond pas à celle de l\'application officielle. Ne saisissez JAMAIS votre phrase de récupération ici. Désinstallez-la et réinstallez VaultEx depuis une source officielle.</string>
+    <string name="send_new_recipient_warning">Premier envoi vers cette adresse : comparez-la caractère par caractère avec celle que vous a communiquée le destinataire.</string>
 </resources>

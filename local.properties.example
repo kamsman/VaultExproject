@@ -55,3 +55,12 @@ flutterwave.key=
 # ─── Play Integrity (facultatif) ─────────────────────────────────────────
 # Numéro de projet Google Cloud. 0 ou absent = désactivé.
 play.integrity.project=0
+
+# ─── Anti-repackaging (à renseigner après la première release signée) ────
+# Empreinte SHA-256 du certificat de signature. Vide = contrôle inactif.
+# Obtenir la valeur :
+#   keytool -printcert -jarfile app/build/outputs/apk/release/app-release.apk
+# puis copier la ligne « SHA256: » (le format AA:BB:CC… est accepté tel quel).
+# Ce qu'elle protège : un faux VaultEx repackagé et rediffusé par WhatsApp ou
+# Telegram refusera de s'ouvrir. Voir AppIntegrity.kt.
+app.signature.sha256=

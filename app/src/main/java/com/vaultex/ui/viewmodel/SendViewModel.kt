@@ -47,7 +47,11 @@ data class SendState(
     val feeNativeAmount: Double? = null, // montant numérique des frais (unité native)
     val serviceFeeAmount: Double = 0.0, // frais de service VaultEx (BTC), unité crypto
     // Adresse valide mais SOSIE d'une adresse connue (address poisoning probable).
-    val poisonWarning: Boolean = false
+    val poisonWarning: Boolean = false,
+    // Adresse jamais utilisée et absente du carnet : c'est le seul cas où une
+    // substitution (presse-papiers détourné) ne peut être contredite par
+    // l'historique → vérification caractère par caractère demandée à l'écran.
+    val newRecipient: Boolean = false
 )
 
 @HiltViewModel
@@ -93,6 +97,13 @@ class SendViewModel @Inject constructor(
                 k.take(5).equals(a.take(5), ignoreCase = true) &&
                 k.takeLast(4).equals(a.takeLast(4), ignoreCase = true)
         }
+    }
+
+    /** Aucun envoi passé ni contact enregistré vers cette adresse. */
+    private fun isNewRecipient(addr: String): Boolean {
+        val a = addr.trim()
+        if (a.length < 12) return false
+        return knownAddresses.none { it.equals(a, ignoreCase = true) }
     }
 
     private val _state = MutableStateFlow(SendState())
@@ -142,7 +153,18 @@ class SendViewModel @Inject constructor(
                 }
                 val pastSends: List<String> = transactionDao.observeAll().first()
                     .filter { it.type == "sent" }.map { it.toAddress }
-                (contacts + pastSends).filter { it.isNotBlank() }.toSet()
+                // Les adresses DU PORTEFEUILLE comptent aussi : une attaque
+                // courante consiste à fabriquer un sosie de VOTRE propre adresse
+                // (vue dans l'historique) pour détourner un transfert interne.
+                val own: List<String> = try {
+                    val m = secureStorage.getMnemonic()
+                    if (m == null) emptyList() else {
+                        val d = com.vaultex.core.crypto.WalletManager
+                            .deriveAddresses(m, secureStorage.getPassphrase())
+                        listOf(d.btc, d.eth, d.bnb, d.sol, d.trx)
+                    }
+                } catch (_: Exception) { emptyList() }
+                (contacts + pastSends + own).filter { it.isNotBlank() }.toSet()
             } catch (_: Exception) { emptySet() }
         }
     }
@@ -259,7 +281,8 @@ class SendViewModel @Inject constructor(
             it.copy(
                 toAddress = address,
                 isAddressValid = valid,
-                poisonWarning = valid && isPoisonLookalike(address)
+                poisonWarning = valid && isPoisonLookalike(address),
+                newRecipient = valid && isNewRecipient(address)
             )
         }
     }

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.vaultex.BuildConfig
 import com.vaultex.R
 import com.vaultex.core.monitoring.CrashReporter
+import com.vaultex.core.security.AppIntegrity
 import com.vaultex.core.security.DeviceIntegrity
 import com.vaultex.core.session.LocaleManager
 import com.vaultex.core.session.SessionLockManager
@@ -145,6 +146,42 @@ class MainActivity : FragmentActivity() {
 
         /*
         =========================
+        ANTI-TAPJACKING (superposition d'écran)
+        =========================
+        FLAG_SECURE empêche les captures, PAS les superpositions. Une app
+        malveillante peut afficher une fenêtre transparente par-dessus la
+        nôtre : l'utilisateur croit toucher « Annuler », le clic atteint en
+        réalité « Confirmer l'envoi ». Android sait ignorer les touches
+        reçues pendant qu'une fenêtre étrangère recouvre la vue — encore
+        faut-il le demander.
+         */
+        findViewById<android.view.View>(android.R.id.content)?.apply {
+            filterTouchesWhenObscured = true
+        }
+
+        /*
+        =========================
+        ANTI-REPACKAGING (faux VaultEx)
+        =========================
+        Sur notre marché les APK circulent par WhatsApp et Telegram. Un
+        attaquant peut décompiler l'application, injecter l'envoi de la phrase
+        de récupération vers son serveur, resigner avec SA clé et rediffuser :
+        même icône, même nom, l'utilisateur ne voit rien. On vérifie donc que
+        la signature est bien la nôtre AVANT tout accès au wallet.
+        Inactif tant qu'aucune empreinte n'est configurée (voir AppIntegrity).
+         */
+        if (!BuildConfig.DEBUG && AppIntegrity.isRepackaged(this)) {
+            CrashReporter.log("Accès bloqué : signature de l'application invalide (repackaging)")
+            setContent {
+                VaultExTheme {
+                    BlockedScreen(stringResource(R.string.error_app_repackaged))
+                }
+            }
+            return
+        }
+
+        /*
+        =========================
         ROOT DETECTION BLOQUANTE (C-01)
         En release, un appareil rooté ne peut pas accéder au wallet.
         =========================
@@ -156,7 +193,7 @@ class MainActivity : FragmentActivity() {
             CrashReporter.log("Accès bloqué : appareil rooté ou instrumenté (hooking=$hooked)")
             setContent {
                 VaultExTheme {
-                    RootBlockedScreen()
+                    BlockedScreen(stringResource(R.string.error_root_detected))
                 }
             }
             return
@@ -321,8 +358,9 @@ private fun PrivacyShield() {
     }
 }
 
+/** Écran de blocage (appareil compromis, application repackagée). */
 @Composable
-private fun RootBlockedScreen() {
+private fun BlockedScreen(message: String) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -336,7 +374,7 @@ private fun RootBlockedScreen() {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             Text(
-                stringResource(R.string.error_root_detected),
+                message,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )

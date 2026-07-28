@@ -789,4 +789,8 @@
     <string name="price_moves_threshold">نبّهني ابتداءً من</string>
     <string name="price_moves_threshold_value">%1$d %%</string>
     <string name="price_moves_off_hint">لن تصلك بعد الآن أي تنبيهات تلقائية للتغيّرات.</string>
+
+    <!-- مكافحة التصيّد -->
+    <string name="error_app_repackaged">هذه النسخة من VaultEx ليست أصلية: توقيعها لا يطابق التطبيق الرسمي. لا تُدخل عبارة الاسترداد هنا أبداً. احذفها وأعد تثبيت VaultEx من مصدر رسمي.</string>
+    <string name="send_new_recipient_warning">أول إرسال إلى هذا العنوان: قارنه حرفاً بحرف مع العنوان الذي زوّدك به المستلم.</string>
 </resources>

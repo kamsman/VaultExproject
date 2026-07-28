@@ -179,7 +179,8 @@ fun SendScreen(navController: NavController) {
         feeNative = feeEstimate,
         feeFiat = feeFiat,
         totalToken = formatTokenAmount(totalToken) + " " + coinShort,
-        totalFiat = totalFiat
+        totalFiat = totalFiat,
+        isNewRecipient = state.newRecipient
     )
 
     // ── ÉCRAN EN ATTENTE / SUCCÈS (plein écran) ──
@@ -831,7 +832,9 @@ internal data class SendDetail(
     val feeNative: String,
     val feeFiat: String?,
     val totalToken: String,
-    val totalFiat: String?
+    val totalFiat: String?,
+    /** Aucun envoi passé ni contact enregistré vers cette adresse. */
+    val isNewRecipient: Boolean = false
 )
 
 private fun coinFullName(chain: String, custom: CustomTokenLite?): String = when {
@@ -1115,6 +1118,68 @@ private fun ConfirmRowRight(
     }
 }
 
+/**
+ * Adresse du destinataire à la confirmation — affichée ENTIÈRE.
+ *
+ * Le raccourci « 10 premiers … 6 derniers » qui était utilisé ici est
+ * précisément ce que l'« address poisoning » exploite : l'attaquant génère par
+ * force brute une adresse dont le DÉBUT et la FIN sont identiques à celle
+ * attendue, puis la glisse dans l'historique ou le presse-papiers. Un affichage
+ * tronqué montre alors exactement la partie que l'attaquant maîtrise et cache
+ * le milieu, seul endroit où la substitution se voit.
+ *
+ * On affiche donc l'adresse complète, en chasse fixe et découpée en groupes de
+ * quatre caractères — un format que l'œil peut réellement comparer, contrairement
+ * à une longue chaîne continue.
+ */
+@Composable
+private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> Unit) {
+    val grouped = remember(address) { address.chunked(4).joinToString(" ") }
+    Surface(
+        shape = RoundedCornerShape(14.dp), color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ConfirmIconCircle(Icons.Default.Person, false)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    stringResource(R.string.send_recipient_label),
+                    fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    Icons.Default.ContentCopy, null, tint = AccentBlue,
+                    modifier = Modifier.size(20.dp).clickable { onCopy() }
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                grouped,
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                color = TextPrimary
+            )
+            // Premier envoi vers cette adresse : c'est le seul moment où une
+            // substitution (presse-papiers détourné, adresse empoisonnée) peut
+            // passer inaperçue — aucun historique ne permet de la contredire.
+            if (isNew) {
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.WarningAmber, null, tint = Color(0xFFE6AC00), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.send_new_recipient_warning),
+                        fontSize = 11.sp, lineHeight = 15.sp, color = TextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val clipboard = LocalClipboardManager.current
@@ -1143,8 +1208,11 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
                 }
             }
         }
-        ConfirmRowLeft(Icons.Default.Person, stringResource(R.string.send_recipient_label), shorten(detail.toAddress),
-            onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) })
+        RecipientAddressCard(
+            address = detail.toAddress,
+            isNew = detail.isNewRecipient,
+            onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
+        )
         ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
         ConfirmRowRight(Icons.Default.CreditCard, stringResource(R.string.amount), "${detail.amount} ${detail.coinShort}", detail.amountFiat?.let { "≈ $it" })
         ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, detail.feeFiat?.let { "≈ $it" })
