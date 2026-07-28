@@ -56,26 +56,42 @@ android {
         // Certificate pinning (P1) — activer en release UNE FOIS les empreintes
         // SHA-256 réelles renseignées dans NetworkModule.CERT_PINS.
         buildConfigField("boolean", "ENABLE_CERT_PINNING","false")
-        // API keys read from local.properties (gitignored) — set them there, not here
-        buildConfigField("String", "ETHERSCAN_KEY",   "\"${localProps.getProperty("etherscan.key",   "")}\"")
-        buildConfigField("String", "BSCSCAN_KEY",     "\"${localProps.getProperty("bscscan.key",     "")}\"")
-        buildConfigField("String", "CHANGENOW_KEY",   "\"${localProps.getProperty("changenow.key",   "40f55bf17c23f050450d5fa4cdab2f184b425e73e0b089b96258bc1a76c4fd4c")}\"")
-        buildConfigField("String", "FLUTTERWAVE_KEY", "\"${localProps.getProperty("flutterwave.key", "")}\"")
+        /*
+        ─── SECRETS ───────────────────────────────────────────────────────
+        AUCUNE valeur par défaut ici. Ces champs finissent dans BuildConfig,
+        donc dans le DEX de l'APK : R8 obfusque les NOMS, jamais le CONTENU
+        des chaînes. Une clé écrite ici est lisible par un simple `strings`
+        sur l'APK, par n'importe qui.
+
+        Tout se renseigne dans local.properties (gitignoré, jamais versionné).
+        Voir local.properties.example pour la liste complète.
+
+        Une clé absente = chaîne vide : le code sait déjà s'en passer
+        (en-tête non ajouté, monitoring Telegram désactivé). Le build ne
+        casse jamais, la fonctionnalité concernée est simplement inactive.
+        ───────────────────────────────────────────────────────────────────
+         */
+        fun secret(key: String): String = localProps.getProperty(key, "")
+
+        buildConfigField("String", "ETHERSCAN_KEY",   "\"${secret("etherscan.key")}\"")
+        buildConfigField("String", "BSCSCAN_KEY",     "\"${secret("bscscan.key")}\"")
+        buildConfigField("String", "CHANGENOW_KEY",   "\"${secret("changenow.key")}\"")
+        buildConfigField("String", "FLUTTERWAVE_KEY", "\"${secret("flutterwave.key")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
-        buildConfigField("String", "TRONGRID_KEY",    "\"${localProps.getProperty("trongrid.key",    "")}\"")
+        buildConfigField("String", "TRONGRID_KEY",    "\"${secret("trongrid.key")}\"")
         // Optionnelle — clé CoinGecko Demo (gratuite) : supprime quasiment le
         // rate-limit du Marché. https://www.coingecko.com/en/developers/dashboard
-        buildConfigField("String", "COINGECKO_KEY",   "\"${localProps.getProperty("coingecko.key",   "CG-Z2gs4Nrv66SgVF4mKp5qrA7u")}\"")
+        buildConfigField("String", "COINGECKO_KEY",   "\"${secret("coingecko.key")}\"")
         // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
         // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
         buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
         // Bot Telegram d'administration (groupe « Vaultex Administration ») :
-        // événements temps réel — wallet créé, swap, gros swap, échec. Vider ces
-        // valeurs (telegram.admin.token= dans local.properties) pour désactiver.
-        buildConfigField("String", "TG_ADMIN_TOKEN", "\"${localProps.getProperty("telegram.admin.token", "8777717026:AAE-DNwOuO11r9aY8WYXU3bFjOespFcPiBw")}\"")
+        // événements temps réel — wallet créé, swap, gros swap, échec.
+        // Absent = monitoring simplement désactivé (AdminBot sort si vide).
+        buildConfigField("String", "TG_ADMIN_TOKEN", "\"${secret("telegram.admin.token")}\"")
         // ID NÉGATIF = le supergroupe « Vaultex Administration » (un id positif
         // enverrait en chat privé). Récupéré via getUpdates après ajout du bot.
-        buildConfigField("String", "TG_ADMIN_CHAT",  "\"${localProps.getProperty("telegram.admin.chat",  "-1003902027026")}\"")
+        buildConfigField("String", "TG_ADMIN_CHAT",  "\"${secret("telegram.admin.chat")}\"")
     }
 
     signingConfigs {

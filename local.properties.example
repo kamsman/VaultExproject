@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────────────────
+# VaultEx — secrets de build
+#
+# Copier ce fichier en `local.properties` (à la racine du projet) et y mettre
+# les vraies valeurs. `local.properties` est gitignoré : il ne part JAMAIS sur
+# GitHub, et c'est le seul endroit où des secrets doivent exister.
+#
+# POURQUOI : tout ce qui passe par buildConfigField finit dans BuildConfig,
+# donc dans le DEX de l'APK. R8 obfusque les noms de classes, PAS le contenu
+# des chaînes de caractères. Une clé écrite en dur dans build.gradle.kts est
+# récupérable par un simple `strings` sur l'APK distribué.
+#
+# Toutes ces valeurs sont FACULTATIVES pour compiler : une clé absente vaut
+# chaîne vide et la fonctionnalité concernée se désactive proprement.
+# ─────────────────────────────────────────────────────────────────────────
+
+# Chemin du SDK Android (généré automatiquement par Android Studio)
+#sdk.dir=/chemin/vers/Android/Sdk
+
+# ─── Indispensable au swap ───────────────────────────────────────────────
+# Clé partenaire ChangeNOW. Sans elle, aucun échange n'est possible.
+# https://changenow.io/affiliate
+changenow.key=
+
+# ─── Historique des transactions ─────────────────────────────────────────
+# Sans ces clés, l'historique ETH/BNB reste limité par le quota anonyme.
+# https://etherscan.io/myapikey   ·   https://bscscan.com/myapikey
+etherscan.key=
+bscscan.key=
+
+# ─── Confort (facultatif) ────────────────────────────────────────────────
+# CoinGecko Demo, gratuite : supprime quasiment le rate-limit de l'écran Marché.
+# https://www.coingecko.com/en/developers/dashboard
+coingecko.key=
+
+# TronGrid : améliore les limites de débit (en-tête TRON-PRO-API-KEY).
+# https://www.trongrid.io
+trongrid.key=
+
+# ─── Monitoring administrateur (facultatif) ──────────────────────────────
+# Bot Telegram privé : installations, transactions, plantages, jalons.
+# Laisser vide = monitoring désactivé, l'app fonctionne normalement.
+#
+# ATTENTION : ce token donne le contrôle TOTAL du bot. S'il a déjà été exposé
+# (versionné, partagé, publié), le régénérer via @BotFather → /revoke.
+telegram.admin.token=
+# ID du groupe, NÉGATIF pour un supergroupe (un id positif enverrait en privé).
+# Récupérable via https://api.telegram.org/bot<TOKEN>/getUpdates après avoir
+# ajouté le bot au groupe et y avoir écrit un message.
+telegram.admin.chat=
+
+# ─── Mobile Money (non branché à ce jour) ────────────────────────────────
+flutterwave.key=
+
+# ─── Play Integrity (facultatif) ─────────────────────────────────────────
+# Numéro de projet Google Cloud. 0 ou absent = désactivé.
+play.integrity.project=0
