@@ -1,12 +1,6 @@
 package com.vaultex.core.tx
 
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import androidx.core.app.NotificationCompat
-import com.vaultex.R
-import com.vaultex.app.MainActivity
 import com.vaultex.core.config.ApiKeys
 import com.vaultex.core.crypto.Base58
 import com.vaultex.data.local.dao.TransactionDao
@@ -44,7 +38,7 @@ class TransactionSyncService @Inject constructor(
     private val solanaRpc: SolanaRpcApi,
     @Named("etherscan") private val etherscanApi: EtherscanApi,
     @Named("bscscan") private val bscScanApi: EtherscanApi,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     @ApplicationContext private val context: Context
 ) {
@@ -97,7 +91,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp)
+                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -128,7 +122,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp)
+                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -166,7 +160,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp)
+                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -204,7 +198,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming && status == "confirmed") {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -252,7 +246,7 @@ class TransactionSyncService @Inject constructor(
                 val existedBefore = transactionDao.getHash(tx.hash) != null
                 transactionDao.insert(entity)
                 if (!existedBefore && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -327,7 +321,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp)
+                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount)
                 }
             }
         } catch (_: Exception) {}
@@ -342,29 +336,21 @@ class TransactionSyncService @Inject constructor(
         return System.currentTimeMillis() - ms in 0 until 15 * 60 * 1000L
     }
 
-    private fun notify(title: String, body: String, symbol: String? = null, timestamp: Long) {
+    /**
+     * Toute notification passe par [NotificationHub] : c'est lui qui écarte les
+     * doublons et affiche. Sans cela, ce chemin signalait le même dépôt que le
+     * push serveur et le worker de détection — trois fois le même événement.
+     */
+    private fun notify(
+        title: String, body: String, symbol: String? = null,
+        timestamp: Long, amount: String
+    ) {
         if (!notifPrefs.txAlerts.value) return
         if (!isRecentTx(timestamp)) return
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        hub.post(
+            key = com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount),
+            title = title, body = body, symbol = symbol
         )
-        notificationCenter.push(title, body, symbol)
-        val logo = com.vaultex.service.NotifLogo.forSymbol(context, symbol)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setLargeIcon(logo)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .build()
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(System.currentTimeMillis().toInt(), notification)
     }
 
     /** Adresse Tron Base58Check (T…) → format hex utilisé par TronGrid (41…). */

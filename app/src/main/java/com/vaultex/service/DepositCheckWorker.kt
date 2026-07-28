@@ -40,7 +40,7 @@ class DepositCheckWorker @AssistedInject constructor(
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val syncService: com.vaultex.core.tx.TransactionSyncService,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository
@@ -177,8 +177,9 @@ class DepositCheckWorker @AssistedInject constructor(
                     com.vaultex.R.string.notif_lowbal_body,
                     java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).format(threshold.toLong())
                 )
-                com.vaultex.core.util.LocalNotifier.show(applicationContext, title, body)
-                notificationCenter.push(title, body)
+                // Clé stable : l'alerte « solde bas » ne doit pas se répéter
+                // à chaque cycle du worker tant que le seuil reste franchi.
+                hub.post(key = "lowbal:$threshold", title = title, body = body)
                 notifPrefs.lowBalanceNotified = true
             } else if (total >= threshold) {
                 notifPrefs.lowBalanceNotified = false   // réarmé quand on repasse au-dessus

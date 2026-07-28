@@ -37,7 +37,7 @@ class PriceAlertWorker @AssistedInject constructor(
     private val priceAlertDao: PriceAlertDao,
     private val coinGeckoApi: CoinGeckoApi,
     private val moveSettings: PriceMoveSettings,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter
+    private val hub: com.vaultex.core.session.NotificationHub
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -136,7 +136,9 @@ class PriceAlertWorker @AssistedInject constructor(
         // Identifiant distinct des alertes de cible, sinon une alerte de
         // variation écraserait une alerte de cible sur la même monnaie.
         manager.notify(("move_$symbol").hashCode(), notification)
-        notificationCenter.push(title, body, symbol)
+        // Cloche uniquement : l'affichage système est déjà fait ci-dessus avec
+        // le canal « variations », volontairement moins intrusif.
+        hub.postBellOnly(title, body, symbol)
     }
 
     private fun notify(symbol: String, condition: String, target: Double, current: Double) {
@@ -162,7 +164,7 @@ class PriceAlertWorker @AssistedInject constructor(
             .setAutoCancel(true)
             .build()
         manager.notify(symbol.hashCode(), notification)
-        notificationCenter.push(title, body, symbol)
+        hub.postBellOnly(title, body, symbol)
     }
 
     companion object {
