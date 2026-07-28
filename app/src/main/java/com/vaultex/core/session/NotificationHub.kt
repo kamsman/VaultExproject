@@ -55,6 +55,21 @@ class NotificationHub @Inject constructor(
         // quand même l'événement dans l'application.
         center.push(title, body, symbol)
 
+        /*
+        L'affichage système part sur un THREAD SÉPARÉ. Ce n'est pas du confort :
+        le logo de la monnaie est téléchargé (6 s de délai maximum) et l'icône
+        de repli est décodée depuis les ressources. Or `post` est appelé aussi
+        bien depuis un worker que depuis le thread principal — après un envoi
+        réussi, par exemple. Sur le thread principal, ce travail gèlerait
+        l'interface au pire moment : juste après une transaction.
+         */
+        Thread { showSystemNotification(key, title, body, symbol, channelId) }.start()
+        return true
+    }
+
+    private fun showSystemNotification(
+        key: String, title: String, body: String, symbol: String?, channelId: String
+    ) {
         try {
             val intent = Intent(context, com.vaultex.app.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -71,10 +86,21 @@ class NotificationHub @Inject constructor(
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setContentIntent(pending)
                 .setAutoCancel(true)
+                // Bannière EN HAUT DE L'ÉCRAN (« heads-up ») : c'est un mouvement
+                // d'argent, l'utilisateur doit le voir sans dérouler le volet.
+                // Trois conditions, toutes nécessaires — importance HIGH du canal,
+                // priorité HIGH ici, et une catégorie qui autorise l'interruption.
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)   // son + vibration (< Android 8)
                 // Regroupement : plusieurs événements se replient en une pile
                 // ordonnée au lieu d'inonder la barre système.
                 .setGroup(GROUP)
+                // SANS ceci, Android n'alerte que le résumé du groupe — qui
+                // n'existe pas ici : les notifications arrivaient donc en
+                // silence, sans bannière. C'est le détail qui fait toute la
+                // différence entre « visible » et « découverte plus tard ».
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
                 .build()
             // Identifiant DÉRIVÉ DE LA CLÉ : republier le même événement
             // remplace la notification au lieu d'en ajouter une seconde.
@@ -83,7 +109,6 @@ class NotificationHub @Inject constructor(
         } catch (_: Exception) {
             // Permission notifications refusée : la cloche reste alimentée.
         }
-        return true
     }
 
     /**

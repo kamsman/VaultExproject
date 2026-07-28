@@ -64,7 +64,7 @@ class SendViewModel @Inject constructor(
     private val pendingTxStore: com.vaultex.core.session.PendingTxStore,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     private val toastController: com.vaultex.core.session.ToastController,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val contactDao: com.vaultex.data.local.dao.ContactDao,
     private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
@@ -575,13 +575,16 @@ class SendViewModel @Inject constructor(
                     // Événement admin (Telegram) : envoi ≥ 1 $ (🚨 si ≥ 20 $).
                     val usdValue = (s.amount.toDoubleOrNull() ?: 0.0) * priceFor(s.selectedChain, "USD")
                     com.vaultex.core.monitoring.AdminBot.reportSend(s.amount, sym, usdValue)
-                    // Centre de notifications (cloche) : trace l'envoi, comme les
-                    // réceptions. Respecte l'interrupteur « Alertes transactions ».
+                    // Cloche ET barre système : un envoi est un mouvement de
+                    // fonds, il doit s'afficher en haut de l'écran comme une
+                    // réception. La clé porte le hash : chaque envoi est unique,
+                    // deux envois identiques restent deux notifications.
                     if (notifPrefs.txAlerts.value) {
-                        notificationCenter.push(
-                            locStr(R.string.notif_sent_title),
-                            locStr(R.string.notif_sent_body, s.amount, sym),
-                            sym
+                        hub.post(
+                            key = "sent:${result.txHash}",
+                            title = locStr(R.string.notif_sent_title),
+                            body = locStr(R.string.notif_sent_body, s.amount, sym),
+                            symbol = sym
                         )
                     }
                 }

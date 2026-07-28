@@ -22,16 +22,24 @@ object NotifLogo {
         .callTimeout(6, TimeUnit.SECONDS)
         .build()
 
+    /** Logos déjà obtenus. Sans ce cache, CHAQUE notification relançait un
+     *  téléchargement de 6 s au pire — au moment précis où l'utilisateur
+     *  attend de voir sa transaction. */
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
+
+    /** À N'APPELER QUE depuis un thread de fond : effectue un appel réseau. */
     fun forSymbol(context: Context, symbol: String?): Bitmap {
         val appLogo = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
         if (symbol.isNullOrBlank()) return appLogo
+        cache[symbol]?.let { return it }
         return try {
             val req = Request.Builder().url(CryptoIcon.url(symbol)).build()
             client.newCall(req).execute().use { resp ->
                 val bytes = resp.body?.bytes()
-                if (resp.isSuccessful && bytes != null)
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: appLogo
-                else appLogo
+                if (resp.isSuccessful && bytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (bitmap != null) { cache[symbol] = bitmap; bitmap } else appLogo
+                } else appLogo
             }
         } catch (_: Exception) {
             appLogo

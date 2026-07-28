@@ -45,7 +45,7 @@ class SwapViewModel @Inject constructor(
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
@@ -397,10 +397,11 @@ class SwapViewModel @Inject constructor(
                 // ne sonnait qu'à la fin (minutes plus tard) alors que « Récent »
                 // affichait déjà le swap : désalignement signalé en test réel.
                 if (notifPrefs.txAlerts.value) {
-                    notificationCenter.push(
-                        str(com.vaultex.R.string.notif_swap_started_title),
-                        str(com.vaultex.R.string.notif_swap_started_body, s.fromAmount, assetOf(s.fromToken).base, assetOf(s.toToken).base),
-                        assetOf(s.fromToken).base
+                    hub.post(
+                        key = "swap:started:${txRes.id}",
+                        title = str(com.vaultex.R.string.notif_swap_started_title),
+                        body = str(com.vaultex.R.string.notif_swap_started_body, s.fromAmount, assetOf(s.fromToken).base, assetOf(s.toToken).base),
+                        symbol = assetOf(s.fromToken).base
                     )
                 }
                 _state.update {
@@ -567,16 +568,18 @@ class SwapViewModel @Inject constructor(
                             val fromSym = assetOf(st.fromToken).base
                             val toSym = assetOf(st.toToken).base
                             if (remote == "finished") {
-                                notificationCenter.push(
-                                    str(com.vaultex.R.string.notif_swap_done_title),
-                                    str(com.vaultex.R.string.notif_swap_done_body, st.fromAmount, fromSym, toSym),
-                                    toSym
+                                hub.post(
+                                    key = "swap:done:$swapId",
+                                    title = str(com.vaultex.R.string.notif_swap_done_title),
+                                    body = str(com.vaultex.R.string.notif_swap_done_body, st.fromAmount, fromSym, toSym),
+                                    symbol = toSym
                                 )
                             } else {
-                                notificationCenter.push(
-                                    str(com.vaultex.R.string.notif_swap_failed_title),
-                                    str(com.vaultex.R.string.notif_swap_failed_body, fromSym, toSym),
-                                    fromSym
+                                hub.post(
+                                    key = "swap:failed:$swapId",
+                                    title = str(com.vaultex.R.string.notif_swap_failed_title),
+                                    body = str(com.vaultex.R.string.notif_swap_failed_body, fromSym, toSym),
+                                    symbol = fromSym
                                 )
                             }
                         }
