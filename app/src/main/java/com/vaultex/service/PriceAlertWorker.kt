@@ -85,8 +85,9 @@ class PriceAlertWorker @AssistedInject constructor(
         }
     }
 
-    /** Alertes créées par l'utilisateur (cible de prix atteinte). */
-    private fun checkTargets(alerts: List<PriceAlertEntity>, prices: Map<String, CoinGeckoPriceDto>) {
+    /** Alertes créées par l'utilisateur (cible de prix atteinte).
+     *  `suspend` : la désactivation après déclenchement passe par le DAO. */
+    private suspend fun checkTargets(alerts: List<PriceAlertEntity>, prices: Map<String, CoinGeckoPriceDto>) {
         alerts.forEach { alert ->
             val id = SYMBOL_TO_ID[alert.tokenSymbol] ?: return@forEach
             val current = prices[id]?.xof?.takeIf { it > 0 } ?: return@forEach
