@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
+import com.vaultex.ui.components.BottomBarSpace
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -41,6 +42,11 @@ fun HomeScreen(navController: NavHostController) {
     val state by viewModel.state.collectAsState()
     val balanceHidden by viewModel.balanceHidden.collectAsState()
 
+    // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
+    // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
+    // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
+    // page et resterait « collée » au bord.
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,12 +71,12 @@ fun HomeScreen(navController: NavHostController) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
-        bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            // Marge basse = hauteur de la barre flottante.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = BottomBarSpace),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // ─── Carte solde FCFA ───
@@ -170,6 +176,9 @@ fun HomeScreen(navController: NavHostController) {
                 }
             }
         }
+    }
+        // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
+        VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
 }
 

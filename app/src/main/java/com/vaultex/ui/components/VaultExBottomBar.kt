@@ -44,13 +44,24 @@ private val NavPurple = Color(0xFF7C5CFC)
 private val NavGradient = Brush.linearGradient(listOf(NavBlue, NavPurple))
 
 /**
- * Barre de navigation flottante (prototype) : carte arrondie à bordure dégradée,
- * 5 onglets — Accueil · Marché · [Swap au centre, gros bouton rond] · Historique
- * · Paramètres. Le bouton Swap central est surélevé avec un anneau pointillé.
+ * Espace à réserver EN BAS du contenu défilant des écrans qui affichent la
+ * barre. La barre étant FLOTTANTE (posée par-dessus le contenu), sans cette
+ * marge le dernier élément d'une liste passerait définitivement dessous.
+ */
+val BottomBarSpace = 104.dp
+
+/** Marge entre le bas de l'écran (barres système) et la barre flottante. */
+private val FloatGap = 14.dp
+
+/**
+ * Barre de navigation FLOTTANTE (façon Trust Wallet) : pilule arrondie posée
+ * par-dessus le contenu, détachée des bords, avec ombre portée et bordure
+ * dégradée. 5 onglets — Accueil · Marché · [Swap au centre, gros bouton rond]
+ * · Historique · Paramètres. Le contenu de l'écran défile DERRIÈRE elle.
  * Suit le thème actuel (fond = surface du thème) ; le violet/bleu reste fixe.
  */
 @Composable
-fun VaultExBottomBar(navController: NavHostController) {
+fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modifier) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     fun go(route: String) {
@@ -62,18 +73,24 @@ fun VaultExBottomBar(navController: NavHostController) {
     }
 
     Box(
-        Modifier.fillMaxWidth().navigationBarsPadding().height(86.dp)
+        modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(bottom = FloatGap)
+            .height(86.dp)
     ) {
-        // ─── Barre (fond + bordure dégradée) ───
+        // ─── Pilule flottante (ombre + fond + bordure dégradée) ───
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .height(62.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .padding(horizontal = 16.dp)
+                .height(64.dp)
+                // Ombre portée : c'est elle qui « décolle » la barre du contenu.
+                .shadow(14.dp, RoundedCornerShape(28.dp), clip = false)
+                .clip(RoundedCornerShape(28.dp))
                 .background(SurfaceColor)
-                .border(1.dp, NavGradient, RoundedCornerShape(22.dp))
+                .border(1.dp, NavGradient, RoundedCornerShape(28.dp))
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

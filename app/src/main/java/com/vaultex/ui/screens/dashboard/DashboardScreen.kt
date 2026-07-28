@@ -37,6 +37,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import com.vaultex.R
 import kotlinx.coroutines.launch
+import com.vaultex.ui.components.BottomBarSpace
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -64,6 +65,24 @@ fun DashboardScreen(navController: NavHostController) {
         }
     }
 
+    /*
+    ─── FLUIDITÉ DU DÉFILEMENT ───────────────────────────────────────────
+    Tout ce qui suit vivait AUPARAVANT à l'intérieur des blocs item{} de la
+    LazyColumn. Or LazyColumn détruit un item dès qu'il sort de l'écran et le
+    recrée dès qu'il revient : à chaque aller-retour on ré-enregistrait un
+    callback réseau (appel système), on relisait les préférences et on
+    relançait le minuteur du carrousel — d'où les à-coups au défilement.
+    Hoisté ici, tout cela est calculé une fois et reste stable.
+    ──────────────────────────────────────────────────────────────────────
+     */
+    val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
+    val bannerContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
+    // Statut PAR WALLET, relu à chaque retour sur le Dashboard (voir ON_RESUME
+    // plus bas) : si l'utilisateur confirme sa sauvegarde puis revient, le
+    // bandeau disparaît sans redémarrage.
+    var phraseBackedUp by remember { mutableStateOf(viewModel.isPhraseBackedUp()) }
+
     // Rafraîchissement auto des soldes au RETOUR sur le Dashboard (après un
     // envoi, ou retour de l'app au premier plan) — sans spinner.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -71,6 +90,7 @@ fun DashboardScreen(navController: NavHostController) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                phraseBackedUp = viewModel.isPhraseBackedUp()
                 viewModel.refreshSilently()
                 // Après un envoi : rafale courte (toutes les 5 s) pour afficher
                 // le solde dès la confirmation, sans attendre le poll de 45 s.
@@ -97,8 +117,99 @@ fun DashboardScreen(navController: NavHostController) {
         }
     }
 
+    // ─── Carrousel de bandeaux : construit ICI (hors LazyColumn) pour que le
+    // minuteur de rotation et l'index survivent au défilement. ───
+    var depositDismissed by FirstDepositBannerState.dismissed
+    val telegramHidden by TelegramBannerState.hidden
+    var backupDismissed by BackupReminderBannerState.dismissed
+    val hasFunds = state.totalBalanceUsd > 0.01
+    val bannerSlots = buildList<@Composable () -> Unit> {
+        // S'affiche UNIQUEMENT si le wallet est vide (solde 0). Fermeture
+        // SESSION au ✕ (revient au prochain lancement) ; disparaît pour de
+        // bon dès le premier fonds reçu.
+        if (!hasFunds && !depositDismissed) add {
+            DashboardBanner(
+                accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
+                icon = Icons.Default.AccountBalanceWallet,
+                title = stringResource(R.string.dashboard_first_deposit_title),
+                body = stringResource(R.string.dashboard_first_deposit_body),
+                ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
+                ctaIcon = Icons.Default.ArrowDownward,
+                onDismiss = { depositDismissed = true },
+                onCtaClick = { navController.navigate(Routes.RECEIVE) }
+            )
+        }
+        // PHILOSOPHIE B : le rappel de sauvegarde n'apparaît QUE si le wallet
+        // a des fonds (quelque chose à protéger). Wallet vide → priorité au
+        // dépôt ; wallet financé → priorité à la sauvegarde. Jamais 3
+        // bannières en même temps. Le ✕ n'est qu'un « pas maintenant » : le
+        // rappel ne s'éteint vraiment qu'une fois la phrase révélée.
+        if (hasFunds && !phraseBackedUp && !backupDismissed) add {
+            DashboardBanner(
+                accent = Color(0xFFF59E0B),   // ambre : rappel de sécurité (seed)
+                icon = Icons.Default.Shield,
+                title = stringResource(R.string.dashboard_backup_title),
+                body = stringResource(R.string.dashboard_backup_body),
+                ctaLabel = stringResource(R.string.dashboard_backup_cta),
+                ctaIcon = Icons.Default.Shield,
+                onDismiss = { backupDismissed = true },
+                onCtaClick = { navController.navigate(Routes.BACKUP) }
+            )
+        }
+        // Rappel marketing NON définitif : réapparaît ~1×/semaine (fenêtre de
+        // 7 jours après le dernier ✕ ou clic « Rejoindre »).
+        if (!telegramHidden) add {
+            DashboardBanner(
+                accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
+                icon = Icons.Default.Chat,
+                title = stringResource(R.string.dashboard_telegram_title),
+                body = stringResource(R.string.dashboard_telegram_body),
+                ctaLabel = stringResource(R.string.dashboard_telegram_cta),
+                ctaIcon = Icons.Default.Send,
+                onDismiss = { TelegramBannerState.dismiss(bannerContext) },
+                onCtaClick = {
+                    bannerContext.startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(TELEGRAM_COMMUNITY_URL)
+                        )
+                    )
+                    // Cliquer « Rejoindre » = engagé → on ne relance plus
+                    // (fermeture DURABLE, comme le ✕).
+                    TelegramBannerState.dismiss(bannerContext)
+                }
+            )
+        }
+    }
+    var bannerIndex by remember { mutableStateOf(0) }
+    LaunchedEffect(bannerSlots.size) {
+        while (bannerSlots.size > 1) {
+            kotlinx.coroutines.delay(6_000L)
+            bannerIndex = (bannerIndex + 1) % bannerSlots.size
+        }
+    }
+
+    // Listes dérivées : mémorisées pour ne pas re-filtrer/re-trier à chaque
+    // image pendant le défilement.
+    val funded = remember(state.tokens) { state.tokens.filter { it.valueUsd > 0.0 } }
+    val majors = remember(state.tokens) {
+        listOf("BTC", "ETH", "SOL", "BNB").mapNotNull { sym -> state.tokens.firstOrNull { it.symbol == sym } }
+    }
+    // Règle : une monnaie s'affiche si elle est ACTIVÉE (Gérer les actifs) OU
+    // si elle a un solde > 0 (on ne masque jamais de fonds). Les tokens
+    // personnalisés (ajoutés par contrat) restent toujours affichés.
+    val visibleTokens = remember(state.tokens, visibleAssets) {
+        state.tokens
+            .filter { it.valueUsd > 0.0 || it.symbol in visibleAssets || it.isCustom }
+            .sortedByDescending { it.valueUsd }
+    }
+
+    // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
+    // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
+    // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
+    // page et resterait « collée » au bord.
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
         // Pull-to-refresh (#6) : UNIQUEMENT déclenché par l'utilisateur (tirer
@@ -119,14 +230,15 @@ fun DashboardScreen(navController: NavHostController) {
         ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            // Marge basse = hauteur de la barre flottante : le dernier élément
+            // reste atteignable au lieu de disparaître dessous.
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = BottomBarSpace),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ─── Bandeau HORS CONNEXION : se met à jour EN DIRECT (pas un
             // simple message d'erreur après un appel raté) ; le user sait
             // immédiatement pourquoi rien ne se rafraîchit. ───
-            item {
-                val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
+            item(key = "offline") {
                 if (offline) {
                     // Simple mention DISCRÈTE (pas de fond ni de couleur d'alerte) :
                     // informe sans dramatiser — les données en cache restent
@@ -146,100 +258,23 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Carrousel de bandeaux (défilement auto, 6 s par bandeau) :
-            // « premier dépôt » (tant qu'aucun fond n'est reçu) + « rejoindre
-            // Telegram ». Un seul actif → affiché fixe, sans rotation inutile.
-            item {
-                val bannerContext = androidx.compose.ui.platform.LocalContext.current
-                LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
-                var depositDismissed by FirstDepositBannerState.dismissed
-                val telegramHidden by TelegramBannerState.hidden
-                var backupDismissed by BackupReminderBannerState.dismissed
-                val hasFunds = state.totalBalanceUsd > 0.01
-                // Statut PAR WALLET, lu via le ViewModel (clé alignée sur
-                // BackupViewModel). Relu à chaque passage sur le Dashboard : si
-                // l'utilisateur confirme sa sauvegarde puis revient, le bandeau
-                // disparaît sans redémarrage. Un flag global aurait masqué le
-                // rappel pour un NOUVEAU wallet non sauvegardé.
-                val phraseBackedUp = viewModel.isPhraseBackedUp()
-                val slots = buildList<@Composable () -> Unit> {
-                    // S'affiche UNIQUEMENT si le wallet est vide (solde 0).
-                    // Fermeture SESSION au ✕ (revient au prochain lancement) ;
-                    // disparaît pour de bon dès le premier fonds reçu.
-                    if (!hasFunds && !depositDismissed) add {
-                        DashboardBanner(
-                            accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
-                            icon = Icons.Default.AccountBalanceWallet,
-                            title = stringResource(R.string.dashboard_first_deposit_title),
-                            body = stringResource(R.string.dashboard_first_deposit_body),
-                            ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
-                            ctaIcon = Icons.Default.ArrowDownward,
-                            onDismiss = { depositDismissed = true },
-                            onCtaClick = { navController.navigate(Routes.RECEIVE) }
-                        )
-                    }
-                    // PHILOSOPHIE B : le rappel de sauvegarde n'apparaît QUE si
-                    // le wallet a des fonds (quelque chose à protéger). Wallet
-                    // vide → priorité au dépôt ; wallet financé → priorité à la
-                    // sauvegarde. Jamais 3 bannières en même temps.
-                    // Fermable pour la session SEULEMENT (le ✕ est un « pas
-                    // maintenant ») : ne s'éteint VRAIMENT que lorsque la phrase
-                    // a été révélée sur l'écran Sauvegarde.
-                    if (hasFunds && !phraseBackedUp && !backupDismissed) add {
-                        DashboardBanner(
-                            accent = Color(0xFFF59E0B),   // ambre : rappel de sécurité (seed)
-                            icon = Icons.Default.Shield,
-                            title = stringResource(R.string.dashboard_backup_title),
-                            body = stringResource(R.string.dashboard_backup_body),
-                            ctaLabel = stringResource(R.string.dashboard_backup_cta),
-                            ctaIcon = Icons.Default.Shield,
-                            onDismiss = { backupDismissed = true },
-                            onCtaClick = { navController.navigate(Routes.BACKUP) }
-                        )
-                    }
-                    // Rappel marketing NON définitif : réapparaît ~1×/semaine
-                    // (fenêtre de 7 jours après le dernier ✕ ou clic « Rejoindre »).
-                    if (!telegramHidden) add {
-                        DashboardBanner(
-                            accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
-                            icon = Icons.Default.Chat,
-                            title = stringResource(R.string.dashboard_telegram_title),
-                            body = stringResource(R.string.dashboard_telegram_body),
-                            ctaLabel = stringResource(R.string.dashboard_telegram_cta),
-                            ctaIcon = Icons.Default.Send,
-                            onDismiss = { TelegramBannerState.dismiss(bannerContext) },
-                            onCtaClick = {
-                                bannerContext.startActivity(
-                                    android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse(TELEGRAM_COMMUNITY_URL)
-                                    )
-                                )
-                                // Cliquer « Rejoindre » = engagé → on ne relance
-                                // plus (fermeture DURABLE, comme le ✕).
-                                TelegramBannerState.dismiss(bannerContext)
-                            }
-                        )
-                    }
-                }
-                if (slots.isNotEmpty() && !state.isLoading) {
-                    var index by remember(slots.size) { mutableStateOf(0) }
-                    LaunchedEffect(slots.size) {
-                        while (slots.size > 1) {
-                            kotlinx.coroutines.delay(6_000L)
-                            index = (index + 1) % slots.size
-                        }
-                    }
-                    Crossfade(targetState = index.coerceIn(0, slots.lastIndex), label = "dashboard_banner") { i ->
-                        slots[i]()
-                    }
+            // ─── Carrousel de bandeaux (défilement auto, 6 s par bandeau).
+            // Les bandeaux et le minuteur sont construits DANS LE CORPS de
+            // l'écran (voir plus haut) : ici on ne fait que les afficher, si
+            // bien que le défilement ne relance plus la rotation.
+            item(key = "banners") {
+                if (bannerSlots.isNotEmpty() && !state.isLoading) {
+                    Crossfade(
+                        targetState = bannerIndex.coerceIn(0, bannerSlots.lastIndex),
+                        label = "dashboard_banner"
+                    ) { i -> bannerSlots[i]() }
                 }
             }
 
             // ─── Rangée d'icônes fine : scan · cloche · réglages ───
             // On garde ces accès rapides mais SANS le grand en-tête « Bonjour »,
             // pour que la carte de solde reste tout en haut.
-            item {
+            item(key = "header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -262,7 +297,7 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Carte solde (dégradé bleu, USD + ≈ XOF) ───
-            item {
+            item(key = "balance") {
                 BalanceCard(
                     currency = currency,
                     usd = state.totalBalanceUsd,
@@ -300,13 +335,12 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───
-            val funded = state.tokens.filter { it.valueUsd > 0.0 }
             if (funded.size >= 2) {
-                item { PortfolioDonutCard(funded) }
+                item(key = "donut") { PortfolioDonutCard(funded) }
             }
 
             // ─── 3 tuiles d'action (modèle, sans MoMo) ───
-            item {
+            item(key = "actions") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ActionTile(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
                         AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
@@ -318,10 +352,8 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Aperçu du marché (cartes horizontales, modèle) ───
-            val majors = listOf("BTC", "ETH", "SOL", "BNB")
-                .mapNotNull { sym -> state.tokens.firstOrNull { it.symbol == sym } }
             if (majors.isNotEmpty()) {
-                item {
+                item(key = "market_overview") {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.dash_market_overview), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary, modifier = Modifier.weight(1f))
@@ -343,19 +375,12 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Mes actifs ───
-            item {
+            item(key = "assets") {
                 SectionCard(
                     title = stringResource(R.string.my_assets),
                     linkLabel = stringResource(R.string.see_all),
                     onLinkClick = { navController.navigate(Routes.PORTFOLIO) }
                 ) {
-                    // Règle : une monnaie s'affiche si elle est ACTIVÉE (Gérer les
-                    // actifs) OU si elle a un solde > 0 (on ne masque jamais de fonds).
-                    // Les tokens personnalisés (ajoutés par contrat) sont toujours
-                    // affichés tant qu'ils existent en base.
-                    val visibleTokens = state.tokens
-                        .filter { it.valueUsd > 0.0 || it.symbol in visibleAssets || it.isCustom }
-                        .sortedByDescending { it.valueUsd }
                     if (visibleTokens.isEmpty() && !state.isLoading) {
                         Text(
                             stringResource(R.string.dashboard_no_assets),
@@ -387,7 +412,7 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Activité récente (3 dernières transactions réelles) ───
-            item {
+            item(key = "recent") {
                 SectionCard(
                     title = stringResource(R.string.recent_title),
                     linkLabel = stringResource(R.string.see_all),
@@ -417,6 +442,9 @@ fun DashboardScreen(navController: NavHostController) {
             modifier = Modifier.align(Alignment.TopCenter)
         )
         }
+    }
+        // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
+        VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -815,10 +843,20 @@ private fun networkLabel(symbol: String): String = when (symbol) {
     else -> symbol.substringBefore("-")
 }
 
-private fun formatAssetPrice(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
-        maximumFractionDigits = if (value < 1.0) 4 else 2
-    }.format(value)
+/*
+Formateurs MIS EN CACHE. Construire un NumberFormat ou un SimpleDateFormat
+charge les données de locale : le faire pour chaque ligne d'actif et chaque
+transaction, à chaque recomposition du défilement, coûtait plusieurs
+millisecondes par image. Ils ne sont utilisés que depuis la composition
+(thread UI unique), donc une instance partagée est sûre.
+ */
+private val AssetPriceFormat: NumberFormat = NumberFormat.getNumberInstance(Locale.FRANCE)
+private val RecentDateFormat = java.text.SimpleDateFormat("dd/MM HH:mm", Locale.FRANCE)
+
+private fun formatAssetPrice(value: Double): String {
+    AssetPriceFormat.maximumFractionDigits = if (value < 1.0) 4 else 2
+    return AssetPriceFormat.format(value)
+}
 
 @Composable
 private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
@@ -971,7 +1009,7 @@ private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onC
         else -> tx.hash
     }
     val short = if (ref.length > 12) ref.take(6) + "…" + ref.takeLast(4) else ref
-    val date = java.text.SimpleDateFormat("dd/MM HH:mm", Locale.FRANCE).format(java.util.Date(tx.timestamp))
+    val date = RecentDateFormat.format(java.util.Date(tx.timestamp))
     val amountSym = if (tx.type == "swap") tx.tokenSymbol.substringBefore("→") else tx.tokenSymbol
 
     Row(

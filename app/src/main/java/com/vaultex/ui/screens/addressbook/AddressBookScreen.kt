@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.R
 import com.vaultex.data.local.entity.ContactEntity
+import com.vaultex.ui.components.BottomBarSpace
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentRed
@@ -100,6 +101,11 @@ fun AddressBookScreen(navController: NavHostController) {
         )
     }
 
+    // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
+    // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
+    // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
+    // page et resterait « collée » au bord.
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -123,13 +129,14 @@ fun AddressBookScreen(navController: NavHostController) {
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
-        bottomBar = { VaultExBottomBar(navController) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = viewModel::openAddDialog,
                 shape = CircleShape,
                 containerColor = AccentBlue,
-                contentColor = Color.White
+                contentColor = Color.White,
+                // Remonté au-dessus de la barre de navigation flottante.
+                modifier = Modifier.padding(bottom = 76.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.contacts_add))
             }
@@ -196,7 +203,8 @@ fun AddressBookScreen(navController: NavHostController) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 96.dp)
+                    // Marge basse = hauteur de la barre flottante.
+                    contentPadding = PaddingValues(bottom = BottomBarSpace)
                 ) {
                     items(filtered, key = { it.id }) { contact ->
                         ContactCard(
@@ -211,6 +219,9 @@ fun AddressBookScreen(navController: NavHostController) {
                 }
             }
         }
+    }
+        // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
+        VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
 }
 

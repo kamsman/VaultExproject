@@ -33,6 +33,7 @@ import androidx.navigation.NavHostController
 import com.vaultex.R
 import com.vaultex.data.remote.dto.CoinGeckoMarketDto
 import com.vaultex.ui.components.HistoryListSkeleton
+import com.vaultex.ui.components.BottomBarSpace
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
@@ -79,13 +80,18 @@ fun MarketScreen(navController: NavHostController) {
         }
     val topGainers = markets.filter { it.change24h > 0 }.sortedByDescending { it.change24h }.take(6)
 
+    // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
+    // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
+    // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
+    // page et resterait « collée » au bord.
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        bottomBar = { VaultExBottomBar(navController) },
         containerColor = BgPrimary
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(bottom = 12.dp)
+            // Marge basse = hauteur de la barre flottante.
+            contentPadding = PaddingValues(bottom = BottomBarSpace)
         ) {
             // ─── Titre + cloche ───
             item {
@@ -242,6 +248,9 @@ fun MarketScreen(navController: NavHostController) {
             }
         }
     }
+        // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
+        VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
+    }
 }
 
 @Composable
@@ -393,12 +402,17 @@ private fun compactUsd(v: Double): String = when {
     else -> String.format(Locale.US, "$%,.0f", v)
 }
 
+/* Formateur mis en cache : reconstruire un NumberFormat pour chaque ligne de
+   marché, à chaque image du défilement, charge les données de locale à chaque
+   fois. Utilisé uniquement depuis la composition (thread UI unique). */
+private val MarketUsdFormat: NumberFormat = NumberFormat.getNumberInstance(Locale.FRANCE)
+
 /** Prix en USD : 4 décimales sous 1 $, 2 décimales sinon, sans décimale au-delà de 1000. */
-internal fun formatMarketUsd(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
-        maximumFractionDigits = when {
-            value < 1.0 -> 4
-            value < 1000.0 -> 2
-            else -> 0
-        }
-    }.format(value)
+internal fun formatMarketUsd(value: Double): String {
+    MarketUsdFormat.maximumFractionDigits = when {
+        value < 1.0 -> 4
+        value < 1000.0 -> 2
+        else -> 0
+    }
+    return MarketUsdFormat.format(value)
+}
