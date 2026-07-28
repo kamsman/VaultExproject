@@ -47,6 +47,59 @@ class SendCryptoUseCase @Inject constructor(
         const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
         const val USDT_ERC20_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
         const val USDT_BEP20_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
+
+        /*
+        ─── PLAFONDS DE FRAIS RÉSEAU ──────────────────────────────────────
+        Le prix du gas (EVM) et le feerate (Bitcoin) viennent de nœuds publics.
+        Un nœud compromis — ou un attaquant capable d'intercepter le trafic —
+        peut renvoyer une valeur délirante : l'application signerait alors une
+        transaction qui BRÛLE TOUT LE SOLDE en frais de mineur, opération
+        strictement irréversible.
+
+        Nuance EIP-1559 : le maxFeePerGas n'est qu'un plafond (on ne paie que
+        baseFee + pourboire), mais le POURBOIRE, lui, est payé intégralement au
+        mineur. C'est donc maxPriorityFeePerGas le champ réellement dangereux —
+        et sur BNB Chain, en type-0, c'est le gasPrice entier qui est payé.
+
+        Ces plafonds sont volontairement très au-dessus des pires congestions
+        jamais observées : ils ne bloquent aucun envoi légitime. On REFUSE
+        l'envoi au lieu de rogner la valeur — une transaction sous-payée
+        resterait bloquée dans le mempool, ce qui est un autre mauvais
+        résultat, et masquerait l'anomalie.
+        ───────────────────────────────────────────────────────────────────
+         */
+        private const val GWEI = 1_000_000_000L
+
+        /** Pourboire mineur ETH. Usuel : 0,1 à 3 gwei ; pics de « mint war » : ~30. */
+        private const val ETH_MAX_PRIORITY_GWEI = 50L
+
+        /** Plafond total ETH. Le record de base fee jamais observé avoisine 1 500 gwei. */
+        private const val ETH_MAX_FEE_GWEI = 2_000L
+
+        /** BNB Chain : usuel 0,1 à 5 gwei, jamais vu au-delà de ~20. */
+        private const val BSC_MAX_GAS_GWEI = 100L
+
+        /** Bitcoin : les pires pics (halving 2024) ont frôlé 1 500 sat/vB. */
+        private const val BTC_MAX_SAT_PER_VBYTE = 2_000L
+    }
+
+    /** Frais renvoyés par le réseau jugés aberrants → envoi refusé. */
+    private class FeeTooHighException(message: String) : Exception(message)
+
+    /**
+     * Refuse un prix de gas au-dessus de [maxGwei]. [label] nomme le champ
+     * fautif pour que le message reste compréhensible en cas de blocage.
+     */
+    private fun requireSaneGas(value: BigInteger, maxGwei: Long, label: String): BigInteger {
+        val max = BigInteger.valueOf(maxGwei).multiply(BigInteger.valueOf(GWEI))
+        if (value > max) {
+            val gwei = value.divide(BigInteger.valueOf(GWEI))
+            throw FeeTooHighException(
+                "Frais réseau anormalement élevés ($label : $gwei gwei, plafond de sécurité " +
+                    "$maxGwei gwei). Envoi bloqué pour protéger vos fonds — réessayez plus tard."
+            )
+        }
+        return value
     }
 
     /**
@@ -157,7 +210,7 @@ class SendCryptoUseCase @Inject constructor(
                     maxPriority, maxFee, gasLimit, nonce, chainId, coinType)
             } else {
                 // BSC and others: legacy (type-0)
-                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
+                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
                 evmTx.signTransaction(mnemonic, passphrase, toAddress, amountWei,
                     gasPrice, gasLimit, nonce, chainId, coinType)
             }
@@ -213,7 +266,7 @@ class SendCryptoUseCase @Inject constructor(
                 signed = evmTx.signErc20TransferEip1559(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, maxPriority, maxFee, gasLimit, nonce, chainId)
             } else {
-                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L)
+                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
                 feePerGas = gasPrice
                 signed = evmTx.signErc20Transfer(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, gasPrice, gasLimit, nonce, chainId)
@@ -263,6 +316,16 @@ class SendCryptoUseCase @Inject constructor(
             // limite (< min relay) → rejet 400 du nœud. On arrondit vers le haut.
             val satPerByte = kotlin.math.ceil(feeEstimates["6"] ?: feeEstimates["3"] ?: feeEstimates["1"] ?: 10.0)
                 .toLong().coerceAtLeast(2L)
+            // Même risque que le gas EVM : le feerate vient d'un service externe
+            // et est payé INTÉGRALEMENT aux mineurs. Une valeur aberrante viderait
+            // le portefeuille en frais, sans retour possible.
+            if (satPerByte > BTC_MAX_SAT_PER_VBYTE) {
+                return Result.Error(
+                    "Frais réseau Bitcoin anormalement élevés ($satPerByte sat/vB, plafond de " +
+                        "sécurité $BTC_MAX_SAT_PER_VBYTE). Envoi bloqué pour protéger vos fonds — " +
+                        "réessayez plus tard."
+                )
+            }
 
             val confirmedUtxos = utxosDto.filter { it.status.confirmed }.sortedByDescending { it.value }
                 .map { Utxo(txHash = it.txid, outputIndex = it.vout, valueSatoshi = it.value) }
@@ -525,19 +588,24 @@ class SendCryptoUseCase @Inject constructor(
         if (chain.startsWith("ERC20:")) {
             val evm = chain.split(":").getOrNull(1)
             if (evm == "BNB") {
-                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 65_000.0 / 1e18
+                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 65_000.0 / 1e18
             } else {
                 val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18
             }
         } else when (chain) {
             "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 21_000.0 / 1e18 }
             "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18 }
-            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 21_000.0 / 1e18
-            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L).toDouble() * 65_000.0 / 1e18
+            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 21_000.0 / 1e18
+            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 65_000.0 / 1e18
             "BTC"      -> {
                 val fees = bitcoinApi.getFeeEstimates()
                 val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0
-                satPerByte * 150.0 / 1e8   // ~150 vbytes pour une tx P2WPKH typique
+                // Au-delà du plafond, l'envoi sera de toute façon refusé : mieux
+                // vaut n'afficher AUCUNE estimation qu'un chiffre aberrant que
+                // l'utilisateur pourrait valider sans le lire. (Pas de `return`
+                // ici : la fonction a un corps-expression.)
+                if (satPerByte > BTC_MAX_SAT_PER_VBYTE) null
+                else satPerByte * 150.0 / 1e8   // ~150 vbytes pour une tx P2WPKH typique
             }
             "SOL"  -> 0.000005   // 5000 lamports (frais fixe Solana)
             "TRX"  -> 0.3        // bande passante standard
@@ -552,9 +620,12 @@ class SendCryptoUseCase @Inject constructor(
      */
     private suspend fun fetchEip1559Fees(rpc: EvmRpcApi): Pair<BigInteger, BigInteger> {
         val priorityRes = rpc.rpcCall(JsonRpcRequest("eth_maxPriorityFeePerGas", mutableListOf()))
-        val maxPriority = try {
+        val rawPriority = try {
             BigInteger((priorityRes.result as? String ?: "0x3B9ACA00").removePrefix("0x"), 16)
         } catch (_: Exception) { BigInteger.valueOf(1_000_000_000L) }  // 1 gwei fallback
+        // Le pourboire est payé INTÉGRALEMENT au mineur : c'est le champ que
+        // détournerait un nœud hostile pour vider un portefeuille.
+        val maxPriority = requireSaneGas(rawPriority, ETH_MAX_PRIORITY_GWEI, "pourboire mineur")
 
         val blockRes = rpc.rpcCall(JsonRpcRequest("eth_getBlockByNumber",
             mutableListOf("latest" as Any, false as Any)))
@@ -566,15 +637,24 @@ class SendCryptoUseCase @Inject constructor(
         // tomberait à ~1 gwei (sous le prix du marché) → tx ETH rejetée « max fee
         // per gas less than block base fee ». On se rabat alors sur eth_gasPrice.
         val effectiveBase = if (baseFee.signum() > 0) baseFee
-            else fetchLegacyGasPrice(rpc, 20_000_000_000L)   // 20 gwei par défaut
+            else fetchLegacyGasPrice(rpc, 20_000_000_000L, ETH_MAX_FEE_GWEI)   // 20 gwei par défaut
         val maxFee = effectiveBase.multiply(BigInteger.TWO).add(maxPriority)
-        return Pair(maxPriority, maxFee)
+        // Second garde-fou : un baseFee mensonger gonflerait le plafond total,
+        // et c'est ce plafond que le garde-fou de solde met en réserve.
+        return Pair(maxPriority, requireSaneGas(maxFee, ETH_MAX_FEE_GWEI, "plafond de gas"))
     }
 
-    private suspend fun fetchLegacyGasPrice(rpc: EvmRpcApi, default: Long): BigInteger = try {
-        BigInteger((rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
-            .result as? String ?: "0x0").removePrefix("0x"), 16)
-    } catch (_: Exception) { BigInteger.valueOf(default) }
+    /**
+     * Prix du gas en type-0 (BNB Chain, et repli ETH). Payé intégralement au
+     * mineur : plafonné à [maxGwei] selon la chaîne appelante.
+     */
+    private suspend fun fetchLegacyGasPrice(rpc: EvmRpcApi, default: Long, maxGwei: Long): BigInteger {
+        val raw = try {
+            BigInteger((rpc.rpcCall(JsonRpcRequest("eth_gasPrice", mutableListOf()))
+                .result as? String ?: "0x0").removePrefix("0x"), 16)
+        } catch (_: Exception) { BigInteger.valueOf(default) }
+        return requireSaneGas(raw, maxGwei, "prix du gas")
+    }
 
     /**
      * Traduit l'échec d'un `createtransaction` TronGrid (qui renvoie un champ
