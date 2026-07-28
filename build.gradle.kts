@@ -13,3 +13,41 @@ plugins {
 tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
 }
+
+/*
+─── VÉRIFICATION DES DÉPENDANCES ──────────────────────────────────────────
+Cette tâche force la résolution de TOUTES les configurations du projet.
+
+Elle existe pour une raison précise : la commande officielle de génération
+des empreintes,
+
+    ./gradlew --write-verification-metadata sha256 help
+
+n'enregistre que les dépendances effectivement téléchargées pendant son
+exécution. Or `help` n'en résout AUCUNE. Résultat classique : un fichier
+verification-metadata.xml quasi vide, puis un build qui échoue au premier
+artefact non listé. On lance donc la génération sur CETTE tâche :
+
+    ./gradlew --write-verification-metadata sha256 resolveAllDependencies
+
+Voir VERIFICATION-DEPENDANCES.md pour la procédure complète.
+───────────────────────────────────────────────────────────────────────────
+ */
+tasks.register("resolveAllDependencies") {
+    group = "verification"
+    description = "Résout toutes les configurations — sert à générer les empreintes de dépendances."
+    doLast {
+        allprojects {
+            configurations
+                // Une configuration non résolvable (ex. `implementation`, qui
+                // n'est qu'un conteneur de déclarations) lèverait une exception.
+                .filter { it.isCanBeResolved }
+                .forEach { config ->
+                    // Une configuration peut échouer pour des raisons légitimes
+                    // (variante absente pour la plateforme courante) : on ignore
+                    // l'échec plutôt que d'interrompre toute la génération.
+                    runCatching { config.resolve() }
+                }
+        }
+    }
+}
