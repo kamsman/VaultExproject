@@ -96,6 +96,16 @@ fun ImportWalletScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Second emplacement du code anti-phishing, et le plus critique :
+            // c'est ICI qu'une contrefaçon récolte la phrase de récupération.
+            // Un utilisateur qui a pris l'habitude de voir son code doit
+            // s'arrêter net s'il ne le voit pas avant de saisir ses 12 mots.
+            val antiPhishing = remember { viewModel.antiPhishingCode() }
+            if (antiPhishing.isNotBlank()) {
+                com.vaultex.ui.components.AntiPhishingBanner(code = antiPhishing)
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
             Text(
                 text = stringResource(R.string.import_enter_phrase),
                 color = TextSecondary,

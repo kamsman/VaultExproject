@@ -86,6 +86,7 @@ object Routes {
     const val NETWORK_SETTINGS = "networkSettings"
 
     const val SECURITY = "security"
+    const val ANTI_PHISHING = "antiPhishing"
 
     // Journal des déverrouillages (Notifications sécurité → Historique des connexions).
     const val LOGIN_HISTORY = "loginHistory"

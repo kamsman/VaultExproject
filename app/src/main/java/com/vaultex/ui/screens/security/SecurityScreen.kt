@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -87,6 +88,16 @@ fun SecurityScreen(navController: NavHostController) {
                     icon = Icons.Default.Pin,
                     title = stringResource(R.string.security_change_pin),
                     onClick = { navController.navigate(Routes.PIN_CHANGE_VERIFY) }
+                ) {
+                    Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                }
+                SecurityRowDivider()
+                // Placé dans « Accès » : c'est un repère visuel de l'application
+                // elle-même, au même titre que le PIN et la biométrie.
+                SecurityRow(
+                    icon = Icons.Default.VerifiedUser,
+                    title = stringResource(R.string.antiphishing_title),
+                    onClick = { navController.navigate(Routes.ANTI_PHISHING) }
                 ) {
                     Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(20.dp))
                 }

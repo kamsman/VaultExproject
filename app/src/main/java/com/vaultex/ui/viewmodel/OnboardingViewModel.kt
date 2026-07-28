@@ -39,6 +39,9 @@ class OnboardingViewModel @Inject constructor(
     /** true si un PIN d'app existe déjà (ajout d'un wallet ≠ premier onboarding). */
     fun hasPin(): Boolean = pinManager.hasPin()
 
+    /** Code anti-phishing, affiché avant la saisie d'une phrase de récupération. */
+    fun antiPhishingCode(): String = secureStorage.getAntiPhishingCode()
+
     // Mnémonique en mémoire uniquement le temps de l'onboarding
     private val _mnemonic = MutableStateFlow<List<String>>(emptyList())
     val mnemonic: StateFlow<List<String>> = _mnemonic.asStateFlow()

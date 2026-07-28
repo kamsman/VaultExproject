@@ -793,4 +793,24 @@
     <!-- Anti-phishing -->
     <string name="error_app_repackaged">This copy of VaultEx is not genuine: its signature does not match the official app. NEVER enter your recovery phrase here. Uninstall it and reinstall VaultEx from an official source.</string>
     <string name="send_new_recipient_warning">First time sending to this address: compare it character by character with the one your recipient gave you.</string>
+
+    <!-- Anti-phishing code -->
+    <string name="antiphishing_title">Anti-phishing code</string>
+    <string name="antiphishing_banner_label">YOUR ANTI-PHISHING CODE</string>
+    <string name="antiphishing_banner_setup">Set an anti-phishing code</string>
+    <string name="antiphishing_headline">Recognise the real VaultEx</string>
+    <string name="antiphishing_intro">Fake copies of VaultEx circulate on WhatsApp and Telegram. They look identical to the real thing and steal your recovery phrase. A word only you know exposes them.</string>
+    <string name="antiphishing_how_title">How it protects you</string>
+    <string name="antiphishing_step1_title">Your code shows on opening</string>
+    <string name="antiphishing_step1_body">It appears on the PIN screen and before any entry of your recovery phrase.</string>
+    <string name="antiphishing_step2_title">Missing or different code = FAKE app</string>
+    <string name="antiphishing_step2_body">A counterfeit is always a fresh install: it cannot know your code. Close it immediately and enter nothing.</string>
+    <string name="antiphishing_step3_title">VaultEx never asks for your phrase</string>
+    <string name="antiphishing_step3_body">Not by message, not by phone, not through a form. Nobody at VaultEx will ever ask for it.</string>
+    <string name="antiphishing_field_label">Your code</string>
+    <string name="antiphishing_placeholder">e.g. MANGO226</string>
+    <string name="antiphishing_field_hint">Pick a short word you will recognise at a glance. This is not a password: it unlocks nothing and never leaves your phone.</string>
+    <string name="antiphishing_saved">Code saved. Check that it appears at your next unlock.</string>
+    <string name="antiphishing_remove">Remove my code</string>
+    <string name="antiphishing_limit">Good to know: this code protects against fake apps, not against someone using your unlocked phone. It replaces neither your PIN nor your recovery phrase backup.</string>
 </resources>

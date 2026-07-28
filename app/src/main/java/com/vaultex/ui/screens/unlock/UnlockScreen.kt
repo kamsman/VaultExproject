@@ -78,6 +78,20 @@ fun UnlockScreen(navController: NavHostController) {
     ) {
         Spacer(Modifier.weight(0.6f))
 
+        // Code anti-phishing : affiché sur le PREMIER écran vu à l'ouverture.
+        // Une contrefaçon de VaultEx est forcément une installation neuve
+        // (Android refuse d'installer par-dessus une app signée autrement) :
+        // elle ne peut donc pas connaître ce mot. Son absence ici est le
+        // signal qui doit arrêter l'utilisateur avant qu'il ne saisisse quoi
+        // que ce soit. Pas de lien de configuration : la session est verrouillée.
+        val antiPhishing = remember { viewModel.antiPhishingCode() }
+        if (antiPhishing.isNotBlank()) {
+            com.vaultex.ui.components.AntiPhishingBanner(
+                code = antiPhishing,
+                modifier = Modifier.padding(bottom = 22.dp)
+            )
+        }
+
         // Écran épuré : plus de bouclier/cadenas décoratif au-dessus du titre.
         Text(
             stringResource(R.string.unlock_enter_pin),

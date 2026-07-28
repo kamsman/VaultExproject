@@ -793,4 +793,24 @@
     <!-- مكافحة التصيّد -->
     <string name="error_app_repackaged">هذه النسخة من VaultEx ليست أصلية: توقيعها لا يطابق التطبيق الرسمي. لا تُدخل عبارة الاسترداد هنا أبداً. احذفها وأعد تثبيت VaultEx من مصدر رسمي.</string>
     <string name="send_new_recipient_warning">أول إرسال إلى هذا العنوان: قارنه حرفاً بحرف مع العنوان الذي زوّدك به المستلم.</string>
+
+    <!-- رمز مكافحة التصيّد -->
+    <string name="antiphishing_title">رمز مكافحة التصيّد</string>
+    <string name="antiphishing_banner_label">رمز مكافحة التصيّد الخاص بك</string>
+    <string name="antiphishing_banner_setup">تعيين رمز لمكافحة التصيّد</string>
+    <string name="antiphishing_headline">تعرّف على VaultEx الحقيقي</string>
+    <string name="antiphishing_intro">تنتشر نسخ مزيّفة من VaultEx عبر واتساب وتيليجرام. تبدو مطابقة تماماً للأصل وتسرق عبارة الاسترداد. كلمة تعرفها أنت وحدك تكشفها.</string>
+    <string name="antiphishing_how_title">كيف يحميك</string>
+    <string name="antiphishing_step1_title">يظهر رمزك عند فتح التطبيق</string>
+    <string name="antiphishing_step1_body">يظهر في شاشة رمز PIN وقبل أي إدخال لعبارة الاسترداد.</string>
+    <string name="antiphishing_step2_title">غياب الرمز أو اختلافه = تطبيق مزيّف</string>
+    <string name="antiphishing_step2_body">النسخة المزيّفة هي دائماً تثبيت جديد: لا يمكنها معرفة رمزك. أغلقها فوراً ولا تُدخل أي شيء.</string>
+    <string name="antiphishing_step3_title">VaultEx لا يطلب عبارتك أبداً</string>
+    <string name="antiphishing_step3_body">لا عبر رسالة ولا عبر الهاتف ولا عبر نموذج. لن يطلبها منك أحد من VaultEx إطلاقاً.</string>
+    <string name="antiphishing_field_label">رمزك</string>
+    <string name="antiphishing_placeholder">مثال: MANGUE226</string>
+    <string name="antiphishing_field_hint">اختر كلمة قصيرة تتعرّف عليها بنظرة واحدة. ليست كلمة مرور: لا تفتح شيئاً ولا تغادر هاتفك أبداً.</string>
+    <string name="antiphishing_saved">تم حفظ الرمز. تأكّد من ظهوره عند إلغاء القفل القادم.</string>
+    <string name="antiphishing_remove">حذف رمزي</string>
+    <string name="antiphishing_limit">للعلم: يحميك هذا الرمز من التطبيقات المزيّفة، لا ممّن يستخدم هاتفك وهو غير مقفل. وهو لا يُغني عن رمز PIN ولا عن نسخ عبارة الاسترداد احتياطياً.</string>
 </resources>

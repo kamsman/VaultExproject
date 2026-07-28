@@ -31,6 +31,9 @@ class UnlockViewModel @Inject constructor(
 
     fun isBiometricEnabled(): Boolean = secureStorage.isBiometricEnabled()
 
+    /** Code anti-phishing à afficher sur l'écran de déverrouillage. */
+    fun antiPhishingCode(): String = secureStorage.getAntiPhishingCode()
+
     fun onBiometricSuccess() {
         sessionLock.markUnlocked()
         _state.update { it.copy(isUnlocked = true) }

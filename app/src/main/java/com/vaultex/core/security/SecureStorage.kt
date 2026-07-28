@@ -162,6 +162,35 @@ class SecureStorage @Inject constructor(
         prefs.edit().putString(KEY_WALLET_NAME, name.trim()).apply()
     }
 
+    /*
+    ─── CODE ANTI-PHISHING ────────────────────────────────────────────────
+    Mot personnel choisi par l'utilisateur, affiché par l'application aux
+    moments les plus à risque (écran de déverrouillage, saisie de la phrase
+    de récupération).
+
+    À quoi ça sert ICI, concrètement : une contrefaçon de VaultEx installée
+    depuis WhatsApp est forcément une INSTALLATION NEUVE — Android refuse
+    d'installer par-dessus une application signée avec une autre clé. Elle
+    part donc d'un stockage vide et ne peut PAS connaître ce mot. Si
+    l'utilisateur ne voit pas son code, c'est un faux.
+
+    C'est le complément exact du contrôle de signature : celui-ci peut être
+    retiré par un attaquant qui modifie le code, alors qu'un mot qu'il ignore
+    ne peut pas être deviné. Les deux se couvrent mutuellement.
+
+    Stocké dans les préférences CHIFFRÉES, comme le reste.
+    ───────────────────────────────────────────────────────────────────────
+     */
+    fun getAntiPhishingCode(): String = prefs.getString(KEY_ANTIPHISHING, "") ?: ""
+
+    fun saveAntiPhishingCode(code: String) {
+        prefs.edit().putString(KEY_ANTIPHISHING, code.trim()).apply()
+    }
+
+    fun clearAntiPhishingCode() {
+        prefs.edit().remove(KEY_ANTIPHISHING).apply()
+    }
+
     /** Devise d'affichage du wallet : USD, EUR ou XOF (défaut USD). */
     fun getCurrency(): String = prefs.getString(KEY_CURRENCY, "USD") ?: "USD"
 
@@ -299,6 +328,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"
+        private const val KEY_ANTIPHISHING = "anti_phishing_code"
         private const val KEY_CURRENCY = "display_currency"
         private const val KEY_VISIBLE_ASSETS = "visible_assets"
         val DEFAULT_VISIBLE_ASSETS = setOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT")

@@ -884,4 +884,24 @@
     <!-- Anti-phishing -->
     <string name="error_app_repackaged">Cette copie de VaultEx n\'est pas authentique : sa signature ne correspond pas à celle de l\'application officielle. Ne saisissez JAMAIS votre phrase de récupération ici. Désinstallez-la et réinstallez VaultEx depuis une source officielle.</string>
     <string name="send_new_recipient_warning">Premier envoi vers cette adresse : comparez-la caractère par caractère avec celle que vous a communiquée le destinataire.</string>
+
+    <!-- Code anti-phishing -->
+    <string name="antiphishing_title">Code anti-phishing</string>
+    <string name="antiphishing_banner_label">VOTRE CODE ANTI-PHISHING</string>
+    <string name="antiphishing_banner_setup">Définir un code anti-phishing</string>
+    <string name="antiphishing_headline">Reconnaître le vrai VaultEx</string>
+    <string name="antiphishing_intro">De fausses copies de VaultEx circulent sur WhatsApp et Telegram. Elles ressemblent en tout point à l\'originale et volent votre phrase de récupération. Un mot que vous seul connaissez permet de les démasquer.</string>
+    <string name="antiphishing_how_title">Comment ça vous protège</string>
+    <string name="antiphishing_step1_title">Votre code s\'affiche à l\'ouverture</string>
+    <string name="antiphishing_step1_body">Il apparaît sur l\'écran du code PIN et avant toute saisie de votre phrase de récupération.</string>
+    <string name="antiphishing_step2_title">Code absent ou différent = FAUSSE application</string>
+    <string name="antiphishing_step2_body">Une contrefaçon vient forcément d\'une installation neuve : elle ne peut pas connaître votre code. Fermez-la immédiatement et ne saisissez rien.</string>
+    <string name="antiphishing_step3_title">VaultEx ne demande jamais votre phrase</string>
+    <string name="antiphishing_step3_body">Ni par message, ni par téléphone, ni par un formulaire. Personne de chez VaultEx ne vous la demandera, jamais.</string>
+    <string name="antiphishing_field_label">Votre code</string>
+    <string name="antiphishing_placeholder">Ex. MANGUE226</string>
+    <string name="antiphishing_field_hint">Choisissez un mot court que vous reconnaîtrez d\'un coup d\'œil. Ce n\'est pas un mot de passe : il n\'ouvre rien et ne quitte jamais votre téléphone.</string>
+    <string name="antiphishing_saved">Code enregistré. Vérifiez qu\'il apparaît bien au prochain déverrouillage.</string>
+    <string name="antiphishing_remove">Supprimer mon code</string>
+    <string name="antiphishing_limit">À savoir : ce code protège contre les fausses applications, pas contre quelqu\'un qui utiliserait votre téléphone déverrouillé. Il ne remplace ni le code PIN ni la sauvegarde de votre phrase de récupération.</string>
 </resources>

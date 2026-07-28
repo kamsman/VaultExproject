@@ -241,6 +241,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             SecurityScreen(navController)
         }
 
+        composable(Routes.ANTI_PHISHING) {
+            com.vaultex.ui.screens.security.AntiPhishingScreen(navController)
+        }
+
         composable(Routes.LOGIN_HISTORY) {
             com.vaultex.ui.screens.security.LoginHistoryScreen(navController)
         }

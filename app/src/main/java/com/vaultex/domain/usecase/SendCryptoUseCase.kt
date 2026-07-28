@@ -86,6 +86,47 @@ class SendCryptoUseCase @Inject constructor(
     /** Frais renvoyés par le réseau jugés aberrants → envoi refusé. */
     private class FeeTooHighException(message: String) : Exception(message)
 
+    /*
+    ─── DESTINATIONS INTERDITES ───────────────────────────────────────────
+    Plutôt qu'une liste noire d'adresses d'arnaqueurs — qui suppose une source
+    de données à maintenir et sera toujours en retard sur les attaquants — on
+    bloque les destinations qui provoquent une perte DÉFINITIVE et certaine,
+    et qui n'ont aucun usage légitime :
+
+    · l'adresse nulle et les adresses de destruction (« burn ») ;
+    · les contrats des jetons eux-mêmes. Envoyer de l'USDT au contrat USDT est
+      l'erreur la plus fréquente et la plus coûteuse du secteur : le contrat
+      accepte le transfert et les fonds sont perdus pour toujours, personne ne
+      pouvant les en sortir. L'adresse est parfaitement valide, donc aucun
+      contrôle de format ne l'attrape.
+
+    Ces adresses sont connues à l'avance : le contrôle est instantané, sans
+    appel réseau et sans faux positif.
+    ───────────────────────────────────────────────────────────────────────
+     */
+    private fun forbiddenDestination(address: String): Boolean {
+        val a = address.trim().lowercase()
+        if (a.isEmpty()) return false
+        val burn = setOf(
+            "0x0000000000000000000000000000000000000000",
+            "0x000000000000000000000000000000000000dead",
+            "0xdead000000000000000042069420694206942069"
+        )
+        val tokenContracts = setOf(
+            USDT_ERC20_CONTRACT.lowercase(),
+            USDT_BEP20_CONTRACT.lowercase(),
+            USDT_TRC20_CONTRACT.lowercase()
+        )
+        return a in burn || a in tokenContracts
+    }
+
+    /** Message affiché quand la destination est une adresse à perte certaine. */
+    private fun forbiddenDestinationError() = Result.Error(
+        "Cette adresse est celle d'un contrat de jeton ou une adresse de destruction : " +
+            "les fonds envoyés là seraient DÉFINITIVEMENT perdus, personne ne pourrait les " +
+            "récupérer. Vérifiez l'adresse du destinataire."
+    )
+
     /**
      * Refuse un prix de gas au-dessus de [maxGwei]. [label] nomme le champ
      * fautif pour que le message reste compréhensible en cas de blocage.
@@ -112,6 +153,11 @@ class SendCryptoUseCase @Inject constructor(
         chain: String, toAddress: String, amount: String,
         serviceFeeCrypto: Double = 0.0   // frais de service VaultEx (BTC/SOL), en unité crypto
     ): Result {
+        // Contrôle des destinations à perte certaine. Placé ICI parce que
+        // sendByChain est le point d'entrée UNIQUE des envois (UI en ligne et
+        // file hors-ligne) : aucun chemin ne peut le contourner.
+        if (forbiddenDestination(toAddress)) return forbiddenDestinationError()
+
         // Token personnalisé (ERC-20/BEP-20 ajouté par contrat). Encodé sous la
         // forme "ERC20:<ETH|BNB>:<contract>:<decimals>" pour que CE chemin unique
         // serve l'envoi direct ET la file hors-ligne (PendingSendWorker).
