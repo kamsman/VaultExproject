@@ -1,0 +1,87 @@
+/* VaultEx — feuille de style unique du site public.
+   Palette alignée sur l'application (écran d'accueil). */
+:root {
+  --bg-top: #070B1C;
+  --bg: #0A0F24;
+  --card: #101A38;
+  --border: #1E2A4E;
+  --blue: #3B82F6;
+  --purple: #7C5CFC;
+  --text: #EAF0FF;
+  --muted: #93A3C8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 55%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+/* ─── En-tête ─────────────────────────────────────────────── */
+header { padding: 26px 0 10px; }
+.nav { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 19px; }
+.diamond {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  transform: rotate(45deg);
+}
+.nav .spacer { flex: 1; }
+.nav a.link { color: var(--muted); text-decoration: none; font-size: 14px; }
+.nav a.link:hover { color: var(--text); }
+
+/* ─── Héros ───────────────────────────────────────────────── */
+.hero { padding: 46px 0 34px; }
+.hero h1 { font-size: 40px; line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.5px; }
+.hero h1 .accent { background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p { font-size: 17px; color: var(--muted); margin: 0 0 26px; max-width: 620px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--border); background: var(--card);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; color: var(--muted);
+}
+
+/* ─── Sections ────────────────────────────────────────────── */
+section { padding: 34px 0; border-top: 1px solid var(--border); }
+section h2 { font-size: 22px; margin: 0 0 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 16px; }
+.card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+ul.plain { margin: 0; padding-left: 20px; color: var(--muted); }
+ul.plain li { margin-bottom: 8px; }
+
+a { color: var(--blue); }
+
+/* ─── Pied de page ────────────────────────────────────────── */
+footer { padding: 30px 0 50px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+footer a { color: var(--muted); text-decoration: none; margin-right: 16px; }
+footer a:hover { color: var(--text); }
+.legal-note { margin-top: 18px; font-size: 13px; color: #6E7CA0; }
+
+/* ─── Pages légales ───────────────────────────────────────── */
+.doc { padding: 30px 0 60px; }
+.doc h1 { font-size: 28px; margin: 0 0 8px; }
+.doc h2 { font-size: 20px; margin: 34px 0 10px; }
+.doc h3 { font-size: 16px; margin: 24px 0 8px; color: var(--blue); }
+.doc p, .doc li { color: #C3CEE8; }
+.doc hr { border: 0; border-top: 1px solid var(--border); margin: 26px 0; }
+.doc table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14.5px; }
+.doc th, .doc td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; vertical-align: top; }
+.doc th { background: var(--card); }
+.doc strong { color: var(--text); }
+.back { display: inline-block; margin-bottom: 22px; font-size: 14px; text-decoration: none; }
+
+@media (max-width: 560px) {
+  .hero h1 { font-size: 30px; }
+  .hero { padding: 32px 0 24px; }
+}
