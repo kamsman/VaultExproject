@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.vaultex.ui.components.CryptoIcon
+import com.vaultex.ui.components.ExpandableDetails
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
@@ -411,7 +412,7 @@ private fun SwapConfirmScreen(
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
                     ConfirmRow("Taux", rate)
-                    com.vaultex.ui.components.ExpandableDetails(
+                    ExpandableDetails(
                         accent = SwapPurple,
                         labelColor = swapTextDim,
                         summary = "Frais inclus : $feeTxt"

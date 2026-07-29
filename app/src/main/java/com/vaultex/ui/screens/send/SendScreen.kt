@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaultex.ui.components.DotsCircleLoader
+import com.vaultex.ui.components.ExpandableDetails
 import com.vaultex.ui.theme.SplashNavyBottom
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -1228,13 +1229,13 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             stringResource(R.string.send_confirm_total_deducted),
             detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true
         )
-        com.vaultex.ui.components.ExpandableDetails(
+        ExpandableDetails(
             accent = AccentBlue,
             labelColor = TextSecondary,
             // Résumé visible même replié : le montant des frais est la seule
             // information secondaire qui puisse faire renoncer à l'envoi.
-            summary = detail.feeNative.ifEmpty { null }
-                ?.let { stringResource(R.string.send_summary_fee) + " : " + it }
+            summary = if (detail.feeNative.isEmpty()) null
+                else stringResource(R.string.send_summary_fee) + " : " + detail.feeNative
         ) {
             ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
             Spacer(Modifier.height(8.dp))

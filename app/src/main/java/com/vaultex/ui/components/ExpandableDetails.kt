@@ -1,20 +1,13 @@
 package com.vaultex.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,7 +43,12 @@ import com.vaultex.R
  * l'information essentielle se noie dans le secondaire. On garde donc
  * l'essentiel visible sans geste, et on range le reste derrière ce bloc.
  *
- * @param summary résumé affiché sur la ligne repliée (ex. « ~ 1,2 Gwei »).
+ * Volontairement calqué sur le repliage éprouvé de l'écran d'aide : mêmes
+ * primitives (animateContentSize + AnimatedVisibility + rotate), aucune API
+ * exotique.
+ *
+ * @param summary résumé affiché sur la ligne repliée, quand il reste une
+ *   information secondaire trop importante pour être cachée (les frais).
  */
 @Composable
 fun ExpandableDetails(
@@ -61,26 +59,23 @@ fun ExpandableDetails(
     content: @Composable ColumnScope.() -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
 
-    Column(modifier.fillMaxWidth()) {
+    Column(modifier.fillMaxWidth().animateContentSize()) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { expanded = !expanded }
-                .padding(vertical = 8.dp),
+                .clickable { expanded = !expanded }
+                .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (summary != null) {
-                Text(summary, fontSize = 12.sp, color = labelColor, modifier = Modifier.weight(1f))
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
             Text(
-                stringResource(if (expanded) R.string.details_hide else R.string.details_show),
+                text = summary.orEmpty(),
+                fontSize = 12.sp,
+                color = labelColor,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(if (expanded) R.string.details_hide else R.string.details_show),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = accent
@@ -90,16 +85,11 @@ fun ExpandableDetails(
                 Icons.Default.ExpandMore,
                 contentDescription = null,
                 tint = accent,
-                modifier = Modifier.size(18.dp).rotate(rotation)
+                modifier = Modifier.size(18.dp).rotate(if (expanded) 180f else 0f)
             )
         }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
+        AnimatedVisibility(expanded) {
+            Column(content = content)
         }
-        Spacer(Modifier.height(2.dp))
     }
 }
