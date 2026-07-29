@@ -25,7 +25,7 @@ class UnlockViewModel @Inject constructor(
     private val secureStorage: com.vaultex.core.security.SecureStorage,
     private val sessionLock: com.vaultex.core.session.SessionLockManager,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -73,8 +73,13 @@ class UnlockViewModel @Inject constructor(
                             notifPrefs.markLoginNotified()
                             val title = appContext.getString(com.vaultex.R.string.notif_login_title)
                             val body = appContext.getString(com.vaultex.R.string.notif_login_body)
-                            notificationCenter.push(title, body)
-                            com.vaultex.core.util.LocalNotifier.show(appContext, title, body)
+                            // Le plafond d'une alerte par 24 h est déjà géré
+                            // au-dessus ; la clé porte le jour pour rester
+                            // stable si la fonction était rappelée.
+                            hub.post(
+                                key = "login:${System.currentTimeMillis() / 86_400_000}",
+                                title = title, body = body
+                            )
                         }
                     } catch (_: Exception) { }
                     _state.update { it.copy(isUnlocked = true) }

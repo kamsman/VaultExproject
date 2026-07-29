@@ -31,7 +31,7 @@ class OnboardingViewModel @Inject constructor(
     private val pinManager: PinManager,
     private val sessionLock: com.vaultex.core.session.SessionLockManager,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val walletStore: com.vaultex.core.session.WalletStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -117,8 +117,10 @@ class OnboardingViewModel @Inject constructor(
                             if (notifPrefs.pinChangeAlerts.value) {
                                 val t = context.getString(com.vaultex.R.string.notif_pin_title)
                                 val b = context.getString(com.vaultex.R.string.notif_pin_body)
-                                notificationCenter.push(t, b)
-                                com.vaultex.core.util.LocalNotifier.show(context, t, b)
+                                // Alerte de SÉCURITÉ : passe par le hub comme
+                                // le reste (bannière, pastille, cloche). La clé
+                                // horodatée laisse passer chaque changement.
+                                hub.post("pinchange:${System.currentTimeMillis()}", t, b)
                             }
                         } catch (_: Exception) { }
                     }

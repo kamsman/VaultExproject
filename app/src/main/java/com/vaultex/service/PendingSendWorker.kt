@@ -40,7 +40,7 @@ class PendingSendWorker @AssistedInject constructor(
     private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
-    private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs
 ) : CoroutineWorker(appContext, params) {
 
@@ -124,11 +124,16 @@ class PendingSendWorker @AssistedInject constructor(
                                 blockNumber = null
                             )
                         )
+                        // Barre système ET cloche : l'utilisateur ne regarde
+                        // PAS l'app à cet instant — l'envoi partait justement
+                        // d'une file hors-ligne, débloquée en arrière-plan.
+                        // C'est le cas où une notification compte le plus.
                         if (notifPrefs.txAlerts.value) {
-                            notificationCenter.push(
-                                "Envoi effectué",
-                                "Envoi de ${item.amount} $sym confirmé (mis en file hors-ligne)",
-                                sym
+                            hub.post(
+                                key = "sent:${res.txHash}",
+                                title = "Envoi effectué",
+                                body = "Envoi de ${item.amount} $sym confirmé (mis en file hors-ligne)",
+                                symbol = sym
                             )
                         }
                     } catch (_: Exception) { }
