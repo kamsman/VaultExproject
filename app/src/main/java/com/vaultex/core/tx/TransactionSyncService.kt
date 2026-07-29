@@ -50,6 +50,9 @@ class TransactionSyncService @Inject constructor(
     // ─── TRON (TRX natif + TRC20/USDT) ────────────────────────────────
 
     suspend fun syncTron(address: String) {
+        // Marqué en SORTIE de fonction (voir plus bas) : tout ce qui est
+        // importé pendant ce premier passage reste silencieux.
+        val firstScan = !isBackfilled("TRX", address)
         try {
             val txList = tronApi.getTransactions(address, limit = 50)
             for (tx in txList.data) {
@@ -91,7 +94,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount)
+                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount, "TRX", address)
                 }
             }
         } catch (_: Exception) {}
@@ -122,15 +125,18 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount)
+                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount, "TRX", address)
                 }
             }
         } catch (_: Exception) {}
+        // Fin du premier balayage : les prochaines transactions notifieront.
+        if (firstScan) markBackfilled("TRX", address)
     }
 
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
     suspend fun syncBtc(address: String) {
+        val firstScan = !isBackfilled("BTC", address)
         try {
             val txList = bitcoinApi.getTransactions(address)
             for (tx in txList) {
@@ -160,10 +166,12 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount)
+                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount, "BTC", address)
                 }
             }
         } catch (_: Exception) {}
+        // Fin du premier balayage : les prochaines transactions notifieront.
+        if (firstScan) markBackfilled("BTC", address)
     }
 
     // ─── ETH / BNB via API compatible Etherscan ────────────────────────
@@ -172,6 +180,7 @@ class TransactionSyncService @Inject constructor(
     suspend fun syncBnb(address: String) = syncEvm(bscScanApi, address, "BNB", "BNB", ApiKeys.BSCSCAN)
 
     private suspend fun syncEvm(api: EtherscanApi, address: String, blockchain: String, symbol: String, apiKey: String) {
+        val firstScan = !isBackfilled(blockchain, address)
         try {
             val response = api.getTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") return
@@ -198,10 +207,12 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming && status == "confirmed") {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
         } catch (_: Exception) {}
+        // Fin du premier balayage : les prochaines transactions notifieront.
+        if (firstScan) markBackfilled(blockchain, address)
     }
 
     // ─── Transferts de TOKENS ERC-20 / BEP-20 (tokentx) ───────────────
@@ -214,6 +225,10 @@ class TransactionSyncService @Inject constructor(
     suspend fun syncBnbTokens(address: String) = syncEvmTokens(bscScanApi, address, "BNB", ApiKeys.BSCSCAN)
 
     private suspend fun syncEvmTokens(api: EtherscanApi, address: String, blockchain: String, apiKey: String) {
+        // Clé distincte : les transferts de jetons forment une liste séparée,
+        // dont le premier import doit lui aussi rester silencieux.
+        val tokenChain = "$blockchain-TOKENS"
+        val firstScan = !isBackfilled(tokenChain, address)
         try {
             val response = api.getTokenTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") return
@@ -246,15 +261,18 @@ class TransactionSyncService @Inject constructor(
                 val existedBefore = transactionDao.getHash(tx.hash) != null
                 transactionDao.insert(entity)
                 if (!existedBefore && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
         } catch (_: Exception) {}
+        // Fin du premier balayage : les prochaines transactions notifieront.
+        if (firstScan) markBackfilled(tokenChain, address)
     }
 
     // ─── SOLANA ──────────────────────────────────────────────────────
 
     suspend fun syncSol(address: String) {
+        val firstScan = !isBackfilled("SOL", address)
         try {
             val sigsRes = solanaRpc.rpcCall(
                 JsonRpcRequest("getSignaturesForAddress", mutableListOf(address as Any, mapOf("limit" to 50) as Any))
@@ -321,19 +339,67 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount)
+                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount, "SOL", address)
                 }
             }
         } catch (_: Exception) {}
+        // Fin du premier balayage : les prochaines transactions notifieront.
+        if (firstScan) markBackfilled("SOL", address)
     }
 
     // ─── Notification ────────────────────────────────────────────────
 
-    /** true si l'horodatage est RÉCENT (< 15 min) — évite de spammer sur du backfill. */
-    private fun isRecentTx(ts: Long): Boolean {
-        if (ts <= 0L) return false
+    /*
+    ─── POURQUOI LES RÉCEPTIONS NE NOTIFIAIENT PAS ────────────────────────
+    L'ancien filtre exigeait que la transaction ait MOINS DE 15 MINUTES,
+    d'après son horodatage BLOCKCHAIN. Or :
+
+    · un bloc Bitcoin met 10 à 30 min à confirmer la transaction ;
+    · le worker d'arrière-plan ne tourne qu'une fois toutes les 15 min au
+      mieux — bien plus tard si le système l'a mis en veille ;
+    · si l'utilisateur ouvre l'app 20 min après le dépôt, on est déjà hors
+      délai.
+
+    Autrement dit : au moment où l'application découvrait le dépôt, il avait
+    presque toujours plus de 15 minutes, et la notification était jetée en
+    silence. Les envois, eux, sont notifiés à l'instant où on les émet — d'où
+    l'asymétrie constatée.
+
+    Ce filtre existait pour une VRAIE raison : au tout premier passage sur une
+    adresse, on importe jusqu'à 50 transactions passées, et il ne faut pas
+    déclencher 50 notifications.
+
+    La bonne question n'est donc pas « cette transaction est-elle récente ? »
+    mais « l'avions-nous déjà vue ? ». C'est ce que dit déjà l'insertion en
+    base. Il suffit de traiter à part le tout premier balayage d'une adresse :
+    on l'importe en silence, et tout ce qui arrive ENSUITE notifie, quel que
+    soit son âge.
+    ───────────────────────────────────────────────────────────────────────
+     */
+    private val syncState =
+        context.getSharedPreferences("vaultex_sync_state", Context.MODE_PRIVATE)
+
+    /**
+     * true si cette adresse a déjà été balayée au moins une fois. Le premier
+     * balayage remplit l'historique SANS notifier ; les suivants notifient.
+     */
+    private fun isBackfilled(chain: String, address: String): Boolean =
+        syncState.getBoolean("backfilled:$chain:$address", false)
+
+    private fun markBackfilled(chain: String, address: String) {
+        syncState.edit().putBoolean("backfilled:$chain:$address", true).apply()
+    }
+
+    /**
+     * Garde-fou de dernier recours : une transaction vieille de plus de 24 h
+     * ne notifie jamais. Protège du cas où la base locale serait vidée alors
+     * que les préférences subsistent — on ne veut pas réveiller l'utilisateur
+     * avec des dépôts de la semaine dernière.
+     */
+    private fun isTooOld(ts: Long): Boolean {
+        if (ts <= 0L) return true
         val ms = if (ts < 1_000_000_000_000L) ts * 1000L else ts
-        return System.currentTimeMillis() - ms in 0 until 15 * 60 * 1000L
+        return System.currentTimeMillis() - ms > 24L * 60 * 60 * 1000
     }
 
     /**
@@ -343,10 +409,12 @@ class TransactionSyncService @Inject constructor(
      */
     private fun notify(
         title: String, body: String, symbol: String? = null,
-        timestamp: Long, amount: String
+        timestamp: Long, amount: String, chain: String, address: String
     ) {
         if (!notifPrefs.txAlerts.value) return
-        if (!isRecentTx(timestamp)) return
+        // Premier balayage de cette adresse : import silencieux de l'historique.
+        if (!isBackfilled(chain, address)) return
+        if (isTooOld(timestamp)) return
         hub.post(
             key = com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount),
             title = title, body = body, symbol = symbol

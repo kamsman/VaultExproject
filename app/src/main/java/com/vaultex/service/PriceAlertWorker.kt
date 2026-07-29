@@ -3,7 +3,6 @@ package com.vaultex.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -103,14 +102,28 @@ class PriceAlertWorker @AssistedInject constructor(
 
     private fun notifyMove(symbol: String, changePercent: Double, priceXof: Double, isUp: Boolean) {
         val ctx = applicationContext
+        /*
+        Canal SÉPARÉ, mais en importance HAUTE.
+
+        Séparé, pour que l'utilisateur puisse couper les alertes de marché
+        depuis les réglages Android SANS perdre les alertes de fonds reçus —
+        deux besoins très différents ne doivent pas partager un interrupteur.
+
+        Haute, parce qu'une alerte de prix qui dort au fond du volet ne
+        ramène personne dans l'application : elle doit s'afficher en haut de
+        l'écran comme les autres.
+
+        Le suffixe « _v2 » est nécessaire : Android FIGE l'importance d'un
+        canal à sa création et ignore toute modification ultérieure. Sans
+        nouvel identifiant, les appareils ayant déjà lancé l'app resteraient
+        bloqués sur l'ancienne importance, discrète.
+         */
         val manager = ctx.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_MOVES,
                 ctx.getString(R.string.price_moves_channel),
-                // IMPORTANCE_DEFAULT : c'est une information de marché, pas un
-                // mouvement de fonds — pas de son intrusif comme les dépôts.
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             )
         )
         val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
@@ -125,51 +138,46 @@ class PriceAlertWorker @AssistedInject constructor(
         } else {
             ctx.getString(R.string.price_move_body_no_price, percent)
         }
-        val notification = NotificationCompat.Builder(ctx, CHANNEL_MOVES)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setLargeIcon(NotifLogo.forSymbol(ctx, symbol))
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .build()
-        // Identifiant distinct des alertes de cible, sinon une alerte de
-        // variation écraserait une alerte de cible sur la même monnaie.
-        manager.notify(("move_$symbol").hashCode(), notification)
-        // Cloche uniquement : l'affichage système est déjà fait ci-dessus avec
-        // le canal « variations », volontairement moins intrusif.
-        hub.postBellOnly(title, body, symbol)
+        // Par le hub : bannière, pastille de l'icône et cloche d'un seul geste.
+        // L'anti-spam propre aux variations est déjà assuré en amont par
+        // PriceMoveSettings (réarmement + délai de garde de 12 h).
+        hub.post(
+            key = "move:$symbol:${if (isUp) "up" else "down"}:${changePercent.toInt()}",
+            title = title,
+            body = body,
+            symbol = symbol,
+            channelId = CHANNEL_MOVES
+        )
     }
 
     private fun notify(symbol: String, condition: String, target: Double, current: Double) {
+        val ctx = applicationContext
         val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
-        val manager = applicationContext.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
+        ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                applicationContext.getString(R.string.alerts_title),
+                ctx.getString(R.string.alerts_title),
                 NotificationManager.IMPORTANCE_HIGH
             )
         )
-        val title = applicationContext.getString(R.string.alert_triggered_title, symbol)
-        val body = applicationContext.getString(
+        val title = ctx.getString(R.string.alert_triggered_title, symbol)
+        val body = ctx.getString(
             R.string.alert_triggered_body, symbol, condition, fmt.format(target), fmt.format(current)
         )
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setLargeIcon(NotifLogo.forSymbol(applicationContext, symbol))
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
-        manager.notify(symbol.hashCode(), notification)
-        hub.postBellOnly(title, body, symbol)
+        // Une cible ne se déclenche qu'une fois (l'alerte est désactivée juste
+        // après) : la clé porte la cible elle-même.
+        hub.post(
+            key = "target:$symbol:$condition:$target",
+            title = title,
+            body = body,
+            symbol = symbol,
+            channelId = CHANNEL_ID
+        )
     }
 
     companion object {
         const val CHANNEL_ID = "vaultex_price_alerts"
-        const val CHANNEL_MOVES = "vaultex_price_moves"
+        const val CHANNEL_MOVES = "vaultex_price_moves_v2"
         const val WORK_NAME = "price_alert_check"
 
         private val SYMBOL_TO_ID = mapOf(
