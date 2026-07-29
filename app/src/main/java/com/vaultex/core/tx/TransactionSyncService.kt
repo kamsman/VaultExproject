@@ -391,6 +391,32 @@ class TransactionSyncService @Inject constructor(
     }
 
     /**
+     * Pré-marque TOUTES les chaînes d'un wallet fraîchement CRÉÉ (jamais
+     * importé) comme déjà « backfillées ».
+     *
+     * C'est le correctif d'un bug réel trouvé en test : pour une adresse tout
+     * juste générée, le tout premier dépôt qu'elle reçoit EST le premier
+     * balayage — et [notify] refusait alors de notifier, croyant importer un
+     * historique ancien, alors qu'il n'existe aucun historique ancien : la
+     * seed vient d'être créée par SecureRandom, l'adresse n'a jamais existé
+     * avant. Le dépôt de test que l'utilisateur envoie pour vérifier que « ça
+     * marche » était donc systématiquement avalé en silence.
+     *
+     * À appeler UNIQUEMENT à la création d'un nouveau wallet (pas à un
+     * import : un wallet importé peut avoir un VRAI historique, qu'on ne veut
+     * toujours pas notifier rétroactivement).
+     */
+    fun markFreshWalletBackfilled(addr: com.vaultex.core.crypto.WalletManager.WalletAddresses) {
+        markBackfilled("BTC", addr.btc)
+        markBackfilled("ETH", addr.eth)
+        markBackfilled("BNB", addr.bnb)
+        markBackfilled("SOL", addr.sol)
+        markBackfilled("TRX", addr.trx)
+        markBackfilled("ETH-TOKENS", addr.eth)
+        markBackfilled("BNB-TOKENS", addr.bnb)
+    }
+
+    /**
      * Garde-fou de dernier recours : une transaction vieille de plus de 24 h
      * ne notifie jamais. Protège du cas où la base locale serait vidée alors
      * que les préférences subsistent — on ne veut pas réveiller l'utilisateur

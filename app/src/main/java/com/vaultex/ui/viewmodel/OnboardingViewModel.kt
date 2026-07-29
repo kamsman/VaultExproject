@@ -33,6 +33,7 @@ class OnboardingViewModel @Inject constructor(
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val hub: com.vaultex.core.session.NotificationHub,
     private val walletStore: com.vaultex.core.session.WalletStore,
+    private val syncService: com.vaultex.core.tx.TransactionSyncService,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -109,6 +110,21 @@ class OnboardingViewModel @Inject constructor(
                             passphrase = _passphrase.value.trim(),
                             imported = wasImported
                         )
+                        // CORRECTIF : pour un wallet fraîchement GÉNÉRÉ (pas
+                        // importé), la seed vient de SecureRandom — aucun
+                        // historique on-chain ne peut exister sur ses adresses.
+                        // Sans ce pré-marquage, le tout premier dépôt reçu
+                        // (typiquement le dépôt de TEST que l'utilisateur
+                        // envoie juste après avoir créé le wallet) était
+                        // confondu avec un « ancien historique à importer » et
+                        // avalé en silence, sans aucune notification.
+                        // Un wallet IMPORTÉ, lui, peut avoir un vrai passé :
+                        // on garde pour lui le comportement prudent existant.
+                        if (!wasImported) {
+                            val addr = com.vaultex.core.crypto.WalletManager
+                                .deriveAddresses(mnemonicStr, _passphrase.value.trim())
+                            syncService.markFreshWalletBackfilled(addr)
+                        }
                     }
                     if (pin != null) {
                         val isChange = pinManager.hasPin()
