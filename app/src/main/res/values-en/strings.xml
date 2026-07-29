@@ -813,4 +813,8 @@
     <string name="antiphishing_saved">Code saved. Check that it appears at your next unlock.</string>
     <string name="antiphishing_remove">Remove my code</string>
     <string name="antiphishing_limit">Good to know: this code protects against fake apps, not against someone using your unlocked phone. It replaces neither your PIN nor your recovery phrase backup.</string>
+
+    <!-- Collapsible details block (send / swap confirmation) -->
+    <string name="details_show">View details</string>
+    <string name="details_hide">Hide</string>
 </resources>

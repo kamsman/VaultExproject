@@ -396,22 +396,35 @@ private fun SwapConfirmScreen(
                 }
             }
 
-            // Carte détails
+            /*
+            Même principe que la confirmation d'envoi : le TAUX est la seule
+            donnée sur laquelle l'utilisateur décide vraiment — c'est elle qui
+            dit ce qu'il obtient. Fournisseur, frais, réseau et délai servent à
+            vérifier. Ils passent donc derrière « Voir détails », pour que le
+            bouton de confirmation reste atteignable sans faire défiler.
+             */
+            val rate = if (fromAmt > 0.0 && toAmt > 0.0)
+                "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
+            val feeTxt = if (fromAmt > 0.0)
+                "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
+
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
-                    ConfirmRow("Fournisseur", "ChangeNOW", chevron = true)
-                    Divider(color = swapBorder)
-                    val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
                     ConfirmRow("Taux", rate)
-                    Divider(color = swapBorder)
-                    val feeTxt = if (fromAmt > 0.0)
-                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
-                    ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
-                    Divider(color = swapBorder)
-                    ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
-                    Divider(color = swapBorder)
-                    ConfirmRow("Délai estimé", "2 - 5 min", valueColor = SwapPurple)
+                    com.vaultex.ui.components.ExpandableDetails(
+                        accent = SwapPurple,
+                        labelColor = swapTextDim,
+                        summary = "Frais inclus : $feeTxt"
+                    ) {
+                        Divider(color = swapBorder)
+                        ConfirmRow("Fournisseur", "ChangeNOW", chevron = true)
+                        Divider(color = swapBorder)
+                        ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
+                        Divider(color = swapBorder)
+                        ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
+                        Divider(color = swapBorder)
+                        ConfirmRow("Délai estimé", "2 - 5 min", valueColor = SwapPurple)
+                    }
                 }
             }
 

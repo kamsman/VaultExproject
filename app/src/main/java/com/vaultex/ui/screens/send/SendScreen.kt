@@ -1213,11 +1213,37 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             isNew = detail.isNewRecipient,
             onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
         )
-        ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
-        ConfirmRowRight(Icons.Default.CreditCard, stringResource(R.string.amount), "${detail.amount} ${detail.coinShort}", detail.amountFiat?.let { "≈ $it" })
-        ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, detail.feeFiat?.let { "≈ $it" })
-        ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_confirm_total_deducted), detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true)
-        ConfirmRowRight(Icons.Default.Schedule, stringResource(R.string.send_confirm_eta_label), stringResource(R.string.send_confirm_eta_value), stringResource(R.string.send_confirm_eta_sub))
+        /*
+        HIÉRARCHIE DE L'ÉCRAN. L'utilisateur décide sur trois choses : combien
+        part, vers qui, et combien au total lui sera débité. Ces trois-là
+        restent visibles SANS défilement — le reste (réseau, détail des frais,
+        délai) sert à vérifier, pas à décider, et se range derrière
+        « Voir détails ».
+
+        Le défilement est l'ennemi ici : il repousse le bouton de confirmation
+        hors de l'écran et noie l'essentiel dans le secondaire.
+         */
+        ConfirmRowRight(
+            Icons.Default.AccountBalanceWallet,
+            stringResource(R.string.send_confirm_total_deducted),
+            detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true
+        )
+        com.vaultex.ui.components.ExpandableDetails(
+            accent = AccentBlue,
+            labelColor = TextSecondary,
+            // Résumé visible même replié : le montant des frais est la seule
+            // information secondaire qui puisse faire renoncer à l'envoi.
+            summary = detail.feeNative.ifEmpty { null }
+                ?.let { stringResource(R.string.send_summary_fee) + " : " + it }
+        ) {
+            ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
+            Spacer(Modifier.height(8.dp))
+            ConfirmRowRight(Icons.Default.CreditCard, stringResource(R.string.amount), "${detail.amount} ${detail.coinShort}", detail.amountFiat?.let { "≈ $it" })
+            Spacer(Modifier.height(8.dp))
+            ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, detail.feeFiat?.let { "≈ $it" })
+            Spacer(Modifier.height(8.dp))
+            ConfirmRowRight(Icons.Default.Schedule, stringResource(R.string.send_confirm_eta_label), stringResource(R.string.send_confirm_eta_value), stringResource(R.string.send_confirm_eta_sub))
+        }
         // Avertissement irréversible
         Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFF7E6), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -904,4 +904,8 @@
     <string name="antiphishing_saved">Code enregistré. Vérifiez qu\'il apparaît bien au prochain déverrouillage.</string>
     <string name="antiphishing_remove">Supprimer mon code</string>
     <string name="antiphishing_limit">À savoir : ce code protège contre les fausses applications, pas contre quelqu\'un qui utiliserait votre téléphone déverrouillé. Il ne remplace ni le code PIN ni la sauvegarde de votre phrase de récupération.</string>
+
+    <!-- Bloc de détails repliable (confirmation d'envoi / de swap) -->
+    <string name="details_show">Voir détails</string>
+    <string name="details_hide">Masquer</string>
 </resources>

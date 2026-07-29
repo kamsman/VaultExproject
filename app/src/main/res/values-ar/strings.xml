@@ -813,4 +813,8 @@
     <string name="antiphishing_saved">تم حفظ الرمز. تأكّد من ظهوره عند إلغاء القفل القادم.</string>
     <string name="antiphishing_remove">حذف رمزي</string>
     <string name="antiphishing_limit">للعلم: يحميك هذا الرمز من التطبيقات المزيّفة، لا ممّن يستخدم هاتفك وهو غير مقفل. وهو لا يُغني عن رمز PIN ولا عن نسخ عبارة الاسترداد احتياطياً.</string>
+
+    <!-- كتلة التفاصيل القابلة للطي (تأكيد الإرسال / التبادل) -->
+    <string name="details_show">عرض التفاصيل</string>
+    <string name="details_hide">إخفاء</string>
 </resources>
