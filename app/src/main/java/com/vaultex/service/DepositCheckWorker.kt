@@ -74,7 +74,31 @@ class DepositCheckWorker @AssistedInject constructor(
                 val key = "bal_${c.symbol}"
                 val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
                 prefs.edit().putString(key, bal.toString()).apply()
-                if (before == null) continue                 // 1er passage : on mémorise
+                if (before == null) {
+                    /*
+                    TOUT PREMIER PASSAGE sur cette chaîne : aucun solde de
+                    référence, donc aucun écart calculable.
+
+                    Mais s'arrêter là créait un angle mort : un dépôt reçu
+                    AVANT que ce premier relevé n'ait lieu (créer le wallet,
+                    envoyer les fonds, puis ouvrir l'app) était enregistré
+                    directement dans la référence — plus aucun écart n'apparaît
+                    ensuite, et la notification ne partait JAMAIS.
+
+                    On lance donc quand même la synchronisation : elle lit la
+                    vraie liste de transactions. C'est TransactionSyncService
+                    qui tranche ensuite — il notifie pour un wallet créé dans
+                    l'app (aucun passé possible) et reste silencieux pour un
+                    wallet importé (qui peut avoir un vrai historique).
+                     */
+                    if (bal > 0.0) {
+                        when (c.symbol) {
+                            "TRX", "USDT" -> toSync.add("TRX")
+                            else -> toSync.add(c.symbol)
+                        }
+                    }
+                    continue
+                }
                 val delta = bal - before
                 if (delta > c.dust) {
                     when (c.symbol) {

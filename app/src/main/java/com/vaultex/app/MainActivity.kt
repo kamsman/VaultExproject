@@ -215,9 +215,24 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
+                    /*
+                    REPLACE, surtout pas KEEP.
+
+                    Le worker renvoie `retry` sur la moindre erreur réseau. Avec
+                    KEEP, ce travail reste alors ENQUEUED en attente de reprise
+                    — avec un délai qui double à chaque échec, jusqu'à plusieurs
+                    heures — et TOUTES les demandes suivantes sont ignorées,
+                    puisqu'un travail du même nom est déjà en attente.
+
+                    Autrement dit : une seule coupure réseau passagère pouvait
+                    éteindre la détection rapide des dépôts pour le reste de la
+                    session, sans le moindre signe. REPLACE repart d'une
+                    exécution neuve à chaque cycle ; le travail est idempotent,
+                    l'interrompre ne coûte rien.
+                     */
                     androidx.work.WorkManager.getInstance(this@MainActivity).enqueueUniqueWork(
                         com.vaultex.service.DepositCheckWorker.WORK_NAME + "_fg",
-                        androidx.work.ExistingWorkPolicy.KEEP,
+                        androidx.work.ExistingWorkPolicy.REPLACE,
                         androidx.work.OneTimeWorkRequest.Builder(
                             com.vaultex.service.DepositCheckWorker::class.java
                         ).build()
