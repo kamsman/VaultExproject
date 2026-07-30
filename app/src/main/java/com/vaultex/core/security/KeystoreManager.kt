@@ -108,6 +108,30 @@ class KeystoreManager @Inject constructor() {
         if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
             keyStore.deleteEntry(MASTER_KEY_ALIAS)
         }
+        /*
+        SECONDE CLÉ, tout aussi importante.
+
+        Le double chiffrement du seed repose sur DEUX clés : celle-ci
+        (VaultExMasterKey) et celle qui protège les préférences chiffrées,
+        créée par MasterKey.Builder sous son alias PAR DÉFAUT. Seule la
+        première était supprimée : après un effacement — y compris un PIN
+        panique — la clé des préférences restait dans le Keystore Android.
+
+        Ce n'est pas une fuite en soi, les fichiers ayant été vidés. Mais une
+        clé qui subsiste est une trace qui subsiste, et l'objectif du PIN
+        panique est justement qu'il n'en reste aucune. On supprime les deux.
+
+        On supprime la clé PAR SON ALIAS PAR DÉFAUT plutôt que de définir un
+        alias personnalisé : changer l'alias sur une application déjà
+        installée rendrait les préférences existantes — donc les seeds —
+        DÉFINITIVEMENT indéchiffrables. Ce serait une perte de fonds.
+         */
+        try {
+            val prefsAlias = androidx.security.crypto.MasterKey.DEFAULT_MASTER_KEY_ALIAS
+            if (keyStore.containsAlias(prefsAlias)) {
+                keyStore.deleteEntry(prefsAlias)
+            }
+        } catch (_: Exception) { }
     }
 
     /** Détection réelle du module hardware StrongBox (m-03). */
