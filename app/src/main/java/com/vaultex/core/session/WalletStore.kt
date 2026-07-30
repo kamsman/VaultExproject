@@ -141,6 +141,25 @@ class WalletStore @Inject constructor(
             appContext.getSharedPreferences("deposit_check_prefs", android.content.Context.MODE_PRIVATE)
                 .edit().clear().apply()
         } catch (_: Exception) { }
+        /*
+        Marqueurs « adresse déjà balayée » : à remettre à zéro EN MÊME TEMPS que
+        la table des transactions, sous peine d'incohérence.
+
+        `transactionDao.deleteAll()` vient d'effacer tout l'historique local. Le
+        prochain balayage va donc TOUT réinsérer, et chaque ligne réapparaîtra
+        comme une insertion neuve. Si l'adresse restait marquée « déjà balayée »,
+        chacune de ces réinsertions serait prise pour une nouvelle réception :
+        l'utilisateur recevrait une rafale de fausses notifications « fonds
+        reçus » simplement pour avoir changé de wallet.
+
+        En remettant les marqueurs à zéro, cette réimportation redevient ce
+        qu'elle est — un import silencieux — et seuls les dépôts SUIVANTS
+        notifient. Purge globale, comme la table qu'elle accompagne.
+         */
+        try {
+            appContext.getSharedPreferences("vaultex_sync_state", android.content.Context.MODE_PRIVATE)
+                .edit().clear().apply()
+        } catch (_: Exception) { }
         // Force l'accueil à recharger les soldes du nouveau wallet dès son retour.
         BalanceRefreshSignal.signalTxSent()
     }

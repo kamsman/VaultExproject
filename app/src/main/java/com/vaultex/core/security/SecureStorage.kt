@@ -291,6 +291,34 @@ class SecureStorage @Inject constructor(
         prefs.edit().clear().apply()
         rpcPrefs.edit().clear().apply()
         keystoreManager.destroyMasterKey()
+        /*
+        EFFACEMENT DE **TOUTES** LES PRÉFÉRENCES DE L'APPLICATION.
+
+        Seuls deux magasins étaient vidés ici. Une dizaine d'autres survivaient
+        — dont le centre de notifications, qui conserve des lignes explicites du
+        type « Vous avez reçu 0,5 BTC », ainsi que les soldes de référence du
+        détecteur de dépôts.
+
+        C'est acceptable pour un simple « Effacer le wallet ». Ça ne l'est pas
+        du tout pour le PIN PANIQUE, dont c'est la RAISON D'ÊTRE : sous
+        contrainte, l'appareil doit paraître vierge. Un agresseur qui ouvre la
+        cloche et y lit l'historique des montants reçus comprend immédiatement
+        que le portefeuille a été effacé devant lui — et que l'utilisateur ment.
+        La fonction censée le protéger le mettait en danger.
+
+        On énumère donc le dossier des préférences plutôt que de maintenir une
+        liste en dur, qui aurait pris du retard au premier magasin ajouté.
+         */
+        try {
+            val dir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            dir.listFiles()?.forEach { file ->
+                val name = file.name.removeSuffix(".xml")
+                // clear() plutôt que la suppression du fichier : les instances
+                // déjà chargées en mémoire restent cohérentes avec le disque.
+                context.getSharedPreferences(name, Context.MODE_PRIVATE)
+                    .edit().clear().commit()
+            }
+        } catch (_: Exception) { }
         // P2 : effacer aussi la base chiffrée (historique, contacts, alertes…)
         context.deleteDatabase("vaultex.db")
         // Flag de routage « wallet créé » : sans cet effacement, l'app
