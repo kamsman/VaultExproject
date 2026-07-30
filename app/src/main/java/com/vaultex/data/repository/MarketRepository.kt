@@ -87,11 +87,45 @@ class MarketRepository @Inject constructor(
      */
     suspend fun getMarket(coinId: String): List<CoinGeckoMarketDto> {
         cache.firstOrNull { it.id == coinId }?.let { return listOf(it) }
-        // sparkline=true → ramène aussi la courbe 7j (utilisée par l'écran détail),
-        // ce qui évite un second appel réseau pour le graphique.
-        val list = api.getMarkets(vsCurrency = "usd", sparkline = true, ids = coinId)
-        if (list.isNotEmpty()) cache = (cache + list).distinctBy { it.id }
-        return list
+        /*
+        Cet appel N'AVAIT NI REESSAI NI REPLI DISQUE, contrairement à la liste
+        marché. Un seul refus de CoinGecko — son quota gratuit est vite atteint —
+        et la fonction levait une exception : l'écran détail affichait « $ — »,
+        « +0,00 % » et un graphique vide, sur TOUTES les monnaies.
+
+        Le plus frustrant : la liste marché enregistre déjà tout sur le DISQUE
+        (prix ET courbe 7 j), mais l'écran détail n'allait jamais y regarder. Les
+        données étaient là, sur le téléphone, inutilisées.
+
+        Même résilience que getMarkets() désormais : réessai, puis repli disque.
+         */
+        return try {
+            // sparkline=true → ramène aussi la courbe 7j (utilisée par l'écran
+            // détail), ce qui évite un second appel réseau pour le graphique.
+            val list = try {
+                api.getMarkets(vsCurrency = "usd", sparkline = true, ids = coinId)
+            } catch (_: Exception) {
+                kotlinx.coroutines.delay(1500)   // rate-limit passager
+                api.getMarkets(vsCurrency = "usd", sparkline = true, ids = coinId)
+            }
+            if (list.isNotEmpty()) {
+                cache = (cache + list).distinctBy { it.id }
+                lastFromCache = false
+                list
+            } else diskFallback(coinId)
+        } catch (_: Exception) {
+            lastFromCache = true
+            diskFallback(coinId)
+        }
+    }
+
+    /** Dernière donnée connue pour [coinId], relue du cache disque. */
+    private fun diskFallback(coinId: String): List<CoinGeckoMarketDto> {
+        val disk = loadFromDisk()
+        if (disk.isEmpty()) return emptyList()
+        cache = (cache + disk).distinctBy { it.id }
+        val hit = disk.firstOrNull { it.id == coinId }
+        return if (hit != null) listOf(hit) else emptyList()
     }
 
     /** Courbe de prix d'un token sur [days] jours (CoinGecko market_chart, USD). */

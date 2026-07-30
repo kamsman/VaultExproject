@@ -51,9 +51,18 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
     val periods = listOf("24H", "7J", "1M", "3M", "1A")
     var selectedPeriod by remember { mutableStateOf("7J") }
 
-    LaunchedEffect(coinId, selectedPeriod) {
-        // 7J vient du sparkline en cache → pas d'appel. Autres périodes : market_chart.
-        if (selectedPeriod != "7J") viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
+    LaunchedEffect(coinId, selectedPeriod, coin) {
+        /*
+        7 J s'appuie normalement sur le sparkline livré avec la fiche : aucun
+        appel réseau supplémentaire. Mais si ce sparkline manque — fiche servie
+        par le cache disque allégé, ou CoinGecko qui l'a omis — on se rabattait
+        sur RIEN, et le graphique restait vide sans que personne ne tente de le
+        charger. On demande alors explicitement market_chart sur 7 jours.
+         */
+        val hasSparkline = (coin?.sparkline_in_7d?.price?.size ?: 0) >= 2
+        if (selectedPeriod != "7J" || !hasSparkline) {
+            viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
+        }
     }
 
     Scaffold(
