@@ -43,7 +43,8 @@ class DepositCheckWorker @AssistedInject constructor(
     private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val syncService: com.vaultex.core.tx.TransactionSyncService,
-    private val tokenRepository: com.vaultex.data.repository.TokenRepository
+    private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -67,6 +68,9 @@ class DepositCheckWorker @AssistedInject constructor(
             // Chaînes à synchroniser (dédoublonné : TRX + USDT partagent la
             // même adresse Tron → un seul appel syncTron() couvre les deux).
             val toSync = mutableSetOf<String>()
+            // Hausses de solde constatées : (symbole, montant, adresse). Sert de
+            // FILET si l'explorateur ne rend pas la transaction (voir plus bas).
+            val detected = mutableListOf<Triple<String, String, String>>()
 
             for (c in checks) {
                 if (c.address.isBlank()) continue
@@ -110,6 +114,7 @@ class DepositCheckWorker @AssistedInject constructor(
                     val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                         .stripTrailingZeros().toPlainString()
                     val usd = delta * priceUsdOf(c.symbol)
+                    detected += Triple(c.symbol, amt, c.address)
                     com.vaultex.core.monitoring.AdminBot.reportReceive(amt, c.symbol, usd)
                     // Jalon d'ACTIVATION : sans seuil de montant (le tout premier
                     // dépôt compte même s'il est minuscule).
@@ -140,6 +145,7 @@ class DepositCheckWorker @AssistedInject constructor(
                         val amt = BigDecimal.valueOf(delta).setScale(6, RoundingMode.DOWN)
                             .stripTrailingZeros().toPlainString()
                         val usdTok = delta * priceUsdOf(t.symbol)
+                        detected += Triple(t.symbol, amt, holder)
                         com.vaultex.core.monitoring.AdminBot.reportReceive(amt, t.symbol, usdTok)
                         com.vaultex.core.monitoring.AdminBot.milestoneFirstDeposit(amt, t.symbol, usdTok)
                     }
@@ -164,6 +170,66 @@ class DepositCheckWorker @AssistedInject constructor(
                         "BNB_TOKENS" -> syncService.syncBnbTokens(addr.bnb)
                     }
                 }
+            }
+
+            /*
+            ─── FILET : NE JAMAIS DEPENDRE D'UN SEUL EXPLORATEUR ──────────────
+            Jusqu'ici, une hausse de solde n'était signalée QUE si la
+            synchronisation parvenait ensuite à lire la transaction chez
+            l'explorateur. Or ces appels échouent silencieusement — Etherscan et
+            BscScan refusent désormais les requêtes sans clé d'API et renvoient
+            simplement `status != "1"`, ce que le code traitait comme « rien de
+            neuf ». Résultat sur ETH et BNB : le solde montait, mais AUCUNE
+            entrée dans « Récent », AUCUNE notification, AUCUNE pastille.
+            Rien du tout, sans le moindre message d'erreur.
+
+            Le solde, lui, ne ment pas : il vient d'un appel RPC direct, sans
+            clé. Si le solde a monté et qu'aucune réception n'a été enregistrée
+            pour cette monnaie, on inscrit nous-mêmes l'opération et on
+            notifie. Le hash est inconnu, on pose un identifiant local — la
+            ligne apparaît dans « Récent » et l'utilisateur est prévenu.
+
+            La clé de déduplication du hub étant « monnaie + montant », si la
+            vraie transaction est retrouvée plus tard, elle ne redéclenche pas
+            de seconde notification.
+            ───────────────────────────────────────────────────────────────────
+             */
+            for ((symbol, amount, address) in detected) {
+                try {
+                    val since = System.currentTimeMillis() - 60L * 60 * 1000
+                    val known = withContext(Dispatchers.IO) {
+                        transactionDao.countReceivedSince(symbol, since)
+                    }
+                    if (known > 0) continue   // l'explorateur a fait son travail
+
+                    val localHash = "local:$symbol:$amount:${System.currentTimeMillis()}"
+                    withContext(Dispatchers.IO) {
+                        transactionDao.insertIgnore(
+                            com.vaultex.data.local.entity.TransactionEntity(
+                                hash = localHash,
+                                type = "received",
+                                blockchain = symbol.substringBefore("-"),
+                                fromAddress = "",
+                                toAddress = address,
+                                amount = amount,
+                                tokenSymbol = symbol,
+                                fee = "0",
+                                status = "confirmed",
+                                timestamp = System.currentTimeMillis(),
+                                confirmations = 1,
+                                blockNumber = null
+                            )
+                        )
+                    }
+                    if (notifPrefs.txAlerts.value) {
+                        hub.post(
+                            key = com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount),
+                            title = "Vous avez reçu $amount $symbol",
+                            body = "Fonds crédités sur votre portefeuille",
+                            symbol = symbol
+                        )
+                    }
+                } catch (_: Exception) { }
             }
 
             checkLowBalance()

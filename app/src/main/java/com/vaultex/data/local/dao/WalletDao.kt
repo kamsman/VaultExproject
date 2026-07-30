@@ -98,6 +98,11 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE blockchain = :blockchain")
     suspend fun deleteByBlockchain(blockchain: String)
+
+    /** Réceptions d'une monnaie enregistrées depuis [since] — sert à savoir si
+     *  une hausse de solde a déjà été expliquée par une transaction connue. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE tokenSymbol = :symbol AND type = 'received' AND timestamp >= :since")
+    suspend fun countReceivedSince(symbol: String, since: Long): Int
 }
 
 @Dao
