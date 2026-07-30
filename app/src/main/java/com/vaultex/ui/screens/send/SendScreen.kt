@@ -1135,7 +1135,12 @@ private fun ConfirmRowRight(
  */
 @Composable
 private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> Unit) {
-    val grouped = remember(address) { address.chunked(4).joinToString(" ") }
+    // Adresse affichée TELLE QUELLE, d'un seul tenant. Le découpage en blocs
+    // de 4 essayé précédemment rendait l'adresse illisible et faussait même la
+    // lecture (« 0xf1 7f18 » pour une adresse qui commence par 0xf17f) —
+    // retiré à la demande du test réel. La chasse fixe suffit : elle garde les
+    // caractères alignés et comparables, l'anti-poisoning reste assuré par
+    // l'affichage COMPLET (pas tronqué) + l'alerte sosie + l'alerte premier envoi.
     Surface(
         shape = RoundedCornerShape(14.dp), color = SurfaceColor,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
@@ -1156,9 +1161,9 @@ private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> 
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                grouped,
-                fontSize = 14.sp,
-                lineHeight = 21.sp,
+                address,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
                 fontWeight = FontWeight.Medium,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 color = TextPrimary

@@ -81,6 +81,29 @@ class SendCryptoUseCase @Inject constructor(
 
         /** Bitcoin : les pires pics (halving 2024) ont frôlé 1 500 sat/vB. */
         private const val BTC_MAX_SAT_PER_VBYTE = 2_000L
+
+        /*
+        ─── LIMITES DE GAS : LES MÊMES À L'AFFICHAGE ET À LA SIGNATURE ─────
+        L'estimation montrée à l'utilisateur et la réserve réellement exigée
+        par le nœud DOIVENT reposer sur la même limite de gas.
+
+        Ce n'était pas le cas : l'écran calculait avec 21 000 (transfert ETH
+        « théorique ») alors que la signature demande eth_estimateGas × 1,2,
+        soit 25 200. L'écran annonçait donc des frais 20 % TROP BAS, et
+        Ethereum exige `solde >= montant + maxFeePerGas × gasLimit`. Un envoi
+        calculé au plus juste sur le total affiché était rejeté « insufficient
+        funds » alors que l'application venait d'afficher que le compte
+        suffisait — incompréhensible côté utilisateur.
+
+        Même raison pour les tokens : la signature applique un plancher de
+        100 000 de gas, l'écran comptait 65 000.
+        ───────────────────────────────────────────────────────────────────
+         */
+        /** Transfert natif ETH/BNB : 21 000 × marge 1,2 (identique à la signature). */
+        const val GAS_LIMIT_NATIVE = 25_200L
+
+        /** Transfert ERC-20/BEP-20 : plancher appliqué à la signature. */
+        const val GAS_LIMIT_TOKEN = 100_000L
     }
 
     /** Frais renvoyés par le réseau jugés aberrants → envoi refusé. */
@@ -247,7 +270,7 @@ class SendCryptoUseCase @Inject constructor(
                 BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0x5208")
                     .removePrefix("0x"), 16)
                     .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
-            } catch (_: Exception) { BigInteger.valueOf(25_200L) }
+            } catch (_: Exception) { BigInteger.valueOf(GAS_LIMIT_NATIVE) }
 
             val signed = if (chainId == 1L) {
                 // Ethereum mainnet: EIP-1559 (type-2) — accurate base fee + tip
@@ -302,7 +325,7 @@ class SendCryptoUseCase @Inject constructor(
             } catch (_: Exception) { BigInteger.valueOf(72_000L) }
             // Plancher généreux pour un transfert de token (évite tout revert
             // « out of gas » sur certains BEP-20/ERC-20).
-            val gasLimit = estimatedGas.max(BigInteger.valueOf(100_000L))
+            val gasLimit = estimatedGas.max(BigInteger.valueOf(GAS_LIMIT_TOKEN))
 
             val signed: String
             val feePerGas: BigInteger
@@ -634,15 +657,15 @@ class SendCryptoUseCase @Inject constructor(
         if (chain.startsWith("ERC20:")) {
             val evm = chain.split(":").getOrNull(1)
             if (evm == "BNB") {
-                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 65_000.0 / 1e18
+                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_TOKEN / 1e18
             } else {
-                val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18
+                val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_TOKEN / 1e18
             }
         } else when (chain) {
-            "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 21_000.0 / 1e18 }
-            "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * 65_000.0 / 1e18 }
-            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 21_000.0 / 1e18
-            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * 65_000.0 / 1e18
+            "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_NATIVE / 1e18 }
+            "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_TOKEN / 1e18 }
+            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_NATIVE / 1e18
+            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_TOKEN / 1e18
             "BTC"      -> {
                 val fees = bitcoinApi.getFeeEstimates()
                 val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0

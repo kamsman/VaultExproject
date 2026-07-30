@@ -694,7 +694,7 @@
     <string name="send_err_enter_address">أدخل عنوان المستلم.</string>
     <string name="send_err_bad_address">عنوان غير صالح لشبكة %1$s. تحقق من العنوان.</string>
     <string name="send_err_insufficient_balance">رصيد غير كافٍ. المتاح: %1$s.</string>
-    <string name="send_err_keep_fee">المبلغ مرتفع جداً: احتفظ بـ ~%1$s لرسوم الشبكة.</string>
+    <string name="send_err_keep_fee">المبلغ مرتفع جداً: يجب الاحتفاظ بـ ~%1$s لرسوم الشبكة. اضغط MAX لإرسال أكبر مبلغ ممكن.</string>
     <string name="send_err_need_gas">تحتاج القليل من %1$s في عنوانك لدفع رسوم الشبكة.</string>
     <string name="send_err_below_min">المبلغ صغير جداً. الحد الأدنى: %1$s.</string>
     <string name="send_err_dust">المبلغ صغير جداً للشبكة (غبار). قم بزيادته.</string>

@@ -462,7 +462,7 @@
     <string name="send_err_enter_address">Entre l\'adresse du destinataire.</string>
     <string name="send_err_bad_address">Adresse invalide pour le réseau %1$s. Vérifie l\'adresse.</string>
     <string name="send_err_insufficient_balance">Solde insuffisant. Disponible : %1$s.</string>
-    <string name="send_err_keep_fee">Montant trop élevé : garde ~%1$s pour les frais de réseau.</string>
+    <string name="send_err_keep_fee">Montant trop élevé : il faut garder ~%1$s pour les frais de réseau. Appuie sur MAX pour envoyer le maximum possible.</string>
     <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
     <string name="send_err_below_min">Montant trop petit. Minimum : %1$s.</string>
     <string name="send_err_dust">Montant trop petit pour le réseau (poussière). Augmente le montant.</string>

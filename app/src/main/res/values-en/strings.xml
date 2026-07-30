@@ -694,7 +694,7 @@
     <string name="send_err_enter_address">Enter the recipient address.</string>
     <string name="send_err_bad_address">Invalid address for the %1$s network. Check the address.</string>
     <string name="send_err_insufficient_balance">Insufficient balance. Available: %1$s.</string>
-    <string name="send_err_keep_fee">Amount too high: keep ~%1$s for network fees.</string>
+    <string name="send_err_keep_fee">Amount too high: you need to keep ~%1$s for network fees. Tap MAX to send the largest possible amount.</string>
     <string name="send_err_need_gas">You need a little %1$s on your address to pay network fees.</string>
     <string name="send_err_below_min">Amount too small. Minimum: %1$s.</string>
     <string name="send_err_dust">Amount too small for the network (dust). Increase it.</string>
