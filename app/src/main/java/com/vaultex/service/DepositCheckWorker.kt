@@ -115,6 +115,10 @@ class DepositCheckWorker @AssistedInject constructor(
                         .stripTrailingZeros().toPlainString()
                     val usd = delta * priceUsdOf(c.symbol)
                     detected += Triple(c.symbol, amt, c.address)
+                    // Prévenir l'écran AVANT de notifier : le rafraîchissement
+                    // des soldes démarre tout de suite, si bien qu'au moment où
+                    // l'utilisateur ouvre l'application les fonds sont déjà là.
+                    com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
                     com.vaultex.core.monitoring.AdminBot.reportReceive(amt, c.symbol, usd)
                     // Jalon d'ACTIVATION : sans seuil de montant (le tout premier
                     // dépôt compte même s'il est minuscule).
@@ -146,6 +150,7 @@ class DepositCheckWorker @AssistedInject constructor(
                             .stripTrailingZeros().toPlainString()
                         val usdTok = delta * priceUsdOf(t.symbol)
                         detected += Triple(t.symbol, amt, holder)
+                        com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
                         com.vaultex.core.monitoring.AdminBot.reportReceive(amt, t.symbol, usdTok)
                         com.vaultex.core.monitoring.AdminBot.milestoneFirstDeposit(amt, t.symbol, usdTok)
                     }

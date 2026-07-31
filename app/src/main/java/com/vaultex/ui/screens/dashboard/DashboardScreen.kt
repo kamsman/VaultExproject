@@ -108,6 +108,25 @@ fun DashboardScreen(navController: NavHostController) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    /*
+    Rafraîchissement IMMÉDIAT quand un dépôt vient d'être détecté.
+
+    Sans cette écoute, l'écran ne se mettait à jour qu'à son propre cycle de
+    45 s : la notification pouvait donc arriver jusqu'à trois quarts de minute
+    AVANT que les fonds ne s'affichent. L'utilisateur ouvrait l'application
+    après avoir été prévenu et n'y voyait rien — le pire ressenti possible sur
+    un portefeuille. Et quand le cycle tombait d'abord, c'était l'inverse : la
+    notification annonçait un montant déjà visible.
+
+    Les deux événements sont maintenant liés : le détecteur prévient, l'écran
+    rafraîchit dans la seconde.
+     */
+    LaunchedEffect(Unit) {
+        com.vaultex.core.session.BalanceRefreshSignal.events.collect {
+            viewModel.refreshSilently()
+        }
+    }
+
     // Polling discret toutes les 45 s tant que le Dashboard est affiché
     // (pour voir une réception arriver sans action de l'utilisateur).
     LaunchedEffect(Unit) {
