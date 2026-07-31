@@ -920,4 +920,6 @@
     <string name="send_status_leave_hint">Vous pouvez quitter cet écran : nous vous préviendrons dès la confirmation.</string>
 
     <string name="balance_unavailable">Solde momentanément illisible — vos fonds sont intacts</string>
+
+    <string name="balance_partial">Total incomplet : une monnaie n\'a pas pu être lue</string>
 </resources>

@@ -398,6 +398,22 @@ object AdminBot {
     }
 
     /** ❌ Envoi échoué (raison technique) — détecte les pannes récurrentes (RPC, frais…). */
+    /*
+    Lecture de solde impossible sur une chaine. Signale AU PLUS UNE FOIS PAR
+    HEURE et par monnaie : ces echecs vont souvent par rafales (rate-limit d'un
+    noeud public), et il ne s'agit pas d'inonder le canal — juste de savoir
+    QUELLE chaine ne repond pas quand un utilisateur signale un solde a zero.
+     */
+    private val lastBalanceFail = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    fun balanceReadFailed(symbol: String) {
+        val now = System.currentTimeMillis()
+        val last = lastBalanceFail[symbol] ?: 0L
+        if (now - last < 60L * 60 * 1000) return
+        lastBalanceFail[symbol] = now
+        send("\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")
+    }
+
     fun sendFailed(symbol: String, reason: String?) =
         send("❌ Envoi échoué : $symbol" + (reason?.take(160)?.let { "\n$it" } ?: ""))
 

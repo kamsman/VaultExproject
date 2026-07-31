@@ -333,6 +333,18 @@ class PortfolioViewModel @Inject constructor(
                         // porte l'avertissement plutôt que d'afficher un zéro
                         // rassurant mais faux.
                         if (bal != null) anyFresh = true
+                        else {
+                            /*
+                            DIAGNOSTIC. Jusqu'ici, une chaîne qui ne répondait
+                            pas disparaissait en silence : impossible de savoir
+                            laquelle, ni pourquoi le total semblait faux. On
+                            remonte donc l'incident au bot d'administration —
+                            c'est la seule facon de diagnostiquer a distance un
+                            « mon solde affiche 0 » sans avoir le telephone en
+                            main.
+                             */
+                            com.vaultex.core.monitoring.AdminBot.balanceReadFailed(symbol)
+                        }
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
                             value(bal, pXof), pChange, color, chain,
                             valueUsd = value(bal, pUsd), valueEur = value(bal, pEur),

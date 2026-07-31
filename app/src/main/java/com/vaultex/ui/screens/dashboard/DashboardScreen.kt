@@ -344,6 +344,22 @@ fun DashboardScreen(navController: NavHostController) {
                     total juste.
                      */
                     unknown = state.balancesAllUnknown,
+                    /*
+                    ÉCHEC PARTIEL — le cas réel, et le plus trompeur.
+
+                    Les huit chaînes sont lues séparément. Si celle qui porte
+                    les fonds échoue pendant que les sept autres répondent
+                    « 0 » — ce qui est leur vraie valeur — le total vaut 0 et
+                    « rien n'a pu être lu » est FAUX : quelque chose a bien été
+                    lu. L'application affichait donc un zéro parfaitement
+                    assumé à quelqu'un dont l'argent est simplement sur la
+                    chaîne qui n'a pas répondu.
+
+                    On distingue donc trois états au lieu de deux : tout lu,
+                    RIEN lu, et partiellement lu — ce dernier montre le total
+                    connu ET dit clairement qu'il est incomplet.
+                     */
+                    partial = state.balancesUnavailable && !state.balancesAllUnknown,
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
@@ -605,6 +621,8 @@ private fun BalanceCard(
     isLoading: Boolean,
     /** true = les soldes n'ont pas pu être lus et rien n'est connu → « — ». */
     unknown: Boolean = false,
+    /** true = au moins une chaîne n'a pas répondu → le total est INCOMPLET. */
+    partial: Boolean = false,
     hidden: Boolean,
     onToggleHidden: () -> Unit
 ) {
@@ -706,6 +724,22 @@ private fun BalanceCard(
                 color = if (unknown) Color(0xFFF59E0B) else TextSecondary,
                 fontSize = 14.sp
             )
+            // Total INCOMPLET : on ne masque pas ce qu'on sait, mais on refuse
+            // de le présenter comme le solde total.
+            if (partial && !hidden && !isLoading) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.WarningAmber, null,
+                        tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.balance_partial),
+                        color = Color(0xFFF59E0B), fontSize = 12.sp
+                    )
+                }
+            }
             Spacer(Modifier.height(10.dp))
             val positive = changePercent >= 0
             Row(verticalAlignment = Alignment.CenterVertically) {

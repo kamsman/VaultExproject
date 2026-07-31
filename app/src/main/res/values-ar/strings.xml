@@ -829,4 +829,6 @@
     <string name="send_status_leave_hint">يمكنك مغادرة هذه الشاشة — سنُعلمك فور التأكيد.</string>
 
     <string name="balance_unavailable">تعذّرت قراءة الرصيد مؤقتاً — أموالك بأمان</string>
+
+    <string name="balance_partial">الإجمالي غير مكتمل: تعذّرت قراءة إحدى العملات</string>
 </resources>
