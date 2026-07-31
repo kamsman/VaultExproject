@@ -285,15 +285,30 @@ private class DynamicBaseUrlInterceptor(
             .let { it.trimEnd('/') + "/" }
 
         val original = chain.request()
-        val requestUrl = original.url.toString()
+        if (saved == normalizedDefault) return chain.proceed(original)
 
-        // Rewrite only if the user has set a custom URL
-        val newUrl = if (saved != normalizedDefault && requestUrl.startsWith(normalizedDefault)) {
-            requestUrl.replaceFirst(normalizedDefault, saved)
-        } else {
-            requestUrl
-        }
+        /*
+        Réécriture par HttpUrl, et non par remplacement de texte.
 
+        L'ancienne version faisait `requestUrl.replaceFirst(base, saved)` sur
+        l'URL entière. Un remplacement de chaîne ne connaît pas la structure
+        d'une URL : selon la valeur saisie par l'utilisateur, le chemin pouvait
+        se retrouver dupliqué ou tronqué, et la requête partait vers une adresse
+        silencieusement fausse. La classe voisine RpcFallbackInterceptor
+        utilisait déjà la bonne méthode — les deux sont maintenant cohérentes.
+
+        On ne remplace QUE l'origine (schéma, hôte, port) : chemin, paramètres
+        et fragment de la requête d'origine sont préservés tels quels.
+         */
+        val override = saved.toHttpUrlOrNull()
+            ?: return chain.proceed(original)          // valeur illisible : on ignore
+        if (override.scheme != "https") return chain.proceed(original)
+
+        val newUrl = original.url.newBuilder()
+            .scheme(override.scheme)
+            .host(override.host)
+            .port(override.port)
+            .build()
         return chain.proceed(original.newBuilder().url(newUrl).build())
     }
 }
