@@ -172,7 +172,12 @@ class SwapViewModel @Inject constructor(
         val json = secureStorage.getPortfolioSnapshot() ?: return null
         return try {
             gson.fromJson(json, SnapLite::class.java)?.tokens?.firstOrNull { it.symbol == token }
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            // Lecture d'un cache LOCAL : un echec ici n'est pas une panne de
+            // service, inutile de le remonter — l'appelant retombe sur le
+            // solde reseau.
+            null
+        }
     }
 
     /** Solde de [token] lu dans l'instantané portefeuille (aucun appel réseau). */
@@ -445,6 +450,11 @@ class SwapViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, swapInProgress = false, error = changeNowError(e)) }
+                // Panne cote ChangeNOW : sans remontee, un swap impossible pour
+                // TOUS les utilisateurs (cle revoquee, paire desactivee, service
+                // en panne) resterait invisible jusqu'a ce que quelqu'un se
+                // plaigne. Message technique, non traduit : c'est un diagnostic.
+                com.vaultex.core.monitoring.AdminBot.serviceFailed("ChangeNOW", e.message)
             }
         }
     }

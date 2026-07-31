@@ -97,7 +97,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount, "TRX", address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
+        }
 
         try {
             val trc20List = tronApi.getTrc20Transactions(address, limit = 50)
@@ -128,7 +130,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount, "TRX", address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
+        }
         // Fin du premier balayage : les prochaines transactions notifieront.
         if (firstScan) markBackfilled("TRX", address)
     }
@@ -169,7 +173,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount, "BTC", address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("BTC", e.message)
+        }
         // Fin du premier balayage : les prochaines transactions notifieront.
         if (firstScan) markBackfilled("BTC", address)
     }
@@ -183,7 +189,17 @@ class TransactionSyncService @Inject constructor(
         val firstScan = !isBackfilled(blockchain, address)
         try {
             val response = api.getTransactions(address = address, apiKey = apiKey)
-            if (response.status != "1") return
+            if (response.status != "1") {
+                /*
+                C'EST CE RETOUR-LA qui a rendu les receptions muettes pendant
+                des jours. Etherscan et BscScan refusent les requetes sans cle
+                et repondent status=0 — que le code interpretait comme « aucune
+                transaction nouvelle », sans exception, sans trace.
+                Desormais l'app le dit.
+                 */
+                com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.message)
+                return
+            }
             for (tx in response.result ?: emptyList()) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)
                 val amountWei = tx.value.toBigDecimalOrNull() ?: BigDecimal.ZERO
@@ -210,7 +226,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, e.message)
+        }
         // Fin du premier balayage : les prochaines transactions notifieront.
         if (firstScan) markBackfilled(blockchain, address)
     }
@@ -264,7 +282,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("$blockchain tokens", e.message)
+        }
         // Fin du premier balayage : les prochaines transactions notifieront.
         if (firstScan) markBackfilled(tokenChain, address)
     }
@@ -342,7 +362,9 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount, "SOL", address)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("SOL", e.message)
+        }
         // Fin du premier balayage : les prochaines transactions notifieront.
         if (firstScan) markBackfilled("SOL", address)
     }

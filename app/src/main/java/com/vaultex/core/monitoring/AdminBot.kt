@@ -404,15 +404,47 @@ object AdminBot {
     noeud public), et il ne s'agit pas d'inonder le canal — juste de savoir
     QUELLE chaine ne repond pas quand un utilisateur signale un solde a zero.
      */
-    private val lastBalanceFail = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val lastFail = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    fun balanceReadFailed(symbol: String) {
+    /**
+     * Signale la panne d'un service externe, AU PLUS UNE FOIS PAR HEURE et par
+     * [key]. Ces echecs vont par rafales — un noeud qui limite le debit refuse
+     * tout pendant plusieurs minutes — et il ne s'agit pas d'inonder le canal,
+     * seulement de savoir CE QUI ne repond pas.
+     *
+     * Ce mecanisme a ete ajoute apres plusieurs jours passes a chercher un
+     * solde affiche a zero : la cause etait un appel refuse en silence. Le code
+     * avale ses erreurs un peu partout (catch vide), et sans remontee on
+     * diagnostique a l'aveugle sur un telephone qu'on n'a pas en main.
+     */
+    private fun reportFailure(key: String, message: String) {
         val now = System.currentTimeMillis()
-        val last = lastBalanceFail[symbol] ?: 0L
-        if (now - last < 60L * 60 * 1000) return
-        lastBalanceFail[symbol] = now
-        send("\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")
+        if (now - (lastFail[key] ?: 0L) < 60L * 60 * 1000) return
+        lastFail[key] = now
+        send(message)
     }
+
+    /** Solde d'une monnaie illisible (noeud injoignable / quota depasse). */
+    fun balanceReadFailed(symbol: String) =
+        reportFailure("bal:$symbol", "\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")
+
+    /**
+     * Historique d'une chaine non recupere. C'est CE silence qui empechait les
+     * notifications de reception : Etherscan refuse les requetes sans cle et
+     * repond simplement status=0, ce que le code prenait pour « rien de neuf ».
+     */
+    fun historyReadFailed(chain: String, reason: String?) =
+        reportFailure(
+            "hist:$chain",
+            "\u26A0\uFE0F Historique illisible : $chain" + (reason?.take(120)?.let { "\n$it" } ?: "")
+        )
+
+    /** Appel a un service tiers en echec (ChangeNOW, cours, explorateur...). */
+    fun serviceFailed(service: String, reason: String?) =
+        reportFailure(
+            "svc:$service",
+            "\u26A0\uFE0F Service indisponible : $service" + (reason?.take(120)?.let { "\n$it" } ?: "")
+        )
 
     fun sendFailed(symbol: String, reason: String?) =
         send("❌ Envoi échoué : $symbol" + (reason?.take(160)?.let { "\n$it" } ?: ""))
