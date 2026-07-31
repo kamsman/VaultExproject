@@ -194,7 +194,21 @@ object NetworkModule {
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): TronApi {
         val default = "https://api.trongrid.io/"
+        /*
+        TronGrid est le SEUL fournisseur de cette API REST : contrairement à
+        Ethereum, BNB, Bitcoin ou Solana, il n'existe pas de nœud de secours
+        vers qui basculer. Sans clé, son quota gratuit est vite atteint et il
+        répond 403/429 — TRX et USDT-TRC20 deviennent alors illisibles EN MÊME
+        TEMPS, puisqu'ils partagent cet appel.
+
+        Faute de repli possible, on réessaie sur place, après une courte pause :
+        ces refus sont transitoires par nature. Cela ne remplace pas une clé
+        d'API, mais évite qu'un pic passager fasse afficher un solde à zéro.
+         */
         var trxClient = dynamicClient(client, rpcPrefs(ctx), "rpc_trx", default)
+            .newBuilder()
+            .addInterceptor(TransientRetryInterceptor(attempts = 3, pauseMs = 900))
+            .build()
         // Clé TronGrid optionnelle (header TRON-PRO-API-KEY) — anti rate-limit
         if (ApiKeys.TRONGRID.isNotBlank()) {
             trxClient = trxClient.newBuilder().addInterceptor { chain ->
@@ -318,6 +332,43 @@ private class DynamicBaseUrlInterceptor(
  * réponse 5xx du nœud courant, rejoue la requête en remplaçant l'hôte
  * par un nœud de secours, jusqu'à épuisement de la liste.
  */
+/**
+ * Réessaie une requête refusée pour une raison PASSAGÈRE (quota dépassé, nœud
+ * momentanément indisponible), avec une pause entre les tentatives.
+ *
+ * Utilisé pour les services sans nœud de secours : là où l'on ne peut pas
+ * basculer ailleurs, insister un peu reste la seule option.
+ */
+private class TransientRetryInterceptor(
+    private val attempts: Int,
+    private val pauseMs: Long
+) : Interceptor {
+
+    private fun transient(code: Int) =
+        code == 403 || code == 408 || code == 425 || code == 429 || code >= 500
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var last: Response? = null
+        repeat(attempts) { i ->
+            // La requête est rejouée telle quelle : les corps produits par
+            // Retrofit sont adossés à un tableau d'octets, donc relisables.
+            val response = try {
+                chain.proceed(chain.request())
+            } catch (e: java.io.IOException) {
+                // Panne réseau : on retente, sauf au dernier tour.
+                if (i == attempts - 1) throw e
+                Thread.sleep(pauseMs)
+                return@repeat
+            }
+            if (!transient(response.code) || i == attempts - 1) return response
+            response.close()
+            Thread.sleep(pauseMs)
+            last = null
+        }
+        return last ?: chain.proceed(chain.request())
+    }
+}
+
 private class RpcFallbackInterceptor(
     private val backupBaseUrls: List<String>
 ) : Interceptor {
