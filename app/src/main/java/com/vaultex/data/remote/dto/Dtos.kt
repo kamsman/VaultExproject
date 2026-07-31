@@ -225,6 +225,15 @@ data class FlutterwaveVerifyData(
 // ─── ETHERSCAN / BSCSCAN ──────────────────────────────────────
 data class EtherscanResponse(
     val status: String,
+    /**
+     * Motif du refus quand status vaut « 0 » : « Missing/Invalid API Key »,
+     * « Max rate limit reached », « No transactions found »…
+     *
+     * Ce champ n'etait pas lu, alors qu'il porte l'explication : le refus
+     * d'Etherscan/BscScan sans cle d'API a rendu les receptions ETH et BNB
+     * muettes pendant des jours, sans le moindre indice.
+     */
+    val message: String? = null,
     val result: List<EtherscanTx>? = null
 )
 data class EtherscanTx(
