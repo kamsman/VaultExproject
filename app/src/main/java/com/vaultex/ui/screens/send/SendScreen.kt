@@ -1272,6 +1272,60 @@ internal fun SendProcessingScreen(detail: SendDetail) {
     }
 }
 
+/*
+─── LIGNES DES ÉCRANS DE STATUT (maquette) ──────────────────────────────────
+Une seule carte, des lignes toutes bâties pareil : pastille ronde à gauche,
+libellé, valeur alignée à droite avec son équivalent en devise juste dessous.
+L'œil descend une seule colonne de valeurs au lieu de sauter d'un encadré à
+l'autre — c'est ce qui rend ces écrans lisibles d'un coup.
+─────────────────────────────────────────────────────────────────────────────
+ */
+@Composable
+private fun StatusRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    sub: String? = null,
+    onCopy: (() -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(CircleShape).background(BgTertiary),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = TextSecondary, modifier = Modifier.size(17.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(label, fontSize = 14.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            sub?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
+        }
+        if (onCopy != null) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Default.ContentCopy, null, tint = AccentBlue,
+                modifier = Modifier.size(18.dp).clickable { onCopy() }
+            )
+        }
+    }
+}
+
+/** Carte des écrans de statut : fond uni, coins arrondis, lignes séparées. */
+@Composable
+private fun StatusCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceColor,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(content = content)
+    }
+}
+
 @Composable
 internal fun SendPendingScreen(
     detail: SendDetail,
@@ -1283,7 +1337,6 @@ internal fun SendPendingScreen(
     onDone: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val orange = Color(0xFFF59E0B)
     SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
         StatusHeader(
@@ -1293,60 +1346,56 @@ internal fun SendPendingScreen(
             orange,
             animated = true
         )
-        SendDetailCard(detail, showTotal = true)
-        Surface(shape = RoundedCornerShape(12.dp), color = orange.copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Schedule, null, tint = orange, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text(stringResource(R.string.send_pending_waiting_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(stringResource(R.string.send_pending_waiting_body), fontSize = 12.sp, color = TextSecondary)
-                }
-            }
-        }
-        // Compteur de confirmations X / Y
-        Column(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.send_pending_confirmations), fontSize = 13.sp, color = TextSecondary)
-                Text("$confirmations / $target", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            }
-            Spacer(Modifier.height(6.dp))
-            LinearProgressIndicator(
-                progress = if (target > 0) (confirmations.toFloat() / target).coerceIn(0f, 1f) else 0f,
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = orange, trackColor = BgTertiary
+        Spacer(Modifier.height(4.dp))
+        /*
+        Le compteur de confirmations, la barre de progression, l'encadré
+        « en attente » et l'identifiant de transaction ont été retirés : ils
+        répétaient tous le titre. L'écran ne garde que ce que l'utilisateur
+        cherche vraiment à cet instant — combien, vers qui, sur quel réseau,
+        pour quels frais — et le lien vers l'explorateur pour le détail.
+         */
+        StatusCard {
+            StatusRow(
+                Icons.Default.CreditCard, stringResource(R.string.amount),
+                "${detail.amount} ${detail.coinShort}", detail.amountFiat
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.Send, stringResource(R.string.send_recipient_label),
+                shorten(detail.toAddress)
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.Hub, stringResource(R.string.send_summary_network),
+                detail.netFull
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee),
+                detail.feeNative.ifEmpty { "…" }, detail.feeFiat
             )
         }
-        // Transaction ID + copie
-        Surface(shape = RoundedCornerShape(12.dp), color = SurfaceColor, border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.send_success_txid), fontSize = 12.sp, color = TextSecondary)
-                    Text(shorten(txHash), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-                }
-                Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(20.dp).clickable {
-                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash))
-                })
-            }
-        }
+        Spacer(Modifier.height(4.dp))
         OutlinedButton(
             onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp),
             border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
         ) {
+            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(6.dp))
-            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
         }
         Button(
             onClick = onDone,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-        ) { Text(stringResource(R.string.send_pending_back_dashboard), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
-        Text(stringResource(R.string.send_pending_keep_tracking), fontSize = 11.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        ) {
+            Text(stringResource(R.string.send_pending_back_dashboard), color = Color.White,
+                fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
     }
 }
 
@@ -1359,8 +1408,10 @@ internal fun SendSuccessScreen(
     onShare: () -> Unit,
     onDone: () -> Unit
 ) {
-    val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
+    val sentAt = remember {
+        java.text.SimpleDateFormat("d MMM yyyy • HH:mm", java.util.Locale.FRANCE).format(java.util.Date())
+    }
     SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
         StatusHeader(
             Icons.Default.CheckCircle, AccentGreen,
@@ -1368,65 +1419,76 @@ internal fun SendSuccessScreen(
             stringResource(R.string.send_success_subtitle),
             AccentGreen
         )
-        SendDetailCard(detail, showTotal = false, onCopyAddress = {
-            clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress))
-        })
-        // Statut : confirmée (cet écran n'apparaît qu'après confirmation on-chain)
-        val confirmedAt = remember {
-            java.text.SimpleDateFormat("d MMM yyyy • HH:mm", java.util.Locale.FRANCE).format(java.util.Date())
-        }
-        Surface(shape = RoundedCornerShape(12.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.send_success_status_label), fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-                    Text(stringResource(R.string.send_success_status_value), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.height(4.dp))
+        /*
+        L'encadre « statut : confirmee » a ete retire : le grand rond vert et
+        le titre le disent deja. Restent deux cartes — la transaction, puis sa
+        trace (date et identifiant).
+         */
+        StatusCard {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape)
+                        .background(composeColor(coinColorHex(detail.coinShort))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    coil.compose.AsyncImage(
+                        model = com.vaultex.ui.components.CryptoIcon.url(detail.coinShort),
+                        contentDescription = detail.coinShort,
+                        modifier = Modifier.size(38.dp).clip(CircleShape)
+                    )
                 }
-                Text(stringResource(R.string.send_success_confirmed_on, confirmedAt), fontSize = 11.sp, color = TextSecondary)
-            }
-        }
-        // Transaction ID + copie
-        Surface(shape = RoundedCornerShape(12.dp), color = SurfaceColor, border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.send_success_txid), fontSize = 12.sp, color = TextSecondary)
-                    Text(shorten(txHash), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                    Text(detail.coinShort, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
+                    Text(detail.coinName, fontSize = 12.sp, color = TextSecondary)
                 }
-                Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(20.dp).clickable {
-                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash))
-                })
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${detail.amount} ${detail.coinShort}", fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp, color = TextPrimary)
+                    detail.amountFiat?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
+                }
             }
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.Send, stringResource(R.string.send_recipient_label),
+                shorten(detail.toAddress),
+                onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.Hub, stringResource(R.string.send_summary_network),
+                detail.netFull
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee),
+                detail.feeNative.ifEmpty { "…" }, detail.feeFiat
+            )
         }
-        OutlinedButton(
-            onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) }
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentGreen),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGreen)
-        ) {
-            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(6.dp))
-            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
+        StatusCard {
+            StatusRow(
+                Icons.Default.Schedule, stringResource(R.string.send_success_date), sentAt
+            )
+            HorizontalDivider(color = BorderColor)
+            StatusRow(
+                Icons.Default.Receipt, stringResource(R.string.send_success_txid),
+                shorten(txHash),
+                onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash)) }
+            )
         }
-        OutlinedButton(
-            onClick = onShare,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
-        ) {
-            Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.send_success_share_receipt), fontWeight = FontWeight.SemiBold)
-        }
+        Spacer(Modifier.height(4.dp))
         Button(
             onClick = onDone,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
-        ) { Text(stringResource(R.string.send_success_done), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        ) {
+            Text(stringResource(R.string.send_success_done), color = Color.White,
+                fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
     }
 }

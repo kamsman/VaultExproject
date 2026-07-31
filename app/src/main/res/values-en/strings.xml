@@ -817,4 +817,6 @@
     <!-- Collapsible details block (send / swap confirmation) -->
     <string name="details_show">View details</string>
     <string name="details_hide">Hide</string>
+
+    <string name="send_success_date">Date</string>
 </resources>
