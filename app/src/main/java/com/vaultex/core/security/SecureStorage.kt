@@ -319,6 +319,49 @@ class SecureStorage @Inject constructor(
                     .edit().clear().commit()
             }
         } catch (_: Exception) { }
+        /*
+        JETON DE NOTIFICATION — le trou le plus grave du PIN panique.
+
+        Le serveur associe le jeton FCM de l'appareil aux ADRESSES du
+        portefeuille. Ce jeton ne change pas quand on efface les préférences :
+        après un effacement sous contrainte, le serveur continuait donc
+        d'envoyer les notifications de l'ANCIEN portefeuille. Concrètement,
+        quelques minutes après avoir « tout effacé » devant un agresseur, une
+        bannière « Vous avez reçu 0,5 BTC » pouvait s'afficher sur un téléphone
+        censé être vierge.
+
+        Supprimer le jeton coupe le lien : le serveur ne sait plus où écrire, et
+        l'appareil s'en verra attribuer un neuf, sans passé.
+
+        Sur un thread séparé : l'opération est réseau, et rien ne doit retarder
+        un effacement d'urgence.
+         */
+        try {
+            Thread {
+                runCatching {
+                    com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken()
+                }
+            }.start()
+        } catch (_: Exception) { }
+
+        /*
+        Travaux planifiés : sans annulation, les workers de détection de dépôt
+        et d'alertes de prix restaient programmés après l'effacement.
+         */
+        try {
+            androidx.work.WorkManager.getInstance(context).cancelAllWork()
+        } catch (_: Exception) { }
+
+        /*
+        Fichiers et caches : logos de monnaies téléchargés, fichiers
+        temporaires… Aucun secret, mais autant de traces d'un usage passé sur un
+        appareil qui doit paraître neuf.
+         */
+        try {
+            context.cacheDir?.deleteRecursively()
+            context.filesDir?.listFiles()?.forEach { it.deleteRecursively() }
+        } catch (_: Exception) { }
+
         // P2 : effacer aussi la base chiffrée (historique, contacts, alertes…)
         context.deleteDatabase("vaultex.db")
         // Flag de routage « wallet créé » : sans cet effacement, l'app
