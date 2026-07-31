@@ -427,21 +427,10 @@ fun SendScreen(navController: NavController) {
                         Text(stringResource(R.string.send_address_network_note, netFull), fontSize = 12.sp, color = TextPrimary)
                     }
                 }
-                // USDT / token : avertissement RENFORCÉ — un envoi vers un
-                // dépôt d'exchange configuré sur un AUTRE réseau est PERDU.
-                if (state.selectedChain.startsWith("USDT") || state.customToken != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF59E0B).copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                stringResource(R.string.send_token_network_warning, netFull),
-                                fontSize = 12.sp, color = TextPrimary, lineHeight = 16.sp
-                            )
-                        }
-                    }
-                }
+                // L'avertissement « le destinataire doit accepter le réseau… »
+                // a été retiré : le bandeau vert ci-dessus porte déjà la même
+                // consigne de vérification du réseau. Deux alertes qui disent
+                // la même chose n'en font lire aucune.
             }
 
             // Amount card
@@ -505,12 +494,8 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Solde disponible (ligne)
-            SendInfoRow(
-                stringResource(R.string.send_available_balance),
-                (state.availableBalance ?: "—") + " " + coinShort,
-                availFiat?.let { "≈ $it" }
-            )
+            // « Solde disponible » retiré : la carte du haut porte déjà le solde
+            // de la monnaie choisie. Le répéter n'apprend rien et allonge l'écran.
             // Frais réseau (ligne)
             SendInfoRow(
                 stringResource(R.string.send_summary_fee),
@@ -524,13 +509,9 @@ fun SendScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(R.string.send_summary_you_send), fontSize = 13.sp, color = TextSecondary)
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("${state.amount.ifEmpty { "0" }} $coinShort", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
-                            amountFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
-                        }
-                    }
+                    // « Tu vas envoyer » retiré : sur un envoi sans frais de
+                    // service, cette ligne affiche exactement le Total qui la
+                    // suit. Le Total reste, il est la donnée qui engage.
                     if (svcFee > 0.0) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(stringResource(R.string.send_service_fee), fontSize = 13.sp, color = TextSecondary)
@@ -556,21 +537,9 @@ fun SendScreen(navController: NavController) {
                     }
                 }
             }
-            // Conseil de sécurité (bleu)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = AccentBlue.copy(alpha = 0.08f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(stringResource(R.string.send_security_tip_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Text(stringResource(R.string.send_security_tip_body, netFull), fontSize = 12.sp, color = TextSecondary)
-                    }
-                }
-            }
+            // Bloc « Conseil de sécurité » retiré : troisième rappel du même
+            // écran demandant de vérifier adresse et réseau. Le bandeau vert
+            // sous le destinataire le dit déjà, à l'endroit où ça compte.
 
             Spacer(Modifier.height(4.dp))
         }
@@ -1249,14 +1218,6 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             ConfirmRowRight(Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee), detail.feeNative.ifEmpty { "…" }, detail.feeFiat?.let { "≈ $it" })
             Spacer(Modifier.height(8.dp))
             ConfirmRowRight(Icons.Default.Schedule, stringResource(R.string.send_confirm_eta_label), stringResource(R.string.send_confirm_eta_value), stringResource(R.string.send_confirm_eta_sub))
-        }
-        // Avertissement irréversible
-        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFF7E6), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.WarningAmber, null, tint = Color(0xFFE6AC00), modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.send_confirm_irreversible), fontSize = 12.sp, color = Color(0xFF7A5200))
-            }
         }
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
