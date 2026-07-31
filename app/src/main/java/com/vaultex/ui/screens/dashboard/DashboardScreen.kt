@@ -330,19 +330,20 @@ fun DashboardScreen(navController: NavHostController) {
                     /*
                     LECTURE IMPOSSIBLE ≠ SOLDE NUL.
 
-                    Quand une lecture de solde échoue et qu'aucune valeur
+                    Quand aucune lecture n'aboutit et qu'aucune valeur
                     précédente n'existe, le portefeuille construisait un montant
                     à 0 et l'affichait comme un fait acquis. Après un changement
                     de wallet — où les caches viennent justement d'être purgés —
-                    un simple hoquet réseau suffisait donc à annoncer « 0 » à
+                    un simple hoquet réseau suffisait à annoncer « 0 » à
                     quelqu'un qui a des fonds.
 
-                    lastUpdated == 0 signifie « rien n'a JAMAIS été lu avec
-                    succès pour ce wallet ». Combiné à balancesUnavailable, on
-                    sait qu'on ne sait pas — et on le dit, au lieu d'inventer un
-                    zéro.
+                    On s'appuie sur balancesAllUnknown, qui vaut vrai UNIQUEMENT
+                    si RIEN n'a pu être lu. Surtout pas sur balancesUnavailable,
+                    vrai dès qu'une seule chaîne sur huit échoue : c'est courant
+                    avec des nœuds publics, et ça n'empêche pas d'afficher un
+                    total juste.
                      */
-                    unknown = state.balancesUnavailable && state.lastUpdated == 0L,
+                    unknown = state.balancesAllUnknown,
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )

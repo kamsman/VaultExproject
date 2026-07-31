@@ -60,7 +60,14 @@ data class PortfolioState(
     // Vrai si au moins un solde n'a pas pu être lu (réseau/RPC). Permet de ne
     // JAMAIS confondre « lecture échouée » avec « solde nul » (fonds reçus mais
     // invisibles parce que le nœud public a rejeté l'appel).
-    val balancesUnavailable: Boolean = false
+    val balancesUnavailable: Boolean = false,
+    /**
+     * true UNIQUEMENT si AUCUN solde n'a pu être lu et qu'aucun cache n'existe.
+     * À ne pas confondre avec [balancesUnavailable], qui est vrai dès qu'UNE
+     * seule chaîne sur huit a échoué — cas très courant avec des nœuds publics,
+     * et qui n'empêche nullement d'afficher un total correct.
+     */
+    val balancesAllUnknown: Boolean = false
 )
 
 @HiltViewModel
@@ -257,6 +264,10 @@ class PortfolioViewModel @Inject constructor(
                 // valeur en cache au lieu de la remettre à 0 (fonds jamais perdus).
                 val prevBySymbol = _state.value.tokens.associateBy { it.symbol }
                 var anyStale = false
+                // Au moins une lecture a abouti : sans ce suivi, on ne peut pas
+                // distinguer « une chaîne sur huit a échoué » de « rien n'a pu
+                // être lu du tout » — deux situations très différentes.
+                var anyFresh = false
                 val mainTokens = coroutineScope {
                     val btcD     = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
                     val ethD     = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
@@ -319,8 +330,9 @@ class PortfolioViewModel @Inject constructor(
                         }
                         // `amt()` renvoie déjà « — » si bal est nul : la LIGNE de
                         // l'actif dit donc « inconnu », et c'est le total qui
-                        // porte l'avertissement (balancesUnavailable) plutôt que
-                        // d'afficher un zéro rassurant mais faux.
+                        // porte l'avertissement plutôt que d'afficher un zéro
+                        // rassurant mais faux.
+                        if (bal != null) anyFresh = true
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
                             value(bal, pXof), pChange, color, chain,
                             valueUsd = value(bal, pUsd), valueEur = value(bal, pEur),
@@ -351,6 +363,20 @@ class PortfolioViewModel @Inject constructor(
 
                 // Au moins une lecture a échoué (réseau/RPC) → affichage depuis le cache.
                 val balancesUnavailable = anyStale
+                /*
+                « On ne sait RIEN » : aucune lecture n'a abouti ET il n'y avait
+                rien en mémoire. C'est le seul cas où le total ne doit pas être
+                affiché — sinon on annonce un zéro inventé.
+
+                Le premier correctif s'appuyait sur `lastUpdated == 0`, ce qui
+                etait faux pour deux raisons : `lastUpdated` n'avançait QUE si
+                les huit chaînes réussissaient ensemble, or il suffit qu'une
+                seule échoue (fréquent avec des nœuds publics) pour qu'il reste
+                bloqué à 0 indéfiniment. Le message s'affichait donc en
+                permanence, sur tous les wallets, y compris avec un solde
+                parfaitement lu.
+                 */
+                val allUnknown = !anyFresh && _state.value.tokens.isEmpty()
                 val total = tokens.sumOf { it.valueXof }
                 val totalUsd = tokens.sumOf { it.valueUsd }
                 val totalEur = tokens.sumOf { it.valueEur }
@@ -369,9 +395,12 @@ class PortfolioViewModel @Inject constructor(
                     error = null,
                     // Si rien n'a pu être rafraîchi, on reste « en cache » et on
                     // conserve l'horodatage précédent (pas de fausse fraîcheur).
-                    lastUpdated = if (balancesUnavailable) _state.value.lastUpdated else System.currentTimeMillis(),
+                    // Horodatage : avance dès qu'au moins une chaîne a répondu.
+                    // Le lier à la réussite des HUIT le figeait à jamais.
+                    lastUpdated = if (anyFresh) System.currentTimeMillis() else _state.value.lastUpdated,
                     isFromCache = balancesUnavailable,
-                    balancesUnavailable = balancesUnavailable
+                    balancesUnavailable = balancesUnavailable,
+                    balancesAllUnknown = allUnknown
                 )
                 _state.value = newState
                 // On persiste TOUJOURS : la fusion ci-dessus a déjà réinjecté le
