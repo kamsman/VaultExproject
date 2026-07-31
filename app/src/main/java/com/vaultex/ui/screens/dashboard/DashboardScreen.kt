@@ -327,6 +327,22 @@ fun DashboardScreen(navController: NavHostController) {
                     // (aucune donnée en cache) ; sinon affichage direct + refresh
                     // silencieux en arrière-plan (comme Trust Wallet).
                     isLoading = state.isLoading && state.tokens.isEmpty(),
+                    /*
+                    LECTURE IMPOSSIBLE ≠ SOLDE NUL.
+
+                    Quand une lecture de solde échoue et qu'aucune valeur
+                    précédente n'existe, le portefeuille construisait un montant
+                    à 0 et l'affichait comme un fait acquis. Après un changement
+                    de wallet — où les caches viennent justement d'être purgés —
+                    un simple hoquet réseau suffisait donc à annoncer « 0 » à
+                    quelqu'un qui a des fonds.
+
+                    lastUpdated == 0 signifie « rien n'a JAMAIS été lu avec
+                    succès pour ce wallet ». Combiné à balancesUnavailable, on
+                    sait qu'on ne sait pas — et on le dit, au lieu d'inventer un
+                    zéro.
+                     */
+                    unknown = state.balancesUnavailable && state.lastUpdated == 0L,
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
@@ -586,6 +602,8 @@ private fun BalanceCard(
     xof: Double,
     changePercent: Double,
     isLoading: Boolean,
+    /** true = les soldes n'ont pas pu être lus et rien n'est connu → « — ». */
+    unknown: Boolean = false,
     hidden: Boolean,
     onToggleHidden: () -> Unit
 ) {
@@ -663,7 +681,7 @@ private fun BalanceCard(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     when {
-                        isLoading -> placeholder
+                        isLoading || unknown -> placeholder
                         hidden -> masked
                         else -> primaryText
                     },
@@ -676,11 +694,15 @@ private fun BalanceCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 when {
+                    // Message EXPLICITE : sans lui, « — » laisserait croire à un
+                    // solde vide. L'utilisateur doit savoir que c'est la lecture
+                    // qui a échoué, pas son argent qui a disparu.
+                    unknown -> stringResource(R.string.balance_unavailable)
                     isLoading -> placeholder
                     hidden -> masked
                     else -> "= $secondaryText"
                 },
-                color = TextSecondary,
+                color = if (unknown) Color(0xFFF59E0B) else TextSecondary,
                 fontSize = 14.sp
             )
             Spacer(Modifier.height(10.dp))

@@ -827,4 +827,6 @@
     <string name="send_status_awaiting_count">Awaiting confirmation (%1$d/%2$d)</string>
     <string name="send_status_confirmed">Confirmed</string>
     <string name="send_status_leave_hint">You can leave this screen — we will notify you once it is confirmed.</string>
+
+    <string name="balance_unavailable">Balance temporarily unreadable — your funds are safe</string>
 </resources>

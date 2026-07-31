@@ -297,6 +297,15 @@ class PortfolioViewModel @Inject constructor(
                         val pXof = stick(xof(id), prev?.priceXof)
                         val pChange = if (id in prices) c(id) else (prev?.changePercent24h ?: 0.0)
                         if (bal == null) {
+                            /*
+                            LECTURE ÉCHOUÉE. Le montant est INCONNU — surtout pas
+                            zéro. Sans valeur précédente à réutiliser (cas d'un
+                            changement de wallet, où les caches viennent d'être
+                            purgés), le code retombait plus bas sur
+                            `value(null, prix)` = 0.0 et présentait ce zéro comme
+                            un fait. Un simple hoquet réseau annonçait donc un
+                            portefeuille vide à quelqu'un qui a des fonds.
+                             */
                             anyStale = true
                             // Solde indisponible : on garde le dernier solde connu MAIS
                             // on rafraîchit le PRIX de marché (indépendant du solde),
@@ -308,6 +317,10 @@ class PortfolioViewModel @Inject constructor(
                                 )
                             }
                         }
+                        // `amt()` renvoie déjà « — » si bal est nul : la LIGNE de
+                        // l'actif dit donc « inconnu », et c'est le total qui
+                        // porte l'avertissement (balancesUnavailable) plutôt que
+                        // d'afficher un zéro rassurant mais faux.
                         return TokenBalance(symbol, name, amt(bal, decimals, unit),
                             value(bal, pXof), pChange, color, chain,
                             valueUsd = value(bal, pUsd), valueEur = value(bal, pEur),

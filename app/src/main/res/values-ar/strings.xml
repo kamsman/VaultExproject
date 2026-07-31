@@ -827,4 +827,6 @@
     <string name="send_status_awaiting_count">في انتظار التأكيد (%1$d/%2$d)</string>
     <string name="send_status_confirmed">مؤكَّدة</string>
     <string name="send_status_leave_hint">يمكنك مغادرة هذه الشاشة — سنُعلمك فور التأكيد.</string>
+
+    <string name="balance_unavailable">تعذّرت قراءة الرصيد مؤقتاً — أموالك بأمان</string>
 </resources>
