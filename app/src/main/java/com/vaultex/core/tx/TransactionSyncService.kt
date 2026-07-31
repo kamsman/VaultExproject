@@ -53,6 +53,7 @@ class TransactionSyncService @Inject constructor(
         // Marqué en SORTIE de fonction (voir plus bas) : tout ce qui est
         // importé pendant ce premier passage reste silencieux.
         val firstScan = !isBackfilled("TRX", address)
+        var failed = false
         try {
             val txList = tronApi.getTransactions(address, limit = 50)
             for (tx in txList.data) {
@@ -99,6 +100,7 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
+            failed = true
         }
 
         try {
@@ -132,15 +134,26 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
+            failed = true
         }
-        // Fin du premier balayage : les prochaines transactions notifieront.
-        if (firstScan) markBackfilled("TRX", address)
+        /*
+        On ne marque l'adresse « deja balayee » QUE si le balayage a
+        REELLEMENT abouti.
+
+        Sinon : premier balayage en echec (reseau, quota), rien n'est importe,
+        mais l'adresse est quand meme marquee. Le balayage SUIVANT, lui,
+        reussit, insere tout l'historique d'un coup — et comme l'adresse est
+        marquee, chaque ligne compte comme une nouvelle reception. L'utilisateur
+        recoit une rafale de notifications pour des transactions anciennes.
+         */
+        if (firstScan && !failed) markBackfilled("TRX", address)
     }
 
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
     suspend fun syncBtc(address: String) {
         val firstScan = !isBackfilled("BTC", address)
+        var failed = false
         try {
             val txList = bitcoinApi.getTransactions(address)
             for (tx in txList) {
@@ -175,9 +188,9 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("BTC", e.message)
+            failed = true
         }
-        // Fin du premier balayage : les prochaines transactions notifieront.
-        if (firstScan) markBackfilled("BTC", address)
+        if (firstScan && !failed) markBackfilled("BTC", address)
     }
 
     // ─── ETH / BNB via API compatible Etherscan ────────────────────────
@@ -187,6 +200,7 @@ class TransactionSyncService @Inject constructor(
 
     private suspend fun syncEvm(api: EtherscanApi, address: String, blockchain: String, symbol: String, apiKey: String) {
         val firstScan = !isBackfilled(blockchain, address)
+        var failed = false
         try {
             val response = api.getTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") {
@@ -198,6 +212,7 @@ class TransactionSyncService @Inject constructor(
                 Desormais l'app le dit.
                  */
                 com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.message)
+                // Refus de l'API = balayage NON abouti : on ne marque pas.
                 return
             }
             for (tx in response.result ?: emptyList()) {
@@ -228,9 +243,9 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, e.message)
+            failed = true
         }
-        // Fin du premier balayage : les prochaines transactions notifieront.
-        if (firstScan) markBackfilled(blockchain, address)
+        if (firstScan && !failed) markBackfilled(blockchain, address)
     }
 
     // ─── Transferts de TOKENS ERC-20 / BEP-20 (tokentx) ───────────────
@@ -247,6 +262,7 @@ class TransactionSyncService @Inject constructor(
         // dont le premier import doit lui aussi rester silencieux.
         val tokenChain = "$blockchain-TOKENS"
         val firstScan = !isBackfilled(tokenChain, address)
+        var failed = false
         try {
             val response = api.getTokenTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") return
@@ -284,15 +300,16 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("$blockchain tokens", e.message)
+            failed = true
         }
-        // Fin du premier balayage : les prochaines transactions notifieront.
-        if (firstScan) markBackfilled(tokenChain, address)
+        if (firstScan && !failed) markBackfilled(tokenChain, address)
     }
 
     // ─── SOLANA ──────────────────────────────────────────────────────
 
     suspend fun syncSol(address: String) {
         val firstScan = !isBackfilled("SOL", address)
+        var failed = false
         try {
             val sigsRes = solanaRpc.rpcCall(
                 JsonRpcRequest("getSignaturesForAddress", mutableListOf(address as Any, mapOf("limit" to 50) as Any))
@@ -364,9 +381,9 @@ class TransactionSyncService @Inject constructor(
             }
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("SOL", e.message)
+            failed = true
         }
-        // Fin du premier balayage : les prochaines transactions notifieront.
-        if (firstScan) markBackfilled("SOL", address)
+        if (firstScan && !failed) markBackfilled("SOL", address)
     }
 
     // ─── Notification ────────────────────────────────────────────────
