@@ -219,7 +219,22 @@ class PortfolioViewModel @Inject constructor(
 
     fun loadPortfolio(silent: Boolean = false) {
         viewModelScope.launch {
-            if (!silent) _state.update { it.copy(isLoading = true, error = null) }
+            /*
+            Un rafraîchissement « silencieux » n'a de sens que s'il y a DÉJÀ
+            quelque chose à l'écran : on évite alors de faire clignoter un
+            chargement par-dessus des montants corrects.
+
+            Quand l'écran est vide, se taire produit l'effet inverse. C'est le
+            cas juste après un changement de wallet : les caches du wallet
+            précédent viennent d'être purgés, le nouveau n'a encore rien, et
+            l'accueil affichait un « 0 » parfaitement affirmé — sur un
+            portefeuille, cela se lit « ton argent a disparu ». Le temps que le
+            réseau réponde, l'utilisateur a eu une frayeur pour rien.
+
+            Donc : rien à montrer → on montre le chargement, pas un zéro.
+             */
+            val quiet = silent && _state.value.tokens.isNotEmpty()
+            if (!quiet) _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val mnemonic = secureStorage.getMnemonic() ?: run {
                     _state.update { it.copy(isLoading = false, error = "Wallet non initialisé") }

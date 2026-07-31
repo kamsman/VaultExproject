@@ -645,9 +645,28 @@ private fun BalanceCard(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            /*
+            EN COURS DE CHARGEMENT : « — », JAMAIS « 0 ».
+
+            L'appelant ne met isLoading à vrai que lorsqu'il n'y a RIEN à
+            afficher (aucun actif connu). Dans ce cas, écrire « 0 » n'est pas
+            une information neutre : sur un portefeuille, ça se lit « ton
+            argent a disparu ». C'est exactement ce qui se produisait juste
+            après un changement de wallet — les caches du précédent venaient
+            d'être purgés, et l'accueil annonçait 0 en gros et en gras pendant
+            que le réseau répondait.
+
+            La barre de progression sous le montant ne suffisait pas : personne
+            ne regarde un trait fin quand un chiffre énorme dit zéro.
+             */
+            val placeholder = "—"
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    if (hidden) masked else primaryText,
+                    when {
+                        isLoading -> placeholder
+                        hidden -> masked
+                        else -> primaryText
+                    },
                     color = TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.width(6.dp))
@@ -656,7 +675,11 @@ private fun BalanceCard(
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hidden) masked else "= $secondaryText",
+                when {
+                    isLoading -> placeholder
+                    hidden -> masked
+                    else -> "= $secondaryText"
+                },
                 color = TextSecondary,
                 fontSize = 14.sp
             )
