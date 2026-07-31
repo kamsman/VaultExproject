@@ -819,4 +819,12 @@
     <string name="details_hide">إخفاء</string>
 
     <string name="send_success_date">التاريخ</string>
+
+    <string name="notif_tx_confirmed_title">✅ تم تأكيد إرسال %1$s</string>
+    <string name="notif_tx_confirmed_body">صادقت البلوكشين على معاملتك.</string>
+
+    <string name="send_status_awaiting">في انتظار التأكيد</string>
+    <string name="send_status_awaiting_count">في انتظار التأكيد (%1$d/%2$d)</string>
+    <string name="send_status_confirmed">مؤكَّدة</string>
+    <string name="send_status_leave_hint">يمكنك مغادرة هذه الشاشة — سنُعلمك فور التأكيد.</string>
 </resources>

@@ -910,4 +910,12 @@
     <string name="details_hide">Masquer</string>
 
     <string name="send_success_date">Date</string>
+
+    <string name="notif_tx_confirmed_title">✅ Envoi %1$s confirmé</string>
+    <string name="notif_tx_confirmed_body">La blockchain a validé votre transaction.</string>
+
+    <string name="send_status_awaiting">En attente de confirmation</string>
+    <string name="send_status_awaiting_count">En attente de confirmation (%1$d/%2$d)</string>
+    <string name="send_status_confirmed">Confirmée</string>
+    <string name="send_status_leave_hint">Vous pouvez quitter cet écran : nous vous préviendrons dès la confirmation.</string>
 </resources>

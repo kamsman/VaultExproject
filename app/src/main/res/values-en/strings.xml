@@ -819,4 +819,12 @@
     <string name="details_hide">Hide</string>
 
     <string name="send_success_date">Date</string>
+
+    <string name="notif_tx_confirmed_title">✅ %1$s transfer confirmed</string>
+    <string name="notif_tx_confirmed_body">The blockchain has validated your transaction.</string>
+
+    <string name="send_status_awaiting">Awaiting confirmation</string>
+    <string name="send_status_awaiting_count">Awaiting confirmation (%1$d/%2$d)</string>
+    <string name="send_status_confirmed">Confirmed</string>
+    <string name="send_status_leave_hint">You can leave this screen — we will notify you once it is confirmed.</string>
 </resources>

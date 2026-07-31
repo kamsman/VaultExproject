@@ -21,7 +21,10 @@ import javax.inject.Singleton
 class PendingTxManager @Inject constructor(
     private val store: PendingTxStore,
     private val checker: ConfirmationChecker,
-    private val transactionDao: com.vaultex.data.local.dao.TransactionDao
+    private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
+    private val hub: com.vaultex.core.session.NotificationHub,
+    private val notifPrefs: com.vaultex.core.session.NotifPrefs,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
@@ -65,6 +68,30 @@ class PendingTxManager @Inject constructor(
                                 // « pending » à « confirmed » sans attendre la
                                 // prochaine synchro d'Historique.
                                 try { transactionDao.updateStatus(tx.hash, "confirmed", status.confirmations) } catch (_: Exception) { }
+                                /*
+                                NOTIFIER LA CONFIRMATION.
+
+                                C'est ce qui permet de libérer l'utilisateur :
+                                il n'a plus aucune raison de rester devant un
+                                écran d'attente, puisque l'application vient le
+                                chercher quand la blockchain a tranché. Sans
+                                cette notification, quitter l'écran signifiait
+                                ne jamais savoir si l'envoi avait abouti.
+                                 */
+                                if (notifPrefs.txAlerts.value) {
+                                    try {
+                                        hub.post(
+                                            key = "confirmed:${tx.hash}",
+                                            title = context.getString(
+                                                com.vaultex.R.string.notif_tx_confirmed_title, tx.symbol
+                                            ),
+                                            body = context.getString(
+                                                com.vaultex.R.string.notif_tx_confirmed_body
+                                            ),
+                                            symbol = tx.symbol
+                                        )
+                                    } catch (_: Exception) { }
+                                }
                             }
                         }
                     }

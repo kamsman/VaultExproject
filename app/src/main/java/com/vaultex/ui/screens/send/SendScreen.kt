@@ -184,28 +184,34 @@ fun SendScreen(navController: NavController) {
         isNewRecipient = state.newRecipient
     )
 
-    // ── ÉCRAN EN ATTENTE / SUCCÈS (plein écran) ──
+    /*
+    ─── APRÈS LA DIFFUSION : « ENVOYÉE », JAMAIS « PATIENTEZ » ─────────────
+    L'ancien flux gardait l'utilisateur sur un écran d'attente tant que la
+    blockchain n'avait pas confirmé — soit 10 à 30 minutes sur Bitcoin. Rien
+    ne le justifiait : la transaction est DÉJÀ partie, elle est irréversible,
+    et l'application ne peut rien faire de plus.
+
+    Désormais, dès que le réseau accepte la transaction, l'écran annonce
+    « Transaction envoyée » et affiche le statut réel juste en dessous :
+    « En attente de confirmation » en ambre, qui bascule en « Confirmée » en
+    vert si la confirmation tombe pendant que l'écran est ouvert.
+
+    L'utilisateur part quand il veut. La confirmation le rattrape par une
+    notification, et l'historique passe de 🟡 à 🟢 tout seul.
+    ───────────────────────────────────────────────────────────────────────
+     */
     if (state.txHash != null) {
         val hash = state.txHash!!
         val pending = pendingTxs.firstOrNull { it.hash == hash }
-        // Tant que la transaction n'est pas confirmée → écran « En attente X/Y ».
-        if (pending != null && !pending.confirmed) {
-            SendPendingScreen(
-                detail = detail,
-                confirmations = pending.confirmations,
-                target = pending.target,
-                txHash = hash,
-                explorerName = explorerName(state.selectedChain, state.customToken),
-                explorerUrl = explorerUrl(state.selectedChain, state.customToken, hash),
-                onDone = { viewModel.reset(); navController.popBackStack() }
-            )
-            return
-        }
         SendSuccessScreen(
             detail = detail,
             txHash = hash,
             explorerName = explorerName(state.selectedChain, state.customToken),
             explorerUrl = explorerUrl(state.selectedChain, state.customToken, hash),
+            // null = plus aucun suivi en cours → la transaction est confirmée.
+            confirmed = pending == null || pending.confirmed,
+            confirmations = pending?.confirmations ?: 0,
+            target = pending?.target ?: 0,
             onShare = { shareReceipt(context, detail, hash) },
             onDone = { viewModel.reset(); navController.popBackStack() }
         )
@@ -1326,78 +1332,6 @@ private fun StatusCard(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-@Composable
-internal fun SendPendingScreen(
-    detail: SendDetail,
-    confirmations: Int,
-    target: Int,
-    txHash: String,
-    explorerName: String,
-    explorerUrl: String,
-    onDone: () -> Unit
-) {
-    val context = LocalContext.current
-    val orange = Color(0xFFF59E0B)
-    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
-        StatusHeader(
-            Icons.Default.Schedule, orange,
-            stringResource(R.string.send_pending_title),
-            stringResource(R.string.send_pending_subtitle, detail.netFull),
-            orange,
-            animated = true
-        )
-        Spacer(Modifier.height(4.dp))
-        /*
-        Le compteur de confirmations, la barre de progression, l'encadré
-        « en attente » et l'identifiant de transaction ont été retirés : ils
-        répétaient tous le titre. L'écran ne garde que ce que l'utilisateur
-        cherche vraiment à cet instant — combien, vers qui, sur quel réseau,
-        pour quels frais — et le lien vers l'explorateur pour le détail.
-         */
-        StatusCard {
-            StatusRow(
-                Icons.Default.CreditCard, stringResource(R.string.amount),
-                "${detail.amount} ${detail.coinShort}", detail.amountFiat
-            )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Send, stringResource(R.string.send_recipient_label),
-                shorten(detail.toAddress)
-            )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Hub, stringResource(R.string.send_summary_network),
-                detail.netFull
-            )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee),
-                detail.feeNative.ifEmpty { "…" }, detail.feeFiat
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        OutlinedButton(
-            onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
-        ) {
-            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
-        }
-        Button(
-            onClick = onDone,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-        ) {
-            Text(stringResource(R.string.send_pending_back_dashboard), color = Color.White,
-                fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-    }
-}
 
 @Composable
 internal fun SendSuccessScreen(
@@ -1405,20 +1339,55 @@ internal fun SendSuccessScreen(
     txHash: String,
     explorerName: String,
     explorerUrl: String,
+    confirmed: Boolean,
+    confirmations: Int,
+    target: Int,
     onShare: () -> Unit,
     onDone: () -> Unit
 ) {
+    val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
+    val orange = Color(0xFFF59E0B)
     val sentAt = remember {
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", java.util.Locale.FRANCE).format(java.util.Date())
     }
     SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+        // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
+        // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
         StatusHeader(
             Icons.Default.CheckCircle, AccentGreen,
             stringResource(R.string.send_success_title),
             stringResource(R.string.send_success_subtitle),
             AccentGreen
         )
+        // Pastille de statut : ambre tant que la blockchain n'a pas tranché,
+        // verte ensuite. Elle bascule toute seule si la confirmation tombe
+        // pendant que l'écran est ouvert.
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = (if (confirmed) AccentGreen else orange).copy(alpha = 0.14f)
+        ) {
+            Row(
+                Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (confirmed) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                    null,
+                    tint = if (confirmed) AccentGreen else orange,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (confirmed) stringResource(R.string.send_status_confirmed)
+                    else if (target > 0) stringResource(R.string.send_status_awaiting_count, confirmations, target)
+                    else stringResource(R.string.send_status_awaiting),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (confirmed) AccentGreen else orange
+                )
+            }
+        }
         Spacer(Modifier.height(4.dp))
         /*
         L'encadre « statut : confirmee » a ete retire : le grand rond vert et
@@ -1481,6 +1450,17 @@ internal fun SendSuccessScreen(
             )
         }
         Spacer(Modifier.height(4.dp))
+        OutlinedButton(
+            onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
+        ) {
+            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
+        }
         Button(
             onClick = onDone,
             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -1489,6 +1469,14 @@ internal fun SendSuccessScreen(
         ) {
             Text(stringResource(R.string.send_success_done), color = Color.White,
                 fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+        // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
+        if (!confirmed) {
+            Text(
+                stringResource(R.string.send_status_leave_hint),
+                fontSize = 11.sp, color = TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }
