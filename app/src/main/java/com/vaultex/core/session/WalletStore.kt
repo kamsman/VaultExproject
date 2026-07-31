@@ -32,6 +32,8 @@ class WalletStore @Inject constructor(
     private val walletDao: WalletDao,
     private val transactionDao: TransactionDao,
     private val pendingSendDao: PendingSendDao,
+    private val notificationCenter: NotificationCenter,
+    private val notifPrefs: NotifPrefs,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) {
 
@@ -158,6 +160,30 @@ class WalletStore @Inject constructor(
          */
         try {
             appContext.getSharedPreferences("vaultex_sync_state", android.content.Context.MODE_PRIVATE)
+                .edit().clear().apply()
+        } catch (_: Exception) { }
+        /*
+        CLOCHE ET ÉTAT DES ALERTES : ils appartiennent AU WALLET, pas à
+        l'appareil.
+
+        Sans cette purge, on bascule sur le wallet 2 et la cloche continue
+        d'annoncer « Vous avez reçu 0,5 BTC » — une réception du wallet 1, pour
+        des fonds absents de celui qu'on regarde. L'utilisateur cherche un
+        montant qui n'a jamais été là. C'est exactement le genre d'incohérence
+        qui fait douter de l'application entière.
+
+        Même raison pour le drapeau « alerte solde bas déjà envoyée » : gardé
+        d'un wallet à l'autre, il empêchait le nouveau de recevoir la sienne, ou
+        la déclenchait à tort.
+
+        Et les clés d'anti-doublon des notifications : un dépôt du même montant
+        sur le nouveau wallet, dans la demi-heure, aurait été pris pour une
+        répétition et passé sous silence.
+         */
+        try { notificationCenter.clear() } catch (_: Exception) { }
+        try { notifPrefs.lowBalanceNotified = false } catch (_: Exception) { }
+        try {
+            appContext.getSharedPreferences("vaultex_notif_dedup", android.content.Context.MODE_PRIVATE)
                 .edit().clear().apply()
         } catch (_: Exception) { }
         // Force l'accueil à recharger les soldes du nouveau wallet dès son retour.
