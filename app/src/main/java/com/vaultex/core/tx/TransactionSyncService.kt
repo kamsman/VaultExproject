@@ -42,6 +42,9 @@ class TransactionSyncService @Inject constructor(
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     @ApplicationContext private val context: Context
 ) {
+    /** Utilisé pour lire le champ `result` d'Etherscan, dont le type varie. */
+    private val gson = com.google.gson.Gson()
+
     companion object {
         const val CHANNEL_ID = "vaultex_notifications"
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -211,11 +214,11 @@ class TransactionSyncService @Inject constructor(
                 transaction nouvelle », sans exception, sans trace.
                 Desormais l'app le dit.
                  */
-                com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.message)
+                com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.errorText())
                 // Refus de l'API = balayage NON abouti : on ne marque pas.
                 return
             }
-            for (tx in response.result ?: emptyList()) {
+            for (tx in response.transactions(gson)) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)
                 val amountWei = tx.value.toBigDecimalOrNull() ?: BigDecimal.ZERO
                 val amount = "%.6f".format(amountWei.divide(BigDecimal("1000000000000000000")).toDouble())
@@ -266,7 +269,7 @@ class TransactionSyncService @Inject constructor(
         try {
             val response = api.getTokenTransactions(address = address, apiKey = apiKey)
             if (response.status != "1") return
-            for (tx in response.result ?: emptyList()) {
+            for (tx in response.transactions(gson)) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)
                 val decimals = tx.tokenDecimal?.toIntOrNull() ?: 18
                 val raw = tx.value.toBigDecimalOrNull() ?: BigDecimal.ZERO

@@ -240,8 +240,22 @@ class DepositCheckWorker @AssistedInject constructor(
             checkLowBalance()
             checkIdleMilestone()
             Result.success()
-        } catch (_: Exception) {
-            Result.retry()
+        } catch (e: Exception) {
+            /*
+            `success` et non `retry`.
+
+            Avec `retry`, WorkManager reprogramme le travail avec un delai qui
+            double a chaque echec — jusqu'a plusieurs heures — et tant qu'il
+            attend, toute nouvelle demande du meme nom est ignoree. Une simple
+            coupure reseau pouvait ainsi eteindre la detection des depots pour
+            le reste de la session.
+
+            Ce travail n'a de toute facon pas besoin d'etre rejoue : il repart
+            tout seul toutes les 30 s au premier plan, et toutes les 15 min en
+            arriere-plan. L'echec est simplement signale.
+             */
+            com.vaultex.core.monitoring.AdminBot.serviceFailed("Détection de dépôts", e.message)
+            Result.success()
         }
     }
 

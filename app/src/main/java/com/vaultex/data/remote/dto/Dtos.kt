@@ -234,8 +234,39 @@ data class EtherscanResponse(
      * muettes pendant des jours, sans le moindre indice.
      */
     val message: String? = null,
-    val result: List<EtherscanTx>? = null
-)
+    /**
+     * ATTENTION : ce champ change de TYPE selon l'issue de la requete.
+     *
+     *  succes  → tableau de transactions
+     *  refus   → simple chaine : « Missing/Invalid API Key », « Max rate limit
+     *            reached », « Invalid address format »…
+     *
+     * Il etait declare `List<EtherscanTx>?`. Sur un refus, Gson echouait donc
+     * avec « Expected BEGIN_ARRAY but was STRING » AVANT meme que le code ne
+     * teste `status` — le motif du refus etait perdu, et l'echec ressemblait a
+     * une panne reseau quelconque. C'est ce qui a rendu les receptions ETH et
+     * BNB muettes pendant des jours.
+     *
+     * Declare en JsonElement : on regarde ce qu'on a recu avant de l'interpreter.
+     */
+    val result: com.google.gson.JsonElement? = null
+) {
+    /** Transactions, ou liste vide si la reponse portait un message d'erreur. */
+    fun transactions(gson: com.google.gson.Gson): List<EtherscanTx> =
+        if (result == null || !result.isJsonArray) emptyList()
+        else runCatching {
+            gson.fromJson<List<EtherscanTx>>(
+                result,
+                object : com.google.gson.reflect.TypeToken<List<EtherscanTx>>() {}.type
+            )
+        }.getOrDefault(emptyList())
+
+    /** Motif du refus, quand l'API renvoie une chaine a la place des donnees. */
+    fun errorText(): String? = when {
+        result != null && result.isJsonPrimitive -> result.asString
+        else -> message
+    }
+}
 data class EtherscanTx(
     val hash: String,
     val from: String,

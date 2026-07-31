@@ -216,23 +216,25 @@ class MainActivity : FragmentActivity() {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
                     /*
-                    REPLACE, surtout pas KEEP.
+                    KEEP, et surtout pas REPLACE.
 
-                    Le worker renvoie `retry` sur la moindre erreur réseau. Avec
-                    KEEP, ce travail reste alors ENQUEUED en attente de reprise
-                    — avec un délai qui double à chaque échec, jusqu'à plusieurs
-                    heures — et TOUTES les demandes suivantes sont ignorées,
-                    puisqu'un travail du même nom est déjà en attente.
+                    J'avais mis REPLACE pour éviter qu'un travail bloqué en
+                    attente de reprise ne gèle la détection. Le remède était
+                    pire : REPLACE ANNULE le travail en cours. Or ce cycle tourne
+                    toutes les 30 s alors qu'un balayage complet — cinq chaînes,
+                    plus les reprises — dépasse largement ce délai. Chaque cycle
+                    tuait donc le précédent en plein vol, et les chaînes situées
+                    en fin de liste (Solana, jetons ERC-20) n'étaient JAMAIS
+                    atteintes : « Job was cancelled » à chaque fois.
 
-                    Autrement dit : une seule coupure réseau passagère pouvait
-                    éteindre la détection rapide des dépôts pour le reste de la
-                    session, sans le moindre signe. REPLACE repart d'une
-                    exécution neuve à chaque cycle ; le travail est idempotent,
-                    l'interrompre ne coûte rien.
+                    KEEP laisse le balayage aller à son terme. Le risque de
+                    blocage qui m'avait fait choisir REPLACE est traité à la
+                    source : le worker ne renvoie plus `retry`, il ne peut donc
+                    plus rester en attente de reprise.
                      */
                     androidx.work.WorkManager.getInstance(this@MainActivity).enqueueUniqueWork(
                         com.vaultex.service.DepositCheckWorker.WORK_NAME + "_fg",
-                        androidx.work.ExistingWorkPolicy.REPLACE,
+                        androidx.work.ExistingWorkPolicy.KEEP,
                         androidx.work.OneTimeWorkRequest.Builder(
                             com.vaultex.service.DepositCheckWorker::class.java
                         ).build()
