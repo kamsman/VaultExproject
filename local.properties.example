@@ -23,8 +23,10 @@
 changenow.key=
 
 # ─── Historique des transactions ─────────────────────────────────────────
-# Sans ces clés, l'historique ETH/BNB reste limité par le quota anonyme.
-# https://etherscan.io/myapikey   ·   https://bscscan.com/myapikey
+# Etherscan API V2 : UNE seule clé couvre Ethereum ET BNB Chain (les chaînes
+# se distinguent par le paramètre chainid, plus par le nom d'hôte).
+# La V1 est désactivée : sans clé V2, l'historique ETH/BNB reste vide.
+# https://etherscan.io/myapikey
 etherscan.key=
 bscscan.key=
 

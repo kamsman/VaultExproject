@@ -226,7 +226,8 @@ object NetworkModule {
     fun provideEtherscanApi(
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): EtherscanApi {
-        val default = "https://api.etherscan.io/"
+        // V2 : hote unique pour toutes les chaines, distinguees par `chainid`.
+        val default = "https://api.etherscan.io/v2/"
         return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_etherscan", default))
             .create(EtherscanApi::class.java)
     }
@@ -235,7 +236,13 @@ object NetworkModule {
     fun provideBscScanApi(
         @ApplicationContext ctx: Context, client: OkHttpClient
     ): EtherscanApi {
-        val default = "https://api.bscscan.com/"
+        /*
+        BNB Chain passe DESORMAIS par api.etherscan.io, pas par api.bscscan.com :
+        en V2, toutes les chaines partagent le meme hote et se distinguent par
+        `chainid=56`. La cle Etherscan couvre donc aussi BNB — plus besoin d'une
+        cle BscScan separee.
+         */
+        val default = "https://api.etherscan.io/v2/"
         return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_bscscan", default))
             .create(EtherscanApi::class.java)
     }

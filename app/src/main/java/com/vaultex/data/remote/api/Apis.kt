@@ -193,11 +193,21 @@ interface FlutterwaveApi {
 
 /**
  * Etherscan / BscScan — historique de transactions EVM.
- * Compatible Etherscan API (api.etherscan.io et api.bscscan.com).
+ * Etherscan API **V2**.
+ *
+ * La V1 (api.etherscan.io/api, api.bscscan.com/api) est DESACTIVEE : elle
+ * repond desormais « You are using a deprecated V1 endpoint ». C'est ce refus,
+ * invisible faute de diagnostic, qui a rendu l'historique ETH et BNB muet.
+ *
+ * La V2 unifie toutes les chaines derriere UN SEUL hote,
+ * https://api.etherscan.io/v2/api, distinguees par le parametre `chainid`
+ * (1 = Ethereum, 56 = BNB Chain). Une meme cle d'API vaut pour toutes.
  */
 interface EtherscanApi {
     @GET("api")
     suspend fun getTransactions(
+        /** 1 = Ethereum, 56 = BNB Chain. Obligatoire en V2. */
+        @Query("chainid") chainId: Int,
         @Query("module") module: String = "account",
         @Query("action") action: String = "txlist",
         @Query("address") address: String,
@@ -213,6 +223,7 @@ interface EtherscanApi {
     // absents de txlist, qui ne liste que les transactions natives.
     @GET("api")
     suspend fun getTokenTransactions(
+        @Query("chainid") chainId: Int,
         @Query("module") module: String = "account",
         @Query("action") action: String = "tokentx",
         @Query("address") address: String,

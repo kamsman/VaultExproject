@@ -45,6 +45,9 @@ class TransactionSyncService @Inject constructor(
     /** Utilisé pour lire le champ `result` d'Etherscan, dont le type varie. */
     private val gson = com.google.gson.Gson()
 
+    /** Identifiant de chaîne exigé par l'API Etherscan V2. */
+    private fun chainIdOf(blockchain: String): Int = if (blockchain == "BNB") 56 else 1
+
     companion object {
         const val CHANNEL_ID = "vaultex_notifications"
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -205,7 +208,9 @@ class TransactionSyncService @Inject constructor(
         val firstScan = !isBackfilled(blockchain, address)
         var failed = false
         try {
-            val response = api.getTransactions(address = address, apiKey = apiKey)
+            val response = api.getTransactions(
+                chainId = chainIdOf(blockchain), address = address, apiKey = apiKey
+            )
             if (response.status != "1") {
                 /*
                 C'EST CE RETOUR-LA qui a rendu les receptions muettes pendant
@@ -267,7 +272,9 @@ class TransactionSyncService @Inject constructor(
         val firstScan = !isBackfilled(tokenChain, address)
         var failed = false
         try {
-            val response = api.getTokenTransactions(address = address, apiKey = apiKey)
+            val response = api.getTokenTransactions(
+                chainId = chainIdOf(blockchain), address = address, apiKey = apiKey
+            )
             if (response.status != "1") return
             for (tx in response.transactions(gson)) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)
