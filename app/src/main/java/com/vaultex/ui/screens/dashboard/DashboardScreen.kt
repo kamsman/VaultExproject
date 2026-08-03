@@ -142,6 +142,14 @@ fun DashboardScreen(navController: NavHostController) {
     val telegramHidden by TelegramBannerState.hidden
     var backupDismissed by BackupReminderBannerState.dismissed
     val hasFunds = state.totalBalanceUsd > 0.01
+    // Test réel : les notifications de réception doivent arriver app fermée,
+    // pas seulement en arrière-plan récent. Sur certaines marques, une
+    // exemption batterie non manuelle les tue quand même — voir BackgroundReliability.
+    var autostartTipDismissed by remember {
+        mutableStateOf(com.vaultex.core.session.BackgroundReliability.isDismissed(bannerContext))
+    }
+    val showAutostartTip = com.vaultex.core.session.BackgroundReliability.isKnownAggressiveOem() &&
+        !autostartTipDismissed
     val bannerSlots = buildList<@Composable () -> Unit> {
         // S'affiche UNIQUEMENT si le wallet est vide (solde 0). Fermeture
         // SESSION au ✕ (revient au prochain lancement) ; disparaît pour de
@@ -177,6 +185,34 @@ fun DashboardScreen(navController: NavHostController) {
         }
         // Rappel marketing NON définitif : réapparaît ~1×/semaine (fenêtre de
         // 7 jours après le dernier ✕ ou clic « Rejoindre »).
+        // Une seule fois : sur les marques connues pour tuer les taches
+        // d'arriere-plan malgre l'exemption Android standard deja demandee.
+        if (showAutostartTip) add {
+            DashboardBanner(
+                accent = Color(0xFFF59E0B),
+                icon = Icons.Default.NotificationsActive,
+                title = stringResource(R.string.dashboard_autostart_title),
+                body = stringResource(R.string.dashboard_autostart_body),
+                ctaLabel = stringResource(R.string.dashboard_autostart_cta),
+                ctaIcon = Icons.Default.Settings,
+                onDismiss = {
+                    com.vaultex.core.session.BackgroundReliability.dismiss(bannerContext)
+                    autostartTipDismissed = true
+                },
+                onCtaClick = {
+                    try {
+                        bannerContext.startActivity(
+                            android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.parse("package:" + bannerContext.packageName)
+                            )
+                        )
+                    } catch (_: Exception) { }
+                    com.vaultex.core.session.BackgroundReliability.dismiss(bannerContext)
+                    autostartTipDismissed = true
+                }
+            )
+        }
         if (!telegramHidden) add {
             DashboardBanner(
                 accent = Color(0xFF229ED9),   // bleu Telegram (communauté)

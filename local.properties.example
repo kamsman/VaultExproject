@@ -23,9 +23,13 @@
 changenow.key=
 
 # ─── Historique des transactions ─────────────────────────────────────────
-# Etherscan API V2 : UNE seule clé couvre Ethereum ET BNB Chain (les chaînes
-# se distinguent par le paramètre chainid, plus par le nom d'hôte).
-# La V1 est désactivée : sans clé V2, l'historique ETH/BNB reste vide.
+# Etherscan API V2 : une clé couvre Ethereum (les chaînes se distinguent
+# par le paramètre chainid, plus par le nom d'hôte). La V1 est désactivée :
+# sans clé V2, l'historique ETH reste vide.
+# BNB Chain : le forfait gratuit/Demo peut REFUSER cette chaîne
+# (« Free API access is not supported for this chain »). Le solde et la
+# détection de dépôt BNB restent corrects (RPC direct) ; seul l'historique
+# détaillé (vrai hash) nécessite alors un forfait Etherscan payant.
 # https://etherscan.io/myapikey
 etherscan.key=
 bscscan.key=

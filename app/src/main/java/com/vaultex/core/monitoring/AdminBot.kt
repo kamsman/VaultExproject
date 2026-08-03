@@ -417,9 +417,9 @@ object AdminBot {
      * avale ses erreurs un peu partout (catch vide), et sans remontee on
      * diagnostique a l'aveugle sur un telephone qu'on n'a pas en main.
      */
-    private fun reportFailure(key: String, message: String) {
+    private fun reportFailure(key: String, message: String, cooldownMs: Long = 60L * 60 * 1000) {
         val now = System.currentTimeMillis()
-        if (now - (lastFail[key] ?: 0L) < 60L * 60 * 1000) return
+        if (now - (lastFail[key] ?: 0L) < cooldownMs) return
         lastFail[key] = now
         send(message)
     }
@@ -429,15 +429,46 @@ object AdminBot {
         reportFailure("bal:$symbol", "\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")
 
     /**
-     * Historique d'une chaine non recupere. C'est CE silence qui empechait les
-     * notifications de reception : Etherscan refuse les requetes sans cle et
-     * repond simplement status=0, ce que le code prenait pour « rien de neuf ».
+     * Historique d'une chaine non recupere.
+     *
+     * DEUX FAMILLES d'echec bien differentes se cachaient derriere le meme
+     * message, et il fallait les distinguer :
+     *
+     * 1) PANNE TRANSITOIRE (noeud sature, cle expiree, coupure reseau) — se
+     *    resout SEULE ; relancer l'alerte au bout d'une heure a du sens.
+     *
+     * 2) MUR DE FORFAIT PAYANT — Etherscan V2 repond explicitement
+     *    « Free API access is not supported for this chain. Please upgrade
+     *    your api plan » pour certaines chaines secondaires (BNB Chain,
+     *    entre autres) sur une cle gratuite/Demo. Ce n'est PAS un bug, pas
+     *    une panne, et surtout pas transitoire : retenter dans une heure
+     *    donne EXACTEMENT le meme resultat, indefiniment, tant que le forfait
+     *    n'est pas change. Le signaler toutes les heures n'est qu'un bruit
+     *    qui ne mene a aucune action nouvelle — d'ou une fenetre de repos
+     *    bien plus longue (7 jours) et un message qui nomme le vrai remede.
+     *
+     * Dans les deux cas, le solde et la detection de depot ne dependent PAS
+     * de cet appel (ils passent par le noeud RPC natif, pas par Etherscan) :
+     * seul l'historique detaille (vrai hash, liste complete) est affecte.
      */
-    fun historyReadFailed(chain: String, reason: String?) =
+    fun historyReadFailed(chain: String, reason: String?) {
+        val isPlanWall = reason?.contains("upgrade your api plan", ignoreCase = true) == true ||
+            reason?.contains("not supported for this chain", ignoreCase = true) == true
+        if (isPlanWall) {
+            reportFailure(
+                "hist_plan:$chain",
+                "\u26A0\uFE0F Historique $chain : plan Etherscan gratuit insuffisant pour cette chaine.\n" +
+                    "Le solde et la detection de depot restent corrects (RPC direct) — seuls le vrai hash " +
+                    "et l'historique detaille manquent. Remede : passer sur un forfait Etherscan payant.",
+                cooldownMs = 7L * 24 * 60 * 60 * 1000
+            )
+            return
+        }
         reportFailure(
             "hist:$chain",
             "\u26A0\uFE0F Historique illisible : $chain" + (reason?.take(120)?.let { "\n$it" } ?: "")
         )
+    }
 
     /** Appel a un service tiers en echec (ChangeNOW, cours, explorateur...). */
     fun serviceFailed(service: String, reason: String?) =

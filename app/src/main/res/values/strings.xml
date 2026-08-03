@@ -922,4 +922,8 @@
     <string name="balance_unavailable">Solde momentanément illisible — vos fonds sont intacts</string>
 
     <string name="balance_partial">Total incomplet : une monnaie n\'a pas pu être lue</string>
+
+    <string name="dashboard_autostart_title">Notifications même app fermée</string>
+    <string name="dashboard_autostart_body">Sur cette marque de téléphone, un réglage supplémentaire empêche parfois les notifications de dépôt d'arriver quand l\'app est fermée. Ouvrez les paramètres et autorisez « Démarrage automatique » ou désactivez les économies de batterie pour VaultEx.</string>
+    <string name="dashboard_autostart_cta">Ouvrir les paramètres</string>
 </resources>

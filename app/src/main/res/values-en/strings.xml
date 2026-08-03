@@ -831,4 +831,8 @@
     <string name="balance_unavailable">Balance temporarily unreadable — your funds are safe</string>
 
     <string name="balance_partial">Incomplete total: one coin could not be read</string>
+
+    <string name="dashboard_autostart_title">Notifications even when closed</string>
+    <string name="dashboard_autostart_body">On this phone brand, an extra setting sometimes blocks deposit notifications while the app is closed. Open settings and enable "Auto-start" or turn off battery savings for VaultEx.</string>
+    <string name="dashboard_autostart_cta">Open settings</string>
 </resources>

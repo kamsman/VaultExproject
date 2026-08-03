@@ -831,4 +831,8 @@
     <string name="balance_unavailable">تعذّرت قراءة الرصيد مؤقتاً — أموالك بأمان</string>
 
     <string name="balance_partial">الإجمالي غير مكتمل: تعذّرت قراءة إحدى العملات</string>
+
+    <string name="dashboard_autostart_title">إشعارات حتى مع إغلاق التطبيق</string>
+    <string name="dashboard_autostart_body">على هذا النوع من الهواتف، قد يمنع إعداد إضافي إشعارات الإيداع عند إغلاق التطبيق. افتح الإعدادات وفعّل "بدء التشغيل التلقائي" أو أوقف توفير البطارية لتطبيق VaultEx.</string>
+    <string name="dashboard_autostart_cta">فتح الإعدادات</string>
 </resources>
