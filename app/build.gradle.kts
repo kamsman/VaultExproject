@@ -266,3 +266,59 @@ configurations.all {
     exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
     exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
 }
+/**
+ * Garde-fou de compilation des ressources.
+ *
+ * Une apostrophe non échappée dans un `<string>` passe la validation XML sans
+ * broncher, puis casse `mergeDebugResources` avec un message qui ne nomme ni le
+ * fichier, ni la ligne, ni la règle :
+ *
+ *     Can not extract resource from com.android.aaptcompiler.ParsedResource@...
+ *
+ * Ce contrôle s'exécute AVANT AAPT et nomme précisément le fautif. Il est
+ * volontairement non bloquant si Python est absent : il ne doit jamais empêcher
+ * quelqu'un de compiler, seulement lui faire gagner l'itération perdue.
+ */
+val checkStringResources by tasks.registering {
+    group = "verification"
+    description = "Détecte les apostrophes et guillemets non échappés dans les strings.xml"
+
+    val script = rootProject.file("tools/check_strings.py")
+    val resDir = file("src/main/res")
+    inputs.files(fileTree(resDir) { include("values*/strings.xml") })
+    inputs.file(script)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        if (!script.exists()) return@doLast
+
+        // ProcessBuilder plutôt qu'une API Gradle : `project.exec` est déprécié
+        // avec le cache de configuration, et `providers.exec` est une API de
+        // phase de configuration qu'on ne veut pas appeler dans un doLast.
+        val proc = try {
+            ProcessBuilder("python3", script.absolutePath)
+                .redirectErrorStream(true)
+                .start()
+        } catch (e: java.io.IOException) {
+            // Python absent : on n'a rien vérifié, mais on ne bloque personne.
+            logger.lifecycle("check_strings : python3 introuvable, contrôle ignoré.")
+            return@doLast
+        }
+
+        val output = proc.inputStream.bufferedReader().readText()
+        val code = proc.waitFor()
+
+        if (code != 0) {
+            // En échec on affiche TOUT : la règle violée est sur la ligne
+            // suivant « ERREUR », la filtrer perdrait l'explication.
+            logger.error(output)
+            throw GradleException(
+                "strings.xml invalide — voir les lignes ERREUR ci-dessus. " +
+                    "Détail complet : python3 tools/check_strings.py"
+            )
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Resources") }
+    .configureEach { dependsOn(checkStringResources) }

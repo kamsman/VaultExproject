@@ -546,17 +546,17 @@
     <string name="help_whatsapp">WhatsApp</string>
     <string name="help_whatsapp_subtitle">Fast reply, 7 days a week</string>
     <string name="help_call">Call</string>
-    <string name="help_a_create">From the welcome screen, choose "Create a new wallet". Write down your 12 words in order, keep them offline (on paper), then set your PIN. Those 12 words are the ONLY way to recover your wallet.</string>
+    <string name="help_a_create">From the welcome screen, choose \"Create a new wallet\". Write down your 12 words in order, keep them offline (on paper), then set your PIN. Those 12 words are the ONLY way to recover your wallet.</string>
     <string name="help_a_send">Home → Send → pick the coin → paste or scan the address → enter the amount (or MAX) → Continue → confirm with fingerprint or PIN. Always double-check the address and network: transactions are irreversible.</string>
     <string name="help_q_receive">How do I receive crypto?</string>
     <string name="help_a_receive">Home → Receive → pick the coin → share your address or QR code. Make sure the sender uses the SAME network as shown (e.g. USDT on TRC20).</string>
     <string name="help_a_swap">Swap tab → pick the coin to send and the one to receive → enter the amount (or MAX) → Continue → Confirm. The deposit is automatic and the exchange takes 2–5 min via ChangeNOW. Each pair has a minimum: the app shows it if your amount is too low.</string>
-    <string name="help_a_momo">Buying/selling in FCFA via Mobile Money (Orange, MTN, Moov, Wave) is rolling out for the UEMOA zone. Tap "MoMo" on the home screen to check availability in your country.</string>
+    <string name="help_a_momo">Buying/selling in FCFA via Mobile Money (Orange, MTN, Moov, Wave) is rolling out for the UEMOA zone. Tap \"MoMo\" on the home screen to check availability in your country.</string>
     <string name="help_a_secure">Enable biometrics and auto-lock (Settings → Security). NEVER share your 12 words or PIN — VaultEx will never ask for them. Do your backup from Settings → Backup.</string>
     <string name="help_q_fees">What are the fees?</string>
-    <string name="help_a_fees">Send: only the network fee, shown BEFORE you confirm. Swap: fees are included in the displayed rate — the "You receive" amount is net, no surprises.</string>
+    <string name="help_a_fees">Send: only the network fee, shown BEFORE you confirm. Swap: fees are included in the displayed rate — the \"You receive\" amount is net, no surprises.</string>
     <string name="help_q_recover">I lost my phone, how do I recover my wallet?</string>
-    <string name="help_a_recover">Install VaultEx on the new phone → "Import an existing wallet" → enter your 12 words. Without those 12 words, nobody (not even VaultEx) can restore your funds: that\'s what non-custodial means.</string>
+    <string name="help_a_recover">Install VaultEx on the new phone → \"Import an existing wallet\" → enter your 12 words. Without those 12 words, nobody (not even VaultEx) can restore your funds: that\'s what non-custodial means.</string>
     <string name="help_version">VaultEx v%1$s</string>
     <string name="dashboard_greeting">Hello 👋</string>
     <string name="recent_title">Recent</string>
@@ -833,6 +833,6 @@
     <string name="balance_partial">Incomplete total: one coin could not be read</string>
 
     <string name="dashboard_autostart_title">Notifications even when closed</string>
-    <string name="dashboard_autostart_body">On this phone brand, an extra setting sometimes blocks deposit notifications while the app is closed. Open settings and enable "Auto-start" or turn off battery savings for VaultEx.</string>
+    <string name="dashboard_autostart_body">On this phone brand, an extra setting sometimes blocks deposit notifications while the app is closed. Open settings and enable \"Auto-start\" or turn off battery savings for VaultEx.</string>
     <string name="dashboard_autostart_cta">Open settings</string>
 </resources>
