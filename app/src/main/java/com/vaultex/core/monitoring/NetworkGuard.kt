@@ -1,0 +1,33 @@
+package com.vaultex.core.monitoring
+
+/**
+ * Enveloppe un appel réseau/service et REND SON ÉCHEC VISIBLE, au lieu de le
+ * laisser disparaître dans un `catch (_: Exception) {}`.
+ *
+ * Pourquoi ce fichier existe : la panne qui a rendu les réceptions ETH/BNB
+ * muettes pendant plusieurs jours tenait en une phrase — un appel a échoué,
+ * l'erreur a été avalée en silence, et personne (ni l'utilisateur, ni nous)
+ * n'a rien vu avant un diagnostic manuel. Le code contient plus d'une centaine
+ * de `catch` similaires ; la plupart sont bénins (repli sur un cache local,
+ * valeur par défaut sans conséquence), mais certains touchent des appels
+ * fund-critical.
+ *
+ * Ce garde-fou ne les corrige pas tous d'un coup — ce serait risqué sans
+ * pouvoir compiler et tester chaque site un par un. Il change la PENTE : la
+ * prochaine fois qu'un appel réseau doit être protégé, écrire
+ *
+ *     guarded("ChangeNOW") { api.createTransaction(...) }
+ *
+ * est plus court qu'un `try/catch` manuel, et REND l'échec visible par
+ * défaut. Le silence redevient un choix explicite (`guarded(..., report =
+ * false)`), plutôt que l'option la plus simple à taper.
+ */
+
+/** Exécute [block] ; si un appel a échoué (ou n'a rien renvoyé), le signale et retourne null. */
+suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend () -> T): T? =
+    try {
+        block()
+    } catch (e: Exception) {
+        if (report) AdminBot.serviceFailed(source, e.message)
+        null
+    }

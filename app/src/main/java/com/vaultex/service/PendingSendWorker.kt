@@ -136,7 +136,19 @@ class PendingSendWorker @AssistedInject constructor(
                                 symbol = sym
                             )
                         }
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        /*
+                        L'ENVOI A REUSSI — les fonds ont quitte le wallet — mais
+                        l'affichage (suivi, ligne "Recent", notification) a
+                        echoue. C'est la pire categorie de silence : contrairement
+                        a un echec de LECTURE (solde, historique), ici de l'argent
+                        a bel et bien bouge sans que rien ne le signale nulle
+                        part avant la prochaine synchronisation complete.
+                         */
+                        com.vaultex.core.monitoring.AdminBot.serviceFailed(
+                            "Suivi d'un envoi hors-ligne reussi", e.message
+                        )
+                    }
                 }
                 is SendCryptoUseCase.Result.Error ->
                     pendingSendDao.updateResult(item.id, STATUS_FAILED, null, res.message, attempts)
