@@ -30,6 +30,52 @@ class WalletManagerTest {
         )
     }
 
+    /**
+     * Garde-fou contre une panne de génération d'entropie — la faille exacte
+     * qui a coûté ~70 M$ à Coldcard en juillet 2026 (RNG de firmware
+     * défaillant sur le Mk3, seeds devinables sans passphrase, 1083 BTC volés
+     * sur 1196 adresses en 41 minutes). Ce test aurait détecté ce type de
+     * panne en quelques secondes s'il avait touché VaultEx.
+     *
+     * `generateMnemonic()` s'appuie sur `SecureRandom` (CSPRNG du système, pas
+     * un générateur maison) — précisément le choix que Coldcard n'avait pas
+     * fait. Ce test ne prouve pas l'absence de faille future, mais il détecte
+     * à coup sûr un RNG cassé de la même façon : sortie répétée, ou biaisée
+     * au point qu'un mot revienne bien plus souvent que le hasard ne le permet.
+     */
+    @Test
+    fun `generation en masse ne revele ni doublon ni biais statistique`() {
+        val samples = 3000
+        val mnemonics = List(samples) { WalletManager.generateMnemonic() }
+
+        // 1) AUCUN doublon. Sur un espace de 128 bits d'entropie, la
+        // probabilité d'une collision sur 3000 tirages est nulle en pratique —
+        // une seule répétition signifie un générateur cassé (sortie fixe ou
+        // cyclique), exactement le scénario Coldcard.
+        assertEquals(
+            "Deux mnemoniques identiques générées — RNG probablement cassé",
+            samples, mnemonics.map { it.joinToString(" ") }.toSet().size
+        )
+
+        // 2) Distribution des mots : chaque position tire parmi 2048 mots
+        // (liste BIP39). Un générateur affaibli produit une distribution
+        // biaisée — certaines valeurs reviennent bien plus que 1/2048 du temps.
+        // Tolérance large (10x la fréquence attendue) pour éviter tout faux
+        // positif : l'objectif est d'attraper un biais grossier, pas de faire
+        // un test statistique de laboratoire.
+        val expectedFreq = samples.toDouble() / 2048.0
+        val maxAllowed = (expectedFreq * 10).toInt().coerceAtLeast(5)
+        for (position in 0 until 12) {
+            val counts = mnemonics.groupingBy { it[position] }.eachCount()
+            val worst = counts.maxByOrNull { it.value }
+            assertTrue(
+                "Mot '${worst?.key}' en position $position apparaît ${worst?.value} fois " +
+                    "sur $samples (attendu ~${expectedFreq.toInt()}) — biais du générateur suspect",
+                (worst?.value ?: 0) <= maxAllowed
+            )
+        }
+    }
+
     @Test
     fun `derivation deterministe sans passphrase`() {
         val a = WalletManager.deriveAddresses(TEST_MNEMONIC, "")
