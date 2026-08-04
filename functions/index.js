@@ -131,21 +131,93 @@ function trim(n) {
 }
 
 /* ─────────────────────────── 1) registerDevice ─────────────────────────── */
+/*
+ * Formats d'adresse par chaine. Cet endpoint est PUBLIC : aucune
+ * authentification n'est possible ici, puisque le secret devrait alors vivre
+ * dans l'APK, donc etre lisible par tous. La seule defense realiste est de
+ * n'accepter QUE des donnees bien formees.
+ *
+ * Sans ce filtre, `addresses` etait stocke verbatim. Consequence : n'importe
+ * qui pouvait creer autant de documents `devices` qu'il voulait, avec des
+ * adresses arbitraires. Or checkDeposits interroge SIX API externes par
+ * document toutes les deux minutes. Mille faux appareils, et ce sont 3000
+ * appels par minute vers TronGrid, Blockstream et les noeuds RPC : les quotas
+ * sautent, la cle TronGrid se fait bannir, et la detection de depot s'arrete
+ * POUR TOUS LES VRAIS UTILISATEURS. L'attaque ne coute rien et ne demande
+ * aucun acces particulier.
+ */
+const ADDRESS_FORMATS = {
+  btc: /^(bc1[023456789acdefghjklmnpqrstuvwxyz]{6,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/,
+  eth: /^0x[a-fA-F0-9]{40}$/,
+  bnb: /^0x[a-fA-F0-9]{40}$/,
+  sol: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+  trx: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+};
+
+/** Ne garde que les cles connues dont l'adresse a le bon format. */
+function sanitizeAddresses(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, re] of Object.entries(ADDRESS_FORMATS)) {
+    const v = raw[key];
+    if (typeof v === "string" && re.test(v)) out[key] = v;
+  }
+  return out;
+}
+
 exports.registerDevice = functions.https.onRequest(async (req, res) => {
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "POST uniquement" });
     const body = req.body || {};
     const token = body.token;
-    if (!token) return res.status(400).json({ error: "token manquant" });
+    // Un jeton FCM fait ~140-200 caracteres. Borner la longueur evite qu'un
+    // document soit cree avec un identifiant de plusieurs kilo-octets.
+    if (typeof token !== "string" || token.length < 100 || token.length > 4096) {
+      return res.status(400).json({ error: "token invalide" });
+    }
+
+    const addresses = sanitizeAddresses(body.addresses);
+    // Aucune adresse exploitable = rien a surveiller : on refuse plutot que de
+    // creer un document qui sera parcouru toutes les 2 min pour rien.
+    if (Object.keys(addresses).length === 0) {
+      return res.status(400).json({ error: "aucune adresse valide" });
+    }
+
     const ref = db.collection("devices").doc(token);
-    await ref.set(
-      {
-        token,
-        addresses: body.addresses || {},
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const snap = await ref.get();
+    const previous = snap.exists ? (snap.data().addresses || {}) : {};
+
+    /*
+     * CHANGEMENT DE PORTEFEUILLE : on efface les soldes de reference.
+     *
+     * checkDeposits compare le solde lu au precedent. Ces soldes etaient
+     * conserves alors que les adresses, elles, changent quand l'utilisateur
+     * bascule de portefeuille (meme appareil, donc meme jeton FCM, donc meme
+     * document). Le scenario :
+     *
+     *   wallet 1 a 0 BTC          -> balances.btc = 0
+     *   bascule vers wallet 2 qui detient 0,5 BTC
+     *   cycle suivant : lecture 0,5 - reference 0 = +0,5
+     *   -> push « Vous avez recu 0.5 BTC »
+     *
+     * Rien n'etait arrive. Le meme defaut existait cote Android et vient d'y
+     * etre corrige ; celui-ci est independant et serait reste actif — les
+     * fausses notifications auraient continue par le chemin serveur.
+     *
+     * En effacant, le prochain cycle repasse par « 1er passage : on memorise
+     * sans notifier ».
+     */
+    const changed = Object.keys(ADDRESS_FORMATS)
+      .some((k) => (previous[k] || null) !== (addresses[k] || null));
+
+    const payload = {
+      token,
+      addresses,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (changed) payload.balances = {};
+
+    await ref.set(payload, { merge: true });
     return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
@@ -153,8 +225,23 @@ exports.registerDevice = functions.https.onRequest(async (req, res) => {
 });
 
 /* ─────────────────────────── 2) checkDeposits ─────────────────────────── */
+/*
+ * Appareils inactifs depuis plus de 60 jours : on cesse de les interroger.
+ *
+ * Le cout de cette fonction est LINEAIRE en nombre de documents : six appels
+ * externes par appareil, toutes les deux minutes, indefiniment. Une
+ * desinstallation ne supprime rien — le document reste et continue d'etre
+ * sonde a vie. Sans borne, la facture et la consommation de quota ne font que
+ * croitre, y compris pour des portefeuilles que plus personne n'ouvre.
+ *
+ * Le document n'est pas supprime pour autant : si l'application est rouverte,
+ * elle se reenregistre (updatedAt repart) et la surveillance reprend.
+ */
+const STALE_MS = 60 * 24 * 60 * 60 * 1000;
+
 exports.checkDeposits = functions.pubsub.schedule("every 2 minutes").onRun(async () => {
   const snap = await db.collection("devices").get();
+  const now = Date.now();
   const checks = [
     ["BTC", "btc", btcBalance],
     ["ETH", "eth", ethBalance],
@@ -166,6 +253,8 @@ exports.checkDeposits = functions.pubsub.schedule("every 2 minutes").onRun(async
 
   for (const doc of snap.docs) {
     const d = doc.data();
+    const seenAt = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
+    if (seenAt && now - seenAt > STALE_MS) continue;
     const addrs = d.addresses || {};
     const prev = d.balances || {};
     const next = { ...prev };
