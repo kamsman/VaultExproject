@@ -113,12 +113,33 @@ app/src/main/java/com/vaultex/
 ✅ **Vol physique de l'appareil** → biométrie + PIN protègent l'accès
 ✅ **Backup cloud compromis** → `allowBackup=false` + dataExtractionRules
 ✅ **Apps malveillantes screenshot** → `FLAG_SECURE` sur toutes les Activities
-✅ **MITM sur APIs** → Certificate pinning (à activer en production)
+✅ **MITM sur APIs** → Certificate pinning ACTIF en release (`NetworkModule.kt`, `CERT_PINS`)
 ✅ **Device rooté** → RootBeer bloque l'app
 ✅ **Émulateur de débogage** → bloqué en production
 ✅ **Fuite via clipboard** → cleanup auto après 30s
 ✅ **Brute force PIN** → 5 tentatives max + délai exponentiel
 ✅ **Coercition (forced reveal)** → PIN de panique efface tout
+✅ **Mnémonique volée seule** → passphrase BIP39 optionnelle (« 13e mot »),
+   proposée dès la création — `WalletManager.deriveAddresses(mnemonic, passphrase)`
+✅ **Nœud RPC hostile** → plafonds de gas (`requireSaneGas`) : un nœud qui ment sur
+   le prix du gas ne peut pas faire signer une transaction qui brûle le solde en frais
+✅ **Repackaging de l'APK** → contrôle de l'empreinte de signature (`AppIntegrity`),
+   inactif tant que `app.signature.sha256` n'est pas renseigné
+
+### Détails d'implémentation souvent mal lus
+
+Ces points ont déjà induit des audits externes en erreur ; ils sont vérifiables
+dans le code cité :
+
+| Sujet | Réalité |
+|---|---|
+| Dérivation Bitcoin | **BIP84 SegWit natif** `m/84'/0'/0'/0/0`, adresses bech32 (`bc1…`) — pas de P2PKH hérité. Voir `WalletManager.deriveBtcAddress`. |
+| Passphrase BIP39 | **Implémentée** et testée (`WalletManagerTest`). Elle n'est pas vide par défaut « en dur » : elle est saisie par l'utilisateur, et vide seulement s'il n'en veut pas. |
+| Certificate pinning | **Actif en release**, 6 hôtes, 2 pins chacun. Voir `NetworkModule.CERT_PINS`. |
+| Journalisation réseau | `HttpLoggingInterceptor` figé à `Level.NONE` — aucune clé en clair dans logcat, en debug comme en release. |
+| Effacement (PIN panique) | Vide **toutes** les préférences (énumération du dossier, pas une liste en dur), la base chiffrée, les caches, les fichiers internes, annule les travaux planifiés, supprime le jeton FCM et **les deux** clés Keystore. Voir `SecureStorage.nukeAllData`. |
+| Itérations PBKDF2 | 300 000, et **le paramètre est stocké avec l'empreinte** (`itérations:sel:empreinte`). L'augmenter sans cela aurait verrouillé tous les utilisateurs existants. |
+| Biométrie | `KeystoreManager` sait créer une clé liée à l'authentification, mais **ce mode n'est pas activé** : le seed est protégé par le Keystore et le PIN applicatif, pas par une contrainte biométrique du système. C'est un durcissement à faire, pas une protection annoncée à tort. |
 
 ### Ce qui est de votre responsabilité
 
@@ -126,7 +147,16 @@ app/src/main/java/com/vaultex/
 
 ⚠️ **Tests testnet** : Testez d'abord sur Goerli (ETH), BSC Testnet, Solana Devnet avant mainnet.
 
-⚠️ **Certificate pinning** : Activez-le en production dans `AppModule.kt`.
+⚠️ **Rotation des empreintes de certificat** : les pins de `NetworkModule.CERT_PINS`
+expirent avec les certificats des fournisseurs. Un pin périmé BLOQUE les appels
+concernés. Vérifiez-les avant chaque release ; chaque hôte porte déjà un pin de
+secours (CA racine) pour absorber un renouvellement.
+
+**Note** : les nœuds RPC ne sont volontairement PAS épinglés. Ils sont une douzaine,
+en rotation de secours, chez des opérateurs qui renouvellent sans préavis — un pin
+périmé y bloquerait les envois. La transaction étant signée sur l'appareil, un nœud
+hostile ne peut pas la modifier ; son seul levier serait de mentir sur le prix du gas,
+ce que neutralisent les plafonds de `SendCryptoUseCase` (voir `requireSaneGas`).
 
 ⚠️ **ProGuard** : Vérifiez que `isMinifyEnabled = true` en release.
 

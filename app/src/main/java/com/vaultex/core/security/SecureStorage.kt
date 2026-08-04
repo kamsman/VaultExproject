@@ -45,9 +45,38 @@ class SecureStorage @Inject constructor(
     // ─────────────────────────────────────────────────────────────────────
     private fun enc(s: String): String =
         android.util.Base64.encodeToString(keystoreManager.encrypt(s.toByteArray(Charsets.UTF_8)), android.util.Base64.NO_WRAP)
+    /**
+     * Déchiffre une valeur du magasin.
+     *
+     * `null` signifie DEUX choses très différentes : « rien n'est enregistré »
+     * (b64 nul, cas normal) et « quelque chose est enregistré mais n'a pas pu
+     * être déchiffré » (cas anormal). Le second était traité en silence,
+     * exactement comme le premier.
+     *
+     * Or l'appelant en tire une conclusion lourde : `getMnemonic()` renvoie
+     * null, donc l'application conclut qu'aucun portefeuille n'existe et
+     * affiche l'accueil de création. Pour l'utilisateur, son portefeuille a
+     * disparu. Les fonds sont intacts — le seed est sur sa feuille de papier —
+     * mais rien ne le lui dit, et rien ne nous permettait de savoir que c'était
+     * arrivé.
+     *
+     * Les causes réelles existent : clé Keystore invalidée par l'ajout d'une
+     * empreinte digitale, migration d'appareil, corruption du magasin. On ne
+     * peut pas récupérer la donnée, mais on doit au moins SAVOIR. L'incident
+     * part au diagnostic administrateur, sans jamais transporter la donnée
+     * elle-même.
+     */
     private fun dec(b64: String?): String? {
         if (b64 == null) return null
-        return try { String(keystoreManager.decrypt(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)), Charsets.UTF_8) } catch (_: Exception) { null }
+        return try {
+            String(keystoreManager.decrypt(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.serviceFailed(
+                "dechiffrement du magasin securise",
+                e.javaClass.simpleName   // JAMAIS le message : il pourrait porter la donnée
+            )
+            null
+        }
     }
     private fun mnKey(id: String) = "mnemonic_$id"
     private fun psKey(id: String) = "passphrase_$id"
