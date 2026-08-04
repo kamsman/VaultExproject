@@ -1,6 +1,8 @@
 package com.vaultex.domain.usecase
 
+import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -23,8 +25,14 @@ import org.junit.Test
  */
 class SendCryptoUseCaseTest {
 
+    // Nommés (et non anonymes) pour pouvoir vérifier qu'ils ne sont JAMAIS
+    // sollicités : c'est ce qui prouve que les gardes tombent avant le
+    // stockage sécurisé et avant le réseau.
+    private val secureStorageMock: com.vaultex.core.security.SecureStorage = mockk(relaxed = true)
+    private val tronApiMock: com.vaultex.data.remote.api.TronApi = mockk(relaxed = true)
+
     private val useCase = SendCryptoUseCase(
-        secureStorage = mockk(relaxed = true),
+        secureStorage = secureStorageMock,
         evmTx = mockk(relaxed = true),
         btcTx = mockk(relaxed = true),
         solTx = mockk(relaxed = true),
@@ -33,7 +41,7 @@ class SendCryptoUseCaseTest {
         bnbRpc = mockk(relaxed = true),
         bitcoinApi = mockk(relaxed = true),
         solanaRpc = mockk(relaxed = true),
-        tronApi = mockk(relaxed = true)
+        tronApi = tronApiMock
     )
 
     private val validEvm = "0x9858EfFD232B4033E47d90003D41EC34EcaEda94"
@@ -168,5 +176,33 @@ class SendCryptoUseCaseTest {
     @Test fun `adresse ordinaire non bloquee par le garde`() = runBlocking {
         val msg = message(useCase.sendByChain("TRX", validTrx, "abc"))
         assertEquals("Montant invalide", msg)
+    }
+
+    // ─── Montants nuls ou négatifs ───────────────────────────────────
+    //
+    // Un envoi de 0 USDT brûlerait ~15 TRX de frais réseau pour ne rien
+    // transférer. Le garde doit tomber avant tout appel réseau.
+
+    @Test fun `usdt montant zero refuse`() = runBlocking {
+        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "0")))
+    }
+
+    @Test fun `usdt montant negatif refuse`() = runBlocking {
+        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "-5")))
+    }
+
+    /**
+     * Le montant doit être validé AVANT le stockage sécurisé et le réseau.
+     *
+     * Ce test verrouille un ordre qui avait été inversé : `sendUsdtTrc20`
+     * parsait le montant tout en bas, après avoir déchiffré le mnémonique et
+     * appelé TronGrid deux fois. Un montant mal écrit consommait donc du quota
+     * API et renvoyait « adresse jamais activée » — un message sans rapport
+     * avec l'erreur réelle de l'utilisateur.
+     */
+    @Test fun `usdt montant invalide ne declenche aucun appel reseau`() = runBlocking {
+        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "abc")))
+        coVerify(exactly = 0) { tronApiMock.getAccount(any()) }
+        verify(exactly = 0) { secureStorageMock.getMnemonic() }
     }
 }

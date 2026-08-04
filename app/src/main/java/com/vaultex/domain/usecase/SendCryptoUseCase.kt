@@ -493,6 +493,19 @@ class SendCryptoUseCase @Inject constructor(
 
     suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: String): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
+
+        // Montant parsé ICI, avant tout accès au stockage sécurisé et tout appel
+        // réseau. Les autres chaînes le font déjà dans sendByChain ; ce chemin
+        // déléguait tout à cette fonction et parsait le montant tout en bas, APRÈS
+        // avoir déchiffré le mnémonique et interrogé TronGrid deux fois. Un montant
+        // mal écrit brûlait donc du quota API et renvoyait un message hors sujet
+        // (« adresse jamais activée ») au lieu de « Montant invalide ».
+        // Règle : ce qui est vérifiable localement et gratuitement passe en premier.
+        val amountMicro = try {
+            BigDecimal(amountUsdt.replace(",", ".")).multiply(BigDecimal("1000000")).toLong()
+        } catch (_: Exception) { return Result.Error("Montant invalide") }
+        if (amountMicro <= 0L) return Result.Error("Montant invalide")
+
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
 
@@ -525,11 +538,9 @@ class SendCryptoUseCase @Inject constructor(
             // Étape 1 — Préparer les paramètres hex + ABI-encode transfer(address,uint256)
             val ownerHex    = tronAddrToHex(tronTx.deriveAddress(mnemonic, passphrase))
             val contractHex = tronAddrToHex(USDT_TRC20_CONTRACT)
-            // Montant en micro-USDT via BigDecimal (EXACT). L'ancien passage par
-            // Double perdait des sous-unités (20,02 → 20019999 au lieu de 20020000).
-            val amountMicro = try {
-                BigDecimal(amountUsdt.replace(",", ".")).multiply(BigDecimal("1000000")).toLong()
-            } catch (_: Exception) { return Result.Error("Montant invalide") }
+            // `amountMicro` est calculé en tête de fonction (BigDecimal, EXACT :
+            // l'ancien passage par Double perdait des sous-unités — 20,02 donnait
+            // 20019999 au lieu de 20020000).
             val parameter   = buildTrc20Param(toAddress, amountMicro)
 
             // Étape 2 — Déclencher le smart contract (génère la tx non signée)
