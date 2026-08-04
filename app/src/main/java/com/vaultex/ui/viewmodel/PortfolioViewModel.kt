@@ -67,7 +67,19 @@ data class PortfolioState(
      * seule chaîne sur huit a échoué — cas très courant avec des nœuds publics,
      * et qui n'empêche nullement d'afficher un total correct.
      */
-    val balancesAllUnknown: Boolean = false
+    val balancesAllUnknown: Boolean = false,
+    /**
+     * Monnaies illisibles QUI PORTAIENT DES FONDS — la seule situation où le
+     * total affiché est réellement incomplet, et donc la seule qui mérite un
+     * avertissement.
+     *
+     * [balancesUnavailable] ne convient pas pour ça : il devient vrai dès
+     * qu'une des huit lectures échoue, y compris sur une monnaie vide. Avec des
+     * nœuds publics, ça arrive presque à chaque rafraîchissement — le bandeau
+     * s'affichait donc en permanence sur un total pourtant exact, jusqu'à ne
+     * plus rien vouloir dire.
+     */
+    val staleFundedSymbols: List<String> = emptyList()
 )
 
 @HiltViewModel
@@ -268,6 +280,24 @@ class PortfolioViewModel @Inject constructor(
                 // distinguer « une chaîne sur huit a échoué » de « rien n'a pu
                 // être lu du tout » — deux situations très différentes.
                 var anyFresh = false
+                /*
+                Monnaies dont la lecture a échoué ALORS QU'ELLES PORTENT DES FONDS.
+
+                `anyStale` seul ne peut pas servir d'alerte utilisateur : il
+                devient vrai dès qu'une des huit lectures échoue, y compris sur
+                une monnaie à zéro. Or les nœuds publics échouent souvent (TRX
+                et USDT-TRC20 en particulier, tant que trongrid.key est vide),
+                si bien que le bandeau « Total incomplet » s'affichait presque
+                en permanence — sur un total pourtant parfaitement exact.
+
+                Un avertissement qui s'affiche tout le temps n'avertit plus de
+                rien : l'utilisateur apprend à l'ignorer, et le jour où le total
+                est réellement faux, il ne le voit pas. On ne signale donc que
+                ce qui change vraiment le total : une monnaie illisible dont on
+                sait qu'elle contenait quelque chose. Et on la NOMME, au lieu de
+                dire « une monnaie ».
+                 */
+                val staleFunded = mutableListOf<String>()
                 val mainTokens = coroutineScope {
                     val btcD     = async(Dispatchers.IO) { fetchBtcBalance(addresses.btc) }
                     val ethD     = async(Dispatchers.IO) { fetchEvmBalance(ethRpc, addresses.eth) }
@@ -318,6 +348,11 @@ class PortfolioViewModel @Inject constructor(
                             portefeuille vide à quelqu'un qui a des fonds.
                              */
                             anyStale = true
+                            // Illisible ET connu comme non vide : le total affiché
+                            // est réellement incomplet, ça vaut un avertissement.
+                            // Illisible mais à zéro (ou jamais vue) : le total
+                            // reste juste, on se tait.
+                            if ((prev?.amountRaw ?: 0.0) > 0.0) staleFunded += symbol
                             // Solde indisponible : on garde le dernier solde connu MAIS
                             // on rafraîchit le PRIX de marché (indépendant du solde),
                             // sinon ETH/USDT-ETH affichaient « Prix : $0 ».
@@ -412,7 +447,8 @@ class PortfolioViewModel @Inject constructor(
                     lastUpdated = if (anyFresh) System.currentTimeMillis() else _state.value.lastUpdated,
                     isFromCache = balancesUnavailable,
                     balancesUnavailable = balancesUnavailable,
-                    balancesAllUnknown = allUnknown
+                    balancesAllUnknown = allUnknown,
+                    staleFundedSymbols = staleFunded.distinct()
                 )
                 _state.value = newState
                 // On persiste TOUJOURS : la fusion ci-dessus a déjà réinjecté le

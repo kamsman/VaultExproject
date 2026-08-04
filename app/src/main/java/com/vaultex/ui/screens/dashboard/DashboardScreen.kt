@@ -394,8 +394,17 @@ fun DashboardScreen(navController: NavHostController) {
                     On distingue donc trois états au lieu de deux : tout lu,
                     RIEN lu, et partiellement lu — ce dernier montre le total
                     connu ET dit clairement qu'il est incomplet.
+
+                    MAIS on ne le signale que si la monnaie illisible portait
+                    vraiment des fonds. Se baser sur balancesUnavailable
+                    affichait le bandeau dès qu'une chaîne sur huit échouait,
+                    même à zéro — donc presque tout le temps, sur un total
+                    pourtant exact. Un avertissement permanent cesse d'être un
+                    avertissement : on apprend à l'ignorer, et le jour où le
+                    total est réellement faux, on ne le voit plus.
                      */
-                    partial = state.balancesUnavailable && !state.balancesAllUnknown,
+                    partial = state.staleFundedSymbols.isNotEmpty() && !state.balancesAllUnknown,
+                    partialSymbols = state.staleFundedSymbols,
                     hidden = balanceHidden,
                     onToggleHidden = { viewModel.toggleBalanceVisibility() }
                 )
@@ -657,8 +666,14 @@ private fun BalanceCard(
     isLoading: Boolean,
     /** true = les soldes n'ont pas pu être lus et rien n'est connu → « — ». */
     unknown: Boolean = false,
-    /** true = au moins une chaîne n'a pas répondu → le total est INCOMPLET. */
+    /**
+     * true = une monnaie PORTANT DES FONDS n'a pas pu être lue → le total est
+     * réellement incomplet. Une chaîne vide qui ne répond pas ne compte pas :
+     * le total reste juste, et un bandeau permanent finirait ignoré.
+     */
     partial: Boolean = false,
+    /** Symboles concernés, pour les nommer au lieu de dire « une monnaie ». */
+    partialSymbols: List<String> = emptyList(),
     hidden: Boolean,
     onToggleHidden: () -> Unit
 ) {
@@ -771,7 +786,13 @@ private fun BalanceCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        stringResource(R.string.balance_partial),
+                        // On NOMME la monnaie manquante. « une monnaie n'a pas
+                        // pu être lue » n'aide personne : impossible de savoir
+                        // si l'écart vient d'un actif qu'on possède ou d'un
+                        // actif vide, donc impossible de décider s'il faut
+                        // s'inquiéter.
+                        stringResource(R.string.balance_partial_named,
+                            partialSymbols.joinToString(", ")),
                         color = Color(0xFFF59E0B), fontSize = 12.sp
                     )
                 }

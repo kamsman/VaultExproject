@@ -15,6 +15,45 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+/*
+──────────────────────────────────────────────────────────────────────────
+ALERTE CLÉS MANQUANTES
+
+`local.properties` est gitignoré, et il est aussi exclu des archives du
+projet — c'est voulu, les secrets ne doivent pas circuler. Mais ça a un
+effet de bord vicieux : quand le projet est ré-extrait dans un dossier
+neuf, le fichier n'existe pas et Android Studio en régénère un vierge, avec
+seulement `sdk.dir`. Toutes les clés disparaissent SANS AUCUNE ERREUR.
+
+Le build réussit (chaque clé absente vaut chaîne vide, et le code sait s'en
+passer), l'app démarre, et les pannes qui suivent ne ressemblent pas du
+tout à leur cause : historique ETH vide, swap impossible, plus aucun
+message de diagnostic Telegram. On cherche alors un bug dans le code
+pendant des jours pour un fichier de configuration effacé.
+
+D'où cet avertissement en tête de build : la panne se nomme elle-même.
+Volontairement NON bloquant — compiler sans clés reste légitime.
+──────────────────────────────────────────────────────────────────────────
+*/
+run {
+    val expected = mapOf(
+        "changenow.key"        to "swap impossible",
+        "etherscan.key"        to "historique ETH/BNB vide",
+        "telegram.admin.token" to "aucun diagnostic a distance",
+        "coingecko.key"        to "ecran Marche limite en debit",
+        "trongrid.key"         to "soldes TRX/USDT-TRC20 souvent illisibles"
+    )
+    val missing = expected.filter { (key, _) -> localProps.getProperty(key).isNullOrBlank() }
+    if (missing.isNotEmpty()) {
+        logger.warn("")
+        logger.warn("+-- VaultEx : cles absentes de local.properties ".padEnd(72, '-'))
+        missing.forEach { (key, effet) -> logger.warn("|  $key".padEnd(28) + "-> $effet") }
+        logger.warn("|  Modele complet : local.properties.example")
+        logger.warn("+".padEnd(72, '-'))
+        logger.warn("")
+    }
+}
+
 // ─── Signature RELEASE ────────────────────────────────────────────────────
 // Identifiants lus depuis keystore.properties (gitignoré) OU variables
 // d'environnement (CI). Aucun secret n'est versionné. Si le keystore est absent
