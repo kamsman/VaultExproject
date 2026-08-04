@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.theme.*
 
@@ -19,7 +21,7 @@ fun SecuritySetupScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sécurité", color = TextPrimary) },
+                title = { Text(stringResource(R.string.security_setup_title), color = TextPrimary) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -34,7 +36,7 @@ fun SecuritySetupScreen(navController: NavHostController) {
         ) {
 
             Text(
-                text = "Créez un code PIN",
+                text = stringResource(R.string.security_create_pin),
                 color = TextPrimary,
                 fontSize = 18.sp
             )
@@ -44,7 +46,7 @@ fun SecuritySetupScreen(navController: NavHostController) {
             OutlinedTextField(
                 value = pin,
                 onValueChange = { pin = it },
-                label = { Text("PIN") },
+                label = { Text(stringResource(R.string.pin_label)) },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -52,7 +54,7 @@ fun SecuritySetupScreen(navController: NavHostController) {
 
             // ✅ BOUTON CORRIGÉ
             PrimaryButton(
-                text = "Continuer",
+                text = stringResource(R.string.continue_btn),
                 onClick = {
                     // navigation simple
                     navController.navigate("dashboard")

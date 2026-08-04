@@ -1,19 +1,131 @@
 package com.vaultex.app
 
 import android.app.Application
-import com.scottyab.rootbeer.RootBeer
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.vaultex.BuildConfig
+import com.vaultex.core.monitoring.CrashReporter
+import com.vaultex.core.security.DeviceIntegrity
+import com.vaultex.service.DepositCheckWorker
+import com.vaultex.service.PendingSendWorker
+import com.vaultex.service.PriceAlertWorker
+import com.vaultex.service.SwapTrackingWorker
+import com.vaultex.ui.viewmodel.HistoryViewModel
 import dagger.hilt.android.HiltAndroidApp
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 @HiltAndroidApp
-class VaultExApplication : Application() {
+class VaultExApplication : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         super.onCreate()
-        // Détection root au démarrage — bloque l'app si compromis
-        val rootBeer = RootBeer(this)
-        if (rootBeer.isRooted) {
-            // En production, on bloque. En dev/debug, on permet pour tests.
-            // L'écran d'accueil affichera l'avertissement.
-        }
+        // Bot Telegram admin : code d'installation (VX-XXXXXX) apposé aux événements.
+        com.vaultex.core.monitoring.AdminBot.init(this)
+        // 📲 Compte les installations réelles (une seule annonce par téléphone).
+        com.vaultex.core.monitoring.AdminBot.announceInstallOnce()
+        // 💥 Rapport de crash Telegram — s'AJOUTE devant le handler existant
+        // (Crashlytics/système), ne remplace rien.
+        com.vaultex.core.monitoring.AdminBot.installCrashHandler()
+        // AVANT toute planification de worker : les workers formatent des
+        // notifications application fermée, où aucune Activity n'a encore
+        // appelé LocaleManager.wrap(). Sans cette amorce, un dépôt détecté
+        // après un redémarrage du téléphone serait annoncé avec le format de
+        // nombres du système, pas celui de la langue choisie dans l'app.
+        com.vaultex.core.session.LocaleManager.prime(this)
+        createNotificationChannel()
+        schedulePriceAlertChecks()
+        scheduleDepositChecks()
+        scheduleSwapTracking()
+        // Reprend les envois mis en file lors d'une session précédente
+        // (le worker attend tout seul le retour du réseau).
+        PendingSendWorker.enqueue(this)
+
+        // Contexte enrichi pour les rapports de crash (Crashlytics).
+        CrashReporter.setKey("app_version", BuildConfig.VERSION_NAME)
+        CrashReporter.setKey("device_rooted", DeviceIntegrity.isDeviceRooted(this))
+        CrashReporter.log("Application démarrée")
+
+        // Play Integrity (best-effort, no-op tant que le projet n'est pas configuré).
+        DeviceIntegrity.requestIntegrityToken(this)
+    }
+
+    /** Vérification des alertes de prix toutes les 15 minutes. */
+    private fun schedulePriceAlertChecks() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            PriceAlertWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES).build()
+        )
+    }
+
+    /**
+     * Suivi des échanges en cours, toutes les 15 minutes.
+     *
+     * Sans lui, le suivi d'un swap mourait avec l'écran Swap : l'utilisateur
+     * devait rester devant, parfois plusieurs heures, sinon la notification de
+     * fin ne partait jamais. Le worker reprend le suivi depuis la base, donc il
+     * survit à la navigation, à la fermeture de l'app et au redémarrage.
+     */
+    private fun scheduleSwapTracking() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SwapTrackingWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<SwapTrackingWorker>(15, TimeUnit.MINUTES).build()
+        )
+    }
+
+    /** Détection locale des dépôts reçus toutes les 15 minutes (secours du push). */
+    private fun scheduleDepositChecks() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            DepositCheckWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<DepositCheckWorker>(15, TimeUnit.MINUTES).build()
+        )
+    }
+
+    private fun createNotificationChannel() {
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        // Canal transactions (notifs locales existantes).
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                HistoryViewModel.CHANNEL_ID,
+                "Transactions VaultEx",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications pour les transactions crypto reçues"
+                // Pastille sur l'icône du lanceur, y compris app fermée.
+                setShowBadge(true)
+            }
+        )
+        // Canal PUSH par défaut (FCM / console Firebase). DOIT exister sinon les
+        // messages « notification » reçus en arrière-plan sont ignorés par le SDK.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                FCM_DEFAULT_CHANNEL_ID,
+                "Notifications VaultEx",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Alertes et messages push VaultEx"
+                setShowBadge(true)
+            }
+        )
+    }
+
+    companion object {
+        // Doit correspondre au meta-data default_notification_channel_id du manifeste
+        // ET au CHANNEL_ID de VaultExFcmService.
+        const val FCM_DEFAULT_CHANNEL_ID = "vaultex_notifications"
     }
 }

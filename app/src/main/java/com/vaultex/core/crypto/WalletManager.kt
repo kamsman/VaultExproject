@@ -1,6 +1,6 @@
 package com.vaultex.core.crypto
 
-import org.bitcoinj.core.LegacyAddress
+import org.bitcoinj.core.SegwitAddress
 import org.bitcoinj.crypto.ChildNumber
 import org.bitcoinj.crypto.HDKeyDerivation
 import org.bitcoinj.params.MainNetParams
@@ -40,11 +40,12 @@ object WalletManager {
     }
 
     /**
-     * Dérive les adresses des 5 blockchains à partir d'une mnémonique.
-     * CPU-intensif — appeler sur Dispatchers.IO.
+     * Dérive les adresses des 5 blockchains à partir d'une mnémonique et
+     * d'une passphrase BIP39 optionnelle (« 13e mot »). Passphrase vide
+     * = BIP39 standard. CPU-intensif — appeler sur Dispatchers.IO.
      */
-    fun deriveAddresses(mnemonic: String): WalletAddresses {
-        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), "")
+    fun deriveAddresses(mnemonic: String, passphrase: String): WalletAddresses {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
         return WalletAddresses(
             btc = deriveBtcAddress(seed),
             eth = deriveEvmAddress(seed, coinType = 60),
@@ -66,17 +67,17 @@ object WalletManager {
         return Credentials.create(Bip32ECKeyPair.deriveKeyPair(master, path)).address
     }
 
-    // Bitcoin: m/44'/0'/0'/0/0 → P2PKH (Legacy)
+    // Bitcoin: m/84'/0'/0'/0/0 → P2WPKH native SegWit (bech32, bc1…)
     private fun deriveBtcAddress(seed: ByteArray): String {
         val path = listOf(
-            ChildNumber(44, true), ChildNumber(0, true),
+            ChildNumber(84, true), ChildNumber(0, true),
             ChildNumber(0, true),  ChildNumber(0, false),
             ChildNumber(0, false)
         )
         val key = path.fold(HDKeyDerivation.createMasterPrivateKey(seed)) { k, child ->
             HDKeyDerivation.deriveChildKey(k, child)
         }
-        return LegacyAddress.fromKey(MainNetParams.get(), key).toString()
+        return SegwitAddress.fromKey(MainNetParams.get(), key).toString()
     }
 
     // Solana: m/44'/501'/0'/0' → ed25519 via SLIP-10
@@ -115,5 +116,56 @@ object WalletManager {
     private fun sha256d(data: ByteArray): ByteArray {
         val md = MessageDigest.getInstance("SHA-256")
         return md.digest(md.digest(data))
+    }
+
+    /**
+     * Exporte la clé privée d'une chaîne, au format attendu par les wallets
+     * de référence pour l'import :
+     *  - BTC : WIF (m/84'/0'/0'/0/0) — Electrum/BlueWallet
+     *  - ETH/BNB : hex 0x… (m/44'/60'/0'/0/0) — MetaMask/Trust
+     *  - TRX : hex sans 0x (m/44'/195'/0'/0/0) — TronLink
+     *  - SOL : Base58 des 64 octets privé+public (m/44'/501'/0'/0') — Phantom
+     * CPU-intensif — appeler hors du thread UI. Ne JAMAIS journaliser le retour.
+     */
+    fun exportPrivateKey(mnemonic: String, passphrase: String, chain: String): String {
+        val seed = MnemonicUtils.generateSeed(mnemonic.trim(), passphrase)
+        return when (chain.uppercase()) {
+            "BTC" -> {
+                val path = listOf(
+                    ChildNumber(84, true), ChildNumber(0, true),
+                    ChildNumber(0, true), ChildNumber(0, false), ChildNumber(0, false)
+                )
+                val key = path.fold(HDKeyDerivation.createMasterPrivateKey(seed)) { k, child ->
+                    HDKeyDerivation.deriveChildKey(k, child)
+                }
+                key.getPrivateKeyAsWiF(MainNetParams.get())
+            }
+            "ETH", "BNB" -> "0x" + evmPrivHex(seed, 60)
+            "TRX" -> evmPrivHex(seed, 195)
+            "SOL" -> {
+                val path = intArrayOf(
+                    44 or Int.MIN_VALUE, 501 or Int.MIN_VALUE,
+                    0 or Int.MIN_VALUE, 0 or Int.MIN_VALUE
+                )
+                val derived = Slip10.deriveEd25519Key(seed, path)
+                val pub = Ed25519Utils.publicKeyFromPrivate(derived.privateKey)
+                Base58.encode(derived.privateKey + pub)
+            }
+            else -> throw IllegalArgumentException("Chaîne inconnue : $chain")
+        }
+    }
+
+    /** Clé privée secp256k1 en hex zero-padded (64 caractères), sans préfixe. */
+    private fun evmPrivHex(seed: ByteArray, coinType: Int): String {
+        val master = Bip32ECKeyPair.generateKeyPair(seed)
+        val path = intArrayOf(
+            44 or Bip32ECKeyPair.HARDENED_BIT,
+            coinType or Bip32ECKeyPair.HARDENED_BIT,
+            0 or Bip32ECKeyPair.HARDENED_BIT,
+            0, 0
+        )
+        return Numeric.toHexStringNoPrefixZeroPadded(
+            Bip32ECKeyPair.deriveKeyPair(master, path).privateKey, 64
+        )
     }
 }

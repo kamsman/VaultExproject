@@ -11,11 +11,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaultex.R
 import com.vaultex.core.crypto.Blockchain
 import com.vaultex.ui.theme.*
+
+/**
+ * Indicateur offline-first (#5) : « Mis à jour il y a X min » ou un
+ * bandeau « Hors ligne — dernières données » si la dernière synchro a
+ * échoué mais qu'un cache existe.
+ */
+@Composable
+fun LastUpdatedLabel(
+    lastUpdated: Long,
+    isFromCache: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (lastUpdated <= 0L) return
+    val now = System.currentTimeMillis()
+    val minutes = ((now - lastUpdated) / 60_000L).toInt().coerceAtLeast(0)
+    val label = when {
+        minutes < 1 -> stringResource(R.string.updated_just_now)
+        minutes < 60 -> stringResource(R.string.updated_min_ago, minutes)
+        else -> stringResource(R.string.updated_hours_ago, minutes / 60)
+    }
+    val text = if (isFromCache) stringResource(R.string.offline_cached) + " · " + label else label
+    Text(
+        text,
+        modifier = modifier,
+        color = if (isFromCache) AccentOrange else TextMuted,
+        fontSize = 11.sp,
+        fontWeight = if (isFromCache) FontWeight.SemiBold else FontWeight.Normal
+    )
+}
 
 @Composable
 fun PrimaryButton(
@@ -33,9 +64,9 @@ fun PrimaryButton(
             .height(56.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AccentGold,
+            containerColor = AccentBlue,
             contentColor = BgPrimary,
-            disabledContainerColor = AccentGold.copy(alpha = 0.3f)
+            disabledContainerColor = AccentBlue.copy(alpha = 0.3f)
         )
     ) {
         if (icon != null) {
@@ -60,8 +91,8 @@ fun SecondaryButton(
             .fillMaxWidth()
             .height(56.dp),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentGold),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentGold)
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
     ) {
         Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
@@ -150,7 +181,7 @@ fun BalanceDisplay(
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            "Solde total",
+            stringResource(R.string.total_balance),
             color = TextSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium
@@ -166,7 +197,7 @@ fun BalanceDisplay(
             Spacer(Modifier.width(6.dp))
             Text(
                 currency,
-                color = AccentGold,
+                color = AccentBlue,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 6.dp)
@@ -183,7 +214,7 @@ fun GoldDivider(modifier: Modifier = Modifier) {
             .height(1.dp)
             .background(
                 Brush.horizontalGradient(
-                    listOf(Color.Transparent, AccentGold.copy(alpha = 0.5f), Color.Transparent)
+                    listOf(Color.Transparent, AccentBlue.copy(alpha = 0.5f), Color.Transparent)
                 )
             )
     )

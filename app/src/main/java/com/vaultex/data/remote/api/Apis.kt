@@ -1,7 +1,7 @@
 package com.vaultex.data.remote.api
 
 import com.vaultex.data.remote.dto.*
-import retrofit2.Response
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 /**
@@ -29,8 +29,12 @@ interface BitcoinApi {
     @GET("tx/{txid}")
     suspend fun getTransaction(@Path("txid") txid: String): BlockstreamTxDto
 
+    // Blockstream renvoie le TXID en TEXTE BRUT (pas du JSON). On retourne donc
+    // le corps brut (ResponseBody) pour éviter que Gson tente de le parser et
+    // échoue (« Use JsonReader.setLenient... malformed JSON »).
     @POST("tx")
-    suspend fun broadcastTx(@Body rawHex: String): String
+    @Headers("Content-Type: text/plain")
+    suspend fun broadcastTx(@Body rawHex: RequestBody): okhttp3.ResponseBody
 
     @GET("fee-estimates")
     suspend fun getFeeEstimates(): Map<String, Double>
@@ -64,42 +68,25 @@ interface TronApi {
         @Query("limit") limit: Int = 50
     ): TronTrc20ListDto
 
+    // Retour brut (JsonObject) : on doit rediffuser la transaction COMPLÈTE
+    // (txID + raw_data + raw_data_hex + signature), pas seulement raw_data_hex.
+    @POST("wallet/createtransaction")
+    suspend fun createTransaction(@Body body: TronCreateTxBody): com.google.gson.JsonObject
+
+    @POST("wallet/triggersmartcontract")
+    suspend fun triggerSmartContract(@Body body: TronTriggerSmartContractBody): com.google.gson.JsonObject
+
     @POST("wallet/broadcasttransaction")
-    suspend fun broadcast(@Body tx: TronBroadcastDto): TronBroadcastResultDto
+    suspend fun broadcast(@Body tx: com.google.gson.JsonObject): TronBroadcastResultDto
+
+    // Suivi de confirmation : infos de la tx (blockNumber + receipt) et bloc courant.
+    @POST("wallet/gettransactioninfobyid")
+    suspend fun getTransactionInfoById(@Body body: TronTxInfoBody): com.google.gson.JsonObject
+
+    @POST("wallet/getnowblock")
+    suspend fun getNowBlock(): com.google.gson.JsonObject
 }
 
-/**
- * 1inch DEX Aggregator API — pour les swaps cross-token.
- * Frais VaultEx 1.5% intégrés via paramètre fee.
- */
-interface OneInchApi {
-    @GET("swap/v6.0/{chainId}/quote")
-    suspend fun getQuote(
-        @Path("chainId") chainId: Int,
-        @Query("src") fromTokenAddress: String,
-        @Query("dst") toTokenAddress: String,
-        @Query("amount") amount: String,
-        @Query("fee") feePercent: Double = 1.5,
-        @Query("includeProtocols") includeProtocols: Boolean = true,
-        @Query("includeGas") includeGas: Boolean = true
-    ): OneInchQuoteDto
-
-    @GET("swap/v6.0/{chainId}/swap")
-    suspend fun getSwapData(
-        @Path("chainId") chainId: Int,
-        @Query("src") fromTokenAddress: String,
-        @Query("dst") toTokenAddress: String,
-        @Query("amount") amount: String,
-        @Query("from") fromAddress: String,
-        @Query("slippage") slippagePercent: Double,
-        @Query("fee") feePercent: Double = 1.5,
-        @Query("referrer") feeRecipient: String,
-        @Query("disableEstimate") disableEstimate: Boolean = false
-    ): OneInchSwapDto
-
-    @GET("swap/v6.0/{chainId}/tokens")
-    suspend fun getSupportedTokens(@Path("chainId") chainId: Int): OneInchTokensDto
-}
 
 /**
  * CoinGecko Pro — prix temps réel et historique.
@@ -113,6 +100,17 @@ interface CoinGeckoApi {
         @Query("include_market_cap") includeMarketCap: Boolean = true
     ): Map<String, CoinGeckoPriceDto>
 
+    // Prix d'un token ERC-20/BEP-20 par adresse de contrat.
+    // platform : "ethereum" ou "binance-smart-chain".
+    // Clé du Map retourné = adresse de contrat en minuscules.
+    @GET("simple/token_price/{platform}")
+    suspend fun getTokenPrice(
+        @Path("platform") platform: String,
+        @Query("contract_addresses") contractAddresses: String,
+        @Query("vs_currencies") vsCurrencies: String = "usd,eur,xof",
+        @Query("include_24hr_change") include24hChange: Boolean = true
+    ): Map<String, CoinGeckoPriceDto>
+
     @GET("coins/markets")
     suspend fun getMarkets(
         @Query("vs_currency") vsCurrency: String = "usd",
@@ -120,7 +118,8 @@ interface CoinGeckoApi {
         @Query("per_page") perPage: Int = 100,
         @Query("page") page: Int = 1,
         @Query("sparkline") sparkline: Boolean = true,
-        @Query("price_change_percentage") priceChangeRanges: String = "24h"
+        @Query("price_change_percentage") priceChangeRanges: String = "24h",
+        @Query("ids") ids: String? = null   // filtre optionnel : 1 ou plusieurs coins
     ): List<CoinGeckoMarketDto>
 
     @GET("coins/{id}/market_chart")
@@ -129,4 +128,111 @@ interface CoinGeckoApi {
         @Query("vs_currency") vsCurrency: String = "usd",
         @Query("days") days: Int
     ): CoinGeckoChartDto
+
+    // Détail léger d'une pièce : sert uniquement à lire ses adresses de
+    // contrat par réseau (platforms). Toutes les sections lourdes désactivées.
+    @GET("coins/{id}")
+    suspend fun getCoinPlatforms(
+        @Path("id") coinId: String,
+        @Query("localization") localization: Boolean = false,
+        @Query("tickers") tickers: Boolean = false,
+        @Query("market_data") marketData: Boolean = false,
+        @Query("community_data") communityData: Boolean = false,
+        @Query("developer_data") developerData: Boolean = false,
+        @Query("sparkline") sparkline: Boolean = false
+    ): com.vaultex.data.remote.dto.CoinGeckoDetailDto
+
+    // Cap. de marché totale + dominance BTC (bandeau de l'écran Marché).
+    @GET("global")
+    suspend fun getGlobal(): com.vaultex.data.remote.dto.CoinGeckoGlobalDto
 }
+
+/**
+ * ChangeNOW — swaps cross-chain avec marge 1.5% côté VaultEx.
+ * Base URL : https://api.changenow.io/v1/
+ */
+interface ChangeNowApi {
+    @GET("exchange-amount/{amount}/{fromTo}")
+    suspend fun getEstimatedAmount(
+        @Path("amount") amount: String,
+        @Path("fromTo") fromTo: String,  // ex: "btc_eth"
+        @Query("api_key") apiKey: String
+    ): ChangeNowEstimateDto
+
+    @GET("min-amount/{fromTo}")
+    suspend fun getMinAmount(
+        @Path("fromTo") fromTo: String,
+        @Query("api_key") apiKey: String
+    ): ChangeNowMinAmountDto
+
+    @POST("transactions/{apiKey}")
+    suspend fun createTransaction(
+        @Path("apiKey") apiKey: String,
+        @Body body: ChangeNowTransactionBody
+    ): ChangeNowTransactionDto
+
+    @GET("transactions/{id}/{apiKey}")
+    suspend fun getTransactionStatus(
+        @Path("id") transactionId: String,
+        @Path("apiKey") apiKey: String
+    ): ChangeNowStatusDto
+}
+
+/**
+ * Flutterwave — Mobile Money UEMOA (Orange Money, Wave, Moov, Free).
+ * Base URL : https://api.flutterwave.com/v3/
+ * Requires Authorization: Bearer <secret_key> header.
+ */
+interface FlutterwaveApi {
+    @POST("charges?type=mobile_money_franco")
+    suspend fun charge(@Body body: FlutterwaveChargeBody): FlutterwaveChargeDto
+
+    @GET("transactions/{id}/verify")
+    suspend fun verify(@Path("id") transactionId: Long): FlutterwaveVerifyDto
+}
+
+/**
+ * Etherscan / BscScan — historique de transactions EVM.
+ * Etherscan API **V2**.
+ *
+ * La V1 (api.etherscan.io/api, api.bscscan.com/api) est DESACTIVEE : elle
+ * repond desormais « You are using a deprecated V1 endpoint ». C'est ce refus,
+ * invisible faute de diagnostic, qui a rendu l'historique ETH et BNB muet.
+ *
+ * La V2 unifie toutes les chaines derriere UN SEUL hote,
+ * https://api.etherscan.io/v2/api, distinguees par le parametre `chainid`
+ * (1 = Ethereum, 56 = BNB Chain). Une meme cle d'API vaut pour toutes.
+ */
+interface EtherscanApi {
+    @GET("api")
+    suspend fun getTransactions(
+        /** 1 = Ethereum, 56 = BNB Chain. Obligatoire en V2. */
+        @Query("chainid") chainId: Int,
+        @Query("module") module: String = "account",
+        @Query("action") action: String = "txlist",
+        @Query("address") address: String,
+        @Query("startblock") startBlock: Long = 0L,
+        @Query("endblock") endBlock: Long = 99_999_999L,
+        @Query("page") page: Int = 1,
+        @Query("offset") offset: Int = 50,
+        @Query("sort") sort: String = "desc",
+        @Query("apikey") apiKey: String = ""
+    ): EtherscanResponse
+
+    // Transferts de TOKENS ERC-20/BEP-20 de l'adresse (action=tokentx) —
+    // absents de txlist, qui ne liste que les transactions natives.
+    @GET("api")
+    suspend fun getTokenTransactions(
+        @Query("chainid") chainId: Int,
+        @Query("module") module: String = "account",
+        @Query("action") action: String = "tokentx",
+        @Query("address") address: String,
+        @Query("startblock") startBlock: Long = 0L,
+        @Query("endblock") endBlock: Long = 99_999_999L,
+        @Query("page") page: Int = 1,
+        @Query("offset") offset: Int = 50,
+        @Query("sort") sort: String = "desc",
+        @Query("apikey") apiKey: String = ""
+    ): EtherscanResponse
+}
+

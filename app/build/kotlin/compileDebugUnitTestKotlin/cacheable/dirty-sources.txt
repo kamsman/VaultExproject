@@ -1,1 +1,0 @@
-C:\Users\HP\AndroidStudioProjects\VaultexWallet\app\src\test\java\com\vaultex\core\crypto\Bip39GeneratorTest.kt

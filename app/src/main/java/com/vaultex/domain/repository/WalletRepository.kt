@@ -3,6 +3,6 @@ package com.vaultex.domain.repository
 import com.vaultex.core.crypto.WalletManager
 
 interface WalletRepository {
-    suspend fun deriveAddresses(mnemonic: String): WalletManager.WalletAddresses
+    suspend fun deriveAddresses(mnemonic: String, passphrase: String): WalletManager.WalletAddresses
     fun validateMnemonic(phrase: String): Boolean
 }

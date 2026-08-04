@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 
@@ -11,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 
+import com.vaultex.R
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.TextPrimary
 
@@ -24,12 +26,12 @@ fun SendResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Transaction", color = TextPrimary) },
+                title = { Text(stringResource(R.string.send_result_title), color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -50,14 +52,14 @@ fun SendResultScreen(
         ) {
 
             Text(
-                text = "Transaction envoyée",
+                text = stringResource(R.string.send_tx_sent_title),
                 color = TextPrimary
             )
 
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Hash: $hash",
+                text = stringResource(R.string.result_hash_fmt, hash),
                 color = TextPrimary
             )
         }

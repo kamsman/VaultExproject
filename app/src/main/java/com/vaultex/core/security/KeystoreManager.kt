@@ -51,6 +51,9 @@ class KeystoreManager @Inject constructor() {
         if (requireBiometric) {
             builder.setUserAuthenticationRequired(true)
             builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            // P4 : invalide la clé si une nouvelle empreinte est enrôlée
+            // (empêche un attaquant ayant ajouté sa biométrie de l'utiliser).
+            builder.setInvalidatedByBiometricEnrollment(true)
         }
 
         // Tente StrongBox si disponible (Android 9+)
@@ -105,18 +108,35 @@ class KeystoreManager @Inject constructor() {
         if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
             keyStore.deleteEntry(MASTER_KEY_ALIAS)
         }
+        /*
+        SECONDE CLÉ, tout aussi importante.
+
+        Le double chiffrement du seed repose sur DEUX clés : celle-ci
+        (VaultExMasterKey) et celle qui protège les préférences chiffrées,
+        créée par MasterKey.Builder sous son alias PAR DÉFAUT. Seule la
+        première était supprimée : après un effacement — y compris un PIN
+        panique — la clé des préférences restait dans le Keystore Android.
+
+        Ce n'est pas une fuite en soi, les fichiers ayant été vidés. Mais une
+        clé qui subsiste est une trace qui subsiste, et l'objectif du PIN
+        panique est justement qu'il n'en reste aucune. On supprime les deux.
+
+        On supprime la clé PAR SON ALIAS PAR DÉFAUT plutôt que de définir un
+        alias personnalisé : changer l'alias sur une application déjà
+        installée rendrait les préférences existantes — donc les seeds —
+        DÉFINITIVEMENT indéchiffrables. Ce serait une perte de fonds.
+         */
+        try {
+            val prefsAlias = androidx.security.crypto.MasterKey.DEFAULT_MASTER_KEY_ALIAS
+            if (keyStore.containsAlias(prefsAlias)) {
+                keyStore.deleteEntry(prefsAlias)
+            }
+        } catch (_: Exception) { }
     }
 
-    fun isStrongBoxAvailable(): Boolean {
-        // Vérifie le feature hardware réel, pas juste la version Android
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            try {
-                val pm = keyStore.getEntry(MASTER_KEY_ALIAS, null)
-                // Pas d'accès direct au PackageManager ici — on essaie lors de la génération de clé
-                true
-            } catch (_: Exception) {
-                false
-            }
-        } else false
+    /** Détection réelle du module hardware StrongBox (m-03). */
+    fun isStrongBoxAvailable(context: android.content.Context): Boolean {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
     }
 }

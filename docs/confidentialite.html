@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de Confidentialité — VaultEx</title>
+<meta name="description" content="Politique de confidentialité de VaultEx : quelles données sont traitées, comment et pourquoi.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <nav class="nav">
+      <a class="brand" href="index.html"><span class="diamond"></span> VaultEx</a>
+      <span class="spacer"></span>
+      <a class="link" href="conditions-generales.html">CGU</a>
+      <a class="link" href="confidentialite.html">Confidentialité</a>
+    </nav>
+  </header>
+  <div class="doc">
+    <a class="back" href="index.html">← Retour à l'accueil</a>
+<h1>Politique de Confidentialité — VaultEx</h1>
+<p><strong>Dernière mise à jour : 24 juillet 2026</strong></p>
+<p>Cette politique explique quelles données VaultEx (« l&#x27;Application ») traite, comment et pourquoi. Nous avons conçu VaultEx pour collecter <strong>le strict minimum</strong>.</p>
+<hr>
+<h2>1. En résumé</h2>
+<ul class="plain">
+<li><strong>Nous ne demandons aucun compte</strong>, aucun nom, aucun e-mail, aucun numéro de téléphone, aucune pièce d&#x27;identité.</li>
+<li><strong>Nous n&#x27;avons jamais accès</strong> à votre phrase de récupération, à vos clés privées ni à vos fonds.</li>
+<li><strong>Nous ne vendons aucune donnée</strong> et n&#x27;affichons aucune publicité.</li>
+</ul>
+<h2>2. Données qui restent sur votre appareil (jamais transmises)</h2>
+<p>Les informations suivantes sont stockées <strong>uniquement sur votre téléphone</strong>, sous forme chiffrée, et ne nous sont <strong>jamais</strong> envoyées :</p>
+<ul class="plain">
+<li>Votre <strong>phrase de récupération</strong> (12 mots) et vos clés privées, chiffrées via le module de sécurité matériel de l&#x27;appareil (Android Keystore).</li>
+<li>Votre <strong>code PIN</strong> (stocké sous forme de empreinte cryptographique, jamais en clair).</li>
+<li>Votre <strong>carnet d&#x27;adresses</strong>, l&#x27;historique local de vos transactions et vos préférences (langue, devise, alertes).</li>
+<li>La liste de vos jetons personnalisés.</li>
+</ul>
+<p>Si vous désinstallez l&#x27;Application sans avoir sauvegardé votre phrase de récupération, ces données sont <strong>définitivement perdues</strong> — y compris pour nous.</p>
+<h2>3. Données techniques traitées</h2>
+<h3>3.1 Adresses publiques de portefeuille</h3>
+<p>Pour afficher vos soldes, votre historique et vous notifier des dépôts, l&#x27;Application interroge des services d&#x27;infrastructure blockchain avec vos <strong>adresses publiques</strong> (jamais vos clés privées) :</p>
+<ul class="plain">
+<li><strong>Blockstream</strong> (Bitcoin), <strong>nœuds RPC publics</strong> (Ethereum, BNB Chain, Solana), <strong>TronGrid</strong> (Tron)</li>
+<li><strong>Etherscan / BscScan</strong> (historique des transactions)</li>
+<li><strong>CoinGecko</strong> (cours des cryptomonnaies)</li>
+</ul>
+<p>Une adresse publique est par nature <strong>visible de tous sur la blockchain</strong> : ces requêtes ne révèlent pas votre identité.</p>
+<h3>3.2 Notifications push (Firebase Cloud Messaging)</h3>
+<p>Si vous activez les notifications, l&#x27;Application enregistre auprès de nos serveurs (Google Firebase) :</p>
+<ul class="plain">
+<li>un <strong>jeton de notification</strong> anonyme propre à l&#x27;installation ;</li>
+<li>vos <strong>adresses publiques</strong> de portefeuille, afin de détecter les fonds reçus et vous en avertir.</li>
+</ul>
+<p>Ces données servent <strong>exclusivement</strong> à l&#x27;envoi de notifications. Elles ne sont ni revendues, ni utilisées à des fins publicitaires.</p>
+<h3>3.3 Rapports d&#x27;anomalie et statistiques techniques</h3>
+<p>Afin de corriger les dysfonctionnements, l&#x27;Application peut transmettre des <strong>informations techniques anonymes</strong> :</p>
+<ul class="plain">
+<li>type d&#x27;erreur rencontrée et emplacement dans le code ;</li>
+<li>version de l&#x27;Application, version d&#x27;Android, langue de l&#x27;appareil, marque et modèle du téléphone ;</li>
+<li>pays de la carte SIM (ou du réseau) et nom de l&#x27;opérateur mobile — indication de marché uniquement, jamais votre numéro de téléphone ;</li>
+<li>événements techniques d&#x27;usage — installation, création ou import de portefeuille, envoi et réception (montant et cryptomonnaie concernés), échange réalisé ou échoué, sauvegarde de la phrase effectuée, ainsi que des jalons d&#x27;usage (premier dépôt, premier échange, portefeuille resté inutilisé) — associés à un <strong>identifiant d&#x27;installation aléatoire</strong> (ex. « VX-8F3A1C ») et à la date d&#x27;installation.</li>
+</ul>
+<p>Ces informations <strong>ne contiennent ni votre identité, ni vos adresses de portefeuille, ni vos clés, ni votre phrase de récupération</strong>. Elles servent uniquement à assurer le bon fonctionnement et la sécurité du service.</p>
+<h3>3.4 Service d&#x27;échange tiers</h3>
+<p>Lorsque vous réalisez un échange, les informations nécessaires à l&#x27;opération (montant, cryptomonnaies concernées, adresse de réception, adresse de remboursement) sont transmises au prestataire d&#x27;échange <strong>ChangeNOW</strong>, qui les traite selon <strong>sa propre politique de confidentialité</strong>. Nous vous invitons à en prendre connaissance sur son site.</p>
+<h2>4. Autorisations demandées par l&#x27;Application</h2>
+<table>
+<tr><th>Autorisation</th><th>Pourquoi</th></tr>
+<tr><td><strong>Internet</strong></td><td>consulter les blockchains, les cours, envoyer des transactions</td></tr>
+<tr><td><strong>Appareil photo</strong></td><td>scanner un QR code d&#x27;adresse (l&#x27;image n&#x27;est ni stockée ni transmise)</td></tr>
+<tr><td><strong>Notifications</strong></td><td>vous avertir des fonds reçus et des alertes de prix</td></tr>
+<tr><td><strong>Biométrie</strong></td><td>déverrouiller l&#x27;Application (traitée par Android, jamais transmise)</td></tr>
+<tr><td><strong>Exemption d&#x27;optimisation batterie</strong> <em>(facultative)</em></td><td>permettre la détection des dépôts en arrière-plan</td></tr>
+</table>
+<h2>5. Conservation et suppression</h2>
+<ul class="plain">
+<li>Les données locales sont conservées tant que l&#x27;Application est installée. <strong>Désinstaller l&#x27;Application les efface</strong>, de même que la fonction « Effacer le wallet » de l&#x27;Application.</li>
+<li>Le jeton de notification est supprimé de nos serveurs lorsqu&#x27;il devient invalide (désinstallation, réinitialisation).</li>
+<li>Les rapports techniques anonymes sont conservés le temps nécessaire au diagnostic.</li>
+</ul>
+<h2>6. Sécurité</h2>
+<p>Nous mettons en œuvre des mesures de protection reconnues : chiffrement des données sensibles (AES-256), stockage des clés dans le module sécurisé de l&#x27;appareil, base de données locale chiffrée, communications chiffrées (HTTPS), protection contre les captures d&#x27;écran et détection des appareils compromis.</p>
+<p>Aucun système n&#x27;étant infaillible, <strong>la sécurité de votre phrase de récupération et de votre appareil relève de votre responsabilité</strong>.</p>
+<h2>7. Enfants</h2>
+<p>VaultEx n&#x27;est pas destinée aux personnes de moins de 18 ans et nous ne collectons pas sciemment de données les concernant.</p>
+<h2>8. Vos droits</h2>
+<p>Comme nous ne collectons aucune donnée permettant de vous identifier, nous ne pouvons pas relier des données à votre personne. Vous gardez à tout moment le contrôle : désactiver les notifications, effacer les données de l&#x27;Application, ou la désinstaller.</p>
+<h2>9. Modifications</h2>
+<p>Cette politique peut évoluer. La version en vigueur est celle publiée dans l&#x27;Application, avec sa date de mise à jour.</p>
+<h2>10. Contact</h2>
+<p>Pour toute question relative à vos données :</p>
+<ul class="plain">
+<li><strong>WhatsApp :</strong> +226 72 30 65 26</li>
+<li><strong>Telegram :</strong> <a href="https://t.me/vaultexWallet" rel="noopener">https://t.me/vaultexWallet</a></li>
+<li><strong>Facebook :</strong> VaultEx</li>
+</ul>
+  </div>
+</div>
+</body>
+</html>

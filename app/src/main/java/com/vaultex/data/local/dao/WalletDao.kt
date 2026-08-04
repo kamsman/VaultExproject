@@ -15,6 +15,9 @@ interface WalletDao {
     @Query("SELECT * FROM wallets WHERE id = :id")
     suspend fun getById(id: String): WalletEntity?
 
+    @Query("SELECT COUNT(*) FROM wallets")
+    suspend fun count(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(wallet: WalletEntity)
 
@@ -51,8 +54,17 @@ interface TokenDao {
     @Query("SELECT * FROM tokens WHERE blockchain = :blockchain")
     suspend fun getByBlockchain(blockchain: String): List<TokenEntity>
 
+    @Query("SELECT * FROM tokens WHERE isCustom = 1 AND isHidden = 0")
+    suspend fun getCustom(): List<TokenEntity>
+
+    @Query("SELECT * FROM tokens WHERE isCustom = 1")
+    suspend fun getAllCustom(): List<TokenEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(token: TokenEntity)
+
+    @Query("DELETE FROM tokens WHERE contractAddress = :address AND blockchain = :blockchain")
+    suspend fun delete(address: String, blockchain: String)
 
     @Query("UPDATE tokens SET isHidden = :hidden WHERE contractAddress = :address AND blockchain = :blockchain")
     suspend fun setHidden(address: String, blockchain: String, hidden: Boolean)
@@ -66,11 +78,42 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE fromAddress = :address OR toAddress = :address ORDER BY timestamp DESC")
     fun observeByAddress(address: String): Flow<List<TransactionEntity>>
 
+    @Query("SELECT hash FROM transactions WHERE hash = :hash LIMIT 1")
+    suspend fun getHash(hash: String): String?
+
+    @Query("SELECT * FROM transactions WHERE hash = :hash LIMIT 1")
+    suspend fun getByHash(hash: String): TransactionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: TransactionEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(transaction: TransactionEntity): Long
+
     @Query("UPDATE transactions SET status = :status, confirmations = :conf WHERE hash = :hash")
     suspend fun updateStatus(hash: String, status: String, conf: Int)
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM transactions WHERE blockchain = :blockchain")
+    suspend fun deleteByBlockchain(blockchain: String)
+
+    /** Réceptions d'une monnaie enregistrées depuis [since] — sert à savoir si
+     *  une hausse de solde a déjà été expliquée par une transaction connue. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE tokenSymbol = :symbol AND type = 'received' AND timestamp >= :since")
+    suspend fun countReceivedSince(symbol: String, since: Long): Int
+
+    /**
+     * Échanges non encore aboutis, du plus récent au plus ancien.
+     *
+     * Le suivi d'un swap vivait uniquement dans le `viewModelScope` de l'écran
+     * Swap : quitter l'écran l'annulait, donc plus de notification de fin, plus
+     * de badge sur la monnaie reçue. Cette requête permet à un worker de
+     * reprendre le suivi depuis la base, indépendamment de l'écran.
+     */
+    @Query("SELECT * FROM transactions WHERE type = 'swap' AND status = 'pending' ORDER BY timestamp DESC")
+    suspend fun getPendingSwaps(): List<TransactionEntity>
 }
 
 @Dao
@@ -87,8 +130,14 @@ interface ContactDao {
 
 @Dao
 interface PriceAlertDao {
+    @Query("SELECT * FROM price_alerts")
+    fun observeAll(): Flow<List<PriceAlertEntity>>
+
     @Query("SELECT * FROM price_alerts WHERE isActive = 1")
     fun observeActive(): Flow<List<PriceAlertEntity>>
+
+    @Query("SELECT * FROM price_alerts WHERE isActive = 1")
+    suspend fun getActiveOnce(): List<PriceAlertEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(alert: PriceAlertEntity)
@@ -98,4 +147,31 @@ interface PriceAlertDao {
 
     @Query("DELETE FROM price_alerts WHERE id = :id")
     suspend fun delete(id: String)
+}
+
+@Dao
+interface PendingSendDao {
+    @Query("SELECT * FROM pending_sends ORDER BY createdAt ASC")
+    fun observeAll(): Flow<List<PendingSendEntity>>
+
+    @Query("SELECT COUNT(*) FROM pending_sends WHERE status = 'PENDING'")
+    fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM pending_sends WHERE status = 'PENDING' ORDER BY createdAt ASC")
+    suspend fun getPending(): List<PendingSendEntity>
+
+    @Insert
+    suspend fun insert(item: PendingSendEntity): Long
+
+    @Query("UPDATE pending_sends SET status = :status, txHash = :txHash, lastError = :error, attempts = :attempts WHERE id = :id")
+    suspend fun updateResult(id: Long, status: String, txHash: String?, error: String?, attempts: Int)
+
+    @Query("DELETE FROM pending_sends WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("DELETE FROM pending_sends WHERE status = 'SENT'")
+    suspend fun clearSent()
+
+    @Query("DELETE FROM pending_sends")
+    suspend fun deleteAll()
 }

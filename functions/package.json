@@ -1,0 +1,13 @@
+{
+  "name": "vaultex-functions",
+  "description": "Cloud Functions VaultEx : notifications push (dépôts reçus + annonces)",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^4.9.0"
+  }
+}

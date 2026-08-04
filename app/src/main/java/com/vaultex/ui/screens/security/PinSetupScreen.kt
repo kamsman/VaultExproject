@@ -2,238 +2,234 @@ package com.vaultex.ui.screens.security
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.Backspace
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
-import com.vaultex.ui.components.PrimaryButton
+import com.vaultex.R
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.OnboardingViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinSetupScreen(
     navController: NavHostController,
     viewModel: OnboardingViewModel
 ) {
+    // Phase 1 : saisie du PIN — Phase 2 : confirmation
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf("") }
-    var showPin by remember { mutableStateOf(false) }
-    var showConfirmPin by remember { mutableStateOf(false) }
+    var confirmPhase by remember { mutableStateOf(false) }
+    var mismatch by remember { mutableStateOf(false) }
 
     val saveState by viewModel.saveState.collectAsState()
 
-    // Navigation automatique quand la sauvegarde réussit
+    // Navigation automatique quand la sauvegarde réussit :
+    // proposer la biométrie avant d'entrer dans l'app
     LaunchedEffect(saveState) {
         if (saveState is OnboardingViewModel.SaveState.Success) {
             viewModel.resetSaveState()
-            navController.navigate(Routes.DASHBOARD) { popUpTo(0) }
+            navController.navigate(Routes.BIOMETRIC_SETUP) { popUpTo(0) }
         }
     }
 
     val isLoading = saveState is OnboardingViewModel.SaveState.Loading
 
-    Scaffold(containerColor = BgPrimary) { padding ->
+    // Passage de phase / validation (PIN 6 chiffres)
+    LaunchedEffect(pin) {
+        if (!confirmPhase && pin.length == 6) confirmPhase = true
+    }
+    LaunchedEffect(confirmPin) {
+        if (confirmPin.length == 6) {
+            if (confirmPin == pin) {
+                mismatch = false
+                // Sauvegarde mnémonique chiffrée + PIN hashé PBKDF2 → Biométrie
+                viewModel.saveWallet(pin)
+            } else {
+                mismatch = true
+                pin = ""
+                confirmPin = ""
+                confirmPhase = false
+            }
+        }
+    }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(BgPrimary, BgSecondary)))
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    val currentEntry = if (confirmPhase) confirmPin else pin
 
-            Spacer(modifier = Modifier.height(70.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgSecondary)
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
+        Spacer(modifier = Modifier.height(72.dp))
+
+        // Diamant bleu
+        Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .shadow(elevation = 25.dp, shape = CircleShape)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(AccentGold.copy(alpha = 0.25f), BgSecondary)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "🔐", fontSize = 58.sp)
+                    .size(38.dp)
+                    .rotate(45f)
+                    .background(AccentBlue, RoundedCornerShape(4.dp))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = if (confirmPhase)
+                stringResource(R.string.pin_confirm)
+            else
+                stringResource(R.string.pin_setup_create_title),
+            color = TextPrimary,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = stringResource(R.string.pin_setup_protect_subtitle),
+            color = TextSecondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(52.dp))
+
+        // 6 points
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            repeat(6) { i ->
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(if (i < currentEntry.length) AccentBlue else BgTertiary)
+                )
             }
+        }
 
-            Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-            Text(
-                text = "Créer un code PIN",
-                color = TextPrimary,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold
-            )
+        // Messages d'état
+        val message: String? = when {
+            isLoading -> stringResource(R.string.pin_setup_saving)
+            mismatch -> stringResource(R.string.panic_mismatch)
+            saveState is OnboardingViewModel.SaveState.Error ->
+                stringResource(
+                    R.string.pin_setup_error,
+                    (saveState as OnboardingViewModel.SaveState.Error).message
+                )
+            else -> null
+        }
+        Box(modifier = Modifier.height(22.dp), contentAlignment = Alignment.Center) {
+            when {
+                isLoading -> CircularProgressIndicator(
+                    color = AccentBlue,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(18.dp)
+                )
+                message != null -> Text(
+                    text = message,
+                    color = AccentRed,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-            Text(
-                text = "Votre PIN sera demandé à chaque ouverture du wallet.",
-                color = TextSecondary,
-                fontSize = 15.sp,
-                lineHeight = 24.sp
-            )
-
-            Spacer(modifier = Modifier.height(45.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = BgSecondary.copy(alpha = 0.95f))
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 26.dp)) {
-
-                    Text("Code PIN", color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = pin,
-                        onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pin = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("••••••", color = TextSecondary) },
-                        visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        trailingIcon = {
-                            IconButton(onClick = { showPin = !showPin }) {
-                                Icon(
-                                    imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    tint = AccentGold
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(20.dp),
-                        textStyle = LocalTextStyle.current.copy(
-                            color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = BgPrimary,
-                            unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    Text("Confirmer le PIN", color = AccentGold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = confirmPin,
-                        onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) confirmPin = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("••••••", color = TextSecondary) },
-                        visualTransformation = if (showConfirmPin) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        trailingIcon = {
-                            IconButton(onClick = { showConfirmPin = !showConfirmPin }) {
-                                Icon(
-                                    imageVector = if (showConfirmPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    tint = AccentGold
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(20.dp),
-                        textStyle = LocalTextStyle.current.copy(
-                            color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentGold,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = BgPrimary,
-                            unfocusedContainerColor = BgPrimary,
-                            cursorColor = AccentGold
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(26.dp))
-
-                    // Indicateur visuel PIN
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        repeat(6) { index ->
-                            Box(
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .clip(CircleShape)
-                                    .background(if (index < pin.length) AccentGold else BgPrimary)
-                                    .border(1.dp, AccentGold.copy(alpha = 0.5f), CircleShape)
-                            )
-                        }
-                    }
-
-                    if (error.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(text = error, color = AccentRed, fontSize = 14.sp)
-                    }
-
-                    if (saveState is OnboardingViewModel.SaveState.Error) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(
-                            text = "Erreur : ${(saveState as OnboardingViewModel.SaveState.Error).message}",
-                            color = AccentRed,
-                            fontSize = 14.sp
-                        )
-                    }
+        // Pavé numérique
+        PinNumPad(
+            enabled = !isLoading,
+            onDigit = { d ->
+                if (confirmPhase) {
+                    if (confirmPin.length < 6) confirmPin += d
+                } else {
+                    if (pin.length < 6) pin += d
+                }
+                mismatch = false
+            },
+            onBackspace = {
+                if (confirmPhase) {
+                    if (confirmPin.isNotEmpty()) confirmPin = confirmPin.dropLast(1)
+                } else {
+                    if (pin.isNotEmpty()) pin = pin.dropLast(1)
                 }
             }
+        )
 
-            Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
 
-            PrimaryButton(
-                text = if (isLoading) "Sauvegarde..." else "Continuer",
-                enabled = !isLoading,
-                onClick = {
-                    when {
-                        pin.length != 6 -> error = "Le PIN doit contenir 6 chiffres"
-                        pin != confirmPin -> error = "Les PIN ne correspondent pas"
-                        else -> {
-                            error = ""
-                            // Sauvegarde mnémonique chiffrée + PIN hashé PBKDF2 → Dashboard
-                            viewModel.saveWallet(pin)
+@Composable
+internal fun PinNumPad(
+    enabled: Boolean,
+    onDigit: (String) -> Unit,
+    onBackspace: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫")
+        keys.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(48.dp)) {
+                row.forEach { key ->
+                    if (key.isEmpty()) {
+                        Spacer(Modifier.size(70.dp))
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(CircleShape)
+                                .background(BgSecondary)
+                                .border(1.dp, BorderColor, CircleShape)
+                                .clickable(enabled = enabled) {
+                                    if (key == "⌫") onBackspace() else onDigit(key)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (key == "⌫") {
+                                Icon(
+                                    imageVector = Icons.Outlined.Backspace,
+                                    contentDescription = stringResource(R.string.back),
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = key,
+                                    color = TextPrimary,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 }

@@ -6,6 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.vaultex.ui.navigation.Routes
+import androidx.compose.ui.res.stringResource
+import com.vaultex.R
+import androidx.compose.material3.Button
 
 // ✅ IMPORT ICÔNE CORRECT
 import androidx.compose.material.icons.Icons
@@ -21,12 +25,12 @@ fun WalletManagementScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mes wallets", color = TextPrimary) },
+                title = { Text(stringResource(R.string.wallet_management_title), color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -50,6 +54,12 @@ fun WalletManagementScreen(navController: NavHostController) {
                 text = "Liste wallets multi-comptes",
                 color = TextPrimary
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(onClick = { navController.navigate(Routes.walletAddVerify("settingsImport")) }) {
+                Text(stringResource(R.string.import_wallet))
+            }
         }
     }
 }

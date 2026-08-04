@@ -5,20 +5,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
-import com.vaultex.ui.components.GlassCard
+import com.vaultex.R
 import com.vaultex.ui.components.PrimaryButton
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -36,103 +39,140 @@ fun MnemonicDisplayScreen(
     }
 
     val mnemonic by viewModel.mnemonic.collectAsState()
-    var revealed by remember { mutableStateOf(false) }
+    var passphrase by remember { mutableStateOf(viewModel.passphrase.value) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Phrase de récupération", color = TextPrimary) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.mnemonic_title),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = AccentBlue
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgSecondary)
             )
         },
-        containerColor = BgPrimary
+        containerColor = BgSecondary
     ) { padding ->
 
         Column(
             modifier = Modifier
                 .padding(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AccentRed.copy(alpha = 0.15f)),
-                shape = RoundedCornerShape(12.dp)
+            // Bandeau d'avertissement orange à barre latérale
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AccentOrange.copy(alpha = 0.12f))
             ) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .background(AccentOrange)
+                )
                 Text(
-                    text = "⚠️ Notez ces 12 mots dans l'ordre exact. " +
-                            "Si vous les perdez, vous perdez votre wallet.",
-                    color = AccentRed,
+                    text = "⚠ " + stringResource(R.string.backup_warning_title),
+                    color = TextPrimary,
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(14.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            GlassCard {
-                if (mnemonic.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(280.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = AccentGold)
-                    }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.height(280.dp)
-                    ) {
-                        itemsIndexed(mnemonic) { i, word ->
-                            Row(
-                                modifier = Modifier
-                                    .background(BgSecondary, RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 10.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("${i + 1}.", color = TextMuted, fontSize = 11.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (revealed) word else "••••••",
-                                    color = TextPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+            if (mnemonic.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = AccentBlue)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.height(280.dp)
+                ) {
+                    itemsIndexed(mnemonic) { i, word ->
+                        Column(
+                            modifier = Modifier
+                                .background(BgTertiary.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Text("${i + 1}", color = TextSecondary, fontSize = 10.sp)
+                            Text(
+                                text = word,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TextButton(
-                    onClick = { revealed = !revealed },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = if (revealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = null,
-                        tint = AccentGold
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (revealed) "Masquer" else "Afficher les mots",
-                        color = AccentGold
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Passphrase BIP39 optionnelle (« 13e mot ») — M-03.
+            // Saisie ici car elle fait partie du secret à sauvegarder.
+            Text(
+                text = stringResource(R.string.passphrase_label),
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = passphrase,
+                onValueChange = { passphrase = it; viewModel.setPassphrase(it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.passphrase_placeholder), color = TextMuted) },
+                supportingText = { Text(stringResource(R.string.passphrase_hint), color = TextSecondary, fontSize = 11.sp) },
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = BorderColor,
+                    focusedContainerColor = BgPrimary,
+                    unfocusedContainerColor = BgPrimary,
+                    cursorColor = AccentBlue
+                )
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             PrimaryButton(
-                text = "Continuer",
+                text = stringResource(R.string.mnemonic_saved_button),
                 onClick = { navController.navigate(Routes.MNEMONIC_VERIFY) },
                 enabled = mnemonic.isNotEmpty()
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

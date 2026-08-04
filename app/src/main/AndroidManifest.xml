@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Exemption d'optimisation batterie : les surcouches agressives (Tecno,
+         Infinix, itel, Xiaomi…) tuent les workers en arrière-plan → plus
+         aucune notification de dépôt. Demandée UNE fois au premier lancement. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
@@ -26,6 +30,26 @@
         android:theme="@style/Theme.VaultEx"
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="34">
+
+        <!-- Canal + icône par défaut pour les notifications push FCM (arrière-plan). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="vaultex_notifications" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_launcher_foreground" />
+
+        <!-- Init manuelle de WorkManager via Configuration.Provider (HiltWorkerFactory) -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <activity
             android:name=".app.MainActivity"

@@ -20,7 +20,7 @@ object Bip44Paths {
         return "m/44'/$coinType'/$account'/0/$addressIndex"
     }
 
-    fun btcPath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_BTC, 0, addressIndex)
+    fun btcPath(addressIndex: Int = 0): String = "m/84'/$COIN_TYPE_BTC'/0'/0/$addressIndex"
     fun ethPath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_ETH, 0, addressIndex)
     fun bnbPath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_BNB, 0, addressIndex)
     fun solPath(addressIndex: Int = 0): String = "m/44'/$COIN_TYPE_SOL'/$addressIndex'/0'"  // Solana spec
