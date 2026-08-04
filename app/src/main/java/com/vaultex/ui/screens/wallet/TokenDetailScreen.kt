@@ -293,9 +293,9 @@ internal fun DemoLineChart(seed: Int, modifier: Modifier = Modifier) {
 }
 
 private fun formatNumber(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+    NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).apply {
         maximumFractionDigits = 2
     }.format(value)
 
 private fun formatXofValue(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).format(value.toLong())
+    NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(value.toLong())

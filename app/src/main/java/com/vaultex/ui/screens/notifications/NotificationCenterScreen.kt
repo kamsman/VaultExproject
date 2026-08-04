@@ -120,4 +120,4 @@ private fun NotifRow(item: NotifItem) {
 }
 
 private fun formatTime(ts: Long): String =
-    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.FRANCE).format(Date(ts))
+    SimpleDateFormat("dd/MM/yyyy HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(Date(ts))

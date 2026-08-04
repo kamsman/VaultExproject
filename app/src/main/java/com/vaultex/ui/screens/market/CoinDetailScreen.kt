@@ -117,7 +117,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         }
 
         val usdFmt = remember {
-            NumberFormat.getNumberInstance(Locale.FRANCE).apply { maximumFractionDigits = 2 }
+            NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).apply { maximumFractionDigits = 2 }
         }
         val symbol = c.symbol.uppercase()
 

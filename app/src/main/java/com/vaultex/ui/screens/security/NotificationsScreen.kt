@@ -185,7 +185,7 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                                             )
                                         } else {
                                             Text(
-                                                NumberFormat.getNumberInstance(Locale.FRANCE).format(thresholdXof) + " XOF",
+                                                NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(thresholdXof) + " XOF",
                                                 fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                                             )

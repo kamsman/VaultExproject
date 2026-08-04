@@ -140,8 +140,8 @@ class PriceAlertWorker @AssistedInject constructor(
                 NotificationManager.IMPORTANCE_HIGH
             )
         )
-        val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
-        val percent = String.format(Locale.FRANCE, "%+.1f %%", changePercent)
+        val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
+        val percent = String.format(com.vaultex.core.session.LocaleManager.appLocale(), "%+.1f %%", changePercent)
         val title = ctx.getString(
             if (isUp) R.string.price_move_up_title else R.string.price_move_down_title,
             symbol
@@ -166,7 +166,7 @@ class PriceAlertWorker @AssistedInject constructor(
 
     private fun notify(symbol: String, condition: String, target: Double, current: Double) {
         val ctx = applicationContext
-        val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
+        val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,

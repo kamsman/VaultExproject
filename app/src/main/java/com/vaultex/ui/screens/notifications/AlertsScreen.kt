@@ -214,7 +214,7 @@ private fun EmptyAlertsBlock(onCreate: () -> Unit) {
 }
 
 private fun formatXof(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).format(value.toLong()) + " FCFA"
+    NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(value.toLong()) + " FCFA"
 
 private fun tokenColor(symbol: String) = when (symbol) {
     "BTC" -> VaultExColors.BitcoinOrange
@@ -315,7 +315,7 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
     val mainTokens = listOf("BTC", "ETH", "BNB", "SOL")
     val otherTokens = listOf("TRX", "USDT")
     val isAbove = condition.startsWith("au-dessus")
-    val fmt = NumberFormat.getNumberInstance(Locale.FRANCE)
+    val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,

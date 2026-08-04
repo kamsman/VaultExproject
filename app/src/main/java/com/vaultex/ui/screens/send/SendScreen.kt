@@ -1349,7 +1349,7 @@ internal fun SendSuccessScreen(
     val clipboard = LocalClipboardManager.current
     val orange = Color(0xFFF59E0B)
     val sentAt = remember {
-        java.text.SimpleDateFormat("d MMM yyyy • HH:mm", java.util.Locale.FRANCE).format(java.util.Date())
+        java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
     }
     SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis

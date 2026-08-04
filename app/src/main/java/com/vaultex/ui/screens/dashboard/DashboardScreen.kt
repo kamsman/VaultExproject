@@ -43,7 +43,6 @@ import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.PortfolioViewModel
 import com.vaultex.ui.viewmodel.TokenBalance
-import java.text.NumberFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -1009,12 +1008,23 @@ transaction, à chaque recomposition du défilement, coûtait plusieurs
 millisecondes par image. Ils ne sont utilisés que depuis la composition
 (thread UI unique), donc une instance partagée est sûre.
  */
-private val AssetPriceFormat: NumberFormat = NumberFormat.getNumberInstance(Locale.FRANCE)
-private val RecentDateFormat = java.text.SimpleDateFormat("dd/MM HH:mm", Locale.FRANCE)
+/*
+Le format est reconstruit UNIQUEMENT si la langue a changé : on garde le
+bénéfice du cache (une allocation, pas une par ligne de liste) sans figer la
+locale au chargement de la classe. Un `val` de niveau fichier serait initialisé
+une fois pour toute la vie du processus : changer la langue dans les réglages
+n'aurait alors aucun effet sur les dates tant que l'app n'est pas tuée.
+ */
+private var recentDateLocale: Locale? = null
+private var recentDateFormatCache = java.text.SimpleDateFormat("dd/MM HH:mm", Locale.FRENCH)
 
-private fun formatAssetPrice(value: Double): String {
-    AssetPriceFormat.maximumFractionDigits = if (value < 1.0) 4 else 2
-    return AssetPriceFormat.format(value)
+private fun recentDateFormat(): java.text.SimpleDateFormat {
+    val loc = com.vaultex.core.session.LocaleManager.appLocale()
+    if (recentDateLocale != loc) {
+        recentDateFormatCache = java.text.SimpleDateFormat("dd/MM HH:mm", loc)
+        recentDateLocale = loc
+    }
+    return recentDateFormatCache
 }
 
 @Composable
@@ -1168,7 +1178,7 @@ private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onC
         else -> tx.hash
     }
     val short = if (ref.length > 12) ref.take(6) + "…" + ref.takeLast(4) else ref
-    val date = RecentDateFormat.format(java.util.Date(tx.timestamp))
+    val date = recentDateFormat().format(java.util.Date(tx.timestamp))
     val amountSym = if (tx.type == "swap") tx.tokenSymbol.substringBefore("→") else tx.tokenSymbol
 
     Row(

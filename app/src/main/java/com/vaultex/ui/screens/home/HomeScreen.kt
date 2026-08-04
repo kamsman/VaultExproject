@@ -81,7 +81,7 @@ fun HomeScreen(navController: NavHostController) {
         ) {
             // ─── Carte solde FCFA ───
             item {
-                val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
+                val xofFormatted = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
                     .format(state.totalBalanceXof.toLong())
 
                 Box(
@@ -211,7 +211,7 @@ private fun ActionChip(
 
 @Composable
 private fun TokenCard(token: TokenBalance, hidden: Boolean, onClick: () -> Unit) {
-    val xofFormatted = NumberFormat.getNumberInstance(Locale.FRANCE)
+    val xofFormatted = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         .format(token.valueXof.toLong())
     val tokenColor = try {
         Color(android.graphics.Color.parseColor(token.colorHex))

@@ -289,9 +289,9 @@ private fun TokenBalance.color(): Color = try {
 }
 
 private fun formatUsd(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).apply {
+    NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).apply {
         maximumFractionDigits = 2; minimumFractionDigits = 2
     }.format(value)
 
 private fun formatXof(value: Double): String =
-    NumberFormat.getNumberInstance(Locale.FRANCE).format(value.toLong())
+    NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(value.toLong())

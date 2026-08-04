@@ -42,7 +42,7 @@ private val P = Color(0xFF7C5CFC)
 fun LoginHistoryScreen(navController: NavHostController) {
     val viewModel: SecurityNotifViewModel = hiltViewModel()
     val logins = remember { viewModel.loginHistory() }
-    val fmt = remember { SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale.FRANCE) }
+    val fmt = remember { SimpleDateFormat("dd/MM/yyyy · HH:mm", com.vaultex.core.session.LocaleManager.appLocale()) }
     val device = remember { "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}" }
 
     Scaffold(

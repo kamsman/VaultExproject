@@ -864,7 +864,7 @@ private fun pickerAmount(v: Double): String =
         .stripTrailingZeros().toPlainString()
 
 private fun pickerXof(v: Double): String =
-    java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).format(v.toLong())
+    java.text.NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(v.toLong())
 
 /** Couleur du badge réseau (TRC20 violet, ERC20 bleu, BEP20 jaune). */
 private fun badgeColor(badge: String): Color = when (badge.uppercase()) {

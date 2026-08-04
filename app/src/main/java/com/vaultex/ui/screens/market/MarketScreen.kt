@@ -405,14 +405,38 @@ private fun compactUsd(v: Double): String = when {
 /* Formateur mis en cache : reconstruire un NumberFormat pour chaque ligne de
    marché, à chaque image du défilement, charge les données de locale à chaque
    fois. Utilisé uniquement depuis la composition (thread UI unique). */
-private val MarketUsdFormat: NumberFormat = NumberFormat.getNumberInstance(Locale.FRANCE)
+private var marketUsdLocale: Locale? = null
+private var marketUsdFormatCache: NumberFormat = NumberFormat.getNumberInstance(Locale.FRENCH)
 
-/** Prix en USD : 4 décimales sous 1 $, 2 décimales sinon, sans décimale au-delà de 1000. */
-internal fun formatMarketUsd(value: Double): String {
-    MarketUsdFormat.maximumFractionDigits = when {
-        value < 1.0 -> 4
-        value < 1000.0 -> 2
-        else -> 0
+private fun marketUsdFormat(): NumberFormat {
+    val loc = com.vaultex.core.session.LocaleManager.appLocale()
+    if (marketUsdLocale != loc) {
+        marketUsdFormatCache = NumberFormat.getNumberInstance(loc)
+        marketUsdLocale = loc
     }
-    return MarketUsdFormat.format(value)
+    return marketUsdFormatCache
+}
+
+/**
+ * Prix en USD, précision adaptée à l'ordre de grandeur.
+ *
+ * Quatre décimales sous 1 $ ne suffisent pas : SHIB (~0,00001 $) et PEPE
+ * (~0,000001 $) s'affichaient « 0 » dans la liste du Marché. Un prix à zéro
+ * fait passer une monnaie parfaitement cotée pour cassée ou sans valeur.
+ * Sous 0,01 $ on garde donc quatre chiffres SIGNIFICATIFS.
+ */
+internal fun formatMarketUsd(value: Double): String {
+    val nf = marketUsdFormat()
+    nf.minimumFractionDigits = 0
+    nf.maximumFractionDigits = when {
+        value >= 1000.0 -> 0
+        value >= 1.0 -> 2
+        value >= 0.01 -> 4
+        value > 0.0 -> {
+            val leadingZeros = kotlin.math.floor(-kotlin.math.log10(value)).toInt()
+            (leadingZeros + 4).coerceIn(4, 12)
+        }
+        else -> 2
+    }
+    return nf.format(value)
 }

@@ -38,6 +38,12 @@ class VaultExApplication : Application(), Configuration.Provider {
         // 💥 Rapport de crash Telegram — s'AJOUTE devant le handler existant
         // (Crashlytics/système), ne remplace rien.
         com.vaultex.core.monitoring.AdminBot.installCrashHandler()
+        // AVANT toute planification de worker : les workers formatent des
+        // notifications application fermée, où aucune Activity n'a encore
+        // appelé LocaleManager.wrap(). Sans cette amorce, un dépôt détecté
+        // après un redémarrage du téléphone serait annoncé avec le format de
+        // nombres du système, pas celui de la langue choisie dans l'app.
+        com.vaultex.core.session.LocaleManager.prime(this)
         createNotificationChannel()
         schedulePriceAlertChecks()
         scheduleDepositChecks()

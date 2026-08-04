@@ -319,7 +319,7 @@ class DepositCheckWorker @AssistedInject constructor(
                 val title = applicationContext.getString(com.vaultex.R.string.notif_lowbal_title)
                 val body = applicationContext.getString(
                     com.vaultex.R.string.notif_lowbal_body,
-                    java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).format(threshold.toLong())
+                    java.text.NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(threshold.toLong())
                 )
                 // Clé stable : l'alerte « solde bas » ne doit pas se répéter
                 // à chaque cycle du worker tant que le seuil reste franchi.
