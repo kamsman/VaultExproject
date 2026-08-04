@@ -18,6 +18,19 @@ class VaultExFcmService : FirebaseMessagingService() {
     lateinit var pushRegistrar: PushRegistrar
 
     /**
+     * Les deux détections LOCALES (worker de dépôt et synchro d'historique)
+     * respectent `txAlerts` avant de notifier. Ce chemin-ci ne le faisait pas :
+     * un utilisateur qui désactivait « Fonds reçus » dans les réglages
+     * continuait d'en recevoir, envoyées par le serveur.
+     *
+     * Un interrupteur qui ne coupe qu'une source sur trois est pire que pas
+     * d'interrupteur du tout : l'utilisateur croit avoir réglé le problème,
+     * constate que non, et en conclut que l'application ignore ses choix.
+     */
+    @javax.inject.Inject
+    lateinit var notifPrefs: com.vaultex.core.session.NotifPrefs
+
+    /**
      * Firebase RENOUVELLE le jeton : réinstallation, effacement des données,
      * restauration sur un nouveau téléphone, ou rotation spontanée.
      *
@@ -44,11 +57,17 @@ class VaultExFcmService : FirebaseMessagingService() {
         val symbol = message.data["symbol"]
         val amount = message.data["amount"]
 
+        val isDeposit = message.data["type"] == "deposit"
+        // Même règle que les détections locales : si l'utilisateur a coupé les
+        // alertes de transaction, le push de dépôt est ignoré. Les annonces de
+        // l'application, elles, ne relèvent pas de ce réglage et passent.
+        if (isDeposit && !notifPrefs.txAlerts.value) return
+
         // Clé d'événement : pour un dépôt, elle DOIT coïncider avec celle que
         // produiront le worker local et la synchro d'historique, sinon le même
         // dépôt serait notifié deux ou trois fois.
         val key = when {
-            message.data["type"] == "deposit" && amount != null ->
+            isDeposit && amount != null ->
                 com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount)
             // Annonce ou message sans identité propre : on retombe sur le
             // contenu, ce qui évite au moins les répétitions à l'identique.

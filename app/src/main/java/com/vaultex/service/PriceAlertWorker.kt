@@ -64,8 +64,22 @@ class PriceAlertWorker @AssistedInject constructor(
             if (moveEnabled) checkMoves(prices)
             checkTargets(alerts, prices)
             Result.success()
-        } catch (_: Exception) {
-            Result.retry()
+        } catch (e: Exception) {
+            /*
+            `success` et non `retry`, comme pour DepositCheckWorker.
+
+            CoinGecko limite le débit : un 429 est le cas d'échec le plus
+            courant ici. Avec `retry`, WorkManager reprogramme avec un délai qui
+            DOUBLE à chaque échec — et tant qu'il attend, ce travail périodique
+            ne tourne plus. Quelques limitations d'affilée suffisent donc à
+            éteindre les alertes de prix pour des heures, sans que rien ne
+            l'indique.
+
+            Le travail repasse de toute façon dans 15 minutes : renoncer à ce
+            cycle-ci est la bonne réponse, réessayer en boucle ne l'est pas.
+             */
+            com.vaultex.core.monitoring.AdminBot.serviceFailed("alertes de prix", e.message)
+            Result.success()
         }
     }
 

@@ -54,6 +54,37 @@ class DepositCheckWorker @AssistedInject constructor(
                 WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
             }
             val prefs = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            /*
+            ─── REPÈRES DE SOLDE : UN PAR PORTEFEUILLE ────────────────────────
+            La détection de dépôt compare le solde lu au dernier solde connu.
+            Ce repère était rangé sous une clé GLOBALE (« bal_BTC »), alors que
+            les adresses, elles, changent avec le portefeuille actif.
+
+            Conséquence, en changeant de wallet :
+              wallet 1 a 0 BTC        → repère = 0
+              bascule vers wallet 2 qui detient 0,5 BTC
+              lecture 0,5 - repère 0  → ecart de +0,5
+              → « Vous avez recu 0.5 BTC », une ligne inventee dans
+                l'historique, et un rapport de reception sur Telegram.
+
+            Rien n'etait arrive : c'est le portefeuille qui avait change. Le
+            genre de notification qui detruit la confiance — l'utilisateur
+            cherche des fonds qui n'existent pas, puis cesse de croire les
+            alertes suivantes, y compris les vraies.
+
+            Le repere est donc indexe par ADRESSE. Elle identifie le
+            portefeuille de facon fiable (elle derive de la seed) sans avoir
+            besoin d'un identifiant separe, et revenir sur un ancien wallet
+            retrouve SON repere — un depot recu entre-temps reste donc
+            correctement signale.
+
+            Premier passage sur une adresse = aucun repere = aucune
+            notification (branche `before == null`) : la bascule vers le
+            nouveau schema ne declenche aucune rafale au premier lancement.
+            ───────────────────────────────────────────────────────────────────
+             */
+            fun balanceKey(symbol: String, address: String) = "bal_${symbol}_$address"
+            purgeLegacyBaselines(prefs)
 
             // (symbole, adresse, seuil poussière, fetch)
             val checks: List<Quad> = listOf(
@@ -75,7 +106,7 @@ class DepositCheckWorker @AssistedInject constructor(
             for (c in checks) {
                 if (c.address.isBlank()) continue
                 val bal = withContext(Dispatchers.IO) { c.fetch() } ?: continue
-                val key = "bal_${c.symbol}"
+                val key = balanceKey(c.symbol, c.address)
                 val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
                 prefs.edit().putString(key, bal.toString()).apply()
                 if (before == null) {
@@ -139,7 +170,11 @@ class DepositCheckWorker @AssistedInject constructor(
                     val bal = withContext(Dispatchers.IO) {
                         fetchErc20(if (isBnb) bnbRpc else ethRpc, t.contractAddress, holder, t.decimals)
                     } ?: continue
-                    val key = "bal_tok_${t.contractAddress.lowercase()}"
+                    // Le CONTRAT ne suffit pas comme clé : il est identique d'un
+                    // portefeuille à l'autre. Sans l'adresse du détenteur, le
+                    // solde du wallet 2 se compare à celui du wallet 1 et un
+                    // simple changement de portefeuille passe pour une réception.
+                    val key = "bal_tok_${t.contractAddress.lowercase()}_$holder"
                     val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
                     prefs.edit().putString(key, bal.toString()).apply()
                     if (before == null) continue             // 1er passage : on mémorise
@@ -365,9 +400,38 @@ class DepositCheckWorker @AssistedInject constructor(
         val fetch: suspend () -> Double?
     )
 
+    /**
+     * Supprime les repères de solde de l'ancien schéma, non indexés par
+     * portefeuille (« bal_BTC », « bal_tok_0x… »).
+     *
+     * Les laisser ne casserait rien — les nouvelles clés portent un suffixe
+     * d'adresse et ne les croisent jamais — mais ils resteraient à vie dans les
+     * préférences, et surtout ils rendraient une relecture du code trompeuse :
+     * on croirait le repère global encore actif. Le nettoyage est fait une fois
+     * pour toutes.
+     */
+    private fun purgeLegacyBaselines(prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean(KEY_LEGACY_PURGED, false)) return
+        val legacy = prefs.all.keys.filter { key ->
+            // Ancien schéma : « bal_<SYMBOLE> » sans suffixe d'adresse, et
+            // « bal_tok_<contrat> » sans adresse de détenteur. Les nouvelles
+            // clés se reconnaissent à leur segment supplémentaire.
+            when {
+                key.startsWith("bal_tok_") -> key.count { it == '_' } == 2
+                key.startsWith("bal_") -> key.count { it == '_' } == 1
+                else -> false
+            }
+        }
+        prefs.edit().apply {
+            legacy.forEach { remove(it) }
+            putBoolean(KEY_LEGACY_PURGED, true)
+        }.apply()
+    }
+
     companion object {
         const val WORK_NAME = "vaultex_deposit_check"
         private const val PREFS = "deposit_check_prefs"
+        private const val KEY_LEGACY_PURGED = "legacy_baselines_purged"
         private const val USDT_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
     }
 }
