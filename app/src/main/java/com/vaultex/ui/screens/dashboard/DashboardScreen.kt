@@ -486,12 +486,12 @@ fun DashboardScreen(navController: NavHostController) {
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
                     }
-                    visibleTokens.forEachIndexed { index, token ->
+                    // Aucun trait entre les monnaies : le logo rond, le retour à
+                    // la ligne et l'espacement séparent déjà les lignes. Un
+                    // filet en plus alourdit une liste qui n'en a pas besoin.
+                    visibleTokens.forEach { token ->
                         AssetRow(token, balanceHidden, currency, token.symbol in pendingSymbols) {
                             navController.navigate(Routes.tokenDetail(token.symbol))
-                        }
-                        if (index < visibleTokens.lastIndex) {
-                            HorizontalDivider(color = SurfaceLight, thickness = 1.dp)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
@@ -899,7 +899,10 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+            // 12 plutôt que 10 : c'est le trait de séparation qui donnait sa
+            // respiration à la liste. En le retirant, il faut rendre cet espace
+            // ailleurs, sinon les lignes se collent.
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
