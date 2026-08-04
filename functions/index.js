@@ -28,9 +28,45 @@ const db = admin.firestore();
 /* ─────────────────────────── Contrat USDT TRC20 ─────────────────────────── */
 const USDT_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
-/* Secret pour protéger l'envoi d'annonces. CHANGE-le si tu veux (garde-le privé).
- * Idéalement, remplace par process.env.ANNOUNCE_SECRET via `firebase functions:config`. */
-const ANNOUNCE_SECRET = process.env.ANNOUNCE_SECRET || "vtx_7Kd9Qp2Rm4Xt8Ls1Wz6Yb3Nc5Vg0Hj";
+/*
+ * Secret protégeant sendAnnouncement — l'endpoint qui envoie une notification
+ * à TOUS les appareils VaultEx.
+ *
+ * POURQUOI IL N'Y A PLUS DE VALEUR PAR DÉFAUT : elle était écrite ici, dans un
+ * fichier versionné. Quiconque lit ce dépôt pouvait donc pousser une
+ * notification à tous les utilisateurs. Le scénario n'est pas théorique — c'est
+ * l'outil de hameçonnage idéal : « VaultEx : incident de sécurité, confirmez
+ * votre phrase de récupération ici ». Le message arrive de la vraie app, avec
+ * la vraie icône, sur le vrai canal. Aucun utilisateur ne peut faire la
+ * différence.
+ *
+ * Un secret par défaut n'est jamais « en attendant » : c'est le secret réel de
+ * toute installation où personne n'a pensé à définir la variable — et personne
+ * n'y pense, puisque ça marche sans.
+ *
+ * Le déploiement échoue donc si ANNOUNCE_SECRET n'est pas défini :
+ *   firebase functions:secrets:set ANNOUNCE_SECRET
+ */
+const ANNOUNCE_SECRET = process.env.ANNOUNCE_SECRET;
+if (!ANNOUNCE_SECRET || ANNOUNCE_SECRET.length < 24) {
+  console.error(
+    "ANNOUNCE_SECRET absent ou trop court. sendAnnouncement refusera toutes " +
+    "les requetes. Definir avec : firebase functions:secrets:set ANNOUNCE_SECRET"
+  );
+}
+
+/** Comparaison de secrets à temps constant (résiste au timing attack). */
+function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const crypto = require("crypto");
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  // timingSafeEqual exige des longueurs égales : on hache d'abord, ce qui
+  // normalise la taille sans révéler la longueur du secret attendu.
+  const ha = crypto.createHash("sha256").update(ba).digest();
+  const hb = crypto.createHash("sha256").update(bb).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 /* Seuils « poussière » : en dessous, on considère que c'est du bruit d'arrondi. */
 const DUST = { BTC: 5e-7, ETH: 1e-6, BNB: 1e-6, SOL: 1e-6, TRX: 1e-3, USDT: 1e-3 };
@@ -187,13 +223,22 @@ exports.checkDeposits = functions.pubsub.schedule("every 2 minutes").onRun(async
 });
 
 /* ─────────────────────────── 3) sendAnnouncement ─────────────────────────── */
-// Diffuse une annonce à tous les appareils. Protégé par un secret : REMPLACE
-// "CHANGE_MOI_SECRET" par une longue chaîne aléatoire avant de déployer.
+// Diffuse une annonce à tous les appareils. Voir ANNOUNCE_SECRET plus haut :
+// sans secret configuré, l'endpoint est FERMÉ, pas ouvert.
 exports.sendAnnouncement = functions.https.onRequest(async (req, res) => {
   try {
+    // Fermé par défaut. Un secret mal configuré doit rendre l'endpoint
+    // inutilisable, jamais public : le mode dégradé d'un contrôle d'accès
+    // est le refus, pas l'autorisation.
+    if (!ANNOUNCE_SECRET || ANNOUNCE_SECRET.length < 24) {
+      return res.status(503).json({ error: "ANNOUNCE_SECRET non configure" });
+    }
     const body = req.body || {};
     const secret = req.query.secret || body.secret;
-    if (secret !== ANNOUNCE_SECRET) return res.status(403).json({ error: "interdit" });
+    // Comparaison à temps constant : une comparaison `!==` classique s'arrête
+    // au premier caractère différent, ce qui laisse deviner le secret
+    // caractère par caractère en mesurant le temps de réponse.
+    if (!safeEqual(secret, ANNOUNCE_SECRET)) return res.status(403).json({ error: "interdit" });
     const title = body.title || "VaultEx";
     const text = body.body || "";
     const snap = await db.collection("devices").get();
