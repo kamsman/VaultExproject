@@ -103,6 +103,17 @@ interface TransactionDao {
      *  une hausse de solde a déjà été expliquée par une transaction connue. */
     @Query("SELECT COUNT(*) FROM transactions WHERE tokenSymbol = :symbol AND type = 'received' AND timestamp >= :since")
     suspend fun countReceivedSince(symbol: String, since: Long): Int
+
+    /**
+     * Échanges non encore aboutis, du plus récent au plus ancien.
+     *
+     * Le suivi d'un swap vivait uniquement dans le `viewModelScope` de l'écran
+     * Swap : quitter l'écran l'annulait, donc plus de notification de fin, plus
+     * de badge sur la monnaie reçue. Cette requête permet à un worker de
+     * reprendre le suivi depuis la base, indépendamment de l'écran.
+     */
+    @Query("SELECT * FROM transactions WHERE type = 'swap' AND status = 'pending' ORDER BY timestamp DESC")
+    suspend fun getPendingSwaps(): List<TransactionEntity>
 }
 
 @Dao

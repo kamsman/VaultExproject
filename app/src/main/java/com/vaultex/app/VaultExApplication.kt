@@ -14,6 +14,7 @@ import com.vaultex.core.security.DeviceIntegrity
 import com.vaultex.service.DepositCheckWorker
 import com.vaultex.service.PendingSendWorker
 import com.vaultex.service.PriceAlertWorker
+import com.vaultex.service.SwapTrackingWorker
 import com.vaultex.ui.viewmodel.HistoryViewModel
 import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
@@ -40,6 +41,7 @@ class VaultExApplication : Application(), Configuration.Provider {
         createNotificationChannel()
         schedulePriceAlertChecks()
         scheduleDepositChecks()
+        scheduleSwapTracking()
         // Reprend les envois mis en file lors d'une session précédente
         // (le worker attend tout seul le retour du réseau).
         PendingSendWorker.enqueue(this)
@@ -59,6 +61,22 @@ class VaultExApplication : Application(), Configuration.Provider {
             PriceAlertWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES).build()
+        )
+    }
+
+    /**
+     * Suivi des échanges en cours, toutes les 15 minutes.
+     *
+     * Sans lui, le suivi d'un swap mourait avec l'écran Swap : l'utilisateur
+     * devait rester devant, parfois plusieurs heures, sinon la notification de
+     * fin ne partait jamais. Le worker reprend le suivi depuis la base, donc il
+     * survit à la navigation, à la fermeture de l'app et au redémarrage.
+     */
+    private fun scheduleSwapTracking() {
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SwapTrackingWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<SwapTrackingWorker>(15, TimeUnit.MINUTES).build()
         )
     }
 

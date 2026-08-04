@@ -560,7 +560,12 @@ private fun SwapTrackingScreen(
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Le dépôt est envoyé ✓. L'échange se termine tout seul en 2 à 5 min — pas besoin d'attendre ici. Tu peux lancer un nouveau swap ; les fonds reçus apparaîtront dans ton solde et l'historique.",
+                            // La promesse « pas besoin d'attendre » n'était pas
+                            // tenue : le suivi vivait dans le ViewModel de cet
+                            // écran et mourait en le quittant. SwapTrackingWorker
+                            // le reprend désormais depuis la base, donc on peut
+                            // annoncer la notification sans mentir.
+                            "Le dépôt est envoyé ✓. L'échange se termine tout seul en 2 à 5 min — pas besoin d'attendre ici. Tu recevras une notification dès qu'il est terminé, même si tu fermes l'application.",
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
