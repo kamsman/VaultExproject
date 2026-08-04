@@ -361,3 +361,52 @@ val checkStringResources by tasks.registering {
 
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Resources") }
     .configureEach { dependsOn(checkStringResources) }
+
+/**
+ * Références mortes dans le code de test.
+ *
+ * Le code de test se compile dans une tâche SÉPARÉE du code principal. Une
+ * constante supprimée du code principal mais encore appelée par un test ne
+ * casse donc RIEN pendant des mois : `assembleDebug` réussit, l'APK sort. Puis
+ * un jour une tâche touche `compileDebugUnitTestKotlin` et le build échoue sur
+ * un symbole disparu depuis longtemps, sans rapport avec le travail en cours.
+ *
+ * C'est exactement ce qui est arrivé avec `MOBILE_MONEY_FEE_PERCENT`, retirée
+ * avec l'écran Mobile Money et encore référencée par SwapUseCaseFeeTest.
+ *
+ * Ce contrôle attache la vérification à la compilation du code PRINCIPAL, donc
+ * elle tourne même quand on ne construit pas les tests.
+ */
+val checkTestRefs by tasks.registering {
+    group = "verification"
+    description = "Détecte les constantes appelées par les tests mais supprimées du code principal"
+
+    val script = rootProject.file("tools/check_test_refs.py")
+    inputs.files(fileTree(file("src/main/java")) { include("**/*.kt") })
+    inputs.files(fileTree(file("src/test/java")) { include("**/*.kt") })
+    inputs.file(script)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        if (!script.exists()) return@doLast
+        val proc = try {
+            ProcessBuilder("python3", script.absolutePath)
+                .redirectErrorStream(true)
+                .start()
+        } catch (e: java.io.IOException) {
+            logger.lifecycle("check_test_refs : python3 introuvable, contrôle ignoré.")
+            return@doLast
+        }
+        val output = proc.inputStream.bufferedReader().readText()
+        if (proc.waitFor() != 0) {
+            logger.error(output)
+            throw GradleException(
+                "Le code de test appelle des symboles supprimés — voir ci-dessus. " +
+                    "Détail : python3 tools/check_test_refs.py"
+            )
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("compile") && it.name.endsWith("Kotlin") }
+    .configureEach { dependsOn(checkTestRefs) }
