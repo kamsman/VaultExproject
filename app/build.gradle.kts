@@ -355,8 +355,25 @@ dependencies {
 }
 
 configurations.all {
+    // Une seule implementation BouncyCastle : celle declaree explicitement
+    // (bcprov-jdk18on). On ecarte les anciennes denominations, apportees
+    // transitivement par bitcoinj et web3j, qui provoqueraient des classes
+    // dupliquees au packaging.
     exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
     exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+
+    // ─── Transport JVM inutile sur Android, apporte par web3j:core ─────────
+    // jnr-unixsocket sert aux sockets Unix (IPC avec un noeud local) et
+    // Java-WebSocket au transport WebSocket de web3j. Le projet n'utilise ni
+    // l'un ni l'autre : tous les appels RPC passent par son propre client
+    // Retrofit/OkHttp, et seules les classes org.web3j.crypto.* et
+    // org.web3j.utils.* sont importees.
+    //
+    // Ces jars declenchaient aussi l'avertissement du build :
+    //   "Component com.github.jnr:jffi:1.2.17 maps to multiple files"
+    // et alourdissaient inutilement l'entree de R8.
+    exclude(group = "com.github.jnr")
+    exclude(group = "org.java-websocket", module = "Java-WebSocket")
 }
 /**
  * Garde-fou de compilation des ressources.

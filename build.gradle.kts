@@ -1,29 +1,11 @@
 // Top-level build file
-
-/*
-─── VERSION DE R8 FORCÉE ──────────────────────────────────────────────────
-AGP 8.5.0 embarque une version de R8 qui plante en `ConcurrentModificationException`
-sur ce projet, pendant `minifyReleaseWithR8` — un bug interne du minifieur,
-pas une erreur du code applicatif. Le build release échouait donc toujours.
-
-Google documente ce contournement : on surcharge la dépendance R8 du
-classpath de build par une version corrigée, sans toucher à AGP.
-Voir https://developer.android.com/build/shrink-code#r8-version
-
-8.5.35 est le dernier correctif de la ligne 8.5, celle qu'AGP 8.5.0 attend :
-on récupère les corrections de bugs sans changer de comportement.
-───────────────────────────────────────────────────────────────────────────
- */
-buildscript {
-    repositories {
-        maven { url = uri("https://storage.googleapis.com/r8-releases/raw") }
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools:r8:8.5.35")
-    }
-}
-
+//
+// NOTE : ne pas remettre ici un bloc `buildscript` pour surcharger la version
+// de R8. AGP étant appliqué via le bloc `plugins` ci-dessous, il est chargé par
+// le classloader de `pluginManagement` (settings.gradle.kts) : une entrée de
+// classpath declarée dans CE fichier n'a aucun effet sur le R8 réellement
+// utilisé. Essayé, vérifié sans effet. Si une surcharge devient nécessaire,
+// elle doit aller dans un bloc `buildscript` en tête de settings.gradle.kts.
 plugins {
     id("com.android.application") version "8.5.0" apply false
     id("com.android.library") version "8.5.0" apply false
