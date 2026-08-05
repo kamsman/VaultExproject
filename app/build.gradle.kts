@@ -257,23 +257,19 @@ dependencies {
 
     // CRYPTO (PROPRE)
     /*
-     * web3j : `crypto` SEUL, pas `core`.
-     *
-     * Tout l'usage du projet se limite a org.web3j.crypto.* (Bip32ECKeyPair,
-     * Credentials, ECKeyPair, Hash, MnemonicUtils, RawTransaction, Sign,
-     * TransactionEncoder) et org.web3j.utils.Numeric — que `crypto` fournit
-     * via ses dependances. La couche reseau de web3j n'est jamais utilisee :
-     * le projet a son propre client Retrofit.
-     *
-     * `core` tirait Netty, Project Reactor et BlockHound — des bibliotheques
-     * serveur inutiles sur Android, qui gonflaient l'APK et faisaient planter
-     * R8 pendant la minification release.
+     * web3j — version 4.12.3-android.
      *
      * La version 4.9.8-android declaree auparavant N'EXISTE SUR AUCUN DEPOT
-     * (404 sur Maven Central). Le build ne fonctionnait que grace a une copie
-     * en cache local ; il echouait sur toute machine neuve.
+     * (404 sur Maven Central ; seules 4.8.7, 4.8.8 et 4.12.3 sont publiees en
+     * variante -android). Le projet ne compilait que sur une machine ayant
+     * deja l'artefact en cache local — un clone neuf echouait a la resolution.
+     *
+     * NE PAS reduire a `org.web3j:crypto` : essaye, ca casse la compilation.
+     * `crypto` ne fournit ni org.web3j.utils.Numeric ni BouncyCastle, dont
+     * Ed25519Utils depend pour la signature Solana (Ed25519PrivateKeyParameters,
+     * Ed25519Signer). C'est `core` qui les apporte transitivement.
      */
-    implementation("org.web3j:crypto:4.12.3-android")
+    implementation("org.web3j:core:4.12.3-android")
     implementation("org.bitcoinj:bitcoinj-core:0.16.2")
 
     // ❌ SUPPRIMÉ (IMPORTANT)
