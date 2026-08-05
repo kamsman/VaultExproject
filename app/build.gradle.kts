@@ -257,19 +257,51 @@ dependencies {
 
     // CRYPTO (PROPRE)
     /*
-     * web3j — version 4.12.3-android.
+     * web3j — 4.8.8-android.
      *
      * La version 4.9.8-android declaree auparavant N'EXISTE SUR AUCUN DEPOT
      * (404 sur Maven Central ; seules 4.8.7, 4.8.8 et 4.12.3 sont publiees en
      * variante -android). Le projet ne compilait que sur une machine ayant
      * deja l'artefact en cache local — un clone neuf echouait a la resolution.
      *
-     * NE PAS reduire a `org.web3j:crypto` : essaye, ca casse la compilation.
-     * `crypto` ne fournit ni org.web3j.utils.Numeric ni BouncyCastle, dont
-     * Ed25519Utils depend pour la signature Solana (Ed25519PrivateKeyParameters,
-     * Ed25519Signer). C'est `core` qui les apporte transitivement.
+     * 4.12.3 est distribuee en AAR dont le JAR est ABSENT (404) : Gradle la
+     * resout sans jamais poser les classes sur le classpath, et TOUS les
+     * imports web3j deviennent introuvables. 4.8.8 et toute sa fermeture
+     * (abi, crypto, rlp, utils, tuples) sont en JAR — verifie artefact par
+     * artefact. C'est donc la version utilisable la plus recente.
+     *
+     * Repartition des classes, pour eviter les mauvaises reductions :
+     *   org.web3j:crypto -> Bip32ECKeyPair, Credentials, ECKeyPair,
+     *                       MnemonicUtils, RawTransaction, Sign,
+     *                       TransactionEncoder
+     *   org.web3j:utils  -> Numeric ET org.web3j.crypto.Hash
+     * `crypto` seul ne suffit donc pas, malgre son nom.
+     *
+     * Bonus : 4.8.8 ne tire pas Netty, contrairement a la 4.9.x. Le
+     * declarateur de service BlockHound qui faisait planter R8 disparait donc
+     * de lui-meme.
      */
-    implementation("org.web3j:core:4.12.3-android")
+    implementation("org.web3j:core:4.8.8-android")
+
+    /*
+     * BouncyCastle — declare EXPLICITEMENT, et c'est important.
+     *
+     * Ed25519Utils (signature Solana) importe
+     * org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters et
+     * org.bouncycastle.crypto.signers.Ed25519Signer. Ces classes n'arrivaient
+     * jusqu'ici que par la fermeture transitive de web3j : le bloc
+     * `configurations.all` plus bas exclut bcprov-jdk15on et bcprov-jdk15to18
+     * (celui de bitcoinj) sans rien declarer en echange.
+     *
+     * Autrement dit, la signature Solana dependait d'un artefact que personne
+     * n'avait choisi, dont la version suivait les mises a jour de web3j, et
+     * qui disparaissait des qu'on touchait a cette dependance. Pour la brique
+     * cryptographique d'un portefeuille, c'est inacceptable.
+     *
+     * jdk18on est la denomination courante ; elle n'est pas visee par les
+     * exclusions, qui ciblent les anciennes (jdk15on, jdk15to18).
+     */
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.bitcoinj:bitcoinj-core:0.16.2")
 
     // ❌ SUPPRIMÉ (IMPORTANT)
