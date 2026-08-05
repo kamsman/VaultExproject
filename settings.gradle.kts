@@ -1,3 +1,33 @@
+/*
+─── VERSION DE R8 FORCÉE ──────────────────────────────────────────────────
+Le R8 embarqué par AGP 8.5.0 plante en `java.util.ConcurrentModificationException`
+pendant `minifyReleaseWithR8` : un bug interne du minifieur, pas une erreur du
+code — la compilation Kotlin passe entièrement, c'est l'étape suivante qui
+échoue. Aucun APK release ne pouvait être produit.
+
+Ce qui a été essayé sans succès :
+  · exclure le déclarateur de service BlockHound (il a disparu de lui-même
+    avec web3j 4.8.8, qui ne tire plus Netty — le plantage persiste) ;
+  · `android.enableR8.fullMode=false` : le bug se produit aussi en mode compat.
+
+La surcharge DOIT être ici et non dans build.gradle.kts : AGP étant appliqué
+via le bloc `plugins`, il est chargé par le classloader du script de settings.
+Une entrée de classpath déclarée dans le projet racine reste sans effet — c'est
+vérifié, la première tentative n'avait rien changé.
+
+Voir https://developer.android.com/build/shrink-code#r8-version
+───────────────────────────────────────────────────────────────────────────
+ */
+buildscript {
+    repositories {
+        maven { url = uri("https://storage.googleapis.com/r8-releases/raw") }
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools:r8:8.7.18")
+    }
+}
+
 pluginManagement {
     repositories {
         google()
