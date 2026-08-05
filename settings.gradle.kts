@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 /*
 ─── VERSION DE R8 FORCÉE ──────────────────────────────────────────────────
 Le R8 embarqué par AGP 8.5.0 plante en `java.util.ConcurrentModificationException`
@@ -10,10 +18,15 @@ Ce qui a été essayé sans succès :
     avec web3j 4.8.8, qui ne tire plus Netty — le plantage persiste) ;
   · `android.enableR8.fullMode=false` : le bug se produit aussi en mode compat.
 
-La surcharge DOIT être ici et non dans build.gradle.kts : AGP étant appliqué
-via le bloc `plugins`, il est chargé par le classloader du script de settings.
-Une entrée de classpath déclarée dans le projet racine reste sans effet — c'est
-vérifié, la première tentative n'avait rien changé.
+La surcharge DOIT être dans CE fichier et non dans build.gradle.kts : AGP étant
+appliqué via le bloc `plugins`, il est chargé par le classloader du script de
+settings. Une entrée de classpath déclarée dans le projet racine reste sans
+effet — vérifié, la première tentative n'avait rien changé.
+
+Et ce bloc doit venir APRÈS `pluginManagement`, qui doit être la toute première
+instruction du fichier. Gradle refuse l'ordre inverse :
+    Unexpected `buildscript` block found.
+    `buildscript` can not appear before `pluginManagement`.
 
 Voir https://developer.android.com/build/shrink-code#r8-version
 ───────────────────────────────────────────────────────────────────────────
@@ -25,14 +38,6 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools:r8:8.7.18")
-    }
-}
-
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
     }
 }
 
