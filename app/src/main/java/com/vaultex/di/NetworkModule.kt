@@ -63,25 +63,84 @@ object NetworkModule {
      * Préfixer chaque valeur par "sha256/". Mettre au moins 2 pins par hôte
      * (certificat courant + backup) pour survivre aux rotations.
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    EMPREINTES DE CERTIFICATS — on épingle les AUTORITÉS, pas les feuilles.
+    ═══════════════════════════════════════════════════════════════════════
+
+    Chaque entrée épingle l'AC intermédiaire du serveur, plus sa racine en
+    secours. Jamais le certificat du serveur lui-même.
+
+    POURQUOI. Un certificat de serveur est renouvelé tous les 60 à 90 jours.
+    Une empreinte de feuille devient donc fausse toute seule, sans qu'aucune
+    ligne de code n'ait changé — et le jour où ça arrive, OkHttp refuse la
+    connexion en silence. Aucun message, aucun plantage : juste des soldes à
+    zéro et des écrans vides, en production, chez tous les utilisateurs à la
+    fois. Les AC intermédiaires vivent des années, les racines des décennies.
+
+    CE QUI EST ARRIVÉ ICI. La version précédente épinglait des feuilles
+    périmées. Deux hôtes étaient cassés :
+
+      · api.coingecko.com — empreinte ne correspondant plus à rien. CoinGecko
+        fournissant TOUS les prix, chaque montant en monnaie s'affichait à
+        0,00, y compris quand les soldes crypto se chargeaient correctement.
+
+      · api.bscscan.com — un caractère faux dans l'empreinte : le chiffre « 1 »
+        à la place de la lettre « l ». Recopie manuelle, confusion invisible à
+        l'œil, accès à BscScan perdu.
+
+    Les quatre autres hôtes avaient, eux, des empreintes valides.
+
+    POUR RÉGÉNÉRER (Git Bash, une seule ligne) :
+
+      for h in api.changenow.io api.flutterwave.com api.trongrid.io \
+      api.etherscan.io api.bscscan.com api.coingecko.com; do echo "=== $h"; \
+      openssl s_client -connect $h:443 -servername $h -showcerts </dev/null \
+      2>/dev/null | awk '/BEGIN CERT/{n++} n{print > ("/tmp/p" n ".pem")}'; \
+      for f in /tmp/p*.pem; do echo "   sha256/$(openssl x509 -in $f -pubkey \
+      -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 \
+      -binary | openssl enc -base64)  <- $(openssl x509 -in $f -noout \
+      -subject)"; done; rm -f /tmp/p*.pem; done
+
+    Ne jamais recopier une empreinte à la main : copier-coller uniquement.
+
+    LIMITE À CONNAÎTRE. Si un service change d'autorité de certification —
+    passage de Google Trust Services à Cloudflare, par exemple — le pinning
+    casse malgré tout. C'est le prix de cette protection. Vérifier ces
+    empreintes avant chaque publication, et garder `cert.pinning=false` dans
+    local.properties comme moyen de diagnostic rapide.
+
+    Empreintes relevées le 5 août 2026.
+    ═══════════════════════════════════════════════════════════════════════
+     */
     private val CERT_PINS: Map<String, List<String>> = mapOf(
-        // ─ Services critiques (mouvement d'argent) — 2 pins ─
+        // ─ Google Trust Services : WE1 (intermédiaire) + GTS Root R4 ─
         "api.changenow.io" to listOf(
-            "sha256/oqpstRWo8o/smZIWpFWTUuTyu17sZ5onK7mXJiy5Zpc=",
-            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
+            "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
         ),
         "api.flutterwave.com" to listOf(
-            "sha256/11kFWr8Qs08a+tX7u9pQ7RUUWuejKKNV1Jh4x9INTcA=",
-            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
+            "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
         ),
+        "api.coingecko.com" to listOf(
+            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
+            "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
+        ),
+        // ─ Amazon : RSA 2048 M04 (intermédiaire) + Amazon Root CA 1 ─
         "api.trongrid.io" to listOf(
-            "sha256/y+ZJG53oAEWQ76+So+SztvGgByATWEG1KMwNdarn3go=",
-            // Backup : Amazon Root CA 1 (TronGrid est derrière AWS)
+            "sha256/G9LNNAql897egYsabashkzUCTEJkWBzgoEtk8X/678c=",
             "sha256/++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI="
         ),
-        // ─ Services secondaires (données) — 1 pin ─
-        "api.etherscan.io" to listOf("sha256/kjWU9H91qtu39iBXltykNck8+xWT425ShPW+wFF2WTg="),
-        "api.bscscan.com" to listOf("sha256/i9oogB4vKEVz0R5PhIsBqJsyJV1l3SPEnwQl65LR5/w="),
-        "api.coingecko.com" to listOf("sha256/dgrX3vEnFHd+VpOBXSDSp5oFpJTB0v6FRx0pl00ifSM=")
+        // ─ Sectigo : Public Server Authentication (intermédiaire + racine) ─
+        "api.etherscan.io" to listOf(
+            "sha256/a9khLOZJxlnJyrxstg/P+seiDCm+Yf3OsrXyFocBaI0=",
+            "sha256/Douxi77vs4G+Ib/BogbTFymEYq0QSFXwSgVCaZcI09Q="
+        ),
+        "api.bscscan.com" to listOf(
+            "sha256/a9khLOZJxlnJyrxstg/P+seiDCm+Yf3OsrXyFocBaI0=",
+            "sha256/Douxi77vs4G+Ib/BogbTFymEYq0QSFXwSgVCaZcI09Q="
+        )
     )
 
     private fun buildCertificatePinner(): okhttp3.CertificatePinner? {
