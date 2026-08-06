@@ -429,6 +429,41 @@ object AdminBot {
         reportFailure("bal:$symbol", "\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")
 
     /**
+     * Echec de certificate pinning \u2014 a signaler FORT, jamais en silence.
+     *
+     * Une empreinte de CERT_PINS qui ne correspond plus au certificat reel du
+     * serveur fait rejeter la connexion par OkHttp. Du point de vue de
+     * l'utilisateur : rien. Pas de message, pas de plantage \u2014 juste des soldes
+     * a zero et des ecrans vides. La panne est indiscernable d'une coupure
+     * reseau, alors que sa cause est dans l'application et qu'elle touche
+     * TOUS les appareils en meme temps.
+     *
+     * C'est exactement ce qui s'est produit : le canal signalait \u00AB solde
+     * illisible \u00BB sans la raison, ce qui n'aidait pas a trouver la cause.
+     *
+     * Le message d'OkHttp contient la chaine reelle presentee par le serveur,
+     * sous la forme \u00AB Peer certificate chain: sha256/... \u00BB. Il est transmis
+     * largement (900 caracteres) parce que ce sont precisement les empreintes
+     * a reporter dans CERT_PINS pour corriger \u2014 telles que les voit
+     * l'APPAREIL, ce qui peut differer de ce qu'un poste de developpement
+     * observe : les CDN servent des certificats differents selon le reseau et
+     * la region.
+     *
+     * Fenetre de repos courte (5 min) : c'est une panne totale, pas un bruit.
+     */
+    fun certPinFailed(host: String, detail: String?) =
+        reportFailure(
+            "pin:$host",
+            "\uD83D\uDD12 PINNING TLS EN ECHEC : $host\n\n" +
+                "L'application refuse la connexion : l'empreinte declaree dans " +
+                "CERT_PINS ne correspond a aucun certificat presente par ce serveur. " +
+                "Toutes les donnees venant de cet hote sont indisponibles.\n\n" +
+                "Chaine reellement presentee a CET appareil :\n" +
+                (detail?.take(900) ?: "(aucun detail)"),
+            cooldownMs = 5L * 60 * 1000
+        )
+
+    /**
      * Historique d'une chaine non recupere.
      *
      * DEUX FAMILLES d'echec bien differentes se cachaient derriere le meme

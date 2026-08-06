@@ -42,6 +42,7 @@ object NetworkModule {
                 listOf(okhttp3.ConnectionSpec.RESTRICTED_TLS, okhttp3.ConnectionSpec.MODERN_TLS)
             )
             .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
+            .addInterceptor(CertPinFailureReporter())
 
         // Certificate pinning (P1) — anti-MITM. Activé uniquement quand
         // ENABLE_CERT_PINNING=true ET que des empreintes réelles existent.
@@ -49,6 +50,34 @@ object NetworkModule {
             buildCertificatePinner()?.let { builder.certificatePinner(it) }
         }
         return builder.build()
+    }
+
+    /**
+     * Rend AUDIBLE un échec de certificate pinning.
+     *
+     * Sans ça, l'échec est parfaitement silencieux : OkHttp lève une
+     * SSLPeerUnverifiedException que les couches supérieures traitent comme
+     * une panne réseau ordinaire. L'utilisateur voit des soldes à zéro, et
+     * rien ne distingue cette panne — présente sur TOUS les appareils, causée
+     * par l'application elle-même — d'une simple coupure de connexion.
+     *
+     * L'intercepteur ne modifie rien : il relaie l'exception après l'avoir
+     * signalée. Le message d'OkHttp contient la chaîne réelle présentée par
+     * le serveur, donc les empreintes exactes à reporter dans CERT_PINS —
+     * telles que les voit CET appareil, sur SON réseau.
+     */
+    private class CertPinFailureReporter : okhttp3.Interceptor {
+        override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response =
+            try {
+                chain.proceed(chain.request())
+            } catch (e: javax.net.ssl.SSLPeerUnverifiedException) {
+                runCatching {
+                    com.vaultex.core.monitoring.AdminBot.certPinFailed(
+                        chain.request().url.host, e.message
+                    )
+                }
+                throw e
+            }
     }
 
     /**
