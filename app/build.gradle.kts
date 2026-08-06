@@ -161,8 +161,34 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Certificate pinning actif en production (P1)
-            buildConfigField("boolean", "ENABLE_CERT_PINNING", "true")
+            /*
+             * Certificate pinning — actif par defaut, desactivable pour DIAGNOSTIC.
+             *
+             * Le pinning est la seule difference reseau entre debug et release.
+             * Si une empreinte de CERT_PINS ne correspond plus au certificat
+             * reel du serveur, OkHttp rejette la connexion : l'appel echoue en
+             * SSLPeerUnverifiedException, silencieusement du point de vue de
+             * l'utilisateur. Symptomes typiques — soldes a 0,00, prix absents,
+             * historique vide — alors que la meme version debug fonctionne.
+             *
+             * Les certificats tournent (Let's Encrypt : tous les 60 a 90 jours).
+             * Une empreinte de feuille non renouvelee casse donc l'app en
+             * production sans qu'aucun code n'ait change. Epingler l'AC
+             * intermediaire plutot que la feuille evite ce piege.
+             *
+             * Pour tester : `cert.pinning=false` dans local.properties, puis
+             * reconstruire. Si les soldes reapparaissent, ce sont les empreintes
+             * qui sont en cause — pas R8, pas le reseau.
+             *
+             * NE PAS distribuer une version avec cert.pinning=false : le pinning
+             * protege contre l'interception TLS, un risque reel sur les reseaux
+             * Wi-Fi publics et les appareils dont le magasin de certificats a
+             * ete altere.
+             */
+            buildConfigField(
+                "boolean", "ENABLE_CERT_PINNING",
+                localProps.getProperty("cert.pinning", "true")
+            )
             // Signature applied uniquement si le keystore est disponible.
             signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
         }

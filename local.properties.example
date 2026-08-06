@@ -70,3 +70,11 @@ play.integrity.project=0
 # Ce qu'elle protège : un faux VaultEx repackagé et rediffusé par WhatsApp ou
 # Telegram refusera de s'ouvrir. Voir AppIntegrity.kt.
 app.signature.sha256=
+
+# ─── Certificate pinning (release uniquement) ─────────────────────────────
+# Vaut true par defaut. Passer a false UNIQUEMENT pour diagnostiquer :
+# si les soldes ou les prix restent a zero en release alors que la version
+# debug fonctionne, ce sont souvent les empreintes de NetworkModule.CERT_PINS
+# qui ne correspondent plus aux certificats reels des serveurs.
+# Ne jamais distribuer une version construite avec false.
+cert.pinning=true
