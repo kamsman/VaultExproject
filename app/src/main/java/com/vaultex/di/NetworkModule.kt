@@ -142,33 +142,56 @@ object NetworkModule {
     Empreintes relevées le 5 août 2026.
     ═══════════════════════════════════════════════════════════════════════
      */
+    /*
+    ─── PORTÉE VOLONTAIREMENT RESTREINTE ──────────────────────────────────
+
+    Seuls les hôtes où une interception TLS permettrait de DÉTOURNER DE
+    L'ARGENT sont épinglés. Les fournisseurs de données ne le sont pas.
+
+    Le raisonnement. Les clés privées ne quittent jamais l'appareil : aucune
+    interception ne peut les voler. Ce qu'un attaquant pourrait faire varie
+    donc énormément selon l'hôte :
+
+      · api.changenow.io — CRITIQUE. Le service renvoie l'ADRESSE DE DÉPÔT
+        d'un swap. Une réponse altérée redirige les fonds de l'utilisateur
+        vers l'attaquant. Perte directe, irréversible.
+
+      · api.coingecko.com, api.etherscan.io, api.bscscan.com — prix, cours et
+        historique. Une réponse falsifiée affiche des chiffres faux. Trompeur,
+        jamais coûteux : aucune transaction n'en dépend. Les soldes réels et
+        la détection de dépôt passent par les nœuds RPC, pas par ces hôtes.
+
+      · api.trongrid.io — épinglé par prudence : il sert aussi à construire
+        des transactions TRON, pas seulement à lire des soldes.
+
+      · api.flutterwave.com — retiré : l'API est câblée mais jamais appelée,
+        aucun écran ne l'utilise.
+
+    Pourquoi restreindre plutôt que tout épingler. Un pinning trop large est
+    une panne en attente. Chaque hôte épinglé est un point de rupture : le
+    jour où son autorité de certification change, l'application cesse de
+    fonctionner d'un coup, chez tous les utilisateurs, sans qu'aucune ligne de
+    code n'ait bougé. C'est arrivé trois fois pendant la mise au point — et à
+    chaque fois pour des hôtes qui ne servaient qu'à afficher des chiffres.
+
+    Le compromis retenu : la protection là où une interception coûterait de
+    l'argent, la robustesse partout ailleurs.
+
+    Empreintes relevées le 5 août 2026. Vérifier avant chaque publication.
+    ───────────────────────────────────────────────────────────────────────
+     */
     private val CERT_PINS: Map<String, List<String>> = mapOf(
-        // ─ Google Trust Services : WE1 (intermédiaire) + GTS Root R4 ─
+        // ─ ChangeNOW : renvoie les adresses de dépôt de swap ─
+        //   Google Trust Services : WE1 (intermédiaire) + GTS Root R4
         "api.changenow.io" to listOf(
             "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
             "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
         ),
-        "api.flutterwave.com" to listOf(
-            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
-            "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
-        ),
-        "api.coingecko.com" to listOf(
-            "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
-            "sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c="
-        ),
-        // ─ Amazon : RSA 2048 M04 (intermédiaire) + Amazon Root CA 1 ─
+        // ─ TronGrid : construction de transactions TRON ─
+        //   Amazon : RSA 2048 M04 (intermédiaire) + Amazon Root CA 1
         "api.trongrid.io" to listOf(
             "sha256/G9LNNAql897egYsabashkzUCTEJkWBzgoEtk8X/678c=",
             "sha256/++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI="
-        ),
-        // ─ Sectigo : Public Server Authentication (intermédiaire + racine) ─
-        "api.etherscan.io" to listOf(
-            "sha256/a9khLOZJxlnJyrxstg/P+seiDCm+Yf3OsrXyFocBaI0=",
-            "sha256/Douxi77vs4G+Ib/BogbTFymEYq0QSFXwSgVCaZcI09Q="
-        ),
-        "api.bscscan.com" to listOf(
-            "sha256/a9khLOZJxlnJyrxstg/P+seiDCm+Yf3OsrXyFocBaI0=",
-            "sha256/Douxi77vs4G+Ib/BogbTFymEYq0QSFXwSgVCaZcI09Q="
         )
     )
 
