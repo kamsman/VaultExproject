@@ -16,3 +16,8 @@ local.properties
 keystore.properties
 *.p12
 google-services.json
+
+# Cle de compte de service Firebase — acces COMPLET au projet.
+# Utilisee par tools/send-announcement.sh pour diffuser les annonces.
+firebase-service-account.json
+*-service-account.json

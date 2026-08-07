@@ -45,6 +45,7 @@ class VaultExApplication : Application(), Configuration.Provider {
         // nombres du système, pas celui de la langue choisie dans l'app.
         com.vaultex.core.session.LocaleManager.prime(this)
         createNotificationChannel()
+        subscribeToAnnouncements()
         schedulePriceAlertChecks()
         scheduleDepositChecks()
         scheduleSwapTracking()
@@ -95,6 +96,40 @@ class VaultExApplication : Application(), Configuration.Provider {
         )
     }
 
+    /**
+     * Abonne l'appareil au canal de diffusion des annonces.
+     *
+     * POURQUOI UN CANAL PLUTOT QUE DES JETONS. Envoyer une annonce a des
+     * jetons individuels supposerait de les collecter cote serveur — c'est le
+     * role de `registerDevice`, une Cloud Function qui exige le plan Blaze,
+     * donc une carte bancaire et une facturation a l'usage. Un canal FCM ne
+     * demande rien : l'appareil s'y inscrit lui-meme, et un seul message
+     * atteint tout le monde. Gratuit, sans serveur, sans limite.
+     *
+     * POURQUOI CA REGLE LE PROBLEME DE LA CLOCHE. Une annonce envoyee depuis
+     * la console Firebase est un message de type « notification » : le SDK
+     * l'affiche lui-meme et n'appelle jamais `onMessageReceived`. Le contenu
+     * n'atteint donc jamais le code, et rien ne peut etre inscrit dans la
+     * cloche — verifie sur appareil : l'intention de lancement arrive sans
+     * aucun extra, meme lorsque l'utilisateur touche la notification.
+     *
+     * Un message « data » envoye a ce canal, lui, passe TOUJOURS par
+     * `VaultExFcmService.onMessageReceived`, que l'application soit ouverte,
+     * fermee ou en arriere-plan, et que la notification soit touchee ou non.
+     * L'annonce s'affiche ET reste consultable dans la cloche.
+     *
+     * Voir tools/send-announcement.ps1 pour l'envoi.
+     *
+     * Best-effort : un echec d'abonnement ne doit jamais empecher
+     * l'application de demarrer. Firebase reessaie de lui-meme.
+     */
+    private fun subscribeToAnnouncements() {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance()
+                .subscribeToTopic(ANNOUNCE_TOPIC)
+        } catch (_: Exception) { /* sans impact sur le demarrage */ }
+    }
+
     private fun createNotificationChannel() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         // Canal transactions (notifs locales existantes).
@@ -127,5 +162,19 @@ class VaultExApplication : Application(), Configuration.Provider {
         // Doit correspondre au meta-data default_notification_channel_id du manifeste
         // ET au CHANNEL_ID de VaultExFcmService.
         const val FCM_DEFAULT_CHANNEL_ID = "vaultex_notifications"
+
+        /**
+         * Canal FCM de diffusion des annonces.
+         *
+         * Tout appareil s'y abonne au démarrage. Un seul message envoyé à
+         * `/topics/vaultex_all` atteint donc l'ensemble du parc, sans qu'aucun
+         * serveur n'ait à connaître les jetons individuels.
+         *
+         * Ce nom est un CONTRAT : le changer couperait tous les appareils déjà
+         * installés, qui resteraient abonnés à l'ancien canal jusqu'à leur
+         * prochaine mise à jour. Il doit rester synchronisé avec
+         * tools/send-announcement.ps1.
+         */
+        const val ANNOUNCE_TOPIC = "vaultex_all"
     }
 }
