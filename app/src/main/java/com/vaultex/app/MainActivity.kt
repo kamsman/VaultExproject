@@ -83,60 +83,28 @@ class MainActivity : FragmentActivity() {
     lateinit var notificationHub: com.vaultex.core.session.NotificationHub
 
     /**
-     * Récupère une notification touchée par l'utilisateur pour l'inscrire
+     * Rattrape une notification touchée par l'utilisateur pour l'inscrire
      * dans la cloche.
      *
-     * Pourquoi c'est nécessaire. Les messages de type « notification » — ceux
-     * qu'envoie la console Firebase — sont interceptés par le SDK Firebase
-     * quand l'application est en arrière-plan. Il les affiche lui-même et
-     * n'appelle JAMAIS `onMessageReceived` : le contenu n'atteint donc jamais
-     * le code de l'application. L'utilisateur lit l'annonce, ouvre VaultEx, et
-     * ne la retrouve nulle part.
+     * FILET DE SÉCURITÉ, PAS LE MÉCANISME PRINCIPAL — et sa portée réelle est
+     * étroite. Mesuré sur appareil (Samsung, Android 16) : quand une annonce
+     * envoyée depuis la console Firebase est touchée, l'application est lancée
+     * avec `action = MAIN` et `extras = NULL`. Le SDK Firebase affiche ces
+     * messages lui-même, n'appelle jamais `onMessageReceived`, et ne relaie
+     * rien à l'ouverture. Ce chemin ne récupère donc RIEN dans ce cas de
+     * figure.
      *
-     * Android place malgré tout le contenu dans les extras de l'intention de
-     * lancement lorsque la notification est TOUCHÉE. C'est cette occasion
-     * qu'on saisit ici.
+     * Il est conservé parce qu'il est gratuit et qu'il couvre le cas où un
+     * message porte des données personnalisées, où les extras peuvent être
+     * transmis. Ne pas compter dessus pour autant.
      *
-     * Limite assumée : une notification balayée sans être ouverte reste
-     * perdue. Seuls des messages « data » — ceux de nos Cloud Functions —
-     * atteignent le code dans tous les cas ; ils passent par
-     * `VaultExFcmService` et n'ont pas besoin de ce rattrapage.
+     * LE VRAI CHEMIN est ailleurs : les annonces partent en messages « data »
+     * vers le canal `vaultex_all` (voir tools/send-announcement.sh). Ceux-là
+     * passent toujours par `VaultExFcmService.onMessageReceived`, application
+     * ouverte, fermée ou en arrière-plan, notification touchée ou balayée.
      */
     private fun captureTappedNotification(intent: android.content.Intent?) {
-        val extras = intent?.extras
-
-        /*
-         * DIAGNOSTIC TEMPORAIRE — INCONDITIONNEL.
-         *
-         * La version precedente ne rapportait QUE si elle trouvait des cles
-         * commencant par « gcm. » ou « google. » : elle conditionnait la
-         * decouverte a ce qu'elle cherchait justement a decouvrir. Aucun
-         * message n'est parti, et on n'a donc rien appris.
-         *
-         * Ce bloc rapporte a CHAQUE lancement, y compris quand il n'y a aucun
-         * extra — c'est precisement l'information qui manque : le clic sur une
-         * notification transmet-il quoi que ce soit a l'application ?
-         *
-         * A RETIRER une fois la reponse obtenue : bruyant, et il expose le
-         * contenu des notifications dans Telegram.
-         */
-        runCatching {
-            val detail = when {
-                extras == null -> "NULL (aucun extra transmis)"
-                extras.isEmpty -> "VIDE (0 cle)"
-                else -> "\n" + extras.keySet().joinToString("\n") { k ->
-                    "  " + k + " = " + (runCatching { extras.get(k)?.toString() }
-                        .getOrNull()?.take(60) ?: "null")
-                }
-            }
-            com.vaultex.core.monitoring.AdminBot.send(
-                ("\uD83D\uDD0E LANCEMENT (diagnostic)\n" +
-                    "action = " + intent?.action + "\n" +
-                    "extras = " + detail).take(900)
-            )
-        }
-
-        if (extras == null) return
+        val extras = intent?.extras ?: return
         // Clés posées par FCM pour un message « notification ». Repli sur les
         // champs « data » si l'expéditeur a joint des données personnalisées.
         val title = extras.getString("gcm.notification.title")
