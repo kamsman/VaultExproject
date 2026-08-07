@@ -103,36 +103,40 @@ class MainActivity : FragmentActivity() {
      * `VaultExFcmService` et n'ont pas besoin de ce rattrapage.
      */
     private fun captureTappedNotification(intent: android.content.Intent?) {
-        val extras = intent?.extras ?: return
+        val extras = intent?.extras
 
         /*
-         * DIAGNOSTIC TEMPORAIRE.
+         * DIAGNOSTIC TEMPORAIRE — INCONDITIONNEL.
          *
-         * Une premiere version lisait « gcm.notification.title » — la cle
-         * historiquement posee par FCM — et n'a rien inscrit dans la cloche.
-         * Le nom des extras varie selon la version du SDK Firebase et selon
-         * que le message porte ou non des donnees personnalisees.
+         * La version precedente ne rapportait QUE si elle trouvait des cles
+         * commencant par « gcm. » ou « google. » : elle conditionnait la
+         * decouverte a ce qu'elle cherchait justement a decouvrir. Aucun
+         * message n'est parti, et on n'a donc rien appris.
          *
-         * Plutot que de deviner un nom de cle de plus, on releve ce que
-         * l'intention contient REELLEMENT au moment du clic et on l'envoie au
-         * canal d'administration. Une fois la bonne cle connue, ce bloc doit
-         * etre retire : il expose le contenu des notifications dans Telegram.
+         * Ce bloc rapporte a CHAQUE lancement, y compris quand il n'y a aucun
+         * extra — c'est precisement l'information qui manque : le clic sur une
+         * notification transmet-il quoi que ce soit a l'application ?
+         *
+         * A RETIRER une fois la reponse obtenue : bruyant, et il expose le
+         * contenu des notifications dans Telegram.
          */
         runCatching {
-            val fcm = extras.keySet().filter {
-                it.startsWith("gcm.") || it.startsWith("google.") ||
-                    it in setOf("from", "title", "body", "message", "collapse_key")
+            val detail = when {
+                extras == null -> "NULL (aucun extra transmis)"
+                extras.isEmpty -> "VIDE (0 cle)"
+                else -> "\n" + extras.keySet().joinToString("\n") { k ->
+                    "  " + k + " = " + (runCatching { extras.get(k)?.toString() }
+                        .getOrNull()?.take(60) ?: "null")
+                }
             }
-            if (fcm.isNotEmpty()) {
-                com.vaultex.core.monitoring.AdminBot.send(
-                    "🔎 EXTRAS DE NOTIFICATION (diagnostic)\n" +
-                        extras.keySet().joinToString("\n") { k ->
-                            "$k = " + (extras.get(k)?.toString()?.take(60) ?: "null")
-                        }.take(900)
-                )
-            }
+            com.vaultex.core.monitoring.AdminBot.send(
+                ("\uD83D\uDD0E LANCEMENT (diagnostic)\n" +
+                    "action = " + intent?.action + "\n" +
+                    "extras = " + detail).take(900)
+            )
         }
 
+        if (extras == null) return
         // Clés posées par FCM pour un message « notification ». Repli sur les
         // champs « data » si l'expéditeur a joint des données personnalisées.
         val title = extras.getString("gcm.notification.title")
