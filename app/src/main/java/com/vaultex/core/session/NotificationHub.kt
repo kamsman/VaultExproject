@@ -92,6 +92,23 @@ class NotificationHub @Inject constructor(
                 // priorité HIGH ici, et une catégorie qui autorise l'interruption.
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
+                /*
+                 * Nombre affiché dans la pastille de l'icône du lanceur.
+                 *
+                 * Sans ceci, Android compte les notifications ACTIVES : la
+                 * pastille affichait donc 1, quel que soit le nombre
+                 * d'événements non lus dans la cloche. On y met le compteur
+                 * réel du centre de notifications, celui que l'utilisateur
+                 * retrouvera en ouvrant l'application.
+                 *
+                 * LIMITE D'ANDROID, à connaître : depuis Android 8, la
+                 * pastille n'existe QUE tant qu'une notification est présente
+                 * dans le volet. Balayée ou touchée — `setAutoCancel(true)`
+                 * ci-dessus — elle disparaît, même s'il reste des éléments non
+                 * lus dans la cloche. Aucune application ne peut imposer une
+                 * pastille permanente ; c'est le système qui la gouverne.
+                 */
+                .setNumber(center.unreadCount.value)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)   // son + vibration (< Android 8)
                 // Regroupement : plusieurs événements se replient en une pile
                 // ordonnée au lieu d'inonder la barre système.
