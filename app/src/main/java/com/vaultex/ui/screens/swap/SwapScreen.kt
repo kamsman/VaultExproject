@@ -826,10 +826,30 @@ private fun SwapBottomNav(navController: NavHostController) {
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            NavItem(Icons.Default.Home, "Accueil", false) { navController.navigate(Routes.DASHBOARD) }
-            NavItem(Icons.Outlined.CallReceived, "Recevoir", false) { navController.navigate(Routes.RECEIVE) }
+            /*
+             * Mêmes options que VaultExBottomBar — cette barre en est un
+             * doublon local et n'en avait aucune.
+             *
+             * Un `navigate()` nu EMPILE la destination. Chaque passage d'un
+             * onglet à l'autre ajoutait donc une entrée : le bouton retour
+             * du téléphone repassait par tous les onglets visités au lieu de
+             * ramener au tableau de bord, et la pile grossissait
+             * indéfiniment.
+             *
+             * popUpTo(DASHBOARD) ramène au tableau de bord avant d'ouvrir
+             * l'onglet ; launchSingleTop évite d'empiler deux fois le même ;
+             * saveState/restoreState conservent la position de défilement
+             * d'un onglet à l'autre.
+             */
+            fun tab(route: String) = navController.navigate(route) {
+                popUpTo(Routes.DASHBOARD) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            NavItem(Icons.Default.Home, "Accueil", false) { tab(Routes.DASHBOARD) }
+            NavItem(Icons.Outlined.CallReceived, "Recevoir", false) { tab(Routes.RECEIVE) }
             NavItem(Icons.Outlined.SwapHoriz, "Swap", true) { }
-            NavItem(Icons.Outlined.CallMade, "Envoyer", false) { navController.navigate(Routes.SEND) }
+            NavItem(Icons.Outlined.CallMade, "Envoyer", false) { tab(Routes.SEND) }
         }
     }
 }

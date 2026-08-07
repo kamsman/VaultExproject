@@ -32,8 +32,22 @@ fun BiometricSetupScreen(navController: NavController) {
     val viewModel: BiometricSetupViewModel = hiltViewModel()
 
     fun goToDashboard() {
+        /*
+         * `popUpTo(0)` et NON `popUpTo(graph.startDestinationId)`.
+         *
+         * Remonter jusqu'à la destination de départ suppose qu'elle soit
+         * encore dans la pile. Ce n'est plus le cas : l'étape précédente
+         * (PinSetupScreen) l'a entièrement vidée. Android ne trouve alors pas
+         * la destination visée, abandonne en silence, et ne supprime rien —
+         * la pile devenait BIOMETRIC_SETUP → DASHBOARD, et le bouton retour
+         * du téléphone ramenait sur l'écran de biométrie, déjà traité.
+         *
+         * `popUpTo(0) { inclusive = true }` ne dépend d'aucune destination
+         * existante : il vide la pile dans tous les cas. C'est la forme à
+         * utiliser pour un point d'entrée définitif comme le tableau de bord.
+         */
         navController.navigate(Routes.DASHBOARD) {
-            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+            popUpTo(0) { inclusive = true }
         }
     }
 
