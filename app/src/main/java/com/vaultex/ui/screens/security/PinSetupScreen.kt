@@ -46,7 +46,13 @@ fun PinSetupScreen(
     LaunchedEffect(saveState) {
         if (saveState is OnboardingViewModel.SaveState.Success) {
             viewModel.resetSaveState()
-            navController.navigate(Routes.BIOMETRIC_SETUP) { popUpTo(0) }
+            // `inclusive = true` est INDISPENSABLE. Sans lui, `popUpTo(0)` ne
+            // supprime rien : Android cherche une destination d'identifiant 0,
+            // n'en trouve aucune, et abandonne en silence. La pile conservait
+            // donc ONBOARDING et PIN_SETUP, et le bouton retour du téléphone
+            // ramenait l'utilisateur sur la création de PIN — puis sur l'écran
+            // d'installation — alors que son portefeuille venait d'être créé.
+            navController.navigate(Routes.BIOMETRIC_SETUP) { popUpTo(0) { inclusive = true } }
         }
     }
 

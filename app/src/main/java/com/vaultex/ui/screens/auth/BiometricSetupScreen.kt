@@ -48,8 +48,15 @@ fun BiometricSetupScreen(navController: NavController) {
                 .fillMaxWidth()
                 .height(56.dp)
         ) {
+            // Retour = entrer dans l'application, PAS revenir en arrière.
+            //
+            // À ce stade le portefeuille est créé et le PIN enregistré : il n'y
+            // a plus rien derrière. Un `popBackStack()` ramenait l'utilisateur
+            // sur la création de PIN, ou sur l'écran d'installation, selon ce
+            // qui trainait encore dans la pile. La biométrie étant facultative,
+            // ce bouton doit se comporter comme « passer cette étape ».
             IconButton(
-                onClick = { navController.popBackStack() },
+                onClick = { goToDashboard() },
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Icon(
