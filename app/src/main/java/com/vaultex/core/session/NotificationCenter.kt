@@ -73,8 +73,30 @@ class NotificationCenter @Inject constructor(
         }
     }
 
+    /**
+     * Écriture SYNCHRONE — `commit()` et non `apply()`, volontairement.
+     *
+     * `apply()` met à jour la mémoire puis programme l'écriture disque pour
+     * plus tard. C'est le bon choix dans une Activity, qui vit assez longtemps
+     * pour que l'écriture aboutisse. Ici, c'est une perte de données.
+     *
+     * Le scénario, observé sur appareil : l'application est fermée, une
+     * annonce arrive. Android démarre le processus, `onMessageReceived`
+     * s'exécute, la notification s'affiche et la cloche est mise à jour EN
+     * MÉMOIRE. Puis le service termine et le système tue le processus —
+     * l'écriture programmée n'a jamais lieu. L'utilisateur ouvre l'app : la
+     * cloche relit le disque et ne trouve rien. Le message a bien été notifié,
+     * puis silencieusement perdu.
+     *
+     * Le bug ne se manifestait QUE application fermée : processus vivant,
+     * l'écriture différée aboutit normalement.
+     *
+     * `commit()` écrit avant de rendre la main. Il bloque quelques
+     * millisecondes sur une liste plafonnée à 100 entrées — un coût dérisoire
+     * face à la perte d'une notification de dépôt.
+     */
     private fun save(list: List<NotifItem>) {
-        prefs.edit().putString(KEY, gson.toJson(list)).apply()
+        prefs.edit().putString(KEY, gson.toJson(list)).commit()
     }
 
     companion object {

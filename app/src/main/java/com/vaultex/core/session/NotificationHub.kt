@@ -224,7 +224,12 @@ class NotificationHub @Inject constructor(
             val cutoff = System.currentTimeMillis() - DEDUP_WINDOW_MS
             prefs.all.forEach { (k, v) -> if ((v as? Long ?: 0L) < cutoff) editor.remove(k) }
         }
-        editor.apply()
+        // `commit()` et non `apply()` : la déduplication est souvent écrite
+        // depuis un worker ou le service FCM, dont le processus peut être tué
+        // aussitôt après. Une écriture différée serait perdue, et le même
+        // dépôt réapparaîtrait à la détection suivante — exactement ce que
+        // cette classe existe pour empêcher.
+        editor.commit()
     }
 
     companion object {

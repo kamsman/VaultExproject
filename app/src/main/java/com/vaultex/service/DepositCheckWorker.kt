@@ -108,7 +108,7 @@ class DepositCheckWorker @AssistedInject constructor(
                 val bal = withContext(Dispatchers.IO) { c.fetch() } ?: continue
                 val key = balanceKey(c.symbol, c.address)
                 val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
-                prefs.edit().putString(key, bal.toString()).apply()
+                prefs.edit().putString(key, bal.toString()).commit()  // commit : voir note en fin de classe
                 if (before == null) {
                     /*
                     TOUT PREMIER PASSAGE sur cette chaîne : aucun solde de
@@ -176,7 +176,7 @@ class DepositCheckWorker @AssistedInject constructor(
                     // simple changement de portefeuille passe pour une réception.
                     val key = "bal_tok_${t.contractAddress.lowercase()}_$holder"
                     val before = if (prefs.contains(key)) prefs.getString(key, null)?.toDoubleOrNull() else null
-                    prefs.edit().putString(key, bal.toString()).apply()
+                    prefs.edit().putString(key, bal.toString()).commit()  // commit : voir note en fin de classe
                     if (before == null) continue             // 1er passage : on mémorise
                     val delta = bal - before
                     if (delta > 1e-9) {
@@ -427,6 +427,30 @@ class DepositCheckWorker @AssistedInject constructor(
             putBoolean(KEY_LEGACY_PURGED, true)
         }.apply()
     }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    POURQUOI `commit()` ET NON `apply()` POUR LES SOLDES DE REFERENCE
+    ═══════════════════════════════════════════════════════════════════════
+
+    La detection de depot compare le solde courant au solde MEMORISE au
+    passage precedent. Ce solde de reference est donc le pivot de tout le
+    mecanisme.
+
+    `apply()` met a jour la memoire et programme l'ecriture disque pour plus
+    tard. Or ce worker s'execute souvent dans un processus que le systeme tue
+    aussitot apres `doWork()` — l'ecriture differee n'a alors jamais lieu.
+
+    Consequence concrete : au passage suivant, `before` vaut null, ce que le
+    code interprete comme un TOUT PREMIER passage sur cette chaine. Aucun
+    ecart n'est calcule, donc aucune notification. Un depot reellement recu
+    passe inapercu, sans erreur nulle part.
+
+    `commit()` ecrit avant de rendre la main. Quelques millisecondes par
+    chaine, contre le risque de ne pas prevenir un utilisateur qu'il a recu
+    de l'argent.
+    ═══════════════════════════════════════════════════════════════════════
+     */
 
     companion object {
         const val WORK_NAME = "vaultex_deposit_check"
