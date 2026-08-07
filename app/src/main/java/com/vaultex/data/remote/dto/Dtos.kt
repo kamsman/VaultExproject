@@ -254,11 +254,13 @@ data class EtherscanResponse(
     /** Transactions, ou liste vide si la reponse portait un message d'erreur. */
     fun transactions(gson: com.google.gson.Gson): List<EtherscanTx> =
         if (result == null || !result.isJsonArray) emptyList()
+        // Type CONCRET plutot qu'un TypeToken anonyme : R8 peut effacer
+        // l'information de type generique d'une classe anonyme, ce qui fait
+        // echouer Gson en release uniquement. Un tableau ne porte aucun
+        // generique a preserver. Meme correction que dans NotificationCenter,
+        // ou ce piege avait vide la cloche apres chaque redemarrage.
         else runCatching {
-            gson.fromJson<List<EtherscanTx>>(
-                result,
-                object : com.google.gson.reflect.TypeToken<List<EtherscanTx>>() {}.type
-            )
+            gson.fromJson(result, Array<EtherscanTx>::class.java)?.toList() ?: emptyList()
         }.getOrDefault(emptyList())
 
     /** Motif du refus, quand l'API renvoie une chaine a la place des donnees. */

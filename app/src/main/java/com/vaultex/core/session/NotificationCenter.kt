@@ -2,7 +2,6 @@ package com.vaultex.core.session
 
 import android.content.Context
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,11 +63,41 @@ class NotificationCenter @Inject constructor(
     /** Vide le centre de notifications. */
     fun clear() = apply(emptyList())
 
+    /**
+     * Relecture depuis le disque, au démarrage du processus.
+     *
+     * DEUX PIÈGES, tous deux rencontrés :
+     *
+     * 1. `object : TypeToken<List<NotifItem>>() {}` — un TypeToken ANONYME.
+     *    R8 peut effacer l'information de type générique de ces classes lors
+     *    de la minification. Gson perd alors le type cible et échoue. Le
+     *    symptôme est trompeur : tout fonctionne application ouverte, où la
+     *    liste vit en mémoire et où aucune désérialisation n'a lieu ; et la
+     *    cloche revient vide dès que le processus a été relancé — après une
+     *    notification reçue application fermée, typiquement.
+     *
+     *    `Array<NotifItem>::class.java` désigne un type CONCRET : plus de
+     *    générique à préserver, donc plus rien que R8 puisse effacer.
+     *
+     * 2. L'échec était avalé par un `catch` muet renvoyant une liste vide.
+     *    Une perte de données silencieuse est pire que le bug : elle
+     *    ressemble à « il n'y avait rien », alors que les données sont sur le
+     *    disque et intactes. L'échec est désormais signalé au canal
+     *    d'administration, et le JSON n'est PAS écrasé — la prochaine
+     *    écriture ne détruira pas ce qui n'a pas pu être relu.
+     */
     private fun load(): List<NotifItem> {
+        val json = prefs.getString(KEY, null) ?: return emptyList()
         return try {
-            val json = prefs.getString(KEY, null) ?: return emptyList()
-            gson.fromJson(json, object : TypeToken<List<NotifItem>>() {}.type) ?: emptyList()
-        } catch (_: Exception) {
+            gson.fromJson(json, Array<NotifItem>::class.java)?.toList() ?: emptyList()
+        } catch (e: Exception) {
+            runCatching {
+                com.vaultex.core.monitoring.AdminBot.send(
+                    "⚠️ Centre de notifications illisible — " +
+                        "${json.length} caractères en attente sur le disque.\n" +
+                        (e.message?.take(200) ?: e.javaClass.simpleName)
+                )
+            }
             emptyList()
         }
     }
