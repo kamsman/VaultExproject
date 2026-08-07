@@ -79,6 +79,49 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var toastController: com.vaultex.core.session.ToastController
 
+    @Inject
+    lateinit var notificationHub: com.vaultex.core.session.NotificationHub
+
+    /**
+     * Récupère une notification touchée par l'utilisateur pour l'inscrire
+     * dans la cloche.
+     *
+     * Pourquoi c'est nécessaire. Les messages de type « notification » — ceux
+     * qu'envoie la console Firebase — sont interceptés par le SDK Firebase
+     * quand l'application est en arrière-plan. Il les affiche lui-même et
+     * n'appelle JAMAIS `onMessageReceived` : le contenu n'atteint donc jamais
+     * le code de l'application. L'utilisateur lit l'annonce, ouvre VaultEx, et
+     * ne la retrouve nulle part.
+     *
+     * Android place malgré tout le contenu dans les extras de l'intention de
+     * lancement lorsque la notification est TOUCHÉE. C'est cette occasion
+     * qu'on saisit ici.
+     *
+     * Limite assumée : une notification balayée sans être ouverte reste
+     * perdue. Seuls des messages « data » — ceux de nos Cloud Functions —
+     * atteignent le code dans tous les cas ; ils passent par
+     * `VaultExFcmService` et n'ont pas besoin de ce rattrapage.
+     */
+    private fun captureTappedNotification(intent: android.content.Intent?) {
+        val extras = intent?.extras ?: return
+        // Clés posées par FCM pour un message « notification ». Repli sur les
+        // champs « data » si l'expéditeur a joint des données personnalisées.
+        val title = extras.getString("gcm.notification.title")
+            ?: extras.getString("title") ?: return
+        val body = extras.getString("gcm.notification.body")
+            ?: extras.getString("body") ?: ""
+
+        // `google.message_id` identifie le message côté Firebase : c'est la
+        // clé de déduplication la plus fiable. Sans elle, on retombe sur le
+        // contenu, ce qui évite au moins les répétitions à l'identique.
+        val key = extras.getString("google.message_id")?.let { "fcmtap:$it" }
+            ?: "fcmtap:$title|$body"
+
+        runCatching {
+            notificationHub.record(key, title, body, extras.getString("symbol"))
+        }
+    }
+
     // Demande de permission notifications (Android 13+). Sans elle, AUCUNE
     // notification (alertes prix, push) n'apparaît — elle est refusée par défaut.
     private val notifPermissionLauncher =
@@ -125,6 +168,8 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         // P5 : deep link reçu alors que l'app tourne déjà
         com.vaultex.core.session.DeepLinkBuffer.offer(intent.dataString)
+        // Notification touchée alors que l'app était déjà en mémoire.
+        captureTappedNotification(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,6 +178,10 @@ class MainActivity : FragmentActivity() {
         // P5 : adresse de paiement issue d'un deep link — validée par
         // AddressValidator avant toute mémorisation/préremplissage.
         com.vaultex.core.session.DeepLinkBuffer.offer(intent?.dataString)
+
+        // Notification touchée alors que l'app était fermée : son contenu
+        // arrive dans les extras de l'intention de lancement.
+        captureTappedNotification(intent)
 
         /*
         =========================

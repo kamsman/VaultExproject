@@ -163,6 +163,38 @@ class NotificationHub @Inject constructor(
         } catch (_: Exception) { }
     }
 
+    /**
+     * Enregistre un événement dans la cloche SANS afficher de notification
+     * système — parce qu'elle a déjà été affichée par quelqu'un d'autre.
+     *
+     * Le cas visé : une annonce envoyée depuis la console Firebase. Ces
+     * messages sont de type « notification » ; quand l'application est en
+     * arrière-plan, le SDK Firebase les affiche LUI-MÊME et n'appelle jamais
+     * `onMessageReceived`. Le contenu n'atteint donc jamais le code de
+     * l'application, et l'utilisateur qui rouvre VaultEx ne retrouve rien
+     * dans sa cloche — alors qu'il vient tout juste de lire le message.
+     *
+     * Android transmet malgré tout ce contenu dans l'intention de lancement
+     * quand l'utilisateur APPUIE sur la notification. C'est ce moment qu'on
+     * rattrape ici.
+     *
+     * Passer par [post] serait faux : l'utilisateur verrait une seconde
+     * notification système pour un message qu'il vient d'ouvrir.
+     *
+     * La déduplication reste celle de [post] — même mémoire, mêmes clés : si
+     * un dépôt a déjà été signalé par le worker local, le clic sur le push
+     * correspondant ne le fera pas apparaître deux fois.
+     *
+     * @return true si l'événement a été enregistré, false si c'était un doublon.
+     */
+    @Synchronized
+    fun record(key: String, title: String, body: String, symbol: String? = null): Boolean {
+        if (isDuplicate(key)) return false
+        remember(key)
+        center.push(title, body, symbol)
+        return true
+    }
+
     private fun isDuplicate(key: String): Boolean {
         val at = prefs.getLong(key, 0L)
         return at > 0L && System.currentTimeMillis() - at < DEDUP_WINDOW_MS
