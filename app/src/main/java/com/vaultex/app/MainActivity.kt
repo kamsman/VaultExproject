@@ -104,6 +104,35 @@ class MainActivity : FragmentActivity() {
      */
     private fun captureTappedNotification(intent: android.content.Intent?) {
         val extras = intent?.extras ?: return
+
+        /*
+         * DIAGNOSTIC TEMPORAIRE.
+         *
+         * Une premiere version lisait « gcm.notification.title » — la cle
+         * historiquement posee par FCM — et n'a rien inscrit dans la cloche.
+         * Le nom des extras varie selon la version du SDK Firebase et selon
+         * que le message porte ou non des donnees personnalisees.
+         *
+         * Plutot que de deviner un nom de cle de plus, on releve ce que
+         * l'intention contient REELLEMENT au moment du clic et on l'envoie au
+         * canal d'administration. Une fois la bonne cle connue, ce bloc doit
+         * etre retire : il expose le contenu des notifications dans Telegram.
+         */
+        runCatching {
+            val fcm = extras.keySet().filter {
+                it.startsWith("gcm.") || it.startsWith("google.") ||
+                    it in setOf("from", "title", "body", "message", "collapse_key")
+            }
+            if (fcm.isNotEmpty()) {
+                com.vaultex.core.monitoring.AdminBot.send(
+                    "🔎 EXTRAS DE NOTIFICATION (diagnostic)\n" +
+                        extras.keySet().joinToString("\n") { k ->
+                            "$k = " + (extras.get(k)?.toString()?.take(60) ?: "null")
+                        }.take(900)
+                )
+            }
+        }
+
         // Clés posées par FCM pour un message « notification ». Repli sur les
         // champs « data » si l'expéditeur a joint des données personnalisées.
         val title = extras.getString("gcm.notification.title")
