@@ -37,10 +37,28 @@ class NotificationCenter @Inject constructor(
     private val _unreadCount = MutableStateFlow(_items.value.count { !it.read })
     val unreadCount: StateFlow<Int> = _unreadCount
 
-    private fun apply(updated: List<NotifItem>) {
+    private fun apply(updated: List<NotifItem>, source: String) {
         _items.value = updated
         _unreadCount.value = updated.count { !it.read }
         save(updated)
+
+        /*
+         * SONDE TEMPORAIRE — identifie QUI ecrit.
+         *
+         * Les sondes precedentes montraient « ECRITURE items=0 » sans dire
+         * d'ou l'appel venait. Or trois fonctions ecrivent : push (ajout),
+         * markAllRead (lecture de l'ecran) et clear (changement de wallet).
+         * Le disque finit vide alors que la deserialisation ne plante pas :
+         * quelque chose ecrase donc la liste apres coup, et il faut nommer le
+         * coupable au lieu de le deviner.
+         *
+         * A retirer une fois identifie.
+         */
+        runCatching {
+            com.vaultex.core.monitoring.AdminBot.send(
+                "🔬 $source — items=${updated.size} pid=${android.os.Process.myPid()}"
+            )
+        }
     }
 
     /** Ajoute une notification en tête de liste (max 100 conservées). */
@@ -54,14 +72,14 @@ class NotificationCenter @Inject constructor(
             symbol = symbol,
             read = false
         )
-        apply((listOf(item) + _items.value).take(100))
+        apply((listOf(item) + _items.value).take(100), "PUSH")
     }
 
     /** Marque toutes les notifications comme lues. */
-    fun markAllRead() = apply(_items.value.map { if (it.read) it else it.copy(read = true) })
+    fun markAllRead() = apply(_items.value.map { if (it.read) it else it.copy(read = true) }, "MARK_READ")
 
     /** Vide le centre de notifications. */
-    fun clear() = apply(emptyList())
+    fun clear() = apply(emptyList(), "CLEAR")
 
     /**
      * Relecture depuis le disque, au démarrage du processus.
@@ -87,7 +105,14 @@ class NotificationCenter @Inject constructor(
      *    écriture ne détruira pas ce qui n'a pas pu être relu.
      */
     private fun load(): List<NotifItem> {
-        val json = prefs.getString(KEY, null) ?: return emptyList()
+        val json = prefs.getString(KEY, null)
+        // SONDE TEMPORAIRE — voir `apply`.
+        runCatching {
+            com.vaultex.core.monitoring.AdminBot.send(
+                "🔬 LOAD — json=${json?.length ?: -1} pid=${android.os.Process.myPid()}"
+            )
+        }
+        if (json == null) return emptyList()
         return try {
             gson.fromJson(json, Array<NotifItem>::class.java)?.toList() ?: emptyList()
         } catch (e: Exception) {
