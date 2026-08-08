@@ -212,6 +212,14 @@ class NotificationHub @Inject constructor(
         return true
     }
 
+    /**
+     * Relaie la relecture du centre de notifications.
+     *
+     * MainActivity n'a besoin que de NotificationHub ; passer par lui evite de
+     * lui injecter une seconde dependance pour un seul appel.
+     */
+    fun reloadCenter() = center.reload()
+
     private fun isDuplicate(key: String): Boolean {
         val at = prefs.getLong(key, 0L)
         return at > 0L && System.currentTimeMillis() - at < DEDUP_WINDOW_MS

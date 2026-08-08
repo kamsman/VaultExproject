@@ -37,28 +37,10 @@ class NotificationCenter @Inject constructor(
     private val _unreadCount = MutableStateFlow(_items.value.count { !it.read })
     val unreadCount: StateFlow<Int> = _unreadCount
 
-    private fun apply(updated: List<NotifItem>, source: String) {
+    private fun apply(updated: List<NotifItem>) {
         _items.value = updated
         _unreadCount.value = updated.count { !it.read }
         save(updated)
-
-        /*
-         * SONDE TEMPORAIRE — identifie QUI ecrit.
-         *
-         * Les sondes precedentes montraient « ECRITURE items=0 » sans dire
-         * d'ou l'appel venait. Or trois fonctions ecrivent : push (ajout),
-         * markAllRead (lecture de l'ecran) et clear (changement de wallet).
-         * Le disque finit vide alors que la deserialisation ne plante pas :
-         * quelque chose ecrase donc la liste apres coup, et il faut nommer le
-         * coupable au lieu de le deviner.
-         *
-         * A retirer une fois identifie.
-         */
-        runCatching {
-            com.vaultex.core.monitoring.AdminBot.send(
-                "🔬 $source — items=${updated.size} pid=${android.os.Process.myPid()}"
-            )
-        }
     }
 
     /** Ajoute une notification en tête de liste (max 100 conservées). */
@@ -72,14 +54,51 @@ class NotificationCenter @Inject constructor(
             symbol = symbol,
             read = false
         )
-        apply((listOf(item) + _items.value).take(100), "PUSH")
+        apply((listOf(item) + _items.value).take(100))
+    }
+
+    /**
+     * Relit le disque et remplace l'etat en memoire.
+     *
+     * C'EST LA CORRECTION DE FOND DE TOUT CE CHAPITRE.
+     *
+     * Cette classe est un singleton : sa liste est chargee UNE fois, a la
+     * construction, puis vit en memoire. Or elle est ecrite depuis plusieurs
+     * contextes — le service FCM, les workers de fond — qui s'executent
+     * parfois dans un processus demarre pour eux seuls : ils ecrivent sur le
+     * disque, puis meurent.
+     *
+     * L'instance qui sert l'interface ne sait rien de ces ecritures. Elle
+     * continue d'afficher la liste qu'elle avait au demarrage. Symptome
+     * observe sur appareil : une annonce recue application fermee s'affiche
+     * bien en notification, est correctement ecrite sur le disque — et reste
+     * pourtant introuvable dans la cloche.
+     *
+     * Les sondes l'ont montre sans ambiguite : aucune trace de `PUSH` dans le
+     * processus de l'interface, et un `pid` inchange. L'ecriture avait bien eu
+     * lieu, ailleurs.
+     *
+     * Appele quand l'application revient au premier plan : le seul moment ou
+     * l'utilisateur peut constater un ecart, et le seul ou une relecture a un
+     * cout.
+     *
+     * Ne notifie que si le contenu a REELLEMENT change, pour ne pas declencher
+     * de recomposition inutile a chaque retour a l'ecran.
+     */
+    @Synchronized
+    fun reload() {
+        val fromDisk = load()
+        if (fromDisk != _items.value) {
+            _items.value = fromDisk
+            _unreadCount.value = fromDisk.count { !it.read }
+        }
     }
 
     /** Marque toutes les notifications comme lues. */
-    fun markAllRead() = apply(_items.value.map { if (it.read) it else it.copy(read = true) }, "MARK_READ")
+    fun markAllRead() = apply(_items.value.map { if (it.read) it else it.copy(read = true) })
 
     /** Vide le centre de notifications. */
-    fun clear() = apply(emptyList(), "CLEAR")
+    fun clear() = apply(emptyList())
 
     /**
      * Relecture depuis le disque, au démarrage du processus.
@@ -105,14 +124,7 @@ class NotificationCenter @Inject constructor(
      *    écriture ne détruira pas ce qui n'a pas pu être relu.
      */
     private fun load(): List<NotifItem> {
-        val json = prefs.getString(KEY, null)
-        // SONDE TEMPORAIRE — voir `apply`.
-        runCatching {
-            com.vaultex.core.monitoring.AdminBot.send(
-                "🔬 LOAD — json=${json?.length ?: -1} pid=${android.os.Process.myPid()}"
-            )
-        }
-        if (json == null) return emptyList()
+        val json = prefs.getString(KEY, null) ?: return emptyList()
         return try {
             gson.fromJson(json, Array<NotifItem>::class.java)?.toList() ?: emptyList()
         } catch (e: Exception) {

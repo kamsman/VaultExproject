@@ -366,7 +366,24 @@ class MainActivity : FragmentActivity() {
                             Lifecycle.Event.ON_STOP -> sessionLock.onEnterBackground()
                             // Le bouclier ne se retire pas ici mais après stabilisation
                             // de la navigation (LaunchedEffect ci-dessous).
-                            Lifecycle.Event.ON_RESUME -> reveal.value = true
+                            Lifecycle.Event.ON_RESUME -> {
+                                reveal.value = true
+                                /*
+                                 * Relire la cloche depuis le disque.
+                                 *
+                                 * Elle peut avoir ete ecrite pendant que
+                                 * l'application etait en arriere-plan — par le
+                                 * service FCM ou par un worker, parfois depuis
+                                 * un processus demarre pour eux seuls. Le
+                                 * singleton qui sert l'interface ne le sait
+                                 * pas : sans cette relecture, il continue
+                                 * d'afficher la liste qu'il avait au demarrage,
+                                 * et une annonce recue application fermee reste
+                                 * invisible alors qu'elle est bien sur le
+                                 * disque.
+                                 */
+                                notificationHub.reloadCenter()
+                            }
                             Lifecycle.Event.ON_START -> {
                                 val current = navController.currentDestination?.route
                                 when {
