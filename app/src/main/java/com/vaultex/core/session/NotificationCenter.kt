@@ -40,7 +40,34 @@ class NotificationCenter @Inject constructor(
     private fun apply(updated: List<NotifItem>) {
         _items.value = updated
         _unreadCount.value = updated.count { !it.read }
-        save(updated)
+        val written = save(updated)
+
+        /*
+         * SONDE TEMPORAIRE — a retirer une fois le diagnostic termine.
+         *
+         * La cloche reste vide apres une notification recue application
+         * fermee, alors que la notification systeme s'affiche : le code passe
+         * donc bien ici. Trois hypotheses ont deja echoue faute de mesure ;
+         * celle-ci rapporte les valeurs reelles au lieu de les supposer.
+         *
+         * A lire dans le canal d'administration :
+         *   ECRITURE items=1 commit=true  puis  LECTURE json=... items=1
+         *     -> le disque est bon, le probleme est dans l'affichage
+         *   ECRITURE commit=false
+         *     -> l'ecriture disque echoue
+         *   LECTURE json=0
+         *     -> rien n'a ete ecrit, ou pas au meme endroit
+         *   LECTURE json>0 mais items=0
+         *     -> la deserialisation echoue encore
+         *   aucune LECTURE
+         *     -> le processus n'a pas redemarre : la liste en memoire suffit
+         */
+        runCatching {
+            com.vaultex.core.monitoring.AdminBot.send(
+                "🔬 ECRITURE cloche — items=${updated.size} commit=$written " +
+                    "pid=${android.os.Process.myPid()}"
+            )
+        }
     }
 
     /** Ajoute une notification en tête de liste (max 100 conservées). */
@@ -87,7 +114,15 @@ class NotificationCenter @Inject constructor(
      *    écriture ne détruira pas ce qui n'a pas pu être relu.
      */
     private fun load(): List<NotifItem> {
-        val json = prefs.getString(KEY, null) ?: return emptyList()
+        val json = prefs.getString(KEY, null)
+        // SONDE TEMPORAIRE — voir le commentaire de `apply`.
+        runCatching {
+            com.vaultex.core.monitoring.AdminBot.send(
+                "🔬 LECTURE cloche — json=${json?.length ?: -1} " +
+                    "pid=${android.os.Process.myPid()}"
+            )
+        }
+        if (json == null) return emptyList()
         return try {
             gson.fromJson(json, Array<NotifItem>::class.java)?.toList() ?: emptyList()
         } catch (e: Exception) {
@@ -124,9 +159,8 @@ class NotificationCenter @Inject constructor(
      * millisecondes sur une liste plafonnée à 100 entrées — un coût dérisoire
      * face à la perte d'une notification de dépôt.
      */
-    private fun save(list: List<NotifItem>) {
+    private fun save(list: List<NotifItem>): Boolean =
         prefs.edit().putString(KEY, gson.toJson(list)).commit()
-    }
 
     companion object {
         private const val KEY = "items"
