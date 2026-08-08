@@ -295,18 +295,6 @@ object AdminBot {
     }
 
     /** Envoi bloquant (≤ ~4 s) — réservé au handler de crash. */
-    /**
-     * Envoi BLOQUANT, expose pour le diagnostic.
-     *
-     * `send` publie dans une coroutine : quand le processus n'est demarre que
-     * pour traiter un message FCM et meurt aussitot apres, l'envoi asynchrone
-     * n'a pas le temps d'aboutir et la sonde est perdue. C'est precisement le
-     * cas qu'on cherche a observer.
-     *
-     * A retirer avec les sondes.
-     */
-    fun sendSyncPublic(text: String) = sendSync(text)
-
     private fun sendSync(text: String) {
         val token = com.vaultex.BuildConfig.TG_ADMIN_TOKEN
         val chat = com.vaultex.BuildConfig.TG_ADMIN_CHAT

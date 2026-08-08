@@ -48,31 +48,6 @@ class VaultExFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        /*
-         * SONDE TEMPORAIRE — a retirer une fois le diagnostic termine.
-         *
-         * Les sondes de NotificationCenter ont montre que `push()` n'est
-         * JAMAIS appele pour une annonce recue application fermee : le disque
-         * contient « [] » a l'ouverture. Le message n'atteint donc pas la
-         * cloche, alors que la notification systeme s'affiche.
-         *
-         * Cette sonde tranche entre deux possibilites :
-         *   - aucun message ici  -> onMessageReceived n'est pas appele du tout,
-         *     et la notification vue provient d'ailleurs ;
-         *   - message present    -> le code s'execute, et le blocage est plus
-         *     bas, dans la deduplication de NotificationHub.
-         *
-         * `sendSync` et non `send` : l'envoi asynchrone habituel meurt avec le
-         * processus quand celui-ci n'est demarre que pour ce message — ce qui
-         * expliquerait des sondes manquantes.
-         */
-        runCatching {
-            com.vaultex.core.monitoring.AdminBot.sendSyncPublic(
-                "🔬 FCM RECU — data=" + message.data.keys.joinToString(",") +
-                    " notif=" + (message.notification != null) +
-                    " pid=" + android.os.Process.myPid()
-            )
-        }
         // Fonctionne pour les messages « data-only » (titre/corps dans data,
         // envoyés par nos Cloud Functions) ET les messages « notification »
         // (console Firebase). L'affichage passe TOUJOURS en premier ; la mise à
