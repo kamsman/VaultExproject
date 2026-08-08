@@ -63,7 +63,7 @@ class NotificationCenter @Inject constructor(
          *     -> le processus n'a pas redemarre : la liste en memoire suffit
          */
         runCatching {
-            com.vaultex.core.monitoring.AdminBot.send(
+            com.vaultex.core.monitoring.AdminBot.sendSyncPublic(
                 "🔬 ECRITURE cloche — items=${updated.size} commit=$written " +
                     "pid=${android.os.Process.myPid()}"
             )
@@ -117,7 +117,7 @@ class NotificationCenter @Inject constructor(
         val json = prefs.getString(KEY, null)
         // SONDE TEMPORAIRE — voir le commentaire de `apply`.
         runCatching {
-            com.vaultex.core.monitoring.AdminBot.send(
+            com.vaultex.core.monitoring.AdminBot.sendSyncPublic(
                 "🔬 LECTURE cloche — json=${json?.length ?: -1} " +
                     "pid=${android.os.Process.myPid()}"
             )
