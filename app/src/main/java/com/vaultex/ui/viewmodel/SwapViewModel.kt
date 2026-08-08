@@ -454,7 +454,7 @@ class SwapViewModel @Inject constructor(
                 // TOUS les utilisateurs (cle revoquee, paire desactivee, service
                 // en panne) resterait invisible jusqu'a ce que quelqu'un se
                 // plaigne. Message technique, non traduit : c'est un diagnostic.
-                com.vaultex.core.monitoring.AdminBot.serviceFailed("ChangeNOW", e.message)
+                com.vaultex.core.monitoring.reportUnlessCancelled("ChangeNOW", e)
             }
         }
     }

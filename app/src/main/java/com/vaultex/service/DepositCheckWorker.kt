@@ -289,8 +289,21 @@ class DepositCheckWorker @AssistedInject constructor(
             tout seul toutes les 30 s au premier plan, et toutes les 15 min en
             arriere-plan. L'echec est simplement signale.
              */
-            com.vaultex.core.monitoring.AdminBot.serviceFailed("Détection de dépôts", e.message)
-            Result.success()
+            if (e is kotlinx.coroutines.CancellationException) {
+                /*
+                 * Annulation par le systeme : WorkManager arrete le travail
+                 * (contraintes changees, delai depasse, memoire sous pression)
+                 * ou le processus se termine. Ce n'est pas une panne, et le
+                 * signaler produisait de fausses alertes « Service
+                 * indisponible : Detection de depots — Job was cancelled ».
+                 *
+                 * Le travail repartira de lui-meme au prochain cycle.
+                 */
+                Result.success()
+            } else {
+                com.vaultex.core.monitoring.AdminBot.serviceFailed("Détection de dépôts", e.message)
+                Result.success()
+            }
         }
     }
 

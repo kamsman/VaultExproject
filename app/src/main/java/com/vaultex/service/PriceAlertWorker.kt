@@ -78,7 +78,7 @@ class PriceAlertWorker @AssistedInject constructor(
             Le travail repasse de toute façon dans 15 minutes : renoncer à ce
             cycle-ci est la bonne réponse, réessayer en boucle ne l'est pas.
              */
-            com.vaultex.core.monitoring.AdminBot.serviceFailed("alertes de prix", e.message)
+            com.vaultex.core.monitoring.reportUnlessCancelled("alertes de prix", e)
             Result.success()
         }
     }

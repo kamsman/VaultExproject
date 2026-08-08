@@ -141,7 +141,7 @@ class SwapTrackingWorker @AssistedInject constructor(
             pour des heures. Le prochain cycle arrive dans 15 minutes de toute
             façon ; renoncer à celui-ci est la bonne réponse.
              */
-            com.vaultex.core.monitoring.AdminBot.serviceFailed("suivi des swaps", e.message)
+            com.vaultex.core.monitoring.reportUnlessCancelled("suivi des swaps", e)
             Result.success()
         }
     }

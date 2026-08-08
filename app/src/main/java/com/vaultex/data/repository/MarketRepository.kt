@@ -117,7 +117,7 @@ class MarketRepository @Inject constructor(
             // Ecran Marche vide = quota CoinGecko atteint, neuf fois sur dix.
             // Sans remontee, on ne peut pas distinguer « pas de reseau chez
             // l'utilisateur » de « notre quota est sature pour tout le monde ».
-            com.vaultex.core.monitoring.AdminBot.serviceFailed("CoinGecko", e.message)
+            com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko", e)
             lastFromCache = true
             diskFallback(coinId)
         }
