@@ -41,7 +41,12 @@ fun NotificationCenterScreen(navController: NavHostController) {
     val items by viewModel.items.collectAsState()
 
     // À l'ouverture, on marque tout comme lu (la pastille disparaît).
-    LaunchedEffect(Unit) { viewModel.markAllRead() }
+    LaunchedEffect(Unit) {
+        // Relire AVANT de marquer comme lu : sans cela, on marquerait une
+        // liste perimee et l'arrivee recente serait perdue.
+        viewModel.refresh()
+        viewModel.markAllRead()
+    }
 
     Scaffold(
         containerColor = BgPrimary,

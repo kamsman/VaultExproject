@@ -21,13 +21,43 @@ data class NotifItem(
 /**
  * Centre de notifications in-app : mémorise les notifications affichées (dépôts,
  * alertes prix, annonces…) pour les lister dans l'app et compter les non-lues.
- * Persisté en clair dans des SharedPreferences dédiées (aucune clé privée).
+ * Persisté en clair dans un fichier dédié (aucune clé privée) — voir le
+ * commentaire sur `file` pour la raison précise de ce choix.
  */
 @Singleton
 class NotificationCenter @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val prefs = context.getSharedPreferences("vaultex_notif_center", Context.MODE_PRIVATE)
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    STOCKAGE DANS UN FICHIER, PAS DANS SHAREDPREFERENCES
+    ═══════════════════════════════════════════════════════════════════════
+
+    SharedPreferences maintient une copie EN MÉMOIRE de son contenu.
+    `getString()` ne lit pas le fichier : il lit ce cache. Deux conséquences,
+    toutes deux rencontrées ici.
+
+    1. Relire ne relit rien. Une instance ayant chargé une liste vide au
+       démarrage renverra indéfiniment une liste vide, même si le disque a
+       changé entre-temps. La relecture ajoutée au retour au premier plan
+       était donc sans effet.
+
+    2. Deux processus s'ignorent. MODE_PRIVATE n'est pas prévu pour l'accès
+       multi-processus : le service FCM et l'interface tiennent chacun leur
+       cache, et leurs écritures peuvent s'écraser mutuellement.
+
+    Symptôme observé : une annonce reçue application fermée s'affiche en
+    notification, est écrite sur le disque — et reste introuvable dans la
+    cloche, quel que soit le moment où on la consulte.
+
+    Un fichier ordinaire n'a aucun cache. Chaque lecture touche le disque,
+    chaque écriture y va directement. Le contenu est minuscule (100 entrées
+    au maximum) et lu rarement.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    private val file = java.io.File(context.filesDir, "notif_center.json")
+    private val legacyPrefs =
+        context.getSharedPreferences("vaultex_notif_center", Context.MODE_PRIVATE)
     private val gson = Gson()
 
     private val _items = MutableStateFlow(load())
@@ -124,19 +154,37 @@ class NotificationCenter @Inject constructor(
      *    écriture ne détruira pas ce qui n'a pas pu être relu.
      */
     private fun load(): List<NotifItem> {
-        val json = prefs.getString(KEY, null) ?: return emptyList()
+        val json = readRaw() ?: return emptyList()
         return try {
             gson.fromJson(json, Array<NotifItem>::class.java)?.toList() ?: emptyList()
         } catch (e: Exception) {
             runCatching {
                 com.vaultex.core.monitoring.AdminBot.send(
-                    "⚠️ Centre de notifications illisible — " +
-                        "${json.length} caractères en attente sur le disque.\n" +
+                    "Centre de notifications illisible : " +
                         (e.message?.take(200) ?: e.javaClass.simpleName)
                 )
             }
             emptyList()
         }
+    }
+
+    /**
+     * Contenu brut, lu DIRECTEMENT sur le disque a chaque appel.
+     *
+     * Migration : les versions precedentes stockaient la liste dans des
+     * SharedPreferences. Si le fichier n'existe pas encore mais qu'une valeur
+     * y subsiste, on la reprend puis on efface l'ancienne — aucune
+     * notification n'est perdue a la mise a jour.
+     */
+    private fun readRaw(): String? {
+        runCatching { if (file.exists()) return file.readText().ifBlank { null } }
+        val legacy = runCatching { legacyPrefs.getString(KEY, null) }.getOrNull()
+        if (legacy != null) {
+            runCatching { file.writeText(legacy) }
+            runCatching { legacyPrefs.edit().remove(KEY).commit() }
+            return legacy.ifBlank { null }
+        }
+        return null
     }
 
     /**
@@ -162,7 +210,7 @@ class NotificationCenter @Inject constructor(
      * face à la perte d'une notification de dépôt.
      */
     private fun save(list: List<NotifItem>) {
-        prefs.edit().putString(KEY, gson.toJson(list)).commit()
+        runCatching { file.writeText(gson.toJson(list)) }
     }
 
     companion object {
