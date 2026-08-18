@@ -5,7 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.vaultex.BuildConfig
@@ -62,12 +64,36 @@ class VaultExApplication : Application(), Configuration.Provider {
         DeviceIntegrity.requestIntegrityToken(this)
     }
 
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CONTRAINTE RÉSEAU SUR LES TÂCHES PÉRIODIQUES
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les trois tâches ci-dessous interrogent toutes des services distants :
+    soldes des chaînes, cours, statut des échanges. Sans contrainte, Android
+    les réveillait toutes les 15 minutes même hors connexion — chaque
+    réveil consommait de la batterie pour échouer aussitôt, et remontait un
+    échec qui ne signalait rien d'autre que l'absence de réseau.
+
+    C'est particulièrement coûteux sur le marché visé, où la couverture est
+    intermittente et l'autonomie compte.
+
+    Avec la contrainte, le système attend le retour du réseau puis déclenche
+    la tâche. Rien n'est perdu : le travail est simplement différé.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    private val reseauRequis = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .build()
+
     /** Vérification des alertes de prix toutes les 15 minutes. */
     private fun schedulePriceAlertChecks() {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             PriceAlertWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES).build()
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(reseauRequis).build()
         )
     }
 
@@ -82,8 +108,9 @@ class VaultExApplication : Application(), Configuration.Provider {
     private fun scheduleSwapTracking() {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SwapTrackingWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<SwapTrackingWorker>(15, TimeUnit.MINUTES).build()
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<SwapTrackingWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(reseauRequis).build()
         )
     }
 
@@ -91,8 +118,9 @@ class VaultExApplication : Application(), Configuration.Provider {
     private fun scheduleDepositChecks() {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             DepositCheckWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<DepositCheckWorker>(15, TimeUnit.MINUTES).build()
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<DepositCheckWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(reseauRequis).build()
         )
     }
 
@@ -118,7 +146,7 @@ class VaultExApplication : Application(), Configuration.Provider {
      * fermee ou en arriere-plan, et que la notification soit touchee ou non.
      * L'annonce s'affiche ET reste consultable dans la cloche.
      *
-     * Voir tools/send-announcement.ps1 pour l'envoi.
+     * Voir tools/send-announcement.sh pour l'envoi.
      *
      * Best-effort : un echec d'abonnement ne doit jamais empecher
      * l'application de demarrer. Firebase reessaie de lui-meme.
@@ -173,7 +201,7 @@ class VaultExApplication : Application(), Configuration.Provider {
          * Ce nom est un CONTRAT : le changer couperait tous les appareils déjà
          * installés, qui resteraient abonnés à l'ancien canal jusqu'à leur
          * prochaine mise à jour. Il doit rester synchronisé avec
-         * tools/send-announcement.ps1.
+         * tools/send-announcement.sh.
          */
         const val ANNOUNCE_TOPIC = "vaultex_all"
     }
