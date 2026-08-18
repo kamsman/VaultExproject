@@ -54,6 +54,8 @@ fun QrScannerScreen(navController: NavHostController) {
         )
     }
     var permissionDenied by remember { mutableStateOf(false) }
+    // Aucun capteur utilisable : ni arriere, ni avant.
+    var cameraUnavailable by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -86,6 +88,16 @@ fun QrScannerScreen(navController: NavHostController) {
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             when {
+                // AVANT `hasPermission` : sinon l'aperçu noir masquerait le
+                // message, et l'utilisateur resterait devant un écran vide.
+                cameraUnavailable -> {
+                    Text(
+                        stringResource(R.string.scanner_camera_unavailable),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
                 hasPermission -> {
                     CameraQrPreview(
                         onQrDetected = { raw ->
@@ -97,7 +109,8 @@ fun QrScannerScreen(navController: NavHostController) {
                                 ?.savedStateHandle
                                 ?.set(SCANNED_ADDRESS_KEY, address)
                             navController.popBackStack()
-                        }
+                        },
+                        onCameraUnavailable = { cameraUnavailable = true }
                     )
                     // Cadre de visée
                     Box(
@@ -141,7 +154,10 @@ fun QrScannerScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun CameraQrPreview(onQrDetected: (String) -> Unit) {
+private fun CameraQrPreview(
+    onQrDetected: (String) -> Unit,
+    onCameraUnavailable: () -> Unit
+) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val detected = remember { mutableStateOf(false) }
 
@@ -172,17 +188,35 @@ private fun CameraQrPreview(onQrDetected: (String) -> Unit) {
                     }
                     imageProxy.close()
                 }
-                try {
-                    provider.unbindAll()
-                    provider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        analysis
-                    )
-                } catch (_: Exception) {
-                    // Caméra indisponible (émulateur sans caméra, etc.)
+                /*
+                 * REPLI SUR LA CAMERA FRONTALE, puis signalement.
+                 *
+                 * `DEFAULT_BACK_CAMERA` etait impose : un appareil depourvu de
+                 * camera arriere — certaines tablettes, quelques modeles
+                 * d'entree de gamme — echouait a lier la camera. L'exception
+                 * etait capturee sans rien afficher : l'utilisateur restait
+                 * devant un ecran noir, sans savoir si l'application chargeait,
+                 * si son telephone etait incompatible, ou s'il devait attendre.
+                 *
+                 * On tente donc l'arriere, puis l'avant, et l'on ne renonce
+                 * qu'apres les deux — en le DISANT.
+                 */
+                val selectors = listOf(
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                )
+                var bound = false
+                for (selector in selectors) {
+                    try {
+                        provider.unbindAll()
+                        provider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
+                        bound = true
+                        break
+                    } catch (_: Exception) {
+                        // Ce capteur n'existe pas ou est deja pris : on essaie le suivant.
+                    }
                 }
+                if (!bound) onCameraUnavailable()
             }, ContextCompat.getMainExecutor(ctx))
 
             previewView

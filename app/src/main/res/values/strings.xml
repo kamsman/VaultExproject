@@ -927,4 +927,5 @@
     <string name="dashboard_autostart_body">Sur cette marque de téléphone, un réglage supplémentaire empêche parfois les notifications de dépôt d\'arriver quand l\'app est fermée. Ouvrez les paramètres et autorisez « Démarrage automatique » ou désactivez les économies de batterie pour VaultEx.</string>
     <string name="dashboard_autostart_cta">Ouvrir les paramètres</string>
     <string name="balance_partial_named">Total incomplet : %1$s illisible pour le moment</string>
+    <string name="scanner_camera_unavailable">Aucune caméra utilisable sur cet appareil. Saisissez l'adresse à la main.</string>
 </resources>
