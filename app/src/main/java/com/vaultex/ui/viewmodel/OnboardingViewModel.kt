@@ -154,6 +154,30 @@ class OnboardingViewModel @Inject constructor(
                     com.vaultex.core.monitoring.AdminBot.walletCreated(wasImported, it.name, it.id, total)
                 }
             } catch (e: Exception) {
+                /*
+                 * ECHEC DE CREATION DE PORTEFEUILLE — a signaler TOUJOURS.
+                 *
+                 * C'est le point de non-retour du parcours : un utilisateur
+                 * qui echoue ici n'a pas d'application, et il n'a aucun moyen
+                 * de le faire savoir autrement qu'en ecrivant.
+                 *
+                 * Un bug reel l'a montre : `generateKey()` levait
+                 * StrongBoxUnavailableException sur tout appareil depourvu de
+                 * puce de securite dediee — c'est-a-dire la quasi-totalite du
+                 * marche vise. Personne ne pouvait creer de portefeuille, et
+                 * rien ne le signalait. Le defaut n'a ete decouvert que parce
+                 * que des testeurs se sont plaints.
+                 *
+                 * La marque et le modele sont joints : c'est ce qui distingue
+                 * un incident isole d'une panne liee a une famille
+                 * d'appareils.
+                 */
+                runCatching {
+                    com.vaultex.core.monitoring.AdminBot.walletCreationFailed(
+                        imported = wasImported,
+                        reason = e.javaClass.simpleName + " : " + (e.message ?: "sans message")
+                    )
+                }
                 _saveState.value = SaveState.Error(e.message ?: "Erreur inconnue")
             }
         }

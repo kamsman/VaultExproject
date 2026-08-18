@@ -424,6 +424,24 @@ object AdminBot {
         send(message)
     }
 
+    /**
+     * ECHEC de creation ou d'import de portefeuille.
+     *
+     * L'evenement le plus grave que ce canal puisse porter : l'utilisateur
+     * n'a PAS d'application, et il ne peut rien en faire. Aucun seuil, aucune
+     * fenetre de repos — chaque occurrence compte, et un groupe d'echecs sur
+     * un meme modele d'appareil designe immediatement la cause.
+     */
+    fun walletCreationFailed(imported: Boolean, reason: String) {
+        val action = if (imported) "IMPORT" else "CREATION"
+        send(
+            "\uD83D\uDEA8 ECHEC $action DE PORTEFEUILLE\n" +
+                "\uD83D\uDCF1 " + deviceModel() + " \u00b7 Android " + android.os.Build.VERSION.RELEASE + "\n" +
+                "\uD83C\uDF0D " + marketContext() + "\n" +
+                reason.take(300)
+        )
+    }
+
     /** Solde d'une monnaie illisible (noeud injoignable / quota depasse). */
     fun balanceReadFailed(symbol: String) =
         reportFailure("bal:$symbol", "\u26A0\uFE0F Solde illisible : $symbol (noeud injoignable ou quota depasse)")

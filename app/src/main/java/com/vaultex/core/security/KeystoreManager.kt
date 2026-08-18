@@ -37,6 +37,49 @@ class KeystoreManager @Inject constructor() {
         val existingKey = keyStore.getKey(MASTER_KEY_ALIAS, null) as? SecretKey
         if (existingKey != null) return existingKey
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        STRONGBOX : TENTER, PUIS RETOMBER SUR LE TEE
+        ═══════════════════════════════════════════════════════════════════
+
+        StrongBox est une puce de sécurité dédiée. Elle n'existe que sur une
+        minorité d'appareils — Pixel 3+, Samsung haut de gamme. La plupart des
+        téléphones de milieu et d'entrée de gamme, Tecno, Infinix et itel en
+        tête, n'en ont pas.
+
+        LE BUG QUE CECI CORRIGE. La version précédente entourait
+        `setIsStrongBoxBacked(true)` d'un try/catch. Or cet appel ne fait que
+        poser un drapeau sur le constructeur : il ne lève JAMAIS d'exception.
+        C'est `generateKey()` qui lève `StrongBoxUnavailableException`, et il
+        était en dehors du try.
+
+        Sur tout appareil sans StrongBox, la création de la clé maîtresse
+        échouait donc, et l'utilisateur voyait une erreur au moment de valider
+        son code PIN. Impossible de créer le moindre portefeuille. Le bug
+        était invisible en développement sur un appareil haut de gamme, et
+        systématique sur le marché visé.
+
+        Le repli sur le TEE n'est pas un pis-aller : le TEE est l'enclave
+        sécurisée présente sur tout Android moderne, et c'est ce qu'utilisent
+        la quasi-totalité des applications bancaires.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            try {
+                return generateMasterKey(requireBiometric, strongBox = true)
+            } catch (_: Exception) {
+                // StrongBoxUnavailableException, ou un refus propre au
+                // constructeur. Une tentative echouee peut laisser un alias
+                // partiel : on le supprime avant de reessayer, sinon la
+                // seconde tentative echouerait a son tour.
+                runCatching { keyStore.deleteEntry(MASTER_KEY_ALIAS) }
+            }
+        }
+        return generateMasterKey(requireBiometric, strongBox = false)
+    }
+
+    /** Crée la clé maîtresse, avec ou sans StrongBox. */
+    private fun generateMasterKey(requireBiometric: Boolean, strongBox: Boolean): SecretKey {
         val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         val builder = KeyGenParameterSpec.Builder(
             MASTER_KEY_ALIAS,
@@ -47,7 +90,7 @@ class KeystoreManager @Inject constructor() {
             .setKeySize(256)
             .setRandomizedEncryptionRequired(true)
 
-        // Demander l'auth biométrique pour usage de la clé (sensitive data)
+        // Auth biométrique pour l'usage de la clé (données sensibles).
         if (requireBiometric) {
             builder.setUserAuthenticationRequired(true)
             builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
@@ -56,13 +99,8 @@ class KeystoreManager @Inject constructor() {
             builder.setInvalidatedByBiometricEnrollment(true)
         }
 
-        // Tente StrongBox si disponible (Android 9+)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            try {
-                builder.setIsStrongBoxBacked(true)
-            } catch (e: Exception) {
-                // Fallback TEE
-            }
+        if (strongBox && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            builder.setIsStrongBoxBacked(true)
         }
 
         keyGen.init(builder.build())
