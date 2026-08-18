@@ -41,18 +41,45 @@ class WalletStore @Inject constructor(
      * Migration : si un wallet actif existe (ancien wallet unique inclus) mais
      * n'apparaît pas encore dans la table `wallets`, on l'y inscrit. Idempotent.
      */
+    /**
+     * Réaligne la table des wallets sur le stockage chiffré, qui fait foi.
+     *
+     * La base est construite avec `fallbackToDestructiveMigration()` : elle est
+     * EFFACÉE a chaque montée de version du schéma. Avant cette reconstruction,
+     * un utilisateur ayant plusieurs wallets les voyait alors disparaître —
+     * leurs seeds restaient pourtant intacts dans le stockage chiffré, mais
+     * plus rien ne signalait leur existence.
+     *
+     * On repart donc de `storedWalletIds()` : tout seed présent redevient un
+     * wallet visible. Les noms d'origine, eux, vivaient dans la base et sont
+     * perdus — on renomme « Wallet N » plutôt que de laisser un portefeuille
+     * inaccessible.
+     */
     suspend fun ensureRegistered() {
-        val id = secureStorage.ensureActiveWallet() ?: return
-        if (walletDao.getById(id) == null) {
-            walletDao.deactivateAll()
+        val actif = secureStorage.ensureActiveWallet()
+        val connus = secureStorage.storedWalletIds()
+            .ifEmpty { listOfNotNull(actif) }
+        if (connus.isEmpty()) return
+
+        var n = walletDao.count()
+        for (id in connus) {
+            if (walletDao.getById(id) != null) continue
+            n += 1
             walletDao.insert(
                 WalletEntity(
                     id = id,
-                    name = secureStorage.getWalletName().ifBlank { "Wallet 1" },
-                    isActive = true,
+                    name = if (id == actif) secureStorage.getWalletName().ifBlank { "Wallet $n" }
+                           else "Wallet $n",
+                    isActive = false,
                     createdAt = System.currentTimeMillis()
                 )
             )
+        }
+        // Un seul wallet actif, et il doit correspondre au seed reellement charge.
+        val cible = actif ?: connus.first()
+        if (walletDao.getById(cible) != null) {
+            walletDao.deactivateAll()
+            walletDao.activate(cible)
         }
     }
 

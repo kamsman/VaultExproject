@@ -94,6 +94,30 @@ class SecureStorage @Inject constructor(
     fun getMnemonicFor(walletId: String): String? = dec(prefs.getString(mnKey(walletId), null))
     fun getPassphraseFor(walletId: String): String = dec(prefs.getString(psKey(walletId), null)) ?: ""
     fun hasWalletSecrets(walletId: String): Boolean = prefs.contains(mnKey(walletId))
+
+    /**
+     * Identifiants de TOUS les wallets dont un seed est stocké ici.
+     *
+     * POURQUOI C'EST NÉCESSAIRE. Les seeds vivent ici, mais la LISTE des
+     * wallets ne vivait que dans la table Room. Or la base est construite avec
+     * `fallbackToDestructiveMigration()` : elle est effacée a chaque montée de
+     * version du schéma.
+     *
+     * Sans cette fonction, le jour où une colonne est ajoutée, tout
+     * utilisateur ayant plusieurs wallets voyait les autres DISPARAÎTRE. Leurs
+     * phrases secrètes survivaient ici, intactes — mais l'application n'avait
+     * plus aucun moyen de les retrouver, faute de savoir qu'elles existaient.
+     *
+     * Le stockage chiffré redevient ainsi la source de vérité, et la base une
+     * simple copie de travail reconstructible.
+     */
+    fun storedWalletIds(): List<String> = try {
+        prefs.all.keys
+            .filter { it.startsWith("mnemonic_") }
+            .map { it.removePrefix("mnemonic_") }
+            .filter { it.isNotBlank() }
+            .sorted()
+    } catch (_: Exception) { emptyList() }
     fun deleteWalletSecrets(walletId: String) {
         val e = prefs.edit().remove(mnKey(walletId)).remove(psKey(walletId))
         // Le wallet migré garde une copie sous les anciennes clés (héritage

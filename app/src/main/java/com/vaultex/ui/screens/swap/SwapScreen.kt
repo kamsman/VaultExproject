@@ -193,8 +193,8 @@ private fun SwapFormScreen(
 ) {
     val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
-    val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format("%,.2f", fromAmt * state.fromPriceUsd) + " $" else null
-    val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format("%,.2f", toAmt * state.toPriceUsd) + " $" else null
+    val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", fromAmt * state.fromPriceUsd) + " $" else null
+    val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", toAmt * state.toPriceUsd) + " $" else null
     // Affiche le vrai solde : si trop petit pour 4 décimales (ex. 0,00003 BNB
     // arrondi à « 0 »), on montre jusqu'à 8 décimales pour ne pas mentir.
     val balTxt = if (state.fromBalance > 0.0) {
@@ -288,11 +288,11 @@ private fun SwapFormScreen(
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
                     val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
+                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format(java.util.Locale.US, "%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Taux", rate, chevron = true)
                     Divider(color = swapBorder, thickness = 1.dp)
                     val feeTxt = if (fromAmt > 0.0)
-                        "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
+                        "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
                     SwapDetailRow(Icons.Default.Info, "Frais (inclus)", feeTxt, valueColor = SwapGreen)
                     Divider(color = swapBorder, thickness = 1.dp)
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Délai estimé", "2 - 5 min", valueColor = SwapPurple, showIcon = false)
@@ -342,10 +342,10 @@ private fun SwapConfirmScreen(
 ) {
     val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
-    val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format("%,.2f", fromAmt * state.fromPriceUsd) + " $" else ""
-    val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format("%,.2f", toAmt * state.toPriceUsd) + " $" else ""
+    val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", fromAmt * state.fromPriceUsd) + " $" else ""
+    val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", toAmt * state.toPriceUsd) + " $" else ""
     // Montant minimum reçu (~2% de marge sous l'estimation, comme un slippage).
-    val minReceive = if (toAmt > 0.0) String.format("%.6f", toAmt * 0.98).trimEnd('0').trimEnd('.') else "—"
+    val minReceive = if (toAmt > 0.0) String.format(java.util.Locale.US, "%.6f", toAmt * 0.98).trimEnd('0').trimEnd('.') else "—"
 
     Scaffold(
         containerColor = swapBg,
@@ -405,9 +405,9 @@ private fun SwapConfirmScreen(
             bouton de confirmation reste atteignable sans faire défiler.
              */
             val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format("%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
+                "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format(java.util.Locale.US, "%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
             val feeTxt = if (fromAmt > 0.0)
-                "${String.format("%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
+                "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
 
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
