@@ -93,7 +93,24 @@ class KeystoreManager @Inject constructor() {
         // Auth biométrique pour l'usage de la clé (données sensibles).
         if (requireBiometric) {
             builder.setUserAuthenticationRequired(true)
-            builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            /*
+             * `setUserAuthenticationParameters` n'existe QUE depuis Android 11
+             * (API 30). Le minSdk du projet est 26 : sans ce garde, l'appel
+             * leverait une NoSuchMethodError sur Android 8, 9 et 10 — soit une
+             * part loin d'etre negligeable du parc vise.
+             *
+             * Le defaut ne se manifeste pas aujourd'hui, `requireBiometric`
+             * n'etant jamais vrai. C'est precisement ce qui le rend dangereux :
+             * il attendait l'activation du mode biometrique pour casser la
+             * creation de portefeuille sur ces versions.
+             *
+             * Avant API 30, `setUserAuthenticationRequired(true)` seul impose
+             * deja une authentification a CHAQUE usage de la cle — le
+             * comportement recherche.
+             */
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+            }
             // P4 : invalide la clé si une nouvelle empreinte est enrôlée
             // (empêche un attaquant ayant ajouté sa biométrie de l'utiliser).
             builder.setInvalidatedByBiometricEnrollment(true)
