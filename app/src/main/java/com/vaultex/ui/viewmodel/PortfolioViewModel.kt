@@ -179,6 +179,17 @@ class PortfolioViewModel @Inject constructor(
     fun toggleBalanceVisibility() = balanceVisibility.toggle()
 
     companion object {
+        /**
+         * Intervalle minimal entre deux balayages du registre pour une MÊME
+         * adresse. Un changement de wallet le contourne : l'adresse diffère,
+         * le balayage est immédiat.
+         *
+         * Trois minutes : assez court pour qu'un jeton reçu apparaisse pendant
+         * que l'utilisateur regarde son écran, assez long pour ne pas sonder
+         * une douzaine de contrats à chaque retour sur l'accueil.
+         */
+        private const val DELAI_RESCAN = 3 * 60 * 1000L
+
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
         private const val USDT_ETH_CONTRACT  = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
@@ -555,7 +566,28 @@ class PortfolioViewModel @Inject constructor(
     }
 
     /** Une seule sonde par session : ~9 eth_call, pas à chaque refresh. */
-    @Volatile private var registryScanned = false
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    MÉMOIRE DU DERNIER BALAYAGE — adresse + horodatage, PAS un simple oui/non
+    ═══════════════════════════════════════════════════════════════════════
+
+    Ce champ était un booléen `registryScanned`, mis à true au premier
+    balayage et JAMAIS remis à zéro. Conséquence, constatée en usage réel :
+
+      · l'utilisateur ouvre le wallet B, aucun token reçu — balayage effectué,
+        rien trouvé, drapeau posé ;
+      · il reçoit ensuite des SHIB sur ce wallet ;
+      · tous les rafraîchissements suivants sautent la détection.
+
+    Les jetons étaient bien sur la chaîne, mais l'application ne regardait
+    plus. Le drapeau bloquait aussi le balayage après un CHANGEMENT de wallet :
+    posé pour le wallet A, il empêchait toute détection sur le wallet B.
+
+    On mémorise donc l'adresse balayée et l'instant du balayage. Un nouveau
+    balayage a lieu si l'adresse change, ou après [DELAI_RESCAN].
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    @Volatile private var dernierBalayage: Pair<String, Long>? = null
 
     /**
      * Sonde les contrats CONNUS du registre d'échange (SHIB, USDC, DAI, CAKE…)
@@ -569,8 +601,11 @@ class PortfolioViewModel @Inject constructor(
         bnbAddress: String,
         customs: List<com.vaultex.data.local.entity.TokenEntity>
     ): Boolean {
-        if (registryScanned) return false
-        registryScanned = true
+        val maintenant = System.currentTimeMillis()
+        val (adrPrec, tPrec) = dernierBalayage ?: ("" to 0L)
+        val memeAdresse = adrPrec == ethAddress
+        if (memeAdresse && maintenant - tPrec < DELAI_RESCAN) return false
+        dernierBalayage = ethAddress to maintenant
         val known = customs.map { it.contractAddress.lowercase() }.toSet()
         var added = false
         com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
