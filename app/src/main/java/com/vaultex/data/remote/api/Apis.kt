@@ -108,7 +108,11 @@ interface CoinGeckoApi {
         @Path("platform") platform: String,
         @Query("contract_addresses") contractAddresses: String,
         @Query("vs_currencies") vsCurrencies: String = "usd,eur,xof",
-        @Query("include_24hr_change") include24hChange: Boolean = true
+        @Query("include_24hr_change") include24hChange: Boolean = true,
+        // Demandee pour la fiche d'un jeton importe par contrat : sans ce
+        // parametre, CoinGecko ne renvoie pas la capitalisation et le bloc
+        // reste vide alors que la donnee existe.
+        @Query("include_market_cap") includeMarketCap: Boolean = true
     ): Map<String, CoinGeckoPriceDto>
 
     @GET("coins/markets")

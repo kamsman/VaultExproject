@@ -7,6 +7,7 @@ import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.data.remote.api.CoinGeckoApi
 import com.vaultex.data.repository.MarketRepository
+import com.vaultex.data.repository.TokenRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -19,7 +20,8 @@ class TokenDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val secureStorage: SecureStorage,
     private val marketRepository: MarketRepository,
-    private val coinGeckoApi: CoinGeckoApi
+    private val coinGeckoApi: CoinGeckoApi,
+    private val tokenRepository: TokenRepository
 ) : ViewModel() {
 
     data class State(
@@ -116,11 +118,44 @@ class TokenDetailViewModel @Inject constructor(
 
                 // Prix / variation / market cap / sparkline 7j : cache marché
                 // (cache-first → évite le rate-limit CoinGecko qui cassait l'écran).
-                // Jeton hors registre : aucun identifiant, donc AUCUN appel —
-                // et surtout aucun cours affiché, plutôt qu'un cours emprunté.
                 val dto = coinGeckoId?.let { id ->
                     withContext(Dispatchers.IO) {
                         try { marketRepository.getMarket(id).firstOrNull() } catch (_: Exception) { null }
+                    }
+                }
+
+                /*
+                 * JETON IMPORTÉ PAR ADRESSE DE CONTRAT.
+                 *
+                 * Il n'a pas d'identifiant de cotation — il n'est dans aucune
+                 * table de symboles, et il ne peut pas y être : l'utilisateur
+                 * peut ajouter n'importe quel contrat. C'est le cas le plus
+                 * courant après les jetons du registre.
+                 *
+                 * CoinGecko sait pourtant le coter, par son ADRESSE. C'est déjà
+                 * ce que fait l'écran d'accueil — d'où l'incohérence observée :
+                 * la conversion du solde était juste, l'en-tête était faux.
+                 *
+                 * On emprunte donc le même chemin. Ce point de terminaison
+                 * renvoie le prix et la variation sur 24 h, mais NI la
+                 * capitalisation NI l'historique 7 jours : ces deux blocs
+                 * restent masqués, ce qui est honnête plutôt que remplis de
+                 * valeurs empruntées.
+                 */
+                val jetonImporte = if (dto != null) null else withContext(Dispatchers.IO) {
+                    try {
+                        tokenRepository.getCustom()
+                            .firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }
+                    } catch (_: Exception) { null }
+                }
+                val prixContrat = jetonImporte?.let { jeton ->
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val plateforme =
+                                if (jeton.blockchain == "BNB") "binance-smart-chain" else "ethereum"
+                            coinGeckoApi.getTokenPrice(plateforme, jeton.contractAddress.lowercase())
+                                .entries.firstOrNull()?.value
+                        } catch (_: Exception) { null }
                     }
                 }
                 // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
@@ -134,9 +169,14 @@ class TokenDetailViewModel @Inject constructor(
 
                 _state.update {
                     it.copy(
-                        priceUsd = dto?.currentPrice ?: 0.0,
-                        change24h = dto?.change24h ?: 0.0,
-                        marketCapUsd = dto?.marketCap ?: 0.0,
+                        // Nom réel du jeton importé : la table des symboles ne
+                        // peut pas le connaître, mais la fiche enregistrée à
+                        // l'ajout du contrat le porte. Sans cela l'écran
+                        // affichait « SHIB / SHIB » au lieu de « SHIB / Shiba Inu ».
+                        name = tokenNames[symbol] ?: jetonImporte?.name?.takeIf { it.isNotBlank() } ?: symbol,
+                        priceUsd = dto?.currentPrice ?: prixContrat?.usd ?: 0.0,
+                        change24h = dto?.change24h ?: prixContrat?.change24h ?: 0.0,
+                        marketCapUsd = dto?.marketCap ?: prixContrat?.marketCap ?: 0.0,
                         chartPrices = chartData,
                         address = address,
                         amountFormatted = amountFormatted,
