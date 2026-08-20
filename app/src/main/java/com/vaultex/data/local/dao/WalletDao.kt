@@ -160,6 +160,20 @@ interface PendingSendDao {
     @Query("SELECT * FROM pending_sends WHERE status = 'PENDING' ORDER BY createdAt ASC")
     suspend fun getPending(): List<PendingSendEntity>
 
+    /**
+     * Une intention IDENTIQUE (même chaîne, même destinataire, même montant)
+     * attend-elle déjà son départ ?
+     *
+     * Sert au garde anti-doublon de l'écran d'envoi : sans lui, chaque appui
+     * sur « Envoyer » hors ligne insérait une NOUVELLE ligne, et le retour du
+     * réseau diffusait autant de transactions RÉELLES que d'appuis.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM pending_sends WHERE status = 'PENDING' " +
+            "AND chain = :chain AND toAddress = :toAddress AND amount = :amount"
+    )
+    suspend fun countSamePending(chain: String, toAddress: String, amount: String): Int
+
     @Insert
     suspend fun insert(item: PendingSendEntity): Long
 

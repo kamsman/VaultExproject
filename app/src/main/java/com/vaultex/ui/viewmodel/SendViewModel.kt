@@ -512,6 +512,21 @@ class SendViewModel @Inject constructor(
         if (!NetworkMonitor.isOnline(appContext)) {
             viewModelScope.launch {
                 try {
+                    /*
+                     * ANTI-DOUBLON. « En attente » n'est pas un echec : la
+                     * meme intention relancee ne doit produire QU'UNE
+                     * transaction. Sans ce garde, chaque appui inserait une
+                     * ligne de plus, et le retour du reseau diffusait autant
+                     * d'envois REELS que d'appuis — de l'argent perdu.
+                     *
+                     * Une intention identique deja en file : on confirme
+                     * simplement l'etat « en attente », sans rien ajouter.
+                     */
+                    val deja = pendingSendDao.countSamePending(effective, s.toAddress, s.amount)
+                    if (deja > 0) {
+                        _state.update { it.copy(queued = true, error = null) }
+                        return@launch
+                    }
                     pendingSendDao.insert(
                         PendingSendEntity(
                             chain = effective,

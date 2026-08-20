@@ -27,8 +27,25 @@ object NetworkMonitor {
             ?: return true // en cas de doute, on n'empêche pas l'action
         val network = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        /*
+         * VALIDATED N'EST PAS EXIGE — et c'est volontaire.
+         *
+         * NET_CAPABILITY_VALIDATED signifie qu'Android a REUSSI son test de
+         * connectivite (une requete vers un serveur de Google). Sur beaucoup
+         * de reseaux mobiles — debit faible, portail operateur, test filtre —
+         * ce drapeau reste faux alors qu'Internet fonctionne parfaitement.
+         *
+         * L'exiger avait une consequence directe et couteuse : l'envoi etait
+         * declare hors ligne et mis en file d'attente au lieu d'etre diffuse.
+         * L'utilisateur voyait « en attente » sans comprendre pourquoi, et
+         * relancait — ce qui empilait les intentions.
+         *
+         * On ne retient donc que la presence d'un reseau annoncant Internet.
+         * Si la connexion s'avere inutilisable, l'envoi echouera a la
+         * diffusion et l'erreur sera dite : c'est plus honnete qu'un « hors
+         * ligne » decide a l'avance.
+         */
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     /** Flux réactif de connectivité — pour un bandeau « hors connexion » qui
