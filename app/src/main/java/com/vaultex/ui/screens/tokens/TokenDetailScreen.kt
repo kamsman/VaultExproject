@@ -93,25 +93,43 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                             }
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text(
-                            formatUsd(state.priceUsd),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 28.sp,
-                            color = VaultExColors.TextPrimary
-                        )
-                        val isPositive = state.change24h >= 0
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
-                                null,
-                                tint = if (isPositive) VaultExColors.Success else VaultExColors.Error,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        /*
+                         * Cours affiché SEULEMENT s'il est connu.
+                         *
+                         * Un jeton hors registre n'a pas d'identifiant de
+                         * cotation : afficher « 0,00 $ · +0,00 % » laisserait
+                         * croire à une valeur nulle, et la version précédente
+                         * affichait pire encore — le cours d'Ethereum, hérité
+                         * d'une valeur de repli. Sur un portefeuille, mieux
+                         * vaut ne rien annoncer qu'annoncer faux.
+                         */
+                        if (state.priceUsd > 0.0) {
                             Text(
-                                stringResource(R.string.token_detail_change_24h, "%+.2f%%".format(state.change24h)),
+                                formatUsd(state.priceUsd),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 28.sp,
+                                color = VaultExColors.TextPrimary
+                            )
+                            val isPositive = state.change24h >= 0
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                    null,
+                                    tint = if (isPositive) VaultExColors.Success else VaultExColors.Error,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    stringResource(R.string.token_detail_change_24h, "%+.2f%%".format(state.change24h)),
+                                    fontSize = 14.sp,
+                                    color = if (isPositive) VaultExColors.Success else VaultExColors.Error,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        } else if (!state.isLoading) {
+                            Text(
+                                stringResource(R.string.token_detail_price_unavailable),
                                 fontSize = 14.sp,
-                                color = if (isPositive) VaultExColors.Success else VaultExColors.Error,
-                                fontWeight = FontWeight.Medium
+                                color = VaultExColors.TextSecondary
                             )
                         }
                         if (state.marketCapUsd > 0) {

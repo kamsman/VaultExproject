@@ -44,16 +44,49 @@ class TokenDetailViewModel @Inject constructor(
 
     private val symbol: String = savedStateHandle["symbol"] ?: "ETH"
 
-    private val coinGeckoId = mapOf(
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    IDENTIFIANTS COINGECKO — SANS VALEUR DE REPLI
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cette table s'arrêtait aux cinq chaînes natives et à l'USDT, avec un
+    `?: "ethereum"` en fin de ligne. Tout autre jeton du registre — SHIB, DAI,
+    LINK, PEPE, UNI, AAVE, WBTC, CAKE — retombait donc sur Ethereum.
+
+    Constaté sur appareil : les fiches SHIB et DAI affichaient toutes deux
+    « 2 340,09 $ · +18,10 % · capitalisation 282 milliards » — les chiffres
+    d'ETH. Un utilisateur pouvait croire ses SHIB valorisés à 2 340 $ l'unité.
+
+    Sur un portefeuille, un prix FAUX est plus grave qu'un prix absent : il
+    donne une information sur laquelle on prend des décisions. Le repli est
+    donc supprimé — un jeton inconnu n'affiche simplement pas de cours.
+
+    Les identifiants ci-dessous sont ceux de CoinGecko, PAS les tickers
+    ChangeNOW du registre d'échange : « shiba-inu » et non « shib »,
+    « chainlink » et non « link ». Confondre les deux est exactement ce qui
+    produirait de nouveau des cours erronés.
+
+    Pour vérifier un identifiant :
+      https://api.coingecko.com/api/v3/simple/price?ids=<id>&vs_currencies=usd
+    Une réponse vide « {} » signifie que l'identifiant n'existe pas.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    private val coinGeckoId: String? = mapOf(
         "BTC" to "bitcoin", "ETH" to "ethereum", "BNB" to "binancecoin",
         "SOL" to "solana", "TRX" to "tron",
-        "USDT" to "tether", "USDT-ETH" to "tether", "USDT-BNB" to "tether"
-    )[symbol] ?: "ethereum"
+        "USDT" to "tether", "USDT-ETH" to "tether", "USDT-BNB" to "tether",
+        "USDC" to "usd-coin", "DAI" to "dai", "LINK" to "chainlink",
+        "SHIB" to "shiba-inu", "PEPE" to "pepe", "UNI" to "uniswap",
+        "AAVE" to "aave", "WBTC" to "wrapped-bitcoin", "CAKE" to "pancakeswap-token"
+    )[symbol]
 
     private val tokenNames = mapOf(
         "BTC" to "Bitcoin", "ETH" to "Ethereum", "BNB" to "BNB",
         "SOL" to "Solana", "TRX" to "Tron",
-        "USDT" to "Tether TRC20", "USDT-ETH" to "Tether ERC20", "USDT-BNB" to "Tether BEP20"
+        "USDT" to "Tether TRC20", "USDT-ETH" to "Tether ERC20", "USDT-BNB" to "Tether BEP20",
+        "USDC" to "USD Coin", "DAI" to "Dai", "LINK" to "Chainlink",
+        "SHIB" to "Shiba Inu", "PEPE" to "Pepe", "UNI" to "Uniswap",
+        "AAVE" to "Aave", "WBTC" to "Wrapped Bitcoin", "CAKE" to "PancakeSwap"
     )
 
     init {
@@ -83,15 +116,21 @@ class TokenDetailViewModel @Inject constructor(
 
                 // Prix / variation / market cap / sparkline 7j : cache marché
                 // (cache-first → évite le rate-limit CoinGecko qui cassait l'écran).
-                val dto = withContext(Dispatchers.IO) {
-                    try { marketRepository.getMarket(coinGeckoId).firstOrNull() } catch (_: Exception) { null }
+                // Jeton hors registre : aucun identifiant, donc AUCUN appel —
+                // et surtout aucun cours affiché, plutôt qu'un cours emprunté.
+                val dto = coinGeckoId?.let { id ->
+                    withContext(Dispatchers.IO) {
+                        try { marketRepository.getMarket(id).firstOrNull() } catch (_: Exception) { null }
+                    }
                 }
                 // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
                 val chartData = dto?.sparkline_in_7d?.price
-                    ?: withContext(Dispatchers.IO) {
-                        try { coinGeckoApi.getMarketChart(coinGeckoId, "usd", 7).prices.map { it[1] } }
-                        catch (_: Exception) { emptyList() }
-                    }
+                    ?: coinGeckoId?.let { id ->
+                        withContext(Dispatchers.IO) {
+                            try { coinGeckoApi.getMarketChart(id, "usd", 7).prices.map { it[1] } }
+                            catch (_: Exception) { emptyList() }
+                        }
+                    } ?: emptyList()
 
                 _state.update {
                     it.copy(

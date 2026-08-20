@@ -928,4 +928,5 @@
     <string name="dashboard_autostart_cta">Ouvrir les paramètres</string>
     <string name="balance_partial_named">Total incomplet : %1$s illisible pour le moment</string>
     <string name="scanner_camera_unavailable">Aucune caméra utilisable sur cet appareil. Saisissez l\'adresse à la main.</string>
+    <string name="token_detail_price_unavailable">Cours indisponible pour ce jeton</string>
 </resources>

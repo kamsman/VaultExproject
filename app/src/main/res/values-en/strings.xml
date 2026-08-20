@@ -932,4 +932,5 @@
     <string name="picker_autolock_title">Auto-lock</string>
     <string name="picker_autolock_subtitle">Set the delay before VaultEx locks itself</string>
     <string name="scanner_camera_unavailable">No usable camera on this device. Please enter the address manually.</string>
+    <string name="token_detail_price_unavailable">Price unavailable for this token</string>
 </resources>
