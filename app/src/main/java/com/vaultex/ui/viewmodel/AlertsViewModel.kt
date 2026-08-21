@@ -3,6 +3,7 @@ package com.vaultex.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaultex.data.local.entity.PriceAlertEntity
+import com.vaultex.core.market.CoinIds
 import com.vaultex.core.session.PriceMoveSettings
 import com.vaultex.data.remote.api.CoinGeckoApi
 import com.vaultex.domain.usecase.PriceAlertUseCase
@@ -60,7 +61,7 @@ class AlertsViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     try {
                         coinGeckoApi.getPrices(
-                            ids = SYMBOL_TO_COINGECKO_ID.values.joinToString(","),
+                            ids = CoinIds.ALERT_IDS.values.joinToString(","),
                             vsCurrencies = "xof",
                             include24hChange = false,
                             includeMarketCap = false
@@ -81,7 +82,7 @@ class AlertsViewModel @Inject constructor(
              * Le prix montré ici n'est pas décoratif : c'est celui que
              * l'utilisateur regarde pour choisir le seuil de son alerte.
              */
-            val nonCotees = SYMBOL_TO_COINGECKO_ID.values.filter {
+            val nonCotees = CoinIds.ALERT_IDS.values.filter {
                 (coursPrincipaux[it]?.xof ?: 0.0) <= 0.0
             }
             val prices = if (nonCotees.isEmpty()) coursPrincipaux else {
@@ -90,7 +91,7 @@ class AlertsViewModel @Inject constructor(
                     catch (_: Exception) { emptyMap() }
                 }
             }
-            _currentPricesXof.value = SYMBOL_TO_COINGECKO_ID.mapNotNull { (symbol, id) ->
+            _currentPricesXof.value = CoinIds.ALERT_IDS.mapNotNull { (symbol, id) ->
                 prices[id]?.xof?.takeIf { it > 0 }?.let { symbol to it }
             }.toMap()
         }
@@ -108,14 +109,7 @@ class AlertsViewModel @Inject constructor(
         viewModelScope.launch { priceAlertUseCase.deleteAlert(id) }
     }
 
-    companion object {
-        val SYMBOL_TO_COINGECKO_ID = mapOf(
-            "BTC" to "bitcoin",
-            "ETH" to "ethereum",
-            "BNB" to "binancecoin",
-            "SOL" to "solana",
-            "TRX" to "tron",
-            "USDT" to "tether"
-        )
-    }
+    // La liste des monnaies vit dans CoinIds : le worker de prix et l'écran
+    // de création d'alerte lisent la MÊME table. Elle était recopiée ici, et
+    // une divergence produisait une alerte visible mais jamais vérifiée.
 }

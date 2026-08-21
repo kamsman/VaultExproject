@@ -48,40 +48,21 @@ class TokenDetailViewModel @Inject constructor(
     private val symbol: String = savedStateHandle["symbol"] ?: "ETH"
 
     /*
-    ═══════════════════════════════════════════════════════════════════════
-    IDENTIFIANTS COINGECKO — SANS VALEUR DE REPLI
-    ═══════════════════════════════════════════════════════════════════════
-
-    Cette table s'arrêtait aux cinq chaînes natives et à l'USDT, avec un
-    `?: "ethereum"` en fin de ligne. Tout autre jeton du registre — SHIB, DAI,
-    LINK, PEPE, UNI, AAVE, WBTC, CAKE — retombait donc sur Ethereum.
-
+    IDENTIFIANT DE COTATION — SANS VALEUR DE REPLI. Le type est `String?`, et
+    c'est délibéré : la ligne se terminait autrefois par `?: "ethereum"`, si
+    bien que tout jeton absent de la table empruntait le cours d'Ethereum.
     Constaté sur appareil : les fiches SHIB et DAI affichaient toutes deux
-    « 2 340,09 $ · +18,10 % · capitalisation 282 milliards » — les chiffres
-    d'ETH. Un utilisateur pouvait croire ses SHIB valorisés à 2 340 $ l'unité.
+    « 2 340,09 $ · +18,10 % · 282 milliards de capitalisation » — les chiffres
+    d'ETH. Quelqu'un pouvait croire ses SHIB valorisés à 2 340 $ l'unité.
 
-    Sur un portefeuille, un prix FAUX est plus grave qu'un prix absent : il
-    donne une information sur laquelle on prend des décisions. Le repli est
-    donc supprimé — un jeton inconnu n'affiche simplement pas de cours.
+    Sur un portefeuille, un prix FAUX est plus grave qu'un prix absent : on
+    prend des décisions dessus, et rien ne signale qu'il est faux. Un jeton
+    inconnu n'affiche donc aucun cours. Ne jamais remettre de repli ici.
 
-    Les identifiants ci-dessous sont ceux de CoinGecko, PAS les tickers
-    ChangeNOW du registre d'échange : « shiba-inu » et non « shib »,
-    « chainlink » et non « link ». Confondre les deux est exactement ce qui
-    produirait de nouveau des cours erronés.
-
-    Pour vérifier un identifiant :
-      https://api.coingecko.com/api/v3/simple/price?ids=<id>&vs_currencies=usd
-    Une réponse vide « {} » signifie que l'identifiant n'existe pas.
-    ═══════════════════════════════════════════════════════════════════════
+    La table elle-même vit dans CoinIds — elle est partagée avec l'écran
+    Alertes et le worker de prix.
      */
-    private val coinGeckoId: String? = mapOf(
-        "BTC" to "bitcoin", "ETH" to "ethereum", "BNB" to "binancecoin",
-        "SOL" to "solana", "TRX" to "tron",
-        "USDT" to "tether", "USDT-ETH" to "tether", "USDT-BNB" to "tether",
-        "USDC" to "usd-coin", "DAI" to "dai", "LINK" to "chainlink",
-        "SHIB" to "shiba-inu", "PEPE" to "pepe", "UNI" to "uniswap",
-        "AAVE" to "aave", "WBTC" to "wrapped-bitcoin", "CAKE" to "pancakeswap-token"
-    )[symbol]
+    private val coinGeckoId: String? = com.vaultex.core.market.CoinIds.BY_SYMBOL[symbol]
 
     private val tokenNames = mapOf(
         "BTC" to "Bitcoin", "ETH" to "Ethereum", "BNB" to "BNB",

@@ -312,8 +312,19 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
     var token by remember { mutableStateOf("BTC") }
     var condition by remember { mutableStateOf("au-dessus de") }
     var target by remember { mutableStateOf("") }
-    val mainTokens = listOf("BTC", "ETH", "BNB", "SOL")
-    val otherTokens = listOf("TRX", "USDT")
+    /*
+     * Liste lue dans CoinIds, plus écrite en dur ici.
+     *
+     * Elle était recopiée à trois endroits — cet écran, le worker de prix et
+     * le ViewModel. Trois copies divergent toujours, et la divergence prend
+     * ici la forme la plus sournoise : l'écran propose une monnaie que le
+     * worker ne surveille pas. L'alerte est créée, s'affiche comme active,
+     * et ne se déclenche jamais. Aucun message, rien à diagnostiquer.
+     *
+     * La rangée défile horizontalement : allonger la liste ne casse aucune
+     * mise en page.
+     */
+    val tokens = com.vaultex.core.market.CoinIds.ALERTABLE
     val isAbove = condition.startsWith("au-dessus")
     val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
 
@@ -350,7 +361,7 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                     Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    (mainTokens + otherTokens).forEach { t ->
+                    tokens.forEach { t ->
                         val sel = token == t
                         Surface(
                             onClick = { token = t },

@@ -7,6 +7,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.vaultex.R
+import com.vaultex.core.market.CoinIds
 import com.vaultex.core.session.PriceMoveSettings
 import com.vaultex.data.local.dao.PriceAlertDao
 import com.vaultex.data.local.entity.PriceAlertEntity
@@ -48,8 +49,8 @@ class PriceAlertWorker @AssistedInject constructor(
             // Un seul appel pour les deux usages : les monnaies suivies pour
             // les variations + celles visées par une alerte de cible.
             val ids = buildSet {
-                if (moveEnabled) addAll(SYMBOL_TO_ID.values)
-                alerts.forEach { SYMBOL_TO_ID[it.tokenSymbol]?.let(::add) }
+                if (moveEnabled) addAll(CoinIds.ALERT_IDS.values)
+                alerts.forEach { CoinIds.ALERT_IDS[it.tokenSymbol]?.let(::add) }
             }
             if (ids.isEmpty()) return Result.success()
 
@@ -108,7 +109,7 @@ class PriceAlertWorker @AssistedInject constructor(
     /** Alertes automatiques : forte hausse / forte baisse sur 24 h. */
     private fun checkMoves(prices: Map<String, CoinGeckoPriceDto>) {
         val now = System.currentTimeMillis()
-        SYMBOL_TO_ID.forEach { (symbol, id) ->
+        CoinIds.ALERT_IDS.forEach { (symbol, id) ->
             val dto = prices[id] ?: return@forEach
             val change = dto.change24h
             // 0.0 = valeur par défaut du DTO, donc donnée absente et non pas
@@ -124,7 +125,7 @@ class PriceAlertWorker @AssistedInject constructor(
      *  `suspend` : la désactivation après déclenchement passe par le DAO. */
     private suspend fun checkTargets(alerts: List<PriceAlertEntity>, prices: Map<String, CoinGeckoPriceDto>) {
         alerts.forEach { alert ->
-            val id = SYMBOL_TO_ID[alert.tokenSymbol] ?: return@forEach
+            val id = CoinIds.ALERT_IDS[alert.tokenSymbol] ?: return@forEach
             val current = prices[id]?.xof?.takeIf { it > 0 } ?: return@forEach
             val target = alert.targetPrice.toDoubleOrNull() ?: return@forEach
             val isAbove = alert.condition.contains("dessus", ignoreCase = true)
@@ -216,13 +217,9 @@ class PriceAlertWorker @AssistedInject constructor(
         const val CHANNEL_MOVES = "vaultex_price_moves_v2"
         const val WORK_NAME = "price_alert_check"
 
-        private val SYMBOL_TO_ID = mapOf(
-            "BTC" to "bitcoin",
-            "ETH" to "ethereum",
-            "BNB" to "binancecoin",
-            "SOL" to "solana",
-            "TRX" to "tron",
-            "USDT" to "tether"
-        )
+        // La liste des monnaies surveillées vit dans CoinIds : l'écran de
+        // création d'alerte lit la MÊME table. Elle était recopiée ici, et
+        // une divergence produisait une alerte que l'utilisateur voyait
+        // active mais que ce worker ne vérifiait jamais.
     }
 }
