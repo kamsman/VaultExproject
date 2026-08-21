@@ -21,6 +21,7 @@ class TokenDetailViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val marketRepository: MarketRepository,
     private val coinGeckoApi: CoinGeckoApi,
+    private val priceFallback: com.vaultex.data.repository.PriceFallbackSource,
     private val tokenRepository: TokenRepository
 ) : ViewModel() {
 
@@ -158,6 +159,30 @@ class TokenDetailViewModel @Inject constructor(
                         } catch (_: Exception) { null }
                     }
                 }
+                /*
+                 * DERNIER RECOURS : la source de prix sans quota.
+                 *
+                 * Les deux chemins ci-dessus passent par CoinGecko. Quand son
+                 * quota mensuel est épuisé, ils rendent tous les deux zéro et
+                 * la fiche s'ouvre sur « $0,00 » — y compris pour Bitcoin.
+                 *
+                 * Le repli n'est tenté que sur les monnaies dont
+                 * l'application connaît elle-même l'identifiant : jamais sur
+                 * un contrat importé, dont le symbole est choisi par l'auteur
+                 * du contrat et ne prouve rien. Voir PriceFallbackSource.
+                 *
+                 * La capitalisation n'est pas récupérable par cette voie :
+                 * son bloc reste masqué plutôt que rempli d'une valeur
+                 * empruntée à une autre monnaie.
+                 */
+                val prixDejaConnu = dto?.currentPrice?.takeIf { it > 0.0 }
+                    ?: prixContrat?.usd?.takeIf { it > 0.0 }
+                val prixSecours = if (prixDejaConnu != null) null else coinGeckoId?.let { id ->
+                    withContext(Dispatchers.IO) {
+                        try { priceFallback.pricesByCoinGeckoId(listOf(id))[id] }
+                        catch (_: Exception) { null }
+                    }
+                }
                 // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
                 val chartData = dto?.sparkline_in_7d?.price
                     ?: coinGeckoId?.let { id ->
@@ -174,8 +199,10 @@ class TokenDetailViewModel @Inject constructor(
                         // l'ajout du contrat le porte. Sans cela l'écran
                         // affichait « SHIB / SHIB » au lieu de « SHIB / Shiba Inu ».
                         name = tokenNames[symbol] ?: jetonImporte?.name?.takeIf { it.isNotBlank() } ?: symbol,
-                        priceUsd = dto?.currentPrice ?: prixContrat?.usd ?: 0.0,
-                        change24h = dto?.change24h ?: prixContrat?.change24h ?: 0.0,
+                        priceUsd = prixDejaConnu ?: prixSecours?.usd ?: 0.0,
+                        change24h = dto?.change24h?.takeIf { it != 0.0 }
+                            ?: prixContrat?.change24h?.takeIf { it != 0.0 }
+                            ?: prixSecours?.change24h ?: 0.0,
                         marketCapUsd = dto?.marketCap ?: prixContrat?.marketCap ?: 0.0,
                         chartPrices = chartData,
                         address = address,

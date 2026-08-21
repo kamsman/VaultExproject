@@ -284,3 +284,12 @@ data class EtherscanTx(
     @SerializedName("tokenSymbol") val tokenSymbol: String? = null,
     @SerializedName("tokenDecimal") val tokenDecimal: String? = null
 )
+
+
+// ─── BINANCE (source de prix de secours) ───────────────────────────
+// Nombres reçus en chaînes : voir BinanceApi.getTickers pour le pourquoi.
+data class BinanceTickerDto(
+    val symbol: String = "",
+    val lastPrice: String = "0",
+    val priceChangePercent: String = "0"
+)

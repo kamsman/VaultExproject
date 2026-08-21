@@ -86,6 +86,7 @@ data class PortfolioState(
 class PortfolioViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val coinGeckoApi: CoinGeckoApi,
+    private val priceFallback: com.vaultex.data.repository.PriceFallbackSource,
     @Named("eth") private val ethRpc: EvmRpcApi,
     @Named("bnb") private val bnbRpc: EvmRpcApi,
     private val bitcoinApi: BitcoinApi,
@@ -272,15 +273,43 @@ class PortfolioViewModel @Inject constructor(
                 }
                 val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
 
-                val prices = withContext(Dispatchers.IO) {
-                    try {
-                        coinGeckoApi.getPrices(
-                            ids = COIN_IDS.joinToString(","),
-                            vsCurrencies = "xof,usd,eur",
-                            include24hChange = true,
-                            includeMarketCap = false
-                        )
-                    } catch (_: Exception) { emptyMap() }
+                val coursPrincipaux: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
+                    withContext(Dispatchers.IO) {
+                        try {
+                            coinGeckoApi.getPrices(
+                                ids = COIN_IDS.joinToString(","),
+                                vsCurrencies = "xof,usd,eur",
+                                include24hChange = true,
+                                includeMarketCap = false
+                            )
+                        } catch (_: Exception) { emptyMap() }
+                    }
+                /*
+                ═══════════════════════════════════════════════════════════
+                SECONDE SOURCE DE PRIX
+                ═══════════════════════════════════════════════════════════
+
+                Quand le quota mensuel de CoinGecko est épuisé, cet appel ne
+                renvoie RIEN et tout l'écran s'affiche à « $0,00 » — soldes
+                corrects sur les chaînes, valorisation à zéro. Sur un
+                portefeuille, ce zéro ne se lit pas « prix indisponible » :
+                il se lit « mon argent a disparu ».
+
+                Le prix collant ne couvre pas ce cas : une installation neuve
+                n'a aucun cours précédent à réutiliser. C'était exactement la
+                situation des testeurs.
+
+                On complète donc, monnaie par monnaie, avec une source sans
+                quota. Complète, et ne remplace pas : une monnaie déjà cotée
+                par la source principale n'est pas retouchée.
+                ═══════════════════════════════════════════════════════════
+                 */
+                val nonCotees = COIN_IDS.filter { (coursPrincipaux[it]?.usd ?: 0.0) <= 0.0 }
+                val prices = if (nonCotees.isEmpty()) coursPrincipaux else {
+                    coursPrincipaux + withContext(Dispatchers.IO) {
+                        try { priceFallback.pricesByCoinGeckoId(nonCotees) }
+                        catch (_: Exception) { emptyMap() }
+                    }
                 }
 
                 // Dernier état connu : si une lecture échoue, on RÉUTILISE la
@@ -540,6 +569,44 @@ class PortfolioViewModel @Inject constructor(
                     }.toMap()
             }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        REPLI DES JETONS — SEULEMENT SUR CONTRAT VÉRIFIÉ
+        ═══════════════════════════════════════════════════════════════════
+
+        La source de secours ne connaît pas les adresses de contrat, mais les
+        SYMBOLES. Il serait tentant de lui demander le cours de « SHIB » et
+        d'en finir.
+
+        Ce serait rouvrir le bug déjà corrigé une fois : n'importe qui peut
+        déployer un contrat et l'appeler « SHIB ». Coter un jeton d'après un
+        nom que son auteur a choisi lui-même, c'est afficher une valeur
+        inventée sur des fonds réels — bien pire qu'une absence de prix.
+
+        Le repli n'est donc autorisé que si l'ADRESSE DU CONTRAT figure dans
+        le registre intégré à l'application, dont chaque entrée est écrite en
+        dur et vérifiée. La correspondance va du contrat vers le symbole,
+        jamais l'inverse. Un jeton importé librement par l'utilisateur reste
+        sans cours quand CoinGecko est muet — exactement comme aujourd'hui.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        val symboleSurParContrat = customs.mapNotNull { entity ->
+            if ((prixParContrat[entity.contractAddress.lowercase()]?.usd ?: 0.0) > 0.0) null
+            else com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
+                .firstOrNull { it.contract?.equals(entity.contractAddress, ignoreCase = true) == true }
+                ?.let { entity.contractAddress.lowercase() to it.base.uppercase() }
+        }.toMap()
+
+        val prixDeSecours: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
+            if (symboleSurParContrat.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
+                try {
+                    val parSymbole = priceFallback.pricesBySymbol(symboleSurParContrat.values.toSet())
+                    symboleSurParContrat.mapNotNull { (contrat, sym) ->
+                        parSymbole[sym]?.let { contrat to it }
+                    }.toMap()
+                } catch (_: Exception) { emptyMap() }
+            }
+
         customs.map { entity ->
             async(Dispatchers.IO) {
                 val isBnb = entity.blockchain == "BNB"
@@ -549,8 +616,10 @@ class PortfolioViewModel @Inject constructor(
 
                 val bal = fetchErc20Balance(rpc, entity.contractAddress, address, entity.decimals)
 
-                // Prix relevé dans la réponse groupée (clé = adresse en minuscules).
+                // Prix relevé dans la réponse groupée (clé = adresse en minuscules),
+                // puis, à défaut, celui de la source de secours (contrat vérifié).
                 val price = prixParContrat[entity.contractAddress.lowercase()]
+                    ?: prixDeSecours[entity.contractAddress.lowercase()]
                 // Prix COLLANT : si CoinGecko échoue, on réutilise le dernier prix
                 // connu pour ce contrat (jamais « 00 » une fois récupéré).
                 val prev = prevByContract[entity.contractAddress.lowercase()]

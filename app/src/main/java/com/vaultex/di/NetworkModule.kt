@@ -251,6 +251,20 @@ object NetworkModule {
         return retrofit("https://api.coingecko.com/api/v3/", cgClient).create(CoinGeckoApi::class.java)
     }
 
+    /**
+     * Source de prix de SECOURS — voir PriceFallbackSource pour le pourquoi.
+     *
+     * Aucune clé n'est nécessaire : ce point d'entrée est public. Il n'est
+     * volontairement PAS épinglé (certificate pinning) : le pinning est
+     * réservé aux hôtes qui manipulent des fonds, et un épinglage périmé sur
+     * une source de secours la rendrait inutile au moment précis où on en a
+     * besoin. Aucune donnée sensible n'y transite — on demande un cours, on
+     * n'envoie ni adresse ni identifiant.
+     */
+    @Provides @Singleton
+    fun provideBinanceApi(client: OkHttpClient): BinanceApi =
+        retrofit("https://api.binance.com/", client).create(BinanceApi::class.java)
+
     // ─── User-configurable RPC / explorer APIs ────────────────────────
 
     @Provides @Singleton @Named("eth")

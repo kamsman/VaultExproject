@@ -240,3 +240,34 @@ interface EtherscanApi {
     ): EtherscanResponse
 }
 
+
+/**
+ * Binance public — SOURCE DE PRIX DE SECOURS.
+ *
+ * Aucune clé, aucun compte, aucun quota mensuel : ce point d'entrée est
+ * ouvert et supporte des milliers d'appels par minute et par IP. Il sert de
+ * filet quand CoinGecko refuse de répondre — voir PriceFallbackSource pour
+ * la raison précise de sa présence ici.
+ */
+interface BinanceApi {
+    /**
+     * Cours et variation 24 h de plusieurs paires en UN appel.
+     *
+     * [symbolsJson] doit être un tableau JSON, par ex. `["BTCUSDT","ETHUSDT"]`.
+     * C'est le format qu'impose Binance sur ce paramètre ; Retrofit l'encode,
+     * l'API le décode.
+     *
+     * ATTENTION : une seule paire inconnue fait échouer TOUT l'appel avec un
+     * code 400. Le regroupement des symboles est donc fait avec précaution —
+     * voir PriceFallbackSource.
+     *
+     * Binance renvoie les nombres sous forme de CHAÎNES (`"3421.15000000"`).
+     * C'est volontaire de leur part : cela évite les pertes de précision des
+     * flottants sur les paires à très petit prix, SHIB en tête, dont le cours
+     * tient dans les huitièmes décimales. On les convertit à la lecture.
+     */
+    @GET("api/v3/ticker/24hr")
+    suspend fun getTickers(
+        @Query("symbols") symbolsJson: String
+    ): List<com.vaultex.data.remote.dto.BinanceTickerDto>
+}

@@ -35,6 +35,7 @@ class PriceAlertWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val priceAlertDao: PriceAlertDao,
     private val coinGeckoApi: CoinGeckoApi,
+    private val priceFallback: com.vaultex.data.repository.PriceFallbackSource,
     private val moveSettings: PriceMoveSettings,
     private val hub: com.vaultex.core.session.NotificationHub
 ) : CoroutineWorker(appContext, params) {
@@ -52,14 +53,33 @@ class PriceAlertWorker @AssistedInject constructor(
             }
             if (ids.isEmpty()) return Result.success()
 
-            val prices = coinGeckoApi.getPrices(
-                ids = ids.joinToString(","),
-                // "usd" est indispensable : CoinGecko ne renvoie la variation
-                // 24 h (usd_24h_change) que si le dollar est demandé.
-                vsCurrencies = "usd,xof",
-                include24hChange = true,
-                includeMarketCap = false
-            )
+            /*
+            Source principale, puis SECOURS pour ce qu'elle n'a pas rendu.
+
+            C'est ce worker qui remontait « ⚠️ Service indisponible : alertes
+            de prix — HTTP 429 » en boucle sur le canal d'administration : le
+            quota mensuel de CoinGecko épuisé, l'appel échouait à chaque
+            réveil. Deux conséquences, l'alerte n'étant que la plus visible :
+            plus aucune alerte de prix ne pouvait se déclencher, puisqu'il n'y
+            avait plus de prix à comparer aux seuils.
+
+            La source de secours n'a pas de quota mensuel. Un échec des DEUX
+            reste signalé — c'est alors une vraie panne, pas un plafond.
+             */
+            val coursPrincipaux: Map<String, CoinGeckoPriceDto> = try {
+                coinGeckoApi.getPrices(
+                    ids = ids.joinToString(","),
+                    // "usd" est indispensable : CoinGecko ne renvoie la variation
+                    // 24 h (usd_24h_change) que si le dollar est demandé.
+                    vsCurrencies = "usd,xof",
+                    include24hChange = true,
+                    includeMarketCap = false
+                )
+            } catch (_: Exception) { emptyMap() }
+            val nonCotees = ids.filter { (coursPrincipaux[it]?.usd ?: 0.0) <= 0.0 }
+            val prices = if (nonCotees.isEmpty()) coursPrincipaux
+                else coursPrincipaux + priceFallback.pricesByCoinGeckoId(nonCotees)
+            if (prices.isEmpty()) return Result.success()
 
             if (moveEnabled) checkMoves(prices)
             checkTargets(alerts, prices)
