@@ -97,12 +97,28 @@ class SendCryptoUseCase @Inject constructor(
 
         Même raison pour les tokens : la signature applique un plancher de
         100 000 de gas, l'écran comptait 65 000.
+
+        NUANCE POUR LES JETONS, depuis que la signature utilise l'estimation
+        réelle du nœud plutôt que le plancher : l'écran peut désormais annoncer
+        un peu PLUS que ce que la signature réserve. C'est le sens sûr.
+
+        Le sens dangereux — écran en dessous de la signature — ne peut faire
+        qu'une victime : un envoi calculé au plus juste sur le total affiché,
+        rejeté ensuite par le nœud. Or ce calcul n'existe pas pour un jeton :
+        les frais sont en ETH/BNB, le montant envoyé est en jeton, et le
+        bouton « Max » ne soustrait donc jamais l'un de l'autre. Seuls les
+        envois NATIFS sont concernés, et eux gardent une limite fixe des deux
+        côtés.
         ───────────────────────────────────────────────────────────────────
          */
         /** Transfert natif ETH/BNB : 21 000 × marge 1,2 (identique à la signature). */
         const val GAS_LIMIT_NATIVE = 25_200L
 
-        /** Transfert ERC-20/BEP-20 : plancher appliqué à la signature. */
+        /**
+         * Transfert ERC-20/BEP-20 : repli quand `eth_estimateGas` échoue, et
+         * base de l'estimation affichée à l'écran. La signature, elle, part de
+         * l'estimation réelle du nœud dès qu'elle est disponible.
+         */
         const val GAS_LIMIT_TOKEN = 100_000L
     }
 
@@ -318,14 +334,43 @@ class SendCryptoUseCase @Inject constructor(
             val callData  = "0xa9059cbb$paddedTo$paddedAmt"
             val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
                 mapOf("from" to fromAddress, "to" to contractAddress, "data" to callData) as Any))
-            val estimatedGas = try {
-                BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0xEA60")
-                    .removePrefix("0x"), 16)
-                    .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
-            } catch (_: Exception) { BigInteger.valueOf(72_000L) }
-            // Plancher généreux pour un transfert de token (évite tout revert
-            // « out of gas » sur certains BEP-20/ERC-20).
-            val gasLimit = estimatedGas.max(BigInteger.valueOf(GAS_LIMIT_TOKEN))
+            /*
+            ─── LIMITE DE GAS : L'ESTIMATION D'ABORD, LE PLANCHER ENSUITE ───
+
+            Le nœud est INTERROGÉ juste au-dessus (eth_estimateGas), qui
+            simule le transfert sur l'état réel de la chaîne. Le résultat
+            était ensuite écrasé par `.max(100 000)` — l'estimation était donc
+            demandée, payée en temps de réponse, puis jetée.
+
+            Ce n'est pas gratuit. Ethereum exige
+            `solde >= maxFeePerGas × gasLimit` pour ACCEPTER la transaction,
+            et cette limite est une RÉSERVE : le gas non consommé est rendu.
+            Réserver 100 000 quand le transfert en consomme 50 000 double donc
+            le solde d'ETH exigé, sans que l'utilisateur dépense un centime de
+            plus au final.
+
+            Effet observé : un portefeuille contenant 1,80 $ d'ETH se voyait
+            refuser un envoi de SHIB dont les frais réels tournaient autour de
+            0,70 $. Le refus était exact au regard de la règle du protocole —
+            et absurde au regard du solde réellement nécessaire.
+
+            La marge de 25 % couvre l'écart entre la simulation et l'exécution
+            (un premier transfert vers une adresse qui ne détient pas encore
+            le jeton écrit un emplacement de stockage neuf, plus cher).
+
+            Le plancher reste le repli quand l'estimation ÉCHOUE : sans donnée,
+            la prudence est le seul choix défendable — un « out of gas » coûte
+            les frais sans transférer le jeton.
+            ────────────────────────────────────────────────────────────────
+             */
+            val estimation: BigInteger? = try {
+                val hex = (rpc.rpcCall(estimateReq).result as? String)?.removePrefix("0x")
+                if (hex.isNullOrEmpty()) null
+                else BigInteger(hex, 16).takeIf { it.signum() > 0 }
+            } catch (_: Exception) { null }
+            val gasLimit = estimation
+                ?.multiply(BigInteger.valueOf(125))?.divide(BigInteger.valueOf(100))
+                ?: BigInteger.valueOf(GAS_LIMIT_TOKEN)
 
             val signed: String
             val feePerGas: BigInteger
@@ -354,9 +399,30 @@ class SendCryptoUseCase @Inject constructor(
                         val unit = if (chainId == 1L) "ETH" else "BNB"
                         val need = java.math.BigDecimal(gasCost).movePointLeft(18)
                             .setScale(6, java.math.RoundingMode.UP).stripTrailingZeros().toPlainString()
+                        val dispo = java.math.BigDecimal(nativeBal).movePointLeft(18)
+                            .setScale(6, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+                        /*
+                        Le message annonçait un montant SANS dire ce qu'il est.
+
+                        Ce chiffre est une RÉSERVE, pas une dépense : le réseau
+                        exige de la bloquer pour accepter la transaction, puis
+                        rend tout le gas non consommé. La dépense réelle est
+                        nettement plus basse. Sans cette précision, quelqu'un
+                        qui détient de quoi payer les frais lit « il te faut
+                        plus d'ETH » et conclut que l'application se trompe.
+
+                        On affiche aussi le solde DISPONIBLE : sans les deux
+                        nombres côte à côte, impossible de savoir combien il
+                        manque.
+                         */
                         return Result.Error(
-                            "Les frais réseau d'un envoi de token se paient en $unit : " +
-                                "il te faut au moins ~$need $unit sur ce wallet. Recharge d'abord ton $unit."
+                            "Les frais réseau d'un envoi de jeton se paient en $unit, " +
+                                "jamais dans le jeton envoyé.\n\n" +
+                                "Réserve exigée par le réseau : ~$need $unit\n" +
+                                "Disponible sur ce wallet : $dispo $unit\n\n" +
+                                "Cette réserve est un plafond : le $unit non consommé " +
+                                "t'est rendu, la dépense réelle sera plus faible. " +
+                                "Le réseau exige quand même de pouvoir la bloquer."
                         )
                     }
                 }
