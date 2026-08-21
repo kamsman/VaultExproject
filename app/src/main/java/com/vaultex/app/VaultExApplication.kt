@@ -87,12 +87,28 @@ class VaultExApplication : Application(), Configuration.Provider {
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .build()
 
-    /** Vérification des alertes de prix toutes les 15 minutes. */
+    /*
+     * Vérification des alertes de prix — toutes les HEURES, plus toutes les
+     * 15 minutes.
+     *
+     * Le quota gratuit de CoinGecko est de 10 000 appels par MOIS. À 15
+     * minutes, ce seul worker en consommait 96 par jour et par téléphone,
+     * soit près de 2 900 par mois — l'essentiel du quota, avant même qu'un
+     * utilisateur ait ouvert l'application. Deux téléphones de test l'ont
+     * épuisé, et l'API a répondu 429 sur tout : plus aucun prix affiché.
+     *
+     * Une heure ramène ce coût à 720 appels par mois et par téléphone. Pour
+     * une alerte de prix, l'écart est sans conséquence : personne ne surveille
+     * un seuil à la minute près sur un portefeuille mobile.
+     *
+     * Android n'accepte de toute façon pas de garantie plus fine : la période
+     * est un minimum, pas une promesse.
+     */
     private fun schedulePriceAlertChecks() {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             PriceAlertWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
-            PeriodicWorkRequestBuilder<PriceAlertWorker>(15, TimeUnit.MINUTES)
+            PeriodicWorkRequestBuilder<PriceAlertWorker>(1, TimeUnit.HOURS)
                 .setConstraints(reseauRequis).build()
         )
     }

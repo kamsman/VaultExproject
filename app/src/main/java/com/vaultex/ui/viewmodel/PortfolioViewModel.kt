@@ -505,21 +505,52 @@ class PortfolioViewModel @Inject constructor(
         val prevByContract = prevBySymbol.values
             .filter { it.isCustom && it.contractAddress != null }
             .associateBy { it.contractAddress!!.lowercase() }
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN SEUL APPEL PAR PLATEFORME, ET NON UN PAR JETON
+        ═══════════════════════════════════════════════════════════════════
+
+        Le prix de chaque jeton était demandé séparément, à l'intérieur de la
+        boucle. Avec cinq jetons, une ouverture de l'accueil coûtait cinq
+        appels — plus un pour les monnaies natives.
+
+        Le quota gratuit de CoinGecko est de 10 000 appels par MOIS. Deux
+        téléphones de test l'ont épuisé, et l'API a répondu 429 sur tout :
+        plus aucun prix affiché, et le canal d'administration noyé sous les
+        alertes « Service indisponible ».
+
+        Le paramètre s'appelle `contract_addresses` — au PLURIEL. CoinGecko
+        accepte une liste séparée par des virgules et renvoie une entrée par
+        adresse. Un appel par plateforme suffit donc : deux au maximum, quel
+        que soit le nombre de jetons.
+
+        Passer de N+1 à 2 appels divise la consommation par plus de trois dès
+        cinq jetons, et l'écart grandit avec chaque jeton ajouté.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        val prixParContrat: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
+            withContext(Dispatchers.IO) {
+                customs.groupBy { if (it.blockchain == "BNB") "binance-smart-chain" else "ethereum" }
+                    .flatMap { (plateforme, jetons) ->
+                        val adresses = jetons.joinToString(",") { it.contractAddress.lowercase() }
+                        try {
+                            coinGeckoApi.getTokenPrice(plateforme, adresses).entries
+                                .map { it.key.lowercase() to it.value }
+                        } catch (_: Exception) { emptyList() }
+                    }.toMap()
+            }
+
         customs.map { entity ->
             async(Dispatchers.IO) {
                 val isBnb = entity.blockchain == "BNB"
                 val rpc = if (isBnb) bnbRpc else ethRpc
                 val address = if (isBnb) bnbAddress else ethAddress
                 val chain = if (isBnb) Blockchain.BNB_CHAIN else Blockchain.ETHEREUM
-                val platform = if (isBnb) "binance-smart-chain" else "ethereum"
 
                 val bal = fetchErc20Balance(rpc, entity.contractAddress, address, entity.decimals)
 
-                // Prix par contrat (clé = adresse en minuscules dans la réponse).
-                val price = try {
-                    coinGeckoApi.getTokenPrice(platform, entity.contractAddress.lowercase())
-                        .entries.firstOrNull()?.value
-                } catch (_: Exception) { null }
+                // Prix relevé dans la réponse groupée (clé = adresse en minuscules).
+                val price = prixParContrat[entity.contractAddress.lowercase()]
                 // Prix COLLANT : si CoinGecko échoue, on réutilise le dernier prix
                 // connu pour ce contrat (jamais « 00 » une fois récupéré).
                 val prev = prevByContract[entity.contractAddress.lowercase()]
