@@ -20,6 +20,7 @@ import javax.inject.Inject
 class AlertsViewModel @Inject constructor(
     private val priceAlertUseCase: PriceAlertUseCase,
     private val coinGeckoApi: CoinGeckoApi,
+    private val priceFallback: com.vaultex.data.repository.PriceFallbackSource,
     private val moveSettings: PriceMoveSettings
 ) : ViewModel() {
 
@@ -55,16 +56,38 @@ class AlertsViewModel @Inject constructor(
 
     fun refreshPrices() {
         viewModelScope.launch {
-            val prices = withContext(Dispatchers.IO) {
-                try {
-                    coinGeckoApi.getPrices(
-                        ids = SYMBOL_TO_COINGECKO_ID.values.joinToString(","),
-                        vsCurrencies = "xof",
-                        include24hChange = false,
-                        includeMarketCap = false
-                    )
-                } catch (_: Exception) {
-                    emptyMap()
+            val coursPrincipaux: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
+                withContext(Dispatchers.IO) {
+                    try {
+                        coinGeckoApi.getPrices(
+                            ids = SYMBOL_TO_COINGECKO_ID.values.joinToString(","),
+                            vsCurrencies = "xof",
+                            include24hChange = false,
+                            includeMarketCap = false
+                        )
+                    } catch (_: Exception) {
+                        emptyMap()
+                    }
+                }
+            /*
+             * Même source de secours que l'accueil.
+             *
+             * Sans elle, cet écran restait le dernier à afficher des prix
+             * vides quand le quota de CoinGecko était épuisé — pendant que
+             * l'accueil, lui, affichait des montants justes. Deux écrans de
+             * la même application en désaccord sur le prix du Bitcoin, c'est
+             * une raison de douter des DEUX.
+             *
+             * Le prix montré ici n'est pas décoratif : c'est celui que
+             * l'utilisateur regarde pour choisir le seuil de son alerte.
+             */
+            val nonCotees = SYMBOL_TO_COINGECKO_ID.values.filter {
+                (coursPrincipaux[it]?.xof ?: 0.0) <= 0.0
+            }
+            val prices = if (nonCotees.isEmpty()) coursPrincipaux else {
+                coursPrincipaux + withContext(Dispatchers.IO) {
+                    try { priceFallback.pricesByCoinGeckoId(nonCotees) }
+                    catch (_: Exception) { emptyMap() }
                 }
             }
             _currentPricesXof.value = SYMBOL_TO_COINGECKO_ID.mapNotNull { (symbol, id) ->

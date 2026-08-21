@@ -15,8 +15,8 @@ import kotlin.math.abs
  * désactiver, ou choisir à partir de quel pourcentage il veut être dérangé.
  *
  * Le vrai piège de ce genre de notification, c'est le harcèlement : une
- * variation sur 24 h oscille autour du seuil et déclencherait une alerte
- * toutes les 15 minutes. [evaluate] applique donc deux règles :
+ * variation sur 24 h oscille autour du seuil et déclencherait une alerte à
+ * chaque passage du worker. [evaluate] applique donc deux règles :
  *
  * 1. **Réarmement** : tant que la variation reste au-dessus du seuil, on ne
  *    renotifie pas. Il faut qu'elle soit redescendue en dessous pour qu'un

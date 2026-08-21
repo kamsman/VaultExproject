@@ -18,7 +18,7 @@ import java.text.NumberFormat
 import java.util.Locale
 
 /**
- * Worker de prix, exécuté toutes les 15 min. Il fait DEUX choses en un seul
+ * Worker de prix, exécuté toutes les heures. Il fait DEUX choses en un seul
  * appel réseau :
  *
  * 1. **Alertes de variation** (automatiques, actives par défaut) : prévient
@@ -95,8 +95,10 @@ class PriceAlertWorker @AssistedInject constructor(
             éteindre les alertes de prix pour des heures, sans que rien ne
             l'indique.
 
-            Le travail repasse de toute façon dans 15 minutes : renoncer à ce
-            cycle-ci est la bonne réponse, réessayer en boucle ne l'est pas.
+            Le travail repasse de toute façon à l'heure suivante : renoncer à
+            ce cycle-ci est la bonne réponse, réessayer en boucle ne l'est pas.
+            La mesure surveillée est une variation sur 24 h — sauter un cycle
+            n'y change quasiment rien.
              */
             com.vaultex.core.monitoring.reportUnlessCancelled("alertes de prix", e)
             Result.success()
