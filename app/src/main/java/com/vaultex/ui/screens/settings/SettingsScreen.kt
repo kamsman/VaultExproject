@@ -39,9 +39,39 @@ import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.SettingsViewModel
 
-/** Livre blanc VaultEx (PDF) — téléchargement direct depuis Google Drive. */
+/*
+ * Livre blanc VaultEx (PDF) — téléchargement direct depuis Google Drive.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POUR METTRE À JOUR LE LIVRE BLANC : NE PAS TOUCHER À CETTE LIGNE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Sur Drive, ce qui identifie un fichier est cet IDENTIFIANT, jamais son
+ * nom. Supprimer le PDF et en téléverser un autre — même nommé exactement
+ * pareil — crée un fichier NEUF, avec un identifiant neuf. L'application
+ * continue alors d'ouvrir l'ancien, et personne ne comprend pourquoi.
+ *
+ * C'est arrivé : l'ancien identifiant a servi l'ancien contenu pendant
+ * toute une révision, y compris après suppression du fichier — un élément
+ * à la corbeille reste accessible par lien direct. Puis Drive vide la
+ * corbeille au bout de trente jours, et le lien meurt dans tous les APK
+ * déjà distribués.
+ *
+ * LA BONNE MANŒUVRE, à chaque révision : sur ORDINATEUR (l'application
+ * mobile Drive n'a pas cette fonction), clic droit sur le fichier →
+ * Informations sur le fichier → Gérer les versions → Importer une nouvelle
+ * version. L'identifiant est conservé, le partage aussi, et le nouveau
+ * contenu atteint IMMÉDIATEMENT tous les téléphones — y compris ceux qui
+ * ont une version ancienne de l'application. Aucun APK à redistribuer.
+ *
+ * Vérifier ensuite en navigation privée, jamais connecté au compte
+ * propriétaire : c'est le seul moyen de voir ce que voit un utilisateur.
+ * Le partage doit rester « Tous les utilisateurs disposant du lien »,
+ * en rôle Lecteur — un téléversement le remet en privé par défaut.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 private const val WHITEPAPER_URL =
-    "https://drive.google.com/uc?export=download&id=1vW-rLpkl6Ws0GisCw_2tu3gq-6BZI5ZG"
+    "https://drive.google.com/uc?export=download&id=1mvfcJ2PpN8xCRCGVYO0jvbvH4nxBDWia"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
