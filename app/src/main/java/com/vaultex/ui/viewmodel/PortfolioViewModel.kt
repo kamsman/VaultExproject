@@ -192,12 +192,50 @@ class PortfolioViewModel @Inject constructor(
         private const val DELAI_RESCAN = 3 * 60 * 1000L
 
         private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        DURÉE DE VIE DES COURS — LE POSTE DE DÉPENSE PRINCIPAL
+        ═══════════════════════════════════════════════════════════════════
+
+        L'accueil se rafraîchit tout seul toutes les 45 secondes tant qu'il
+        est affiché (DashboardScreen). C'est voulu : on veut voir un dépôt
+        arriver sans avoir à toucher l'écran.
+
+        Mais chaque passage relisait AUSSI les cours, jusqu'à trois appels
+        CoinGecko — soit 240 appels par heure d'écran ouvert. Le quota
+        gratuit est de 10 000 par MOIS. Quelques heures passées sur
+        l'accueil suffisaient donc à l'épuiser, et l'API répondait ensuite
+        429 sur tout : plus un seul prix affiché, sur tous les téléphones.
+
+        Or ce cycle de 45 secondes existe pour les SOLDES, qui viennent des
+        nœuds des chaînes et ne coûtent rien à ce quota. Les cours, eux,
+        n'ont aucune raison d'être relus si souvent : aucune monnaie ne
+        bouge assez en 45 secondes pour que ça change quoi que ce soit à
+        l'écran.
+
+        Les deux sont donc désormais découplés. Les soldes continuent d'être
+        relus à chaque cycle ; les cours sont réutilisés pendant cinq
+        minutes. La consommation passe de 240 à 12 appels par heure d'écran.
+
+        Un rafraîchissement DEMANDÉ par l'utilisateur ignore ce cache : qui
+        tire sur la liste pour rafraîchir attend des données fraîches, et
+        c'est un geste rare.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        private const val TTL_COURS = 5 * 60 * 1000L
         private const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
         private const val USDT_ETH_CONTRACT  = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
         private const val USDT_BNB_CONTRACT  = "0x55d398326f99059fF775485246999027B3197955"
     }
 
     private val gson = com.google.gson.Gson()
+
+    /* Derniers cours connus et leur âge — voir TTL_COURS. */
+    private var coursEnCache: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> = emptyMap()
+    private var coursHorodatage = 0L
+    private var prixContratEnCache: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> = emptyMap()
+    private var prixContratHorodatage = 0L
 
     private data class Snapshot(
         val totalBalanceXof: Double,
@@ -273,8 +311,15 @@ class PortfolioViewModel @Inject constructor(
                 }
                 val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
 
+                // Cours réutilisés pendant TTL_COURS sur un rafraîchissement
+                // automatique ; toujours relus si l'utilisateur le demande.
+                val maintenant = System.currentTimeMillis()
+                val coursPerimes = !silent ||
+                    coursEnCache.isEmpty() ||
+                    maintenant - coursHorodatage > TTL_COURS
+
                 val coursPrincipaux: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
-                    withContext(Dispatchers.IO) {
+                    if (!coursPerimes) coursEnCache else withContext(Dispatchers.IO) {
                         try {
                             coinGeckoApi.getPrices(
                                 ids = COIN_IDS.joinToString(","),
@@ -304,13 +349,32 @@ class PortfolioViewModel @Inject constructor(
                 par la source principale n'est pas retouchée.
                 ═══════════════════════════════════════════════════════════
                  */
-                val nonCotees = COIN_IDS.filter { (coursPrincipaux[it]?.usd ?: 0.0) <= 0.0 }
-                val prices = if (nonCotees.isEmpty()) coursPrincipaux else {
+                val nonCotees = if (!coursPerimes) emptyList()
+                    else COIN_IDS.filter { (coursPrincipaux[it]?.usd ?: 0.0) <= 0.0 }
+                val coursFusionnes = if (nonCotees.isEmpty()) coursPrincipaux else {
                     coursPrincipaux + withContext(Dispatchers.IO) {
                         try { priceFallback.pricesByCoinGeckoId(nonCotees) }
                         catch (_: Exception) { emptyMap() }
                     }
                 }
+                /*
+                Mémorisé UNIQUEMENT après un relevé réel.
+
+                Sans la condition sur `coursPerimes`, servir le cache le
+                réhorodaterait à chaque passage : l'échéance de cinq minutes
+                serait repoussée indéfiniment et les cours ne seraient plus
+                jamais relus tant que l'accueil reste ouvert.
+
+                Un relevé vide signifie que les DEUX sources ont échoué. On
+                garde alors l'ancien plutôt que de repartir de rien, et on
+                laisse l'horodatage tel quel pour que le prochain cycle
+                réessaie au lieu d'attendre cinq minutes de plus.
+                 */
+                if (coursPerimes && coursFusionnes.isNotEmpty()) {
+                    coursEnCache = coursFusionnes
+                    coursHorodatage = maintenant
+                }
+                val prices = coursFusionnes.ifEmpty { coursEnCache }
 
                 // Dernier état connu : si une lecture échoue, on RÉUTILISE la
                 // valeur en cache au lieu de la remettre à 0 (fonds jamais perdus).
@@ -442,7 +506,7 @@ class PortfolioViewModel @Inject constructor(
                 // try/catch dédié : leur lecture ne doit JAMAIS casser les 8 actifs
                 // principaux. En cas d'échec, on réutilise le dernier état connu.
                 val customTokens = try {
-                    loadCustomTokens(addresses.eth, addresses.bnb, prevBySymbol)
+                    loadCustomTokens(addresses.eth, addresses.bnb, prevBySymbol, silent)
                 } catch (_: Exception) {
                     _state.value.tokens.filter { it.isCustom }
                 }
@@ -521,7 +585,8 @@ class PortfolioViewModel @Inject constructor(
     private suspend fun loadCustomTokens(
         ethAddress: String,
         bnbAddress: String,
-        prevBySymbol: Map<String, TokenBalance>
+        prevBySymbol: Map<String, TokenBalance>,
+        silent: Boolean
     ): List<TokenBalance> = coroutineScope {
         val initial = withContext(Dispatchers.IO) { tokenRepository.getCustom() }
         // Découverte AUTO des tokens du registre reçus mais jamais activés :
@@ -557,8 +622,15 @@ class PortfolioViewModel @Inject constructor(
         cinq jetons, et l'écart grandit avec chaque jeton ajouté.
         ═══════════════════════════════════════════════════════════════════
          */
+        // Et réutilisés pendant TTL_COURS : le cycle de 45 secondes de
+        // l'accueil sert à voir arriver un dépôt, pas à recoter des jetons.
+        val maintenantJetons = System.currentTimeMillis()
+        val prixJetonsPerimes = !silent ||
+            prixContratEnCache.isEmpty() ||
+            maintenantJetons - prixContratHorodatage > TTL_COURS
+
         val prixParContrat: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
-            withContext(Dispatchers.IO) {
+            if (!prixJetonsPerimes) prixContratEnCache else withContext(Dispatchers.IO) {
                 customs.groupBy { if (it.blockchain == "BNB") "binance-smart-chain" else "ethereum" }
                     .flatMap { (plateforme, jetons) ->
                         val adresses = jetons.joinToString(",") { it.contractAddress.lowercase() }
@@ -590,12 +662,13 @@ class PortfolioViewModel @Inject constructor(
         sans cours quand CoinGecko est muet — exactement comme aujourd'hui.
         ═══════════════════════════════════════════════════════════════════
          */
-        val symboleSurParContrat = customs.mapNotNull { entity ->
-            if ((prixParContrat[entity.contractAddress.lowercase()]?.usd ?: 0.0) > 0.0) null
-            else com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
-                .firstOrNull { it.contract?.equals(entity.contractAddress, ignoreCase = true) == true }
-                ?.let { entity.contractAddress.lowercase() to it.base.uppercase() }
-        }.toMap()
+        val symboleSurParContrat = if (!prixJetonsPerimes) emptyMap() else
+            customs.mapNotNull { entity ->
+                if ((prixParContrat[entity.contractAddress.lowercase()]?.usd ?: 0.0) > 0.0) null
+                else com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
+                    .firstOrNull { it.contract?.equals(entity.contractAddress, ignoreCase = true) == true }
+                    ?.let { entity.contractAddress.lowercase() to it.base.uppercase() }
+            }.toMap()
 
         val prixDeSecours: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
             if (symboleSurParContrat.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
@@ -606,6 +679,17 @@ class PortfolioViewModel @Inject constructor(
                     }.toMap()
                 } catch (_: Exception) { emptyMap() }
             }
+
+        // Même règle que pour les cours natifs : mémorisé seulement après un
+        // relevé réel — réhorodater en servant le cache le rendrait éternel —
+        // et un échec total n'efface pas l'ancien.
+        if (prixJetonsPerimes) {
+            val fusionnes = prixParContrat + prixDeSecours
+            if (fusionnes.isNotEmpty()) {
+                prixContratEnCache = fusionnes
+                prixContratHorodatage = maintenantJetons
+            }
+        }
 
         customs.map { entity ->
             async(Dispatchers.IO) {
