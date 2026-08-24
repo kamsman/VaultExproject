@@ -159,6 +159,66 @@ class SendCryptoUseCase @Inject constructor(
         return a in burn || a in tokenContracts
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN ENVOI N'EST « RÉUSSI » QUE SI LE RÉSEAU A RENDU UN VRAI IDENTIFIANT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les chemins d'envoi concluaient ainsi :
+
+        Result.Success(reponse.result as? String ?: signed)      // EVM
+        Result.Success(reponse.result as? String ?: "unknown")   // Solana
+
+    Autrement dit : si le nœud répondait SANS erreur mais SANS identifiant —
+    ce qui arrive avec les nœuds publics, dont les réponses sont parfois
+    tronquées ou malformées — l'application prenait la transaction SIGNÉE
+    entière, ou le mot « unknown », et le traitait comme un identifiant de
+    transaction.
+
+    La suite est mécanique, et c'est là que c'est grave :
+
+    · l'écran annonce « Envoi effectué » ;
+    · une ligne est écrite dans l'historique avec cet identifiant ;
+    · le suivi de confirmation le cherche sur la chaîne — et ne le trouvera
+      JAMAIS, puisqu'il n'existe pas ;
+    · la transaction reste « en attente » indéfiniment, badge compris.
+
+    L'utilisateur est donc informé d'un succès, puis regarde une attente qui
+    ne se résoudra pas. Relancer donne exactement le même résultat. C'est
+    précisément le comportement rapporté en test : « si c'est parti c'est
+    parti, si c'est pas parti c'est pas parti ».
+
+    POURQUOI UNE ERREUR PLUTÔT QU'UN FAUX SUCCÈS. Dans ce cas, l'état réel de
+    la transaction est INCONNU — elle est peut-être partie. Le message le dit
+    donc franchement et demande de vérifier avant de réessayer, au lieu
+    d'affirmer une chose ou son contraire. Et rien n'est écrit dans
+    l'historique : mieux vaut aucune trace qu'une trace fausse.
+
+    Réessayer reste d'ailleurs peu risqué sur ces chaînes : le nonce EVM et
+    les mêmes UTXO Bitcoin reproduisent une transaction IDENTIQUE, donc le
+    même identifiant. Un second envoi ne peut pas doubler le premier.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    private fun identifiantValide(hash: String?, chaine: String): Boolean {
+        val h = hash?.trim().orEmpty()
+        if (h.isEmpty()) return false
+        return when (chaine) {
+            // Ethereum, BNB Chain, Bitcoin, Tron : 32 octets en hexadécimal.
+            // Le préfixe 0x est présent côté EVM, absent côté Bitcoin et Tron.
+            "EVM", "BTC", "TRX" -> h.removePrefix("0x").matches(Regex("^[0-9a-fA-F]{64}$"))
+            // Solana : signature en base58, 64 octets — 86 à 88 caractères.
+            "SOL" -> h.matches(Regex("^[1-9A-HJ-NP-Za-km-z]{80,90}$"))
+            else -> false
+        }
+    }
+
+    /** Réponse sans identifiant exploitable : on ne tranche pas à la place du réseau. */
+    private fun envoiIndetermine() = Result.Error(
+        "Le réseau a répondu sans identifiant de transaction. Impossible de savoir " +
+            "si l'envoi est parti ou non.\n\n" +
+            "Vérifie ton solde et ton historique AVANT de réessayer."
+    )
+
     /** Message affiché quand la destination est une adresse à perte certaine. */
     private fun forbiddenDestinationError() = Result.Error(
         "Cette adresse est celle d'un contrat de jeton ou une adresse de destruction : " +
@@ -303,7 +363,11 @@ class SendCryptoUseCase @Inject constructor(
             val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
                 mutableListOf(signed as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
-            else Result.Success(broadcastRes.result as? String ?: signed)
+            else {
+                val hash = broadcastRes.result as? String
+                if (identifiantValide(hash, "EVM")) Result.Success(hash!!.trim())
+                else envoiIndetermine()
+            }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction EVM")
         }
@@ -431,7 +495,11 @@ class SendCryptoUseCase @Inject constructor(
             val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
                 mutableListOf(signed as Any)))
             if (broadcastRes.error != null) Result.Error(broadcastRes.error.message)
-            else Result.Success(broadcastRes.result as? String ?: signed)
+            else {
+                val hash = broadcastRes.result as? String
+                if (identifiantValide(hash, "EVM")) Result.Success(hash!!.trim())
+                else envoiIndetermine()
+            }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction ERC-20")
         }
@@ -517,7 +585,10 @@ class SendCryptoUseCase @Inject constructor(
                 val body = try { e.response()?.errorBody()?.string()?.trim()?.take(280) } catch (_: Exception) { null }
                 return Result.Error(if (!body.isNullOrBlank()) body else "Diffusion refusée (HTTP ${e.code()})")
             }
-            Result.Success(txHash)
+            // Blockstream renvoie le txid en texte brut. Un corps vide ou un
+            // texte inattendu ne doit pas devenir un identifiant.
+            if (identifiantValide(txHash, "BTC")) Result.Success(txHash.trim())
+            else envoiIndetermine()
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction BTC")
         }
@@ -715,7 +786,11 @@ class SendCryptoUseCase @Inject constructor(
                 JsonRpcRequest("sendTransaction", mutableListOf(txBase64 as Any, mapOf("encoding" to "base64") as Any))
             )
             if (sendRes.error != null) Result.Error(sendRes.error.message)
-            else Result.Success(sendRes.result as? String ?: "unknown")
+            else {
+                val sig = sendRes.result as? String
+                if (identifiantValide(sig, "SOL")) Result.Success(sig!!.trim())
+                else envoiIndetermine()
+            }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Erreur transaction SOL")
         }

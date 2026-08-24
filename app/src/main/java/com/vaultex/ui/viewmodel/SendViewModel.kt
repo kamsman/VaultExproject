@@ -505,6 +505,34 @@ class SendViewModel @Inject constructor(
         if (s.isLoading) return
         preflightError(s)?.let { msg -> _state.update { it.copy(error = msg) }; return }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        VERROU POSÉ AVANT TOUTE COROUTINE
+        ═══════════════════════════════════════════════════════════════════
+
+        `isLoading` n'était mis à vrai qu'à l'intérieur du `launch` du chemin
+        EN LIGNE. Ça suffisait pour lui : viewModelScope démarre sur
+        Main.immediate, donc le bloc s'exécute jusqu'à la première suspension
+        avant de rendre la main, et un second appui trouvait bien le verrou
+        posé.
+
+        Le chemin HORS-LIGNE, lui, ne le posait jamais. Sa protection reposait
+        entièrement sur `countSamePending`, une requête de base de données —
+        donc une SUSPENSION. Deux appuis rapprochés s'y arrêtaient tous les
+        deux avant que le premier n'ait inséré quoi que ce soit, et
+        repartaient tous les deux avec un compte de zéro.
+
+        Deux lignes en file, et le retour du réseau diffuse DEUX transactions
+        réelles. Le montant part deux fois. C'est le seul défaut de cet audit
+        qui coûte de l'argent plutôt que de la clarté.
+
+        Le verrou est donc posé ici, hors de toute coroutine : les deux
+        chemins le partagent, et un second appui est refusé avant même que le
+        premier n'ait eu l'occasion de suspendre.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        _state.update { it.copy(isLoading = true, error = null) }
+
         // Hors-ligne : on met l'INTENTION en file. Elle sera signée (avec un
         // nonce/blockhash frais) et diffusée automatiquement, une seule fois,
         // au retour du réseau via PendingSendWorker.
@@ -524,7 +552,7 @@ class SendViewModel @Inject constructor(
                      */
                     val deja = pendingSendDao.countSamePending(effective, s.toAddress, s.amount)
                     if (deja > 0) {
-                        _state.update { it.copy(queued = true, error = null) }
+                        _state.update { it.copy(queued = true, error = null, isLoading = false) }
                         return@launch
                     }
                     pendingSendDao.insert(
@@ -540,16 +568,18 @@ class SendViewModel @Inject constructor(
                         )
                     )
                     PendingSendWorker.enqueue(appContext)
-                    _state.update { it.copy(queued = true, error = null) }
+                    _state.update { it.copy(queued = true, error = null, isLoading = false) }
                 } catch (e: Exception) {
-                    _state.update { it.copy(error = friendlyError(e.message)) }
+                    // Le verrou DOIT retomber, sinon l'ecran reste bloque et
+                    // l'utilisateur ne peut plus rien envoyer sans redemarrer.
+                    _state.update { it.copy(error = friendlyError(e.message), isLoading = false) }
                 }
             }
             return
         }
 
+        // Le verrou est deja pose plus haut, pour les deux chemins.
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
             val result = sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount, s.serviceFeeAmount)
             when (result) {
                 is SendCryptoUseCase.Result.Success -> {
