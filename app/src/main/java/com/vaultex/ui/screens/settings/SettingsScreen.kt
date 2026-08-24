@@ -345,10 +345,18 @@ fun SettingsScreen(navController: NavHostController) {
                         navController.navigate(Routes.legal("privacy"))
                     }
                     RowDivider()
+                    // Version RÉELLE de l'application, pas une chaîne figée.
+                    // « v1.0.0 » était écrit en dur dans les trois traductions :
+                    // l'écran Aide affichait le vrai numéro pendant qu'« À propos »
+                    // en annonçait un autre, ce qui rend les deux inutilisables
+                    // pour savoir quelle version tourne réellement.
                     SettingsValueRow(
                         Icons.Default.Info,
                         stringResource(R.string.settings_about),
-                        stringResource(R.string.settings_version_short)
+                        stringResource(
+                            R.string.settings_version_short,
+                            com.vaultex.BuildConfig.VERSION_NAME
+                        )
                     )
                 }
             }

@@ -289,7 +289,7 @@
     <string name="settings_price_alerts_subtitle">Configure alerts</string>
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version</string>
-    <string name="settings_version_value">VaultEx 1.0.0</string>
+    <string name="settings_version_value">VaultEx %1$s</string>
     <string name="settings_help">Help &amp; Support</string>
     <string name="settings_whitepaper">VaultEx Whitepaper (PDF)</string>
     <string name="settings_whitepaper_sub">Documents &amp; support — download</string>
@@ -460,7 +460,7 @@
     <string name="settings_tokens_item">Tokens</string>
     <string name="settings_rpc_item">RPC settings</string>
     <string name="settings_about">About</string>
-    <string name="settings_version_short">v1.0.0</string>
+    <string name="settings_version_short">v%1$s</string>
     <string name="settings_language_french">English</string>
     <string name="import_wallet_title">Import wallet</string>
     <string name="import_replace_warning">This action will replace the current wallet</string>

@@ -289,7 +289,7 @@
     <string name="settings_price_alerts_subtitle">إعداد التنبيهات</string>
     <string name="settings_section_about">حول التطبيق</string>
     <string name="settings_version">الإصدار</string>
-    <string name="settings_version_value">VaultEx 1.0.0</string>
+    <string name="settings_version_value">VaultEx %1$s</string>
     <string name="settings_help">المساعدة &amp; الدعم</string>
     <string name="settings_whitepaper">الكتاب الأبيض VaultEx (PDF)</string>
     <string name="settings_whitepaper_sub">المستندات والدعم — تنزيل</string>
@@ -460,7 +460,7 @@
     <string name="settings_tokens_item">الرموز</string>
     <string name="settings_rpc_item">إعدادات RPC</string>
     <string name="settings_about">حول التطبيق</string>
-    <string name="settings_version_short">الإصدار 1.0.0</string>
+    <string name="settings_version_short">الإصدار %1$s</string>
     <string name="settings_language_french">الفرنسية</string>
     <string name="import_wallet_title">استيراد محفظة</string>
     <string name="import_replace_warning">سيستبدل هذا الإجراء المحفظة الحالية</string>
