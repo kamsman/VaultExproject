@@ -68,7 +68,32 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 const COINGECKO = 'https://api.coingecko.com'
-const BINANCE = 'https://api.binance.com'
+
+/*
+HÔTES BINANCE, PAR ORDRE DE PRÉFÉRENCE — CHOISIS SUR MESURE
+
+`api.binance.com` répond 403 depuis un Worker, avec une page d'erreur
+CloudFront : Binance filtre les adresses de centres de données, et
+Cloudflare en est un. Même refus pour `api1` et `data-api.binance.vision`.
+
+Seul `api-gcp.binance.com` a répondu 200. Ce n'est pas une déduction, c'est
+une sonde exécutée depuis le Worker déployé — voir /diag, qui reste en
+place pour refaire la mesure le jour où celui-ci se fermerait à son tour.
+
+L'ordre compte : le premier hôte qui répond gagne. Les suivants ne coûtent
+rien à conserver puisqu'ils parlent la même langue, et ils reprendront le
+service si la situation s'inverse — ce genre de filtrage change sans
+préavis.
+
+Si TOUS venaient à tomber, le relais bascule sur CoinGecko (voir
+coursSimples), et l'application garde de son côté son propre appel direct à
+Binance depuis les connexions mobiles, qui ne sont pas filtrées.
+*/
+const HOTES_BINANCE = [
+  'https://api-gcp.binance.com',
+  'https://api.binance.com',
+  'https://api1.binance.com',
+]
 
 /*
 CoinGecko REFUSE les requêtes sans User-Agent descriptif — code 403, avec
@@ -253,17 +278,25 @@ function ligne(usd, eurUsd, variation) {
 async function ajouteTickers(cible, bases) {
   if (bases.length === 0) return
   const symboles = JSON.stringify(bases.map((b) => `${b}USDT`))
-  const r = await fetch(
-    `${BINANCE}/api/v3/ticker/24hr?symbols=${encodeURIComponent(symboles)}`,
-    {
-      headers: { 'user-agent': AGENT, accept: 'application/json' },
-      cf: { cacheTtl: TTL_COURS, cacheEverything: true },
+  // Premier hôte qui répond, dans l'ordre de HOTES_BINANCE.
+  for (const hote of HOTES_BINANCE) {
+    try {
+      const r = await fetch(
+        `${hote}/api/v3/ticker/24hr?symbols=${encodeURIComponent(symboles)}`,
+        {
+          headers: { 'user-agent': AGENT, accept: 'application/json' },
+          cf: { cacheTtl: TTL_COURS, cacheEverything: true },
+        }
+      )
+      if (!r.ok) continue
+      const liste = await r.json()
+      if (!Array.isArray(liste) || liste.length === 0) continue
+      for (const t of liste) cible[t.symbol] = t
+      return
+    } catch (_) {
+      // hôte injoignable : on essaie le suivant
     }
-  )
-  if (!r.ok) return
-  const liste = await r.json()
-  if (!Array.isArray(liste)) return
-  for (const t of liste) cible[t.symbol] = t
+  }
 }
 
 /**
