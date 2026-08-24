@@ -69,6 +69,61 @@ fun signingValue(prop: String, env: String): String? =
 val releaseStorePath = signingValue("storeFile", "VAULTEX_STORE_FILE")
 val hasReleaseKeystore = releaseStorePath != null && rootProject.file(releaseStorePath).exists()
 
+/*
+══════════════════════════════════════════════════════════════════════════
+NUMÉRO DE VERSION — CALCULÉ, JAMAIS SAISI À LA MAIN
+══════════════════════════════════════════════════════════════════════════
+
+`versionCode` valait 1 depuis le premier jour. Tous les APK jamais produits
+portaient donc le MÊME numéro.
+
+Or c'est ce numéro, et lui seul, qui dit à Android qu'un paquet est plus
+récent que celui déjà installé. Face à un numéro identique, beaucoup
+d'installateurs — ceux de Xiaomi, Samsung et Huawei en particulier, très
+répandus sur le marché visé — affichent « installé » SANS rien remplacer.
+Le testeur croit avoir mis à jour, l'ancien code continue de tourner, et
+aucune correction ne se voit. Désinstaller supprime la comparaison : d'où
+le remède empirique trouvé par les testeurs, « désinstaller puis
+réinstaller », qui masquait la vraie cause.
+
+Le numéro est donc DÉRIVÉ DU NOMBRE DE COMMITS. Il augmente tout seul à
+chaque validation, sans rien à penser — et une discipline qu'on doit
+penser est une discipline qu'on oublie, surtout à la fin d'une longue
+séance de corrections.
+
+`versionName` reprend ce numéro (« 1.0.365 ») pour qu'il soit LISIBLE dans
+l'application. Sans ça, impossible de savoir à distance quelle version un
+testeur fait réellement tourner : c'est la question qu'on se pose d'abord
+quand quelqu'un dit « ça n'a rien changé chez moi ».
+
+REPLI. Sans dépôt git (archive, machine sans git), le calcul échoue. On
+n'invente alors PAS un numéro : un numéro trop bas serait refusé par
+Android, un numéro trop haut interdirait toutes les mises à jour futures.
+Le build s'arrête en nommant la solution — renseigner version.code dans
+local.properties, qui prend de toute façon le pas quand il est présent.
+══════════════════════════════════════════════════════════════════════════
+*/
+val versionCodeCalcule: Int = run {
+    val force = localProps.getProperty("version.code")?.trim()?.toIntOrNull()
+    if (force != null && force > 0) return@run force
+    val depuisGit = try {
+        val p = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+            .directory(rootProject.projectDir)
+            .redirectErrorStream(true)
+            .start()
+        val sortie = p.inputStream.bufferedReader().readText().trim()
+        p.waitFor()
+        sortie.toIntOrNull()?.takeIf { it > 0 }
+    } catch (_: Exception) { null }
+    depuisGit ?: throw GradleException(
+        "Impossible de calculer versionCode : ni dépôt git utilisable, ni " +
+            "version.code dans local.properties.\n" +
+            "Ajoute une ligne « version.code=N » (N strictement supérieur au " +
+            "numéro du dernier APK distribué), sinon Android refusera la mise " +
+            "à jour ou l'appliquera sans rien remplacer."
+    )
+}
+
 android {
     namespace = "com.vaultex"
     compileSdk = 34
@@ -77,8 +132,8 @@ android {
         applicationId = "com.vaultex"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = versionCodeCalcule
+        versionName = "1.0.$versionCodeCalcule"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

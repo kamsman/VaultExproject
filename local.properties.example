@@ -92,3 +92,17 @@ cert.pinning=true
 # VIDE = appel direct à CoinGecko, comportement d'avant. Sans risque.
 # Barre oblique finale COMPRISE.
 prix.relay.url=
+
+# ─── Numéro de version (facultatif) ───────────────────────────────────────
+# Normalement CALCULÉ à partir du nombre de commits git : il augmente tout
+# seul, sans rien à penser. Ce réglage n'existe que pour les machines sans
+# dépôt git (archive du projet, intégration continue).
+#
+# Ce numéro est ce qui dit à Android qu'un paquet est plus récent que celui
+# installé. S'il ne change pas, beaucoup d'installateurs affichent
+# « installé » SANS rien remplacer — la mise à jour semble ne rien changer,
+# et il faut désinstaller pour que le nouveau code s'applique.
+#
+# Si tu le renseignes : N doit être STRICTEMENT SUPÉRIEUR au numéro du
+# dernier APK distribué. Un numéro plus bas fait refuser l'installation.
+version.code=
