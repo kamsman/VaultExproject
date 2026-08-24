@@ -70,6 +70,15 @@ identifiant, ni clé. Uniquement des cours publics.
 const COINGECKO = 'https://api.coingecko.com'
 const BINANCE = 'https://api.binance.com'
 
+/*
+CoinGecko REFUSE les requêtes sans User-Agent descriptif — code 403, avec
+un message qui explique la règle. Un navigateur en envoie un tout seul ;
+`fetch` depuis un Worker, non. Sans cet en-tête, tout le chemin de repli
+vers CoinGecko était mort, et l'erreur ressemblait à un problème de clé ou
+de quota alors qu'il n'en était rien.
+*/
+const AGENT = 'VaultEx-Wallet/1.0 (+https://github.com/kamsman/vaultexproject)'
+
 /** Parité fixe et légale du franc CFA avec l'euro. Ce n'est pas un cours. */
 const XOF_PAR_EURO = 655.957
 
@@ -130,6 +139,10 @@ export default {
     // Sonde de vie : permet de vérifier le déploiement sans lancer l'app.
     if (url.pathname === '/' || url.pathname === '/sante') {
       return json({ ok: true, service: 'relais-cours-vaultex' })
+    }
+
+    if (url.pathname === '/diag') {
+      return await diagnostic(env)
     }
 
     if (url.pathname === '/api/v3/simple/price') {
@@ -242,12 +255,61 @@ async function ajouteTickers(cible, bases) {
   const symboles = JSON.stringify(bases.map((b) => `${b}USDT`))
   const r = await fetch(
     `${BINANCE}/api/v3/ticker/24hr?symbols=${encodeURIComponent(symboles)}`,
-    { cf: { cacheTtl: TTL_COURS, cacheEverything: true } }
+    {
+      headers: { 'user-agent': AGENT, accept: 'application/json' },
+      cf: { cacheTtl: TTL_COURS, cacheEverything: true },
+    }
   )
   if (!r.ok) return
   const liste = await r.json()
   if (!Array.isArray(liste)) return
   for (const t of liste) cible[t.symbol] = t
+}
+
+/**
+ * Sonde de diagnostic : que répondent RÉELLEMENT les deux sources ?
+ *
+ * Sans elle, un relais qui renvoie une erreur ne dit pas laquelle des deux
+ * sources a échoué ni pourquoi : Binance muet est indiscernable d'un repli
+ * CoinGecko refusé, et les deux produisent le même symptôme à l'écran.
+ *
+ * C'est exactement le piège rencontré ici : la réponse affichait une erreur
+ * CoinGecko, ce qui donnait à croire à un problème de quota ou de clé, alors
+ * que la vraie question était « pourquoi Binance n'a-t-il pas répondu ? ».
+ *
+ * Ce point d'entrée n'expose aucun secret — deux appels publics et leur code
+ * de retour.
+ */
+async function diagnostic(env) {
+  const sondes = {}
+
+  try {
+    const r = await fetch(
+      `${BINANCE}/api/v3/ticker/24hr?symbols=${encodeURIComponent('["BTCUSDT"]')}`,
+      { headers: { 'user-agent': AGENT, accept: 'application/json' } }
+    )
+    sondes.binance = { code: r.status, extrait: (await r.text()).slice(0, 300) }
+  } catch (e) {
+    sondes.binance = { erreur: String(e).slice(0, 300) }
+  }
+
+  try {
+    const entetes = { 'user-agent': AGENT, accept: 'application/json' }
+    if (env && env.COINGECKO_KEY) entetes['x-cg-demo-api-key'] = env.COINGECKO_KEY
+    const r = await fetch(
+      `${COINGECKO}/api/v3/simple/price?ids=bitcoin&vs_currencies=usd`,
+      { headers: entetes }
+    )
+    sondes.coingecko = {
+      code: r.status,
+      cle_presente: Boolean(env && env.COINGECKO_KEY),
+      extrait: (await r.text()).slice(0, 300),
+    }
+  } catch (e) {
+    sondes.coingecko = { erreur: String(e).slice(0, 300) }
+  }
+
+  return json(sondes)
 }
 
 /**
@@ -259,7 +321,7 @@ async function ajouteTickers(cible, bases) {
  */
 async function relaisCoinGecko(url, env, ttl) {
   const cible = new URL(COINGECKO + url.pathname + url.search)
-  const entetes = {}
+  const entetes = { 'user-agent': AGENT, accept: 'application/json' }
   // Clé Demo facultative : elle relève les limites de débit. Elle reste ici,
   // côté serveur — c'est précisément l'intérêt d'avoir un relais.
   if (env && env.COINGECKO_KEY) entetes['x-cg-demo-api-key'] = env.COINGECKO_KEY
