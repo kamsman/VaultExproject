@@ -354,9 +354,22 @@ async function diagnostic(env) {
       `${COINGECKO}/api/v3/simple/price?ids=bitcoin&vs_currencies=usd`,
       { headers: entetes }
     )
+    /*
+    On rapporte la LONGUEUR de la clé, jamais sa valeur.
+
+    « Présente ou absente » ne suffit pas à diagnostiquer : une liaison
+    manquante et une valeur vide donnent le même faux, et Cloudflare affiche
+    « Value encrypted » dans les deux cas. La longueur les sépare —
+    `undefined` pour une liaison absente, `0` pour un collage qui n'a pas
+    pris, une trentaine de caractères pour une clé correcte — sans rien
+    révéler d'exploitable.
+    */
     sondes.coingecko = {
       code: r.status,
       cle_presente: Boolean(env && env.COINGECKO_KEY),
+      cle_longueur: env && typeof env.COINGECKO_KEY === 'string'
+        ? env.COINGECKO_KEY.length
+        : null,
       extrait: (await r.text()).slice(0, 300),
     }
   } catch (e) {
