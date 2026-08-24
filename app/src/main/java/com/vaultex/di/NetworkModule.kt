@@ -31,11 +31,41 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        DÉLAIS D'ATTENTE — CALIBRÉS POUR UNE CONNEXION LENTE
+        ═══════════════════════════════════════════════════════════════════
+
+        Les trois valeurs étaient à 8 secondes, pour basculer vite sur un
+        nœud RPC de secours. Le raisonnement était bon, la conséquence ne
+        l'était pas.
+
+        L'accueil déclenche une dizaine d'appels SIMULTANÉS — huit chaînes,
+        les jetons, les cours. Sur la 3G du marché visé, ils se partagent
+        une bande passante étroite : chacun attend son tour, et le compteur
+        de 8 secondes court pendant cette attente. Les lectures les plus
+        tardives expiraient donc alors que le réseau fonctionnait.
+
+        C'est ce que produit le bandeau « Total incomplet : ETH, BNB, TRX
+        illisibles ». Et la suite est pire qu'un bandeau : quand une lecture
+        échoue, le solde précédent est conservé — protection volontaire pour
+        ne pas afficher un faux zéro. Des fonds reçus restent donc INVISIBLES
+        tant qu'aucune lecture n'aboutit. Constaté : un envoi confirmé sur la
+        chaîne, absent de l'application, et réapparu après une réinstallation
+        — la réinstallation ayant simplement effacé le solde mémorisé.
+
+        On sépare donc les deux rôles au lieu de leur donner la même valeur :
+
+        - CONNEXION (10 s) : détecte un hôte injoignable. C'est ce délai qui
+          commande le basculement vers un nœud de secours, il reste court.
+        - LECTURE (20 s) : attend une réponse déjà en route. L'allonger ne
+          retarde aucun basculement — un nœud qui répond n'est pas en panne.
+        ═══════════════════════════════════════════════════════════════════
+         */
         val builder = OkHttpClient.Builder()
-            // Fail-fast pour permettre le basculement RPC (#2)
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(8, TimeUnit.SECONDS)
-            .writeTimeout(8, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             // Durcissement MITM : TLS 1.2+ uniquement (C-02)
             .connectionSpecs(

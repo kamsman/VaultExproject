@@ -63,6 +63,37 @@ suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend (
  * signaler, rien a corriger, rien a lire.
  */
 fun reportUnlessCancelled(source: String, e: Throwable) {
-    if (e is kotlinx.coroutines.CancellationException) return
+    if (estAnnulation(e)) return
     AdminBot.serviceFailed(source, e.message)
+}
+
+/**
+ * Vrai si [e] est une annulation, y compris ENVELOPPEE dans autre chose.
+ *
+ * La version precedente ne testait que l'exception de surface. Or une
+ * annulation qui traverse une couche reseau ou un `async` ressort souvent
+ * emballee : le type visible n'est plus une CancellationException, mais sa
+ * cause en est une. Le filtre laissait donc passer ce qu'il etait cense
+ * arreter, et le canal d'administration recevait des « Job was cancelled »
+ * a repetition — des alertes qui ne signalent rien, et qui a force font
+ * ignorer les vraies.
+ *
+ * On remonte donc toute la chaine des causes. La borne de profondeur n'est
+ * pas decorative : une chaine de causes peut boucler sur elle-meme, et une
+ * remontee naive tournerait alors indefiniment.
+ *
+ * Le test sur le message est un dernier filet, pour le cas ou une couche
+ * tierce aurait recopie le texte sans conserver la cause.
+ */
+private fun estAnnulation(e: Throwable): Boolean {
+    var courant: Throwable? = e
+    var profondeur = 0
+    while (courant != null && profondeur < 8) {
+        if (courant is kotlinx.coroutines.CancellationException) return true
+        if (courant.message?.contains("Job was cancelled", ignoreCase = true) == true) return true
+        if (courant.cause === courant) return false
+        courant = courant.cause
+        profondeur++
+    }
+    return false
 }

@@ -126,6 +126,49 @@ fun DashboardScreen(navController: NavHostController) {
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    RÉSULTAT DU SCANNER — IL N'ALLAIT NULLE PART
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le bouton scanner de l'en-tête ouvrait bien la caméra, qui lisait bien le
+    QR code. Puis l'écran de scan déposait l'adresse dans l'entrée précédente
+    de la pile de navigation — ici, l'accueil — et revenait en arrière.
+
+    Or SEUL l'écran Envoi lisait cette clé. Depuis l'accueil, l'adresse était
+    donc écrite quelque part que personne ne consultait : la caméra se
+    fermait et il ne se passait strictement rien. Le bouton avait l'air en
+    panne alors que chaque maillon fonctionnait — c'est le dernier qui
+    manquait.
+
+    Scanner un QR code de paiement n'a qu'une suite possible : payer. On
+    enchaîne donc sur l'écran Envoi, adresse déjà remplie.
+
+    L'adresse est posée sur l'entrée d'Envoi APRÈS la navigation, car cette
+    entrée n'existe pas avant. `navigate` la crée immédiatement, avant que
+    l'écran ne se compose : la valeur est donc déjà là quand Envoi
+    commence à l'observer.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    val entreeAccueil = navController.currentBackStackEntry
+    LaunchedEffect(entreeAccueil) {
+        entreeAccueil?.savedStateHandle
+            ?.getStateFlow<String?>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, null)
+            ?.collect { adresse ->
+                if (!adresse.isNullOrBlank()) {
+                    // Consommée d'abord : sans ça, revenir sur l'accueil
+                    // relancerait l'écran Envoi en boucle.
+                    entreeAccueil.savedStateHandle
+                        .remove<String>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY)
+                    runCatching {
+                        navController.navigate(Routes.SEND)
+                        navController.getBackStackEntry(Routes.SEND).savedStateHandle
+                            .set(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, adresse)
+                    }
+                }
+            }
+    }
+
     // Polling discret toutes les 45 s tant que le Dashboard est affiché
     // (pour voir une réception arriver sans action de l'utilisateur).
     LaunchedEffect(Unit) {

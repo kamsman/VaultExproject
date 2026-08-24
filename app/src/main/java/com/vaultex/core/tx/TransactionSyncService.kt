@@ -104,6 +104,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount, "TRX", address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
             failed = true
@@ -138,6 +147,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount, "TRX", address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("TRX", e.message)
             failed = true
@@ -192,6 +210,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount, "BTC", address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("BTC", e.message)
             failed = true
@@ -249,6 +276,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, e.message)
             failed = true
@@ -308,6 +344,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("$blockchain tokens", e.message)
             failed = true
@@ -389,6 +434,15 @@ class TransactionSyncService @Inject constructor(
                     notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount, "SOL", address)
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // L'annulation n'est PAS une panne : ecran quitte, worker
+            // arrete par le systeme, processus qui se termine. La
+            // signaler produisait « Historique illisible — Job was
+            // cancelled » en boucle sur le canal d'administration.
+            // Elle doit etre RELANCEE : sans quoi le parent croit que
+            // l'enfant s'est termine normalement et l'annulation ne se
+            // propage plus (concurrence structuree rompue).
+            throw e
         } catch (e: Exception) {
             com.vaultex.core.monitoring.AdminBot.historyReadFailed("SOL", e.message)
             failed = true
