@@ -283,14 +283,35 @@ async function ajouteTickers(cible, bases) {
 async function diagnostic(env) {
   const sondes = {}
 
-  try {
-    const r = await fetch(
-      `${BINANCE}/api/v3/ticker/24hr?symbols=${encodeURIComponent('["BTCUSDT"]')}`,
-      { headers: { 'user-agent': AGENT, accept: 'application/json' } }
-    )
-    sondes.binance = { code: r.status, extrait: (await r.text()).slice(0, 300) }
-  } catch (e) {
-    sondes.binance = { erreur: String(e).slice(0, 300) }
+  /*
+  Mesuré, pas supposé : api.binance.com répond 403 depuis un Worker, avec
+  une page d'erreur CloudFront. Binance filtre les adresses de centres de
+  données, et Cloudflare en est un. Insister sur cet hôte ne sert à rien.
+
+  On teste donc plusieurs candidats d'un coup, plutôt que de les essayer un
+  par jour. Les trois premiers parlent la MÊME langue que Binance : si l'un
+  d'eux répond, le relais fonctionne sans qu'une ligne de conversion soit
+  écrite. Les suivants auraient chacun leur format, donc du code en plus —
+  on ne s'y résoudra que si les premiers échouent tous.
+  */
+  const candidats = {
+    binance_vision: 'https://data-api.binance.vision/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%5D',
+    binance_gcp: 'https://api-gcp.binance.com/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%5D',
+    binance_api1: 'https://api1.binance.com/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%5D',
+    okx: 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT',
+    coinbase: 'https://api.exchange.coinbase.com/products/BTC-USD/ticker',
+    kraken: 'https://api.kraken.com/0/public/Ticker?pair=XBTUSDT',
+  }
+
+  for (const [nom, adresse] of Object.entries(candidats)) {
+    try {
+      const r = await fetch(adresse, {
+        headers: { 'user-agent': AGENT, accept: 'application/json' },
+      })
+      sondes[nom] = { code: r.status, extrait: (await r.text()).slice(0, 160) }
+    } catch (e) {
+      sondes[nom] = { erreur: String(e).slice(0, 160) }
+    }
   }
 
   try {
