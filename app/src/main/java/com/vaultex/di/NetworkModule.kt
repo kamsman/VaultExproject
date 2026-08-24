@@ -265,21 +265,68 @@ object NetworkModule {
 
     // ─── Fixed / non-configurable APIs ───────────────────────────────
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    COURS : LE RELAIS D'ABORD, COINGECKO EN SECOURS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le quota gratuit de CoinGecko vaut pour la CLÉ, donc pour TOUTE
+    l'application réunie : 10 000 appels par mois. À un millier par
+    téléphone, une dizaine d'appareils l'épuisent — après quoi l'API répond
+    429 à tout le monde en même temps et plus aucun prix ne s'affiche nulle
+    part. C'est arrivé avec deux téléphones de test.
+
+    Aucune optimisation embarquée ne peut lever ce plafond : mille
+    utilisateurs regardant le Bitcoin à la même minute, c'est mille fois la
+    même question. Le relais la pose UNE fois et sert la réponse à tous, si
+    bien que le coût cesse de dépendre du nombre d'installations.
+
+    POURQUOI LE CHANGEMENT SE RÉDUIT À UNE ADRESSE. Le relais imite les
+    chemins et les formats de CoinGecko. Aucun modèle de données n'est
+    réécrit ici, donc aucune occasion de se tromper sur un champ au passage.
+
+    BASCULE AUTOMATIQUE. RpcFallbackInterceptor remplace l'hôte en
+    conservant le chemin — écrit pour les nœuds blockchain, il convient
+    exactement ici puisque les deux hôtes parlent la même langue. Relais
+    injoignable, en panne ou saturé : l'application repart sur CoinGecko en
+    direct, c'est-à-dire le comportement d'avant. Le pire scénario du relais
+    est donc l'état actuel, jamais pire.
+
+    RELAIS NON CONFIGURÉ (chaîne vide) : on appelle CoinGecko directement,
+    sans intercepteur. Une compilation sur une machine qui ignore ce réglage
+    reste pleinement fonctionnelle.
+    ═══════════════════════════════════════════════════════════════════════
+     */
     @Provides @Singleton
     fun provideCoinGeckoApi(client: OkHttpClient): CoinGeckoApi {
+        val builder = client.newBuilder()
+
         // Clé Demo CoinGecko (header x-cg-demo-api-key) si renseignée : lève le
         // rate-limit qui faisait échouer le Marché. Sinon, API publique libre.
-        val cgClient = if (ApiKeys.COINGECKO.isNotBlank()) {
-            client.newBuilder().addInterceptor { chain ->
+        // Toujours ajoutée : elle sert à l'appel direct comme à la bascule.
+        if (ApiKeys.COINGECKO.isNotBlank()) {
+            builder.addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
                         .addHeader("x-cg-demo-api-key", ApiKeys.COINGECKO)
                         .build()
                 )
-            }.build()
-        } else client
-        return retrofit("https://api.coingecko.com/api/v3/", cgClient).create(CoinGeckoApi::class.java)
+            }
+        }
+
+        val relais = ApiKeys.PRICE_RELAY.trim()
+        if (relais.isBlank()) {
+            return retrofit(COINGECKO_DIRECT, builder.build()).create(CoinGeckoApi::class.java)
+        }
+        // Barre oblique finale exigée par Retrofit sur une URL de base.
+        val base = if (relais.endsWith("/")) relais else "$relais/"
+        val avecBascule = builder
+            .addInterceptor(RpcFallbackInterceptor(listOf(COINGECKO_DIRECT)))
+            .build()
+        return retrofit(base, avecBascule).create(CoinGeckoApi::class.java)
     }
+
+    private const val COINGECKO_DIRECT = "https://api.coingecko.com/api/v3/"
 
     /**
      * Source de prix de SECOURS — voir PriceFallbackSource pour le pourquoi.

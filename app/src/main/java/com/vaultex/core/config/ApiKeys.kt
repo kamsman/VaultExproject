@@ -22,4 +22,14 @@ object ApiKeys {
     val FLUTTERWAVE: String = BuildConfig.FLUTTERWAVE_KEY
     val TRONGRID:    String = BuildConfig.TRONGRID_KEY
     val COINGECKO:   String = BuildConfig.COINGECKO_KEY
+
+    /**
+     * Adresse du relais de cours (Worker Cloudflare), barre oblique finale
+     * comprise. Vide = appel direct à CoinGecko, comme avant.
+     *
+     * Ce n'est pas un secret — c'est une adresse publique. Elle vit ici avec
+     * les clés parce qu'elle dépend du compte de celui qui compile, et n'a
+     * donc rien à faire en dur dans le dépôt.
+     */
+    val PRICE_RELAY: String = BuildConfig.PRICE_RELAY_URL
 }

@@ -78,3 +78,17 @@ app.signature.sha256=
 # qui ne correspondent plus aux certificats reels des serveurs.
 # Ne jamais distribuer une version construite avec false.
 cert.pinning=true
+
+# ─── Relais de cours (Cloudflare Worker) ──────────────────────────────────
+# Le quota gratuit de CoinGecko vaut pour la CLÉ, donc pour TOUTE
+# l'application réunie : 10 000 appels par mois. À un millier par téléphone,
+# une dizaine d'appareils l'épuisent, et l'API répond alors 429 à tout le
+# monde en même temps — plus aucun prix affiché, nulle part.
+#
+# Le relais pose la question une fois et sert la réponse à tous : le coût
+# cesse de dépendre du nombre d'installations. Déploiement (gratuit, sans
+# carte bancaire) : voir l'en-tête de tools/relais-cours/worker.js.
+#
+# VIDE = appel direct à CoinGecko, comportement d'avant. Sans risque.
+# Barre oblique finale COMPRISE.
+prix.relay.url=

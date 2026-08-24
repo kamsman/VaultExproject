@@ -121,6 +121,30 @@ android {
         // Optionnelle — clé CoinGecko Demo (gratuite) : supprime quasiment le
         // rate-limit du Marché. https://www.coingecko.com/en/developers/dashboard
         buildConfigField("String", "COINGECKO_KEY",   "\"${secret("coingecko.key")}\"")
+        /*
+        ───────────────────────────────────────────────────────────────────
+        RELAIS DE COURS — l'adresse du Worker Cloudflare
+        ───────────────────────────────────────────────────────────────────
+
+        Le quota gratuit de CoinGecko vaut pour la CLÉ, donc pour toute
+        l'application réunie : 10 000 appels par mois. À un millier par
+        téléphone, une dizaine d'appareils l'épuisent, et l'API répond alors
+        429 à tout le monde en même temps. Aucune optimisation embarquée ne
+        peut lever ce plafond, puisque le coût croît avec le nombre
+        d'installations.
+
+        Le relais pose la question une fois et sert la réponse à tous. Voir
+        tools/relais-cours/worker.js.
+
+        VIDE = comportement d'avant : appel direct à CoinGecko. Le réglage
+        est donc sans risque à laisser vide, et une compilation sur une
+        machine qui l'ignore reste fonctionnelle.
+
+        Format attendu, barre oblique finale COMPRISE :
+          prix.relay.url=https://vaultex-prix.<compte>.workers.dev/api/v3/
+        ───────────────────────────────────────────────────────────────────
+         */
+        buildConfigField("String", "PRICE_RELAY_URL", "\"${secret("prix.relay.url")}\"")
         // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
         // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
         buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
