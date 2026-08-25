@@ -56,14 +56,41 @@ class NotificationHub @Inject constructor(
         center.push(title, body, symbol)
 
         /*
-        L'affichage système part sur un THREAD SÉPARÉ. Ce n'est pas du confort :
-        le logo de la monnaie est téléchargé (6 s de délai maximum) et l'icône
-        de repli est décodée depuis les ressources. Or `post` est appelé aussi
-        bien depuis un worker que depuis le thread principal — après un envoi
-        réussi, par exemple. Sur le thread principal, ce travail gèlerait
-        l'interface au pire moment : juste après une transaction.
+        ═══════════════════════════════════════════════════════════════════
+        UN FIL SÉPARÉ SEULEMENT DEPUIS LE THREAD PRINCIPAL
+        ═══════════════════════════════════════════════════════════════════
+
+        L'affichage partait TOUJOURS sur un fil séparé, pour une raison
+        valable : le logo de la monnaie est téléchargé (jusqu'à 6 secondes)
+        et l'icône de repli décodée depuis les ressources. Appelé depuis le
+        thread principal — après un envoi réussi, par exemple — ce travail
+        gèlerait l'interface au pire moment.
+
+        Mais depuis un service en arrière-plan, ce fil est une perte de
+        données. Application fermée, Android démarre le processus dans le
+        seul but de livrer le message ; dès que `onMessageReceived` rend la
+        main, le service est considéré comme terminé et le processus PEUT
+        ÊTRE TUÉ. Le fil séparé n'a alors jamais le temps d'afficher quoi
+        que ce soit.
+
+        Constaté sur appareil, et le symptôme désigne précisément le
+        coupable : l'annonce apparaît dans la cloche — écrite juste
+        au-dessus, de façon synchrone — mais aucune bannière ne s'affiche.
+        Une notification envoyée depuis la console Firebase, elle,
+        s'affichait bien : c'est le SDK qui la dessine lui-même, sans passer
+        par ce code. Les deux moitiés fonctionnaient, jamais ensemble.
+
+        La règle est donc devenue conditionnelle : on ne se décale que là où
+        le décalage protège quelque chose. Sur un service ou un worker, on
+        affiche AVANT de rendre la main — c'est le seul moment où l'on est
+        sûr d'être encore en vie.
+        ═══════════════════════════════════════════════════════════════════
          */
-        Thread { showSystemNotification(key, title, body, symbol, channelId) }.start()
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            Thread { showSystemNotification(key, title, body, symbol, channelId) }.start()
+        } else {
+            showSystemNotification(key, title, body, symbol, channelId)
+        }
         return true
     }
 
