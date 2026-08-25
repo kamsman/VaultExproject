@@ -48,10 +48,35 @@ class VaultExFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        // Fonctionne pour les messages « data-only » (titre/corps dans data,
-        // envoyés par nos Cloud Functions) ET les messages « notification »
-        // (console Firebase). L'affichage passe TOUJOURS en premier ; la mise à
-        // jour de la cloche est protégée pour ne jamais l'empêcher.
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        QUAND CETTE MÉTHODE EST-ELLE APPELÉE ? PAS TOUJOURS.
+        ═══════════════════════════════════════════════════════════════════
+
+        Elle lit les deux formes de message — « data » (titre et corps dans
+        data) et « notification » (champ notification). Mais lire les deux ne
+        veut PAS dire les recevoir toutes les deux.
+
+        Un message de type « notification » n'arrive ici QUE si l'application
+        est au premier plan. Application fermée ou en arrière-plan, le SDK
+        Firebase l'affiche LUI-MÊME et n'appelle jamais cette méthode : le
+        contenu n'atteint donc jamais ce code, et rien n'est inscrit dans la
+        cloche. Vérifié sur appareil — l'intention de lancement arrive sans
+        aucun extra, même quand l'utilisateur touche la notification.
+
+        C'est exactement ce que produit une campagne envoyée depuis la
+        console Firebase : la bannière s'affiche, la pastille s'incrémente,
+        et la cloche reste vide. Symptôme déroutant, puisque tout paraît
+        avoir fonctionné.
+
+        Un message « data » (sans champ notification), lui, passe TOUJOURS
+        ici — ouverte, fermée ou en arrière-plan. C'est la seule forme qui
+        garantisse une annonce consultable après coup.
+
+        POUR ENVOYER UNE ANNONCE : tools/send-announcement.sh, jamais la
+        console. Le script n'existe que pour cette raison.
+        ═══════════════════════════════════════════════════════════════════
+         */
         val title = message.notification?.title ?: message.data["title"] ?: "VaultEx"
         val body = message.notification?.body ?: message.data["body"] ?: ""
         val symbol = message.data["symbol"]

@@ -150,8 +150,31 @@ class NotificationHub @Inject constructor(
                 .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
                 .build()
             manager?.notify(SUMMARY_ID, summary)
-        } catch (_: Exception) {
-            // Permission notifications refusée : la cloche reste alimentée.
+        } catch (e: Exception) {
+            /*
+            ÉCHEC D'AFFICHAGE — SIGNALÉ, PLUS AVALÉ.
+
+            Ce bloc était muet, avec pour seul commentaire « permission
+            refusée ». Il couvrait en réalité tout ce qui peut mal tourner
+            ici : canal absent ou bloqué, icône illisible, service de
+            notification indisponible.
+
+            Le symptôme est alors indiscernable d'un cas parfaitement
+            normal : la cloche se remplit, l'écran ne montre rien, et rien
+            nulle part ne dit pourquoi. Constaté sur appareil avec une
+            annonce reçue correctement dans la cloche mais jamais affichée.
+
+            La cloche reste bien le repli — l'événement n'est jamais perdu —
+            mais l'échec remonte désormais au canal d'administration, seul
+            moyen de diagnostiquer à distance ce qui ne s'affiche pas sur un
+            téléphone qu'on n'a pas en main.
+             */
+            runCatching {
+                com.vaultex.core.monitoring.AdminBot.serviceFailed(
+                    "Affichage notification",
+                    "${e.javaClass.simpleName} — ${e.message?.take(120) ?: "sans message"}"
+                )
+            }
         }
     }
 

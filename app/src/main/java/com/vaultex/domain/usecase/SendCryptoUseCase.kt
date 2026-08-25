@@ -646,27 +646,62 @@ class SendCryptoUseCase @Inject constructor(
         val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
         val passphrase = secureStorage.getPassphrase()
 
-        // ── Garde-fous Tron (pièges réels, AVANT de brûler des frais) ──
-        // 1) Adresse destinataire JAMAIS activée : un transfert TRC-20 vers un
-        //    compte inexistant échoue en consommant quand même l'énergie. Il
-        //    faut d'abord activer l'adresse avec un peu de TRX.
-        // 2) Frais : sans énergie stakée, un transfert USDT brûle ~13-30 TRX.
-        //    Avec un solde TRX trop bas, l'envoi échouerait en brûlant les
-        //    frais → on bloque avec un message clair.
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        GARDE-FOU TRON : LE COÛT, PAS L'ACTIVATION
+        ═══════════════════════════════════════════════════════════════════
+
+        Ce bloc refusait tout envoi vers une adresse Tron « jamais activée »,
+        au motif qu'un transfert TRC-20 vers un compte inexistant échouerait.
+
+        C'EST FAUX, et ça bloquait un usage parfaitement normal.
+
+        Un compte Tron doit exister pour détenir du TRX, parce que le solde
+        TRX est une propriété du COMPTE. Un solde USDT, lui, ne l'est pas :
+        il vit dans la table interne du contrat USDT, une simple
+        correspondance adresse → montant. Le contrat n'a donc pas besoin que
+        le compte destinataire existe pour y inscrire un montant.
+
+        La preuve est venue d'un swap USDT → BTC refusé par ce contrôle. Les
+        adresses de dépôt de ChangeNOW sont générées à neuf pour chaque
+        échange et ne sont jamais activées — précisément parce que ça
+        fonctionne. Le garde-fou interdisait donc TOUS les échanges au départ
+        de l'USDT-TRC20.
+
+        CE QUI EST VRAI, EN REVANCHE, C'EST LE SURCOÛT. Écrire un montant
+        pour une adresse qui n'en avait aucun crée une entrée NEUVE dans la
+        table du contrat, et une écriture neuve coûte nettement plus
+        d'énergie qu'une mise à jour. L'envoi ne peut pas échouer faute
+        d'activation ; il peut échouer faute de TRX pour payer cette énergie
+        — en la brûlant au passage.
+
+        On remplace donc un refus injustifié par une exigence de solde
+        adaptée : le double quand le destinataire est neuf. Et une lecture
+        impossible ne bloque plus rien — c'est au réseau de trancher, pas à
+        une supposition.
+        ═══════════════════════════════════════════════════════════════════
+         */
         try {
-            val toAccount = tronApi.getAccount(toAddress)
-            if (toAccount.data.isEmpty())
-                return Result.Error(
-                    "Cette adresse Tron est toute neuve (jamais activée). " +
-                        "Envoie-lui d'abord un peu de TRX (ex. 2 TRX) pour l'activer, puis renvoie l'USDT."
-                )
+            val destinataireNeuf = try {
+                tronApi.getAccount(toAddress).data.isEmpty()
+            } catch (_: Exception) {
+                false   // lecture impossible : on ne présume pas du surcoût
+            }
+            val trxRequis = if (destinataireNeuf) 30.0 else 15.0
+
             val myAccount = tronApi.getAccount(tronTx.deriveAddress(mnemonic, passphrase))
             val myTrx = (myAccount.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
-            if (myTrx < 15.0)
+            if (myTrx < trxRequis) {
+                val precision = if (destinataireNeuf)
+                    "\n\nCe destinataire n'a encore jamais reçu d'USDT : la première " +
+                        "écriture coûte environ deux fois plus d'énergie que les suivantes."
+                else ""
                 return Result.Error(
-                    "Un envoi USDT (TRC20) consomme environ 15 TRX de frais réseau — " +
-                        "tu as ${"%.2f".format(java.util.Locale.US, myTrx)} TRX. Recharge d'abord ton TRX."
+                    "Un envoi USDT (TRC20) consomme environ ${trxRequis.toInt()} TRX de frais " +
+                        "réseau — tu as ${"%.2f".format(java.util.Locale.US, myTrx)} TRX. " +
+                        "Recharge d'abord ton TRX.$precision"
                 )
+            }
         } catch (_: Exception) {
             // API TronGrid indisponible : on n'empêche pas l'envoi, le réseau tranchera.
         }
