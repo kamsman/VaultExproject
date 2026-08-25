@@ -105,9 +105,13 @@ class NotificationHub @Inject constructor(
                 context, key.hashCode(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            // Peut être null : logo indisponible ou illisible. On l'omet alors,
+            // au lieu de laisser tomber toute la notification — c'est
+            // exactement ce qui se produisait, voir NotifLogo.logoApplication.
+            val grandeIcone = com.vaultex.service.NotifLogo.forSymbol(context, symbol)
             val notification = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setLargeIcon(com.vaultex.service.NotifLogo.forSymbol(context, symbol))
+                .apply { grandeIcone?.let { setLargeIcon(it) } }
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))

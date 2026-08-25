@@ -27,10 +27,15 @@ object NotifLogo {
      *  attend de voir sa transaction. */
     private val cache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
 
-    /** À N'APPELER QUE depuis un thread de fond : effectue un appel réseau. */
-    fun forSymbol(context: Context, symbol: String?): Bitmap {
-        val appLogo = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
-        if (symbol.isNullOrBlank()) return appLogo
+    /**
+     * À N'APPELER QUE depuis un thread de fond : effectue un appel réseau.
+     *
+     * Renvoie null si aucune image n'a pu être obtenue. La notification
+     * s'affiche alors sans grande icône — ce qui est très préférable à ce
+     * qui se passait avant, voir [logoApplication].
+     */
+    fun forSymbol(context: Context, symbol: String?): Bitmap? {
+        if (symbol.isNullOrBlank()) return logoApplication(context)
         cache[symbol]?.let { return it }
         return try {
             val req = Request.Builder().url(CryptoIcon.url(symbol)).build()
@@ -38,11 +43,62 @@ object NotifLogo {
                 val bytes = resp.body?.bytes()
                 if (resp.isSuccessful && bytes != null) {
                     val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    if (bitmap != null) { cache[symbol] = bitmap; bitmap } else appLogo
-                } else appLogo
+                    if (bitmap != null) { cache[symbol] = bitmap; bitmap }
+                    else logoApplication(context)
+                } else logoApplication(context)
             }
         } catch (_: Exception) {
-            appLogo
+            logoApplication(context)
+        }
+    }
+
+    /**
+     * Logo de l'application, en image.
+     *
+     * ═══════════════════════════════════════════════════════════════════════
+     * POURQUOI CE N'EST PAS UN SIMPLE decodeResource
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Cette fonction se réduisait à :
+     *
+     *     BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+     *
+     * Or `ic_launcher` est une icône ADAPTATIVE : depuis Android 8, elle se
+     * résout vers `mipmap-anydpi-v26/ic_launcher.xml`, un fichier XML décrivant
+     * un avant-plan et un arrière-plan. `decodeResource` ne sait décoder que des
+     * images — sur un XML, elle renvoie null.
+     *
+     * Le type de retour déclarait pourtant un Bitmap non-nullable. Kotlin
+     * insérait donc un contrôle, et ce contrôle levait une
+     * NullPointerException SANS MESSAGE, avalée par le rattrapage de
+     * NotificationHub. Aucune notification ne s'affichait, et rien ne disait
+     * pourquoi.
+     *
+     * La portée dépassait largement les annonces : ce logo sert aussi de repli
+     * quand le téléchargement de l'icône d'une monnaie échoue. Une notification
+     * de dépôt reçue hors couverture réseau ne s'affichait donc pas non plus.
+     *
+     * On dessine désormais le drawable — adaptatif ou non — sur une image, et
+     * l'échec renvoie null plutôt que de faire échouer toute la notification.
+     * Une bannière sans grande icône vaut infiniment mieux qu'aucune bannière.
+     * ═══════════════════════════════════════════════════════════════════════
+     */
+    private fun logoApplication(context: Context): Bitmap? {
+        // Appareils antérieurs à Android 8, ou icône restée en image.
+        BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)?.let { return it }
+        return try {
+            val drawable = androidx.core.content.ContextCompat
+                .getDrawable(context, R.mipmap.ic_launcher) ?: return null
+            // Une icône adaptative annonce une taille intrinsèque ; le repli à
+            // 108 dp est la dimension standard, au cas où elle serait absente.
+            val largeur = drawable.intrinsicWidth.takeIf { it > 0 } ?: 108
+            val hauteur = drawable.intrinsicHeight.takeIf { it > 0 } ?: 108
+            val image = Bitmap.createBitmap(largeur, hauteur, Bitmap.Config.ARGB_8888)
+            drawable.setBounds(0, 0, largeur, hauteur)
+            drawable.draw(android.graphics.Canvas(image))
+            image
+        } catch (_: Exception) {
+            null
         }
     }
 }
