@@ -426,7 +426,7 @@ class PortfolioViewModel @Inject constructor(
                     }
                     fun c(id: String) = prices[id]?.change24h ?: 0.0
                     fun amt(bal: Double?, decimals: Int, unit: String) =
-                        if (bal == null) "—" else "%.${decimals}f $unit".format(bal)
+                        if (bal == null) "—" else "${formaterQuantite(bal, decimals)} $unit"
                     fun value(bal: Double?, price: Double) = (bal ?: 0.0) * price
                     // Prix COLLANT : si l'appel CoinGecko a échoué (rate-limit) le
                     // prix live vaut 0 ; on réutilise alors le dernier prix connu
@@ -582,6 +582,50 @@ class PortfolioViewModel @Inject constructor(
      * (par adresse de contrat). En cas d'échec de prix, le token reste affiché
      * avec son solde (valeur inconnue = 0), jamais d'écran cassé.
      */
+    /**
+     * Quantité lisible — JAMAIS arrondie à zéro tant qu'il reste quelque chose.
+     *
+     * ═══════════════════════════════════════════════════════════════════════
+     * POURQUOI UN NOMBRE DE DÉCIMALES VARIABLE
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Le formatage était fixe : quatre décimales pour un jeton importé, six
+     * pour le Bitcoin. Un solde plus petit que la dernière décimale affichée
+     * devenait donc « 0,0000 » — c'est-à-dire « tu n'as rien », sur des fonds
+     * bien réels.
+     *
+     * Ce n'est pas un cas d'école : les jetons à très grande offre se
+     * détiennent par millions, ceux à très faible offre par millièmes, et
+     * l'application ne peut pas deviner l'échelle à l'avance. Sur un
+     * portefeuille, afficher zéro pour un montant non nul est le pire
+     * arrondi possible — c'est exactement le malentendu qui vient d'être
+     * corrigé sur les lignes de l'accueil, sous une autre forme.
+     *
+     * On calcule donc combien de décimales sont nécessaires pour que le
+     * premier chiffre significatif apparaisse, plus trois pour la lisibilité.
+     * Le format habituel reste utilisé dès que le montant dépasse l'unité —
+     * la grande majorité des cas — et les zéros finaux sont retirés, ce qui
+     * allège aussi l'affichage courant : « 0,001 BTC » plutôt que
+     * « 0,001000 BTC ».
+     *
+     * Le séparateur décimal reste celui de la langue choisie : les appelants
+     * qui relisent cette chaîne normalisent déjà la virgule en point.
+     * ═══════════════════════════════════════════════════════════════════════
+     */
+    private fun formaterQuantite(montant: Double, decimalesUsuelles: Int): String {
+        if (montant <= 0.0) return "0"
+        val necessaires =
+            if (montant >= 1.0) decimalesUsuelles
+            else (-kotlin.math.floor(kotlin.math.log10(montant)).toInt() + 3)
+                .coerceAtLeast(decimalesUsuelles)
+                .coerceAtMost(18)
+        val texte = "%.${necessaires}f".format(montant)
+        // Retire les zéros finaux, puis le séparateur devenu inutile.
+        return if (texte.contains(',') || texte.contains('.'))
+            texte.trimEnd('0').trimEnd(',', '.')
+        else texte
+    }
+
     private suspend fun loadCustomTokens(
         ethAddress: String,
         bnbAddress: String,
@@ -732,7 +776,7 @@ class PortfolioViewModel @Inject constructor(
                 TokenBalance(
                     symbol = entity.symbol,
                     name = entity.name.ifBlank { entity.symbol },
-                    amountFormatted = "%.4f %s".format(amount, entity.symbol),
+                    amountFormatted = "${formaterQuantite(amount, 4)} ${entity.symbol}",
                     valueXof = amount * xof,
                     changePercent24h = change,
                     colorHex = "#3B82F6",
