@@ -252,12 +252,10 @@ class PriceFallbackSource @Inject constructor(
                 if (base in stablecoinsDollar) resultat[base] = ligne(1.0, eurUsd, 0.0)
                 continue
             }
-            val eur = eurUsd?.let { usd / it } ?: 0.0
-            resultat[base] = CoinGeckoPriceDto(
+            resultat[base] = ligne(
                 usd = usd,
-                eur = eur,
-                xof = eur * xofParEuro,
-                change24h = t?.priceChangePercent?.toDoubleOrNull() ?: 0.0
+                eurUsd = eurUsd,
+                variation = t?.priceChangePercent?.toDoubleOrNull() ?: 0.0
             )
         }
         if (resultat.isNotEmpty()) {
@@ -265,6 +263,27 @@ class PriceFallbackSource @Inject constructor(
             cacheTime = maintenant
         }
         return resultat
+    }
+
+    /**
+     * Une entrée de cours, dans les trois monnaies d'affichage.
+     *
+     * [eurUsd] est le nombre d'USDT que vaut un euro, tel que le donne la
+     * paire EURUSDT — null si cette paire n'a pas pu être lue. Dans ce cas on
+     * cote quand même en dollars plutôt que de tout abandonner : un prix
+     * partiel vaut mieux qu'un « 0,00 » sur un portefeuille.
+     *
+     * Le FCFA se déduit de l'euro par une parité FIXE et légale, jamais par
+     * un service de change — voir [xofParEuro].
+     */
+    private fun ligne(usd: Double, eurUsd: Double?, variation: Double): CoinGeckoPriceDto {
+        val eur = if (eurUsd != null && eurUsd > 0.0) usd / eurUsd else 0.0
+        return CoinGeckoPriceDto(
+            usd = usd,
+            eur = eur,
+            xof = eur * xofParEuro,
+            change24h = variation
+        )
     }
 
     /** `["BTCUSDT","ETHUSDT"]` — le format exigé par le paramètre `symbols`. */
