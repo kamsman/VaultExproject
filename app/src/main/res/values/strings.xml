@@ -164,11 +164,11 @@
     <string name="active">Actif</string>
 
     <!-- Onboarding / Auth (groupe A) -->
-    <string name="onboarding_page1_desc">Le wallet crypto sécurisé nouvelle génération.</string>
+    <string name="onboarding_page1_desc">Envoie, reçois et échange tes cryptos en toute sécurité, directement depuis ton téléphone.</string>
     <string name="onboarding_page2_title">Multi-Blockchain</string>
-    <string name="onboarding_page2_desc">Bitcoin, Ethereum, BNB Chain, Solana et Tron.</string>
+    <string name="onboarding_page2_desc">Bitcoin, Ethereum, BNB Chain, Solana et Tron — avec leurs jetons — dans une seule application.</string>
     <string name="onboarding_page3_title">100%% Non-Custodial</string>
-    <string name="onboarding_page3_desc">Vos clés. Vos cryptos. Votre contrôle.</string>
+    <string name="onboarding_page3_desc">Ta phrase secrète ne quitte jamais ton téléphone. Personne, pas même VaultEx, ne peut toucher à tes fonds.</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
@@ -863,10 +863,10 @@
     <string name="welcome_subtitle_pitch">100&#37; non-custodial. Vos clés, vos cryptos, votre contrôle.</string>
     <string name="welcome_trust_footer">Sécurisé · Privé · Décentralisé</string>
     <string name="onboarding_welcome_pre">Bienvenue sur</string>
-    <string name="onboarding_multichain_pre">Multi-</string>
-    <string name="onboarding_multichain_accent">Blockchain</string>
-    <string name="onboarding_noncustodial_pre">100&#37;</string>
-    <string name="onboarding_noncustodial_accent">Non-Custodial</string>
+    <string name="onboarding_multichain_pre">Un wallet.</string>
+    <string name="onboarding_multichain_accent">Plusieurs blockchains.</string>
+    <string name="onboarding_noncustodial_pre">Tes clés.</string>
+    <string name="onboarding_noncustodial_accent">Ton contrôle.</string>
 
     <!-- Alertes automatiques de variation de prix (actives par défaut) -->
     <string name="price_moves_channel">Variations de prix</string>

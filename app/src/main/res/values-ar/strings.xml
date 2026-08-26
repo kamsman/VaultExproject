@@ -133,11 +133,11 @@
     <string name="active">نشط</string>
 
     <!-- Onboarding / Auth (groupe A) -->
-    <string name="onboarding_page1_desc">محفظة العملات المشفّرة الآمنة من الجيل الجديد.</string>
+    <string name="onboarding_page1_desc">أرسِل واستقبِل وبادِل عملاتك المشفّرة بأمان، مباشرةً من هاتفك.</string>
     <string name="onboarding_page2_title">متعددة البلوكشين</string>
-    <string name="onboarding_page2_desc">Bitcoin وEthereum وBNB Chain وSolana وTron.</string>
+    <string name="onboarding_page2_desc">Bitcoin وEthereum وBNB Chain وSolana وTron — ورموزها — في تطبيق واحد.</string>
     <string name="onboarding_page3_title">غير وصائية 100%%</string>
-    <string name="onboarding_page3_desc">مفاتيحك. عملاتك المشفّرة. تحكّمك.</string>
+    <string name="onboarding_page3_desc">عبارة الاسترداد لا تغادر هاتفك أبدًا. لا أحد، ولا حتى VaultEx، يستطيع المساس بأموالك.</string>
     <string name="onboarding_skip">تخطٍّ</string>
     <string name="onboarding_next">التالي</string>
     <string name="onboarding_get_started">ابدأ الآن</string>
@@ -772,10 +772,10 @@
     <string name="welcome_subtitle_pitch">غير وصائية 100&#37;. مفاتيحك، عملاتك، تحكّمك.</string>
     <string name="welcome_trust_footer">آمن · خاص · لا مركزي</string>
     <string name="onboarding_welcome_pre">مرحبًا بك في</string>
-    <string name="onboarding_multichain_pre">متعددة</string>
-    <string name="onboarding_multichain_accent">البلوكشين</string>
-    <string name="onboarding_noncustodial_pre">100&#37;</string>
-    <string name="onboarding_noncustodial_accent">غير وصائية</string>
+    <string name="onboarding_multichain_pre">محفظة واحدة.</string>
+    <string name="onboarding_multichain_accent">بلوكشينات متعددة.</string>
+    <string name="onboarding_noncustodial_pre">مفاتيحك.</string>
+    <string name="onboarding_noncustodial_accent">تحكّمك.</string>
 
     <!-- تنبيهات تلقائية لتغيّر الأسعار (مفعّلة افتراضياً) -->
     <string name="price_moves_channel">تغيّرات الأسعار</string>

@@ -9,11 +9,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -22,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,18 +37,18 @@ private val BrandCard = Color(0xFF101A38)
 private val BrandBorder = Color(0xFF1E2A4E)
 private val BrandBlue = Color(0xFF3B82F6)
 private val BrandBlueLight = Color(0xFF60A5FA)
-private val BrandPurple = Color(0xFF8B5CF6)
 private val BrandTextDim = Color(0xFF8A95B4)
 
 /**
- * @param titlePre  début du titre, en blanc
- * @param titleAccent  mot mis en avant, en bleu (null = titre d'un seul bloc)
+ * @param titlePre     première ligne du titre, en blanc
+ * @param titleAccent  seconde ligne, en bleu (null = titre d'un seul bloc)
+ * @param illustration dessin vectoriel de la page — voir OnboardingIllustrations
  */
 data class OnboardingPage(
     val titlePre: String,
     val titleAccent: String?,
     val description: String,
-    val icon: ImageVector
+    val illustration: @Composable (Modifier) -> Unit
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -62,25 +56,30 @@ data class OnboardingPage(
 fun OnboardingScreen(
     navController: NavHostController
 ) {
+    /*
+    ORDRE DES PAGES : accueil, puis la maîtrise des clés, puis l'étendue.
+
+    La sécurité passe AVANT la liste des chaînes prises en charge. Quelqu'un
+    qui découvre un portefeuille se demande d'abord « mon argent est-il en
+    sûreté », pas « combien de réseaux sont gérés ». Répondre dans cet ordre,
+    c'est répondre à la question qu'il se pose vraiment.
+     */
     val pages = listOf(
         OnboardingPage(
             stringResource(R.string.onboarding_welcome_pre),
             stringResource(R.string.app_name),
-            stringResource(R.string.onboarding_page1_desc),
-            Icons.Outlined.Lock
-        ),
-        OnboardingPage(
-            stringResource(R.string.onboarding_multichain_pre),
-            stringResource(R.string.onboarding_multichain_accent),
-            stringResource(R.string.onboarding_page2_desc),
-            Icons.Outlined.Public
-        ),
+            stringResource(R.string.onboarding_page1_desc)
+        ) { m -> IllustrationBouclier(m) },
         OnboardingPage(
             stringResource(R.string.onboarding_noncustodial_pre),
             stringResource(R.string.onboarding_noncustodial_accent),
-            stringResource(R.string.onboarding_page3_desc),
-            Icons.Outlined.VpnKey
-        )
+            stringResource(R.string.onboarding_page3_desc)
+        ) { m -> IllustrationCle(m) },
+        OnboardingPage(
+            stringResource(R.string.onboarding_multichain_pre),
+            stringResource(R.string.onboarding_multichain_accent),
+            stringResource(R.string.onboarding_page2_desc)
+        ) { m -> IllustrationChaines(m) }
     )
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -122,48 +121,42 @@ fun OnboardingScreen(
                         .border(1.dp, BrandBorder, RoundedCornerShape(26.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        // Anneau dégradé bleu → violet autour de l'icône.
-                        Box(
-                            modifier = Modifier
-                                .size(150.dp)
-                                .border(
-                                    width = 2.dp,
-                                    brush = Brush.linearGradient(listOf(BrandBlueLight, BrandPurple)),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = null,
-                                tint = BrandBlueLight,
-                                modifier = Modifier.size(66.dp)
-                            )
-                        }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(vertical = 28.dp)
+                    ) {
+                        // Illustration vectorielle, tracée à la taille demandée.
+                        item.illustration(Modifier.size(220.dp))
 
-                        Spacer(Modifier.height(34.dp))
+                        Spacer(Modifier.height(30.dp))
 
-                        // Titre : première partie blanche + mot clé en bleu.
-                        Row(horizontalArrangement = Arrangement.Center) {
+                        /*
+                        TITRE SUR DEUX LIGNES, l'accent en dessous.
+
+                        Il tenait sur une seule ligne, les deux parties côte à
+                        côte. « Un wallet. Plusieurs blockchains. » y débordait
+                        sur un écran étroit, et rien ne distinguait l'accroche
+                        de sa chute. Empilées, les deux moitiés se lisent comme
+                        elles se disent — et la ligne colorée porte le message.
+                         */
+                        Text(
+                            text = item.titlePre,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        item.titleAccent?.let {
                             Text(
-                                text = item.titlePre + if (item.titleAccent != null) " " else "",
-                                fontSize = 22.sp,
+                                text = it,
+                                fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
+                                color = BrandBlueLight,
                                 textAlign = TextAlign.Center
                             )
-                            item.titleAccent?.let {
-                                Text(
-                                    text = it,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BrandBlueLight
-                                )
-                            }
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(14.dp))
 
                         Text(
                             text = item.description,
@@ -171,7 +164,7 @@ fun OnboardingScreen(
                             color = BrandTextDim,
                             textAlign = TextAlign.Center,
                             lineHeight = 21.sp,
-                            modifier = Modifier.padding(horizontal = 24.dp)
+                            modifier = Modifier.padding(horizontal = 18.dp)
                         )
                     }
                 }
