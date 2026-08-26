@@ -1015,18 +1015,64 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
                     }
                 }
             }
-            Text(
-                stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),
-                fontSize = 11.sp, color = TextSecondary
-            )
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LA QUANTITÉ DÉTENUE MANQUAIT
+            ═══════════════════════════════════════════════════════════════
+
+            Cette ligne n'affichait que la VALEUR en monnaie d'affichage, et
+            le prix unitaire. Nulle part la quantité réellement détenue.
+
+            Tant qu'un cours existe, ça passe : « $2,45 » laisse deviner
+            qu'il y a quelque chose. Mais un jeton importé par adresse de
+            contrat n'a souvent aucun cours — ni CoinGecko ni Binance ne le
+            connaissent. Sa valeur tombe alors à zéro, et la ligne affiche
+            « $0,00 · Prix : $0 ».
+
+            L'utilisateur lit « je n'ai rien », alors qu'il détient 1,66 DAI.
+            Constaté sur appareil : les fonds n'étaient visibles qu'en
+            ouvrant la fiche du jeton, ou dans l'historique.
+
+            Sur un portefeuille, c'est le pire malentendu possible — et il
+            frappe précisément les jetons les moins connus, ceux pour
+            lesquels l'utilisateur a le plus besoin d'être rassuré.
+
+            La quantité passe donc à droite, sous la valeur : c'est la
+            disposition des portefeuilles établis, et c'est le chiffre qui ne
+            dépend d'aucun service extérieur. La variation sur 24 h rejoint le
+            prix à gauche, où elle a plus de sens : les deux décrivent le
+            marché, pas ce qu'on possède.
+            ═══════════════════════════════════════════════════════════════
+             */
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),
+                    fontSize = 11.sp, color = TextSecondary
+                )
+                // Variation masquée quand aucun cours n'est connu : « +0,0 % »
+                // sur un prix absent est une information inventée.
+                if (unitPrice > 0.0) {
+                    Text(
+                        "%+.1f%%".format(token.changePercent24h),
+                        fontSize = 11.sp,
+                        color = if (token.changePercent24h >= 0) AccentGreen else AccentRed
+                    )
+                }
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 if (hidden) "••••" else valueText,
                 fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
             )
-            val changeColor = if (token.changePercent24h >= 0) AccentGreen else AccentRed
-            Text("%+.1f%%".format(token.changePercent24h), fontSize = 12.sp, color = changeColor)
+            // Quantité RÉELLEMENT détenue. Elle vient de la chaîne, jamais
+            // d'un service de cotation : c'est le seul chiffre de cette ligne
+            // qui reste juste quand tout le reste est indisponible.
+            Text(
+                if (hidden) "••••" else token.amountFormatted,
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
         }
     }
 }

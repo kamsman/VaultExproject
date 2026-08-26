@@ -118,6 +118,15 @@ class PriceFallbackSource @Inject constructor(
      */
     private val pairesCertaines = setOf("BTC", "ETH", "BNB", "SOL", "TRX")
 
+    /**
+     * Jetons du registre adossés au dollar.
+     *
+     * Aucun n'a de paire avec lui-même chez Binance, et les autres peuvent
+     * être retirés de la cote. Leur valeur de repli est un dollar — c'est
+     * leur définition, pas une estimation. Voir le point d'usage plus bas.
+     */
+    private val stablecoinsDollar = setOf("USDT", "USDC", "DAI")
+
     /** Parité fixe et légale du franc CFA avec l'euro. Ce n'est pas un cours. */
     private val xofParEuro = 655.957
 
@@ -212,25 +221,43 @@ class PriceFallbackSource @Inject constructor(
 
         val resultat = mutableMapOf<String, CoinGeckoPriceDto>()
         for (base in bases) {
+            // Point 3 : USDTUSDT n'existe pas. Le dollar-jeton vaut un
+            // dollar par construction — on ne le demande donc jamais.
             if (base == "USDT") {
-                // Point 3 : le dollar-jeton vaut un dollar, par construction.
-                resultat[base] = CoinGeckoPriceDto(
-                    usd = 1.0,
-                    eur = eurUsd?.let { 1.0 / it } ?: 0.0,
-                    xof = eurUsd?.let { xofParEuro / it } ?: 0.0,
-                    change24h = 0.0
-                )
+                resultat[base] = ligne(1.0, eurUsd, 0.0)
                 continue
             }
-            val t = tickers["${base}USDT"] ?: continue
-            val usd = t.lastPrice.toDoubleOrNull() ?: continue
-            if (usd <= 0.0) continue
+            val t = tickers["${base}USDT"]
+            val usd = t?.lastPrice?.toDoubleOrNull() ?: 0.0
+            if (usd <= 0.0) {
+                /*
+                DERNIER RECOURS POUR LES STABLECOINS DU REGISTRE.
+
+                USDC et DAI sont des jetons adossés au dollar, vérifiés et
+                écrits en dur dans le registre de l'application. Quand aucune
+                place de marché ne les cote — une paire peut être retirée de
+                la cote sans préavis — la valeur affichée tombait à 0,00, et
+                un portefeuille contenant 1,66 DAI annonçait « rien ».
+
+                Un dollar est une approximation à un ou deux pour cent près,
+                dans le pire des cas d'un décrochage. Zéro est une erreur de
+                cent pour cent. Le choix n'est pas difficile.
+
+                Ce recours ne s'applique QU'AUX stablecoins du registre, et
+                seulement après l'échec de toutes les sources réelles :
+                jamais à un jeton importé librement, dont rien ne garantit la
+                nature. La variation reste à zéro — on n'invente pas un
+                mouvement de marché.
+                 */
+                if (base in stablecoinsDollar) resultat[base] = ligne(1.0, eurUsd, 0.0)
+                continue
+            }
             val eur = eurUsd?.let { usd / it } ?: 0.0
             resultat[base] = CoinGeckoPriceDto(
                 usd = usd,
                 eur = eur,
                 xof = eur * xofParEuro,
-                change24h = t.priceChangePercent.toDoubleOrNull() ?: 0.0
+                change24h = t?.priceChangePercent?.toDoubleOrNull() ?: 0.0
             )
         }
         if (resultat.isNotEmpty()) {

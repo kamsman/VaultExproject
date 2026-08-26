@@ -94,53 +94,6 @@ class NotificationHub @Inject constructor(
         return true
     }
 
-    @Volatile private var etatDejaSignale = false
-
-    /**
-     * Rapporte l'etat REEL du systeme de notification, une fois par lancement.
-     *
-     * POURQUOI MESURER PLUTOT QUE DEDUIRE. Une notification postee sans erreur
-     * peut n'apparaitre nulle part, et Android ne le signale jamais : `notify`
-     * ne renvoie rien et ne leve rien quand le systeme decide de ne pas
-     * afficher.
-     *
-     * Trois causes produisent ce meme silence, et rien dans le code ne permet
-     * de les distinguer :
-     *
-     *   - les notifications sont coupees pour l'application ;
-     *   - le canal a ete bloque par l'utilisateur ;
-     *   - le canal existe mais avec une importance BASSE : la notification est
-     *     alors bien presente dans le volet, mais sans banniere ni son.
-     *
-     * Ce dernier cas est le plus vicieux. Android FIGE l'importance a la
-     * creation du canal et ignore toute modification ulterieure : un canal ne
-     * discret le reste pour toujours, et seul un changement d'identifiant
-     * permet d'en sortir. C'est pourquoi le canal des alertes de prix porte
-     * deja un suffixe _v2.
-     *
-     * On lit donc les deux faits qui tranchent, et on les envoie au canal
-     * d'administration. Une seule fois par lancement : c'est un diagnostic,
-     * pas une surveillance, et il sera retire une fois la cause connue.
-     *
-     * Echelle d'importance Android : 0 aucune, 1 minimale, 2 basse,
-     * 3 par defaut, 4 haute -- seule valeur qui autorise la banniere.
-     */
-    private fun signalerEtatUneFois(channelId: String, manager: NotificationManager?) {
-        if (etatDejaSignale) return
-        etatDejaSignale = true
-        runCatching {
-            val autorisees = androidx.core.app.NotificationManagerCompat
-                .from(context).areNotificationsEnabled()
-            val canal = manager?.getNotificationChannel(channelId)
-            val etatCanal = if (canal == null) "ABSENT" else "importance ${canal.importance}"
-            com.vaultex.core.monitoring.AdminBot.send(
-                "Diagnostic notification\n" +
-                    "autorisees : $autorisees\n" +
-                    "canal $channelId : $etatCanal"
-            )
-        }
-    }
-
     private fun showSystemNotification(
         key: String, title: String, body: String, symbol: String?, channelId: String
     ) {
@@ -228,7 +181,6 @@ class NotificationHub @Inject constructor(
                 .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
                 .build()
             manager?.notify(SUMMARY_ID, summary)
-            signalerEtatUneFois(channelId, manager)
         } catch (e: Exception) {
             /*
             ÉCHEC D'AFFICHAGE — SIGNALÉ, PLUS AVALÉ.
