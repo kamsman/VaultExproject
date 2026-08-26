@@ -164,6 +164,11 @@ class TokenDetailViewModel @Inject constructor(
                         catch (_: Exception) { null }
                     }
                 }
+                // Dernier recours, si tout le réseau a échoué : ce que l'accueil
+                // sait déjà. Voir coursInstantane.
+                val instantane = if (prixDejaConnu != null || (prixSecours?.usd ?: 0.0) > 0.0) null
+                    else coursInstantane(symbol)
+
                 // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
                 val chartData = dto?.sparkline_in_7d?.price
                     ?: coinGeckoId?.let { id ->
@@ -180,10 +185,12 @@ class TokenDetailViewModel @Inject constructor(
                         // l'ajout du contrat le porte. Sans cela l'écran
                         // affichait « SHIB / SHIB » au lieu de « SHIB / Shiba Inu ».
                         name = tokenNames[symbol] ?: jetonImporte?.name?.takeIf { it.isNotBlank() } ?: symbol,
-                        priceUsd = prixDejaConnu ?: prixSecours?.usd ?: 0.0,
+                        priceUsd = prixDejaConnu ?: prixSecours?.usd?.takeIf { it > 0.0 }
+                            ?: instantane?.first ?: 0.0,
                         change24h = dto?.change24h?.takeIf { it != 0.0 }
                             ?: prixContrat?.change24h?.takeIf { it != 0.0 }
-                            ?: prixSecours?.change24h ?: 0.0,
+                            ?: prixSecours?.change24h?.takeIf { it != 0.0 }
+                            ?: instantane?.second ?: 0.0,
                         marketCapUsd = dto?.marketCap ?: prixContrat?.marketCap ?: 0.0,
                         chartPrices = chartData,
                         address = address,
@@ -208,10 +215,44 @@ class TokenDetailViewModel @Inject constructor(
         } catch (_: Exception) { "" to 0.0 }
     }
 
+    /**
+     * Cours DÉJÀ CONNU du portefeuille, pour ce symbole.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LA FICHE NE DOIT JAMAIS EN SAVOIR MOINS QUE L'ACCUEIL
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * L'instantané du portefeuille contient déjà le prix unitaire et la
+     * variation de chaque monnaie, y compris des jetons importés. La fiche
+     * n'y lisait pourtant que le solde, et refaisait tout le reste par le
+     * réseau.
+     *
+     * Conséquence observée sur appareil : l'accueil affichait un cours pour
+     * un jeton importé, et sa fiche annonçait « Cours indisponible ». Deux
+     * écrans de la même application, en désaccord sur le même jeton, à la
+     * même seconde. L'utilisateur ne peut se fier ni à l'un ni à l'autre.
+     *
+     * Ce recours est le DERNIER de la chaîne : les sources réseau restent
+     * prioritaires, car elles apportent en plus la capitalisation et la
+     * courbe. Mais quand toutes échouent, la fiche reprend ce que l'accueil
+     * sait déjà — au lieu de prétendre ne rien savoir.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    private fun coursInstantane(sym: String): Pair<Double, Double>? {
+        val json = secureStorage.getPortfolioSnapshot() ?: return null
+        return try {
+            val snap = gson.fromJson(json, SnapshotLite::class.java)
+            val t = snap?.tokens?.firstOrNull { it.symbol == sym } ?: return null
+            if (t.priceUsd > 0.0) t.priceUsd to t.changePercent24h else null
+        } catch (_: Exception) { null }
+    }
+
     private data class SnapshotLite(val tokens: List<TokenLite>?)
     private data class TokenLite(
         val symbol: String = "",
         val amountFormatted: String = "",
-        val valueUsd: Double = 0.0
+        val valueUsd: Double = 0.0,
+        val priceUsd: Double = 0.0,
+        val changePercent24h: Double = 0.0
     )
 }
