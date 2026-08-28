@@ -185,8 +185,18 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                                 color = VaultExColors.TextSecondary
                             )
                         }
+                        // Le message n'apparaît QUE si le calcul de l'adresse a
+                        // abouti sans rien donner. Tant qu'il est en cours, on ne
+                        // dit rien : une adresse vide ne signifie pas encore
+                        // « wallet absent ». Voir State.addressResolved.
                         if (state.address.isEmpty()) {
-                            Text(stringResource(R.string.token_detail_wallet_not_initialized), fontSize = 13.sp, color = VaultExColors.Error)
+                            if (state.addressResolved) {
+                                Text(
+                                    stringResource(R.string.token_detail_wallet_not_initialized),
+                                    fontSize = 13.sp,
+                                    color = VaultExColors.Error
+                                )
+                            }
                         } else {
                             Spacer(Modifier.height(2.dp))
                             Text(

@@ -33,6 +33,20 @@ class TokenDetailViewModel @Inject constructor(
         val marketCapUsd: Double = 0.0,
         val chartPrices: List<Double> = emptyList(),
         val address: String = "",
+        /**
+         * L'adresse a-t-elle FINI d'être calculée ?
+         *
+         * Sans ce drapeau, l'écran ne peut pas distinguer « pas encore
+         * connue » de « réellement absente » — les deux valent la chaîne
+         * vide. Il affichait donc « Wallet non initialisé » en rouge pendant
+         * la seconde où la phrase secrète se déchiffre, sur un portefeuille
+         * parfaitement valide.
+         *
+         * Un avertissement qui apparaît puis se dément tout seul est pire
+         * qu'aucun avertissement : il apprend à l'utilisateur à ne pas les
+         * lire, et le jour où le message est vrai, il ne le verra pas.
+         */
+        val addressResolved: Boolean = false,
         // Solde détenu (depuis l'instantané portefeuille).
         val amountFormatted: String = "",
         val valueUsd: Double = 0.0,
@@ -292,6 +306,7 @@ class TokenDetailViewModel @Inject constructor(
                             ?: prixContrat?.marketCap?.get("usd") ?: 0.0,
                         chartPrices = chartData,
                         address = address,
+                        addressResolved = true,
                         amountFormatted = amountFormatted,
                         valueUsd = valueUsd,
                         isLoading = false
