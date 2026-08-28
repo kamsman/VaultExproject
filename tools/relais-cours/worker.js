@@ -67,6 +67,9 @@ identifiant, ni clé. Uniquement des cours publics.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
+/** Version du Worker déployé — lisible sur /sante et /diag. */
+const VERSION = 4
+
 const COINGECKO = 'https://api.coingecko.com'
 
 /*
@@ -163,7 +166,11 @@ export default {
 
     // Sonde de vie : permet de vérifier le déploiement sans lancer l'app.
     if (url.pathname === '/' || url.pathname === '/sante') {
-      return json({ ok: true, service: 'relais-cours-vaultex' })
+      // VERSION : à incrémenter à chaque modification de ce fichier.
+      // Sans elle, impossible de savoir si le code déployé est bien le
+      // dernier — on a perdu du temps à corriger un défaut déjà corrigé,
+      // simplement parce que l'ancienne version tournait encore.
+      return json({ ok: true, service: 'relais-cours-vaultex', version: VERSION })
     }
 
     if (url.pathname === '/diag') {
@@ -318,7 +325,7 @@ async function ajouteTickers(cible, bases) {
  * de retour.
  */
 async function diagnostic(env) {
-  const sondes = {}
+  const sondes = { version: VERSION }
 
   /*
   Mesuré, pas supposé : api.binance.com répond 403 depuis un Worker, avec
@@ -337,6 +344,9 @@ async function diagnostic(env) {
     binance_api1: 'https://api1.binance.com/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%5D',
     okx: 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT',
     coinbase: 'https://api.exchange.coinbase.com/products/BTC-USD/ticker',
+    geckoterminal:
+      'https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price/' +
+      '0xd533a949740bb3306d119cc777fa900ba034cd52',
     kraken: 'https://api.kraken.com/0/public/Ticker?pair=XBTUSDT',
   }
 
