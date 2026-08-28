@@ -666,12 +666,29 @@ class PortfolioViewModel @Inject constructor(
         cinq jetons, et l'écart grandit avec chaque jeton ajouté.
         ═══════════════════════════════════════════════════════════════════
          */
-        // Et réutilisés pendant TTL_COURS : le cycle de 45 secondes de
-        // l'accueil sert à voir arriver un dépôt, pas à recoter des jetons.
+        /*
+        Réutilisés pendant TTL_COURS : le cycle de 45 secondes de l'accueil
+        sert à voir arriver un dépôt, pas à recoter des jetons.
+
+        MAIS LE TEMPS NE SUFFIT PAS À JUGER CE CACHE. Il ne mesure que
+        l'ancienneté, jamais le CONTENU — et la liste des jetons, elle,
+        change : l'utilisateur en importe un nouveau à tout moment.
+
+        Un jeton qui vient d'être ajouté n'est dans aucun cache. Le cache
+        restait pourtant « frais » au sens du temps, donc on le servait tel
+        quel, et le nouveau jeton s'affichait à « Prix : $0 » jusqu'à cinq
+        minutes. Constaté sur appareil : quatre jetons importés coup sur
+        coup, tous sans cours, alors que le réseau les aurait tous rendus.
+
+        Un cache doit être invalidé par ce qui le rend faux, pas seulement
+        par le temps qui passe. On le considère donc périmé dès qu'un jeton
+        détenu n'y figure pas.
+         */
         val maintenantJetons = System.currentTimeMillis()
         val prixJetonsPerimes = !silent ||
             prixContratEnCache.isEmpty() ||
-            maintenantJetons - prixContratHorodatage > TTL_COURS
+            maintenantJetons - prixContratHorodatage > TTL_COURS ||
+            customs.any { it.contractAddress.lowercase() !in prixContratEnCache }
 
         val prixParContrat: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
             if (!prixJetonsPerimes) prixContratEnCache else withContext(Dispatchers.IO) {
