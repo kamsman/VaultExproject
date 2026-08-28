@@ -174,6 +174,10 @@ export default {
       return await coursSimples(url, env)
     }
 
+    if (url.pathname.startsWith('/api/v3/simple/token_price/')) {
+      return await prixParContrat(url, env)
+    }
+
     // Tout le reste part chez CoinGecko, mais UNE SEULE FOIS par période de
     // cache et non une fois par utilisateur.
     return await relaisCoinGecko(url, env, TTL_MARCHE)
@@ -390,7 +394,11 @@ async function relaisCoinGecko(url, env, ttl) {
   const cache = caches.default
   const cle = new Request(url.toString())
   const enCache = await cache.match(cle)
-  if (enCache) return enCache
+  // Une version antérieure enregistrait TOUTES les réponses, refus de quota
+  // compris. Une erreur ainsi mise en cache continuait d'être servie bien
+  // après que la source fut redevenue disponible : on ne rend donc du cache
+  // que ce qui a réellement abouti.
+  if (enCache && enCache.ok) return enCache
 
   const cible = COINGECKO + url.pathname + url.search
   const entetes = { 'user-agent': AGENT, accept: 'application/json' }
@@ -462,6 +470,112 @@ async function relaisCoinGecko(url, env, ttl) {
  * avec `error_code: 10006` dans le corps, parfois sur un statut 200. Se fier
  * au seul statut laisserait donc passer le cas le plus important.
  */
+/**
+ * /simple/token_price/{plateforme} — prix des JETONS par adresse de contrat.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * POURQUOI CE CHEMIN A SA PROPRE SOURCE
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * C'est l'appel dont dependent tous les jetons importes par l'utilisateur, et
+ * c'est celui qui tombait le plus souvent. Mesure sur le relais deploye :
+ *
+ *   avec la cle Demo : error_code 10006, plafond mensuel atteint
+ *   sans cle         : refuse par intermittence, le debit public etant
+ *                      partage entre toutes les adresses Cloudflare
+ *
+ * Resultat sur appareil : CRV, GRT, 1INCH et XVS affiches a « Prix : $0 »,
+ * alors que ces jetons sont cotes partout. Un portefeuille qui ne sait pas
+ * dire ce que vaut ce qu'il contient ne remplit pas son office.
+ *
+ * GECKOTERMINAL — l'interface DEX de CoinGecko — repond a la meme question
+ * SANS CLE ET SANS PLAFOND MENSUEL. Sa couverture est meme plus large : elle
+ * porte sur les jetons ayant une liquidite reelle sur les places
+ * decentralisees, donc au-dela des seules monnaies referencees.
+ *
+ * Elle ne rend qu'un prix en dollars : ni variation, ni capitalisation. C'est
+ * suffisant ici — la ligne d'accueil a besoin d'une valeur, pas d'une fiche.
+ * L'euro et le FCFA s'en deduisent par le meme pivot que partout ailleurs.
+ *
+ * ORDRE : CoinGecko d'abord, qui rend tout ; GeckoTerminal ensuite, qui rend
+ * l'essentiel mais ne tombe jamais.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function prixParContrat(url, env) {
+  const viaCoinGecko = await relaisCoinGecko(url, env, TTL_COURS)
+  if (viaCoinGecko.ok) {
+    const texte = await viaCoinGecko.clone().text()
+    // Une reponse vide « {} » n'est pas une reussite : le jeton n'a
+    // simplement pas ete trouve, et l'autre source peut le connaitre.
+    if (texte.length > 4 && !texte.includes('"error_code"')) return viaCoinGecko
+  }
+
+  // Plateforme CoinGecko -> reseau GeckoTerminal.
+  const plateforme = url.pathname.split('/').pop()
+  const reseau =
+    plateforme === 'binance-smart-chain' ? 'bsc' :
+    plateforme === 'ethereum' ? 'eth' : null
+  const contrats = url.searchParams.get('contract_addresses')
+  if (!reseau || !contrats) return viaCoinGecko
+
+  try {
+    const r = await fetch(
+      `https://api.geckoterminal.com/api/v2/simple/networks/${reseau}/token_price/${contrats}`,
+      { headers: { 'user-agent': AGENT, accept: 'application/json' } }
+    )
+    if (!r.ok) return viaCoinGecko
+    const donnees = await r.json()
+    const prix = donnees && donnees.data && donnees.data.attributes
+      ? donnees.data.attributes.token_prices
+      : null
+    if (!prix || Object.keys(prix).length === 0) return viaCoinGecko
+
+    const eurUsd = await tauxEuroDollar()
+    const sortie = {}
+    for (const [adresse, valeur] of Object.entries(prix)) {
+      const usd = parseFloat(valeur)
+      if (!Number.isFinite(usd) || usd <= 0) continue
+      const eur = eurUsd ? usd / eurUsd : 0
+      // La variation reste absente : GeckoTerminal ne la donne pas, et on
+      // n'invente pas un mouvement de marche.
+      sortie[adresse.toLowerCase()] = {
+        usd,
+        eur,
+        xof: eur * XOF_PAR_EURO,
+        usd_24h_change: 0,
+      }
+    }
+    if (Object.keys(sortie).length === 0) return viaCoinGecko
+    return json(sortie, TTL_COURS)
+  } catch (_) {
+    return viaCoinGecko
+  }
+}
+
+/**
+ * Combien d'USDT vaut un euro, d'apres la paire EURUSDT.
+ *
+ * Le meme pivot que pour les cours simples : aucun service de change a
+ * ajouter, et le FCFA se deduit ensuite d'une parite fixe et legale.
+ */
+async function tauxEuroDollar() {
+  for (const hote of HOTES_BINANCE) {
+    try {
+      const r = await fetch(`${hote}/api/v3/ticker/price?symbol=EURUSDT`, {
+        headers: { 'user-agent': AGENT, accept: 'application/json' },
+        cf: { cacheTtl: TTL_COURS, cacheEverything: true },
+      })
+      if (!r.ok) continue
+      const donnees = await r.json()
+      const valeur = parseFloat(donnees && donnees.price)
+      if (Number.isFinite(valeur) && valeur > 0) return valeur
+    } catch (_) {
+      // hote injoignable : on essaie le suivant
+    }
+  }
+  return null
+}
+
 function quotaEpuise(statut, texte) {
   if (statut === 429) return true
   return texte.includes('"error_code":10006') || texte.includes('calls limit')
