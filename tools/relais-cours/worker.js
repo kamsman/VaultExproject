@@ -387,25 +387,84 @@ async function diagnostic(env) {
  * ne produisent qu'UN appel vers CoinGecko.
  */
 async function relaisCoinGecko(url, env, ttl) {
-  const cible = new URL(COINGECKO + url.pathname + url.search)
+  const cache = caches.default
+  const cle = new Request(url.toString())
+  const enCache = await cache.match(cle)
+  if (enCache) return enCache
+
+  const cible = COINGECKO + url.pathname + url.search
   const entetes = { 'user-agent': AGENT, accept: 'application/json' }
-  // Clé Demo facultative : elle relève les limites de débit. Elle reste ici,
-  // côté serveur — c'est précisément l'intérêt d'avoir un relais.
-  if (env && env.COINGECKO_KEY) entetes['x-cg-demo-api-key'] = env.COINGECKO_KEY
 
-  const r = await fetch(cible.toString(), {
-    headers: entetes,
-    cf: { cacheTtl: ttl, cacheEverything: true },
-  })
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA CLÉ D'ABORD, PUIS SANS ELLE
+  ═══════════════════════════════════════════════════════════════════════
 
-  const texte = await r.text()
-  return new Response(texte, {
-    status: r.status,
+  Les deux voies n'ont pas les mêmes limites, et c'est ce qui rend ce
+  repli indispensable :
+
+  · AVEC la clé Demo — débit confortable, mais un plafond MENSUEL DUR de
+    10 000 appels. Atteint, tout est refusé jusqu'au mois suivant.
+  · SANS clé — aucun plafond mensuel, mais un débit par minute serré.
+
+  Une fois le quota mensuel épuisé, la clé rend donc les choses PIRES que
+  pas de clé du tout. Mesuré : le relais renvoyait « error_code 10006,
+  You've reached 10,000 calls limit » pendant que le même appel sans clé
+  répondait normalement. Les jetons importés restaient à « Prix : $0 »
+  alors que la donnée était à portée de main.
+
+  On tente donc la clé — elle donne le meilleur débit tant qu'il reste du
+  quota — et l'on repart sans elle dès que la réponse annonce un
+  épuisement. Aucun réglage à faire : quand le quota se réinitialise, la
+  clé reprend d'elle-même.
+
+  Le cache n'enregistre QUE les réponses réussies. Sans cette précaution,
+  un refus de quota serait servi pendant toute la durée de cache — y
+  compris à la tentative sans clé, qui aurait pourtant abouti.
+  ═══════════════════════════════════════════════════════════════════════
+   */
+  let reponseAmont = null
+  let texte = ''
+
+  if (env && env.COINGECKO_KEY) {
+    reponseAmont = await fetch(cible, {
+      headers: { ...entetes, 'x-cg-demo-api-key': env.COINGECKO_KEY },
+    })
+    texte = await reponseAmont.text()
+  }
+
+  if (!reponseAmont || quotaEpuise(reponseAmont.status, texte)) {
+    const sansCle = await fetch(cible, { headers: entetes })
+    const texteSansCle = await sansCle.text()
+    // On ne retient la tentative sans clé que si elle fait mieux : sinon on
+    // garde la réponse d'origine, dont le message est plus parlant.
+    if (!reponseAmont || sansCle.ok) {
+      reponseAmont = sansCle
+      texte = texteSansCle
+    }
+  }
+
+  const reponse = new Response(texte, {
+    status: reponseAmont.status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': `public, max-age=${ttl}`,
     },
   })
+  if (reponseAmont.ok) await cache.put(cle, reponse.clone())
+  return reponse
+}
+
+/**
+ * La réponse annonce-t-elle un quota épuisé ?
+ *
+ * CoinGecko ne se contente pas d'un code HTTP : le plafond mensuel arrive
+ * avec `error_code: 10006` dans le corps, parfois sur un statut 200. Se fier
+ * au seul statut laisserait donc passer le cas le plus important.
+ */
+function quotaEpuise(statut, texte) {
+  if (statut === 429) return true
+  return texte.includes('"error_code":10006') || texte.includes('calls limit')
 }
 
 function nombre(v) {
