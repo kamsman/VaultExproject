@@ -63,7 +63,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PriceFallbackSource @Inject constructor(
-    private val api: BinanceApi
+    private val api: BinanceApi,
+    private val geckoTerminal: com.vaultex.data.remote.api.GeckoTerminalApi
 ) {
 
     /**
@@ -165,6 +166,63 @@ class PriceFallbackSource @Inject constructor(
      */
     suspend fun pricesBySymbol(symbols: Collection<String>): Map<String, CoinGeckoPriceDto> =
         quotes(symbols.map { it.uppercase() }.toSet())
+
+    /**
+     * Cours de jetons désignés par leur ADRESSE DE CONTRAT.
+     *
+     * ═══════════════════════════════════════════════════════════════════════
+     * LE SEUL REPLI SÛR POUR UN JETON IMPORTÉ LIBREMENT
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * L'application refuse de coter un jeton d'après son SYMBOLE : n'importe
+     * qui peut déployer un contrat et l'appeler « SHIB », et afficher un prix
+     * emprunté sur des fonds réels serait pire que n'afficher aucun prix. Ce
+     * refus reste entier.
+     *
+     * Ici la clé de recherche est l'ADRESSE DE CONTRAT — l'identité même du
+     * jeton, celle que l'utilisateur a collée et qui détermine son solde.
+     * Aucune confusion n'est possible : le prix rendu est celui de ce
+     * contrat-là, jamais d'un homonyme.
+     *
+     * C'est ce qui autorise ce repli sur TOUS les jetons importés, alors que
+     * le repli par symbole reste réservé au registre vérifié.
+     *
+     * POURQUOI IL EXISTE. CoinGecko refuse ce chemin depuis que le quota
+     * mensuel est atteint, et le relais ne peut pas le remplacer : interrogé
+     * depuis Cloudflare, GeckoTerminal répond « 429 Rate Limited », comme
+     * Binance et OKX. Depuis le téléphone de l'utilisateur, l'adresse est
+     * celle de son opérateur, et l'appel passe.
+     *
+     * Ne rend qu'un prix en dollars : ni variation, ni capitalisation. C'est
+     * ce dont une ligne de portefeuille a besoin. L'euro et le FCFA s'en
+     * déduisent par le pivot habituel, et la variation reste à zéro — on
+     * n'invente pas un mouvement de marché.
+     */
+    suspend fun pricesByContract(
+        blockchain: String,
+        contrats: Collection<String>
+    ): Map<String, CoinGeckoPriceDto> {
+        if (contrats.isEmpty()) return emptyMap()
+        val reseau = if (blockchain == "BNB") "bsc" else "eth"
+        return try {
+            val brut = geckoTerminal
+                .prixJetons(reseau, contrats.joinToString(",") { it.lowercase() })
+                .data?.attributes?.tokenPrices.orEmpty()
+            if (brut.isEmpty()) return emptyMap()
+            // Le taux euro passe par le même chemin que les cours natifs, donc
+            // par le cache : aucun appel supplémentaire dans le cas courant.
+            val eurUsd = quotes(setOf("BTC"))["BTC"]?.let { btc ->
+                if (btc.eur > 0.0) btc.usd / btc.eur else null
+            }
+            brut.mapNotNull { (adresse, valeur) ->
+                val usd = valeur.toDoubleOrNull() ?: return@mapNotNull null
+                if (usd <= 0.0) return@mapNotNull null
+                adresse.lowercase() to ligne(usd, eurUsd, 0.0)
+            }.toMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
 
     /**
      * Cœur de la classe : un appel, tous les cours demandés.

@@ -297,3 +297,46 @@ interface BinanceApi {
         @Query("symbols") symbolsJson: String
     ): List<com.vaultex.data.remote.dto.BinanceTickerDto>
 }
+
+/**
+ * GeckoTerminal — prix d'un jeton par son ADRESSE DE CONTRAT, sans clé.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI DEPUIS LE TÉLÉPHONE, ET NON DEPUIS LE RELAIS
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Le relais a d'abord tenté cet appel. Mesuré : « 429 Rate Limited » —
+ * comme Binance et OKX avant lui. Ces services limitent le débit par
+ * adresse, et l'adresse d'un serveur Cloudflare est partagée par des
+ * milliers de sites : le quota est consommé par d'autres.
+ *
+ * Depuis un téléphone, l'adresse est celle de l'opérateur mobile de
+ * l'utilisateur. Le même appel passe. C'est déjà ce qui fait fonctionner
+ * la source Binance de PriceFallbackSource.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI C'EST SÛR POUR N'IMPORTE QUEL JETON IMPORTÉ
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * L'application refuse de coter un jeton d'après son SYMBOLE : n'importe
+ * qui peut déployer un contrat et l'appeler « SHIB ». Ce refus reste.
+ *
+ * Ici, la clé de recherche est l'ADRESSE DE CONTRAT — c'est-à-dire
+ * l'identité même du jeton, celle que l'utilisateur a collée et qui
+ * détermine son solde. Aucune confusion possible : le prix rendu est
+ * celui de ce contrat-là, pas d'un homonyme.
+ *
+ * C'est ce qui autorise ce repli sur TOUS les jetons importés, alors que
+ * le repli par symbole restait limité au registre vérifié.
+ */
+interface GeckoTerminalApi {
+    /**
+     * [reseau] vaut "eth" ou "bsc". [contrats] accepte plusieurs adresses
+     * séparées par des virgules — un seul appel pour tout le portefeuille.
+     */
+    @GET("api/v2/simple/networks/{reseau}/token_price/{contrats}")
+    suspend fun prixJetons(
+        @Path("reseau") reseau: String,
+        @Path("contrats") contrats: String
+    ): com.vaultex.data.remote.dto.GeckoTerminalDto
+}

@@ -777,11 +777,53 @@ class PortfolioViewModel @Inject constructor(
                 } catch (_: Exception) { emptyMap() }
             }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        DERNIER RECOURS : LE PRIX PAR ADRESSE DE CONTRAT, SANS QUOTA
+        ═══════════════════════════════════════════════════════════════════
+
+        Les deux sources ci-dessus ont chacune leur angle mort. CoinGecko
+        refuse ce chemin dès que le quota mensuel est atteint — mesuré, et
+        c'est ce qui laissait CRV, GRT, 1INCH et XVS à « Prix : $0 ». Le
+        repli par symbole, lui, ne couvre que le registre vérifié.
+
+        GeckoTerminal interroge par ADRESSE DE CONTRAT, sans clé ni quota
+        mensuel. Et c'est justement l'adresse qui rend ce repli sûr là où
+        celui par symbole ne l'était pas : le contrat EST l'identité du
+        jeton, celle qui détermine son solde. Impossible de récupérer le
+        prix d'un homonyme.
+
+        Il est donc autorisé sur TOUS les jetons importés, y compris ceux
+        que l'utilisateur a ajoutés librement.
+
+        Appelé depuis le TÉLÉPHONE et non depuis le relais : interrogé
+        depuis Cloudflare, ce service répond « 429 Rate Limited », son
+        débit étant partagé avec des milliers d'autres sites. Depuis une
+        connexion mobile, il passe.
+        ═══════════════════════════════════════════════════════════════════
+         */
+        val sansPrix = if (!prixJetonsPerimes) emptyList() else customs.filter { entity ->
+            val adresse = entity.contractAddress.lowercase()
+            (prixParContrat[adresse]?.usd ?: 0.0) <= 0.0 &&
+                (prixDeSecours[adresse]?.usd ?: 0.0) <= 0.0
+        }
+        val prixSansQuota: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
+            if (sansPrix.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
+                sansPrix.groupBy { it.blockchain }
+                    .flatMap { (chaine, jetons) ->
+                        try {
+                            priceFallback.pricesByContract(
+                                chaine, jetons.map { it.contractAddress }
+                            ).entries.map { it.key to it.value }
+                        } catch (_: Exception) { emptyList() }
+                    }.toMap()
+            }
+
         // Même règle que pour les cours natifs : mémorisé seulement après un
         // relevé réel — réhorodater en servant le cache le rendrait éternel —
         // et un échec total n'efface pas l'ancien.
         if (prixJetonsPerimes) {
-            val fusionnes = prixParContrat + prixDeSecours
+            val fusionnes = prixParContrat + prixDeSecours + prixSansQuota
             if (fusionnes.isNotEmpty()) {
                 prixContratEnCache = fusionnes
                 prixContratHorodatage = maintenantJetons
@@ -801,6 +843,7 @@ class PortfolioViewModel @Inject constructor(
                 // puis, à défaut, celui de la source de secours (contrat vérifié).
                 val price = prixParContrat[entity.contractAddress.lowercase()]
                     ?: prixDeSecours[entity.contractAddress.lowercase()]
+                    ?: prixSansQuota[entity.contractAddress.lowercase()]
                 // Prix COLLANT : si CoinGecko échoue, on réutilise le dernier prix
                 // connu pour ce contrat (jamais « 00 » une fois récupéré).
                 val prev = prevByContract[entity.contractAddress.lowercase()]

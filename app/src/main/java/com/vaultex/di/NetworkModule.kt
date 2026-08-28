@@ -338,6 +338,18 @@ object NetworkModule {
      * besoin. Aucune donnée sensible n'y transite — on demande un cours, on
      * n'envoie ni adresse ni identifiant.
      */
+    /**
+     * GeckoTerminal — prix par adresse de contrat, sans clé.
+     *
+     * Appelé DEPUIS LE TÉLÉPHONE et non depuis le relais : mesuré à « 429
+     * Rate Limited » quand le relais l'interrogeait, l'adresse d'un serveur
+     * Cloudflare étant partagée par des milliers de sites. Depuis une
+     * connexion mobile, le même appel passe.
+     */
+    @Provides @Singleton
+    fun provideGeckoTerminalApi(client: OkHttpClient): GeckoTerminalApi =
+        retrofit("https://api.geckoterminal.com/", client).create(GeckoTerminalApi::class.java)
+
     @Provides @Singleton
     fun provideBinanceApi(client: OkHttpClient): BinanceApi =
         retrofit("https://api.binance.com/", client).create(BinanceApi::class.java)

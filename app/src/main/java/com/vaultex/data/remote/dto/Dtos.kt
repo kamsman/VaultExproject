@@ -326,3 +326,13 @@ data class BinanceTickerDto(
     val lastPrice: String = "0",
     val priceChangePercent: String = "0"
 )
+
+
+// ─── GECKOTERMINAL (prix par contrat, sans clé) ────────────────────
+// Les prix arrivent en CHAÎNES, comme chez Binance : c'est ce qui préserve
+// la précision des jetons dont le cours tient dans les dixièmes décimales.
+data class GeckoTerminalDto(val data: GeckoTerminalData? = null)
+data class GeckoTerminalData(val attributes: GeckoTerminalAttributs? = null)
+data class GeckoTerminalAttributs(
+    @SerializedName("token_prices") val tokenPrices: Map<String, String> = emptyMap()
+)
