@@ -130,6 +130,39 @@ data class CoinGeckoMarketDto(
 data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
 
+/*
+FICHE COMPLÈTE D'UN JETON, PAR SON ADRESSE DE CONTRAT.
+
+L'application n'utilisait que `simple/token_price`, qui ne rend qu'un prix et
+une variation. D'où des fiches de jetons importés amputées : ni
+capitalisation, ni courbe, ni nom réel — alors que CoinGecko possède tout
+cela et sait le servir à partir du seul contrat.
+
+Ce point d'entrée rend la MÊME richesse qu'une monnaie du registre. Un jeton
+importé cesse donc d'être un citoyen de seconde zone dans l'application.
+
+Les champs absents restent à zéro : CoinGecko ne renseigne pas toujours la
+capitalisation d'un jeton confidentiel, et un bloc vide vaut mieux qu'une
+valeur inventée.
+*/
+data class CoinGeckoContractDto(
+    val id: String = "",
+    val symbol: String = "",
+    val name: String = "",
+    val image: CoinGeckoImageDto? = null,
+    @SerializedName("market_data") val marketData: CoinGeckoMarketDataDto? = null
+)
+data class CoinGeckoImageDto(
+    val thumb: String? = null,
+    val small: String? = null,
+    val large: String? = null
+)
+data class CoinGeckoMarketDataDto(
+    @SerializedName("current_price") val currentPrice: Map<String, Double> = emptyMap(),
+    @SerializedName("market_cap") val marketCap: Map<String, Double> = emptyMap(),
+    @SerializedName("price_change_percentage_24h") val change24h: Double = 0.0
+)
+
 // Détail léger d'une pièce — uniquement ses adresses de contrat par réseau
 // (« platforms »). Clés utiles : "ethereum" et "binance-smart-chain".
 // CoinGecko renvoie une chaîne VIDE (pas null) pour un réseau sans contrat.

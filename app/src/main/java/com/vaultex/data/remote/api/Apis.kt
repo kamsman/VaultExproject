@@ -126,6 +126,32 @@ interface CoinGeckoApi {
         @Query("ids") ids: String? = null   // filtre optionnel : 1 ou plusieurs coins
     ): List<CoinGeckoMarketDto>
 
+    /*
+    JETON DÉSIGNÉ PAR SON ADRESSE DE CONTRAT — fiche complète et courbe.
+
+    L'application se contentait de `simple/token_price`, qui ne rend qu'un
+    prix. Ces deux appels donnent à un jeton importé exactement ce qu'a une
+    monnaie du registre : nom réel, logo, capitalisation, variation, et
+    l'historique sur sept jours.
+
+    `platform` vaut "ethereum" ou "binance-smart-chain". Se tromper de
+    plateforme ne renvoie pas une erreur parlante mais un 404 : le contrat
+    existe, simplement pas sur cette chaîne-là.
+    */
+    @GET("coins/{platform}/contract/{contract}")
+    suspend fun getContractInfo(
+        @Path("platform") platform: String,
+        @Path("contract") contract: String
+    ): com.vaultex.data.remote.dto.CoinGeckoContractDto
+
+    @GET("coins/{platform}/contract/{contract}/market_chart")
+    suspend fun getContractChart(
+        @Path("platform") platform: String,
+        @Path("contract") contract: String,
+        @Query("vs_currency") vsCurrency: String = "usd",
+        @Query("days") days: Int = 7
+    ): com.vaultex.data.remote.dto.CoinGeckoChartDto
+
     @GET("coins/{id}/market_chart")
     suspend fun getMarketChart(
         @Path("id") coinId: String,

@@ -675,11 +675,47 @@ class PortfolioViewModel @Inject constructor(
 
         val prixParContrat: Map<String, com.vaultex.data.remote.dto.CoinGeckoPriceDto> =
             if (!prixJetonsPerimes) prixContratEnCache else withContext(Dispatchers.IO) {
-                customs.groupBy { if (it.blockchain == "BNB") "binance-smart-chain" else "ethereum" }
+                val premierePasse = customs
+                    .groupBy { if (it.blockchain == "BNB") "binance-smart-chain" else "ethereum" }
                     .flatMap { (plateforme, jetons) ->
                         val adresses = jetons.joinToString(",") { it.contractAddress.lowercase() }
                         try {
                             coinGeckoApi.getTokenPrice(plateforme, adresses).entries
+                                .map { it.key.lowercase() to it.value }
+                        } catch (_: Exception) { emptyList() }
+                    }.toMap()
+
+                /*
+                ═══════════════════════════════════════════════════════════
+                SECONDE PASSE SUR L'AUTRE CHAÎNE
+                ═══════════════════════════════════════════════════════════
+
+                On n'interrogeait que la chaîne DÉCLARÉE à l'ajout du jeton.
+                Or cette déclaration peut être fausse — l'utilisateur se
+                trompe de réseau en collant un contrat, ou le jeton n'existe
+                tout simplement pas là où on le cherche.
+
+                Le symptôme ne dit rien : CoinGecko ne répond pas « mauvaise
+                chaîne », il répond « inconnu ». Le jeton s'affiche donc à
+                « Prix : $0 » pour toujours, sans que rien n'indique que la
+                donnée existait, à une adresse voisine.
+
+                On redemande donc les contrats restés sans prix sur l'AUTRE
+                chaîne. Un appel de plus, uniquement quand le premier n'a pas
+                tout couvert — et un jeton correctement coté au lieu d'un
+                zéro définitif.
+                ═══════════════════════════════════════════════════════════
+                 */
+                val orphelins = customs.filter {
+                    (premierePasse[it.contractAddress.lowercase()]?.usd ?: 0.0) <= 0.0
+                }
+                if (orphelins.isEmpty()) premierePasse else premierePasse + orphelins
+                    .groupBy { if (it.blockchain == "BNB") "ethereum" else "binance-smart-chain" }
+                    .flatMap { (plateforme, jetons) ->
+                        val adresses = jetons.joinToString(",") { it.contractAddress.lowercase() }
+                        try {
+                            coinGeckoApi.getTokenPrice(plateforme, adresses).entries
+                                .filter { (it.value.usd) > 0.0 }
                                 .map { it.key.lowercase() to it.value }
                         } catch (_: Exception) { emptyList() }
                     }.toMap()

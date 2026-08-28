@@ -74,13 +74,55 @@ class TokenDetailViewModel @Inject constructor(
     )
 
     init {
-        _state.update { it.copy(symbol = symbol, name = tokenNames[symbol] ?: symbol) }
+        afficherCeQueLOnSaitDeja()
         loadData()
+    }
+
+    /**
+     * Remplit l'écran AVANT tout appel réseau.
+     *
+     * ═══════════════════════════════════════════════════════════════════════
+     * POURQUOI L'ÉCRAN METTAIT DU TEMPS À S'AFFICHER
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * `isLoading` restait vrai tant que la TOTALITÉ du chargement n'était pas
+     * finie : dérivation d'adresse, cours, capitalisation, courbe sur sept
+     * jours. Soit jusqu'à cinq allers-retours réseau, dont le plus lent
+     * décidait du moment où quoi que ce soit apparaissait.
+     *
+     * L'utilisateur touchait une monnaie et regardait un écran vide pendant
+     * plusieurs secondes — alors que l'application connaissait DÉJÀ son
+     * symbole, son nom, sa quantité, sa valeur et son cours : tout cela est
+     * dans l'instantané du portefeuille, lu sur le disque, sans réseau.
+     *
+     * On affiche donc immédiatement ce qui est connu, et le réseau ne fait
+     * plus qu'enrichir : capitalisation, courbe, cours rafraîchi. Rien ne
+     * disparaît pendant ce temps, rien ne clignote.
+     *
+     * C'est le même principe que l'accueil, qui montre le dernier
+     * portefeuille connu avant d'interroger les chaînes.
+     * ═══════════════════════════════════════════════════════════════════════
+     */
+    private fun afficherCeQueLOnSaitDeja() {
+        val (quantite, valeur) = balanceFor(symbol)
+        val cours = coursInstantane(symbol)
+        _state.update {
+            it.copy(
+                symbol = symbol,
+                name = tokenNames[symbol] ?: symbol,
+                amountFormatted = quantite,
+                valueUsd = valeur,
+                priceUsd = cours?.first ?: 0.0,
+                change24h = cours?.second ?: 0.0,
+                // Plus de voile de chargement : l'écran a déjà de quoi être lu.
+                isLoading = false
+            )
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(error = null) }
             try {
                 val address = withContext(Dispatchers.IO) {
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext ""
@@ -118,11 +160,11 @@ class TokenDetailViewModel @Inject constructor(
                  * ce que fait l'écran d'accueil — d'où l'incohérence observée :
                  * la conversion du solde était juste, l'en-tête était faux.
                  *
-                 * On emprunte donc le même chemin. Ce point de terminaison
-                 * renvoie le prix et la variation sur 24 h, mais NI la
-                 * capitalisation NI l'historique 7 jours : ces deux blocs
-                 * restent masqués, ce qui est honnête plutôt que remplis de
-                 * valeurs empruntées.
+                 * On emprunte donc le même chemin — mais par la fiche
+                 * COMPLÈTE du contrat, qui rend aussi la capitalisation, le
+                 * nom réel et la courbe. Ces trois blocs restaient vides non
+                 * parce que la donnée manquait, mais parce qu'on ne la
+                 * demandait pas.
                  */
                 val jetonImporte = if (dto != null) null else withContext(Dispatchers.IO) {
                     try {
@@ -130,16 +172,44 @@ class TokenDetailViewModel @Inject constructor(
                             .firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }
                     } catch (_: Exception) { null }
                 }
-                val prixContrat = jetonImporte?.let { jeton ->
+                /*
+                FICHE COMPLÈTE PAR ADRESSE DE CONTRAT.
+
+                L'application se contentait de `simple/token_price`, qui ne
+                rend qu'un prix et une variation. Une fiche de jeton importé
+                était donc amputée : ni capitalisation, ni courbe, ni nom réel
+                — alors que CoinGecko possède tout cela et sait le servir à
+                partir du seul contrat.
+
+                On demande donc la fiche complète. Un jeton importé cesse
+                d'être un citoyen de seconde zone : il obtient exactement ce
+                qu'a une monnaie du registre.
+
+                DEUX PLATEFORMES ESSAYÉES. Un contrat BEP-20 interrogé sur
+                Ethereum renvoie 404 — pas une erreur parlante, juste
+                « inconnu ». Or la chaîne enregistrée à l'ajout peut être
+                fausse : l'utilisateur a pu se tromper, ou le jeton exister
+                sur les deux. On tente donc la chaîne déclarée, puis l'autre.
+                C'est un appel de plus dans le seul cas où le premier échoue.
+                 */
+                val ficheContrat = jetonImporte?.let { jeton ->
                     withContext(Dispatchers.IO) {
-                        try {
-                            val plateforme =
-                                if (jeton.blockchain == "BNB") "binance-smart-chain" else "ethereum"
-                            coinGeckoApi.getTokenPrice(plateforme, jeton.contractAddress.lowercase())
-                                .entries.firstOrNull()?.value
-                        } catch (_: Exception) { null }
+                        val declaree =
+                            if (jeton.blockchain == "BNB") "binance-smart-chain" else "ethereum"
+                        val autre =
+                            if (declaree == "ethereum") "binance-smart-chain" else "ethereum"
+                        val contrat = jeton.contractAddress.lowercase()
+                        listOf(declaree, autre).firstNotNullOfOrNull { plateforme ->
+                            try {
+                                val fiche = coinGeckoApi.getContractInfo(plateforme, contrat)
+                                if ((fiche.marketData?.currentPrice?.get("usd") ?: 0.0) > 0.0)
+                                    plateforme to fiche
+                                else null
+                            } catch (_: Exception) { null }
+                        }
                     }
                 }
+                val prixContrat = ficheContrat?.second?.marketData
                 /*
                  * DERNIER RECOURS : la source de prix sans quota.
                  *
@@ -157,7 +227,7 @@ class TokenDetailViewModel @Inject constructor(
                  * empruntée à une autre monnaie.
                  */
                 val prixDejaConnu = dto?.currentPrice?.takeIf { it > 0.0 }
-                    ?: prixContrat?.usd?.takeIf { it > 0.0 }
+                    ?: prixContrat?.currentPrice?.get("usd")?.takeIf { it > 0.0 }
                 val prixSecours = if (prixDejaConnu != null) null else coinGeckoId?.let { id ->
                     withContext(Dispatchers.IO) {
                         try { priceFallback.pricesByCoinGeckoId(listOf(id))[id] }
@@ -169,29 +239,57 @@ class TokenDetailViewModel @Inject constructor(
                 val instantane = if (prixDejaConnu != null || (prixSecours?.usd ?: 0.0) > 0.0) null
                     else coursInstantane(symbol)
 
-                // Graphique : d'abord le sparkline du dto ; sinon repli market_chart.
-                val chartData = dto?.sparkline_in_7d?.price
+                /*
+                COURBE SUR SEPT JOURS — trois sources, dans cet ordre.
+
+                Le sparkline arrive gratuitement avec la fiche marché quand
+                elle existe. Sinon on demande l'historique par identifiant.
+
+                Et pour un jeton IMPORTÉ, on le demande par adresse de
+                contrat : c'est la nouveauté. Jusqu'ici ces jetons n'avaient
+                aucune courbe — non pas parce que la donnée manquait, mais
+                parce que l'application ne la demandait pas.
+                 */
+                val chartData: List<Double> = dto?.sparkline_in_7d?.price
                     ?: coinGeckoId?.let { id ->
                         withContext(Dispatchers.IO) {
                             try { coinGeckoApi.getMarketChart(id, "usd", 7).prices.map { it[1] } }
-                            catch (_: Exception) { emptyList() }
+                            catch (_: Exception) { null }
                         }
-                    } ?: emptyList()
+                    }
+                    ?: ficheContrat?.let { (plateforme, _) ->
+                        withContext(Dispatchers.IO) {
+                            try {
+                                coinGeckoApi.getContractChart(
+                                    plateforme,
+                                    jetonImporte!!.contractAddress.lowercase()
+                                ).prices.map { it[1] }
+                            } catch (_: Exception) { null }
+                        }
+                    }
+                    ?: emptyList()
 
                 _state.update {
                     it.copy(
-                        // Nom réel du jeton importé : la table des symboles ne
-                        // peut pas le connaître, mais la fiche enregistrée à
-                        // l'ajout du contrat le porte. Sans cela l'écran
-                        // affichait « SHIB / SHIB » au lieu de « SHIB / Shiba Inu ».
-                        name = tokenNames[symbol] ?: jetonImporte?.name?.takeIf { it.isNotBlank() } ?: symbol,
+                        /*
+                        NOM RÉEL, par ordre de fiabilité décroissante : la
+                        table interne, puis le nom que CoinGecko donne au
+                        contrat, puis celui enregistré à l'ajout, puis le
+                        symbole. Sans cela l'écran affichait « TWT / TWT » au
+                        lieu de « TWT / Trust Wallet Token ».
+                         */
+                        name = tokenNames[symbol]
+                            ?: ficheContrat?.second?.name?.takeIf { it.isNotBlank() }
+                            ?: jetonImporte?.name?.takeIf { it.isNotBlank() }
+                            ?: symbol,
                         priceUsd = prixDejaConnu ?: prixSecours?.usd?.takeIf { it > 0.0 }
                             ?: instantane?.first ?: 0.0,
                         change24h = dto?.change24h?.takeIf { it != 0.0 }
                             ?: prixContrat?.change24h?.takeIf { it != 0.0 }
                             ?: prixSecours?.change24h?.takeIf { it != 0.0 }
                             ?: instantane?.second ?: 0.0,
-                        marketCapUsd = dto?.marketCap ?: prixContrat?.marketCap ?: 0.0,
+                        marketCapUsd = dto?.marketCap?.takeIf { it > 0.0 }
+                            ?: prixContrat?.marketCap?.get("usd") ?: 0.0,
                         chartPrices = chartData,
                         address = address,
                         amountFormatted = amountFormatted,
