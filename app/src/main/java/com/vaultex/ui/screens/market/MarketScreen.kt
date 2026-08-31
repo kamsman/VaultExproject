@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.market
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -8,10 +9,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.stickyHeader
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Search
@@ -61,6 +64,7 @@ private enum class MarketFilter { ALL, SWAPPABLE, GAINERS, LOSERS, FAVORITES }
  */
 private const val SEUIL_PREFETCH = 10
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MarketScreen(navController: NavHostController) {
 
@@ -153,6 +157,21 @@ fun MarketScreen(navController: NavHostController) {
         if (doitCharger && paginationActive) viewModel.loadMoreMarkets()
     }
 
+    /*
+    Une recherche lancée depuis le fond de la liste ramène en haut.
+
+    Conséquence directe de la barre épinglée : on peut désormais chercher
+    depuis la ligne 800. Sans ce retour, les résultats s'afficheraient bien
+    — mais tout en haut, hors de l'écran, et la liste paraîtrait vide.
+
+    La clé est le seul passage « vide → non vide », pas le texte lui-même :
+    on remonte au DÉBUT d'une recherche, jamais à chaque frappe, sinon le
+    défilement de l'utilisateur dans ses résultats serait sans cesse annulé.
+    */
+    LaunchedEffect(requete.isNotEmpty()) {
+        if (requete.isNotEmpty()) listState.scrollToItem(0)
+    }
+
     // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
     // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
     // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
@@ -225,33 +244,55 @@ fun MarketScreen(navController: NavHostController) {
                 }
             }
 
-            // ─── Recherche ───
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = {
-                        searchQuery = it
-                        viewModel.onSearchQueryChanged(it)
-                    },
-                    trailingIcon = {
-                        if (searching) {
-                            CircularProgressIndicator(
-                                Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
-                            )
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
-                    shape = RoundedCornerShape(14.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Surface,
-                        unfocusedContainerColor = Surface,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = BorderColor
+            /*
+            ─── Recherche, ÉPINGLÉE en haut ───
+
+            La barre défilait avec le reste. Passé quelques dizaines de
+            lignes elle était hors de l'écran, et la seule façon de chercher
+            une monnaie était de tout remonter — d'autant plus pénible que la
+            liste descend maintenant jusqu'au rang 1000.
+
+            En en-tête collant, elle reste sous la main où que l'on soit dans
+            la liste. Le fond opaque n'est pas décoratif : sans lui, les
+            lignes défileraient visiblement DERRIÈRE le champ de saisie.
+            */
+            stickyHeader {
+                Box(Modifier.fillMaxWidth().background(BgPrimary)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.onSearchQueryChanged(it)
+                        },
+                        trailingIcon = {
+                            when {
+                                searching -> CircularProgressIndicator(
+                                    Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
+                                )
+                                // Effacer d'un geste. Maintenant que la barre reste
+                                // à l'écran en permanence, une recherche oubliée
+                                // masquerait le classement sans qu'on voie pourquoi.
+                                searchQuery.isNotEmpty() -> IconButton(onClick = {
+                                    searchQuery = ""
+                                    viewModel.onSearchQueryChanged("")
+                                }) {
+                                    Icon(Icons.Default.Close, stringResource(R.string.close), tint = TextMuted)
+                                }
+                            }
+                        },
+                        placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Surface,
+                            unfocusedContainerColor = Surface,
+                            focusedBorderColor = AccentBlue,
+                            unfocusedBorderColor = BorderColor
+                        )
                     )
-                )
+                }
             }
 
             // ─── Filtres Tous / Gagnants / Perdants / Favoris ───
