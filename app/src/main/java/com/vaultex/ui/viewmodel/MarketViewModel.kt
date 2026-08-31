@@ -295,7 +295,8 @@ class MarketViewModel @Inject constructor(
                 // Un rechargement repart du haut : sans cette remise à zéro,
                 // le défilement croirait avoir déjà descendu les pages.
                 pageChargee = 1
-                finDeListe = false
+                _endReached.value = false
+                _moreError.value = false
             } catch (e: Exception) {
                 e.printStackTrace()
                 _loadError.value = _markets.value.isEmpty()
