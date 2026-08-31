@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +52,15 @@ import java.util.Locale
 
 private enum class MarketFilter { ALL, SWAPPABLE, GAINERS, LOSERS, FAVORITES }
 
+/**
+ * Nombre de lignes restantes qui déclenche le chargement de la page suivante.
+ *
+ * Déclencher à la toute dernière ligne se voit : la liste s'arrête net, puis
+ * repart. Avec dix lignes d'avance, la page suivante est là avant que
+ * l'utilisateur n'atteigne le bas.
+ */
+private const val SEUIL_PREFETCH = 10
+
 @Composable
 fun MarketScreen(navController: NavHostController) {
 
@@ -64,6 +74,7 @@ fun MarketScreen(navController: NavHostController) {
     val searchResults by viewModel.searchResults.collectAsState()
     val searching by viewModel.searching.collectAsState()
     val loadingMore by viewModel.loadingMore.collectAsState()
+    val moreError by viewModel.moreError.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
@@ -106,6 +117,42 @@ fun MarketScreen(navController: NavHostController) {
         }
     val topGainers = markets.filter { it.change24h > 0 }.sortedByDescending { it.change24h }.take(6)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DÉCLENCHEUR DU DÉFILEMENT INFINI
+    ═══════════════════════════════════════════════════════════════════════
+
+    La première version posait un élément « sentinelle » en bas de la liste
+    et lançait le chargement à sa composition. Constaté sur appareil : la
+    liste s'arrêtait à la première page. Le déclenchement dépendait de la
+    composition d'un élément placé sous une barre de navigation flottante et
+    une marge basse — plusieurs hypothèses de mise en page, dont aucune n'est
+    vérifiable depuis le code.
+
+    On observe donc la position de défilement elle-même, qui ne dépend
+    d'aucune de ces hypothèses. Et on déclenche SEUIL_PREFETCH lignes AVANT
+    la fin plutôt qu'à la fin : la page suivante arrive pendant que
+    l'utilisateur descend encore, au lieu de le laisser buter sur un arrêt
+    net puis attendre.
+    */
+    val listState = rememberLazyListState()
+
+    val doitCharger by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val dernierVisible = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf false
+            info.totalItemsCount > 0 && dernierVisible >= info.totalItemsCount - SEUIL_PREFETCH
+        }
+    }
+
+    // Ni pendant une recherche ni sous un filtre : la page suivante viendrait
+    // s'ajouter à des résultats auxquels elle n'appartient pas.
+    val paginationActive = requete.isEmpty() && filter == MarketFilter.ALL
+
+    LaunchedEffect(doitCharger, paginationActive) {
+        if (doitCharger && paginationActive) viewModel.loadMoreMarkets()
+    }
+
     // La barre de navigation est FLOTTANTE : posée par-dessus le contenu, qui
     // défile derrière elle (comme Trust Wallet). Elle n'est donc plus le
     // bottomBar du Scaffold — sinon elle occuperait une place dans la mise en
@@ -115,7 +162,8 @@ fun MarketScreen(navController: NavHostController) {
         containerColor = BgPrimary
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(padding),
             // Marge basse = hauteur de la barre flottante.
             contentPadding = PaddingValues(bottom = BottomBarSpace)
         ) {
@@ -298,22 +346,16 @@ fun MarketScreen(navController: NavHostController) {
                 }
 
                 /*
-                Défilement infini.
+                Pied de liste : ce qui se passe en bas, DIT.
 
-                Cet élément n'est composé QUE lorsque le bas de la liste
-                entre à l'écran : c'est lui qui demande la page suivante.
-                D'où le déclenchement au moment de sa composition, sans
-                écouteur de défilement à entretenir.
-
-                Jamais pendant une recherche ni sous un filtre : la page
-                suivante viendrait s'ajouter à des résultats auxquels elle
-                n'appartient pas.
+                Le chargement d'une page suivante pouvait échouer sans
+                laisser la moindre trace — la liste s'arrêtait, c'est tout.
+                Un échec se voit maintenant, et se réessaie.
                 */
-                if (requete.isEmpty() && filter == MarketFilter.ALL && markets.isNotEmpty()) {
+                if (paginationActive && markets.isNotEmpty()) {
                     item {
-                        LaunchedEffect(markets.size) { viewModel.loadMoreMarkets() }
-                        if (loadingMore) {
-                            Box(
+                        when {
+                            loadingMore -> Box(
                                 Modifier.fillMaxWidth().padding(vertical = 20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -321,8 +363,34 @@ fun MarketScreen(navController: NavHostController) {
                                     Modifier.size(22.dp), color = AccentBlue, strokeWidth = 2.dp
                                 )
                             }
-                        } else {
-                            Spacer(Modifier.height(8.dp))
+
+                            moreError -> Column(
+                                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    stringResource(R.string.market_more_error),
+                                    fontSize = 13.sp, color = TextSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Button(
+                                    onClick = { viewModel.retryLoadMore() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                                ) { Text(stringResource(R.string.history_refresh)) }
+                            }
+
+                            // Combien de monnaies sont réellement chargées.
+                            // Utile à l'utilisateur, qui sait où il en est du
+                            // classement — et sans équivoque quand il s'agit
+                            // de dire si une page a bien été ajoutée.
+                            else -> Text(
+                                stringResource(R.string.market_loaded_count, markets.size),
+                                fontSize = 12.sp, color = TextMuted,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                            )
                         }
                     }
                 }

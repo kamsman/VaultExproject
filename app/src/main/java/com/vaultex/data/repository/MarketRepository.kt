@@ -97,24 +97,34 @@ class MarketRepository @Inject constructor(
     */
     private val pagesEnCache = java.util.concurrent.ConcurrentHashMap<Int, List<CoinGeckoMarketDto>>()
 
+    /*
+    L'ÉCHEC REMONTE, il n'est pas transformé en liste vide.
+
+    Une liste vide veut dire « le classement est épuisé » ; une exception veut
+    dire « l'appel a échoué ». Les confondre — ce que faisait la première
+    version — rend le défaut invisible : la liste s'arrête, et rien ne permet
+    de savoir si c'est parce qu'il n'y a plus rien ou parce que l'appel a été
+    refusé. L'appelant a besoin des deux cas séparés pour proposer un
+    réessai dans le second.
+
+    Le réessai après 1,5 s reprend ce que fait déjà getMarkets() : le refus le
+    plus fréquent est un rate-limit passager, qui cède au second essai.
+    */
     suspend fun getMarketsPage(page: Int): List<CoinGeckoMarketDto> {
         if (page <= 1) return getMarkets()
         pagesEnCache[page]?.let { return it }
-        return try {
-            val list = api.getMarkets(vsCurrency = "usd", page = page)
-            if (list.isNotEmpty()) {
-                pagesEnCache[page] = list
-                cache = (cache + list).distinctBy { it.id }
-            }
-            list
+        val list = try {
+            api.getMarkets(vsCurrency = "usd", page = page)
         } catch (e: Exception) {
-            // Une annulation doit remonter : la traiter comme un échec réseau
-            // romprait la structure des coroutines.
             if (e is kotlinx.coroutines.CancellationException) throw e
-            // Une page manquante n'est pas une panne : la liste déjà affichée
-            // reste valide, on s'arrête simplement de descendre.
-            emptyList()
+            kotlinx.coroutines.delay(1500)
+            api.getMarkets(vsCurrency = "usd", page = page)
         }
+        if (list.isNotEmpty()) {
+            pagesEnCache[page] = list
+            cache = (cache + list).distinctBy { it.id }
+        }
+        return list
     }
 
     /*

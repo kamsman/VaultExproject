@@ -233,30 +233,55 @@ class MarketViewModel @Inject constructor(
     private val _loadingMore = MutableStateFlow(false)
     val loadingMore: StateFlow<Boolean> = _loadingMore
 
+    /**
+     * Le chargement d'une page suivante a ÉCHOUÉ (réseau, quota, réponse
+     * inattendue) — par opposition à « il n'y a plus rien à charger ».
+     *
+     * La première version confondait les deux : tout échec posait
+     * simplement « fin de liste » et la liste s'arrêtait sans un mot. On ne
+     * pouvait donc pas distinguer un appel jamais parti d'un appel refusé,
+     * ni depuis l'écran ni depuis un rapport d'utilisateur. Un échec doit se
+     * voir et pouvoir être réessayé.
+     */
+    private val _moreError = MutableStateFlow(false)
+    val moreError: StateFlow<Boolean> = _moreError
+
+    /** true quand tout le classement accessible a été chargé. */
+    private val _endReached = MutableStateFlow(false)
+    val endReached: StateFlow<Boolean> = _endReached
+
     private var pageChargee = 1
-    private var finDeListe = false
 
     fun loadMoreMarkets() {
-        if (_loadingMore.value || finDeListe || _isLoading.value) return
-        if (pageChargee >= PAGES_MAX) { finDeListe = true; return }
+        if (_loadingMore.value || _endReached.value || _moreError.value || _isLoading.value) return
+        if (pageChargee >= PAGES_MAX) { _endReached.value = true; return }
         viewModelScope.launch {
             _loadingMore.value = true
+            _moreError.value = false
             try {
                 val suivante = pageChargee + 1
                 val list = withContext(Dispatchers.IO) { repository.getMarketsPage(suivante) }
                 if (list.isEmpty()) {
-                    finDeListe = true
+                    // Liste réellement épuisée : CoinGecko n'a plus de rangs.
+                    _endReached.value = true
                 } else {
                     pageChargee = suivante
                     _markets.value = (_markets.value + list).distinctBy { it.id }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                finDeListe = true
+                com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko/page", e)
+                _moreError.value = true
             } finally {
                 _loadingMore.value = false
             }
         }
+    }
+
+    /** Nouvelle tentative après un échec, déclenchée par l'utilisateur. */
+    fun retryLoadMore() {
+        _moreError.value = false
+        loadMoreMarkets()
     }
 
     fun loadMarkets() {
