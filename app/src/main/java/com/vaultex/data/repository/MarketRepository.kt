@@ -81,6 +81,121 @@ class MarketRepository @Inject constructor(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    PAGES SUIVANTES DU CLASSEMENT — uniquement à la demande
+    ═══════════════════════════════════════════════════════════════════════
+
+    getMarkets() ramène désormais 250 monnaies au lieu de 100, pour le même
+    appel et donc le même quota. Au-delà, chaque page est un appel amont de
+    plus : on ne la charge que si l'utilisateur fait réellement défiler
+    jusque-là, ce qui est rare maintenant que la recherche couvre le
+    catalogue entier.
+
+    Les pages déjà obtenues sont conservées pour la durée de la session : un
+    aller-retour vers le détail ne doit pas les redemander.
+    */
+    private val pagesEnCache = java.util.concurrent.ConcurrentHashMap<Int, List<CoinGeckoMarketDto>>()
+
+    suspend fun getMarketsPage(page: Int): List<CoinGeckoMarketDto> {
+        if (page <= 1) return getMarkets()
+        pagesEnCache[page]?.let { return it }
+        return try {
+            val list = api.getMarkets(vsCurrency = "usd", page = page)
+            if (list.isNotEmpty()) {
+                pagesEnCache[page] = list
+                cache = (cache + list).distinctBy { it.id }
+            }
+            list
+        } catch (e: Exception) {
+            // Une annulation doit remonter : la traiter comme un échec réseau
+            // romprait la structure des coroutines.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Une page manquante n'est pas une panne : la liste déjà affichée
+            // reste valide, on s'arrête simplement de descendre.
+            emptyList()
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    RECHERCHE DANS TOUT LE CATALOGUE
+    ═══════════════════════════════════════════════════════════════════════
+
+    En deux temps, et c'est ce découpage qui la rend abordable :
+
+    1. `search` donne les identifiants correspondants parmi les ~19 000
+       monnaies cotées. Aucun prix, donc une donnée que le relais garde 24 h.
+    2. `getMarkets(ids = ...)` donne prix, variation et courbe des seuls
+       résultats retenus — sur le chemin déjà en place, déjà mutualisé.
+
+    Sans cette séparation il faudrait télécharger le marché entier pour
+    chercher un nom, ce qu'aucun quota ne supporte.
+
+    Le tri place les monnaies classées avant celles sans capitalisation
+    connue. Ces dernières ne sont pas écartées — une monnaie sans rang reste
+    une monnaie que l'on peut vouloir chercher — simplement reléguées.
+
+    On s'arrête à RESULTATS_MAX : au-delà, l'appel de prix s'allonge sans
+    rien apporter, personne ne lisant la centième réponse d'une recherche.
+    */
+    private val rechercheEnCache = java.util.concurrent.ConcurrentHashMap<String, List<CoinGeckoMarketDto>>()
+
+    suspend fun search(query: String): List<CoinGeckoMarketDto> {
+        val q = query.trim().lowercase()
+        if (q.length < 2) return emptyList()
+
+        // Ce que l'on a déjà sous la main : la frappe et les retours arrière
+        // ne doivent pas rejouer le même appel.
+        rechercheEnCache[q]?.let { return it }
+
+        // Une monnaie déjà chargée n'a besoin d'aucun appel.
+        val localement = cache.filter {
+            it.name.contains(q, ignoreCase = true) || it.symbol.contains(q, ignoreCase = true)
+        }
+
+        val ids = try {
+            api.search(q).coins
+                .sortedBy { it.rank ?: Int.MAX_VALUE }
+                .take(RESULTATS_MAX)
+                .map { it.id }
+        } catch (e: Exception) {
+            // L'annulation est le cas NORMAL ici : elle survient à chaque
+            // frappe suivante. Elle doit remonter, jamais être traitée comme
+            // une panne réseau.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Hors ligne ou quota : on rend au moins ce que le cache contient
+            // plutôt qu'un écran vide qui ressemble à « cette monnaie n'existe pas ».
+            com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko/search", e)
+            return localement
+        }
+        if (ids.isEmpty()) return localement
+
+        // Les monnaies déjà en cache n'ont pas à repasser par le réseau.
+        val connues = cache.filter { it.id in ids }
+        val manquants = ids - connues.map { it.id }.toSet()
+
+        val recuperes = if (manquants.isEmpty()) emptyList() else try {
+            // `ids` trié : deux utilisateurs cherchant la même chose produisent
+            // la même URL, donc UN seul appel amont pour les deux.
+            api.getMarkets(vsCurrency = "usd", ids = manquants.sorted().joinToString(","))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emptyList()
+        }
+        if (recuperes.isNotEmpty()) cache = (cache + recuperes).distinctBy { it.id }
+
+        // On restitue l'ordre de pertinence rendu par CoinGecko, que le
+        // regroupement par cache aurait sinon perdu.
+        val parId = (connues + recuperes).associateBy { it.id }
+        val resultat = ids.mapNotNull { parId[it] }
+        if (resultat.isEmpty()) return localement
+
+        if (rechercheEnCache.size > CACHE_RECHERCHES_MAX) rechercheEnCache.clear()
+        rechercheEnCache[q] = resultat
+        return resultat
+    }
+
     /**
      * Détail d'UNE pièce. D'abord le cache (0 appel réseau) ; sinon un appel
      * léger filtré (ids=) en repli, par ex. si on arrive directement sur le détail.
@@ -155,5 +270,18 @@ class MarketRepository @Inject constructor(
         globalCache = stats
         globalTime = now
         return stats
+    }
+
+    private companion object {
+        /** Résultats retenus par recherche : au-delà, plus personne ne lit. */
+        const val RESULTATS_MAX = 25
+
+        /**
+         * Recherches mémorisées avant vidage. Le cache sert à absorber la
+         * frappe et les retours arrière, pas à durer : on le vide en entier
+         * plutôt que d'entretenir une politique d'éviction pour quelques
+         * dizaines de lignes.
+         */
+        const val CACHE_RECHERCHES_MAX = 40
     }
 }

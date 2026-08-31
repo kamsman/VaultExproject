@@ -131,6 +131,34 @@ data class SparklineDto(val price: List<Double>)
 data class CoinGeckoChartDto(val prices: List<List<Double>>)
 
 /*
+RÉSULTAT DE RECHERCHE — du catalogue, jamais du prix.
+
+CoinGecko renvoie aussi des bourses, des catégories et des NFT sous d'autres
+clés du même objet ; seule `coins` nous intéresse et le reste est ignoré.
+
+Aucun champ de prix ici, et c'est délibéré : c'est ce qui autorise les 24 h
+de cache du relais. Le prix des résultats vient de getMarkets(ids = ...),
+sur le chemin qui sait déjà le tenir à jour.
+
+`rank` est absent des monnaies sans capitalisation connue — d'où le nullable.
+On s'en sert pour trier, en repoussant ces monnaies-là à la fin plutôt que de
+les écarter : une monnaie sans rang reste une monnaie que l'utilisateur peut
+légitimement chercher.
+*/
+data class CoinGeckoSearchDto(
+    val coins: List<CoinGeckoSearchCoinDto> = emptyList()
+)
+
+data class CoinGeckoSearchCoinDto(
+    val id: String,
+    val symbol: String = "",
+    val name: String = "",
+    @SerializedName("market_cap_rank") val rank: Int? = null,
+    @SerializedName("large") val image: String? = null,
+    @SerializedName("thumb") val thumb: String? = null
+)
+
+/*
 FICHE COMPLÈTE D'UN JETON, PAR SON ADRESSE DE CONTRAT.
 
 L'application n'utilisait que `simple/token_price`, qui ne rend qu'un prix et

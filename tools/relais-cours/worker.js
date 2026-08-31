@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 4
+const VERSION = 5
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -118,10 +118,23 @@ minutes sur un écran de portefeuille. Ce délai est le rapport de
 mutualisation : à 2 minutes, le marché est interrogé 720 fois par jour quel
 que soit le nombre d'utilisateurs.
 
-Les capitalisations et les courbes 7 jours bougent encore moins : 5 minutes.
+Les capitalisations et les courbes 7 jours bougent encore moins : 10 minutes.
+
+Ce dernier chiffre n'est pas un détail de confort, c'est le poste de dépense
+principal du quota. À 300 s, la seule liste marché consommait 8 640 appels
+par mois et par centre de données — pour un plafond mensuel de 10 000. Elle
+épuisait donc le quota à elle seule, ce qui laissait les jetons importés à
+« Prix : $0 ». À 600 s, elle en consomme 4 320. Dix minutes de décalage sur
+un classement par capitalisation ne se voient pas ; un quota épuisé, si.
+
+CATALOGUE : le résultat d'une recherche (quelles monnaies existent, leur nom,
+leur symbole, leur logo) ne contient AUCUN prix et ne change pas d'une
+semaine à l'autre. Le garder 24 h est ce qui permet d'ouvrir les ~19 000
+monnaies de CoinGecko sans peser sur le quota.
 */
 const TTL_COURS = 120
-const TTL_MARCHE = 300
+const TTL_MARCHE = 600
+const TTL_CATALOGUE = 86400
 
 /*
 Identifiant CoinGecko → symbole Binance.
@@ -183,6 +196,10 @@ export default {
 
     if (url.pathname.startsWith('/api/v3/simple/token_price/')) {
       return await prixParContrat(url, env)
+    }
+
+    if (url.pathname === '/api/v3/search') {
+      return await recherche(url, env)
     }
 
     // Tout le reste part chez CoinGecko, mais UNE SEULE FOIS par période de
@@ -391,6 +408,67 @@ async function diagnostic(env) {
   }
 
   return json(sondes)
+}
+
+/**
+ * /search — le catalogue complet de CoinGecko, à coût presque nul.
+ *
+ * L'onglet Marché ne montrait que les 100 premières capitalisations, et sa
+ * barre de recherche filtrait ces 100 lignes en local : chercher une monnaie
+ * au-delà du rang 100 ne renvoyait rien, ce qui ressemble à une panne bien
+ * plus qu'à une limite.
+ *
+ * Cet appel-ci balaie les ~19 000 monnaies cotées et ne renvoie QUE du
+ * catalogue — identifiant, nom, symbole, logo, rang. Aucun prix, donc rien
+ * qui périme : 24 h de cache. Les prix des résultats sont demandés
+ * séparément, par `/coins/markets?ids=`, sur le chemin déjà en place.
+ *
+ * DEUX PRÉCAUTIONS, sans lesquelles le cache travaillerait contre nous :
+ *
+ * · Normalisation. « PEPE », « pepe » et «  Pepe  » sont la même recherche.
+ *   Sans mise en forme commune, chacune créerait sa propre entrée et son
+ *   propre appel amont, pour un résultat identique.
+ * · Deux caractères minimum. La saisie est envoyée au fil de la frappe :
+ *   sans ce plancher, taper « pepe » produirait quatre recherches dont les
+ *   trois premières sont sans valeur.
+ */
+async function recherche(url, env) {
+  const q = (url.searchParams.get('query') || '').trim().toLowerCase()
+  if (q.length < 2) return json({ coins: [] }, TTL_CATALOGUE)
+
+  // Clé de cache indépendante de la casse et des espaces d'origine.
+  const cle = new Request(`https://relais.vaultex/recherche?q=${encodeURIComponent(q)}`)
+  const cache = caches.default
+  const enCache = await cache.match(cle)
+  if (enCache && enCache.ok) return enCache
+
+  const cible = `${COINGECKO}/api/v3/search?query=${encodeURIComponent(q)}`
+  const entetes = { 'user-agent': AGENT, accept: 'application/json' }
+
+  let amont = null
+  let texte = ''
+  if (env && env.COINGECKO_KEY) {
+    amont = await fetch(cible, { headers: { ...entetes, 'x-cg-demo-api-key': env.COINGECKO_KEY } })
+    texte = await amont.text()
+  }
+  if (!amont || quotaEpuise(amont.status, texte)) {
+    const sansCle = await fetch(cible, { headers: entetes })
+    const texteSansCle = await sansCle.text()
+    if (!amont || sansCle.ok) {
+      amont = sansCle
+      texte = texteSansCle
+    }
+  }
+
+  const reponse = new Response(texte, {
+    status: amont.status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': `public, max-age=${TTL_CATALOGUE}`,
+    },
+  })
+  if (amont.ok) await cache.put(cle, reponse.clone())
+  return reponse
 }
 
 /**

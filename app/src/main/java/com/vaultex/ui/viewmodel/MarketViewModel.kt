@@ -168,6 +168,97 @@ class MarketViewModel @Inject constructor(
     private val _chartLoading = MutableStateFlow(false)
     val chartLoading: StateFlow<Boolean> = _chartLoading
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    RECHERCHE — sur les ~19 000 monnaies, plus sur les 100 affichées
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran filtrait la liste déjà téléchargée. Passé le rang 100, la
+    recherche ne rendait donc rien : pour l'utilisateur, une barre de
+    recherche qui ne trouve pas une monnaie qui existe est un défaut, pas
+    une limite comprise.
+
+    La saisie est maintenant envoyée au relais, mais pas à chaque caractère :
+    on attend DELAI_FRAPPE après la dernière touche. Taper « pepe » produit
+    ainsi UN appel, pas quatre. La recherche précédente est annulée dès
+    qu'une nouvelle frappe arrive, sinon deux réponses en vol pourraient
+    s'afficher dans le désordre et montrer le résultat d'une requête
+    abandonnée.
+    */
+    private val _searchResults = MutableStateFlow<List<CoinGeckoMarketDto>>(emptyList())
+    val searchResults: StateFlow<List<CoinGeckoMarketDto>> = _searchResults
+
+    private val _searching = MutableStateFlow(false)
+    val searching: StateFlow<Boolean> = _searching
+
+    private var rechercheEnCours: kotlinx.coroutines.Job? = null
+
+    fun onSearchQueryChanged(query: String) {
+        rechercheEnCours?.cancel()
+        val q = query.trim()
+        if (q.length < 2) {
+            _searching.value = false
+            _searchResults.value = emptyList()
+            return
+        }
+        rechercheEnCours = viewModelScope.launch {
+            kotlinx.coroutines.delay(DELAI_FRAPPE)
+            _searching.value = true
+            try {
+                val trouve = withContext(Dispatchers.IO) { repository.search(q) }
+                _searchResults.value = trouve
+            } catch (e: Exception) {
+                // Une annulation n'est pas un échec : elle signifie simplement
+                // que l'utilisateur a continué à taper. La relancer serait
+                // rompre la structure des coroutines.
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _searchResults.value = emptyList()
+            } finally {
+                _searching.value = false
+            }
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DÉFILEMENT — pages suivantes du classement
+    ═══════════════════════════════════════════════════════════════════════
+
+    La première page en compte désormais 250 (le maximum d'un seul appel).
+    Les suivantes ne partent que si l'on atteint vraiment le bas de la
+    liste, et l'on s'arrête à PAGES_MAX : au rang 1 000, on est très loin de
+    ce qu'un portefeuille a vocation à parcourir, et la recherche prend le
+    relais pour tout le reste.
+    */
+    private val _loadingMore = MutableStateFlow(false)
+    val loadingMore: StateFlow<Boolean> = _loadingMore
+
+    private var pageChargee = 1
+    private var finDeListe = false
+
+    fun loadMoreMarkets() {
+        if (_loadingMore.value || finDeListe || _isLoading.value) return
+        if (pageChargee >= PAGES_MAX) { finDeListe = true; return }
+        viewModelScope.launch {
+            _loadingMore.value = true
+            try {
+                val suivante = pageChargee + 1
+                val list = withContext(Dispatchers.IO) { repository.getMarketsPage(suivante) }
+                if (list.isEmpty()) {
+                    finDeListe = true
+                } else {
+                    pageChargee = suivante
+                    _markets.value = (_markets.value + list).distinctBy { it.id }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                finDeListe = true
+            } finally {
+                _loadingMore.value = false
+            }
+        }
+    }
+
     fun loadMarkets() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -176,6 +267,10 @@ class MarketViewModel @Inject constructor(
                 _markets.value = list
                 _isStale.value = repository.lastFromCache
                 _loadError.value = list.isEmpty()
+                // Un rechargement repart du haut : sans cette remise à zéro,
+                // le défilement croirait avoir déjà descendu les pages.
+                pageChargee = 1
+                finDeListe = false
             } catch (e: Exception) {
                 e.printStackTrace()
                 _loadError.value = _markets.value.isEmpty()
@@ -205,5 +300,13 @@ class MarketViewModel @Inject constructor(
                 _chartLoading.value = false
             }
         }
+    }
+
+    private companion object {
+        /** Silence après la dernière touche avant d'interroger le réseau. */
+        const val DELAI_FRAPPE = 350L
+
+        /** 4 × 250 = les 1 000 premières capitalisations ; au-delà, la recherche. */
+        const val PAGES_MAX = 4
     }
 }

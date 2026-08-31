@@ -61,14 +61,40 @@ fun MarketScreen(navController: NavHostController) {
     val favorites by viewModel.favorites.collectAsState()
     val isStale by viewModel.isStale.collectAsState()
     val loadError by viewModel.loadError.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val searching by viewModel.searching.collectAsState()
+    val loadingMore by viewModel.loadingMore.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
     var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
 
-    val filtered = markets
-        .filter { it.name.contains(searchQuery, true) || it.symbol.contains(searchQuery, true) }
+    /*
+    La recherche ne se limite plus à la liste téléchargée.
+
+    Deux sources, dans cet ordre voulu :
+      · les monnaies DÉJÀ chargées, filtrées en local — elles s'affichent à
+        la frappe, sans attendre le réseau ;
+      · les résultats du catalogue CoinGecko (~19 000 monnaies), qui
+        arrivent ensuite et complètent la liste.
+
+    C'est ce qui donne une barre à la fois immédiate et complète : avant,
+    elle était immédiate mais aveugle au-delà du rang 100, ce qui se lit
+    comme « cette monnaie n'existe pas ».
+    */
+    val requete = searchQuery.trim()
+    val enRecherche = requete.length >= 2
+
+    // Le filtre local s'applique dès le PREMIER caractère : seul l'appel
+    // réseau attend deux caractères, pas la réponse visuelle de la liste.
+    val locaux = if (requete.isEmpty()) markets else markets.filter {
+        it.name.contains(requete, true) || it.symbol.contains(requete, true)
+    }
+
+    val source = if (enRecherche) (locaux + searchResults).distinctBy { it.id } else locaux
+
+    val filtered = source
         .filter {
             when (filter) {
                 MarketFilter.ALL -> true
@@ -155,7 +181,17 @@ fun MarketScreen(navController: NavHostController) {
             item {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = {
+                        searchQuery = it
+                        viewModel.onSearchQueryChanged(it)
+                    },
+                    trailingIcon = {
+                        if (searching) {
+                            CircularProgressIndicator(
+                                Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
+                            )
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
@@ -231,7 +267,9 @@ fun MarketScreen(navController: NavHostController) {
             } else {
                 item {
                     Text(
-                        stringResource(R.string.market_all_cryptos),
+                        stringResource(
+                            if (enRecherche) R.string.market_search_results else R.string.market_all_cryptos
+                        ),
                         fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
@@ -244,6 +282,49 @@ fun MarketScreen(navController: NavHostController) {
                         onAlert = { navController.navigate(Routes.NOTIFICATIONS) },
                         onClick = { navController.navigate(Routes.coinDetail(dto.id)) }
                     )
+                }
+
+                // Recherche aboutie mais sans correspondance : on le DIT. Une
+                // liste qui se vide sans un mot laisse croire à une panne.
+                if (requete.isNotEmpty() && !searching && filtered.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.market_search_empty, requete),
+                            fontSize = 14.sp, color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp)
+                        )
+                    }
+                }
+
+                /*
+                Défilement infini.
+
+                Cet élément n'est composé QUE lorsque le bas de la liste
+                entre à l'écran : c'est lui qui demande la page suivante.
+                D'où le déclenchement au moment de sa composition, sans
+                écouteur de défilement à entretenir.
+
+                Jamais pendant une recherche ni sous un filtre : la page
+                suivante viendrait s'ajouter à des résultats auxquels elle
+                n'appartient pas.
+                */
+                if (requete.isEmpty() && filter == MarketFilter.ALL && markets.isNotEmpty()) {
+                    item {
+                        LaunchedEffect(markets.size) { viewModel.loadMoreMarkets() }
+                        if (loadingMore) {
+                            Box(
+                                Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    Modifier.size(22.dp), color = AccentBlue, strokeWidth = 2.dp
+                                )
+                            }
+                        } else {
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
                 }
             }
         }

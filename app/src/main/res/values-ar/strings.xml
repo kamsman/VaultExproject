@@ -657,6 +657,8 @@
     <string name="market_cap_total">إجمالي القيمة السوقية</string>
     <string name="market_btc_dominance">هيمنة BTC</string>
     <string name="market_all_cryptos">جميع العملات الرقمية</string>
+    <string name="market_search_results">نتائج البحث</string>
+    <string name="market_search_empty">لا توجد عملة مشفّرة تطابق «‏%1$s‏».</string>
     <string name="coin_your_balance">رصيدك</string>
     <string name="coin_gain_24h">الربح (24س)</string>
     <string name="coin_supply">المعروض المتداول</string>

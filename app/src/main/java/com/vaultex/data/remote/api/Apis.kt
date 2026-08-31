@@ -115,16 +115,40 @@ interface CoinGeckoApi {
         @Query("include_market_cap") includeMarketCap: Boolean = true
     ): Map<String, CoinGeckoPriceDto>
 
+    /*
+    `per_page` vaut 250, le maximum accepté par CoinGecko — et non 100.
+
+    C'est gratuit au sens propre : un appel de 250 lignes coûte exactement le
+    même appel qu'un appel de 100. La liste passait donc à côté de 150
+    monnaies sans rien économiser du tout.
+    */
     @GET("coins/markets")
     suspend fun getMarkets(
         @Query("vs_currency") vsCurrency: String = "usd",
         @Query("order") order: String = "market_cap_desc",
-        @Query("per_page") perPage: Int = 100,
+        @Query("per_page") perPage: Int = 250,
         @Query("page") page: Int = 1,
         @Query("sparkline") sparkline: Boolean = true,
         @Query("price_change_percentage") priceChangeRanges: String = "24h",
         @Query("ids") ids: String? = null   // filtre optionnel : 1 ou plusieurs coins
     ): List<CoinGeckoMarketDto>
+
+    /*
+    RECHERCHE DANS LE CATALOGUE COMPLET (~19 000 monnaies).
+
+    La barre de recherche du Marché ne filtrait que les lignes déjà
+    téléchargées : au-delà du rang 100, elle ne trouvait rien, ce qui se lit
+    comme une panne et non comme une limite.
+
+    Cet appel ne renvoie AUCUN prix — uniquement identifiant, nom, symbole,
+    logo et rang. C'est ce qui le rend bon marché : le relais le garde 24 h,
+    puisqu'un catalogue ne périme pas. Les prix des résultats sont demandés
+    ensuite par getMarkets(ids = ...).
+    */
+    @GET("search")
+    suspend fun search(
+        @Query("query") query: String
+    ): CoinGeckoSearchDto
 
     /*
     JETON DÉSIGNÉ PAR SON ADRESSE DE CONTRAT — fiche complète et courbe.

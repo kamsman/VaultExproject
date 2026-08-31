@@ -657,6 +657,8 @@
     <string name="market_cap_total">Total market cap</string>
     <string name="market_btc_dominance">BTC Dominance</string>
     <string name="market_all_cryptos">All cryptocurrencies</string>
+    <string name="market_search_results">Search results</string>
+    <string name="market_search_empty">No cryptocurrency matches “%1$s”.</string>
     <string name="coin_your_balance">Your balance</string>
     <string name="coin_gain_24h">Gain (24h)</string>
     <string name="coin_supply">Circulating supply</string>
