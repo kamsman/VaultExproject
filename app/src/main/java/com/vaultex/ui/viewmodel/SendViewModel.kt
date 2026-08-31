@@ -91,15 +91,59 @@ class SendViewModel @Inject constructor(
     // empoisonnée copiée depuis l'historique → alerte rouge.
     @Volatile private var knownAddresses: Set<String> = emptySet()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    RESSEMBLANCE : LE SEUIL ÉTAIT BEAUCOUP TROP BAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    La règle comparait `take(5)` et `takeLast(4)`. Sur une adresse EVM, les
+    deux premiers caractères sont toujours « 0x » : cela ne comparait donc
+    que TROIS caractères significatifs au début, et quatre à la fin. Sept en
+    tout — assez peu pour se déclencher sur des adresses qui n'ont rien à
+    voir.
+
+    Rapporté en test : l'avertissement apparaissait « fréquemment », au
+    point de créer de la méfiance envers l'application. C'est l'échec
+    complet d'un avertissement de sécurité. Celui qui crie au loup n'est pas
+    seulement inutile : il apprend à l'utilisateur à passer outre, et le
+    jour où il dit vrai, personne ne le lit.
+
+    On compare désormais SIX caractères significatifs de chaque côté, le
+    préfixe « 0x » retiré. Douze au lieu de sept, soit une exigence des
+    milliers de fois plus stricte.
+
+    CE QUE CELA LAISSE PASSER, ET POURQUOI C'EST LE BON ARBITRAGE. Une
+    adresse empoisonnée qui n'imiterait que quatre caractères de chaque côté
+    ne déclenchera plus l'alerte. Mais une imitation aussi grossière se
+    repère à l'œil nu, alors qu'une imitation sur six caractères ne se
+    repère pas — et c'est précisément celle-là que les attaquants
+    fabriquent, parce que c'est celle qui trompe.
+
+    Un avertissement rare et juste protège ; un avertissement fréquent et
+    faux ne protège personne.
+    ═══════════════════════════════════════════════════════════════════════
+     */
     private fun isPoisonLookalike(addr: String): Boolean {
-        val a = addr.trim()
-        if (a.length < 12) return false
-        return knownAddresses.any { k ->
-            k.length >= 12 && !k.equals(a, ignoreCase = true) &&
-                k.take(5).equals(a.take(5), ignoreCase = true) &&
-                k.takeLast(4).equals(a.takeLast(4), ignoreCase = true)
+        val a = significatif(addr)
+        if (a.length < 2 * CARACTERES_COMPARES) return false
+        return knownAddresses.any { connue ->
+            val k = significatif(connue)
+            k.length >= 2 * CARACTERES_COMPARES &&
+                !k.equals(a, ignoreCase = true) &&
+                k.take(CARACTERES_COMPARES).equals(a.take(CARACTERES_COMPARES), true) &&
+                k.takeLast(CARACTERES_COMPARES).equals(a.takeLast(CARACTERES_COMPARES), true)
         }
     }
+
+    /**
+     * L'adresse privée de son préfixe de réseau.
+     *
+     * « 0x » est commun à toutes les adresses EVM : le garder dans la
+     * comparaison revient à compter deux caractères identiques par
+     * construction, et à surestimer d'autant la ressemblance.
+     */
+    private fun significatif(adresse: String): String =
+        adresse.trim().removePrefix("0x").removePrefix("0X")
 
     /** Aucun envoi passé ni contact enregistré vers cette adresse. */
     private fun isNewRecipient(addr: String): Boolean {
@@ -514,6 +558,12 @@ class SendViewModel @Inject constructor(
     companion object {
         // Chaînes natives connues : un symbole hors de cette liste qui correspond
         // à un token enregistré est traité comme un token personnalisé.
+        /**
+         * Caractères significatifs comparés de chaque côté d'une adresse
+         * pour juger d'une ressemblance suspecte. Voir isPoisonLookalike.
+         */
+        private const val CARACTERES_COMPARES = 6
+
         private val NATIVE_CHAINS = setOf(
             "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB"
         )
