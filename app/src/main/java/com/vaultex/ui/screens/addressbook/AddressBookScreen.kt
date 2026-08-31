@@ -45,6 +45,9 @@ import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.VaultExColors
 import com.vaultex.ui.viewmodel.AddressBookViewModel
+import com.vaultex.ui.components.BoutonRecherche
+import com.vaultex.ui.components.ChampRecherche
+import com.vaultex.ui.components.rememberEtatRecherche
 import org.json.JSONObject
 
 private fun chainColor(chain: String): Color = when (chain.uppercase()) {
@@ -63,7 +66,8 @@ fun AddressBookScreen(navController: NavHostController) {
     val contacts by viewModel.contacts.collectAsState()
     val ui by viewModel.ui.collectAsState()
 
-    var searchQuery by remember { mutableStateOf("") }
+    val etatRecherche = rememberEtatRecherche()
+    val searchQuery = etatRecherche.texte
     var contactToDelete by remember { mutableStateOf<ContactEntity?>(null) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -126,6 +130,11 @@ fun AddressBookScreen(navController: NavHostController) {
                         )
                     }
                 },
+                actions = {
+                    if (!etatRecherche.ouverte) {
+                        BoutonRecherche(etatRecherche, Modifier.padding(end = 8.dp))
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -150,12 +159,13 @@ fun AddressBookScreen(navController: NavHostController) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(Modifier.height(12.dp))
-            SearchField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = stringResource(R.string.contacts_search)
-            )
-            Spacer(Modifier.height(12.dp))
+            if (etatRecherche.ouverte) {
+                ChampRecherche(
+                    etat = etatRecherche,
+                    placeholder = stringResource(R.string.contacts_search)
+                )
+                Spacer(Modifier.height(12.dp))
+            }
 
             // ─── Filtre par réseau (maquette) ───
             var chainFilter by remember { mutableStateOf("Tous") }
@@ -222,42 +232,6 @@ fun AddressBookScreen(navController: NavHostController) {
     }
         // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
-    }
-}
-
-@Composable
-private fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = SurfaceColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VaultExColors.Border),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Search,
-                contentDescription = null,
-                tint = TextMuted,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(Modifier.weight(1f)) {
-                if (value.isEmpty()) {
-                    Text(placeholder, color = TextMuted, fontSize = 14.sp)
-                }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    singleLine = true,
-                    textStyle = TextStyle(color = TextPrimary, fontSize = 14.sp),
-                    cursorBrush = SolidColor(AccentBlue),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
     }
 }
 

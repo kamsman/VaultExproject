@@ -45,6 +45,9 @@ import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
+import com.vaultex.ui.components.BoutonRecherche
+import com.vaultex.ui.components.ChampRecherche
+import com.vaultex.ui.components.rememberEtatRecherche
 
 /** Canaux de contact du support VaultEx. */
 private const val SUPPORT_EMAIL = "vaultexteams@gmail.com"
@@ -59,7 +62,8 @@ private const val SUPPORT_PHONE_DIAL = "+22679388455"
 @Composable
 fun HelpScreen(navController: NavHostController) {
     val context = LocalContext.current
-    var query by remember { mutableStateOf("") }
+    val etatRecherche = rememberEtatRecherche()
+    val query = etatRecherche.texte
 
     // FAQ : (question, réponse) — libellés localisés (FR/EN/AR).
     val faq = listOf(
@@ -84,6 +88,11 @@ fun HelpScreen(navController: NavHostController) {
                         Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
+                actions = {
+                    if (!etatRecherche.ouverte) {
+                        BoutonRecherche(etatRecherche, Modifier.padding(end = 8.dp))
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         }
@@ -93,24 +102,11 @@ fun HelpScreen(navController: NavHostController) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // ─── Recherche ───
-            Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Search, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = TextStyle(fontSize = 14.sp, color = TextPrimary),
-                        cursorBrush = SolidColor(AccentBlue),
-                        modifier = Modifier.weight(1f),
-                        decorationBox = { inner ->
-                            if (query.isEmpty()) Text(stringResource(R.string.help_search), fontSize = 14.sp, color = TextMuted)
-                            inner()
-                        }
-                    )
-                }
+            if (etatRecherche.ouverte) {
+                ChampRecherche(
+                    etat = etatRecherche,
+                    placeholder = stringResource(R.string.help_search)
+                )
             }
 
             // ─── FAQ ───

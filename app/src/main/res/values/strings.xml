@@ -151,6 +151,7 @@
     <string name="create">Créer</string>
     <string name="add">Ajouter</string>
     <string name="close">Fermer</string>
+    <string name="search">Rechercher</string>
     <string name="dashboard_offline">Hors connexion</string>
     <string name="dashboard_first_deposit_title">Fais ton premier dépôt</string>
     <string name="dashboard_first_deposit_body">Ton wallet est vide. Reçois de la crypto pour commencer à l\'utiliser.</string>

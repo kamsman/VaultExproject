@@ -120,6 +120,7 @@
     <string name="create">إنشاء</string>
     <string name="add">إضافة</string>
     <string name="close">إغلاق</string>
+    <string name="search">بحث</string>
     <string name="dashboard_offline">غير متصل</string>
     <string name="dashboard_first_deposit_title">قم بأول إيداع لك</string>
     <string name="dashboard_first_deposit_body">محفظتك فارغة. استلم بعض العملات المشفّرة لتبدأ استخدامها.</string>

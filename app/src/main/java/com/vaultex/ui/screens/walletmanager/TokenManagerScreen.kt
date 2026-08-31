@@ -37,6 +37,9 @@ import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.PortfolioViewModel
+import com.vaultex.ui.components.BoutonRecherche
+import com.vaultex.ui.components.ChampRecherche
+import com.vaultex.ui.components.rememberEtatRecherche
 
 /** Monnaies natives + USDT par réseau (toujours proposées). */
 private val DEFAULTS = mapOf(
@@ -63,7 +66,13 @@ fun TokenManagerScreen(navController: NavController) {
     val visible by viewModel.visibleAssets.collectAsState()
     val currency by viewModel.currency.collectAsState()
 
-    var searchQuery by remember { mutableStateOf("") }
+    /*
+    Le filtre existait déjà, mais rien ne permettait de le SAISIR : seul un
+    bouton « chercher cette adresse » l'alimentait. La liste était donc
+    filtrable sans être cherchable.
+    */
+    val etatRecherche = rememberEtatRecherche()
+    val searchQuery = etatRecherche.texte
     var customAddress by remember { mutableStateOf("") }
     val networks = listOf("ETH", "BNB", "TRX", "SOL")
     var tab by remember { mutableStateOf("ETH") }
@@ -93,6 +102,9 @@ fun TokenManagerScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    if (!etatRecherche.ouverte) {
+                        BoutonRecherche(etatRecherche, Modifier.padding(end = 8.dp))
+                    }
                     IconButton(onClick = { navController.navigate(Routes.ADD_TOKEN) }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.token_mgr_add_custom), tint = AccentBlue)
                     }
@@ -107,6 +119,15 @@ fun TokenManagerScreen(navController: NavController) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (etatRecherche.ouverte) {
+                item {
+                    ChampRecherche(
+                        etat = etatRecherche,
+                        placeholder = stringResource(R.string.token_mgr_title)
+                    )
+                }
+            }
+
             // ─── Onglets réseau ───
             item {
                 Row(
@@ -186,7 +207,7 @@ fun TokenManagerScreen(navController: NavController) {
                         Spacer(Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedButton(
-                                onClick = { searchQuery = customAddress.trim() },
+                                onClick = { etatRecherche.ouvrir(); etatRecherche.saisir(customAddress.trim()) },
                                 modifier = Modifier.weight(1f).height(46.dp),
                                 shape = RoundedCornerShape(23.dp),
                                 border = BorderStroke(1.5.dp, AccentBlue),

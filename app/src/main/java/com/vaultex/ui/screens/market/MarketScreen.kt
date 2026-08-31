@@ -26,8 +26,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,6 +40,9 @@ import com.vaultex.R
 import com.vaultex.data.remote.dto.CoinGeckoMarketDto
 import com.vaultex.ui.components.HistoryListSkeleton
 import com.vaultex.ui.components.BottomBarSpace
+import com.vaultex.ui.components.BoutonRecherche
+import com.vaultex.ui.components.ChampRecherche
+import com.vaultex.ui.components.rememberEtatRecherche
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
@@ -110,18 +111,11 @@ fun MarketScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
-    var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
 
-    // La recherche se déploie à la demande, à la place du titre.
-    var rechercheOuverte by remember { mutableStateOf(false) }
-    val focusRecherche = remember { FocusRequester() }
-
-    // Ouvrir sans donner le focus obligerait à toucher le champ une seconde
-    // fois avant de pouvoir taper.
-    LaunchedEffect(rechercheOuverte) {
-        if (rechercheOuverte) focusRecherche.requestFocus()
-    }
+    // Recherche repliable partagée avec les autres écrans : même bouton,
+    // même champ, même geste.
+    val etatRecherche = rememberEtatRecherche()
 
     /*
     La recherche ne se limite plus à la liste téléchargée.
@@ -136,7 +130,7 @@ fun MarketScreen(navController: NavHostController) {
     elle était immédiate mais aveugle au-delà du rang 100, ce qui se lit
     comme « cette monnaie n'existe pas ».
     */
-    val requete = searchQuery.trim()
+    val requete = etatRecherche.texte.trim()
     val enRecherche = requete.length >= 2
 
     // Le filtre local s'applique dès le PREMIER caractère : seul l'appel
@@ -244,42 +238,13 @@ fun MarketScreen(navController: NavHostController) {
                         .padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (rechercheOuverte) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                viewModel.onSearchQueryChanged(it)
-                            },
-                            trailingIcon = {
-                                if (searching) {
-                                    CircularProgressIndicator(
-                                        Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    // Referme ET vide : une recherche laissée
-                                    // derrière soi masquerait le classement
-                                    // sans que la cause soit sous les yeux.
-                                    IconButton(onClick = {
-                                        searchQuery = ""
-                                        viewModel.onSearchQueryChanged("")
-                                        rechercheOuverte = false
-                                    }) {
-                                        Icon(Icons.Default.Close, stringResource(R.string.close), tint = TextMuted)
-                                    }
-                                }
-                            },
-                            placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
-                            modifier = Modifier.weight(1f).focusRequester(focusRecherche),
-                            leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
-                            shape = RoundedCornerShape(14.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Surface,
-                                unfocusedContainerColor = Surface,
-                                focusedBorderColor = AccentBlue,
-                                unfocusedBorderColor = BorderColor
-                            )
+                    if (etatRecherche.ouverte) {
+                        ChampRecherche(
+                            etat = etatRecherche,
+                            placeholder = stringResource(R.string.market_search_hint),
+                            modifier = Modifier.weight(1f),
+                            enChargement = searching,
+                            onTexteChange = { viewModel.onSearchQueryChanged(it) }
                         )
                     } else {
                         Text(
@@ -287,10 +252,7 @@ fun MarketScreen(navController: NavHostController) {
                             fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
                             modifier = Modifier.weight(1f)
                         )
-                        BoutonRond(
-                            icone = Icons.Default.Search,
-                            description = stringResource(R.string.market_search_hint)
-                        ) { rechercheOuverte = true }
+                        BoutonRecherche(etatRecherche)
                         Spacer(Modifier.width(8.dp))
                         BoutonRond(
                             icone = Icons.Default.Notifications,
@@ -357,7 +319,7 @@ fun MarketScreen(navController: NavHostController) {
             }
 
             // ─── Top gagnants (cartes horizontales) ───
-            if (topGainers.isNotEmpty() && filter == MarketFilter.ALL && searchQuery.isBlank()) {
+            if (topGainers.isNotEmpty() && filter == MarketFilter.ALL && requete.isEmpty()) {
                 item {
                     Column(Modifier.padding(top = 12.dp)) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {

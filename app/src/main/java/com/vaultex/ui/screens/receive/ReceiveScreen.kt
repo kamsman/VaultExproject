@@ -38,6 +38,9 @@ import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.PortfolioViewModel
+import com.vaultex.ui.components.BoutonRecherche
+import com.vaultex.ui.components.ChampRecherche
+import com.vaultex.ui.components.rememberEtatRecherche
 
 /** Un actif que l'on peut recevoir : symbole, libellé, réseau, solde, adresse. */
 private data class ReceiveAsset(
@@ -58,7 +61,8 @@ fun ReceiveScreen(navController: NavController) {
     val state by portfolio.state.collectAsState()
     val currency by portfolio.currency.collectAsState()
 
-    var query by remember { mutableStateOf("") }
+    val etatRecherche = rememberEtatRecherche()
+    val query = etatRecherche.texte
 
     val assets = remember(state.tokens, currency) {
         state.tokens.map { t ->
@@ -112,37 +116,25 @@ fun ReceiveScreen(navController: NavController) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
+                actions = {
+                    if (!etatRecherche.ouverte) {
+                        BoutonRecherche(etatRecherche, Modifier.padding(end = 8.dp))
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
         containerColor = BgPrimary
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // Barre de recherche
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = BgTertiary,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Search, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = TextStyle(fontSize = 14.sp, color = TextPrimary),
-                        cursorBrush = SolidColor(AccentBlue),
-                        modifier = Modifier.weight(1f),
-                        decorationBox = { inner ->
-                            if (query.isEmpty()) Text(stringResource(R.string.receive_search_asset), fontSize = 14.sp, color = TextMuted)
-                            inner()
-                        }
-                    )
-                }
+            // Le champ n'existe QUE pendant la recherche : le reste du temps,
+            // la place revient à la liste des actifs.
+            if (etatRecherche.ouverte) {
+                ChampRecherche(
+                    etat = etatRecherche,
+                    placeholder = stringResource(R.string.receive_search_asset),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                )
             }
 
             LazyColumn(
