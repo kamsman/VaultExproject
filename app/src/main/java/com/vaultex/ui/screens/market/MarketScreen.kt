@@ -26,9 +26,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,6 +68,30 @@ private enum class MarketFilter { ALL, SWAPPABLE, GAINERS, LOSERS, FAVORITES }
  */
 private const val SEUIL_PREFETCH = 10
 
+/**
+ * Bouton rond de l'en-tête — recherche, cloche.
+ *
+ * Un IconButton nu se perd sur un fond sombre : rien ne dit qu'il se touche.
+ * Le disque lui donne une cible visible et une surface de frappe confortable.
+ */
+@Composable
+private fun BoutonRond(
+    icone: ImageVector,
+    description: String,
+    onClick: () -> Unit
+) {
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(Surface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MarketScreen(navController: NavHostController) {
@@ -85,6 +112,16 @@ fun MarketScreen(navController: NavHostController) {
 
     var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
+
+    // La recherche se déploie à la demande, à la place du titre.
+    var rechercheOuverte by remember { mutableStateOf(false) }
+    val focusRecherche = remember { FocusRequester() }
+
+    // Ouvrir sans donner le focus obligerait à toucher le champ une seconde
+    // fois avant de pouvoir taper.
+    LaunchedEffect(rechercheOuverte) {
+        if (rechercheOuverte) focusRecherche.requestFocus()
+    }
 
     /*
     La recherche ne se limite plus à la liste téléchargée.
@@ -187,19 +224,78 @@ fun MarketScreen(navController: NavHostController) {
             // Marge basse = hauteur de la barre flottante.
             contentPadding = PaddingValues(bottom = BottomBarSpace)
         ) {
-            // ─── Titre + cloche ───
-            item {
+            /*
+            ─── En-tête ÉPINGLÉ : titre · recherche · cloche ───
+
+            La recherche était un champ pleine largeur posé au milieu de
+            l'écran. Trop encombrant pour une fonction qu'on n'utilise pas en
+            permanence, et invisible dès qu'on descendait dans la liste.
+
+            Elle tient maintenant dans un bouton rond à côté de la cloche, et
+            ne se déploie qu'au moment où l'on s'en sert — en prenant la place
+            du titre, plutôt qu'une ligne de plus. L'en-tête étant collant,
+            elle reste atteignable jusqu'au rang 1000.
+            */
+            stickyHeader {
                 Row(
-                    Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .background(BgPrimary)
+                        .padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        stringResource(R.string.market_title),
-                        fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
-                        Icon(Icons.Default.Notifications, stringResource(R.string.notifications), tint = TextPrimary)
+                    if (rechercheOuverte) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = {
+                                searchQuery = it
+                                viewModel.onSearchQueryChanged(it)
+                            },
+                            trailingIcon = {
+                                if (searching) {
+                                    CircularProgressIndicator(
+                                        Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    // Referme ET vide : une recherche laissée
+                                    // derrière soi masquerait le classement
+                                    // sans que la cause soit sous les yeux.
+                                    IconButton(onClick = {
+                                        searchQuery = ""
+                                        viewModel.onSearchQueryChanged("")
+                                        rechercheOuverte = false
+                                    }) {
+                                        Icon(Icons.Default.Close, stringResource(R.string.close), tint = TextMuted)
+                                    }
+                                }
+                            },
+                            placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f).focusRequester(focusRecherche),
+                            leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
+                            shape = RoundedCornerShape(14.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Surface,
+                                unfocusedContainerColor = Surface,
+                                focusedBorderColor = AccentBlue,
+                                unfocusedBorderColor = BorderColor
+                            )
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.market_title),
+                            fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BoutonRond(
+                            icone = Icons.Default.Search,
+                            description = stringResource(R.string.market_search_hint)
+                        ) { rechercheOuverte = true }
+                        Spacer(Modifier.width(8.dp))
+                        BoutonRond(
+                            icone = Icons.Default.Notifications,
+                            description = stringResource(R.string.notifications)
+                        ) { navController.navigate(Routes.NOTIFICATIONS) }
                     }
                 }
             }
@@ -245,56 +341,6 @@ fun MarketScreen(navController: NavHostController) {
                 }
             }
 
-            /*
-            ─── Recherche, ÉPINGLÉE en haut ───
-
-            La barre défilait avec le reste. Passé quelques dizaines de
-            lignes elle était hors de l'écran, et la seule façon de chercher
-            une monnaie était de tout remonter — d'autant plus pénible que la
-            liste descend maintenant jusqu'au rang 1000.
-
-            En en-tête collant, elle reste sous la main où que l'on soit dans
-            la liste. Le fond opaque n'est pas décoratif : sans lui, les
-            lignes défileraient visiblement DERRIÈRE le champ de saisie.
-            */
-            stickyHeader {
-                Box(Modifier.fillMaxWidth().background(BgPrimary)) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            viewModel.onSearchQueryChanged(it)
-                        },
-                        trailingIcon = {
-                            when {
-                                searching -> CircularProgressIndicator(
-                                    Modifier.size(18.dp), color = AccentBlue, strokeWidth = 2.dp
-                                )
-                                // Effacer d'un geste. Maintenant que la barre reste
-                                // à l'écran en permanence, une recherche oubliée
-                                // masquerait le classement sans qu'on voie pourquoi.
-                                searchQuery.isNotEmpty() -> IconButton(onClick = {
-                                    searchQuery = ""
-                                    viewModel.onSearchQueryChanged("")
-                                }) {
-                                    Icon(Icons.Default.Close, stringResource(R.string.close), tint = TextMuted)
-                                }
-                            }
-                        },
-                        placeholder = { Text(stringResource(R.string.market_search_hint), color = TextMuted, fontSize = 14.sp) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextMuted) },
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Surface,
-                            unfocusedContainerColor = Surface,
-                            focusedBorderColor = AccentBlue,
-                            unfocusedBorderColor = BorderColor
-                        )
-                    )
-                }
-            }
 
             // ─── Filtres Tous / Gagnants / Perdants / Favoris ───
             item {

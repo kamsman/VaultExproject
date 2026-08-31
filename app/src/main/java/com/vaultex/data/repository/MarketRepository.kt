@@ -165,8 +165,24 @@ class MarketRepository @Inject constructor(
         }
 
         val ids = try {
-            api.search(q).coins
-                .sortedBy { it.rank ?: Int.MAX_VALUE }
+            /*
+            LA CORRESPONDANCE EXACTE D'ABORD, le rang ensuite.
+
+            Trier sur le seul rang paraît suffisant — il ne l'est pas. Une
+            requête courte comme « celo » ramène des dizaines de jetons dont
+            le nom la contient, et il suffit que RESULTATS_MAX d'entre eux
+            soient mieux classés pour que la monnaie EXACTEMENT demandée
+            tombe hors de la coupe. L'utilisateur cherche « celo » et ne voit
+            pas Celo : le défaut le plus déroutant qu'une recherche puisse
+            produire.
+
+            Ce que l'on a tapé passe donc devant, quel que soit son rang.
+            */
+            val (exacts, autres) = api.search(q).coins.partition {
+                it.symbol.equals(q, ignoreCase = true) || it.name.equals(q, ignoreCase = true)
+            }
+            (exacts.sortedBy { it.rank ?: Int.MAX_VALUE } +
+                autres.sortedBy { it.rank ?: Int.MAX_VALUE })
                 .take(RESULTATS_MAX)
                 .map { it.id }
         } catch (e: Exception) {
