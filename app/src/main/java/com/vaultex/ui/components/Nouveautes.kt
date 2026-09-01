@@ -130,17 +130,27 @@ fun FeuilleNouveautes() {
     ira voir l'écran concerné.
     */
     /*
-    Le fond de la feuille N'EST PAS celui de la page.
+    Fond LÉGÈREMENT TRANSLUCIDE.
 
-    Elle utilisait BgPrimary — la couleur exacte du tableau de bord derrière.
-    Opaque, mais indiscernable du fond : sans limite visible, la feuille
-    paraissait transparente. C'est le contraste qui manquait, pas l'alpha.
+    Deux réglages qui se compensent, et qu'il faut lire ensemble :
 
-    BgSecondary la détache dans les deux thèmes, clair comme sombre.
+    · BgSecondary plutôt que BgPrimary. La feuille reprenait la couleur
+      EXACTE du tableau de bord posé derrière : sans limite visible, elle s'y
+      confondait. C'est ce contraste qui la fait exister en tant que panneau.
+    · alpha à 0,92. Le tableau de bord transparaît juste assez pour qu'on
+      sente ce qu'il y a dessous, sans que le texte perde en lisibilité —
+      c'est la seule limite qui compte ici, l'écran est fait pour être lu.
+
+    Sans le premier, le second donnerait une feuille à la fois translucide et
+    de la même teinte que la page : plus rien ne la délimiterait.
+
+    C'est de la translucidité, pas du flou. Un vrai verre dépoli demande un
+    RenderEffect sur la fenêtre, indisponible avant Android 12 — donc chez la
+    majorité des appareils visés.
     */
     ModalBottomSheet(
         onDismissRequest = { visible = false },
-        containerColor = BgSecondary,
+        containerColor = BgSecondary.copy(alpha = 0.92f),
         tonalElevation = 0.dp
     ) {
         Column(
