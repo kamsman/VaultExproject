@@ -662,6 +662,7 @@
     <string name="market_more_error">Could not load the rest of the ranking.</string>
     <string name="market_loaded_count">%1$d cryptocurrencies loaded</string>
     <string name="market_search_empty">No cryptocurrency matches “%1$s”.</string>
+    <string name="market_search_error">Search unavailable. Check your connection, then try again.</string>
     <string name="coin_your_balance">Your balance</string>
     <string name="coin_gain_24h">Gain (24h)</string>
     <string name="coin_supply">Circulating supply</string>

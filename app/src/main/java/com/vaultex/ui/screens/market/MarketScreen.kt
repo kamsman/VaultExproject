@@ -106,6 +106,7 @@ fun MarketScreen(navController: NavHostController) {
     val loadError by viewModel.loadError.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val searching by viewModel.searching.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
     val loadingMore by viewModel.loadingMore.collectAsState()
     val moreError by viewModel.moreError.collectAsState()
 
@@ -386,12 +387,35 @@ fun MarketScreen(navController: NavHostController) {
                 // liste qui se vide sans un mot laisse croire à une panne.
                 if (requete.isNotEmpty() && !searching && filtered.isEmpty()) {
                     item {
-                        Text(
-                            stringResource(R.string.market_search_empty, requete),
-                            fontSize = 14.sp, color = TextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp)
-                        )
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            /*
+                            « Rien ne correspond » et « la recherche a
+                            échoué » disaient la même phrase. L'écran
+                            accusait donc le catalogue d'une panne venue du
+                            réseau, et rien ne permettait de trancher — c'est
+                            ce qui a rendu l'absence de Celo indiagnosticable.
+                            */
+                            Text(
+                                stringResource(
+                                    if (searchError) R.string.market_search_error
+                                    else R.string.market_search_empty,
+                                    requete
+                                ),
+                                fontSize = 14.sp, color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            if (searchError) {
+                                Button(
+                                    onClick = { viewModel.retrySearch() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                                ) { Text(stringResource(R.string.history_refresh)) }
+                            }
+                        }
                     }
                 }
 

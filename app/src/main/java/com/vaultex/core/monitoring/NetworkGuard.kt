@@ -45,7 +45,10 @@ suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend (
          */
         throw e
     } catch (e: Exception) {
-        if (report) AdminBot.serviceFailed(source, e.message)
+        // Un appareil sans reseau n'est pas un service en panne : voir
+        // estHorsLigne(). L'appel echoue quand meme et rend null — seule
+        // l'alerte d'administration est tue.
+        if (report && !estHorsLigne(e)) AdminBot.serviceFailed(source, e.message)
         null
     }
 
@@ -63,8 +66,43 @@ suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend (
  * signaler, rien a corriger, rien a lire.
  */
 fun reportUnlessCancelled(source: String, e: Throwable) {
-    if (estAnnulation(e)) return
+    if (estAnnulation(e) || estHorsLigne(e)) return
     AdminBot.serviceFailed(source, e.message)
+}
+
+/**
+ * Vrai si [e] traduit un telephone SANS RESEAU, et non un service en panne.
+ *
+ * Le canal d'administration a recu « Service indisponible : alertes de prix
+ * — Unable to resolve host "api.coingecko.com" ». Rien n'etait indisponible :
+ * l'appareil n'avait simplement pas de reseau a cet instant. Un utilisateur
+ * qui entre dans un batiment, prend l'avion ou epuise son forfait produit
+ * cette alerte, et il n'y a rien a corriger de notre cote.
+ *
+ * C'est exactement le travers deja corrige pour les annulations : une alerte
+ * qui se declenche sur une situation normale finit par faire ignorer les
+ * vraies. Or les VRAIES pannes reseau — un nœud qui refuse, un quota epuise,
+ * un delai depasse — ne passent pas par ce filtre et continuent de remonter.
+ *
+ * La resolution de nom est le seul cas retenu. Un refus de connexion ou un
+ * delai depasse peuvent venir de chez nous autant que de chez l'utilisateur :
+ * les taire reviendrait a s'aveugler.
+ */
+private fun estHorsLigne(e: Throwable): Boolean {
+    var courant: Throwable? = e
+    var profondeur = 0
+    while (courant != null && profondeur < 8) {
+        if (courant is java.net.UnknownHostException) return true
+        val m = courant.message
+        if (m != null &&
+            (m.contains("Unable to resolve host", ignoreCase = true) ||
+                m.contains("No address associated with hostname", ignoreCase = true))
+        ) return true
+        if (courant.cause === courant) return false
+        courant = courant.cause
+        profondeur++
+    }
+    return false
 }
 
 /**

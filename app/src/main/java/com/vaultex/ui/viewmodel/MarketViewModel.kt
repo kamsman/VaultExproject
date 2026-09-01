@@ -191,32 +191,54 @@ class MarketViewModel @Inject constructor(
     private val _searching = MutableStateFlow(false)
     val searching: StateFlow<Boolean> = _searching
 
+    /**
+     * La recherche réseau a ÉCHOUÉ — à distinguer de « rien ne correspond ».
+     *
+     * L'écran affichait « Aucune cryptomonnaie ne correspond » dans les deux
+     * cas. Il accusait donc le catalogue d'une panne venue du réseau, et
+     * personne ne pouvait faire la différence depuis l'écran : c'est ce qui
+     * a rendu l'absence de Celo impossible à diagnostiquer.
+     */
+    private val _searchError = MutableStateFlow(false)
+    val searchError: StateFlow<Boolean> = _searchError
+
     private var rechercheEnCours: kotlinx.coroutines.Job? = null
+    private var derniereRequete: String = ""
 
     fun onSearchQueryChanged(query: String) {
         rechercheEnCours?.cancel()
         val q = query.trim()
+        derniereRequete = q
         if (q.length < 2) {
             _searching.value = false
+            _searchError.value = false
             _searchResults.value = emptyList()
             return
         }
         rechercheEnCours = viewModelScope.launch {
             kotlinx.coroutines.delay(DELAI_FRAPPE)
             _searching.value = true
+            _searchError.value = false
             try {
                 val trouve = withContext(Dispatchers.IO) { repository.search(q) }
-                _searchResults.value = trouve
+                _searchResults.value = trouve.monnaies
+                _searchError.value = trouve.echecReseau
             } catch (e: Exception) {
                 // Une annulation n'est pas un échec : elle signifie simplement
                 // que l'utilisateur a continué à taper. La relancer serait
                 // rompre la structure des coroutines.
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _searchResults.value = emptyList()
+                _searchError.value = true
             } finally {
                 _searching.value = false
             }
         }
+    }
+
+    /** Rejoue la dernière recherche, à la demande de l'utilisateur. */
+    fun retrySearch() {
+        if (derniereRequete.length >= 2) onSearchQueryChanged(derniereRequete)
     }
 
     /*

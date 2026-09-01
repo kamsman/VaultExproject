@@ -151,13 +151,31 @@ class MarketRepository @Inject constructor(
     */
     private val rechercheEnCache = java.util.concurrent.ConcurrentHashMap<String, List<CoinGeckoMarketDto>>()
 
-    suspend fun search(query: String): List<CoinGeckoMarketDto> {
+    /**
+     * Ce qu'a donné une recherche, et SI le réseau a répondu.
+     *
+     * Rendre une simple liste confondait deux situations très différentes :
+     * « cette monnaie n'existe pas » et « l'appel a échoué ». L'écran
+     * affichait « Aucune cryptomonnaie ne correspond » dans les deux cas,
+     * donc accusait le catalogue d'une panne qui venait du réseau — et
+     * personne, utilisateur comme développeur, ne pouvait faire la
+     * différence depuis l'écran.
+     *
+     * [monnaies] peut être non vide MALGRÉ [echecReseau] : ce sont alors les
+     * correspondances trouvées dans ce qui était déjà chargé.
+     */
+    data class ResultatRecherche(
+        val monnaies: List<CoinGeckoMarketDto>,
+        val echecReseau: Boolean
+    )
+
+    suspend fun search(query: String): ResultatRecherche {
         val q = query.trim().lowercase()
-        if (q.length < 2) return emptyList()
+        if (q.length < 2) return ResultatRecherche(emptyList(), false)
 
         // Ce que l'on a déjà sous la main : la frappe et les retours arrière
         // ne doivent pas rejouer le même appel.
-        rechercheEnCache[q]?.let { return it }
+        rechercheEnCache[q]?.let { return ResultatRecherche(it, false) }
 
         // Une monnaie déjà chargée n'a besoin d'aucun appel.
         val localement = cache.filter {
@@ -172,9 +190,7 @@ class MarketRepository @Inject constructor(
             requête courte comme « celo » ramène des dizaines de jetons dont
             le nom la contient, et il suffit que RESULTATS_MAX d'entre eux
             soient mieux classés pour que la monnaie EXACTEMENT demandée
-            tombe hors de la coupe. L'utilisateur cherche « celo » et ne voit
-            pas Celo : le défaut le plus déroutant qu'une recherche puisse
-            produire.
+            tombe hors de la coupe.
 
             Ce que l'on a tapé passe donc devant, quel que soit son rang.
             */
@@ -190,23 +206,26 @@ class MarketRepository @Inject constructor(
             // frappe suivante. Elle doit remonter, jamais être traitée comme
             // une panne réseau.
             if (e is kotlinx.coroutines.CancellationException) throw e
-            // Hors ligne ou quota : on rend au moins ce que le cache contient
-            // plutôt qu'un écran vide qui ressemble à « cette monnaie n'existe pas ».
             com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko/search", e)
-            return localement
+            return ResultatRecherche(localement, echecReseau = true)
         }
-        if (ids.isEmpty()) return localement
+
+        // Catalogue interrogé, aucune correspondance : ce n'est pas un échec.
+        if (ids.isEmpty()) return ResultatRecherche(localement, false)
 
         // Les monnaies déjà en cache n'ont pas à repasser par le réseau.
         val connues = cache.filter { it.id in ids }
         val manquants = ids - connues.map { it.id }.toSet()
 
+        var echecPrix = false
         val recuperes = if (manquants.isEmpty()) emptyList() else try {
             // `ids` trié : deux utilisateurs cherchant la même chose produisent
             // la même URL, donc UN seul appel amont pour les deux.
             api.getMarkets(vsCurrency = "usd", ids = manquants.sorted().joinToString(","))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko/search-prix", e)
+            echecPrix = true
             emptyList()
         }
         if (recuperes.isNotEmpty()) cache = (cache + recuperes).distinctBy { it.id }
@@ -215,11 +234,15 @@ class MarketRepository @Inject constructor(
         // regroupement par cache aurait sinon perdu.
         val parId = (connues + recuperes).associateBy { it.id }
         val resultat = ids.mapNotNull { parId[it] }
-        if (resultat.isEmpty()) return localement
+        if (resultat.isEmpty()) return ResultatRecherche(localement, echecPrix)
 
-        if (rechercheEnCache.size > CACHE_RECHERCHES_MAX) rechercheEnCache.clear()
-        rechercheEnCache[q] = resultat
-        return resultat
+        // Seul un résultat complet est mémorisé : garder un résultat amputé
+        // par une panne le figerait pour toutes les recherches suivantes.
+        if (!echecPrix) {
+            if (rechercheEnCache.size > CACHE_RECHERCHES_MAX) rechercheEnCache.clear()
+            rechercheEnCache[q] = resultat
+        }
+        return ResultatRecherche(resultat, echecPrix)
     }
 
     /**
