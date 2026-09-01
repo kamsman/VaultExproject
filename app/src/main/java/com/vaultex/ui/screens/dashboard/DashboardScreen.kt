@@ -38,6 +38,7 @@ import androidx.navigation.NavHostController
 import com.vaultex.R
 import kotlinx.coroutines.launch
 import com.vaultex.ui.components.BottomBarSpace
+import com.vaultex.ui.components.FeuilleNouveautes
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -56,6 +57,10 @@ fun DashboardScreen(navController: NavHostController) {
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
+
+    // Ce qui a changé depuis la version précédente, dit une fois. Ne s'affiche
+    // ni à la première installation, ni deux fois pour la même version.
+    FeuilleNouveautes()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {

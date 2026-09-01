@@ -46,10 +46,16 @@ fun SplashScreen(navController: NavHostController) {
         label = "loader"
     )
 
+    val contexteApp = androidx.compose.ui.platform.LocalContext.current.applicationContext
+
     LaunchedEffect(Unit) {
         delay(3200)
         // Route vers PIN_UNLOCK si wallet existe, animation de premier lancement sinon
-        val destination = if (viewModel.hasWallet()) Routes.PIN_UNLOCK else Routes.FIRST_LAUNCH
+        val aUnPortefeuille = viewModel.hasWallet()
+        // Dernier instant où « nouvel arrivant » et « mise à jour » se
+        // distinguent : après l'intégration, les deux ont un portefeuille.
+        com.vaultex.ui.components.marquerDemarrage(contexteApp, aUnPortefeuille)
+        val destination = if (aUnPortefeuille) Routes.PIN_UNLOCK else Routes.FIRST_LAUNCH
         navController.navigate(destination) {
             popUpTo(Routes.SPLASH) { inclusive = true }
         }

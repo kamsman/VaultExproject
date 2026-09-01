@@ -935,4 +935,17 @@
     <string name="balance_partial_named">Total incomplet : %1$s illisible pour le moment</string>
     <string name="scanner_camera_unavailable">Aucune caméra utilisable sur cet appareil. Saisissez l\'adresse à la main.</string>
     <string name="token_detail_price_unavailable">Cours indisponible pour ce jeton</string>
+
+    <!-- Quoi de neuf -->
+    <string name="whats_new_title">Quoi de neuf</string>
+    <string name="whats_new_version">Version %1$s</string>
+    <string name="whats_new_cta">J\'ai compris</string>
+    <string name="whats_new_1_title">Recherche dans tout le marché</string>
+    <string name="whats_new_1_body">Les 19 000 monnaies de CoinGecko, plus seulement les 100 premières.</string>
+    <string name="whats_new_2_title">Liste étendue</string>
+    <string name="whats_new_2_body">1 000 monnaies au lieu de 100, avec défilement continu.</string>
+    <string name="whats_new_3_title">Recherche uniformisée</string>
+    <string name="whats_new_3_body">Le même bouton loupe sur tous les écrans.</string>
+    <string name="whats_new_4_title">Prix des jetons importés</string>
+    <string name="whats_new_4_body">Les jetons ajoutés par adresse affichent de nouveau leur prix.</string>
 </resources>
