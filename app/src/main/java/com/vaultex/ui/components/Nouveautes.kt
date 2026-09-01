@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.vaultex.BuildConfig
 import com.vaultex.R
 import com.vaultex.ui.theme.AccentBlue
-import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgSecondary
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 
@@ -129,9 +129,19 @@ fun FeuilleNouveautes() {
     « voici ce qui a changé », pas le détail : celui qui veut en savoir plus
     ira voir l'écran concerné.
     */
+    /*
+    Le fond de la feuille N'EST PAS celui de la page.
+
+    Elle utilisait BgPrimary — la couleur exacte du tableau de bord derrière.
+    Opaque, mais indiscernable du fond : sans limite visible, la feuille
+    paraissait transparente. C'est le contraste qui manquait, pas l'alpha.
+
+    BgSecondary la détache dans les deux thèmes, clair comme sombre.
+    */
     ModalBottomSheet(
         onDismissRequest = { visible = false },
-        containerColor = BgPrimary
+        containerColor = BgSecondary,
+        tonalElevation = 0.dp
     ) {
         Column(
             Modifier
