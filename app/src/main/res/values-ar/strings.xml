@@ -940,16 +940,11 @@
     <string name="scanner_camera_unavailable">لا توجد كاميرا متاحة على هذا الجهاز. أدخل العنوان يدويًا.</string>
     <string name="token_detail_price_unavailable">السعر غير متاح لهذه العملة</string>
 
-    <!-- Quoi de neuf -->
+    <!-- Quoi de neuf : 4 lignes courtes, a reecrire a chaque version -->
     <string name="whats_new_title">ما الجديد</string>
-    <string name="whats_new_version">الإصدار %1$s</string>
-    <string name="whats_new_cta">فهمت</string>
-    <string name="whats_new_1_title">البحث في السوق بالكامل</string>
-    <string name="whats_new_1_body">‏19000 عملة من CoinGecko، وليس المئة الأولى فقط.</string>
-    <string name="whats_new_2_title">قائمة أطول</string>
-    <string name="whats_new_2_body">‏1000 عملة بدلاً من 100، مع تمرير متواصل.</string>
-    <string name="whats_new_3_title">بحث موحّد</string>
-    <string name="whats_new_3_body">زر العدسة نفسه في كل الشاشات.</string>
-    <string name="whats_new_4_title">أسعار العملات المستوردة</string>
-    <string name="whats_new_4_body">العملات المضافة عبر العنوان تعرض سعرها من جديد.</string>
+    <string name="whats_new_cta">حسناً</string>
+    <string name="whats_new_1">البحث في 19000 عملة على CoinGecko</string>
+    <string name="whats_new_2">‏1000 عملة بدلاً من 100، مع تمرير متواصل</string>
+    <string name="whats_new_3">زر البحث نفسه في كل الشاشات</string>
+    <string name="whats_new_4">استعادة أسعار العملات المستوردة</string>
 </resources>

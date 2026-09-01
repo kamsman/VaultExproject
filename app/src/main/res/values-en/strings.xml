@@ -940,16 +940,11 @@
     <string name="scanner_camera_unavailable">No usable camera on this device. Please enter the address manually.</string>
     <string name="token_detail_price_unavailable">Price unavailable for this token</string>
 
-    <!-- Quoi de neuf -->
+    <!-- Quoi de neuf : 4 lignes courtes, a reecrire a chaque version -->
     <string name="whats_new_title">What\'s new</string>
-    <string name="whats_new_version">Version %1$s</string>
-    <string name="whats_new_cta">Got it</string>
-    <string name="whats_new_1_title">Search the whole market</string>
-    <string name="whats_new_1_body">All 19,000 CoinGecko coins, not just the top 100.</string>
-    <string name="whats_new_2_title">Longer list</string>
-    <string name="whats_new_2_body">1,000 coins instead of 100, with continuous scrolling.</string>
-    <string name="whats_new_3_title">One search everywhere</string>
-    <string name="whats_new_3_body">The same magnifier button on every screen.</string>
-    <string name="whats_new_4_title">Imported token prices</string>
-    <string name="whats_new_4_body">Tokens added by address show their price again.</string>
+    <string name="whats_new_cta">OK</string>
+    <string name="whats_new_1">Search all 19,000 CoinGecko coins</string>
+    <string name="whats_new_2">1,000 coins instead of 100, continuous scrolling</string>
+    <string name="whats_new_3">The same search button on every screen</string>
+    <string name="whats_new_4">Imported token prices restored</string>
 </resources>

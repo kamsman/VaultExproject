@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -21,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -117,6 +117,18 @@ fun FeuilleNouveautes() {
 
     if (!visible) return
 
+    /*
+    VOLONTAIREMENT COURT.
+
+    La première version donnait à chaque nouveauté un titre ET une phrase
+    d'explication, dans une feuille pleine largeur. Elle occupait presque tout
+    l'écran pour dire quatre choses — un mur de texte devant l'accueil, que
+    personne ne lit et que tout le monde referme.
+
+    Une ligne par nouveauté, un bouton discret. Ce qui doit passer, c'est
+    « voici ce qui a changé », pas le détail : celui qui veut en savoir plus
+    ira voir l'écran concerné.
+    */
     ModalBottomSheet(
         onDismissRequest = { visible = false },
         containerColor = BgPrimary
@@ -124,53 +136,42 @@ fun FeuilleNouveautes() {
         Column(
             Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                stringResource(R.string.whats_new_title),
-                fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
-            )
-            Text(
-                stringResource(R.string.whats_new_version, BuildConfig.VERSION_NAME),
-                fontSize = 13.sp, color = TextSecondary
-            )
-            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.whats_new_title),
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                )
+                Spacer(Modifier.width(8.dp))
+                // La version tient sur la même ligne : elle sert au support,
+                // elle ne mérite pas une ligne à elle.
+                Text(BuildConfig.VERSION_NAME, fontSize = 12.sp, color = TextSecondary)
+            }
 
-            Nouveaute(R.string.whats_new_1_title, R.string.whats_new_1_body)
-            Nouveaute(R.string.whats_new_2_title, R.string.whats_new_2_body)
-            Nouveaute(R.string.whats_new_3_title, R.string.whats_new_3_body)
-            Nouveaute(R.string.whats_new_4_title, R.string.whats_new_4_body)
+            listOf(
+                R.string.whats_new_1,
+                R.string.whats_new_2,
+                R.string.whats_new_3,
+                R.string.whats_new_4
+            ).forEach { ligne ->
+                Row(Modifier.fillMaxWidth()) {
+                    Text("•", fontSize = 14.sp, color = AccentBlue, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(ligne), fontSize = 14.sp, color = TextSecondary)
+                }
+            }
 
-            Spacer(Modifier.height(20.dp))
             Button(
                 onClick = { visible = false },
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.align(Alignment.End)
             ) {
-                Text(
-                    stringResource(R.string.whats_new_cta),
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
+                Text(stringResource(R.string.whats_new_cta), fontWeight = FontWeight.SemiBold)
             }
-        }
-    }
-}
-
-@Composable
-private fun Nouveaute(titre: Int, corps: Int) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text("•", fontSize = 15.sp, color = AccentBlue, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                stringResource(titre),
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
-            )
-            Text(stringResource(corps), fontSize = 13.sp, color = TextSecondary)
         }
     }
 }
