@@ -492,18 +492,6 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             }
 
-            /*
-            Nouveautés de la version, dites une fois.
-
-            Posée ICI plutôt qu'en superposition : assez haut pour être vue
-            sans défiler, assez bas pour ne pas repousser le solde, qui reste
-            ce qu'on ouvre l'application pour lire.
-
-            La carte se retire d'elle-même une fois lue ou fermée ; l'item
-            reste, vide, ce qui ne coûte rien à une liste paresseuse.
-            */
-            item(key = "nouveautes") { CarteNouveautes() }
-
             // ─── Aperçu du marché (cartes horizontales, modèle) ───
             if (majors.isNotEmpty()) {
                 item(key = "market_overview") {
@@ -597,6 +585,25 @@ fun DashboardScreen(navController: NavHostController) {
         }
     }
         // Barre FLOTTANTE, posée par-dessus le contenu qui défile derrière.
+        /*
+        Nouveautés de la version : FLOTTANTE, comme la barre de navigation.
+
+        Posée dans le flux de la liste, elle défilait avec le contenu et
+        disparaissait dès qu'on descendait — une note qu'on doit chercher
+        n'informe personne. Elle est donc dans le même Box que la barre du
+        bas, par-dessus le contenu qui défile derrière elle.
+
+        Le décalage vertical la place JUSTE au-dessus de la barre : sans lui,
+        elle la recouvrirait, et fermer la carte deviendrait le seul moyen de
+        changer d'onglet.
+        */
+        CarteNouveautes(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = BottomBarSpace - 16.dp)
+        )
+
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
 }

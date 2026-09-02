@@ -98,11 +98,16 @@ fun marquerDemarrage(contexte: Context, aUnPortefeuille: Boolean) {
  * NON MODALE, et c'est le point. La première version était une feuille qui
  * assombrissait tout l'écran et bloquait l'interaction — pour quatre lignes
  * n'exigeant aucune décision. Une note d'information ne mérite pas de
- * s'imposer : elle se pose dans la page, se lit d'un coup d'œil, et se
- * referme d'une croix.
+ * s'imposer : elle se pose PAR-DESSUS la page sans la bloquer, se lit d'un
+ * coup d'œil, et se referme d'une croix.
  *
- * À placer dans le flux de l'accueil, sous les tuiles d'action : assez haut
- * pour être vue sans défiler, assez bas pour ne pas repousser le solde.
+ * FLOTTANTE : à poser en superposition, au-dessus de la barre de navigation,
+ * et non dans le flux d'une liste. Placée dans le flux, elle défile avec le
+ * contenu et disparaît dès qu'on descend — une note qu'il faut chercher
+ * n'informe personne.
+ *
+ * Le fond translucide prend ici tout son sens : le contenu défile DERRIÈRE
+ * elle, et on le voit passer.
  */
 @Composable
 fun CarteNouveautes(modifier: Modifier = Modifier) {
