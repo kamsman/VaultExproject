@@ -116,6 +116,17 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             return@Scaffold
         }
 
+        /*
+        usdFmt sert aux MONTANTS en dollars — la valeur détenue, le gain.
+        Deux décimales y sont justes : personne ne lit son portefeuille au
+        millionième.
+
+        Les PRIX, eux, passent par formatMarketUsd(), le formateur de la liste
+        du Marché. Il adapte la précision à l'ordre de grandeur, là où deux
+        décimales affichaient « $0 » pour toute monnaie sous un demi-centime.
+        La fiche contredisait donc la liste dont elle venait, sur la seule
+        donnée que l'on ouvre l'écran pour lire.
+        */
         val usdFmt = remember {
             NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).apply { maximumFractionDigits = 2 }
         }
@@ -159,7 +170,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "$" + usdFmt.format(c.currentPrice),
+                "$" + formatMarketUsd(c.currentPrice),
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
@@ -287,10 +298,16 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                                 // Ouvre le formulaire d'envoi DIRECTEMENT sur cette
                                 // monnaie ; le token (registre OU déjà résolu par
                                 // contrat ETH/BSC) est reconnu côté SendViewModel.
+                                //
+                                // C'EST ICI que le jeton entre dans le portefeuille,
+                                // et nulle part avant : simplement consulter une
+                                // fiche ne doit rien y ajouter.
+                                if (supported == null) viewModel.enregistrerPourUsage()
                                 com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
                                 navController.navigate(Routes.SEND)
                             }
                             CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
+                                if (supported == null) viewModel.enregistrerPourUsage()
                                 com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
                                 navController.navigate(Routes.RECEIVE)
                             }
@@ -349,9 +366,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     StatCard(stringResource(R.string.coin_supply), compact(c.circulatingSupply) + " " + symbol, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(stringResource(R.string.coin_high_24h), "$" + usdFmt.format(c.high24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_low_24h), "$" + usdFmt.format(c.low24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_ath), "$" + usdFmt.format(c.ath), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_high_24h), "$" + formatMarketUsd(c.high24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_low_24h), "$" + formatMarketUsd(c.low24h), Modifier.weight(1f))
+                    StatCard(stringResource(R.string.coin_ath), "$" + formatMarketUsd(c.ath), Modifier.weight(1f))
                 }
             }
             Spacer(Modifier.height(24.dp))

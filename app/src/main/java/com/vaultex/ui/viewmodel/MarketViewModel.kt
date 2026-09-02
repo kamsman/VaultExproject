@@ -102,7 +102,12 @@ class MarketViewModel @Inject constructor(
     // « platforms » CoinGecko, validées EN VRAI sur la chaîne (comme l'ajout
     // manuel d'un token) avant d'activer Envoyer/Recevoir — jamais de contrat
     // non vérifié.
-    data class ReceivableToken(val symbol: String, val contractAddress: String, val chainTicker: String)
+    data class ReceivableToken(
+        val symbol: String,
+        val contractAddress: String,
+        val chainTicker: String,
+        val decimals: Int
+    )
 
     private val _receivableToken = MutableStateFlow<ReceivableToken?>(null)
     val receivableToken: StateFlow<ReceivableToken?> = _receivableToken
@@ -114,9 +119,11 @@ class MarketViewModel @Inject constructor(
 
     /**
      * À appeler UNIQUEMENT si la monnaie n'est pas déjà dans le registre swap
-     * (vérification faite côté écran). Résout un éventuel contrat ETH/BSC,
-     * le valide sur la chaîne, puis l'enregistre comme token personnalisé
-     * pour que Envoyer/Recevoir fonctionnent via le circuit déjà existant.
+     * (vérification faite côté écran). Résout un éventuel contrat ETH/BSC et
+     * le valide sur la chaîne — jamais de contrat non vérifié.
+     *
+     * N'ÉCRIT RIEN dans le portefeuille : cette fonction sert à savoir si la
+     * monnaie est recevable, pas à décider qu'on la détient.
      */
     fun checkReceivable(coinId: String) {
         if (receivableCheckedForId == coinId) return
@@ -135,21 +142,22 @@ class MarketViewModel @Inject constructor(
                 for ((chainTicker, contract) in candidates) {
                     val info = withContext(Dispatchers.IO) { tokenInfoService.fetch(chainTicker, contract) }
                     if (info != null) {
-                        try {
-                            tokenRepository.addToken(
-                                com.vaultex.data.local.entity.TokenEntity(
-                                    contractAddress = contract,
-                                    blockchain = chainTicker,
-                                    symbol = info.symbol,
-                                    name = info.symbol,
-                                    decimals = info.decimals,
-                                    iconUrl = null,
-                                    isCustom = true,
-                                    isHidden = false
-                                )
-                            )
-                        } catch (_: Exception) { /* déjà présent : sans impact */ }
-                        _receivableToken.value = ReceivableToken(info.symbol, contract, chainTicker)
+                        /*
+                        ON RÉSOUT, ON N'AJOUTE PAS.
+
+                        Cette boucle enregistrait le jeton dans le portefeuille
+                        ici même. Conséquence : ouvrir la fiche d'une monnaie
+                        depuis le Marché — juste pour en regarder le cours —
+                        la faisait apparaître sur l'accueil. Quelques minutes
+                        de curiosité suffisaient à peupler le tableau de bord
+                        de jetons que l'on ne possède pas.
+
+                        Regarder n'est pas posséder. L'ajout n'a lieu que si
+                        l'on touche Envoyer ou Recevoir, c'est-à-dire quand il
+                        devient réellement nécessaire — voir enregistrerPourUsage().
+                        */
+                        _receivableToken.value =
+                            ReceivableToken(info.symbol, contract, chainTicker, info.decimals)
                         break
                     }
                 }
@@ -158,6 +166,34 @@ class MarketViewModel @Inject constructor(
             } finally {
                 _receivableChecking.value = false
             }
+        }
+    }
+
+    /**
+     * Enregistre le jeton résolu — appelé au moment d'ENVOYER ou de RECEVOIR.
+     *
+     * Envoyer et recevoir supposent que le jeton existe dans le portefeuille :
+     * c'est ce circuit-là qui sait lire son solde et bâtir la transaction. On
+     * l'y met donc, mais seulement à cet instant — le seul où l'utilisateur a
+     * manifesté qu'il veut s'en servir.
+     */
+    fun enregistrerPourUsage() {
+        val jeton = _receivableToken.value ?: return
+        viewModelScope.launch {
+            try {
+                tokenRepository.addToken(
+                    com.vaultex.data.local.entity.TokenEntity(
+                        contractAddress = jeton.contractAddress,
+                        blockchain = jeton.chainTicker,
+                        symbol = jeton.symbol,
+                        name = jeton.symbol,
+                        decimals = jeton.decimals,
+                        iconUrl = null,
+                        isCustom = true,
+                        isHidden = false
+                    )
+                )
+            } catch (_: Exception) { /* déjà présent : sans impact */ }
         }
     }
 
