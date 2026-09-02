@@ -38,7 +38,7 @@ import androidx.navigation.NavHostController
 import com.vaultex.R
 import kotlinx.coroutines.launch
 import com.vaultex.ui.components.BottomBarSpace
-import com.vaultex.ui.components.FeuilleNouveautes
+import com.vaultex.ui.components.CarteNouveautes
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -58,9 +58,6 @@ fun DashboardScreen(navController: NavHostController) {
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
 
-    // Ce qui a changé depuis la version précédente, dit une fois. Ne s'affiche
-    // ni à la première installation, ni deux fois pour la même version.
-    FeuilleNouveautes()
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
     LaunchedEffect(Unit) {
@@ -494,6 +491,18 @@ fun DashboardScreen(navController: NavHostController) {
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                 }
             }
+
+            /*
+            Nouveautés de la version, dites une fois.
+
+            Posée ICI plutôt qu'en superposition : assez haut pour être vue
+            sans défiler, assez bas pour ne pas repousser le solde, qui reste
+            ce qu'on ouvre l'application pour lire.
+
+            La carte se retire d'elle-même une fois lue ou fermée ; l'item
+            reste, vide, ce qui ne coûte rien à une liste paresseuse.
+            */
+            item(key = "nouveautes") { CarteNouveautes() }
 
             // ─── Aperçu du marché (cartes horizontales, modèle) ───
             if (majors.isNotEmpty()) {
