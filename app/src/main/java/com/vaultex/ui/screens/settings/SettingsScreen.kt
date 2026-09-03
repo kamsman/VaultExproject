@@ -160,6 +160,38 @@ fun SettingsScreen(navController: NavHostController) {
                         color = TextPrimary
                     )
                 },
+                actions = {
+                    /*
+                    VERROUILLER, EN HAUT À DROITE ET SANS TEXTE.
+
+                    Le verrouillage était une ligne parmi douze dans la section
+                    Sécurité — il fallait descendre pour la trouver, alors que
+                    c'est le geste le plus pressé de l'écran : on le fait quand
+                    on tend son téléphone à quelqu'un.
+
+                    Un cadenas dans l'en-tête est atteignable sans défiler et se
+                    reconnaît sans lecture, ce qui compte pour un public dont le
+                    français ou l'anglais n'est pas toujours la langue d'usage.
+                    Le libellé subsiste en description d'accessibilité.
+
+                    popUpTo(0) vide la pile : sans cela, le bouton retour du
+                    téléphone repasserait derrière l'écran de code et annulerait
+                    le verrouillage qu'on vient de demander.
+                    */
+                    IconButton(onClick = {
+                        viewModel.verrouillerMaintenant()
+                        navController.navigate(Routes.PIN_UNLOCK) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = stringResource(R.string.settings_lock_now),
+                            tint = AccentBlue
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -262,26 +294,6 @@ fun SettingsScreen(navController: NavHostController) {
                     RowDivider()
                     SettingsRow(Icons.Default.Backup, stringResource(R.string.backup)) {
                         navController.navigate(Routes.BACKUP)
-                    }
-                    RowDivider()
-                    /*
-                    VERROUILLER MAINTENANT.
-
-                    Le verrouillage n'existait qu'automatiquement, au retour
-                    d'arrière-plan après délai. Quelqu'un qui prête son
-                    téléphone, le pose ou quitte son bureau devait attendre que
-                    ce délai s'écoule — soldes affichés pendant tout ce temps.
-
-                    popUpTo(0) vide la pile : sans cela, le bouton retour du
-                    téléphone ramènerait derrière l'écran de code, ce qui
-                    annulerait le verrouillage qu'on vient de demander.
-                    */
-                    SettingsRow(Icons.Default.Lock, stringResource(R.string.settings_lock_now)) {
-                        viewModel.verrouillerMaintenant()
-                        navController.navigate(Routes.PIN_UNLOCK) {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
                     }
                 }
             }

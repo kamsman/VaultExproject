@@ -33,6 +33,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -654,11 +660,13 @@ private fun PastilleReseau(
     onChoisir: (MarketViewModel.Reseau) -> Unit
 ) {
     var ouvert by remember { mutableStateOf(false) }
+    var hauteurPastille by remember { mutableStateOf(0) }
     val actif = courant.categorie != null
     val texte = if (actif) courant.libelle else stringResource(R.string.market_network)
     Box {
         Row(
             Modifier
+                .onSizeChanged { hauteurPastille = it.height }
                 .clip(CircleShape)
                 .background(Surface)
                 .border(1.5.dp, AccentBlue, CircleShape)
@@ -673,33 +681,64 @@ private fun PastilleReseau(
             Icon(Icons.Default.KeyboardArrowDown, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
         }
 
-        DropdownMenu(
-            expanded = ouvert,
-            onDismissRequest = { ouvert = false },
-            modifier = Modifier.background(Surface)
-        ) {
-            MarketViewModel.RESEAUX.forEachIndexed { index, r ->
-                val choisi = r == courant
-                DropdownMenuItem(
-                    leadingIcon = { LogoReseau(r.symbole, 24.dp, if (choisi) AccentBlue else TextPrimary) },
-                    text = {
-                        Text(
-                            if (r.categorie == null) stringResource(R.string.market_network_all) else r.libelle,
-                            fontSize = 15.sp,
-                            fontWeight = if (choisi) FontWeight.Bold else FontWeight.Medium,
-                            color = if (choisi) AccentBlue else TextPrimary
-                        )
-                    },
-                    onClick = { ouvert = false; onChoisir(r) }
-                )
-                // Séparateurs ENTRE les entrées seulement : un trait après la
-                // dernière soulignerait le bord de la carte.
-                if (index < MarketViewModel.RESEAUX.lastIndex) {
-                    HorizontalDivider(
-                        color = TextMuted.copy(alpha = 0.20f),
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
+        /*
+        POPUP PLUTÔT QUE DropdownMenu.
+
+        Le menu de Material impose sa forme — coins à peine arrondis, hauteur
+        de ligne serrée — et n'expose pas de quoi les changer. La carte voulue
+        est nettement arrondie, détachée de la pastille, avec des lignes hautes
+        où le logo pèse autant que le nom.
+
+        Un Popup ne dessine rien de lui-même : la Surface ci-dessous est
+        exactement ce qui s'affiche, sans forme héritée à combattre.
+
+        Le décalage vertical se calcule sur la HAUTEUR MESURÉE de la pastille,
+        pas sur une valeur écrite à la main : celle-ci changerait avec la
+        taille de police du système, et la carte finirait par recouvrir la
+        pastille chez qui grossit le texte.
+        */
+        if (ouvert) {
+            val ecart = with(LocalDensity.current) { 8.dp.roundToPx() }
+            Popup(
+                onDismissRequest = { ouvert = false },
+                offset = IntOffset(0, hauteurPastille + ecart),
+                properties = PopupProperties(focusable = true)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Surface,
+                    border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.18f)),
+                    shadowElevation = 8.dp
+                ) {
+                    Column(Modifier.width(IntrinsicSize.Max)) {
+                        MarketViewModel.RESEAUX.forEachIndexed { index, r ->
+                            val choisi = r == courant
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { ouvert = false; onChoisir(r) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                LogoReseau(r.symbole, 26.dp, if (choisi) AccentBlue else TextPrimary)
+                                Spacer(Modifier.width(14.dp))
+                                Text(
+                                    if (r.categorie == null) stringResource(R.string.market_network_all) else r.libelle,
+                                    fontSize = 16.sp,
+                                    fontWeight = if (choisi) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (choisi) AccentBlue else TextPrimary
+                                )
+                            }
+                            // Séparateurs ENTRE les entrées seulement : un trait
+                            // après la dernière soulignerait le bord de la carte.
+                            if (index < MarketViewModel.RESEAUX.lastIndex) {
+                                HorizontalDivider(
+                                    color = TextMuted.copy(alpha = 0.18f),
+                                    thickness = 1.dp
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
