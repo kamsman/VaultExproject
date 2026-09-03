@@ -354,14 +354,22 @@ fun SendScreen(navController: NavController) {
                 }
             }
 
-            // Recipient card
+            /*
+            LES INTITULÉS DE SECTION SORTENT DES CARTES.
+
+            « Destinataire » et « Montant » étaient de petits textes gris posés
+            À L'INTÉRIEUR de leur carte, au-dessus du champ. Rien ne les
+            distinguait alors du contenu qu'ils annonçaient.
+
+            Placés au-dessus, sur le fond, en texte plein, ils redeviennent ce
+            qu'ils sont : la structure de l'écran. On voit d'un coup d'œil
+            qu'il y a deux choses à renseigner.
+            */
+            Text(
+                stringResource(R.string.send_recipient_label),
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            )
             SendCard {
-                Text(
-                    stringResource(R.string.send_recipient_label),
-                    fontSize = 13.sp,
-                    color = TextSecondary
-                )
-                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SendField(
                         value = state.toAddress,
@@ -425,24 +433,34 @@ fun SendScreen(navController: NavController) {
                     color = AccentGreen,
                     modifier = Modifier.clickable { navController.navigate(Routes.ADDRESS_BOOK) }
                 )
-                Spacer(Modifier.height(10.dp))
-                Surface(shape = RoundedCornerShape(10.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_address_network_note, netFull), fontSize = 12.sp, color = TextPrimary)
-                    }
-                }
+            }
+            /*
+            La consigne de vérification sort de la carte et perd son pavé vert.
+
+            Un aplat coloré pleine largeur a le poids d'une alerte. Or ce n'est
+            pas une alerte : c'est un rappel permanent, affiché même quand tout
+            va bien. À force d'occuper la place d'un avertissement sans en être
+            un, il rendait invisibles les VRAIS — adresse invalide, adresse
+            ressemblante — qui s'affichent au même endroit, en rouge.
+            */
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.send_address_network_note, netFull),
+                    fontSize = 12.sp, color = TextSecondary
+                )
                 // L'avertissement « le destinataire doit accepter le réseau… »
                 // a été retiré : le bandeau vert ci-dessus porte déjà la même
                 // consigne de vérification du réseau. Deux alertes qui disent
                 // la même chose n'en font lire aucune.
             }
 
-            // Amount card
+            Text(
+                stringResource(R.string.amount),
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            )
             SendCard {
-                Text(stringResource(R.string.amount), fontSize = 13.sp, color = TextSecondary)
-                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SendField(
                         value = state.amount,
@@ -451,15 +469,21 @@ fun SendScreen(navController: NavController) {
                         keyboardType = KeyboardType.Decimal,
                         modifier = Modifier.weight(1f)
                     )
+                    // MAX prend la couleur d'action de l'application. En vert,
+                    // il se lisait comme une confirmation — or il n'en est pas
+                    // une : c'est un bouton, il doit inviter à être touché.
                     Text(
                         stringResource(R.string.max_label),
-                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentGreen,
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(AccentGreen.copy(alpha = 0.12f))
+                            .background(AccentBlue.copy(alpha = 0.14f))
                             .clickable { viewModel.onMaxClicked() }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
+                    // Trait vertical : la monnaie qui suit n'est pas un bouton,
+                    // elle rappelle seulement l'unité du montant saisi.
+                    Box(Modifier.height(22.dp).width(1.dp).background(BorderColor))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(Modifier.size(22.dp).clip(CircleShape).background(coinColor), contentAlignment = Alignment.Center) {
                             coil.compose.AsyncImage(
@@ -508,40 +532,40 @@ fun SendScreen(navController: NavController) {
                 feeEstimate.ifEmpty { "…" },
                 feeFiat?.let { "≈ $it" }
             )
-            // Carte verte : Tu vas envoyer / Total
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = AccentGreen.copy(alpha = 0.10f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // « Tu vas envoyer » retiré : sur un envoi sans frais de
-                    // service, cette ligne affiche exactement le Total qui la
-                    // suit. Le Total reste, il est la donnée qui engage.
-                    if (svcFee > 0.0) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.send_service_fee), fontSize = 13.sp, color = TextSecondary)
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(formatTokenAmount(svcFee) + " $coinShort", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
-                                svcFeeFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
-                            }
-                        }
-                    }
-                    HorizontalDivider(color = AccentGreen.copy(alpha = 0.3f))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(R.string.send_summary_total), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(formatTokenAmount(totalToken) + " $coinShort", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentGreen)
-                            totalFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
-                        }
-                    }
-                    if (!isNative) {
-                        Text(
-                            stringResource(R.string.send_summary_fee_note, nativeFeeUnit(state.selectedChain, state.customToken)),
-                            fontSize = 11.sp, color = TextSecondary
-                        )
+            /*
+            LE TOTAL SORT DE SA CARTE VERTE.
+
+            Un aplat vert pleine largeur dit « tout va bien » ; or cette ligne
+            ne rassure pas, elle ENGAGE — c'est le montant qui va réellement
+            quitter le portefeuille. Une ligne nue, séparée d'un trait et dont
+            seule la valeur est colorée, se lit comme un total et non comme une
+            confirmation déjà acquise.
+            */
+            if (svcFee > 0.0) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.send_service_fee), fontSize = 13.sp, color = TextSecondary)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(formatTokenAmount(svcFee) + " $coinShort", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
+                        svcFeeFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
                     }
                 }
+            }
+            HorizontalDivider(color = BorderColor)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    stringResource(R.string.send_summary_total),
+                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(formatTokenAmount(totalToken) + " $coinShort", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AccentGreen)
+                    totalFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                }
+            }
+            if (!isNative) {
+                Text(
+                    stringResource(R.string.send_summary_fee_note, nativeFeeUnit(state.selectedChain, state.customToken)),
+                    fontSize = 11.sp, color = TextSecondary
+                )
             }
             // Bloc « Conseil de sécurité » retiré : troisième rappel du même
             // écran demandant de vérifier adresse et réseau. Le bandeau vert
