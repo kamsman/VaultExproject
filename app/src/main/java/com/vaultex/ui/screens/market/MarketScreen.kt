@@ -3,6 +3,7 @@ package com.vaultex.ui.screens.market
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Search
@@ -616,12 +619,34 @@ private fun CoinRowCard(
 }
 
 /**
- * Pastille « Réseau ▾ » : ouvre la liste des blockchains.
+ * Logo d'un réseau : l'icône de sa monnaie native, ou un globe pour
+ * « Tous les réseaux » — qui n'est pas une chaîne.
+ */
+@Composable
+private fun LogoReseau(symbole: String?, taille: androidx.compose.ui.unit.Dp, teinte: Color) {
+    if (symbole == null) {
+        Icon(Icons.Default.Public, null, tint = teinte, modifier = Modifier.size(taille))
+    } else {
+        coil.compose.AsyncImage(
+            model = com.vaultex.ui.components.CryptoIcon.url(symbole),
+            contentDescription = null,
+            modifier = Modifier.size(taille).clip(CircleShape)
+        )
+    }
+}
+
+/**
+ * Sélecteur de réseau : pastille contournée, puis liste des blockchains.
  *
- * Elle affiche le réseau COURANT plutôt que le mot « Réseau », et se teinte
- * quand un filtre est actif. Une liste soudain plus courte sans que rien ne
- * dise pourquoi est le défaut classique de ce genre de sélecteur : ici, la
- * cause reste écrite à l'écran.
+ * La pastille est OUTLINÉE et non pleine. Elle ne trie pas le même objet que
+ * les pastilles voisines — celles-ci filtrent ce qui est déjà chargé, celle-ci
+ * change la liste elle-même en la redemandant. Une forme différente évite de
+ * les confondre.
+ *
+ * Elle affiche « Réseau » au repos et le nom du réseau dès qu'un filtre est
+ * posé : le libellé NOMME la fonction tant qu'elle est inutilisée, il en donne
+ * le RÉSULTAT dès qu'elle sert. Sans cela, une liste soudain plus courte
+ * n'aurait plus sa cause écrite à l'écran.
  */
 @Composable
 private fun PastilleReseau(
@@ -630,45 +655,52 @@ private fun PastilleReseau(
 ) {
     var ouvert by remember { mutableStateOf(false) }
     val actif = courant.categorie != null
-    /*
-    « Réseau » au repos, le nom du réseau quand un filtre est posé.
-
-    Afficher « Réseau » en permanence coûterait l'information la plus utile :
-    savoir sur quoi la liste est filtrée. Afficher « Tous » au repos, à
-    l'inverse, ne dit pas de quoi il s'agit — ce mot pourrait porter sur
-    n'importe lequel des filtres voisins.
-
-    Le libellé change donc de rôle avec l'état : il NOMME la fonction tant
-    qu'elle est inutilisée, il en donne le RÉSULTAT dès qu'elle sert.
-    */
     val texte = if (actif) courant.libelle else stringResource(R.string.market_network)
     Box {
-        Box(
+        Row(
             Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (actif) AccentBlue else Surface)
+                .clip(CircleShape)
+                .background(Surface)
+                .border(1.5.dp, AccentBlue, CircleShape)
                 .clickable { ouvert = true }
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "$texte  ▾",
-                fontSize = 13.sp,
-                fontWeight = if (actif) FontWeight.Bold else FontWeight.Medium,
-                color = if (actif) Color.White else TextSecondary
-            )
+            LogoReseau(courant.symbole, 18.dp, TextPrimary)
+            Spacer(Modifier.width(8.dp))
+            Text(texte, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Default.KeyboardArrowDown, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
         }
-        DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
-            MarketViewModel.RESEAUX.forEach { r ->
+
+        DropdownMenu(
+            expanded = ouvert,
+            onDismissRequest = { ouvert = false },
+            modifier = Modifier.background(Surface)
+        ) {
+            MarketViewModel.RESEAUX.forEachIndexed { index, r ->
+                val choisi = r == courant
                 DropdownMenuItem(
+                    leadingIcon = { LogoReseau(r.symbole, 24.dp, if (choisi) AccentBlue else TextPrimary) },
                     text = {
                         Text(
                             if (r.categorie == null) stringResource(R.string.market_network_all) else r.libelle,
-                            fontWeight = if (r == courant) FontWeight.Bold else FontWeight.Normal,
-                            color = if (r == courant) AccentBlue else TextPrimary
+                            fontSize = 15.sp,
+                            fontWeight = if (choisi) FontWeight.Bold else FontWeight.Medium,
+                            color = if (choisi) AccentBlue else TextPrimary
                         )
                     },
                     onClick = { ouvert = false; onChoisir(r) }
                 )
+                // Séparateurs ENTRE les entrées seulement : un trait après la
+                // dernière soulignerait le bord de la carte.
+                if (index < MarketViewModel.RESEAUX.lastIndex) {
+                    HorizontalDivider(
+                        color = TextMuted.copy(alpha = 0.20f),
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
             }
         }
     }

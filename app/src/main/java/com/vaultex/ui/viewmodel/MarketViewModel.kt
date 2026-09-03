@@ -363,7 +363,11 @@ class MarketViewModel @Inject constructor(
     d'eux venait à changer, le symptôme serait une liste vide — traitée comme
     telle à l'écran, avec un message, plutôt qu'un blanc inexplicable.
     */
-    data class Reseau(val libelle: String, val categorie: String?)
+    /**
+     * [symbole] sert au LOGO de la chaîne dans le sélecteur. Null pour
+     * « Tous les réseaux », qui n'est pas une chaîne et prend un globe.
+     */
+    data class Reseau(val libelle: String, val categorie: String?, val symbole: String? = null)
 
     private val _reseau = MutableStateFlow(RESEAUX.first())
     val reseau: StateFlow<Reseau> = _reseau
@@ -432,10 +436,10 @@ class MarketViewModel @Inject constructor(
          */
         val RESEAUX = listOf(
             Reseau("Tous", null),
-            Reseau("Ethereum", "ethereum-ecosystem"),
-            Reseau("BNB Chain", "binance-smart-chain"),
-            Reseau("Solana", "solana-ecosystem"),
-            Reseau("Tron", "tron-ecosystem")
+            Reseau("Ethereum", "ethereum-ecosystem", "ETH"),
+            Reseau("BNB Chain", "binance-smart-chain", "BNB"),
+            Reseau("Solana", "solana-ecosystem", "SOL"),
+            Reseau("Tron", "tron-ecosystem", "TRX")
         )
 
         /** Silence après la dernière touche avant d'interroger le réseau. */
