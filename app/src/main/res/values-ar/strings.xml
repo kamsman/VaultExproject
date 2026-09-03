@@ -949,7 +949,7 @@
     <string name="whats_new_title">ما الجديد</string>
     <string name="whats_new_cta">حسناً</string>
     <string name="whats_new_1">البحث في 19000 عملة على CoinGecko</string>
-    <string name="whats_new_2">‏1000 عملة بدلاً من 100، مع تمرير متواصل</string>
-    <string name="whats_new_3">زر البحث نفسه في كل الشاشات</string>
-    <string name="whats_new_4">استعادة أسعار العملات المستوردة</string>
+    <string name="whats_new_2">تصفية السوق حسب البلوكشين: إيثريوم، بينانس، سولانا، ترون</string>
+    <string name="whats_new_3">تنبيهات الأسعار مصنّفة حسب حجم الحركة</string>
+    <string name="whats_new_4">الاطلاع على عملة لم يعد يضيفها إلى الشاشة الرئيسية</string>
 </resources>

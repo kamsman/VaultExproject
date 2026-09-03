@@ -74,6 +74,11 @@ import com.vaultex.ui.viewmodel.SwapViewModel
  * accesseurs @Composable ci-dessous ; seuls le violet et le vert restent constants. */
 private val SwapPurple = Color(0xFF7C5CFC)
 private val SwapGreen = Color(0xFF22C55E)
+// Perte de valeur : ambre au-delà de 10 %, rouge au-delà de 25 %. Deux teintes
+// et non une, parce que « des frais élevés » et « la moitié part en frais » ne
+// demandent pas la même réaction.
+private val SwapOrange = Color(0xFFF59E0B)
+private val SwapRed = Color(0xFFEF4444)
 
 private val swapBg: Color        @Composable get() = BgPrimary
 private val swapCard: Color      @Composable get() = SurfaceColor
@@ -287,10 +292,30 @@ private fun SwapFormScreen(
             // ─── Détails ───
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
-                    val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                        "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format(java.util.Locale.US, "%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
+                    val rate = tauxLisible(
+                        swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt
+                    )
                     SwapDetailRow(Icons.Outlined.SwapHoriz, "Taux", rate, chevron = true)
                     Divider(color = swapBorder, thickness = 1.dp)
+                    /*
+                    PERTE DE VALEUR, DITE À VOIX HAUTE.
+
+                    Sur un petit montant, les frais de réseau du fournisseur
+                    peuvent dépasser la moitié de la somme. L'écran affichait
+                    « ≈ 1,32 $ » en haut et « ≈ 0,66 $ » en bas : deux chiffres
+                    exacts, et la conclusion laissée à qui penserait à les
+                    comparer. Dans un portefeuille, c'est le genre de silence
+                    qui coûte de l'argent.
+                    */
+                    pertePourcent(state, fromAmt, toAmt)?.let { perte ->
+                        SwapDetailRow(
+                            Icons.Default.Info,
+                            "Valeur perdue",
+                            "≈ $perte %",
+                            valueColor = if (perte >= 25) SwapRed else SwapOrange
+                        )
+                        Divider(color = swapBorder, thickness = 1.dp)
+                    }
                     val feeTxt = if (fromAmt > 0.0)
                         "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
                     SwapDetailRow(Icons.Default.Info, "Frais (inclus)", feeTxt, valueColor = SwapGreen)
@@ -405,7 +430,7 @@ private fun SwapConfirmScreen(
             bouton de confirmation reste atteignable sans faire défiler.
              */
             val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                "1 ${swapBaseOf(state.fromToken)} ≈ ${String.format(java.util.Locale.US, "%.8f", toAmt / fromAmt).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.toToken)}" else "—"
+                tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt) else "—"
             val feeTxt = if (fromAmt > 0.0)
                 "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
 
@@ -1022,3 +1047,51 @@ private fun TokenPickerSheet(
         }
     }
 }
+
+/**
+ * Taux de change, LISIBLE quel que soit l'écart entre les deux monnaies.
+ *
+ * Le format à huit décimales affichait « 1 SHIB ≈ 0 ETH ». Ce n'était pas
+ * faux au sens strict — le vrai taux vaut 0,0000000011 — mais un taux affiché
+ * à zéro dans un écran d'échange dit exactement la mauvaise chose : que l'on
+ * ne recevra rien.
+ *
+ * Sous un dix-millième, on INVERSE donc le sens de lecture : « 1 ETH ≈
+ * 917 412 254 SHIB » porte la même information et se lit. C'est d'ailleurs
+ * ainsi qu'on la formule spontanément entre une monnaie chère et une monnaie
+ * de faible valeur unitaire.
+ */
+private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, versMontant: Double): String {
+    if (deMontant <= 0.0 || versMontant <= 0.0) return "—"
+    val taux = versMontant / deMontant
+    if (taux >= 0.0001) {
+        val v = String.format(java.util.Locale.US, "%.8f", taux).trimEnd('0').trimEnd('.')
+        return "1 $deTexte ≈ $v $versTexte"
+    }
+    val inverse = deMontant / versMontant
+    val v = String.format(java.util.Locale.US, "%,.0f", inverse)
+    return "1 $versTexte ≈ $v $deTexte"
+}
+
+/**
+ * Part de valeur perdue dans l'échange, en pourcentage, ou null si l'on ne
+ * peut pas la calculer.
+ *
+ * Sur un petit montant, les frais de réseau du fournisseur peuvent dépasser
+ * la moitié de la somme : l'écran affichait « ≈ 1,32 $ » d'un côté et
+ * « ≈ 0,66 $ » de l'autre, sans un mot. Les deux chiffres étaient exacts et
+ * la conclusion — la moitié part en frais — restait à la charge de qui
+ * penserait à les comparer.
+ */
+private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: Double, versMontant: Double): Int? {
+    if (deMontant <= 0.0 || versMontant <= 0.0) return null
+    if (state.fromPriceUsd <= 0.0 || state.toPriceUsd <= 0.0) return null
+    val envoye = deMontant * state.fromPriceUsd
+    val recu = versMontant * state.toPriceUsd
+    if (envoye <= 0.0) return null
+    val perte = (1.0 - recu / envoye) * 100.0
+    return if (perte >= SEUIL_PERTE_VISIBLE) perte.toInt() else null
+}
+
+/** En dessous, la perte relève des frais ordinaires d'un échange. */
+private const val SEUIL_PERTE_VISIBLE = 10.0

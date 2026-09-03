@@ -945,7 +945,7 @@
     <string name="whats_new_title">Quoi de neuf</string>
     <string name="whats_new_cta">OK</string>
     <string name="whats_new_1">Recherche dans les 19 000 monnaies de CoinGecko</string>
-    <string name="whats_new_2">1 000 monnaies au lieu de 100, défilement continu</string>
-    <string name="whats_new_3">Même bouton de recherche sur tous les écrans</string>
-    <string name="whats_new_4">Prix des jetons importés par adresse rétabli</string>
+    <string name="whats_new_2">Marché triable par blockchain : Ethereum, BNB, Solana, Tron</string>
+    <string name="whats_new_3">Alertes de prix graduées selon l\'ampleur du mouvement</string>
+    <string name="whats_new_4">Consulter une monnaie ne l\'ajoute plus à l\'accueil</string>
 </resources>
