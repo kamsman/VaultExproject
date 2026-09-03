@@ -228,10 +228,13 @@ private fun SwapFormScreen(
         topBar = {
             Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
-                Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
-                    Text("Échangez vos cryptos", fontSize = 12.sp, color = swapTextDim)
-                }
+                // Titre seul : « Échangez vos cryptos » redisait ce que le mot
+                // « Swap » et l'écran entier disent déjà.
+                Text(
+                    "Swap",
+                    fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText,
+                    modifier = Modifier.align(Alignment.Center)
+                )
                 BoxIconButton(Icons.Default.History, "Historique", Modifier.align(Alignment.CenterEnd)) { navController.navigate(Routes.HISTORY) }
             }
         },
@@ -780,16 +783,16 @@ private fun buildAnnotatedString(a: String, b: String, c: String): AnnotatedStri
 @Composable
 private fun PartSolde(libelle: String, fort: Boolean = false, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(8.dp),
         color = SwapPurple.copy(alpha = if (fort) 0.28f else 0.12f),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Text(
             libelle,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = if (fort) FontWeight.Bold else FontWeight.SemiBold,
             color = SwapPurple,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         )
     }
 }
@@ -815,28 +818,61 @@ private fun SwapCoinCard(
         shape = RoundedCornerShape(16.dp),
         color = swapCard,
         border = BorderStroke(if (highlight) 1.5.dp else 1.dp, if (highlight) SwapPurple else swapBorder),
-        modifier = Modifier.fillMaxWidth()
+        /*
+        Hauteur minimale COMMUNE aux deux cartes.
+
+        Seule celle du haut porte les pastilles de part : sans plancher, elle
+        dépasserait l'autre d'une trentaine de points, et deux cartes voisines
+        de hauteurs différentes se lisent comme un défaut d'alignement.
+        */
+        modifier = Modifier.fillMaxWidth().heightIn(min = 152.dp)
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        /*
+        CARTE PLUS HAUTE, et le solde SUR SA PROPRE LIGNE.
+
+        Le libellé, le solde et les trois pastilles se partageaient une seule
+        ligne. Sur « Solde : 0.0000311 ETH » cela passait déjà tout juste ; sur
+        un solde à plusieurs chiffres — 243 939,9182633 SHIB — le texte se
+        serait écrasé contre les pastilles, voire tronqué.
+
+        Le solde reste donc en haut avec le libellé, où il se lit, et les
+        pastilles descendent sur une ligne à elles, alignées à droite. Elles y
+        gagnent aussi une cible de frappe plus confortable.
+        */
+        Column(
+            Modifier.fillMaxHeight().padding(18.dp),
+            // Centré : l'espace en trop de la carte du bas se répartit au lieu
+            // de tomber d'un bloc sous le montant.
+            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
+        ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, fontSize = 12.sp, color = swapTextDim)
                 Spacer(Modifier.weight(1f))
-                rightLabel?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
-                /*
-                MAX seul obligeait à taper le montant à la main dès qu'on ne
-                voulait pas tout échanger — c'est-à-dire presque toujours,
-                puisque vider un solde n'est pas le geste courant.
+                rightLabel?.let {
+                    Text(
+                        it,
+                        fontSize = 12.sp,
+                        color = swapTextDim,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
 
-                Les parts sont posées avant MAX, dans l'ordre croissant : on
-                lit une progression, et le geste le plus engageant reste au
-                bout.
-                */
-                if (onFraction != null) {
-                    Spacer(Modifier.width(8.dp))
+            /*
+            MAX seul obligeait à saisir le montant à la main dès qu'on ne
+            voulait pas tout échanger — c'est-à-dire presque toujours, vider
+            un solde n'étant pas le geste courant.
+
+            Ordre croissant : on lit une progression, et le geste le plus
+            engageant reste au bout.
+            */
+            if (onFraction != null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     PartSolde("25%") { onFraction(0.25) }
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     PartSolde("50%") { onFraction(0.50) }
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     PartSolde("MAX", fort = true) { onFraction(1.0) }
                 }
             }
