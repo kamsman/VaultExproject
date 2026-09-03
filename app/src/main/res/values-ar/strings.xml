@@ -948,8 +948,8 @@
     <!-- Quoi de neuf : 4 lignes courtes, a reecrire a chaque version -->
     <string name="whats_new_title">ما الجديد</string>
     <string name="whats_new_cta">حسناً</string>
-    <string name="whats_new_1">البحث في 19000 عملة على CoinGecko</string>
-    <string name="whats_new_2">تصفية السوق حسب البلوكشين: إيثريوم، بينانس، سولانا، ترون</string>
-    <string name="whats_new_3">تنبيهات الأسعار مصنّفة حسب حجم الحركة</string>
+    <string name="whats_new_1">المبادلة: تُعرض القيمة المفقودة في الرسوم قبل التأكيد</string>
+    <string name="whats_new_2">المبادلة: يبقى السعر مقروءًا للعملات ذات القيمة المنخفضة جدًا</string>
+    <string name="whats_new_3">تصفية السوق حسب البلوكشين: إيثريوم، بينانس، سولانا، ترون</string>
     <string name="whats_new_4">الاطلاع على عملة لم يعد يضيفها إلى الشاشة الرئيسية</string>
 </resources>

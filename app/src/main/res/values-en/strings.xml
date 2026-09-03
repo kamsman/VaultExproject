@@ -948,8 +948,8 @@
     <!-- Quoi de neuf : 4 lignes courtes, a reecrire a chaque version -->
     <string name="whats_new_title">What\'s new</string>
     <string name="whats_new_cta">OK</string>
-    <string name="whats_new_1">Search all 19,000 CoinGecko coins</string>
-    <string name="whats_new_2">Filter the market by blockchain: Ethereum, BNB, Solana, Tron</string>
-    <string name="whats_new_3">Price alerts now graded by how big the move is</string>
+    <string name="whats_new_1">Swap: the value lost to fees is shown before you confirm</string>
+    <string name="whats_new_2">Swap: the rate stays readable on very low-value coins</string>
+    <string name="whats_new_3">Filter the market by blockchain: Ethereum, BNB, Solana, Tron</string>
     <string name="whats_new_4">Viewing a coin no longer adds it to your home screen</string>
 </resources>

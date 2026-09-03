@@ -65,6 +65,16 @@ DEUX RÈGLES, sans lesquelles l'écran se retourne contre son but :
 
 · QUE CE QUI SE VOIT. Les corrections internes n'intéressent personne et
   allongent un écran qui doit se lire en cinq secondes.
+
+À RÉÉCRIRE À CHAQUE VERSION — whats_new_1 à whats_new_4, dans les trois
+langues. C'est la seule charge d'entretien de cet écran, et la seule façon
+de le rendre nuisible est de l'oublier : une carte qui annonce les
+nouveautés de l'avant-dernière version est pire que pas de carte du tout.
+
+La liste est FIXE, elle ne s'adapte pas à la version d'où l'on vient. Celui
+qui saute trois versions verra les nouveautés de la dernière seulement.
+C'est assumé : un journal complet demanderait de conserver l'historique de
+chaque version, pour un écran que l'on referme en cinq secondes.
 */
 
 private const val PREFS = "vaultex_nouveautes"
