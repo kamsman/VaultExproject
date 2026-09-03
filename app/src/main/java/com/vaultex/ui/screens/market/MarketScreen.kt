@@ -379,7 +379,7 @@ fun MarketScreen(navController: NavHostController) {
                             onClick = { viewModel.setReseau(MarketViewModel.RESEAUX.first()) },
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                        ) { Text(stringResource(R.string.market_filter_all)) }
+                        ) { Text(stringResource(R.string.market_network_all)) }
                     }
                 }
             } else if (loadError && markets.isEmpty()) {
@@ -630,6 +630,18 @@ private fun PastilleReseau(
 ) {
     var ouvert by remember { mutableStateOf(false) }
     val actif = courant.categorie != null
+    /*
+    « Réseau » au repos, le nom du réseau quand un filtre est posé.
+
+    Afficher « Réseau » en permanence coûterait l'information la plus utile :
+    savoir sur quoi la liste est filtrée. Afficher « Tous » au repos, à
+    l'inverse, ne dit pas de quoi il s'agit — ce mot pourrait porter sur
+    n'importe lequel des filtres voisins.
+
+    Le libellé change donc de rôle avec l'état : il NOMME la fonction tant
+    qu'elle est inutilisée, il en donne le RÉSULTAT dès qu'elle sert.
+    */
+    val texte = if (actif) courant.libelle else stringResource(R.string.market_network)
     Box {
         Box(
             Modifier
@@ -639,7 +651,7 @@ private fun PastilleReseau(
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Text(
-                courant.libelle + "  ▾",
+                "$texte  ▾",
                 fontSize = 13.sp,
                 fontWeight = if (actif) FontWeight.Bold else FontWeight.Medium,
                 color = if (actif) Color.White else TextSecondary
@@ -650,7 +662,7 @@ private fun PastilleReseau(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            r.libelle,
+                            if (r.categorie == null) stringResource(R.string.market_network_all) else r.libelle,
                             fontWeight = if (r == courant) FontWeight.Bold else FontWeight.Normal,
                             color = if (r == courant) AccentBlue else TextPrimary
                         )
