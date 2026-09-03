@@ -45,7 +45,13 @@ class NotificationHub @Inject constructor(
         title: String,
         body: String,
         symbol: String? = null,
-        channelId: String = com.vaultex.app.VaultExApplication.FCM_DEFAULT_CHANNEL_ID
+        channelId: String = com.vaultex.app.VaultExApplication.FCM_DEFAULT_CHANNEL_ID,
+        /**
+         * Image de bandeau facultative, affichée quand la notification est
+         * déroulée. Réservée aux annonces : une alerte de prix ou un dépôt
+         * n'a rien à illustrer.
+         */
+        imageUrl: String? = null
     ): Boolean {
         if (isDuplicate(key)) return false
         remember(key)
@@ -87,15 +93,16 @@ class NotificationHub @Inject constructor(
         ═══════════════════════════════════════════════════════════════════
          */
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            Thread { showSystemNotification(key, title, body, symbol, channelId) }.start()
+            Thread { showSystemNotification(key, title, body, symbol, channelId, imageUrl) }.start()
         } else {
-            showSystemNotification(key, title, body, symbol, channelId)
+            showSystemNotification(key, title, body, symbol, channelId, imageUrl)
         }
         return true
     }
 
     private fun showSystemNotification(
-        key: String, title: String, body: String, symbol: String?, channelId: String
+        key: String, title: String, body: String, symbol: String?, channelId: String,
+        imageUrl: String? = null
     ) {
         try {
             val intent = Intent(context, com.vaultex.app.MainActivity::class.java).apply {
@@ -109,12 +116,34 @@ class NotificationHub @Inject constructor(
             // au lieu de laisser tomber toute la notification — c'est
             // exactement ce qui se produisait, voir NotifLogo.logoApplication.
             val grandeIcone = com.vaultex.service.NotifLogo.forSymbol(context, symbol)
+            // Facultative de bout en bout : injoignable ou illisible, elle est
+            // simplement absente et la notification garde son texte déroulé.
+            val bandeau = com.vaultex.service.NotifLogo.forUrl(imageUrl)
             val notification = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .apply { grandeIcone?.let { setLargeIcon(it) } }
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .apply {
+                    if (bandeau != null) {
+                        /*
+                        Déroulée, la notification montre l'image ; repliée, elle
+                        garde titre et texte.
+
+                        La grande icône est mise à null DANS LE STYLE : Android
+                        la réaffiche autrement en médaillon par-dessus le
+                        bandeau, ce qui superpose deux images sans rapport.
+                        */
+                        setStyle(
+                            NotificationCompat.BigPictureStyle()
+                                .bigPicture(bandeau)
+                                .bigLargeIcon(null as android.graphics.Bitmap?)
+                                .setSummaryText(body)
+                        )
+                    } else {
+                        setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                    }
+                }
                 .setContentIntent(pending)
                 .setAutoCancel(true)
                 // Bannière EN HAUT DE L'ÉCRAN (« heads-up ») : c'est un mouvement

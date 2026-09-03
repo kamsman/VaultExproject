@@ -5,11 +5,12 @@
 #
 # UTILISATION (Git Bash, depuis la racine du projet) :
 #
-#   ./tools/send-announcement.sh "Titre" "Corps du message" [SYMBOLE]
+#   ./tools/send-announcement.sh "Titre" "Corps du message" [SYMBOLE] [IMAGE]
 #
 # Exemples :
 #   ./tools/send-announcement.sh "Mise a jour" "La version 1.1 est disponible"
-#   ./tools/send-announcement.sh "BTC franchit un cap" "..." BTC
+#   ./tools/send-announcement.sh "BTC franchit un cap" "Nouveau sommet." BTC
+#   ./tools/send-announcement.sh "Promotion" "Frais reduits." "" https://exemple.com/banniere.png
 #
 # --------------------------------------------------------------------------
 # LE LOGO DE LA NOTIFICATION
@@ -26,6 +27,27 @@
 # Le symbole doit exister chez le fournisseur d'icones (BTC, ETH, USDT...).
 # S'il est inconnu ou le reseau indisponible, l'application retombe seule sur
 # le logo VaultEx : une annonce ne peut pas etre perdue a cause d'une image.
+#
+# --------------------------------------------------------------------------
+# UNE GRANDE IMAGE (4e argument)
+# --------------------------------------------------------------------------
+#
+# Le SYMBOLE change la petite icone ronde. L'IMAGE, elle, ajoute un bandeau
+# affiche en grand quand l'utilisateur DEROULE la notification — repliee,
+# celle-ci garde son titre et son texte.
+#
+# Contraintes, toutes imposees par Android et non par ce script :
+#   · une ADRESSE https publique, pas un fichier local ;
+#   · format PNG ou JPEG ;
+#   · proportions 2:1 environ (1024x512 est un bon choix) ; Android recadre ;
+#   · quelques centaines de Ko au plus — l'image est telechargee sur le
+#     reseau mobile de chaque utilisateur, au moment de la notification.
+#
+# Pour n'ajouter QUE l'image, laisser le symbole vide avec "" :
+#   ./tools/send-announcement.sh "Titre" "Corps" "" https://exemple.com/x.png
+#
+# Une adresse injoignable ou un format illisible n'empechent RIEN : la
+# notification s'affiche sans bandeau.
 #
 # --------------------------------------------------------------------------
 # PREPARATION — a faire UNE SEULE FOIS
@@ -68,11 +90,12 @@ set -euo pipefail
 TITLE="${1:-}"
 BODY="${2:-}"
 SYMBOL="${3:-}"
+IMAGE="${4:-}"
 SA_FILE="${SA_FILE:-firebase-service-account.json}"
 TOPIC="vaultex_all"   # doit correspondre a VaultExApplication.ANNOUNCE_TOPIC
 
 if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
-  echo "Usage : $0 \"Titre\" \"Corps du message\" [SYMBOLE]" >&2
+  echo "Usage : $0 \"Titre\" \"Corps du message\" [SYMBOLE] [IMAGE]" >&2
   exit 1
 fi
 
@@ -136,6 +159,24 @@ else
   SYMBOL_FIELD=""
 fi
 
+IMAGE_J=$(json_escape "$IMAGE")
+if [ -n "$IMAGE" ]; then
+  case "$IMAGE" in
+    https://*) ;;
+    *)
+      # Android refuse le http simple depuis Android 9, et un chemin local
+      # n'existe evidemment pas sur le telephone de l'utilisateur. Mieux vaut
+      # le dire ici que laisser partir une annonce sans image sans savoir
+      # pourquoi.
+      echo "ERREUR : l'image doit etre une adresse https:// publique." >&2
+      exit 1
+      ;;
+  esac
+  IMAGE_FIELD=$(printf ',"image":"%s"' "$IMAGE_J")
+else
+  IMAGE_FIELD=""
+fi
+
 # `key` sert a la deduplication cote application : deux envois du meme
 # contenu a quelques minutes d'intervalle ne produiront qu'une entree dans la
 # cloche. L'horodatage la rend unique pour une annonce reellement nouvelle.
@@ -143,13 +184,14 @@ MSG_KEY="announce:$NOW"
 
 # AUCUN champ `notification` : c'est ce qui force le passage par
 # onMessageReceived. En ajouter un ferait retomber dans le probleme d'origine.
-PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s},"android":{"priority":"high"}}}' \
-  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD")
+PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s%s},"android":{"priority":"high"}}}' \
+  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD" "$IMAGE_FIELD")
 
 echo "Projet : $PROJECT_ID"
 echo "Canal  : $TOPIC"
 echo "Titre  : $TITLE"
 echo "Logo   : ${SYMBOL:-VaultEx}"
+echo "Image  : ${IMAGE:-aucune}"
 echo
 
 RESPONSE=$(curl -s -X POST \

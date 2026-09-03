@@ -80,6 +80,9 @@ class VaultExFcmService : FirebaseMessagingService() {
         val title = message.notification?.title ?: message.data["title"] ?: "VaultEx"
         val body = message.notification?.body ?: message.data["body"] ?: ""
         val symbol = message.data["symbol"]
+        // Image de bandeau, réservée aux annonces. Absente ou injoignable, la
+        // notification s'affiche sans elle.
+        val imageUrl = message.data["image"]
         val amount = message.data["amount"]
 
         val isDeposit = message.data["type"] == "deposit"
@@ -98,7 +101,7 @@ class VaultExFcmService : FirebaseMessagingService() {
             // contenu, ce qui évite au moins les répétitions à l'identique.
             else -> "fcm:" + (message.data["key"] ?: "$title|$body")
         }
-        hub.post(key = key, title = title, body = body, symbol = symbol)
+        hub.post(key = key, title = title, body = body, symbol = symbol, imageUrl = imageUrl)
     }
 
 }

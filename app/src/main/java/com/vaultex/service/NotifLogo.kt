@@ -53,6 +53,39 @@ object NotifLogo {
     }
 
     /**
+     * Image LIBRE d'une annonce, désignée par son adresse.
+     *
+     * Sert de grande image de bandeau (BigPictureStyle), pas de logo. Elle
+     * est facultative de bout en bout : une adresse injoignable, un format
+     * illisible ou un réseau absent renvoient null, et la notification
+     * s'affiche alors sans image. Une annonce ne doit jamais être perdue
+     * parce qu'une illustration n'a pas pu être chargée.
+     *
+     * L'adresse vient d'un message de notre propre canal d'administration,
+     * jamais d'un tiers. Elle n'est donc pas une entrée hostile — mais le
+     * délai d'appel reste court et le résultat mis en cache, pour ne pas
+     * retenir un service que le système peut tuer à tout instant.
+     *
+     * À N'APPELER QUE depuis un thread de fond.
+     */
+    fun forUrl(url: String?): Bitmap? {
+        if (url.isNullOrBlank()) return null
+        cache[url]?.let { return it }
+        return try {
+            val req = Request.Builder().url(url).build()
+            client.newCall(req).execute().use { resp ->
+                val bytes = resp.body?.bytes()
+                if (resp.isSuccessful && bytes != null) {
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        ?.also { cache[url] = it }
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
      * Logo de l'application, en image.
      *
      * ═══════════════════════════════════════════════════════════════════════
