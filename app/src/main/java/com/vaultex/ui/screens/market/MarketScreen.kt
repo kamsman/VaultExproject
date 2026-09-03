@@ -108,6 +108,7 @@ fun MarketScreen(navController: NavHostController) {
     val searchError by viewModel.searchError.collectAsState()
     val loadingMore by viewModel.loadingMore.collectAsState()
     val moreError by viewModel.moreError.collectAsState()
+    val reseau by viewModel.reseau.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
 
@@ -310,6 +311,15 @@ fun MarketScreen(navController: NavHostController) {
                     modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    /*
+                    Sélecteur de RÉSEAU, en tête des filtres.
+
+                    Placé avant les autres parce qu'il ne joue pas le même
+                    rôle : les pastilles suivantes trient ce qui est déjà
+                    chargé, celle-ci change la liste elle-même en la
+                    redemandant filtrée par blockchain.
+                    */
+                    PastilleReseau(reseau) { viewModel.setReseau(it) }
                     FilterPill(stringResource(R.string.market_filter_all), filter == MarketFilter.ALL) { filter = MarketFilter.ALL }
                     FilterPill(stringResource(R.string.market_swappable) + " ⇄", filter == MarketFilter.SWAPPABLE) { filter = MarketFilter.SWAPPABLE }
                     FilterPill(stringResource(R.string.market_filter_gainers) + " ↗", filter == MarketFilter.GAINERS) { filter = MarketFilter.GAINERS }
@@ -341,6 +351,37 @@ fun MarketScreen(navController: NavHostController) {
             // ─── Liste des cryptos ───
             if (isLoading && markets.isEmpty()) {
                 item { HistoryListSkeleton() }
+            } else if (reseau.categorie != null && markets.isEmpty()) {
+                /*
+                Réseau filtré, aucune monnaie.
+
+                Distingué d'une panne de chargement, et ce n'est pas un
+                détail : un identifiant de catégorie qui ne correspond à rien
+                chez CoinGecko renvoie une liste VIDE en HTTP 200, pas une
+                erreur. Le message « impossible de charger » s'afficherait
+                alors avec un bouton de réessai qui ne réussirait jamais.
+
+                On nomme donc le réseau en cause et on offre le seul geste
+                utile : revenir à la liste complète.
+                */
+                item {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.market_network_empty, reseau.libelle),
+                            color = TextSecondary, fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = { viewModel.setReseau(MarketViewModel.RESEAUX.first()) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        ) { Text(stringResource(R.string.market_filter_all)) }
+                    }
+                }
             } else if (loadError && markets.isEmpty()) {
                 // Chargement échoué ET aucun cache (1re ouverture hors ligne /
                 // rate-limit CoinGecko) : message + bouton « Actualiser » manuel.
@@ -570,6 +611,53 @@ private fun CoinRowCard(
                 tint = if (isFavorite) Color(0xFFF5B301) else TextSecondary,
                 modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onToggleFavorite)
             )
+        }
+    }
+}
+
+/**
+ * Pastille « Réseau ▾ » : ouvre la liste des blockchains.
+ *
+ * Elle affiche le réseau COURANT plutôt que le mot « Réseau », et se teinte
+ * quand un filtre est actif. Une liste soudain plus courte sans que rien ne
+ * dise pourquoi est le défaut classique de ce genre de sélecteur : ici, la
+ * cause reste écrite à l'écran.
+ */
+@Composable
+private fun PastilleReseau(
+    courant: MarketViewModel.Reseau,
+    onChoisir: (MarketViewModel.Reseau) -> Unit
+) {
+    var ouvert by remember { mutableStateOf(false) }
+    val actif = courant.categorie != null
+    Box {
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (actif) AccentBlue else Surface)
+                .clickable { ouvert = true }
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Text(
+                courant.libelle + "  ▾",
+                fontSize = 13.sp,
+                fontWeight = if (actif) FontWeight.Bold else FontWeight.Medium,
+                color = if (actif) Color.White else TextSecondary
+            )
+        }
+        DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+            MarketViewModel.RESEAUX.forEach { r ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            r.libelle,
+                            fontWeight = if (r == courant) FontWeight.Bold else FontWeight.Normal,
+                            color = if (r == courant) AccentBlue else TextPrimary
+                        )
+                    },
+                    onClick = { ouvert = false; onChoisir(r) }
+                )
+            }
         }
     }
 }

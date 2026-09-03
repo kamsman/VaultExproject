@@ -130,7 +130,18 @@ interface CoinGeckoApi {
         @Query("page") page: Int = 1,
         @Query("sparkline") sparkline: Boolean = true,
         @Query("price_change_percentage") priceChangeRanges: String = "24h",
-        @Query("ids") ids: String? = null   // filtre optionnel : 1 ou plusieurs coins
+        @Query("ids") ids: String? = null,  // filtre optionnel : 1 ou plusieurs coins
+        /*
+        Filtre par ÉCOSYSTÈME (« ethereum-ecosystem », « solana-ecosystem »…).
+
+        C'est le seul moyen abordable de trier le marché par blockchain : la
+        réponse de /coins/markets ne dit PAS sur quelle chaîne vit une monnaie.
+        Le savoir autrement demanderait un appel par monnaie — mille appels
+        pour une liste de mille lignes.
+
+        Ici, le tri coûte exactement le même appel que la liste ordinaire.
+        */
+        @Query("category") category: String? = null
     ): List<CoinGeckoMarketDto>
 
     /*

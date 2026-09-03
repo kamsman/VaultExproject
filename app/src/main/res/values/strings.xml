@@ -766,6 +766,7 @@
     <string name="market_loaded_count">%1$d cryptomonnaies chargées</string>
     <string name="market_search_empty">Aucune cryptomonnaie ne correspond à « %1$s ».</string>
     <string name="market_search_error">Recherche indisponible. Vérifie ta connexion, puis réessaie.</string>
+    <string name="market_network_empty">Aucune cryptomonnaie trouvée sur le réseau %1$s.</string>
     <string name="coin_your_balance">Votre solde</string>
     <string name="coin_gain_24h">Gain (24h)</string>
     <string name="coin_supply">Offre en circulation</string>

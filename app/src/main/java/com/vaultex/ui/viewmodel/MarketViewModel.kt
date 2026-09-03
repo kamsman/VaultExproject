@@ -318,7 +318,9 @@ class MarketViewModel @Inject constructor(
             _moreError.value = false
             try {
                 val suivante = pageChargee + 1
-                val list = withContext(Dispatchers.IO) { repository.getMarketsPage(suivante) }
+                val list = withContext(Dispatchers.IO) {
+                    repository.getMarketsPage(suivante, _reseau.value.categorie)
+                }
                 if (list.isEmpty()) {
                     // Liste réellement épuisée : CoinGecko n'a plus de rangs.
                     _endReached.value = true
@@ -342,11 +344,42 @@ class MarketViewModel @Inject constructor(
         loadMoreMarkets()
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    TRI PAR RÉSEAU
+    ═══════════════════════════════════════════════════════════════════════
+
+    La liste du marché mélange toutes les blockchains sans jamais dire à
+    laquelle une monnaie appartient — information pourtant décisive dans un
+    portefeuille, où recevoir un jeton ERC-20 sur BNB Chain fait perdre les
+    fonds.
+
+    Le tri passe par les catégories « écosystème » de CoinGecko, parce que
+    c'est le seul chemin abordable : la réponse du marché ne porte pas la
+    chaîne, et l'obtenir autrement demanderait un appel PAR monnaie. Ici, une
+    liste filtrée coûte exactement le même appel qu'une liste ordinaire.
+
+    Les identifiants sont ceux de CoinGecko et ne s'inventent pas. Si l'un
+    d'eux venait à changer, le symptôme serait une liste vide — traitée comme
+    telle à l'écran, avec un message, plutôt qu'un blanc inexplicable.
+    */
+    data class Reseau(val libelle: String, val categorie: String?)
+
+    private val _reseau = MutableStateFlow(RESEAUX.first())
+    val reseau: StateFlow<Reseau> = _reseau
+
+    fun setReseau(choix: Reseau) {
+        if (choix == _reseau.value) return
+        _reseau.value = choix
+        loadMarkets()
+    }
+
     fun loadMarkets() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val list = withContext(Dispatchers.IO) { repository.getMarkets() }
+                val categorie = _reseau.value.categorie
+                val list = withContext(Dispatchers.IO) { repository.getMarkets(categorie) }
                 _markets.value = list
                 _isStale.value = repository.lastFromCache
                 _loadError.value = list.isEmpty()
@@ -386,11 +419,29 @@ class MarketViewModel @Inject constructor(
         }
     }
 
-    private companion object {
+    companion object {
+        /**
+         * Réseaux proposés, dans l'ordre du sélecteur.
+         *
+         * Limités aux chaînes que VaultEx sait DÉTENIR : trier le marché sur
+         * un réseau dont le portefeuille ne peut rien garder donnerait une
+         * liste que l'on ne peut ni recevoir, ni envoyer, ni échanger.
+         *
+         * `categorie = null` pour « Tous » : c'est l'absence de filtre, pas
+         * une catégorie nommée « tous ».
+         */
+        val RESEAUX = listOf(
+            Reseau("Tous", null),
+            Reseau("Ethereum", "ethereum-ecosystem"),
+            Reseau("BNB Chain", "binance-smart-chain"),
+            Reseau("Solana", "solana-ecosystem"),
+            Reseau("Tron", "tron-ecosystem")
+        )
+
         /** Silence après la dernière touche avant d'interroger le réseau. */
-        const val DELAI_FRAPPE = 350L
+        private const val DELAI_FRAPPE = 350L
 
         /** 4 × 250 = les 1 000 premières capitalisations ; au-delà, la recherche. */
-        const val PAGES_MAX = 4
+        private const val PAGES_MAX = 4
     }
 }

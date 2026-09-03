@@ -50,7 +50,38 @@ class MarketRepository @Inject constructor(
     private var cacheTime: Long = 0L
     private val cacheTtlMs = 90_000L
 
-    suspend fun getMarkets(): List<CoinGeckoMarketDto> {
+    /*
+    RÉSEAU CHOISI : cache et disque à part.
+
+    Le cache mémoire et le cache disque servent la liste GÉNÉRALE, celle qui
+    doit s'afficher hors ligne au démarrage. Y mêler une liste filtrée par
+    écosystème ferait qu'un utilisateur ayant quitté l'application sur
+    « Solana » retrouverait, au lancement suivant et hors ligne, une liste
+    solana présentée comme le marché entier.
+
+    Les listes filtrées vivent donc dans leur propre table, en mémoire
+    seulement : elles se redemandent au prochain lancement, ce qui est sans
+    conséquence puisqu'on ne les consulte que délibérément.
+    */
+    private val parReseau = java.util.concurrent.ConcurrentHashMap<String, List<CoinGeckoMarketDto>>()
+
+    suspend fun getMarkets(categorie: String?): List<CoinGeckoMarketDto> {
+        if (categorie != null) {
+            parReseau[categorie]?.let { lastFromCache = false; return it }
+            val list = try {
+                api.getMarkets(vsCurrency = "usd", category = categorie)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                kotlinx.coroutines.delay(1500)
+                api.getMarkets(vsCurrency = "usd", category = categorie)
+            }
+            if (list.isNotEmpty()) {
+                parReseau[categorie] = list
+                cache = (cache + list).distinctBy { it.id }
+            }
+            lastFromCache = false
+            return list
+        }
         val now = System.currentTimeMillis()
         // Sert le cache si récent → bien moins d'appels CoinGecko (donc moins de
         // rate-limit) et le cache reste rempli pour l'écran détail.
@@ -95,7 +126,7 @@ class MarketRepository @Inject constructor(
     Les pages déjà obtenues sont conservées pour la durée de la session : un
     aller-retour vers le détail ne doit pas les redemander.
     */
-    private val pagesEnCache = java.util.concurrent.ConcurrentHashMap<Int, List<CoinGeckoMarketDto>>()
+    private val pagesEnCache = java.util.concurrent.ConcurrentHashMap<String, List<CoinGeckoMarketDto>>()
 
     /*
     L'ÉCHEC REMONTE, il n'est pas transformé en liste vide.
@@ -110,18 +141,21 @@ class MarketRepository @Inject constructor(
     Le réessai après 1,5 s reprend ce que fait déjà getMarkets() : le refus le
     plus fréquent est un rate-limit passager, qui cède au second essai.
     */
-    suspend fun getMarketsPage(page: Int): List<CoinGeckoMarketDto> {
-        if (page <= 1) return getMarkets()
-        pagesEnCache[page]?.let { return it }
+    suspend fun getMarketsPage(page: Int, categorie: String? = null): List<CoinGeckoMarketDto> {
+        if (page <= 1) return getMarkets(categorie)
+        // La clé porte la catégorie : sans elle, la page 2 d'Ethereum serait
+        // resservie comme page 2 du classement général.
+        val cle = "${categorie ?: "*"}#$page"
+        pagesEnCache[cle]?.let { return it }
         val list = try {
-            api.getMarkets(vsCurrency = "usd", page = page)
+            api.getMarkets(vsCurrency = "usd", page = page, category = categorie)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             kotlinx.coroutines.delay(1500)
-            api.getMarkets(vsCurrency = "usd", page = page)
+            api.getMarkets(vsCurrency = "usd", page = page, category = categorie)
         }
         if (list.isNotEmpty()) {
-            pagesEnCache[page] = list
+            pagesEnCache[cle] = list
             cache = (cache + list).distinctBy { it.id }
         }
         return list

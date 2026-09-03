@@ -5,10 +5,27 @@
 #
 # UTILISATION (Git Bash, depuis la racine du projet) :
 #
-#   ./tools/send-announcement.sh "Titre" "Corps du message"
+#   ./tools/send-announcement.sh "Titre" "Corps du message" [SYMBOLE]
 #
-# Exemple :
+# Exemples :
 #   ./tools/send-announcement.sh "Mise a jour" "La version 1.1 est disponible"
+#   ./tools/send-announcement.sh "BTC franchit un cap" "..." BTC
+#
+# --------------------------------------------------------------------------
+# LE LOGO DE LA NOTIFICATION
+# --------------------------------------------------------------------------
+#
+# Le logo VaultEx s'affiche DEJA sur toute annonce, sans rien avoir a faire :
+# l'application le pose comme grande icone quand aucun symbole n'accompagne
+# le message (voir NotifLogo.forSymbol, qui retombe sur logoApplication).
+#
+# Le troisieme argument, facultatif, remplace ce logo par celui d'une MONNAIE
+# — utile quand l'annonce porte sur elle. Une annonce generale n'en a pas
+# besoin et gardera le logo de l'application.
+#
+# Le symbole doit exister chez le fournisseur d'icones (BTC, ETH, USDT...).
+# S'il est inconnu ou le reseau indisponible, l'application retombe seule sur
+# le logo VaultEx : une annonce ne peut pas etre perdue a cause d'une image.
 #
 # --------------------------------------------------------------------------
 # PREPARATION — a faire UNE SEULE FOIS
@@ -50,11 +67,12 @@ set -euo pipefail
 
 TITLE="${1:-}"
 BODY="${2:-}"
+SYMBOL="${3:-}"
 SA_FILE="${SA_FILE:-firebase-service-account.json}"
 TOPIC="vaultex_all"   # doit correspondre a VaultExApplication.ANNOUNCE_TOPIC
 
 if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
-  echo "Usage : $0 \"Titre\" \"Corps du message\"" >&2
+  echo "Usage : $0 \"Titre\" \"Corps du message\" [SYMBOLE]" >&2
   exit 1
 fi
 
@@ -107,6 +125,16 @@ fi
 json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r' | sed ':a;N;$!ba;s/\n/\\n/g'; }
 TITLE_J=$(json_escape "$TITLE")
 BODY_J=$(json_escape "$BODY")
+SYMBOL_J=$(json_escape "$SYMBOL")
+
+# Le champ `symbol` n'est ajoute QUE s'il a ete demande : envoyer une chaine
+# vide ferait echouer le telechargement de l'icone au lieu de retomber
+# proprement sur le logo de l'application.
+if [ -n "$SYMBOL" ]; then
+  SYMBOL_FIELD=$(printf ',"symbol":"%s"' "$SYMBOL_J")
+else
+  SYMBOL_FIELD=""
+fi
 
 # `key` sert a la deduplication cote application : deux envois du meme
 # contenu a quelques minutes d'intervalle ne produiront qu'une entree dans la
@@ -115,12 +143,13 @@ MSG_KEY="announce:$NOW"
 
 # AUCUN champ `notification` : c'est ce qui force le passage par
 # onMessageReceived. En ajouter un ferait retomber dans le probleme d'origine.
-PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"},"android":{"priority":"high"}}}' \
-  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY")
+PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s},"android":{"priority":"high"}}}' \
+  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD")
 
 echo "Projet : $PROJECT_ID"
 echo "Canal  : $TOPIC"
 echo "Titre  : $TITLE"
+echo "Logo   : ${SYMBOL:-VaultEx}"
 echo
 
 RESPONSE=$(curl -s -X POST \

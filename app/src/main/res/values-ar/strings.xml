@@ -663,6 +663,7 @@
     <string name="market_loaded_count">تم تحميل %1$d عملة مشفّرة</string>
     <string name="market_search_empty">لا توجد عملة مشفّرة تطابق «‏%1$s‏».</string>
     <string name="market_search_error">البحث غير متاح. تحقّق من اتصالك ثم أعد المحاولة.</string>
+    <string name="market_network_empty">لا توجد عملة مشفّرة على شبكة %1$s.</string>
     <string name="coin_your_balance">رصيدك</string>
     <string name="coin_gain_24h">الربح (24س)</string>
     <string name="coin_supply">المعروض المتداول</string>
