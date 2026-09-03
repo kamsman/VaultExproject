@@ -22,8 +22,22 @@ class SettingsViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val themeController: ThemeController,
     private val currencyController: com.vaultex.core.session.CurrencyController,
-    private val walletNameController: com.vaultex.core.session.WalletNameController
+    private val walletNameController: com.vaultex.core.session.WalletNameController,
+    private val sessionLock: com.vaultex.core.session.SessionLockManager
 ) : ViewModel() {
+
+    /**
+     * Verrouille la session à la demande — l'écran de code réapparaît.
+     *
+     * Le verrouillage n'existait qu'AUTOMATIQUEMENT, au retour d'arrière-plan
+     * après délai. Quelqu'un qui prête son téléphone, le pose, ou quitte son
+     * bureau n'avait aucun moyen de refermer le portefeuille sur-le-champ : il
+     * fallait attendre que le délai s'écoule, en laissant les soldes affichés.
+     *
+     * Ne touche QUE la session : ni les clés, ni le portefeuille, ni les
+     * réglages. C'est l'équivalent de refermer une porte, pas de déménager.
+     */
+    fun verrouillerMaintenant() = sessionLock.lock()
 
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()

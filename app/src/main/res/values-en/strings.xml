@@ -69,6 +69,7 @@
     <string name="settings_title">Settings</string>
     <string name="security">Security</string>
     <string name="backup">Backup</string>
+    <string name="settings_lock_now">Lock now</string>
     <string name="notifications">Notifications</string>
     <string name="network_settings">Networks</string>
     <string name="address_book">Address book</string>
@@ -865,7 +866,7 @@
     <string name="send_summary_network">Network</string>
     <string name="send_summary_fee">Network fee</string>
     <string name="send_summary_you_send">You will send</string>
-    <string name="send_summary_total">Total</string>
+    <string name="send_summary_total">You send</string>
     <string name="send_summary_fee_note">Fees are paid in %1$s (separately from the token).</string>
     <string name="send_service_fee">Service fee</string>
     <string name="receive_search_asset">Search an asset</string>

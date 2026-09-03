@@ -68,7 +68,7 @@
     <string name="send_summary_network">Réseau</string>
     <string name="send_summary_fee">Frais réseau</string>
     <string name="send_summary_you_send">Tu vas envoyer</string>
-    <string name="send_summary_total">Total</string>
+    <string name="send_summary_total">Vous envoyez</string>
     <string name="send_summary_fee_note">Les frais sont payés en %1$s (séparément du token).</string>
     <string name="send_service_fee">Frais de service</string>
     <string name="recipient_address">Adresse du destinataire</string>
@@ -100,6 +100,7 @@
     <string name="settings_title">Paramètres</string>
     <string name="security">Sécurité</string>
     <string name="backup">Sauvegarde</string>
+    <string name="settings_lock_now">Verrouiller maintenant</string>
     <string name="notifications">Notifications</string>
     <string name="network_settings">Réseaux</string>
     <string name="address_book">Carnet d\'adresses</string>

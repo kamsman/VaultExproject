@@ -69,6 +69,7 @@
     <string name="settings_title">الإعدادات</string>
     <string name="security">الأمان</string>
     <string name="backup">النسخ الاحتياطي</string>
+    <string name="settings_lock_now">اقفل الآن</string>
     <string name="notifications">الإشعارات</string>
     <string name="network_settings">الشبكات</string>
     <string name="address_book">دفتر العناوين</string>
@@ -865,7 +866,7 @@
     <string name="send_summary_network">الشبكة</string>
     <string name="send_summary_fee">رسوم الشبكة</string>
     <string name="send_summary_you_send">سترسل</string>
-    <string name="send_summary_total">الإجمالي</string>
+    <string name="send_summary_total">أنت ترسل</string>
     <string name="send_summary_fee_note">تُدفع الرسوم بـ %1$s (بشكل منفصل عن الرمز).</string>
     <string name="send_service_fee">رسوم الخدمة</string>
     <string name="receive_search_asset">ابحث عن أصل</string>
