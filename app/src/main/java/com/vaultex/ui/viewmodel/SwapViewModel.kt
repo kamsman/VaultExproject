@@ -198,7 +198,31 @@ class SwapViewModel @Inject constructor(
      * ne reste rien pour les frais → l'envoi du dépôt échoue). Pour un token
      * (USDT), le gas est payé en natif séparément → pas de réserve.
      */
-    fun onMaxClicked() {
+    fun onMaxClicked() = onFractionClicked(1.0)
+
+    /**
+     * Remplit avec une PART du solde : 0,25, 0,50 ou 1,0 pour le maximum.
+     *
+     * Une part inférieure à 1 n'a pas besoin de réserve de gas : ce qui reste
+     * sur le compte suffit largement à payer les frais. La réserve — et le
+     * contrôle du minimum de la paire qui l'accompagne — ne concerne donc que
+     * le cas où l'on vide effectivement le solde.
+     */
+    fun onFractionClicked(fraction: Double) {
+        if (fraction < 1.0) {
+            val bal = _state.value.fromBalance
+            if (bal <= 0.0) {
+                _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_no_funds, _state.value.fromToken)) }
+                return
+            }
+            setFromAmount(
+                java.math.BigDecimal.valueOf(bal * fraction)
+                    .setScale(8, java.math.RoundingMode.DOWN)
+                    .stripTrailingZeros()
+                    .toPlainString()
+            )
+            return
+        }
         val tok = _state.value.fromToken
         val bal = _state.value.fromBalance
         if (bal <= 0.0) {

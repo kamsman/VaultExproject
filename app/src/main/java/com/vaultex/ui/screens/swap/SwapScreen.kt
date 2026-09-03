@@ -20,13 +20,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.outlined.CallReceived
-import androidx.compose.material.icons.outlined.CallMade
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -67,6 +66,8 @@ import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
+import com.vaultex.ui.components.BottomBarSpace
+import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.viewmodel.SwapViewModel
 
 /* ───────────────────────── Palette violet (accents fixes) ─────────────────────────
@@ -171,7 +172,7 @@ fun SwapScreen(navController: NavHostController) {
             onFromToken = viewModel::setFromToken,
             onToToken = viewModel::setToToken,
             onAmount = viewModel::setFromAmount,
-            onMax = viewModel::onMaxClicked,
+            onFraction = viewModel::onFractionClicked,
             onInvert = viewModel::swapTokens,
             onContinue = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -192,7 +193,7 @@ private fun SwapFormScreen(
     onFromToken: (String) -> Unit,
     onToToken: (String) -> Unit,
     onAmount: (String) -> Unit,
-    onMax: () -> Unit,
+    onFraction: (Double) -> Unit,
     onInvert: () -> Unit,
     onContinue: () -> Unit
 ) {
@@ -209,6 +210,19 @@ private fun SwapFormScreen(
         else bd4.toPlainString()
     } else "0"
 
+    /*
+    LA BARRE DE NAVIGATION EST CELLE DE TOUTE L'APPLICATION.
+
+    L'écran en portait un doublon local — quatre onglets au lieu de cinq, et
+    posé dans le bottomBar du Scaffold SANS marge de barre système. Sa moitié
+    basse passait donc sous les boutons du téléphone, et « Accueil », tout à
+    gauche, était le plus exposé : le geste partait au système au lieu de
+    l'application.
+
+    VaultExBottomBar gère ses propres marges et sert déjà l'Accueil, le
+    Marché et l'Historique. Un seul composant, un seul comportement.
+    */
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = swapBg,
         topBar = {
@@ -222,7 +236,10 @@ private fun SwapFormScreen(
             }
         },
         bottomBar = {
-            Column(Modifier.background(swapBg)) {
+            // La barre de navigation FLOTTE par-dessus le contenu : sans cette
+            // marge, elle recouvrirait « Continuer », le seul bouton de
+            // l'écran.
+            Column(Modifier.background(swapBg).padding(bottom = BottomBarSpace)) {
                 Button(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(54.dp),
@@ -240,7 +257,6 @@ private fun SwapFormScreen(
                         CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else Text("Continuer", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
-                SwapBottomNav(navController)
             }
         }
     ) { padding ->
@@ -255,7 +271,7 @@ private fun SwapFormScreen(
                 rightLabel = "Solde : $balTxt ${swapBaseOf(state.fromToken)}",
                 token = state.fromToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onFromToken,
                 amount = state.fromAmount, editable = true, onAmountChange = onAmount,
-                fiat = fromFiat, onMax = onMax, highlight = true
+                fiat = fromFiat, onFraction = onFraction, highlight = true
             )
 
             // Inversion (le bouton fait un demi-tour à chaque clic → preuve visuelle de l'échange)
@@ -284,65 +300,82 @@ private fun SwapFormScreen(
                 rightLabel = null,
                 token = state.toToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onToToken,
                 amount = state.toAmount, editable = false, onAmountChange = {},
-                fiat = toFiat, onMax = null, highlight = false
+                fiat = toFiat, onFraction = null, highlight = false
             )
 
             Spacer(Modifier.height(12.dp))
 
-            // ─── Détails ───
-            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 14.dp)) {
-                    val rate = tauxLisible(
-                        swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt
-                    )
-                    SwapDetailRow(Icons.Outlined.SwapHoriz, "Taux", rate, chevron = true)
-                    Divider(color = swapBorder, thickness = 1.dp)
-                    /*
-                    PERTE DE VALEUR, DITE À VOIX HAUTE.
+            /*
+            ─── Détails et fournisseur, EN UNE SEULE CARTE ───
 
-                    Sur un petit montant, les frais de réseau du fournisseur
-                    peuvent dépasser la moitié de la somme. L'écran affichait
-                    « ≈ 1,32 $ » en haut et « ≈ 0,66 $ » en bas : deux chiffres
-                    exacts, et la conclusion laissée à qui penserait à les
-                    comparer. Dans un portefeuille, c'est le genre de silence
-                    qui coûte de l'argent.
-                    */
+            Quatre lignes étiquetées — Taux, Frais, Délai — puis une carte
+            séparée pour le fournisseur : beaucoup de place pour des données
+            que l'on consulte d'un coup d'œil et rarement en détail.
+
+            Le taux devient la ligne principale, en grand, parce que c'est la
+            seule que l'on vient réellement lire. Les frais et le délai
+            passent en légende sous lui : ils rassurent, ils ne se comparent
+            pas. Le fournisseur suit, séparé d'un simple trait.
+
+            La valeur perdue garde sa ligne à elle. Elle n'a pas sa place en
+            légende — c'est un avertissement, pas un détail de confort.
+            */
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = swapCard,
+                border = BorderStroke(1.dp, swapBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(38.dp).clip(CircleShape).background(swapPurpleDim),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt),
+                                fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText
+                            )
+                            Text(
+                                "Frais inclus  ·  2 – 5 min",
+                                fontSize = 12.sp, color = swapTextDim
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                    }
+
                     pertePourcent(state, fromAmt, toAmt)?.let { perte ->
-                        SwapDetailRow(
-                            Icons.Default.Info,
-                            "Valeur perdue",
-                            "≈ $perte %",
-                            valueColor = if (perte >= 25) SwapRed else SwapOrange
-                        )
-                        Divider(color = swapBorder, thickness = 1.dp)
+                        Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, null, tint = if (perte >= 25) SwapRed else SwapOrange, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text("Valeur perdue", fontSize = 13.sp, color = swapTextDim)
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                "≈ $perte %",
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                color = if (perte >= 25) SwapRed else SwapOrange
+                            )
+                        }
                     }
-                    val feeTxt = if (fromAmt > 0.0)
-                        "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
-                    SwapDetailRow(Icons.Default.Info, "Frais (inclus)", feeTxt, valueColor = SwapGreen)
-                    Divider(color = swapBorder, thickness = 1.dp)
-                    SwapDetailRow(Icons.Outlined.SwapHoriz, "Délai estimé", "2 - 5 min", valueColor = SwapPurple, showIcon = false)
-                }
-            }
 
-            Spacer(Modifier.height(12.dp))
-
-            // ─── Fournisseur ───
-            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(swapPurpleDim), contentAlignment = Alignment.Center) {
-                        Text("N", fontWeight = FontWeight.Bold, color = SwapPurple, fontSize = 14.sp)
+                    Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Meilleur taux", fontSize = 13.sp, color = swapTextDim)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                     }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Fournisseur", fontSize = 11.sp, color = swapTextDim)
-                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
-                    }
-                    Surface(shape = RoundedCornerShape(6.dp), color = SwapPurple.copy(alpha = 0.16f)) {
-                        Text("Meilleur taux", modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 11.sp, color = SwapPurple, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -354,6 +387,8 @@ private fun SwapFormScreen(
             }
             Spacer(Modifier.height(8.dp))
         }
+    }
+        VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -736,6 +771,29 @@ private fun buildAnnotatedString(a: String, b: String, c: String): AnnotatedStri
         append(c)
     }
 
+/**
+ * Pastille « 25% », « 50% », « MAX » au-dessus du champ de montant.
+ *
+ * MAX ressort davantage : c'est le seul des trois qui engage la totalité du
+ * solde, et le seul dont on veuille pouvoir dire qu'on l'a touché exprès.
+ */
+@Composable
+private fun PartSolde(libelle: String, fort: Boolean = false, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = SwapPurple.copy(alpha = if (fort) 0.28f else 0.12f),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            libelle,
+            fontSize = 11.sp,
+            fontWeight = if (fort) FontWeight.Bold else FontWeight.SemiBold,
+            color = SwapPurple,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
 /** Carte « Vous envoyez / Vous recevez » (logo + sélecteur + montant + ≈ $). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -750,7 +808,7 @@ private fun SwapCoinCard(
     editable: Boolean,
     onAmountChange: (String) -> Unit,
     fiat: String?,
-    onMax: (() -> Unit)?,
+    onFraction: ((Double) -> Unit)?,
     highlight: Boolean
 ) {
     Surface(
@@ -764,13 +822,22 @@ private fun SwapCoinCard(
                 Text(label, fontSize = 12.sp, color = swapTextDim)
                 Spacer(Modifier.weight(1f))
                 rightLabel?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
-                if (onMax != null) {
+                /*
+                MAX seul obligeait à taper le montant à la main dès qu'on ne
+                voulait pas tout échanger — c'est-à-dire presque toujours,
+                puisque vider un solde n'est pas le geste courant.
+
+                Les parts sont posées avant MAX, dans l'ordre croissant : on
+                lit une progression, et le geste le plus engageant reste au
+                bout.
+                */
+                if (onFraction != null) {
                     Spacer(Modifier.width(8.dp))
-                    Surface(shape = RoundedCornerShape(6.dp), color = SwapPurple.copy(alpha = 0.16f),
-                        modifier = Modifier.clickable { onMax() }) {
-                        Text("MAX", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SwapPurple,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
-                    }
+                    PartSolde("25%") { onFraction(0.25) }
+                    Spacer(Modifier.width(6.dp))
+                    PartSolde("50%") { onFraction(0.50) }
+                    Spacer(Modifier.width(6.dp))
+                    PartSolde("MAX", fort = true) { onFraction(1.0) }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -840,54 +907,6 @@ private fun SwapDetailRow(
         Spacer(Modifier.weight(1f))
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
         if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(16.dp)) }
-    }
-}
-
-/** Barre de navigation sombre (prototype) : Accueil / Recevoir / Swap / Envoyer / Portefeuille. */
-@Composable
-private fun SwapBottomNav(navController: NavHostController) {
-    Surface(color = swapCard, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            /*
-             * Mêmes options que VaultExBottomBar — cette barre en est un
-             * doublon local et n'en avait aucune.
-             *
-             * Un `navigate()` nu EMPILE la destination. Chaque passage d'un
-             * onglet à l'autre ajoutait donc une entrée : le bouton retour
-             * du téléphone repassait par tous les onglets visités au lieu de
-             * ramener au tableau de bord, et la pile grossissait
-             * indéfiniment.
-             *
-             * popUpTo(DASHBOARD) ramène au tableau de bord avant d'ouvrir
-             * l'onglet ; launchSingleTop évite d'empiler deux fois le même ;
-             * saveState/restoreState conservent la position de défilement
-             * d'un onglet à l'autre.
-             */
-            fun tab(route: String) = navController.navigate(route) {
-                popUpTo(Routes.DASHBOARD) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
-            NavItem(Icons.Default.Home, "Accueil", false) { tab(Routes.DASHBOARD) }
-            NavItem(Icons.Outlined.CallReceived, "Recevoir", false) { tab(Routes.RECEIVE) }
-            NavItem(Icons.Outlined.SwapHoriz, "Swap", true) { }
-            NavItem(Icons.Outlined.CallMade, "Envoyer", false) { tab(Routes.SEND) }
-        }
-    }
-}
-
-@Composable
-private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    val col = if (selected) SwapPurple else swapTextDim
-    Column(
-        Modifier.clip(RoundedCornerShape(10.dp)).clickable { onClick() }.padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(icon, label, tint = col, modifier = Modifier.size(22.dp))
-        Text(label, fontSize = 10.sp, color = col, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
     }
 }
 
