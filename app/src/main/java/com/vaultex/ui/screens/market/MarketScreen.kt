@@ -49,7 +49,6 @@ import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
-import com.vaultex.ui.theme.BorderColor
 import com.vaultex.ui.theme.Surface
 import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
@@ -572,11 +571,6 @@ private fun CoinRowCard(
                 modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onToggleFavorite)
             )
         }
-        HorizontalDivider(
-            color = BorderColor,
-            thickness = 1.dp,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
     }
 }
 

@@ -21,10 +21,11 @@ import kotlin.math.abs
  * 1. **Réarmement** : tant que la variation reste au-dessus du seuil, on ne
  *    renotifie pas. Il faut qu'elle soit redescendue en dessous pour qu'un
  *    nouveau franchissement compte comme un événement.
- * 2. **Délai de garde** : une même monnaie dans le même sens n'est jamais
- *    renotifiée avant [COOLDOWN_MS], même si le mouvement s'amplifie. Un
- *    changement de sens (hausse → baisse), lui, passe immédiatement : c'est
- *    une information réellement nouvelle.
+ * 2. **Délai de garde** : une même monnaie dans le même sens n'est pas
+ *    renotifiée avant [COOLDOWN_MS]. Deux exceptions, parce qu'il s'agit
+ *    alors d'une information réellement nouvelle :
+ *      · un changement de sens (hausse → baisse) ;
+ *      · un passage à un PALIER supérieur — voir [palier].
  */
 @Singleton
 class PriceMoveSettings @Inject constructor(
@@ -55,7 +56,10 @@ class PriceMoveSettings @Inject constructor(
             // Retombé sous le seuil : on réarme, le prochain franchissement
             // sera de nouveau considéré comme un événement.
             if (prefs.contains(dirKey(symbol))) {
-                prefs.edit().remove(dirKey(symbol)).apply()
+                // Le palier part avec la direction : à la prochaine alerte, la
+                // monnaie repart de zéro et non du palier où elle s'était
+                // arrêtée la fois d'avant.
+                prefs.edit().remove(dirKey(symbol)).remove(palierKey(symbol)).apply()
             }
             return null
         }
@@ -63,20 +67,39 @@ class PriceMoveSettings @Inject constructor(
         val direction = if (changePercent > 0) "up" else "down"
         val lastDirection = prefs.getString(dirKey(symbol), null)
         val lastNotifiedAt = prefs.getLong(timeKey(symbol), 0L)
+        val dernierPalier = prefs.getInt(palierKey(symbol), -1)
+        val palierActuel = palier(changePercent)
 
         val directionChanged = direction != lastDirection
         val cooldownOver = now - lastNotifiedAt >= COOLDOWN_MS
-        if (!directionChanged && !cooldownOver) return null
+
+        /*
+        L'AGGRAVATION FORCE LE PASSAGE.
+
+        Le délai de garde taisait tout pendant douze heures, y compris une
+        monnaie passée de 12 % à 40 % de chute. C'était précisément l'alerte
+        qu'il fallait donner : la première disait « ça bouge », la seconde dit
+        « ça s'effondre », et ce n'est pas la même nouvelle.
+
+        Seule la MONTÉE en palier passe. Redescendre de majeur à fort ne
+        renotifie pas — sinon une valeur agitée alerterait à chaque oscillation
+        entre deux paliers, ce que le délai de garde existe pour empêcher.
+        */
+        val aggravation = palierActuel > dernierPalier && direction == lastDirection
+
+        if (!directionChanged && !cooldownOver && !aggravation) return null
 
         prefs.edit()
             .putString(dirKey(symbol), direction)
             .putLong(timeKey(symbol), now)
+            .putInt(palierKey(symbol), palierActuel)
             .apply()
         return direction
     }
 
     private fun dirKey(symbol: String) = "dir_$symbol"
     private fun timeKey(symbol: String) = "at_$symbol"
+    private fun palierKey(symbol: String) = "tier_$symbol"
 
     companion object {
         private const val PREFS = "vaultex_price_moves"
@@ -92,5 +115,31 @@ class PriceMoveSettings @Inject constructor(
 
         /** Délai de garde entre deux alertes d'une même monnaie dans le même sens. */
         private const val COOLDOWN_MS = 12L * 60 * 60 * 1000
+
+        /*
+        PALIERS D'AMPLEUR — 0 notable, 1 fort, 2 majeur.
+
+        Bornes FIXES, et non des multiples du seuil de l'utilisateur :
+        « 25 % en un jour » a le même sens pour tout le monde, alors qu'un
+        multiple du seuil vaudrait 15 % chez l'un et 60 % chez l'autre, pour
+        un mot identique dans la notification.
+
+        Choisies sur ce que ces chiffres veulent dire en crypto : au-delà de
+        10 % en un jour le mouvement sort de l'ordinaire ; au-delà de 25 %, il
+        relève de l'événement — annonce, cotation, décrochage.
+
+        Le worker s'en sert pour choisir le TON du message ; evaluate() s'en
+        sert pour laisser passer une aggravation. Une seule définition pour
+        les deux : deux tables séparées finiraient par diverger, et l'on
+        annoncerait « EXPLOSE » sur un palier que l'anti-spam croit inchangé.
+        */
+        const val PALIER_FORT = 10.0
+        const val PALIER_MAJEUR = 25.0
+
+        fun palier(changePercent: Double): Int = when {
+            abs(changePercent) >= PALIER_MAJEUR -> 2
+            abs(changePercent) >= PALIER_FORT -> 1
+            else -> 0
+        }
     }
 }

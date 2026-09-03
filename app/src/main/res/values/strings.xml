@@ -878,6 +878,10 @@
     <string name="price_moves_channel">Variations de prix</string>
     <string name="price_move_up_title">📈 %1$s en hausse</string>
     <string name="price_move_down_title">📉 %1$s en baisse</string>
+    <string name="price_move_up_strong">🚀 %1$s s\'envole</string>
+    <string name="price_move_down_strong">⚠️ %1$s décroche</string>
+    <string name="price_move_up_major">🔥 %1$s EXPLOSE</string>
+    <string name="price_move_down_major">🚨 %1$s CHUTE FORT</string>
     <string name="price_move_body">%1$s sur 24 h — %2$s FCFA</string>
     <string name="price_move_body_no_price">%1$s sur 24 h</string>
     <string name="price_moves_section">Alertes automatiques</string>

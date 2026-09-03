@@ -787,6 +787,10 @@
     <string name="price_moves_channel">تغيّرات الأسعار</string>
     <string name="price_move_up_title">📈 ارتفاع %1$s</string>
     <string name="price_move_down_title">📉 انخفاض %1$s</string>
+    <string name="price_move_up_strong">🚀 ‏%1$s يرتفع بقوة</string>
+    <string name="price_move_down_strong">⚠️ ‏%1$s يتراجع بقوة</string>
+    <string name="price_move_up_major">🔥 ‏%1$s يقفز بشدة</string>
+    <string name="price_move_down_major">🚨 ‏%1$s ينهار</string>
     <string name="price_move_body">%1$s خلال 24 ساعة — %2$s FCFA</string>
     <string name="price_move_body_no_price">%1$s خلال 24 ساعة</string>
     <string name="price_moves_section">تنبيهات تلقائية</string>

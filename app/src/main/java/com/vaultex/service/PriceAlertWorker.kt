@@ -165,10 +165,35 @@ class PriceAlertWorker @AssistedInject constructor(
         )
         val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         val percent = String.format(com.vaultex.core.session.LocaleManager.appLocale(), "%+.1f %%", changePercent)
-        val title = ctx.getString(
-            if (isUp) R.string.price_move_up_title else R.string.price_move_down_title,
-            symbol
-        )
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        TROIS PALIERS D'INTENSITÉ
+        ═══════════════════════════════════════════════════════════════════
+
+        Toutes les variations disaient la même phrase. Une monnaie qui prend
+        5 % et une qui prend 40 % arrivaient donc avec le même titre, la même
+        icône, le même ton — et le pourcentage, seul à les distinguer, se
+        trouve dans le corps du message, que l'on ne lit qu'après avoir décidé
+        que la notification méritait un regard.
+
+        Or c'est exactement l'inverse qu'il faut : l'ampleur doit être visible
+        AVANT la lecture, dans le titre qui s'affiche seul en bandeau. Une
+        alerte qui ne hiérarchise pas finit ignorée en bloc, y compris pour
+        les mouvements qui comptaient vraiment.
+
+        Les paliers viennent de PriceMoveSettings, qui s'en sert aussi pour
+        laisser passer une aggravation malgré le délai de garde. Une seule
+        définition pour les deux : deux tables séparées finiraient par
+        diverger, et l'on annoncerait « EXPLOSE » sur un palier que l'anti-spam
+        croit inchangé.
+        */
+        val titreRes = when (PriceMoveSettings.palier(changePercent)) {
+            2 -> if (isUp) R.string.price_move_up_major else R.string.price_move_down_major
+            1 -> if (isUp) R.string.price_move_up_strong else R.string.price_move_down_strong
+            else -> if (isUp) R.string.price_move_up_title else R.string.price_move_down_title
+        }
+        val title = ctx.getString(titreRes, symbol)
         val body = if (priceXof > 0) {
             fmt.maximumFractionDigits = if (priceXof < 100) 2 else 0
             ctx.getString(R.string.price_move_body, percent, fmt.format(priceXof))
@@ -179,7 +204,10 @@ class PriceAlertWorker @AssistedInject constructor(
         // L'anti-spam propre aux variations est déjà assuré en amont par
         // PriceMoveSettings (réarmement + délai de garde de 12 h).
         hub.post(
-            key = "move:$symbol:${if (isUp) "up" else "down"}:${changePercent.toInt()}",
+            // Le palier entre dans la clé : sans lui, l'alerte d'aggravation
+            // que PriceMoveSettings vient d'autoriser serait écartée ici comme
+            // un doublon de la précédente.
+            key = "move:$symbol:${if (isUp) "up" else "down"}:${PriceMoveSettings.palier(changePercent)}:${changePercent.toInt()}",
             title = title,
             body = body,
             symbol = symbol,
