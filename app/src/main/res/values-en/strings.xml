@@ -876,7 +876,6 @@
     <string name="receive_asset_title">Receive %1$s</string>
     <string name="receive_scan_qr">Scan QR code</string>
     <string name="receive_your_asset_address">Your %1$s address</string>
-    <string name="receive_safe_share">This is your address. You can share it safely to receive %1$s.</string>
     <string name="receive_save_qr">Save QR code</string>
     <string name="receive_qr_saved">QR code saved to gallery</string>
     <string name="receive_qr_save_failed">Could not save</string>

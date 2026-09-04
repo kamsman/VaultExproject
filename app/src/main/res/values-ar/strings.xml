@@ -876,7 +876,6 @@
     <string name="receive_asset_title">استلام %1$s</string>
     <string name="receive_scan_qr">امسح رمز QR</string>
     <string name="receive_your_asset_address">عنوان %1$s الخاص بك</string>
-    <string name="receive_safe_share">هذا هو عنوانك. يمكنك مشاركته بأمان لاستلام %1$s.</string>
     <string name="receive_save_qr">حفظ رمز QR</string>
     <string name="receive_qr_saved">تم حفظ رمز QR في المعرض</string>
     <string name="receive_qr_save_failed">تعذر الحفظ</string>

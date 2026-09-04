@@ -210,17 +210,20 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            /*
+            « Ceci est votre adresse, vous pouvez la partager… » retiré.
 
-            // Note de sécurité (verte)
-            Surface(shape = RoundedCornerShape(10.dp), color = greenNote.copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.VerifiedUser, null, tint = greenNote, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.receive_safe_share, symbol), fontSize = 12.sp, color = TextPrimary)
-                }
-            }
+            La phrase n'apprenait rien : le titre dit « Recevoir ETH », la
+            ligne au-dessus dit « Votre adresse ETH », et les trois actions
+            juste dessous s'appellent Copier, Partager, Enregistrer. Elle
+            paraphrasait l'écran entier.
 
+            Son pavé vert coûtait plus que sa place. L'écran porte un VRAI
+            avertissement — celui sur le réseau, plus haut : envoyer sur la
+            mauvaise chaîne perd les fonds. Deux blocs colorés dont un seul
+            compte, et c'est le rassurant qui occupait le bas de l'écran, là
+            où le regard finit.
+            */
             Spacer(Modifier.height(22.dp))
 
             // Actions : Copier · Partager · Enregistrer le QR

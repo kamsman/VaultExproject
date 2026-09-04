@@ -86,7 +86,6 @@
     <string name="receive_asset_title">Recevoir %1$s</string>
     <string name="receive_scan_qr">Scanner le QR Code</string>
     <string name="receive_your_asset_address">Votre adresse %1$s</string>
-    <string name="receive_safe_share">Ceci est votre adresse. Vous pouvez la partager en toute sécurité pour recevoir %1$s.</string>
     <string name="receive_network_label">Réseau : %1$s</string>
     <string name="receive_network_warning">L\'expéditeur DOIT envoyer sur le réseau %1$s. Un envoi sur un autre réseau peut être définitivement perdu.</string>
     <string name="receive_save_qr">Enregistrer le QR</string>
