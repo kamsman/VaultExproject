@@ -291,7 +291,10 @@ fun SendScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     enabled = state.isAddressValid && state.amount.isNotEmpty() && !state.isLoading,
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen, contentColor = Color.White)
+                    // Violet : c'est la couleur d'action de l'application. Le
+                    // vert annonçait un succès avant que quoi que ce soit ne
+                    // soit fait.
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue, contentColor = Color.White)
                 ) {
                     if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else Text(stringResource(R.string.continue_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -346,10 +349,12 @@ fun SendScreen(navController: NavController) {
                         }
                         Text(coinFullName(state.selectedChain, state.customToken), fontSize = 12.sp, color = TextSecondary)
                     }
+                    // Le mot « Solde » retiré : à droite d'une monnaie, un
+                    // montant suivi de son unité ne peut être que cela. Le
+                    // chiffre gagne la place que l'étiquette occupait.
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(stringResource(R.string.send_balance_short), fontSize = 11.sp, color = TextSecondary)
-                        Text((state.availableBalance ?: "—") + " " + coinShort, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary)
-                        availFiat?.let { Text("≈ $it", fontSize = 11.sp, color = TextSecondary) }
+                        Text((state.availableBalance ?: "—") + " " + coinShort, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        availFiat?.let { Text("≈ $it", fontSize = 12.sp, color = TextSecondary) }
                     }
                 }
             }
@@ -384,11 +389,13 @@ fun SendScreen(navController: NavController) {
                         isError = state.toAddress.isNotEmpty() && !state.isAddressValid,
                         modifier = Modifier.weight(1f)
                     )
+                    // Le pavé gris derrière le scanner disparaît : le champ et
+                    // lui sont déjà dans la même carte, deux fonds emboîtés
+                    // n'ajoutaient qu'une frontière de plus à lire.
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(44.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(BgTertiary)
                             .clickable { navController.navigate(Routes.SCANNER) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -396,7 +403,7 @@ fun SendScreen(navController: NavController) {
                             Icons.Default.QrCodeScanner,
                             contentDescription = stringResource(R.string.qr_label),
                             tint = AccentBlue,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -425,14 +432,28 @@ fun SendScreen(navController: NavController) {
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "📒 " + stringResource(R.string.address_book),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AccentGreen,
+                /*
+                Le carnet d'adresses reste — c'est le seul raccourci qui évite
+                de retaper une adresse à la main, et retaper une adresse est
+                exactement ce qui fait perdre des fonds.
+
+                L'émoji cède la place à une icône, et le vert au violet : ce
+                lien ouvre un écran, il ne confirme rien.
+                */
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { navController.navigate(Routes.ADDRESS_BOOK) }
-                )
+                ) {
+                    Icon(Icons.Default.Contacts, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.address_book),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentBlue
+                    )
+                }
             }
             /*
             La consigne de vérification sort de la carte et perd son pavé vert.
@@ -624,21 +645,28 @@ fun SendScreen(navController: NavController) {
 
 @Composable
 private fun SendInfoRow(label: String, value: String, sub: String?) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = SurfaceColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.fillMaxWidth()
+    /*
+    Ligne nue, plus de carte encadrée.
+
+    Les frais réseau et le total forment un même bloc de récapitulatif. Les
+    enfermer chacun dans sa carte les séparait visuellement alors qu'ils se
+    lisent ensemble — et ajoutait deux bordures sur un écran qui en a déjà
+    trois.
+
+    Le point d'interrogation reste : « frais réseau » ne dit pas à qui ils
+    vont, et beaucoup croient qu'ils reviennent à l'application.
+    */
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                sub?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
-            }
+        Text(label, fontSize = 15.sp, color = TextPrimary)
+        Spacer(Modifier.width(6.dp))
+        Icon(Icons.Default.Info, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            sub?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
         }
     }
 }
