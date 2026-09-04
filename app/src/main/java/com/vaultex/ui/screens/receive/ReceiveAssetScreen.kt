@@ -92,11 +92,18 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
-                actions = {
-                    IconButton(onClick = { share() }) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share), tint = AccentBlue)
-                    }
-                },
+                /*
+                LE PARTAGE N'EXISTE QU'UNE FOIS, EN BAS.
+
+                Il figurait ici en icône nue ET dans la rangée d'actions sous
+                le QR. Deux commandes identiques dans un même écran font
+                hésiter — on cherche ce qui les distingue, il n'y a rien.
+
+                C'est celle du bas qui reste : elle porte son nom, et elle est
+                posée à côté du QR sur lequel elle agit, entre Copier et
+                Enregistrer. Isolée en haut, l'icône ne disait même pas ce
+                qu'elle partageait — l'écran ? l'adresse ? l'image ?
+                */
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
