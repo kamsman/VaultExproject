@@ -169,10 +169,15 @@ fun SettingsScreen(navController: NavHostController) {
                     c'est le geste le plus pressé de l'écran : on le fait quand
                     on tend son téléphone à quelqu'un.
 
-                    Un cadenas dans l'en-tête est atteignable sans défiler et se
-                    reconnaît sans lecture, ce qui compte pour un public dont le
-                    français ou l'anglais n'est pas toujours la langue d'usage.
-                    Le libellé subsiste en description d'accessibilité.
+                    L'icône de sortie, en rouge, est atteignable sans défiler
+                    et se reconnaît sans lecture — ce qui compte pour un public
+                    dont le français ou l'anglais n'est pas toujours la langue
+                    d'usage. Le libellé subsiste en description
+                    d'accessibilité.
+
+                    Le rouge le distingue de tout le reste de l'écran : c'est
+                    la seule action de cet en-tête, et la seule qui fasse
+                    quitter les lieux.
 
                     popUpTo(0) vide la pile : sans cela, le bouton retour du
                     téléphone repasserait derrière l'écran de code et annulerait
@@ -186,9 +191,9 @@ fun SettingsScreen(navController: NavHostController) {
                         }
                     }) {
                         Icon(
-                            Icons.Default.Lock,
+                            Icons.Default.Logout,
                             contentDescription = stringResource(R.string.settings_lock_now),
-                            tint = AccentBlue
+                            tint = AccentRed
                         )
                     }
                 },
