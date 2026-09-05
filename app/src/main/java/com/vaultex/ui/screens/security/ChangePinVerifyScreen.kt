@@ -72,7 +72,8 @@ fun ChangePinVerifyScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(BgSecondary).padding(horizontal = 24.dp),
+        modifier = Modifier.fillMaxSize().background(BgSecondary)
+            .systemBarsPadding().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.weight(0.55f))

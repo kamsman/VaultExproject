@@ -55,6 +55,7 @@ fun BiometricSetupScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(BgSecondary)
+            .systemBarsPadding()
     ) {
         // ── Barre supérieure : retour + titre centré ─────────
         Box(

@@ -125,6 +125,11 @@ fun QrScannerScreen(navController: NavHostController) {
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
+                            // La consigne se posait à 48 dp du bord, valeur
+                            // choisie quand la fenêtre excluait les barres
+                            // système. Depuis Android 16, elle doit d'abord
+                            // dégager la barre de navigation.
+                            .navigationBarsPadding()
                             .padding(bottom = 48.dp)
                             .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)

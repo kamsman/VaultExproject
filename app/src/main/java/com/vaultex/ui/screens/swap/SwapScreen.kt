@@ -436,11 +436,38 @@ private fun SwapConfirmScreen(
             }
         },
         bottomBar = {
-            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp)) {
+            /*
+            navigationBarsPadding() : le slot bottomBar ne reçoit AUCUNE marge
+            système, contrairement au contenu du Scaffold. Sans elle, « Confirmer
+            le swap » passe sous les boutons du téléphone depuis le passage à
+            Android 16 — et c'est le bouton qui engage les fonds.
+            */
+            Column(
+                Modifier
+                    .background(swapBg)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                /*
+                CONFIRMER EXIGE UN DEVIS.
+
+                Le bouton n'était désactivé que pendant le chargement. Quand le
+                fournisseur refusait de coter — « Devis indisponible.
+                Unauthorized », constaté à l'écran — la page affichait
+                « Vous recevez — BNB » et laissait pourtant confirmer.
+
+                Or c'est le pire moment pour laisser passer un appui : on
+                engage des fonds vers une opération dont personne n'a dit ce
+                qu'elle rendrait. L'écran de saisie posait déjà cette condition
+                (toAmount non vide) ; celui de confirmation, qui est pourtant
+                le dernier rempart, ne la reprenait pas.
+                */
+                val devisValide = state.toAmount.isNotEmpty() &&
+                    (state.toAmount.toDoubleOrNull() ?: 0.0) > 0.0
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading && devisValide,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SwapPurple, contentColor = Color.White,
@@ -450,9 +477,23 @@ private fun SwapConfirmScreen(
                     if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else Text("Confirmer le swap", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
-                Spacer(Modifier.height(10.dp))
-                Text("Le taux sera valable pendant 00:29", fontSize = 12.sp, color = swapTextDim,
-                    modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                /*
+                LE FAUX COMPTE À REBOURS EST RETIRÉ.
+
+                « Le taux sera valable pendant 00:29 » était une chaîne écrite
+                EN DUR. Aucun minuteur derrière, aucun état : elle affichait
+                29 secondes en permanence, y compris — vu sur capture — juste
+                sous « Devis indisponible », donc en annonçant la validité d'un
+                taux qui n'existait pas.
+
+                Sur un écran où l'on engage des fonds, une phrase inventée sur
+                la durée d'un engagement n'est pas un détail d'habillage.
+
+                Rien ne la remplace : la note verte au-dessus dit déjà que le
+                montant reçu est estimé, ce qui est vrai et suffit. Un vrai
+                compte à rebours supposerait de connaître l'expiration du devis
+                — le fournisseur la donne, mais on ne la lit pas encore.
+                */
             }
         }
     ) { padding ->
@@ -484,7 +525,7 @@ private fun SwapConfirmScreen(
             val rate = if (fromAmt > 0.0 && toAmt > 0.0)
                 tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt) else "—"
             val feeTxt = if (fromAmt > 0.0)
-                "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
+                "${montantLisible(fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0)} ${swapBaseOf(state.fromToken)}" else "—"
 
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
@@ -574,7 +615,15 @@ private fun SwapTrackingScreen(
             }
         },
         bottomBar = {
-            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Même raison qu'au-dessus : le bottomBar ne reçoit pas de marge
+            // système, il doit la poser lui-même.
+            Column(
+                Modifier
+                    .background(swapBg)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 // Bouton PRINCIPAL « Nouveau swap » (remplace « Partager le reçu ») :
                 // toujours actif — pendant le traitement, l'échange se termine tout
                 // seul en arrière-plan, l'utilisateur n'a pas à attendre.
@@ -1164,3 +1213,24 @@ private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: 
 
 /** En dessous, la perte relève des frais ordinaires d'un échange. */
 private const val SEUIL_PERTE_VISIBLE = 10.0
+
+/**
+ * Petit montant de jeton, LISIBLE — jamais arrondi à zéro.
+ *
+ * Le format à quatre décimales affichait « Frais inclus : 0 ETH » sur un swap
+ * de 0,0007 ETH, dont les frais valent 0,0000105. Zéro était faux, et faux
+ * dans le sens qui arrange : annoncer qu'on ne prélève rien quand on prélève
+ * quelque chose.
+ *
+ * On garde donc assez de décimales pour que le premier chiffre significatif
+ * apparaisse, plafonné à douze — au-delà, on lit du bruit.
+ */
+private fun montantLisible(valeur: Double): String {
+    if (valeur <= 0.0) return "0"
+    val decimales = when {
+        valeur >= 1.0 -> 4
+        else -> (kotlin.math.floor(-kotlin.math.log10(valeur)).toInt() + 4).coerceIn(4, 12)
+    }
+    return String.format(java.util.Locale.US, "%.${decimales}f", valeur)
+        .trimEnd('0').trimEnd('.')
+}

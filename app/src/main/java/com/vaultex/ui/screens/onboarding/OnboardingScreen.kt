@@ -89,6 +89,7 @@ fun OnboardingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(BrandBgTop, BrandBgBottom)))
+            .systemBarsPadding()
     ) {
         // ─── « Passer » (haut droite) ───
         Row(

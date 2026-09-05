@@ -83,6 +83,7 @@ fun PinSetupScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BgSecondary)
+            .systemBarsPadding()
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
