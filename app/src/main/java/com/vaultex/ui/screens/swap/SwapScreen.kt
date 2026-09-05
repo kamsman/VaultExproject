@@ -226,7 +226,21 @@ private fun SwapFormScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            /*
+            statusBarsPadding() : PRÉPARATION À L'EDGE-TO-EDGE.
+
+            Cette barre de titre est un Box, pas un TopAppBar de Material —
+            elle ne reçoit donc AUCUNE marge système automatique. Tant que la
+            fenêtre exclut la barre d'état, cette marge vaut zéro et ne change
+            rien. Le jour où l'application ciblera Android 16, où le contenu
+            passe obligatoirement SOUS la barre d'état, elle empêchera la
+            flèche de retour et le titre de se retrouver sous l'horloge.
+
+            Les 43 autres écrans utilisent Scaffold + TopAppBar et sont servis
+            par Material : c'est le seul de l'application à devoir le faire
+            lui-même.
+            */
+            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
                 // Titre seul : « Échangez vos cryptos » redisait ce que le mot
                 // « Swap » et l'écran entier disent déjà.
