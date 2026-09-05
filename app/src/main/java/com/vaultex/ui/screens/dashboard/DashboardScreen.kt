@@ -601,7 +601,10 @@ fun DashboardScreen(navController: NavHostController) {
             Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp)
-                .padding(bottom = BottomBarSpace - 16.dp)
+                // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
+                // que la barre occupe, marge système comprise. Lui retrancher
+                // quelque chose, c'était rogner sur la place dont on a besoin.
+                .padding(bottom = BottomBarSpace)
         )
 
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
