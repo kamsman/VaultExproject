@@ -1,18 +1,13 @@
 package com.vaultex.ui.screens.splash
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -22,19 +17,10 @@ import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.SplashViewModel
 import kotlinx.coroutines.delay
-import kotlin.math.cos
-import kotlin.math.sin
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
     val viewModel: SplashViewModel = hiltViewModel()
-
-    val infiniteTransition = rememberInfiniteTransition(label = "splash_animation")
-    val loaderPhase by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 6f,
-        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
-        label = "loader"
-    )
 
     val contexteApp = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
@@ -46,9 +32,11 @@ fun SplashScreen(navController: NavHostController) {
         l'écran montre — et bien trop longue : on ouvre un portefeuille pour
         vérifier un solde, pas pour regarder un logo.
 
-        On attend maintenant l'animation (1,2 s) plus une demi-seconde pour
-        laisser lire le nom, puis on part. La constante vit à côté de
-        l'animation : si sa durée change, l'attente suit d'elle-même.
+        On attend maintenant la durée de l'animation plus une demi-seconde
+        pour laisser lire le nom. La constante vit à côté de l'animation : sa
+        durée a déjà changé une fois — quand le chargeur à points a disparu et
+        que le logo a dû porter l'écran seul — et l'attente a suivi sans qu'on
+        y touche.
         */
         delay(com.vaultex.ui.components.LOGO_ANIME_DUREE_MS + 500L)
         // Route vers PIN_UNLOCK si wallet existe, animation de premier lancement sinon
@@ -76,7 +64,7 @@ fun SplashScreen(navController: NavHostController) {
             Le logo était posé là, immobile, avec une simple respiration
             d'échelle. L'animation raconte quelque chose : un cercle qui se
             REFERME autour d'une forme dit « coffre » sans un mot — c'est ce
-            que fait cette application, dit en une seconde deux.
+            que fait cette application, dit sans une phrase.
             */
             com.vaultex.ui.components.LogoAnime(taille = 124.dp)
 
@@ -92,31 +80,18 @@ fun SplashScreen(navController: NavHostController) {
                 fontSize = 16.sp
             )
 
-            Spacer(Modifier.height(36.dp))
+            /*
+            LE CHARGEUR À POINTS EST RETIRÉ.
 
-            // Loader : points bleus en cercle
-            DotsLoader(phase = loaderPhase)
-        }
-    }
-}
+            Deux animations tournaient en même temps sur le même écran : le
+            logo qui se construit, et six points qui tournaient en boucle
+            au-dessous. L'œil ne savait plus laquelle regarder, et la seconde
+            n'apprenait rien — elle tournait aussi vite un jour de bon réseau
+            qu'un jour sans réseau.
 
-@Composable
-private fun DotsLoader(phase: Float, dotCount: Int = 6) {
-    // Lue dans le contexte @Composable, puis utilisée dans le lambda DrawScope.
-    val dotColor = AccentBlue
-    Canvas(modifier = Modifier.size(96.dp)) {
-        val radius = size.minDimension / 2f - 8.dp.toPx()
-        val dotRadius = 7.dp.toPx()
-        val center = Offset(size.width / 2f, size.height / 2f)
-        repeat(dotCount) { i ->
-            val angle = Math.toRadians((i * 360.0 / dotCount) - 90.0)
-            val pos = Offset(
-                x = center.x + radius * cos(angle).toFloat(),
-                y = center.y + radius * sin(angle).toFloat()
-            )
-            val distance = ((i - phase + dotCount) % dotCount) / dotCount
-            val alpha = 0.25f + 0.75f * (1f - distance)
-            drawCircle(color = dotColor, radius = dotRadius, center = pos, alpha = alpha)
+            Le logo suffit : il progresse, donc il indique déjà que quelque
+            chose se passe, et il s'arrête quand c'est fini.
+            */
         }
     }
 }

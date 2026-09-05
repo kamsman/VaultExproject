@@ -53,10 +53,17 @@ l'anneau se dessine par un arc qui progresse, et non par une simple
 apparition en fondu.
 */
 
-/** Durées de chaque temps, en millisecondes. */
-private const val MS_LOSANGE = 420
-private const val MS_ANNEAU = 520
-private const val MS_ETINCELLE = 260
+/*
+Durées de chaque temps, en millisecondes.
+
+Allongées depuis que le chargeur à points a disparu : l'animation était
+calibrée pour partager l'écran avec lui, elle porte maintenant le splash à
+elle seule. Un losange qui se pose en quatre dixièmes de seconde paraissait
+pressé — il a désormais le temps d'arriver.
+*/
+private const val MS_LOSANGE = 750
+private const val MS_ANNEAU = 650
+private const val MS_ETINCELLE = 300
 
 /** Total de l'animation, utile à l'appelant pour caler sa navigation. */
 const val LOGO_ANIME_DUREE_MS = MS_LOSANGE + MS_ANNEAU + MS_ETINCELLE
