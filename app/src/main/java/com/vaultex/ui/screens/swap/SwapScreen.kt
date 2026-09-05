@@ -211,6 +211,32 @@ private fun SwapFormScreen(
     } else "0"
 
     /*
+    ─── SOLDE INSUFFISANT : DIT TOUT DE SUITE, PAS À LA FIN ───
+
+    Rien ne vérifiait le solde dans cet écran. SwapUseCase.validate ne connaît
+    que trois refus — montant nul, même monnaie, sous le minimum — et pas
+    celui-là. On pouvait donc taper 10 BTC avec 0,0001 BTC, passer la
+    confirmation, poser son doigt sur le capteur, et n'apprendre qu'au dépôt
+    que les fonds n'y étaient pas.
+
+    La comparaison se fait ici, à la frappe : le bouton se désactive et la
+    raison s'affiche juste au-dessus de lui.
+
+    Le libellé est celui de l'écran d'envoi (send_err_insufficient_balance,
+    « Solde insuffisant. Disponible : … ») : il est déjà traduit en français,
+    anglais et arabe, et dit exactement la même chose. Un nouveau texte aurait
+    voulu dire trois traductions de plus pour la même phrase.
+    */
+    val soldeInsuffisant = fromAmt > 0.0 && fromAmt > state.fromBalance
+    val messageBloquant = when {
+        soldeInsuffisant -> stringResource(
+            com.vaultex.R.string.send_err_insufficient_balance,
+            "$balTxt ${swapBaseOf(state.fromToken)}"
+        )
+        else -> state.error
+    }
+
+    /*
     LA BARRE DE NAVIGATION EST CELLE DE TOUTE L'APPLICATION.
 
     L'écran en portait un doublon local — quatre onglets au lieu de cinq, et
@@ -257,11 +283,36 @@ private fun SwapFormScreen(
             // marge, elle recouvrirait « Continuer », le seul bouton de
             // l'écran.
             Column(Modifier.background(swapBg).padding(bottom = BottomBarSpace)) {
+                /*
+                LE MESSAGE D'ERREUR EST ÉPINGLÉ AU BOUTON, PAS EN BAS DU SCROLL.
+
+                Il vivait à la fin de la colonne défilante, sous les deux cartes
+                de monnaie et la carte de détails — donc hors écran. On voyait
+                « Continuer » grisé sans jamais voir pourquoi, et le seul moyen
+                de l'apprendre était de faire défiler vers le bas alors que rien
+                n'indiquait qu'il y avait quelque chose à y lire.
+
+                Collé au bouton qu'il explique, il est toujours visible.
+                L'écran d'envoi fait déjà exactement cela.
+                */
+                if (messageBloquant != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = swapErrBg,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    ) {
+                        Text(
+                            messageBloquant,
+                            fontSize = 13.sp, color = AccentRed,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
                 Button(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(54.dp),
                     enabled = state.fromAmount.isNotEmpty() && state.toAmount.isNotEmpty() &&
-                        state.fromToken != state.toToken && !state.isLoading,
+                        state.fromToken != state.toToken && !state.isLoading && !soldeInsuffisant,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SwapPurple,
@@ -396,12 +447,7 @@ private fun SwapFormScreen(
                 }
             }
 
-            if (state.error != null) {
-                Spacer(Modifier.height(12.dp))
-                Surface(shape = RoundedCornerShape(10.dp), color = swapErrBg, modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
-                }
-            }
+            // (L'erreur n'est plus ici : elle est épinglée au bouton « Continuer ».)
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -464,6 +510,21 @@ private fun SwapConfirmScreen(
                 */
                 val devisValide = state.toAmount.isNotEmpty() &&
                     (state.toAmount.toDoubleOrNull() ?: 0.0) > 0.0
+                // Même raison qu'à la saisie : la raison du refus se lit à côté
+                // du bouton refusé, pas au bas d'un défilement.
+                if (state.error != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = swapErrBg,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            state.error!!,
+                            fontSize = 13.sp, color = AccentRed,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -573,11 +634,7 @@ private fun SwapConfirmScreen(
                 }
             }
 
-            if (state.error != null) {
-                Surface(shape = RoundedCornerShape(10.dp), color = swapErrBg, modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error!!, fontSize = 13.sp, color = AccentRed, modifier = Modifier.padding(12.dp))
-                }
-            }
+            // (L'erreur n'est plus ici : elle est épinglée à « Confirmer ».)
             Spacer(Modifier.height(4.dp))
         }
     }
