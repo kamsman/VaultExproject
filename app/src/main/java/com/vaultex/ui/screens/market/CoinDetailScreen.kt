@@ -132,6 +132,23 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         }
         val symbol = c.symbol.uppercase()
 
+        /*
+        ─── LA FICHE TIENT SUR UN ÉCRAN ───
+
+        Elle demandait un peu de défilement pour être lue en entier, alors
+        qu'on l'ouvre justement pour tout voir d'un coup : le prix, la
+        variation, le graphique, les six chiffres du bas.
+
+        Aucune information n'a été retirée. Ce sont les espaces, le logo et la
+        hauteur du graphique qui ont été resserrés — environ 120 dp gagnés, de
+        quoi ramener l'ensemble dans la hauteur d'un téléphone courant.
+
+        Le verticalScroll RESTE. Sur un petit écran, ou quand l'utilisateur a
+        agrandi la police du système, le contenu peut encore dépasser : sans
+        défilement, le bas serait alors coupé sans aucun moyen d'y accéder. Un
+        défilement qui ne sert jamais ne coûte rien ; son absence coûte les
+        chiffres du bas.
+        */
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -139,7 +156,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
 
             // Logo token (réel via CoinGecko) ou cercle coloré en repli + prix
             val logoUrl = c.image
@@ -147,17 +164,17 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 coil.compose.AsyncImage(
                     model = logoUrl,
                     contentDescription = symbol,
-                    modifier = Modifier.size(56.dp).clip(CircleShape)
+                    modifier = Modifier.size(48.dp).clip(CircleShape)
                 )
             } else {
                 Box(
-                    Modifier.size(56.dp).clip(CircleShape).background(tokenColor(symbol)),
+                    Modifier.size(48.dp).clip(CircleShape).background(tokenColor(symbol)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             // « SYMBOLE · Nom  #rang » (maquette)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("$symbol · ${c.name}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
@@ -168,14 +185,14 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 "$" + formatMarketUsd(c.currentPrice),
-                fontSize = 30.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             val positive = c.change24h >= 0
             Surface(
                 shape = RoundedCornerShape(8.dp),
@@ -193,13 +210,13 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             // ─── « Votre solde / Gain 24h » si l'utilisateur détient la monnaie ───
             val holding = remember(symbol) { viewModel.holdingOf(symbol) }
             if (holding != null) {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = BgPrimary),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
-                    Row(Modifier.padding(vertical = 14.dp)) {
+                    Row(Modifier.padding(vertical = 10.dp)) {
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(stringResource(R.string.coin_your_balance), fontSize = 12.sp, color = TextSecondary)
                             Spacer(Modifier.height(4.dp))
@@ -240,14 +257,14 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
 
             // Graphique : pour 7J on réutilise le sparkline déjà en cache (aucun
             // appel réseau) ; les autres périodes passent par market_chart.
             val sparklineF = c.sparkline_in_7d?.price?.map { it.toFloat() } ?: emptyList()
             val chartPoints = if (selectedPeriod == "7J" && sparklineF.size >= 2) sparklineF else chart
             Box(
-                Modifier.fillMaxWidth().height(180.dp).background(BgPrimary),
+                Modifier.fillMaxWidth().height(148.dp).background(BgPrimary),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -269,7 +286,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
 
             // Sélecteur de période
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 periods.forEach { period ->
@@ -311,7 +328,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Column {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         if (supported != null || receiveOnlyKey != null) {
                             val bufferKey = supported?.key ?: receiveOnlyKey!!
                             CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
@@ -376,10 +393,10 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
 
             // ─── Stats 3×2 : Cap / Volume / Offre — High / Low / ATH (maquette) ───
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatCard(stringResource(R.string.market_cap), "$" + compact(c.marketCap), Modifier.weight(1f))
                     StatCard(stringResource(R.string.coin_volume_label), "$" + compact(c.volume24h), Modifier.weight(1f))
@@ -391,7 +408,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     StatCard(stringResource(R.string.coin_ath), "$" + formatMarketUsd(c.ath), Modifier.weight(1f))
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
@@ -508,7 +525,7 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
         modifier = modifier
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            Modifier.fillMaxWidth().padding(vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(label, fontSize = 12.sp, color = TextSecondary)
