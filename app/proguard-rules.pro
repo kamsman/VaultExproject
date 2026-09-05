@@ -78,6 +78,38 @@
 -dontwarn org.bouncycastle.jsse.**
 
 # ─────────────────────────────────────────────────────────────────────────
+# COIL — chargement de TOUTES les images de l'app
+#
+# Symptôme : plus AUCUN logo de monnaie nulle part, y compris dans le
+# Marché — alors que les prix, les soldes et l'historique arrivent
+# normalement. Deux hôtes d'images DIFFÉRENTS (raw.githubusercontent.com
+# pour les logos par ticker, coin-images.coingecko.com pour la liste du
+# Marché) tombent en même temps : ce n'est donc pas une source d'images,
+# c'est le composant qui les charge.
+#
+# Ce qui a changé au même moment : la surcharge R8 8.7.18 a été retirée
+# (elle bloquait AGP 8.13), et c'est désormais le R8 d'AGP 8.13 qui
+# minifie. Coil construit son propre client OkHttp et enregistre ses
+# décodeurs et ses « fetchers » dans un registre interne — du code que
+# R8 peut estimer inatteignable et supprimer, sans que rien ne plante :
+# l'image ne se charge simplement jamais, en silence.
+#
+# Coil livre ses propres règles dans son AAR, mais elles ont été écrites
+# pour un R8 plus ancien. On explicite donc ce qu'il faut garder.
+#
+# Le coût est nul côté sécurité et négligeable côté taille : Coil ne
+# représente que quelques centaines de classes.
+# ─────────────────────────────────────────────────────────────────────────
+-keep class coil.** { *; }
+-keep interface coil.** { *; }
+-dontwarn coil.**
+
+# OkHttp charge publicsuffixes.gz par le NOM de cette classe : si R8 la
+# renomme, la ressource devient introuvable. Règle officielle de Square.
+-keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
+-dontwarn org.codehaus.mojo.animal_sniffer.*
+
+# ─────────────────────────────────────────────────────────────────────────
 # Classes absentes — chemins de code JAMAIS exécutés par l'app
 #
 # R8 signale toute référence qu'il ne peut pas résoudre, même dans du code

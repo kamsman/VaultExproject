@@ -554,7 +554,7 @@ private fun GainerCard(dto: CoinGeckoMarketDto, onClick: () -> Unit) {
         modifier = Modifier.width(120.dp).clickable(onClick = onClick)
     ) {
         Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            coil.compose.AsyncImage(model = dto.image, contentDescription = dto.symbol, modifier = Modifier.size(30.dp).clip(CircleShape))
+            LogoMonnaie(dto.image, dto.symbol, 30.dp)
             Text(dto.symbol.uppercase(), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
             Text("$" + formatMarketUsd(dto.currentPrice), fontSize = 12.sp, color = TextSecondary)
             Text("+" + String.format(Locale.US, "%.2f%%", dto.change24h), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
@@ -578,10 +578,7 @@ private fun CoinRowCard(
     // rendu identique en thème clair et sombre.
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            coil.compose.AsyncImage(
-                model = dto.image, contentDescription = dto.symbol,
-                modifier = Modifier.size(40.dp).clip(CircleShape)
-            )
+            LogoMonnaie(dto.image, dto.symbol, 40.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(dto.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary, maxLines = 1)
@@ -764,6 +761,49 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 /** Vraie mini-courbe 7 j (données CoinGecko), sous-échantillonnée pour rester légère. */
+/**
+ * Logo d'une monnaie du Marché, avec repli.
+ *
+ * Les lignes du Marché posaient l'AsyncImage seule. Quand l'image ne se
+ * charge pas — réseau coupé, hôte injoignable, minification qui casse le
+ * chargeur — Coil ne dessine RIEN : la ligne garde un trou de 40 dp et la
+ * monnaie a l'air à moitié absente.
+ *
+ * Ici l'image se pose PAR-DESSUS un avatar-lettres déjà dessiné. Si elle
+ * arrive, elle le recouvre entièrement ; sinon on lit « BT », « ET », et la
+ * liste reste utilisable. C'est le comportement qu'ont déjà les logos du
+ * Swap, de l'Accueil et de l'Envoi (TokenLogo) — le Marché était le seul
+ * endroit sans filet.
+ */
+@Composable
+private fun LogoMonnaie(url: String?, symbole: String, taille: androidx.compose.ui.unit.Dp) {
+    Box(
+        Modifier.size(taille).clip(CircleShape).background(couleurMonnaie(symbole.uppercase())),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            symbole.take(2).uppercase(),
+            color = Color.White,
+            fontSize = (taille.value / 3.2f).sp,
+            fontWeight = FontWeight.Bold
+        )
+        coil.compose.AsyncImage(
+            model = url,
+            contentDescription = symbole,
+            modifier = Modifier.size(taille).clip(CircleShape)
+        )
+    }
+}
+
+private fun couleurMonnaie(symbole: String): Color = when (symbole) {
+    "BTC" -> Color(0xFFF7931A)
+    "ETH" -> Color(0xFF627EEA)
+    "BNB" -> Color(0xFFF3BA2F)
+    "SOL" -> Color(0xFF14F195)
+    "TRX" -> Color(0xFFEF0027)
+    else -> AccentBlue
+}
+
 @Composable
 private fun Sparkline(prices: List<Double>, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
