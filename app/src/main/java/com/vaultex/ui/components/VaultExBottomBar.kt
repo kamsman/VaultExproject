@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,12 +44,39 @@ private val NavBlue = Color(0xFF3B82F6)
 private val NavPurple = Color(0xFF7C5CFC)
 private val NavGradient = Brush.linearGradient(listOf(NavBlue, NavPurple))
 
+/** Hauteur propre de la barre : sa pilule, son écart au bord, sa marge. */
+private val HauteurBarre = 104.dp
+
 /**
  * Espace à réserver EN BAS du contenu défilant des écrans qui affichent la
  * barre. La barre étant FLOTTANTE (posée par-dessus le contenu), sans cette
  * marge le dernier élément d'une liste passerait définitivement dessous.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * POURQUOI CETTE VALEUR EST CALCULÉE ET NON ÉCRITE EN DUR
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * C'était une constante : 104 dp. Elle a cessé d'être juste au passage à
+ * Android 16.
+ *
+ * L'arithmétique le dit sans ambiguïté. La barre occupe, depuis le bas de
+ * l'écran : la marge de barre système, puis FloatGap, puis ses 86 dp de
+ * pilule. Avant l'edge-to-edge, la fenêtre EXCLUAIT les barres système : cette
+ * première marge valait zéro, et 104 dp couvraient largement les 100 dp
+ * réellement occupés.
+ *
+ * Depuis qu'Android impose le contenu SOUS les barres système, cette marge
+ * vaut 24 à 48 dp selon l'appareil et le mode de navigation. La barre occupe
+ * donc 124 à 148 dp, pour 104 réservés : le bas de chaque liste, et la carte
+ * des nouveautés, passaient dessous. Constaté à l'écran.
+ *
+ * La valeur suit désormais l'appareil. Six écrans l'utilisent — accueil,
+ * marché, réglages, carnet d'adresses, swap, tableau de bord — et se
+ * corrigent tous par ce seul changement, sans qu'aucun n'ait à s'en occuper.
  */
-val BottomBarSpace = 104.dp
+val BottomBarSpace: Dp
+    @Composable get() = HauteurBarre +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
 /** Marge entre le bas de l'écran (barres système) et la barre flottante. */
 private val FloatGap = 14.dp
