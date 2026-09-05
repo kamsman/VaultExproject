@@ -600,7 +600,13 @@ fun SendScreen(navController: NavController) {
         if (showCoinPicker) {
             ModalBottomSheet(onDismissRequest = { showCoinPicker = false }, containerColor = BgPrimary) {
                 Column(
-                    Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        // La liste des monnaies peut être longue : sans cette
+                        // marge, la dernière ligne tombe sous les boutons du
+                        // téléphone et devient impossible à toucher.
+                        .navigationBarsPadding()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(stringResource(R.string.send_choose_coin), fontWeight = FontWeight.Bold,
