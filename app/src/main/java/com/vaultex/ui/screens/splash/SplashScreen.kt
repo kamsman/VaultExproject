@@ -3,16 +3,11 @@ package com.vaultex.ui.screens.splash
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -35,11 +30,6 @@ fun SplashScreen(navController: NavHostController) {
     val viewModel: SplashViewModel = hiltViewModel()
 
     val infiniteTransition = rememberInfiniteTransition(label = "splash_animation")
-    val logoScale by infiniteTransition.animateFloat(
-        initialValue = 0.96f, targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = EaseInOut), RepeatMode.Reverse),
-        label = "scale"
-    )
     val loaderPhase by infiniteTransition.animateFloat(
         initialValue = 0f, targetValue = 6f,
         animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
@@ -49,7 +39,18 @@ fun SplashScreen(navController: NavHostController) {
     val contexteApp = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
     LaunchedEffect(Unit) {
-        delay(3200)
+        /*
+        L'ATTENTE SUIT L'ANIMATION, elle n'est plus un chiffre arbitraire.
+
+        3 200 ms était une valeur posée à la main, sans rapport avec ce que
+        l'écran montre — et bien trop longue : on ouvre un portefeuille pour
+        vérifier un solde, pas pour regarder un logo.
+
+        On attend maintenant l'animation (1,2 s) plus une demi-seconde pour
+        laisser lire le nom, puis on part. La constante vit à côté de
+        l'animation : si sa durée change, l'attente suit d'elle-même.
+        */
+        delay(com.vaultex.ui.components.LOGO_ANIME_DUREE_MS + 500L)
         // Route vers PIN_UNLOCK si wallet existe, animation de premier lancement sinon
         val aUnPortefeuille = viewModel.hasWallet()
         // Dernier instant où « nouvel arrivant » et « mise à jour » se
@@ -69,21 +70,15 @@ fun SplashScreen(navController: NavHostController) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-            // Diamant bleu dans un cercle bordé
-            Box(
-                modifier = Modifier
-                    .size(124.dp)
-                    .scale(logoScale)
-                    .border(1.dp, AccentBlue.copy(alpha = 0.7f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(68.dp)
-                        .rotate(45f)
-                        .background(AccentBlue, RoundedCornerShape(6.dp))
-                )
-            }
+            /*
+            Le losange se forme, puis l'anneau se referme autour.
+
+            Le logo était posé là, immobile, avec une simple respiration
+            d'échelle. L'animation raconte quelque chose : un cercle qui se
+            REFERME autour d'une forme dit « coffre » sans un mot — c'est ce
+            que fait cette application, dit en une seconde deux.
+            */
+            com.vaultex.ui.components.LogoAnime(taille = 124.dp)
 
             Spacer(Modifier.height(28.dp))
 
