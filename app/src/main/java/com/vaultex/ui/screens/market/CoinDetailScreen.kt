@@ -213,8 +213,28 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             val gainTok = holding.amount * c.change24h / 100.0
                             val gainUsd = holding.valueUsd * c.change24h / 100.0
                             val gCol = if (c.change24h >= 0) AccentGreen else AccentRed
-                            Text((if (gainTok >= 0) "+" else "") + trimAmount(gainTok) + " " + symbol, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = gCol)
-                            Text("≈ $" + usdFmt.format(kotlin.math.abs(gainUsd)) + " (${"%+.2f".format(c.change24h)}%)", fontSize = 12.sp, color = gCol)
+                            /*
+                            « +0 BTC ≈ $0 (+0,02 %) » — vu sur capture.
+
+                            Sur un solde de 0,000007 BTC, un gain de 0,02 %
+                            vaut 0,0000000014 BTC. Tronqué à huit décimales, il
+                            devient zéro ; à deux décimales, la contre-valeur
+                            aussi. Trois chiffres se contredisaient donc dans
+                            la même ligne : un pourcentage non nul à côté de
+                            deux zéros.
+
+                            « < 0,00000001 » dit la vérité — le gain existe,
+                            il est simplement plus petit que ce qu'on sait
+                            écrire. Un zéro affirme qu'il n'y en a pas.
+                            */
+                            Text(
+                                (if (gainTok >= 0) "+" else "") + gainLisible(gainTok) + " " + symbol,
+                                fontWeight = FontWeight.Bold, fontSize = 17.sp, color = gCol
+                            )
+                            val gainAbs = kotlin.math.abs(gainUsd)
+                            val gainFiat = if (gainAbs > 0.0 && gainAbs < 0.01) "< $0.01"
+                                else "≈ $" + usdFmt.format(gainAbs)
+                            Text("$gainFiat (${"%+.2f".format(c.change24h)}%)", fontSize = 12.sp, color = gCol)
                         }
                     }
                 }
@@ -387,6 +407,17 @@ private fun daysForPeriod(period: String): Int = when (period) {
 }
 
 /** Montant lisible (8 décimales max, sans zéros inutiles). */
+/**
+ * Gain en jeton, qui ne se réduit jamais à « 0 » quand il est simplement
+ * plus petit que la précision affichable.
+ */
+private fun gainLisible(v: Double): String {
+    val abs = kotlin.math.abs(v)
+    if (abs == 0.0) return "0"
+    if (abs < 0.00000001) return "<0.00000001"
+    return trimAmount(v)
+}
+
 private fun trimAmount(v: Double): String =
     java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN)
         .stripTrailingZeros().toPlainString()

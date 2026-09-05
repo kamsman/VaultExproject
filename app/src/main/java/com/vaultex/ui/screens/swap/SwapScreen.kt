@@ -466,9 +466,23 @@ private fun SwapConfirmScreen(
                     if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else Text("Confirmer le swap", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
-                Spacer(Modifier.height(10.dp))
-                Text("Le taux sera valable pendant 00:29", fontSize = 12.sp, color = swapTextDim,
-                    modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                /*
+                LE FAUX COMPTE À REBOURS EST RETIRÉ.
+
+                « Le taux sera valable pendant 00:29 » était une chaîne écrite
+                EN DUR. Aucun minuteur derrière, aucun état : elle affichait
+                29 secondes en permanence, y compris — vu sur capture — juste
+                sous « Devis indisponible », donc en annonçant la validité d'un
+                taux qui n'existait pas.
+
+                Sur un écran où l'on engage des fonds, une phrase inventée sur
+                la durée d'un engagement n'est pas un détail d'habillage.
+
+                Rien ne la remplace : la note verte au-dessus dit déjà que le
+                montant reçu est estimé, ce qui est vrai et suffit. Un vrai
+                compte à rebours supposerait de connaître l'expiration du devis
+                — le fournisseur la donne, mais on ne la lit pas encore.
+                */
             }
         }
     ) { padding ->
