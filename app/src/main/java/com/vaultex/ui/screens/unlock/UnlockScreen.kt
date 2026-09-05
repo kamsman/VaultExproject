@@ -73,6 +73,7 @@ fun UnlockScreen(navController: NavHostController) {
         modifier = Modifier
             .fillMaxSize()
             .background(BgSecondary)
+            .systemBarsPadding()
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
