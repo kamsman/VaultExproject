@@ -437,10 +437,26 @@ private fun SwapConfirmScreen(
         },
         bottomBar = {
             Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp)) {
+                /*
+                CONFIRMER EXIGE UN DEVIS.
+
+                Le bouton n'était désactivé que pendant le chargement. Quand le
+                fournisseur refusait de coter — « Devis indisponible.
+                Unauthorized », constaté à l'écran — la page affichait
+                « Vous recevez — BNB » et laissait pourtant confirmer.
+
+                Or c'est le pire moment pour laisser passer un appui : on
+                engage des fonds vers une opération dont personne n'a dit ce
+                qu'elle rendrait. L'écran de saisie posait déjà cette condition
+                (toAmount non vide) ; celui de confirmation, qui est pourtant
+                le dernier rempart, ne la reprenait pas.
+                */
+                val devisValide = state.toAmount.isNotEmpty() &&
+                    (state.toAmount.toDoubleOrNull() ?: 0.0) > 0.0
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().height(54.dp),
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading && devisValide,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SwapPurple, contentColor = Color.White,
@@ -484,7 +500,7 @@ private fun SwapConfirmScreen(
             val rate = if (fromAmt > 0.0 && toAmt > 0.0)
                 tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt) else "—"
             val feeTxt = if (fromAmt > 0.0)
-                "${String.format(java.util.Locale.US, "%.4f", fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0).trimEnd('0').trimEnd('.')} ${swapBaseOf(state.fromToken)}" else "—"
+                "${montantLisible(fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0)} ${swapBaseOf(state.fromToken)}" else "—"
 
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
@@ -1164,3 +1180,24 @@ private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: 
 
 /** En dessous, la perte relève des frais ordinaires d'un échange. */
 private const val SEUIL_PERTE_VISIBLE = 10.0
+
+/**
+ * Petit montant de jeton, LISIBLE — jamais arrondi à zéro.
+ *
+ * Le format à quatre décimales affichait « Frais inclus : 0 ETH » sur un swap
+ * de 0,0007 ETH, dont les frais valent 0,0000105. Zéro était faux, et faux
+ * dans le sens qui arrange : annoncer qu'on ne prélève rien quand on prélève
+ * quelque chose.
+ *
+ * On garde donc assez de décimales pour que le premier chiffre significatif
+ * apparaisse, plafonné à douze — au-delà, on lit du bruit.
+ */
+private fun montantLisible(valeur: Double): String {
+    if (valeur <= 0.0) return "0"
+    val decimales = when {
+        valeur >= 1.0 -> 4
+        else -> (kotlin.math.floor(-kotlin.math.log10(valeur)).toInt() + 4).coerceIn(4, 12)
+    }
+    return String.format(java.util.Locale.US, "%.${decimales}f", valeur)
+        .trimEnd('0').trimEnd('.')
+}
