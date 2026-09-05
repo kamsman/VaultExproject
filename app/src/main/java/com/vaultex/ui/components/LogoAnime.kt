@@ -56,12 +56,16 @@ apparition en fondu.
 /*
 Durées de chaque temps, en millisecondes.
 
-Allongées depuis que le chargeur à points a disparu : l'animation était
-calibrée pour partager l'écran avec lui, elle porte maintenant le splash à
-elle seule. Un losange qui se pose en quatre dixièmes de seconde paraissait
-pressé — il a désormais le temps d'arriver.
+Allongées deux fois depuis que le chargeur à points a disparu : l'animation
+était calibrée pour partager l'écran avec lui, elle porte maintenant le splash
+à elle seule.
+
+Le losange est le temps le plus long des trois, et volontairement. C'est lui
+que l'on regarde : l'anneau qui suit ne fait que le cercler, l'étincelle ne
+fait que ponctuer. Une forme qui se pose doit avoir le temps de se poser,
+sinon elle passe pour un défaut d'affichage plutôt que pour un mouvement.
 */
-private const val MS_LOSANGE = 750
+private const val MS_LOSANGE = 1200
 private const val MS_ANNEAU = 650
 private const val MS_ETINCELLE = 300
 
