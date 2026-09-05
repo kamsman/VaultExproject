@@ -126,12 +126,48 @@ val versionCodeCalcule: Int = run {
 
 android {
     namespace = "com.vaultex"
-    compileSdk = 34
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ANDROID 16 (API 36) — EXIGÉ PAR GOOGLE PLAY
+    ═══════════════════════════════════════════════════════════════════════
+
+    Depuis le 31 août 2026, toute NOUVELLE application doit cibler API 36
+    pour être acceptée. Ce n'est pas un rejet après examen : c'est un refus
+    au téléversement du fichier. Avec targetSdk 34, VaultEx ne pouvait tout
+    simplement pas être envoyée.
+
+    compileSdk 36 dit « je compile avec les API d'Android 16 » ; targetSdk 36
+    dit « applique-moi les comportements d'Android 16 ». Les deux vont
+    ensemble : compiler contre 36 sans le cibler laisserait le système nous
+    traiter en application ancienne, ce que Play refuse.
+
+    minSdk reste à 26 (Android 8). Une grande part du parc visé en Afrique de
+    l'Ouest tourne encore sur Android 8 à 10 : le remonter exclurait des
+    utilisateurs réels pour ne rien gagner.
+
+    CE QUE CE CHANGEMENT ENTRAÎNE VRAIMENT — l'edge-to-edge.
+
+    À partir d'API 35, Android impose que le contenu passe SOUS la barre
+    d'état et la barre de navigation, et c'est à l'application de gérer ses
+    marges. Sur API 36, on ne peut plus s'y soustraire.
+
+    Vérifié écran par écran avant de basculer :
+      · 43 écrans utilisent Scaffold + TopAppBar — Material applique les
+        marges lui-même, rien à faire ;
+      · 1 écran a une barre de titre maison (Swap) — traité au commit 1ca6e0f ;
+      · 9 écrans n'ont pas de Scaffold (démarrage, code PIN, intégration) —
+        tous à contenu centré, que les barres système ne recouvrent pas.
+
+    La barre de navigation flottante et les feuilles modales portaient déjà
+    navigationBarsPadding().
+    */
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.vaultex"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = versionCodeCalcule
         versionName = "1.0.$versionCodeCalcule"
 
