@@ -436,7 +436,18 @@ private fun SwapConfirmScreen(
             }
         },
         bottomBar = {
-            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp)) {
+            /*
+            navigationBarsPadding() : le slot bottomBar ne reçoit AUCUNE marge
+            système, contrairement au contenu du Scaffold. Sans elle, « Confirmer
+            le swap » passe sous les boutons du téléphone depuis le passage à
+            Android 16 — et c'est le bouton qui engage les fonds.
+            */
+            Column(
+                Modifier
+                    .background(swapBg)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
                 /*
                 CONFIRMER EXIGE UN DEVIS.
 
@@ -604,7 +615,15 @@ private fun SwapTrackingScreen(
             }
         },
         bottomBar = {
-            Column(Modifier.background(swapBg).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Même raison qu'au-dessus : le bottomBar ne reçoit pas de marge
+            // système, il doit la poser lui-même.
+            Column(
+                Modifier
+                    .background(swapBg)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 // Bouton PRINCIPAL « Nouveau swap » (remplace « Partager le reçu ») :
                 // toujours actif — pendant le traitement, l'échange se termine tout
                 // seul en arrière-plan, l'utilisateur n'a pas à attendre.
