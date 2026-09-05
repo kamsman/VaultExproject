@@ -760,7 +760,6 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Vraie mini-courbe 7 j (données CoinGecko), sous-échantillonnée pour rester légère. */
 /**
  * Logo d'une monnaie du Marché, avec repli.
  *
@@ -795,15 +794,28 @@ private fun LogoMonnaie(url: String?, symbole: String, taille: androidx.compose.
     }
 }
 
+/*
+Couleurs de repli, en DUR et non prises dans le thème.
+
+AccentBlue n'est pas une couleur ordinaire : c'est
+`val AccentBlue: Color @Composable get() = LocalAppColors.current.accentBlue`,
+donc une lecture du thème courant. Une fonction ordinaire n'a pas le droit
+de la lire — le compilateur refuse, et c'est ce qui a cassé la compilation.
+
+Ces cinq teintes sont de toute façon celles des marques (l'orange Bitcoin,
+le violet Ethereum…) : elles ne dépendent ni du thème clair ni du sombre,
+et n'ont donc rien à faire dans la palette de l'application.
+*/
 private fun couleurMonnaie(symbole: String): Color = when (symbole) {
     "BTC" -> Color(0xFFF7931A)
     "ETH" -> Color(0xFF627EEA)
     "BNB" -> Color(0xFFF3BA2F)
     "SOL" -> Color(0xFF14F195)
     "TRX" -> Color(0xFFEF0027)
-    else -> AccentBlue
+    else -> Color(0xFF1A6FE8)
 }
 
+/** Vraie mini-courbe 7 j (données CoinGecko), sous-échantillonnée pour rester légère. */
 @Composable
 private fun Sparkline(prices: List<Double>, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
