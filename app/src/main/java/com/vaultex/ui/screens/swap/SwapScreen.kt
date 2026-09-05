@@ -266,7 +266,7 @@ private fun SwapFormScreen(
             par Material : c'est le seul de l'application à devoir le faire
             lui-même.
             */
-            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
                 // Titre seul : « Échangez vos cryptos » redisait ce que le mot
                 // « Swap » et l'écran entier disent déjà.
@@ -304,7 +304,7 @@ private fun SwapFormScreen(
                         Text(
                             messageBloquant,
                             fontSize = 13.sp, color = AccentRed,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
                 }
@@ -328,9 +328,28 @@ private fun SwapFormScreen(
             }
         }
     ) { padding ->
+        /*
+        ─── LE FORMULAIRE TIENT DANS CE QUI RESTE ───
+
+        Vu sur photo : la carte de détails coupée en deux, « Meilleur taux ·
+        ChangeNOW » tranché au milieu. Un écran ne se lit pas comme ça — une
+        carte à moitié visible passe pour un bug d'affichage, pas pour une
+        invitation à faire défiler.
+
+        Ce qui mange la hauteur ici, ce n'est pas le contenu, c'est le bas :
+        la barre de navigation flotte, donc le bouton « Continuer » doit
+        réserver sa hauteur ENTIÈRE au-dessus d'elle (BottomBarSpace), et le
+        message d'erreur vient s'ajouter par-dessus. Sur un téléphone courant
+        cela laisse environ 380 dp au formulaire, qui en demandait 495.
+
+        Une centaine de points ont donc été repris sur les marges et les
+        hauteurs plancher — pas sur le contenu, qui est intact. Le défilement
+        reste en filet de sécurité pour les petits écrans et les polices
+        agrandies.
+        */
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 2.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             // ─── Vous envoyez ───
@@ -349,11 +368,11 @@ private fun SwapFormScreen(
                 animationSpec = tween(durationMillis = 420),
                 label = "swapInvertSpin"
             )
-            Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
                 Surface(
                     onClick = { invertSpin += 180f; onInvert() },
                     shape = CircleShape, color = swapCardAlt,
-                    border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(44.dp)
+                    border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.SwapVert, "Inverser", tint = SwapPurple,
@@ -371,7 +390,7 @@ private fun SwapFormScreen(
                 fiat = toFiat, onFraction = null, highlight = false
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(6.dp))
 
             /*
             ─── Détails et fournisseur, EN UNE SEULE CARTE ───
@@ -396,14 +415,14 @@ private fun SwapFormScreen(
             ) {
                 Column {
                     Row(
-                        Modifier.fillMaxWidth().padding(14.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            Modifier.size(38.dp).clip(CircleShape).background(swapPurpleDim),
+                            Modifier.size(32.dp).clip(CircleShape).background(swapPurpleDim),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -421,7 +440,7 @@ private fun SwapFormScreen(
 
                     pertePourcent(state, fromAmt, toAmt)?.let { perte ->
                         Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Info, null, tint = if (perte >= 25) SwapRed else SwapOrange, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(10.dp))
                             Text("Valeur perdue", fontSize = 13.sp, color = swapTextDim)
@@ -435,7 +454,7 @@ private fun SwapFormScreen(
                     }
 
                     Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("Meilleur taux", fontSize = 13.sp, color = swapTextDim)
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
@@ -448,7 +467,7 @@ private fun SwapFormScreen(
             }
 
             // (L'erreur n'est plus ici : elle est épinglée au bouton « Continuer ».)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
@@ -944,8 +963,14 @@ private fun SwapCoinCard(
         Seule celle du haut porte les pastilles de part : sans plancher, elle
         dépasserait l'autre d'une trentaine de points, et deux cartes voisines
         de hauteurs différentes se lisent comme un défaut d'alignement.
+
+        Ramenée de 152 à 126 dp : c'est la hauteur naturelle de la carte du
+        haut une fois les marges resserrées, donc rien n'est comprimé — le
+        plancher se contente de suivre. Les deux cartes gagnent 52 dp à elles
+        deux, l'essentiel de ce qu'il fallait reprendre pour que la carte de
+        détails ne soit plus tranchée en bas d'écran.
         */
-        modifier = Modifier.fillMaxWidth().heightIn(min = 152.dp)
+        modifier = Modifier.fillMaxWidth().heightIn(min = 126.dp)
     ) {
         /*
         CARTE PLUS HAUTE, et le solde SUR SA PROPRE LIGNE.
@@ -960,10 +985,10 @@ private fun SwapCoinCard(
         gagnent aussi une cible de frappe plus confortable.
         */
         Column(
-            Modifier.fillMaxHeight().padding(18.dp),
+            Modifier.fillMaxHeight().padding(13.dp),
             // Centré : l'espace en trop de la carte du bas se répartit au lieu
             // de tomber d'un bloc sous le montant.
-            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
+            verticalArrangement = Arrangement.spacedBy(9.dp, Alignment.CenterVertically)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, fontSize = 12.sp, color = swapTextDim)
@@ -1000,9 +1025,9 @@ private fun SwapCoinCard(
                 var showPicker by remember { mutableStateOf(false) }
                 Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt,
                     modifier = Modifier.clickable { showPicker = true }) {
-                    Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
+                    Row(Modifier.padding(start = 5.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TokenLogo(token, 34)
+                        TokenLogo(token, 30)
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(swapBaseOf(token), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = swapText)
