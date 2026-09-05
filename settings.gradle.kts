@@ -7,39 +7,32 @@ pluginManagement {
 }
 
 /*
-─── VERSION DE R8 FORCÉE ──────────────────────────────────────────────────
-Le R8 embarqué par AGP 8.5.0 plante en `java.util.ConcurrentModificationException`
-pendant `minifyReleaseWithR8` : un bug interne du minifieur, pas une erreur du
-code — la compilation Kotlin passe entièrement, c'est l'étape suivante qui
-échoue. Aucun APK release ne pouvait être produit.
+─── VERSION DE R8 : PLUS DE SURCHARGE ─────────────────────────────────────
+Ce fichier forçait R8 8.7.18 par un bloc `buildscript`. C'était un
+contournement pour AGP 8.5.0, dont le R8 embarqué plantait en
+`java.util.ConcurrentModificationException` pendant `minifyReleaseWithR8` :
+un bug interne du minifieur, pas une erreur du code — la compilation Kotlin
+passait entièrement, c'est l'étape suivante qui échouait, et aucun APK
+release ne pouvait sortir.
 
-Ce qui a été essayé sans succès :
-  · exclure le déclarateur de service BlockHound (il a disparu de lui-même
-    avec web3j 4.8.8, qui ne tire plus Netty — le plantage persiste) ;
-  · `android.enableR8.fullMode=false` : le bug se produit aussi en mode compat.
+LA SURCHARGE EST DEVENUE LE PROBLÈME. Depuis la montée en AGP 8.13.2, la
+compilation échouait sur :
 
-La surcharge DOIT être dans CE fichier et non dans build.gradle.kts : AGP étant
-appliqué via le bloc `plugins`, il est chargé par le classloader du script de
-settings. Une entrée de classpath déclarée dans le projet racine reste sans
-effet — vérifié, la première tentative n'avait rien changé.
+    'R8Command$Builder.enableLegacyFullModeForKeepRules(boolean)'
 
-Et ce bloc doit venir APRÈS `pluginManagement`, qui doit être la toute première
-instruction du fichier. Gradle refuse l'ordre inverse :
-    Unexpected `buildscript` block found.
-    `buildscript` can not appear before `pluginManagement`.
+AGP 8.13 appelle cette méthode sur R8 ; R8 8.7.18, figé ici, ne la possède
+pas. Le contournement d'hier bloquait la version d'aujourd'hui.
 
-Voir https://developer.android.com/build/shrink-code#r8-version
+AGP 8.13 embarque un R8 bien postérieur à 8.7.18 : la raison même de
+l'épinglage a disparu. On laisse donc AGP choisir, comme prévu par défaut.
+
+`android.enableR8.fullMode=false` reste dans gradle.properties pour l'instant.
+C'était le second contournement du même bug ; il est probablement inutile lui
+aussi, mais on ne change qu'une chose à la fois — sinon un échec ne dirait pas
+laquelle des deux en est la cause. À retenter une fois cette compilation
+passée.
 ───────────────────────────────────────────────────────────────────────────
  */
-buildscript {
-    repositories {
-        maven { url = uri("https://storage.googleapis.com/r8-releases/raw") }
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools:r8:8.7.18")
-    }
-}
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
