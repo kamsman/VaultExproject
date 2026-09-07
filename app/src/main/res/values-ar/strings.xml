@@ -459,6 +459,10 @@
     <string name="settings_section_network">الشبكة</string>
     <string name="settings_section_app">التطبيق</string>
     <string name="settings_biometric">القياسات الحيوية</string>
+    <!-- لقطات الشاشة: محظورة افتراضيًا، قابلة للتبديل ضمن الأمان -->
+    <string name="settings_screenshots">لقطات الشاشة</string>
+    <string name="settings_screenshots_on">مسموح بها. يمكن حفظ رموز QR وعبارة الاسترداد في معرض الصور.</string>
+    <string name="settings_screenshots_off">محظورة، وكذلك تسجيل الشاشة ومشاركتها.</string>
     <string name="settings_tokens_item">الرموز</string>
     <string name="settings_rpc_item">إعدادات RPC</string>
     <string name="settings_about">حول التطبيق</string>
@@ -706,6 +710,7 @@
     <string name="send_err_insufficient_balance">رصيد غير كافٍ. المتاح: %1$s.</string>
     <string name="send_err_keep_fee">المبلغ مرتفع جداً: يجب الاحتفاظ بـ ~%1$s لرسوم الشبكة. اضغط MAX لإرسال أكبر مبلغ ممكن.</string>
     <string name="send_err_need_gas">تحتاج القليل من %1$s في عنوانك لدفع رسوم الشبكة.</string>
+    <string name="send_min_hint">الحد الأدنى %1$s</string>
     <string name="send_err_below_min">المبلغ صغير جداً. الحد الأدنى: %1$s.</string>
     <string name="send_err_dust">المبلغ صغير جداً للشبكة (غبار). قم بزيادته.</string>
     <string name="send_err_addr_rejected">عنوان الوجهة غير صالح أو مرفوض من الشبكة.</string>

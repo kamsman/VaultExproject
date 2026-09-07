@@ -465,6 +465,7 @@
     <string name="send_err_insufficient_balance">Solde insuffisant. Disponible : %1$s.</string>
     <string name="send_err_keep_fee">Montant trop élevé : il faut garder ~%1$s pour les frais de réseau. Appuie sur MAX pour envoyer le maximum possible.</string>
     <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
+    <string name="send_min_hint">Min. %1$s</string>
     <string name="send_err_below_min">Montant trop petit. Minimum : %1$s.</string>
     <string name="send_err_dust">Montant trop petit pour le réseau (poussière). Augmente le montant.</string>
     <string name="send_err_addr_rejected">Adresse de destination invalide ou rejetée par le réseau.</string>
@@ -537,6 +538,10 @@
     <string name="settings_section_network">Réseau</string>
     <string name="settings_section_app">App</string>
     <string name="settings_biometric">Biométrie</string>
+    <!-- Captures d'écran : interdites par défaut, réglables dans Sécurité -->
+    <string name="settings_screenshots">Captures d\'écran</string>
+    <string name="settings_screenshots_on">Autorisées. Vos QR et votre phrase de récupération pourront être enregistrés dans la galerie.</string>
+    <string name="settings_screenshots_off">Bloquées, ainsi que l\'enregistrement vidéo et le partage d\'écran.</string>
     <string name="settings_tokens_item">Tokens</string>
     <string name="settings_rpc_item">Paramètres RPC</string>
     <string name="settings_about">À propos</string>

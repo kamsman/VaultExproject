@@ -56,17 +56,24 @@ apparition en fondu.
 /*
 Durées de chaque temps, en millisecondes.
 
-Allongées deux fois depuis que le chargeur à points a disparu : l'animation
-était calibrée pour partager l'écran avec lui, elle porte maintenant le splash
-à elle seule.
+Allongées une troisième fois : « le losange est toujours rapide ». Il passe
+de 1,2 s à 1,9 s, l'anneau de 0,65 à 0,85 s — l'ensemble tient maintenant en
+3,05 s au lieu de 2,15 s.
+
+C'est le maximum raisonnable. Au-delà, on ne regarde plus une animation, on
+attend son portefeuille : le splash n'est pas un écran que l'on vient voir.
+Et rien n'est perdu pendant ce temps — l'écran de code se prépare derrière.
 
 Le losange est le temps le plus long des trois, et volontairement. C'est lui
 que l'on regarde : l'anneau qui suit ne fait que le cercler, l'étincelle ne
 fait que ponctuer. Une forme qui se pose doit avoir le temps de se poser,
 sinon elle passe pour un défaut d'affichage plutôt que pour un mouvement.
+
+L'appelant n'a rien à changer : le splash attend LOGO_ANIME_DUREE_MS, qui
+est la somme de ces trois valeurs.
 */
-private const val MS_LOSANGE = 1200
-private const val MS_ANNEAU = 650
+private const val MS_LOSANGE = 1900
+private const val MS_ANNEAU = 850
 private const val MS_ETINCELLE = 300
 
 /** Total de l'animation, utile à l'appelant pour caler sa navigation. */

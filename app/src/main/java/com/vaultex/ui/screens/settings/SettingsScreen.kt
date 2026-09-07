@@ -300,6 +300,44 @@ fun SettingsScreen(navController: NavHostController) {
                     SettingsRow(Icons.Default.Backup, stringResource(R.string.backup)) {
                         navController.navigate(Routes.BACKUP)
                     }
+                    RowDivider()
+                    /*
+                    CAPTURES D'ÉCRAN — interdites par défaut, et c'est voulu.
+
+                    L'interrupteur est ici, dans Sécurité, et pas dans
+                    « Application » : ce n'est pas un confort d'affichage, c'est
+                    une décision sur ce qui peut sortir du téléphone. L'écran de
+                    réception montre un QR, celui de sauvegarde montre la phrase
+                    de récupération, et toute application autorisée à lire la
+                    galerie relira ensuite ces images.
+
+                    Le sous-titre dit ce que l'on échange, parce qu'un
+                    interrupteur seul ne le dit pas : « Autoriser » n'a aucun
+                    sens tant qu'on ignore ce qui était refusé.
+
+                    L'effet est IMMÉDIAT — ProtectionEcran repose le drapeau sur
+                    la fenêtre courante. Sans cela il aurait fallu redémarrer
+                    l'application, et l'option aurait eu l'air cassée.
+                    */
+                    val activite = LocalContext.current as? android.app.Activity
+                    SettingsToggleRow(
+                        // PhotoCamera plutôt que Screenshot : celui-ci est déjà
+                        // utilisé plus bas dans ce fichier, donc certain d'exister
+                        // dans le jeu d'icônes embarqué. L'autre ne l'est pas.
+                        icon = Icons.Default.PhotoCamera,
+                        title = stringResource(R.string.settings_screenshots),
+                        subtitle = stringResource(
+                            if (state.screenshotsAllowed) R.string.settings_screenshots_on
+                            else R.string.settings_screenshots_off
+                        ),
+                        checked = state.screenshotsAllowed,
+                        onCheckedChange = { autorise ->
+                            viewModel.setScreenshotsAllowed(autorise)
+                            activite?.let {
+                                com.vaultex.core.security.ProtectionEcran.appliquer(it, autorise)
+                            }
+                        }
+                    )
                 }
             }
 
@@ -688,7 +726,8 @@ private fun SettingsToggleRow(
     icon: ImageVector,
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
@@ -696,7 +735,13 @@ private fun SettingsToggleRow(
     ) {
         RowIcon(icon)
         Spacer(Modifier.width(12.dp))
-        Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextPrimary)
+            subtitle?.let {
+                Text(it, fontSize = 12.sp, color = TextSecondary, lineHeight = 15.sp)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,

@@ -316,9 +316,11 @@ fun SendScreen(navController: NavController) {
             val coinBadge = coinTitle.substringAfter("(", "").removeSuffix(")").ifBlank { null }
 
             // ── Carte monnaie + solde (touchez pour changer de monnaie) ──
+            // Fond retiré comme les autres cartes du formulaire : seul le
+            // contour délimite.
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = SurfaceColor,
+                color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                 onClick = {
                     // Revenir à l'écran de sélection de monnaie (réseau + liste).
@@ -374,7 +376,7 @@ fun SendScreen(navController: NavController) {
                 stringResource(R.string.send_recipient_label),
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
             )
-            SendCard {
+            SendCard(fond = false) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SendField(
                         value = state.toAddress,
@@ -387,8 +389,13 @@ fun SendScreen(navController: NavController) {
                             else           -> stringResource(R.string.send_address_placeholder_generic, state.selectedChain)
                         },
                         isError = state.toAddress.isNotEmpty() && !state.isAddressValid,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        fond = false
                     )
+                    // Trait vertical : sans fond ni contour propre, plus rien
+                    // ne séparait la zone de saisie du scanner. Le trait fait
+                    // ce travail avec une frontière au lieu de deux.
+                    Box(Modifier.height(26.dp).width(1.dp).background(BorderColor))
                     // Le pavé gris derrière le scanner disparaît : le champ et
                     // lui sont déjà dans la même carte, deux fonds emboîtés
                     // n'ajoutaient qu'une frontière de plus à lire.
@@ -481,24 +488,29 @@ fun SendScreen(navController: NavController) {
                 stringResource(R.string.amount),
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
             )
-            SendCard {
+            SendCard(fond = false) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SendField(
                         value = state.amount,
                         onValueChange = { viewModel.setAmount(it) },
                         placeholder = "0.00",
                         keyboardType = KeyboardType.Decimal,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        fond = false
                     )
+                    Box(Modifier.height(22.dp).width(1.dp).background(BorderColor))
                     // MAX prend la couleur d'action de l'application. En vert,
                     // il se lisait comme une confirmation — or il n'en est pas
                     // une : c'est un bouton, il doit inviter à être touché.
+                    //
+                    // Sa pastille bleue tombe avec les autres fonds : entre
+                    // deux traits, dans la couleur d'action, il se désigne
+                    // déjà comme touchable sans avoir besoin d'un aplat.
                     Text(
                         stringResource(R.string.max_label),
                         fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(AccentBlue.copy(alpha = 0.14f))
                             .clickable { viewModel.onMaxClicked() }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
@@ -516,9 +528,36 @@ fun SendScreen(navController: NavController) {
                         Text(coinShort, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextPrimary)
                     }
                 }
-                if (amountFiat != null) {
+                /*
+                LE MINIMUM SE LIT AVANT DE TAPER, PAS APRÈS S'ÊTRE FAIT REFUSER.
+
+                Le seuil existait déjà — il bloquait l'envoi — mais n'était
+                écrit nulle part. On ne l'apprenait qu'en saisissant un
+                montant, une adresse, puis en touchant « Continuer » pour se
+                voir opposer un refus. Trois gestes pour découvrir un chiffre
+                qui tient sur une ligne.
+
+                Sur la même ligne que la contre-valeur : ce sont deux repères
+                sur le montant, ils vont ensemble.
+                */
+                val minimum = remember(state.selectedChain) {
+                    viewModel.minimumLisible(state.selectedChain)
+                }
+                if (amountFiat != null || minimum != null) {
                     Spacer(Modifier.height(6.dp))
-                    Text("≈ $amountFiat", fontSize = 12.sp, color = TextSecondary)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            amountFiat?.let { "≈ $it" } ?: "",
+                            fontSize = 12.sp, color = TextSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        minimum?.let {
+                            Text(
+                                stringResource(R.string.send_min_hint, it),
+                                fontSize = 12.sp, color = TextMuted
+                            )
+                        }
+                    }
                 }
             }
 
@@ -694,11 +733,28 @@ internal fun SendTokenChip(label: String, selected: Boolean, onClick: () -> Unit
     }
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES FONDS DISPARAISSENT, LES CONTOURS RESTENT
+═══════════════════════════════════════════════════════════════════════════
+
+Demandé sur maquette : « j'ai simplement supprimé les fonds ».
+
+Il y avait trois épaisseurs empilées sur le même écran — le fond de la page,
+le fond de la carte, le fond du champ — et un contour autour de chacune des
+deux dernières. Cinq frontières à lire pour deux choses à renseigner. En
+retirant les remplissages, il ne reste qu'un trait par zone : le contour
+délimite, il n'a plus à concurrencer un aplat.
+
+[fond] reste à true par défaut : SendCard sert aussi à la confirmation, au
+récapitulatif et aux envois en attente, qui n'ont pas été remaniés. Seul le
+formulaire d'envoi passe false — on ne change que la fenêtre demandée.
+*/
 @Composable
-internal fun SendCard(content: @Composable ColumnScope.() -> Unit) {
+internal fun SendCard(fond: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = SurfaceColor,
+        color = if (fond) SurfaceColor else Color.Transparent,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -714,20 +770,33 @@ internal fun SendField(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     enabled: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    fond: Boolean = true
 ) {
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceLight)
+            .background(if (fond) SurfaceLight else Color.Transparent)
+            /*
+            Sans fond, le contour du champ ferait doublon avec celui de la
+            carte qui l'entoure : deux rectangles concentriques à 6 dp l'un
+            de l'autre. Il devient donc transparent — SAUF en erreur, où il
+            est le seul signal qui désigne LE champ fautif. Une bordure
+            rouge qui disparaîtrait avec le fond emporterait avec elle la
+            seule chose que l'utilisateur doit voir.
+            */
             .border(
                 1.dp,
-                if (isError) AccentRed else BorderColor,
+                when {
+                    isError -> AccentRed
+                    fond -> BorderColor
+                    else -> Color.Transparent
+                },
                 RoundedCornerShape(12.dp)
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = if (fond) 14.dp else 0.dp, vertical = 14.dp),
         singleLine = true,
         enabled = enabled,
         textStyle = TextStyle(fontSize = 14.sp, color = TextPrimary),
