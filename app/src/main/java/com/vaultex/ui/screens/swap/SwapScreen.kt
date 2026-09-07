@@ -371,7 +371,7 @@ private fun SwapFormScreen(
             Box(Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
                 Surface(
                     onClick = { invertSpin += 180f; onInvert() },
-                    shape = CircleShape, color = swapCardAlt,
+                    shape = CircleShape, color = Color.Transparent,
                     border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -393,76 +393,116 @@ private fun SwapFormScreen(
             Spacer(Modifier.height(6.dp))
 
             /*
-            ─── Détails et fournisseur, EN UNE SEULE CARTE ───
+            ═══════════════════════════════════════════════════════════════
+            LES FONDS DISPARAISSENT, LES CONTOURS RESTENT
+            ═══════════════════════════════════════════════════════════════
 
-            Quatre lignes étiquetées — Taux, Frais, Délai — puis une carte
-            séparée pour le fournisseur : beaucoup de place pour des données
-            que l'on consulte d'un coup d'œil et rarement en détail.
+            Demandé sur maquette, comme pour l'écran d'envoi : « j'ai
+            simplement supprimé les fonds ».
 
-            Le taux devient la ligne principale, en grand, parce que c'est la
-            seule que l'on vient réellement lire. Les frais et le délai
-            passent en légende sous lui : ils rassurent, ils ne se comparent
-            pas. Le fournisseur suit, séparé d'un simple trait.
+            Chaque carte, chaque pastille de part, chaque bouton rond portait
+            un aplat ET un contour. Deux façons de dire la même frontière : le
+            trait suffit, et l'écran respire au lieu d'empiler des rectangles
+            plus clairs sur un fond sombre.
 
-            La valeur perdue garde sa ligne à elle. Elle n'a pas sa place en
-            légende — c'est un avertissement, pas un détail de confort.
+            Le disque violet de l'icône reste, lui : ce n'est pas le fond
+            d'une zone, c'est la forme de l'icône.
+
+            ─── DEUX CARTES AU LIEU D'UNE ───
+
+            Les frais et le fournisseur partageaient une carte, séparés d'un
+            trait. Sans aplat, ce trait interne devenait la seule frontière
+            entre deux sujets sans rapport — le coût de l'échange d'un côté,
+            qui l'exécute de l'autre. Deux cartes disent la même chose avec la
+            même grammaire que le reste de l'écran, où une carte porte une
+            chose. C'est aussi ce que montre la maquette.
+
+            La valeur perdue garde sa carte à elle. C'est un avertissement,
+            pas un détail de confort, et il ne doit pas se lire comme une
+            ligne de plus dans un récapitulatif.
             */
+            val taux = tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt)
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = swapCard,
+                color = Color.Transparent,
                 border = BorderStroke(1.dp, swapBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(32.dp).clip(CircleShape).background(swapPurpleDim),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            Modifier.size(32.dp).clip(CircleShape).background(swapPurpleDim),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        /*
+                        Tant qu'aucun montant n'est saisi, il n'y a pas de
+                        taux — et la ligne affichait alors un « — » en gras,
+                        à la place réservée à la donnée principale. Un tiret
+                        mis en avant n'informe de rien : il occupe la place
+                        d'un chiffre qui n'existe pas encore.
+
+                        La ligne disparaît donc jusqu'à ce qu'il y ait
+                        quelque chose à lire, et « Frais inclus · 2 – 5 min »
+                        se centre seule. C'est ce que montre la maquette.
+                        */
+                        if (taux != null) {
                             Text(
-                                tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt),
+                                taux,
                                 fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText
                             )
-                            Text(
-                                "Frais inclus  ·  2 – 5 min",
-                                fontSize = 12.sp, color = swapTextDim
-                            )
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                        Text(
+                            "Frais inclus  ·  2 – 5 min",
+                            fontSize = 12.sp, color = swapTextDim
+                        )
                     }
+                    Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                }
+            }
 
-                    pertePourcent(state, fromAmt, toAmt)?.let { perte ->
-                        Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, null, tint = if (perte >= 25) SwapRed else SwapOrange, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(10.dp))
-                            Text("Valeur perdue", fontSize = 13.sp, color = swapTextDim)
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                "≈ $perte %",
-                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                                color = if (perte >= 25) SwapRed else SwapOrange
-                            )
-                        }
-                    }
-
-                    Divider(color = swapBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Meilleur taux", fontSize = 13.sp, color = swapTextDim)
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
+            pertePourcent(state, fromAmt, toAmt)?.let { perte ->
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, (if (perte >= 25) SwapRed else SwapOrange).copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = if (perte >= 25) SwapRed else SwapOrange, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Valeur perdue", fontSize = 13.sp, color = swapTextDim)
                         Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
+                        Text(
+                            "≈ $perte %",
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                            color = if (perte >= 25) SwapRed else SwapOrange
+                        )
                     }
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, swapBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Meilleur taux", fontSize = 13.sp, color = swapTextDim)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -602,8 +642,13 @@ private fun SwapConfirmScreen(
             vérifier. Ils passent donc derrière « Voir détails », pour que le
             bouton de confirmation reste atteignable sans faire défiler.
              */
-            val rate = if (fromAmt > 0.0 && toAmt > 0.0)
-                tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt) else "—"
+            // Le « — » reste ICI : c'est une ligne étiquetée « Taux : — », où
+            // le tiret dit « pas encore de valeur ». Sur le formulaire, la
+            // même chaîne était le titre en gras de la carte — ce n'est pas
+            // la même chose.
+            val rate = (if (fromAmt > 0.0 && toAmt > 0.0)
+                tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt)
+            else null) ?: "—"
             val feeTxt = if (fromAmt > 0.0)
                 "${montantLisible(fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0)} ${swapBaseOf(state.fromToken)}" else "—"
 
@@ -829,7 +874,9 @@ private fun SwapTrackingScreen(
 
 @Composable
 private fun BoxIconButton(icon: ImageVector, desc: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = modifier.size(40.dp)) {
+    // Sans fond : le contour seul dessine le bouton (voir le bloc « LES FONDS
+    // DISPARAISSENT » plus bas).
+    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = Color.Transparent, border = BorderStroke(1.dp, swapBorder), modifier = modifier.size(40.dp)) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, desc, tint = swapText, modifier = Modifier.size(20.dp)) }
     }
 }
@@ -923,7 +970,10 @@ private fun buildAnnotatedString(a: String, b: String, c: String): AnnotatedStri
 private fun PartSolde(libelle: String, fort: Boolean = false, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = SwapPurple.copy(alpha = if (fort) 0.28f else 0.12f),
+        // Aplat remplacé par un contour. MAX garde son avance par un trait
+        // plus franc et son texte en gras, plutôt que par un fond plus dense.
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, SwapPurple.copy(alpha = if (fort) 0.8f else 0.45f)),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Text(
@@ -955,7 +1005,9 @@ private fun SwapCoinCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = swapCard,
+        // Sans fond : le contour porte seul la carte. C'est lui qui distingue
+        // déjà « Vous envoyez » (violet, plus épais) de « Vous recevez ».
+        color = Color.Transparent,
         border = BorderStroke(if (highlight) 1.5.dp else 1.dp, if (highlight) SwapPurple else swapBorder),
         /*
         Hauteur minimale COMMUNE aux deux cartes.
@@ -1261,8 +1313,10 @@ private fun TokenPickerSheet(
  * ainsi qu'on la formule spontanément entre une monnaie chère et une monnaie
  * de faible valeur unitaire.
  */
-private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, versMontant: Double): String {
-    if (deMontant <= 0.0 || versMontant <= 0.0) return "—"
+private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, versMontant: Double): String? {
+    // null, et non « — » : l'appelant fait alors disparaître la ligne au lieu
+    // d'afficher un tiret en gras à la place de la donnée principale.
+    if (deMontant <= 0.0 || versMontant <= 0.0) return null
     val taux = versMontant / deMontant
     if (taux >= 0.0001) {
         val v = String.format(java.util.Locale.US, "%.8f", taux).trimEnd('0').trimEnd('.')
