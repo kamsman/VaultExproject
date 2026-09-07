@@ -228,39 +228,37 @@ fun ReceiveAddressScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Bandeau d'avertissement
+            /*
+            Même note que sur l'écran d'actif, donc même allure : discrète,
+            petite, à peine teintée. Elle portait ici une barre orange pleine
+            sur toute sa hauteur et un texte en pleine couleur — le costume
+            d'une alerte pour un rappel permanent. Deux écrans voisins qui
+            disent la même chose de deux façons différentes se lisent comme
+            deux messages distincts.
+            */
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(AccentOrange.copy(alpha = 0.12f))
-                    .height(IntrinsicSize.Min)
+                    .background(AccentOrange.copy(alpha = 0.06f))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    Modifier
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .background(AccentOrange)
+                Icon(
+                    Icons.Default.WarningAmber,
+                    contentDescription = null,
+                    tint = AccentOrange.copy(alpha = 0.7f),
+                    modifier = Modifier.size(13.dp)
                 )
-                Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.WarningAmber,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.receive_only_network, chainKey),
-                        fontSize = 12.sp,
-                        color = TextPrimary
-                    )
-                }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.receive_only_network, chainKey),
+                    fontSize = 11.sp,
+                    color = TextSecondary.copy(alpha = 0.8f),
+                    lineHeight = 14.sp
+                )
             }
         }
     }
