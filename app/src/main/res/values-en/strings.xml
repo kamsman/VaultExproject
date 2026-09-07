@@ -459,6 +459,10 @@
     <string name="settings_section_network">Network</string>
     <string name="settings_section_app">App</string>
     <string name="settings_biometric">Biometrics</string>
+    <!-- Screenshots: blocked by default, switchable under Security -->
+    <string name="settings_screenshots">Screenshots</string>
+    <string name="settings_screenshots_on">Allowed. Your QR codes and recovery phrase can be saved to the gallery.</string>
+    <string name="settings_screenshots_off">Blocked, along with screen recording and screen sharing.</string>
     <string name="settings_tokens_item">Tokens</string>
     <string name="settings_rpc_item">RPC settings</string>
     <string name="settings_about">About</string>
@@ -706,6 +710,7 @@
     <string name="send_err_insufficient_balance">Insufficient balance. Available: %1$s.</string>
     <string name="send_err_keep_fee">Amount too high: you need to keep ~%1$s for network fees. Tap MAX to send the largest possible amount.</string>
     <string name="send_err_need_gas">You need a little %1$s on your address to pay network fees.</string>
+    <string name="send_min_hint">Min. %1$s</string>
     <string name="send_err_below_min">Amount too small. Minimum: %1$s.</string>
     <string name="send_err_dust">Amount too small for the network (dust). Increase it.</string>
     <string name="send_err_addr_rejected">Destination address invalid or rejected by the network.</string>

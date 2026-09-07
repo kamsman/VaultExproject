@@ -494,10 +494,31 @@ class SendViewModel @Inject constructor(
     private fun plainAmount(v: Double): String =
         java.math.BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()
 
+    /**
+     * Minimum d'envoi pour [chain], ou null si la monnaie n'en a pas.
+     *
+     * Repli sur le symbole de base : « SHIB-ETH » et « SHIB-BNB » sont le
+     * même jeton sur deux réseaux et partagent donc le même plancher. Sans
+     * ce repli il aurait fallu écrire une ligne par réseau, et en oublier
+     * une revenait à ne plus avoir de minimum du tout — silencieusement.
+     */
+    private fun minimumPour(chain: String): Double? =
+        MINIMUM_AMOUNTS[chain] ?: MINIMUM_AMOUNTS[chain.substringBefore("-")]
+
+    /**
+     * Minimum affichable pour la monnaie courante, ex. « 0.0001 BNB ».
+     *
+     * Exposé à l'écran pour que le seuil se lise AVANT la saisie. Il était
+     * jusqu'ici connu du seul contrôle de pré-envoi : on ne l'apprenait
+     * qu'en se faisant refuser, après avoir tapé un montant et une adresse.
+     */
+    fun minimumLisible(chain: String): String? =
+        minimumPour(chain)?.let { "${plainAmount(it)} ${displaySymbol(chain)}" }
+
     private fun dustWarning(chain: String, amount: String): String? {
         val value = amount.replace(",", ".").toDoubleOrNull() ?: return null
-        val minimum = MINIMUM_AMOUNTS[chain] ?: return null
-        return if (value < minimum) "${plainAmount(minimum)} $chain" else null
+        val minimum = minimumPour(chain) ?: return null
+        return if (value < minimum) "${plainAmount(minimum)} ${displaySymbol(chain)}" else null
     }
 
     /** Lit le solde de [chain] dans l'instantané portefeuille (aucun appel réseau). */
@@ -581,12 +602,41 @@ class SendViewModel @Inject constructor(
             "TRX" to 1.1   // bande passante brûlée (~0.27) + activation éventuelle du destinataire (~1)
         )
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        MONTANTS MINIMUM D'ENVOI
+        ═══════════════════════════════════════════════════════════════════
+
+        Deux natures de minimum, qu'il vaut mieux ne pas confondre :
+
+        · BTC — 546 satoshis. C'est une VRAIE règle de protocole : en
+          dessous, les nœuds Bitcoin refusent de relayer la sortie, qu'ils
+          appellent « poussière ». La transaction ne partirait pas.
+
+        · Tous les autres — un plancher ÉCONOMIQUE. Rien n'interdit
+          techniquement d'envoyer 0,000000001 ETH ; simplement les frais de
+          réseau coûteraient cent fois la somme envoyée. Refuser l'envoi
+          protège l'utilisateur d'une perte sèche, pas d'un rejet.
+
+        SHIB manquait. C'est un jeton ERC-20/BEP-20 : aucune limite de
+        poussière, mais un transfert coûte l'équivalent de 1 à 3 $ de gaz.
+        Avec un SHIB autour de 0,00001 $, en envoyer moins de 100 000
+        (~1 $) revient à payer les frais pour rien. Le plancher est donc
+        économique, comme pour ETH — et il vaut ce que vaut le cours du
+        jour, ce qui est le défaut de tout seuil écrit en dur.
+
+        Les clés suivent selectedChain. Un jeton personnalisé porte son
+        symbole (« SHIB »), les variantes réseau leur suffixe
+        (« SHIB-ETH »), d'où le repli sur le symbole de base dans
+        minimumPour().
+        */
         private val MINIMUM_AMOUNTS = mapOf(
-            "BTC"      to 0.00000546,
+            "BTC"      to 0.00000546,   // règle de protocole : poussière
             "ETH"      to 0.0001,
             "BNB"      to 0.0001,
             "SOL"      to 0.000001,
             "TRX"      to 0.000001,
+            "SHIB"     to 100000.0,     // ~1 $ : sous ce seuil, le gaz coûte plus
             "USDT"     to 1.0,
             "USDT-ETH" to 1.0,
             "USDT-BNB" to 1.0
@@ -626,7 +676,7 @@ class SendViewModel @Inject constructor(
             if (nativeBal < fee) return locStr(R.string.send_err_need_gas, nativeSym)
         }
         // Montant sous le minimum réseau
-        val min = MINIMUM_AMOUNTS[s.selectedChain]
+        val min = minimumPour(s.selectedChain)
         if (min != null && amountNum < min)
             return locStr(R.string.send_err_below_min, "${plainAmount(min)} $sym")
         return null

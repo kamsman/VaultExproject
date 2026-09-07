@@ -82,6 +82,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var notificationHub: com.vaultex.core.session.NotificationHub
 
+    @Inject
+    lateinit var secureStorage: com.vaultex.core.security.SecureStorage
+
     /**
      * Rattrape une notification touchée par l'utilisateur pour l'inscrire
      * dans la cloche.
@@ -186,12 +189,24 @@ class MainActivity : FragmentActivity() {
 
         /*
         =========================
-        BLOCK SCREENSHOTS — actif en toutes circonstances (M-02)
+        CAPTURES D'ÉCRAN — interdites PAR DÉFAUT, désormais réglables (M-02)
         =========================
+        FLAG_SECURE était posé ici une fois pour toutes. Le défaut ne change
+        pas — l'écran de réception affiche un QR, celui de sauvegarde affiche
+        la phrase de récupération, et toute application capable de lire la
+        galerie peut ensuite relire ces images.
+
+        Mais le refus avait un coût que rien ne compensait : impossible
+        d'envoyer la preuve d'une transaction à un correspondant, ni une
+        capture d'un problème au support. Sur un marché où tout passe par
+        WhatsApp, c'est un usage quotidien. L'utilisateur peut donc lever
+        l'interdiction depuis les Réglages, en sachant ce qu'il échange.
+
+        Un seul endroit manipule le drapeau : ProtectionEcran.
          */
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
+        com.vaultex.core.security.ProtectionEcran.appliquer(
+            this,
+            secureStorage.areScreenshotsAllowed()
         )
 
         /*

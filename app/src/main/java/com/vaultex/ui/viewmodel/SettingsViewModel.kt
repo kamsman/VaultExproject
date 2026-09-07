@@ -14,7 +14,8 @@ data class SettingsState(
     val selectedCurrency: String = "XOF",
     val selectedLanguage: String = "fr",
     val walletName: String = "",
-    val hasPanicPin: Boolean = false
+    val hasPanicPin: Boolean = false,
+    val screenshotsAllowed: Boolean = false
 )
 
 @HiltViewModel
@@ -57,7 +58,8 @@ class SettingsViewModel @Inject constructor(
                 autoLockMinutes = secureStorage.getAutoLockMinutes(),
                 selectedCurrency = currencyController.currency.value,
                 walletName = walletNameController.name.value,
-                hasPanicPin = secureStorage.getPanicPinHash() != null
+                hasPanicPin = secureStorage.getPanicPinHash() != null,
+                screenshotsAllowed = secureStorage.areScreenshotsAllowed()
             )
         }
     }
@@ -70,6 +72,19 @@ class SettingsViewModel @Inject constructor(
     fun setBiometric(enabled: Boolean) {
         secureStorage.setBiometricEnabled(enabled)
         _state.update { it.copy(isBiometricEnabled = enabled) }
+    }
+
+    /**
+     * Autorise ou interdit les captures d'écran.
+     *
+     * Le ViewModel n'applique PAS le drapeau : il n'a pas d'Activity, et
+     * FLAG_SECURE est une propriété de fenêtre. L'écran de réglages, lui,
+     * en a une — il appelle ProtectionEcran juste après, pour que l'effet
+     * soit immédiat plutôt qu'au prochain démarrage.
+     */
+    fun setScreenshotsAllowed(allowed: Boolean) {
+        secureStorage.setScreenshotsAllowed(allowed)
+        _state.update { it.copy(screenshotsAllowed = allowed) }
     }
 
     fun setAutoLock(minutes: Int) {

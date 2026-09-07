@@ -196,6 +196,27 @@ class SecureStorage @Inject constructor(
 
     fun isBiometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
 
+    /**
+     * Captures d'écran et enregistrement vidéo.
+     *
+     * INTERDITES PAR DÉFAUT (false), et c'est le bon défaut : l'écran de
+     * réception affiche un QR, l'écran de sauvegarde affiche la phrase de
+     * récupération, et n'importe quelle application ayant l'autorisation de
+     * lire la galerie peut ensuite relire ces images. Le partage d'écran
+     * d'une réunion ou d'une assistance à distance suit la même règle.
+     *
+     * L'option existe parce que le refus a un coût réel : on ne peut pas
+     * envoyer la preuve d'une transaction à un correspondant, ni une capture
+     * d'un problème au support — ce que les utilisateurs font constamment
+     * par WhatsApp ici. C'est un arbitrage qui leur appartient, à condition
+     * qu'ils sachent ce qu'ils échangent.
+     */
+    fun setScreenshotsAllowed(allowed: Boolean) {
+        prefs.edit().putBoolean(KEY_SCREENSHOTS_ALLOWED, allowed).apply()
+    }
+
+    fun areScreenshotsAllowed(): Boolean = prefs.getBoolean(KEY_SCREENSHOTS_ALLOWED, false)
+
     fun setAutoLockMinutes(minutes: Int) {
         prefs.edit().putInt(KEY_AUTOLOCK_MIN, minutes).apply()
     }
@@ -443,6 +464,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PIN_HASH = "pin_hash"
         private const val KEY_PANIC_PIN_HASH = "panic_pin_hash"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_SCREENSHOTS_ALLOWED = "screenshots_allowed"
         private const val KEY_AUTOLOCK_MIN = "autolock_minutes"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_BALANCE_HIDDEN = "balance_hidden"
