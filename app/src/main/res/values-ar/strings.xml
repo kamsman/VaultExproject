@@ -460,6 +460,7 @@
     <string name="settings_section_app">التطبيق</string>
     <string name="settings_biometric">القياسات الحيوية</string>
     <!-- لقطات الشاشة: محظورة افتراضيًا، قابلة للتبديل ضمن الأمان -->
+    <string name="settings_screenshots_verify">أكِّد برمزك للسماح بلقطات الشاشة.</string>
     <string name="settings_screenshots">لقطات الشاشة</string>
     <string name="settings_screenshots_on">مسموح بها. يمكن حفظ رموز QR وعبارة الاسترداد في معرض الصور.</string>
     <string name="settings_screenshots_off">محظورة، وكذلك تسجيل الشاشة ومشاركتها.</string>

@@ -328,8 +328,15 @@ private fun StatusRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
  * Vérification de sécurité (maquette) : bouclier violet, 6 points, pavé
  * numérique en cercles, « ou » + empreinte, Annuler.
  */
+/*
+Rendu `internal` : l'écran de réglages s'en sert pour protéger l'activation
+des captures d'écran. Un second pavé numérique, un second compteur de
+tentatives et un second raccourci biométrique auraient été deux occasions
+de diverger — et la vérification du code est exactement le genre de chose
+qui ne doit exister qu'une fois.
+*/
 @Composable
-private fun SecurityVerifDialog(
+internal fun SecurityVerifDialog(
     subtitle: String,
     pin: String,
     error: String?,

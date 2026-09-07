@@ -460,6 +460,7 @@
     <string name="settings_section_app">App</string>
     <string name="settings_biometric">Biometrics</string>
     <!-- Screenshots: blocked by default, switchable under Security -->
+    <string name="settings_screenshots_verify">Confirm with your code to allow screenshots.</string>
     <string name="settings_screenshots">Screenshots</string>
     <string name="settings_screenshots_on">Allowed. Your QR codes and recovery phrase can be saved to the gallery.</string>
     <string name="settings_screenshots_off">Blocked, along with screen recording and screen sharing.</string>
