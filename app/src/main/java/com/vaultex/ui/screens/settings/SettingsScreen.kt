@@ -3,6 +3,7 @@ package com.vaultex.ui.screens.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -92,6 +93,61 @@ fun SettingsScreen(navController: NavHostController) {
         if (uri != null && com.vaultex.core.session.ProfilePhotoStore.save(context, uri)) photoVersion++
     }
     val currentLang = remember { com.vaultex.core.session.LocaleManager.getLanguage(context) }
+
+    /*
+    CODE DEMANDÉ AVANT D'AUTORISER LES CAPTURES D'ÉCRAN.
+
+    Le même dialogue que la Sauvegarde — pavé numérique, compteur de
+    tentatives, raccourci empreinte. Il a été rendu `internal` plutôt que
+    recopié : deux vérifications de code dans une application, ce sont deux
+    occasions de diverger sur celle qui compte.
+
+    Le drapeau n'est posé sur la fenêtre qu'APRÈS validation. Tant que le
+    dialogue est ouvert, rien n'a changé — l'interrupteur reste sur
+    « bloquées », et l'annuler laisse l'application exactement comme elle
+    était.
+    */
+    if (state.showPinDialog) {
+        val activiteBio = context as? androidx.fragment.app.FragmentActivity
+        val bio = remember(activiteBio) {
+            activiteBio?.let { com.vaultex.core.security.BiometricHelper(it) }
+        }
+        val bioDispo = remember(bio) {
+            bio?.checkAvailability() ==
+                com.vaultex.core.security.BiometricHelper.BiometricStatus.AVAILABLE
+        }
+        SecurityVerifDialog(
+            subtitle = stringResource(R.string.settings_screenshots_verify),
+            pin = state.pinInput,
+            error = state.pinError,
+            showFingerprint = bioDispo,
+            onDigit = { viewModel.setPinInput(state.pinInput + it) },
+            onBackspace = { if (state.pinInput.isNotEmpty()) viewModel.setPinInput(state.pinInput.dropLast(1)) },
+            onFingerprint = {
+                bio?.authenticateStrongOrCredential(
+                    title = activiteBio?.getString(R.string.settings_screenshots) ?: "",
+                    subtitle = "",
+                    // Le drapeau est posé par le LaunchedEffect ci-dessous,
+                    // qui suit l'état : un seul chemin, quel que soit le mode
+                    // de validation.
+                    onSuccess = viewModel::onAuthSuccess,
+                    onError = { _, _ -> }
+                )
+            },
+            onDismiss = viewModel::annulerDialogueCaptures
+        )
+    }
+
+    /*
+    Le drapeau suit l'état, quelle que soit la façon dont il a été validé —
+    code saisi ou empreinte. Le poser depuis un seul endroit évite d'avoir à
+    y penser à chaque nouveau chemin de validation.
+    */
+    LaunchedEffect(state.screenshotsAllowed) {
+        (context as? android.app.Activity)?.let {
+            com.vaultex.core.security.ProtectionEcran.appliquer(it, state.screenshotsAllowed)
+        }
+    }
 
     if (showThemeDialog) {
         ThemePickerDialog(
@@ -190,11 +246,33 @@ fun SettingsScreen(navController: NavHostController) {
                             launchSingleTop = true
                         }
                     }) {
-                        Icon(
-                            Icons.Default.Logout,
-                            contentDescription = stringResource(R.string.settings_lock_now),
-                            tint = AccentRed
-                        )
+                        /*
+                        Un cercle fin autour de l'icône.
+
+                        Une icône nue sur un fond sombre ne dit pas qu'elle se
+                        touche : rien ne la distingue d'un simple pictogramme
+                        d'illustration. Le contour lui donne une cible visible,
+                        comme les boutons ronds du Marché.
+
+                        Rouge très atténué (22 %) plutôt qu'un aplat : le trait
+                        suffit à dessiner le bouton, alors qu'un fond rouge
+                        plein aurait le poids d'une alerte — or verrouiller
+                        n'est pas un danger, c'est une précaution.
+                        */
+                        Box(
+                            Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, AccentRed.copy(alpha = 0.22f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Logout,
+                                contentDescription = stringResource(R.string.settings_lock_now),
+                                tint = AccentRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary)
@@ -319,7 +397,6 @@ fun SettingsScreen(navController: NavHostController) {
                     la fenêtre courante. Sans cela il aurait fallu redémarrer
                     l'application, et l'option aurait eu l'air cassée.
                     */
-                    val activite = LocalContext.current as? android.app.Activity
                     SettingsToggleRow(
                         // PhotoCamera plutôt que Screenshot : celui-ci est déjà
                         // utilisé plus bas dans ce fichier, donc certain d'exister
@@ -332,9 +409,14 @@ fun SettingsScreen(navController: NavHostController) {
                         ),
                         checked = state.screenshotsAllowed,
                         onCheckedChange = { autorise ->
-                            viewModel.setScreenshotsAllowed(autorise)
-                            activite?.let {
-                                com.vaultex.core.security.ProtectionEcran.appliquer(it, autorise)
+                            if (autorise) {
+                                // Autoriser affaiblit la protection → le code
+                                // d'abord. Rien n'est écrit tant qu'il n'est
+                                // pas validé.
+                                viewModel.demanderAutorisationCaptures()
+                            } else {
+                                // Rebloquer resserre : aucun code demandé.
+                                viewModel.appliquerCaptures(false)
                             }
                         }
                     )

@@ -539,6 +539,7 @@
     <string name="settings_section_app">App</string>
     <string name="settings_biometric">Biométrie</string>
     <!-- Captures d'écran : interdites par défaut, réglables dans Sécurité -->
+    <string name="settings_screenshots_verify">Confirmez avec votre code pour autoriser les captures d\'écran.</string>
     <string name="settings_screenshots">Captures d\'écran</string>
     <string name="settings_screenshots_on">Autorisées. Vos QR et votre phrase de récupération pourront être enregistrés dans la galerie.</string>
     <string name="settings_screenshots_off">Bloquées, ainsi que l\'enregistrement vidéo et le partage d\'écran.</string>
