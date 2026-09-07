@@ -176,14 +176,46 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
             // natifs (une adresse BTC ne reçoit que du BTC, pas d'ambiguïté).
             val isToken = symbol.startsWith("USDT") || symbol !in listOf("BTC", "ETH", "BNB", "SOL", "TRX")
             if (isToken) {
-                Spacer(Modifier.height(10.dp))
-                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF59E0B).copy(alpha = 0.12f), modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.height(8.dp))
+                /*
+                UNE NOTE, PAS UN PANNEAU.
+
+                Elle occupait un pavé orange pleine largeur, sur deux à trois
+                lignes, avec le poids d'une alerte — alors qu'elle s'affiche en
+                permanence, y compris quand tout va bien. Une mise en garde
+                affichée sans arrêt cesse d'être lue.
+
+                Le texte a donc été RACCOURCI, et pas seulement rapetissé :
+                « L'expéditeur DOIT envoyer sur le réseau X. Un envoi sur un
+                autre réseau peut être définitivement perdu. » ne tient sur une
+                ligne à aucune taille lisible. « X uniquement — un autre réseau
+                perd les fonds » dit la même chose en un souffle.
+
+                Pas de maxLines = 1 pour autant. Sur un petit écran ou avec une
+                police système agrandie, la phrase se replie au lieu d'être
+                coupée : tronquer un avertissement de perte de fonds à
+                « un autre réseau perd… » serait pire que deux lignes.
+                */
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.06f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Warning, null,
+                            tint = Color(0xFFF59E0B).copy(alpha = 0.7f),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
                         Text(
                             stringResource(R.string.receive_network_warning, netLong),
-                            fontSize = 12.sp, color = TextPrimary, lineHeight = 16.sp
+                            fontSize = 11.sp,
+                            color = TextSecondary.copy(alpha = 0.8f),
+                            lineHeight = 14.sp
                         )
                     }
                 }
