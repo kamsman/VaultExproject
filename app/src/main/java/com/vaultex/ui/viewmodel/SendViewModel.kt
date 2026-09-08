@@ -327,7 +327,12 @@ class SendViewModel @Inject constructor(
             val adresseTron =
                 if (chain == "TRX" || chain == "USDT") myAddressFor("TRX").takeIf { it.isNotBlank() }
                 else null
-            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron)
+            // L'adresse Bitcoin sert à LIRE LES PIÈCES du portefeuille : les
+            // frais dépendent du nombre d'entrées à réunir, pas de la somme.
+            val adresseBtc =
+                if (chain == "BTC") myAddressFor("BTC").takeIf { it.isNotBlank() }
+                else null
+            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron, adresseBtc)
             val formatted = frais?.let { "≈ " + formatFeeAmount(it.attendu) + " " + nativeUnit(chain) } ?: ""
             _state.update {
                 it.copy(

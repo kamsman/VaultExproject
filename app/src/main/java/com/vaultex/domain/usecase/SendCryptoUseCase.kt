@@ -887,7 +887,11 @@ class SendCryptoUseCase @Inject constructor(
     /** Gas réellement consommé par un transfert ERC-20/BEP-20 (sans marge). */
     private val GAS_REEL_JETON = 65_000L
 
-    suspend fun estimerFrais(chain: String, adresseTron: String? = null): FraisReseau? = try {
+    suspend fun estimerFrais(
+        chain: String,
+        adresseTron: String? = null,
+        adresseBtc: String? = null
+    ): FraisReseau? = try {
         // Token personnalisé : gas d'un transfert ERC-20/BEP-20, payé en
         // natif (ETH ou BNB).
         if (chain.startsWith("ERC20:")) {
@@ -899,15 +903,7 @@ class SendCryptoUseCase @Inject constructor(
             "USDT-ETH" -> fraisEip1559(ethRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
             "BNB"      -> fraisLegacy(bnbRpc, GAS_REEL_NATIF, GAS_LIMIT_NATIVE)
             "USDT-BNB" -> fraisLegacy(bnbRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
-            "BTC"      -> {
-                val fees = bitcoinApi.getFeeEstimates()
-                val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0
-                // Au-delà du plafond, l'envoi sera de toute façon refusé : mieux
-                // vaut n'afficher AUCUNE estimation qu'un chiffre aberrant que
-                // l'utilisateur pourrait valider sans le lire.
-                if (satPerByte > BTC_MAX_SAT_PER_VBYTE) null
-                else identiques(satPerByte * 150.0 / 1e8)   // ~150 vbytes, tx P2WPKH typique
-            }
+            "BTC"      -> fraisBtc(adresseBtc)
             "SOL"  -> identiques(0.000005)   // 5000 lamports (frais fixe Solana)
             // Tron : demandé à la chaîne. En cas d'échec — réseau coupé,
             // TronGrid indisponible — on retombe sur les anciennes constantes,
@@ -920,6 +916,86 @@ class SendCryptoUseCase @Inject constructor(
 
     /** Frais dont l'attendu et le plafond se confondent (montant fixe ou déjà estimé). */
     private fun identiques(v: Double) = FraisReseau(attendu = v, plafond = v)
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    BITCOIN : LA TAILLE DÉPEND DES ENTRÉES, PAS D'UNE MOYENNE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'affichage supposait 150 vbytes — la taille d'une transaction à UNE
+    entrée. C'est le seul des sept cas qui SOUS-estimait, et c'est le plus
+    gênant des deux sens : une estimation trop basse ne décourage pas, elle
+    laisse valider un envoi dont les frais réels seront bien plus élevés.
+
+    Une transaction Bitcoin ne coûte pas selon la somme envoyée mais selon
+    sa TAILLE, et sa taille selon le nombre de pièces qu'il faut réunir :
+    ~11 vbytes d'entête, ~68 par entrée, ~31 par sortie. Cinq entrées font
+    ~413 vbytes — près de trois fois l'hypothèse.
+
+    Cela vise exactement le public de VaultEx : quelqu'un qui reçoit de
+    petites sommes régulièrement accumule beaucoup de petites pièces, et
+    c'est lui que l'estimation trompait le plus.
+
+    LE CHEMIN D'ENVOI, LUI, CALCULE JUSTE depuis longtemps (voir sendBtc :
+    il simule la sélection du signataire, entrée par entrée). Seul
+    l'affichage était resté sur la moyenne. Comme pour Ethereum, ce n'était
+    pas une erreur de calcul mais deux calculs différents pour la même
+    chose.
+
+    ON REPREND DONC LA MÊME SIMULATION : mêmes constantes de taille, même
+    tri décroissant, même arrêt dès que la somme est couverte. Les deux
+    nombres ne peuvent plus diverger.
+
+    Le montant n'étant pas encore saisi quand l'écran s'ouvre, il faut bien
+    poser une hypothèse. `attendu` prend la moitié du solde — un envoi
+    courant ; `plafond` prend TOUTES les entrées et une sortie de plus (les
+    frais de service), c'est-à-dire le vrai maximum, et c'est lui qui sert
+    de réserve. Au moment de signer, le montant réel est connu et le calcul
+    se refait exactement.
+    */
+
+    /** vsize P2WPKH — identique aux constantes utilisées par sendBtc. */
+    private fun tailleVbytes(entrees: Int, sorties: Int): Double =
+        11.0 + 68.0 * entrees + 31.0 * sorties
+
+    private suspend fun fraisBtc(adresseBtc: String?): FraisReseau? {
+        val fees = bitcoinApi.getFeeEstimates()
+        val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0
+        // Au-delà du plafond, l'envoi sera de toute façon refusé : mieux vaut
+        // n'afficher AUCUNE estimation qu'un chiffre aberrant que l'utilisateur
+        // pourrait valider sans le lire.
+        if (satPerByte > BTC_MAX_SAT_PER_VBYTE) return null
+
+        val utxos = adresseBtc
+            ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { bitcoinApi.getUtxos(it) }.getOrNull() }
+            ?.filter { it.status.confirmed }
+            ?.sortedByDescending { it.value }
+
+        // Pas d'adresse ou pas de pièces lisibles : on garde l'hypothèse d'avant,
+        // une entrée. Jamais pire qu'aujourd'hui.
+        if (utxos.isNullOrEmpty()) {
+            return identiques(tailleVbytes(1, 2) * satPerByte / 1e8)
+        }
+
+        // Sélection gloutonne, la même que le signataire : on ajoute des entrées
+        // jusqu'à couvrir le montant ET les frais que ces entrées coûtent.
+        val cible = utxos.sumOf { it.value } / 2
+        var cumul = 0L
+        var entrees = 0
+        for (u in utxos) {
+            entrees++
+            cumul += u.value
+            val frais = (tailleVbytes(entrees, 2) * satPerByte).toLong()
+            if (cumul >= cible + frais) break
+        }
+
+        return FraisReseau(
+            attendu = tailleVbytes(entrees, 2) * satPerByte / 1e8,
+            // Tout dépenser : toutes les entrées, et la sortie de frais de service.
+            plafond = tailleVbytes(utxos.size, 3) * satPerByte / 1e8
+        )
+    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
