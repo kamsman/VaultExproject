@@ -15,6 +15,7 @@ import com.vaultex.data.remote.api.EvmRpcApi
 import com.vaultex.data.remote.api.SolanaRpcApi
 import com.vaultex.data.remote.api.TronApi
 import com.vaultex.data.remote.dto.JsonRpcRequest
+import com.vaultex.data.remote.dto.TronAddressBody
 import com.vaultex.data.remote.dto.TronBroadcastDto
 import com.vaultex.data.remote.dto.TronCreateTxBody
 import com.vaultex.data.remote.dto.TronTriggerSmartContractBody
@@ -886,7 +887,7 @@ class SendCryptoUseCase @Inject constructor(
     /** Gas réellement consommé par un transfert ERC-20/BEP-20 (sans marge). */
     private val GAS_REEL_JETON = 65_000L
 
-    suspend fun estimerFrais(chain: String): FraisReseau? = try {
+    suspend fun estimerFrais(chain: String, adresseTron: String? = null): FraisReseau? = try {
         // Token personnalisé : gas d'un transfert ERC-20/BEP-20, payé en
         // natif (ETH ou BNB).
         if (chain.startsWith("ERC20:")) {
@@ -908,14 +909,108 @@ class SendCryptoUseCase @Inject constructor(
                 else identiques(satPerByte * 150.0 / 1e8)   // ~150 vbytes, tx P2WPKH typique
             }
             "SOL"  -> identiques(0.000005)   // 5000 lamports (frais fixe Solana)
-            "TRX"  -> identiques(0.3)        // bande passante standard
-            "USDT" -> identiques(27.0)       // TRC20 : énergie (~27 TRX si non détenue)
+            // Tron : demandé à la chaîne. En cas d'échec — réseau coupé,
+            // TronGrid indisponible — on retombe sur les anciennes constantes,
+            // donc jamais pire qu'avant.
+            "TRX"  -> runCatching { fraisTron(false, adresseTron) }.getOrNull() ?: identiques(0.3)
+            "USDT" -> runCatching { fraisTron(true, adresseTron) }.getOrNull() ?: identiques(27.0)
             else   -> null
         }
     } catch (_: Exception) { null }
 
     /** Frais dont l'attendu et le plafond se confondent (montant fixe ou déjà estimé). */
     private fun identiques(v: Double) = FraisReseau(attendu = v, plafond = v)
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    TRON : ON DEMANDE, ON NE SUPPOSE PLUS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les frais Tron étaient deux constantes — 0,3 TRX pour un transfert natif,
+    27 TRX pour un USDT-TRC20. La seconde donnait « ≈ $9,13 » à l'écran,
+    quelle que soit la situation réelle du compte.
+
+    Or ce nombre dépend de TROIS choses qu'une constante ne peut pas
+    connaître :
+
+    · LE PRIX DE L'ÉNERGIE. Fixé par vote des super-représentants, il a
+      changé plusieurs fois. 27 TRX suppose ~65 000 d'énergie à 420 sun.
+      Si le réseau est passé à 210, l'application annonçait le DOUBLE du
+      prix réel — sans que rien ne permette de s'en apercevoir.
+
+    · CE QUE POSSÈDE L'UTILISATEUR. Qui a gelé des TRX dispose d'énergie et
+      ne paie RIEN. L'application lui réclamait 27 TRX. C'est le cas des
+      utilisateurs réguliers, précisément ceux qu'on ne veut pas décourager.
+
+    · QUI EST LE DESTINATAIRE. Un transfert USDT vers une adresse qui n'en
+      détient pas encore consomme environ le double d'énergie, parce qu'il
+      crée l'emplacement de stockage. Et un envoi de TRX vers un compte
+      inexistant coûte 1 TRX d'activation en plus.
+
+    LES DEUX VALEURS SE SÉPARENT ICI AUSSI, et c'est ce qui rend la chose
+    sûre : `attendu` prend le cas courant (destinataire déjà pourvu), qui
+    est ce que l'utilisateur paiera neuf fois sur dix ; `plafond` prend le
+    pire cas, et c'est lui qui sert à vérifier qu'il reste assez de TRX
+    pour couvrir l'opération. Afficher optimiste et provisionner pessimiste
+    n'est pas une contradiction : c'est exactement le partage des rôles.
+
+    Si TronGrid ne répond pas, l'appelant retombe sur les anciennes
+    constantes. Ce chemin ne peut donc rien dégrader.
+    */
+
+    /** Énergie d'un transfert TRC-20 vers une adresse qui détient déjà le jeton. */
+    private val ENERGIE_TRC20_HABITUELLE = 65_000L
+
+    /** Idem vers une adresse qui ne le détient pas : il faut créer son emplacement. */
+    private val ENERGIE_TRC20_NOUVEAU_DETENTEUR = 130_000L
+
+    /** Taille approximative d'un transfert TRX signé, en octets de bande passante. */
+    private val OCTETS_TRANSFERT_TRX = 268L
+
+    /** Replis si la chaîne ne répond pas sur ces paramètres. */
+    private val SUN_PAR_ENERGIE_DEFAUT = 420L
+    private val SUN_PAR_OCTET_DEFAUT = 1_000L
+    private val SUN_ACTIVATION_COMPTE_DEFAUT = 1_000_000L   // 1 TRX
+
+    private suspend fun fraisTron(estJeton: Boolean, adresseTron: String?): FraisReseau {
+        val params = tronApi.getChainParameters().chainParameter
+            .associate { it.key to it.value }
+        val prixEnergie = params["getEnergyFee"]?.takeIf { it > 0 } ?: SUN_PAR_ENERGIE_DEFAUT
+        val prixOctet = params["getTransactionFee"]?.takeIf { it > 0 } ?: SUN_PAR_OCTET_DEFAUT
+
+        // Sans adresse, on ne peut rien savoir des ressources : on suppose
+        // zéro, ce qui revient au comportement d'avant — jamais pire.
+        val res = adresseTron
+            ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { tronApi.getAccountResource(TronAddressBody(it)) }.getOrNull() }
+
+        val energieDispo = ((res?.energyLimit ?: 0L) - (res?.energyUsed ?: 0L)).coerceAtLeast(0L)
+        val octetsDispo = (
+            ((res?.freeNetLimit ?: 0L) - (res?.freeNetUsed ?: 0L)) +
+            ((res?.netLimit ?: 0L) - (res?.netUsed ?: 0L))
+        ).coerceAtLeast(0L)
+
+        return if (estJeton) {
+            FraisReseau(
+                attendu = coutEnergie(ENERGIE_TRC20_HABITUELLE, energieDispo, prixEnergie),
+                plafond = coutEnergie(ENERGIE_TRC20_NOUVEAU_DETENTEUR, energieDispo, prixEnergie)
+            )
+        } else {
+            // La bande passante gratuite (600/jour) suffit à un transfert
+            // simple : pour beaucoup d'utilisateurs, envoyer du TRX est
+            // réellement gratuit, et l'application annonçait 0,3.
+            val attendu =
+                if (octetsDispo >= OCTETS_TRANSFERT_TRX) 0.0
+                else OCTETS_TRANSFERT_TRX * prixOctet / 1e6
+            val activation =
+                (params["getCreateNewAccountFeeInSystemContract"] ?: SUN_ACTIVATION_COMPTE_DEFAUT) / 1e6
+            FraisReseau(attendu = attendu, plafond = attendu + activation)
+        }
+    }
+
+    /** Ce que coûte l'énergie manquante, en TRX. Zéro si le compte en a assez. */
+    private fun coutEnergie(besoin: Long, disponible: Long, prixSun: Long): Double =
+        (besoin - disponible).coerceAtLeast(0L) * prixSun / 1e6
 
     /**
      * Chaîne EIP-1559 (Ethereum) : le plafond provisionné n'est pas le prix payé.

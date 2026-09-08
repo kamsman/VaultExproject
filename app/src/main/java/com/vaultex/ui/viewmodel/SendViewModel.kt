@@ -315,7 +315,19 @@ class SendViewModel @Inject constructor(
      */
     private fun fetchFee(chain: String) {
         viewModelScope.launch {
-            val frais = sendCryptoUseCase.estimerFrais(chain)
+            /*
+            L'adresse Tron sert à lire l'ÉNERGIE et la BANDE PASSANTE déjà
+            détenues. Sans elle, le calcul repart de zéro ressource — soit
+            le comportement d'avant. Avec elle, un utilisateur qui a gelé
+            des TRX voit enfin « gratuit » au lieu de 27 TRX.
+
+            Seules les deux chaînes Tron la demandent : inutile de dériver
+            une adresse pour un envoi Bitcoin.
+            */
+            val adresseTron =
+                if (chain == "TRX" || chain == "USDT") myAddressFor("TRX").takeIf { it.isNotBlank() }
+                else null
+            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron)
             val formatted = frais?.let { "≈ " + formatFeeAmount(it.attendu) + " " + nativeUnit(chain) } ?: ""
             _state.update {
                 it.copy(
