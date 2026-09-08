@@ -433,7 +433,7 @@
     <string name="send_confirm_and_send">Confirmer et envoyer</string>
     <string name="send_biometric_title">Confirmer la transaction</string>
     <string name="send_biometric_subtitle">Envoi de %1$s %2$s vers %3$s…</string>
-    <string name="send_dust_warning">Montant inférieur au minimum recommandé (%1$s). La transaction risque d\'être rejetée par le réseau.</string>
+    <string name="send_dust_warning">Sous le minimum (%1$s) — le réseau peut refuser</string>
     <string name="send_no_balance">Solde indisponible ou insuffisant pour cette monnaie.</string>
     <string name="send_in_progress">Envoi en cours…</string>
     <string name="asset_price_fmt">Prix : %1$s</string>
@@ -619,7 +619,7 @@
     <string name="add_token_detecting">Lecture du contrat…</string>
     <string name="add_token_paste_hint">Collez l\'adresse du contrat (0x…) puis touchez Détecter.</string>
     <string name="add_token_security_title">Conseil de sécurité</string>
-    <string name="add_token_security_body">Assurez-vous que l\'adresse du contrat est correcte et provient d\'une source fiable pour éviter les tokens frauduleux.</string>
+    <string name="add_token_security_body">Vérifiez le contrat — les faux jetons existent</string>
     <string name="add_token_keys_safe">Vos clés privées ne quittent jamais votre appareil.</string>
     <string name="add_token_not_found">Contrat introuvable ou réseau indisponible. Vérifiez l\'adresse et le réseau.</string>
     <string name="add_token_invalid_address">Adresse de contrat invalide (doit commencer par 0x et faire 42 caractères).</string>
@@ -785,9 +785,9 @@
     <string name="swap_search_crypto">Rechercher une crypto</string>
     <string name="swap_secure_title">Transactions sécurisées</string>
     <string name="swap_secure_desc">Vos fonds sont protégés par un chiffrement de niveau bancaire.</string>
-    <string name="coin_view_only">Consultation seulement — cette monnaie n\'est pas encore échangeable dans VaultEx.</string>
+    <string name="coin_view_only">Consultation seulement — pas encore échangeable</string>
     <string name="coin_checking_network">Vérification du réseau…</string>
-    <string name="coin_receive_only">Envoyable et recevable via %1$s. Pas encore échangeable au swap dans VaultEx.</string>
+    <string name="coin_receive_only">Envoi et réception via %1$s — pas de swap</string>
     <string name="wallet_mgr_none_title">Aucun portefeuille</string>
     <string name="wallet_mgr_none_desc">Vous n\'avez pas encore de portefeuille. Créez-en un nouveau ou importez un portefeuille existant pour commencer.</string>
     <string name="wallet_keys_title">Vos clés, votre contrôle</string>

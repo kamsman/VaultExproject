@@ -376,7 +376,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             val netLabel = if (receivable?.chainTicker == "BNB") "BEP20 · BNB Chain" else "ERC20 · Ethereum"
                             Text(
                                 stringResource(R.string.coin_receive_only, netLabel),
-                                fontSize = 12.sp, color = TextSecondary,
+                                fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
                                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
@@ -384,7 +384,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         else -> {
                             Text(
                                 stringResource(R.string.coin_view_only),
-                                fontSize = 12.sp, color = TextSecondary,
+                                fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
                                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
