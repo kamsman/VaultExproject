@@ -80,14 +80,25 @@ class SendViewModel @Inject constructor(
 
     /** Notre propre adresse sur [chain] (BTC/ETH/BNB/SOL/TRX) — pour l'entrée
      *  locale « Récent » créée immédiatement après un envoi réussi. */
-    private suspend fun myAddressFor(chain: String): String = try {
-        val mnemonic = secureStorage.getMnemonic() ?: ""
-        val a = com.vaultex.core.crypto.WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
-        when (chain) {
-            "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb; "SOL" -> a.sol; "TRX" -> a.trx
-            else -> ""
+    private suspend fun myAddressFor(chain: String): String =
+        // HORS DU FIL PRINCIPAL. deriveAddresses part de la phrase de
+        // récupération et refait toute la dérivation BIP-39/44 : c'est du
+        // calcul lourd, volontairement lent par construction. Laissé sur le
+        // fil de l'interface — ce que fait viewModelScope.launch par défaut —
+        // il fige l'écran le temps du calcul. Personne ne l'avait vu tant que
+        // la fonction n'était appelée qu'APRÈS un envoi, écran de résultat
+        // déjà affiché ; l'estimation des frais l'appelle maintenant pendant
+        // que l'utilisateur regarde le formulaire.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            try {
+                val mnemonic = secureStorage.getMnemonic() ?: ""
+                val a = com.vaultex.core.crypto.WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
+                when (chain) {
+                    "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb; "SOL" -> a.sol; "TRX" -> a.trx
+                    else -> ""
+                }
+            } catch (_: Exception) { "" }
         }
-    } catch (_: Exception) { "" }
 
     // ─── Anti « address poisoning » ─────────────────────────────────────
     // Adresses de CONFIANCE (carnet + destinataires déjà utilisés). Une
@@ -290,7 +301,22 @@ class SendViewModel @Inject constructor(
                 error = null,
                 dustWarning = warning,
                 availableBalance = availableFor(chain),
-                estimatedFee = "",       // recalcul ci-dessous pour la nouvelle chaîne
+                /*
+                Les TROIS valeurs de frais sont remises à zéro, pas seulement
+                le texte.
+
+                Seul `estimatedFee` l'était. Les deux nombres survivaient donc
+                au changement de monnaie, et l'écran les réutilisait tels
+                quels : sur la capture, « Vous envoyez 6,5 SOL » alors que le
+                montant saisi était nul — c'étaient les 6,5 TRX de l'écran
+                précédent, relus comme des SOL.
+
+                Mieux vaut n'afficher aucun frais pendant la seconde de calcul
+                que le frais d'une autre monnaie.
+                */
+                estimatedFee = "",
+                feeNativeAmount = null,
+                feeAfficheAmount = null,
                 currency = cur,
                 priceSelected = priceFor(chain, cur),
                 priceNative = priceFor(nativeUnit(eff), cur),
@@ -313,8 +339,38 @@ class SendViewModel @Inject constructor(
      *   l'écran. C'est lui qui divise par trois le chiffre annoncé sur les
      *   transferts de jetons Ethereum.
      */
+    /**
+     * Requête de frais en cours. Une seule à la fois : la suivante annule la
+     * précédente.
+     */
+    private var jobFrais: kotlinx.coroutines.Job? = null
+
     private fun fetchFee(chain: String) {
-        viewModelScope.launch {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UNE RÉPONSE EN RETARD NE DOIT PAS ÉCRASER L'ÉCRAN COURANT
+        ═══════════════════════════════════════════════════════════════════
+
+        Vu sur capture : l'écran « Envoyer SOL » annonçait « ≈ 6.5 TRX ».
+
+        Chaque changement de monnaie lançait une coroutine sans annuler la
+        précédente, et la dernière ARRIVÉE gagnait — pas la dernière
+        demandée. Tant que toutes rendaient une constante, elles revenaient
+        dans l'ordre et le défaut ne se voyait pas.
+
+        Depuis que Tron interroge la chaîne, sa réponse demande une dérivation
+        de clé et deux appels réseau, quand celle de Solana est immédiate.
+        L'utilisateur qui passe d'USDT à SOL voyait donc arriver, une seconde
+        plus tard, les frais de l'écran qu'il venait de quitter — et
+        « Vous envoyez » additionnait le montant à ces frais étrangers.
+
+        Deux verrous plutôt qu'un : on annule la requête précédente, ET on
+        vérifie au retour que la monnaie n'a pas changé entre-temps. Le
+        premier suffit presque toujours ; le second couvre le cas où la
+        réponse était déjà en route au moment de l'annulation.
+        */
+        jobFrais?.cancel()
+        jobFrais = viewModelScope.launch {
             /*
             L'adresse Tron sert à lire l'ÉNERGIE et la BANDE PASSANTE déjà
             détenues. Sans elle, le calcul repart de zéro ressource — soit
@@ -333,6 +389,14 @@ class SendViewModel @Inject constructor(
                 if (chain == "BTC") myAddressFor("BTC").takeIf { it.isNotBlank() }
                 else null
             val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron, adresseBtc)
+
+            // La monnaie a changé pendant que la réponse arrivait : ces frais
+            // ne concernent plus l'écran affiché, on les jette.
+            val effCourant = _state.value.customToken
+                ?.let { "ERC20:${it.blockchain}:${it.contractAddress}:${it.decimals}" }
+                ?: _state.value.selectedChain
+            if (effCourant != chain) return@launch
+
             val formatted = frais?.let { "≈ " + formatFeeAmount(it.attendu) + " " + nativeUnit(chain) } ?: ""
             _state.update {
                 it.copy(
