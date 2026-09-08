@@ -85,6 +85,28 @@ interface TronApi {
 
     @POST("wallet/getnowblock")
     suspend fun getNowBlock(): com.google.gson.JsonObject
+
+    /**
+     * Paramètres de la chaîne — dont le PRIX DE L'ÉNERGIE.
+     *
+     * Tron le fait varier par vote des super-représentants ; il a changé
+     * plusieurs fois. Une constante écrite dans l'application ne peut pas
+     * le savoir : c'est pour cela que les frais USDT-TRC20 étaient figés à
+     * 27 TRX quoi qu'il arrive.
+     */
+    @POST("wallet/getchainparameters")
+    suspend fun getChainParameters(): com.vaultex.data.remote.dto.TronChainParametersDto
+
+    /**
+     * Ressources du compte : énergie et bande passante disponibles.
+     *
+     * C'est ce qui permet d'annoncer « gratuit » à qui a gelé des TRX, au
+     * lieu de lui réclamer 27 TRX qu'il ne paiera pas.
+     */
+    @POST("wallet/getaccountresource")
+    suspend fun getAccountResource(
+        @Body body: com.vaultex.data.remote.dto.TronAddressBody
+    ): com.vaultex.data.remote.dto.TronAccountResourceDto
 }
 
 

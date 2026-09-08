@@ -102,6 +102,35 @@ data class TronTriggerSmartContractDto(
 )
 data class TronTriggerResult(val result: Boolean, val message: String? = null)
 
+/** Paramètres de la chaîne Tron : prix de l'énergie, de la bande passante… */
+data class TronChainParametersDto(
+    val chainParameter: List<TronChainParameter> = emptyList()
+)
+data class TronChainParameter(val key: String = "", val value: Long = 0L)
+
+/** Corps commun aux appels TronGrid qui ne prennent qu'une adresse. */
+data class TronAddressBody(
+    val address: String,
+    val visible: Boolean = true   // true = adresse base58 (T…) plutôt qu'hexadécimale
+)
+
+/**
+ * Ressources d'un compte Tron.
+ *
+ * TronGrid renvoie ces clés en majuscules — « EnergyLimit », pas
+ * « energyLimit ». Sans les @SerializedName, Gson ne les reconnaîtrait pas
+ * et l'objet reviendrait à zéro : on croirait le compte sans énergie et on
+ * facturerait 27 TRX à quelqu'un qui ne doit rien.
+ */
+data class TronAccountResourceDto(
+    @SerializedName("EnergyLimit")  val energyLimit: Long = 0,
+    @SerializedName("EnergyUsed")   val energyUsed: Long = 0,
+    @SerializedName("freeNetLimit") val freeNetLimit: Long = 0,
+    @SerializedName("freeNetUsed")  val freeNetUsed: Long = 0,
+    @SerializedName("NetLimit")     val netLimit: Long = 0,
+    @SerializedName("NetUsed")      val netUsed: Long = 0
+)
+
 
 // ─── COINGECKO ─────────────────────────────────────────────────────
 data class CoinGeckoPriceDto(
