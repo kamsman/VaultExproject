@@ -471,12 +471,39 @@ fun SendScreen(navController: NavController) {
             un, il rendait invisibles les VRAIS — adresse invalide, adresse
             ressemblante — qui s'affichent au même endroit, en rouge.
             */
+            /*
+            UNE SEULE LIGNE — ET POUR CELA, UN TEXTE PLUS COURT.
+
+            « Vérifiez que l'adresse est correcte et sur le réseau ERC20 ·
+            Ethereum. » fait soixante-dix caractères : elle repassait à la
+            ligne sur tous les téléphones, quelle que soit la taille de
+            police. Rapetisser le texte n'y aurait rien changé — il fallait
+            en écrire moins.
+
+            « Vérifiez l'adresse — réseau ERC20 · Ethereum » dit la même
+            chose en quarante-quatre caractères. Ce qui a disparu (« que…
+            est correcte et sur le ») était de la grammaire, pas de
+            l'information.
+
+            Taille et couleur alignées sur les notes de l'écran de
+            réception : c'est le même genre de rappel permanent, il doit
+            avoir le même poids.
+
+            Pas de maxLines = 1 : sur un très petit écran ou avec une police
+            système agrandie, la phrase se replie plutôt que d'être coupée.
+            */
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(10.dp))
+                Icon(
+                    Icons.Default.VerifiedUser, null,
+                    tint = AccentBlue.copy(alpha = 0.7f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.send_address_network_note, netFull),
-                    fontSize = 12.sp, color = TextSecondary
+                    fontSize = 11.sp,
+                    color = TextSecondary.copy(alpha = 0.8f),
+                    lineHeight = 14.sp
                 )
                 // L'avertissement « le destinataire doit accepter le réseau… »
                 // a été retiré : le bandeau vert ci-dessus porte déjà la même

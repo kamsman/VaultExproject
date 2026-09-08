@@ -866,7 +866,7 @@
     <string name="send_available_balance">الرصيد المتاح</string>
     <string name="send_balance_short">الرصيد</string>
     <string name="send_choose_coin">اختر عملة</string>
-    <string name="send_address_network_note">تأكّد من أن العنوان صحيح وعلى شبكة %1$s.</string>
+    <string name="send_address_network_note">تحقّق من العنوان — شبكة %1$s</string>
     <string name="send_security_tip_title">نصيحة أمان</string>
     <string name="send_security_tip_body">تحقّق دائماً من العنوان والشبكة (%1$s). المعاملات غير قابلة للإلغاء.</string>
     <string name="send_summary_network">الشبكة</string>

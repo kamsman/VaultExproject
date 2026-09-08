@@ -866,7 +866,7 @@
     <string name="send_available_balance">Available balance</string>
     <string name="send_balance_short">Balance</string>
     <string name="send_choose_coin">Choose a coin</string>
-    <string name="send_address_network_note">Check that the address is correct and on the %1$s network.</string>
+    <string name="send_address_network_note">Check the address — %1$s network</string>
     <string name="send_security_tip_title">Security tip</string>
     <string name="send_security_tip_body">Always check the address and the network (%1$s). Transactions are irreversible.</string>
     <string name="send_summary_network">Network</string>
