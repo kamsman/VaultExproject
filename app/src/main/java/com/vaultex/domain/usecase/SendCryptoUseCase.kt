@@ -834,41 +834,116 @@ class SendCryptoUseCase @Inject constructor(
     // ─── Helpers ─────────────────────────────────────────────────────
 
     /**
-     * Frais réseau RÉELS estimés pour [chain], en unité native (ETH/BNB/BTC…).
-     * Interroge le gas/feerate réel du réseau (pas une valeur fixe). null si
-     * indisponible — l'envoi recalcule de toute façon ses propres frais en signant.
+     * Frais réseau pour [chain], en unité native — DEUX nombres, pas un.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * POURQUOI DEUX
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Un seul nombre servait à la fois à AFFICHER les frais et à en
+     * RÉSERVER de quoi les payer. Ces deux usages ne veulent pas la même
+     * valeur, et le conflit se réglait au détriment de l'utilisateur.
+     *
+     * · Pour RÉSERVER, il faut le pire cas. Sous-réserver, c'est une
+     *   transaction qui échoue faute de gas.
+     * · Pour AFFICHER, il faut le coût attendu. Sur-afficher, c'est
+     *   annoncer un prix que personne ne paiera.
+     *
+     * Le pire cas gagnait. Constaté sur capture : un transfert de jeton
+     * ERC-20 annonçait 0,00001567 ETH là où le réseau en prélèvera
+     * ~0,0000051 — TROIS FOIS le prix réel. Deux causes cumulées :
+     *
+     * 1. maxFeePerGas (= 2 × baseFee + pourboire) est le PLAFOND que l'on
+     *    autorise le réseau à prendre, pas ce qu'il prend. La différence
+     *    est rendue. C'est la règle EIP-1559 : on provisionne le plafond,
+     *    on paie (baseFee + pourboire).
+     * 2. Les limites de gas affichées portaient déjà leur marge de
+     *    signature — 25 200 au lieu de 21 000, 100 000 au lieu de ~65 000.
+     *
+     * [attendu] applique donc le prix réel à la consommation réelle, et
+     * [plafond] garde EXACTEMENT le calcul d'avant. Aucun envoi ne change
+     * de comportement : la réserve, le bouton MAX et le contrôle de solde
+     * continuent de travailler sur [plafond].
+     *
+     * Là où les frais sont fixes ou déjà estimés au plus juste — BTC, SOL,
+     * TRX, USDT-TRC20 — les deux valeurs sont identiques. Ces chaînes ont
+     * leurs propres défauts (constantes figées, taille de transaction
+     * supposée), qui se corrigent ailleurs.
+     *
+     * null si indisponible : l'envoi recalcule de toute façon ses propres
+     * frais au moment de signer.
      */
-    suspend fun estimateFeeNative(chain: String): Double? = try {
-        // Token personnalisé : gas d'un transfert ERC-20/BEP-20 (~65 000 gas),
-        // payé en natif (ETH ou BNB).
+    data class FraisReseau(
+        /** Ce que le réseau prélèvera au prix du moment. À AFFICHER. */
+        val attendu: Double,
+        /** Le maximum qu'il peut prélever. À RÉSERVER sur le solde. */
+        val plafond: Double
+    )
+
+    /** Gas réellement consommé par un transfert natif (sans marge). */
+    private val GAS_REEL_NATIF = 21_000L
+
+    /** Gas réellement consommé par un transfert ERC-20/BEP-20 (sans marge). */
+    private val GAS_REEL_JETON = 65_000L
+
+    suspend fun estimerFrais(chain: String): FraisReseau? = try {
+        // Token personnalisé : gas d'un transfert ERC-20/BEP-20, payé en
+        // natif (ETH ou BNB).
         if (chain.startsWith("ERC20:")) {
             val evm = chain.split(":").getOrNull(1)
-            if (evm == "BNB") {
-                fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_TOKEN / 1e18
-            } else {
-                val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_TOKEN / 1e18
-            }
+            if (evm == "BNB") fraisLegacy(bnbRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
+            else fraisEip1559(ethRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
         } else when (chain) {
-            "ETH"      -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_NATIVE / 1e18 }
-            "USDT-ETH" -> { val (_, maxFee) = fetchEip1559Fees(ethRpc); maxFee.toDouble() * GAS_LIMIT_TOKEN / 1e18 }
-            "BNB"      -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_NATIVE / 1e18
-            "USDT-BNB" -> fetchLegacyGasPrice(bnbRpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble() * GAS_LIMIT_TOKEN / 1e18
+            "ETH"      -> fraisEip1559(ethRpc, GAS_REEL_NATIF, GAS_LIMIT_NATIVE)
+            "USDT-ETH" -> fraisEip1559(ethRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
+            "BNB"      -> fraisLegacy(bnbRpc, GAS_REEL_NATIF, GAS_LIMIT_NATIVE)
+            "USDT-BNB" -> fraisLegacy(bnbRpc, GAS_REEL_JETON, GAS_LIMIT_TOKEN)
             "BTC"      -> {
                 val fees = bitcoinApi.getFeeEstimates()
                 val satPerByte = fees["6"] ?: fees["3"] ?: fees["1"] ?: 10.0
                 // Au-delà du plafond, l'envoi sera de toute façon refusé : mieux
                 // vaut n'afficher AUCUNE estimation qu'un chiffre aberrant que
-                // l'utilisateur pourrait valider sans le lire. (Pas de `return`
-                // ici : la fonction a un corps-expression.)
+                // l'utilisateur pourrait valider sans le lire.
                 if (satPerByte > BTC_MAX_SAT_PER_VBYTE) null
-                else satPerByte * 150.0 / 1e8   // ~150 vbytes pour une tx P2WPKH typique
+                else identiques(satPerByte * 150.0 / 1e8)   // ~150 vbytes, tx P2WPKH typique
             }
-            "SOL"  -> 0.000005   // 5000 lamports (frais fixe Solana)
-            "TRX"  -> 0.3        // bande passante standard
-            "USDT" -> 27.0       // TRC20 : énergie (~27 TRX si non détenue)
+            "SOL"  -> identiques(0.000005)   // 5000 lamports (frais fixe Solana)
+            "TRX"  -> identiques(0.3)        // bande passante standard
+            "USDT" -> identiques(27.0)       // TRC20 : énergie (~27 TRX si non détenue)
             else   -> null
         }
     } catch (_: Exception) { null }
+
+    /** Frais dont l'attendu et le plafond se confondent (montant fixe ou déjà estimé). */
+    private fun identiques(v: Double) = FraisReseau(attendu = v, plafond = v)
+
+    /**
+     * Chaîne EIP-1559 (Ethereum) : le plafond provisionné n'est pas le prix payé.
+     *
+     * fetchEip1559Fees rend (pourboire, maxFee) avec maxFee = 2 × base + pourboire.
+     * On en retrouve le prix effectif sans second appel réseau :
+     *     base + pourboire = (maxFee + pourboire) / 2
+     */
+    private suspend fun fraisEip1559(rpc: EvmRpcApi, gasReel: Long, gasPlafond: Long): FraisReseau {
+        val (pourboire, maxFee) = fetchEip1559Fees(rpc)
+        val prixEffectif = maxFee.add(pourboire).toDouble() / 2.0
+        return FraisReseau(
+            attendu = prixEffectif * gasReel / 1e18,
+            plafond = maxFee.toDouble() * gasPlafond / 1e18
+        )
+    }
+
+    /**
+     * Chaîne à gas legacy (BNB Chain) : eth_gasPrice EST le prix payé, il n'y a
+     * pas de plafond à défalquer. Seule la limite de gas diffère entre les deux.
+     */
+    private suspend fun fraisLegacy(rpc: EvmRpcApi, gasReel: Long, gasPlafond: Long): FraisReseau {
+        val prix = fetchLegacyGasPrice(rpc, 3_000_000_000L, BSC_MAX_GAS_GWEI).toDouble()
+        return FraisReseau(
+            attendu = prix * gasReel / 1e18,
+            plafond = prix * gasPlafond / 1e18
+        )
+    }
 
     /**
      * EIP-1559 fees: returns (maxPriorityFeePerGas, maxFeePerGas).

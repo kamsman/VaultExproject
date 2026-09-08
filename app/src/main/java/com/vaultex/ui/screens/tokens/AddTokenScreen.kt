@@ -149,7 +149,7 @@ fun AddTokenScreen(navController: NavHostController) {
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(R.string.add_token_security_title), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text(stringResource(R.string.add_token_security_body), color = TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                            Text(stringResource(R.string.add_token_security_body), color = TextSecondary.copy(alpha = 0.8f), fontSize = 11.sp, lineHeight = 14.sp)
                         }
                     }
                     HorizontalDivider(color = AccentBlue.copy(alpha = 0.2f))

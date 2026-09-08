@@ -45,7 +45,12 @@ data class SendState(
     val currency: String = "USD",
     val priceSelected: Double = 0.0,   // prix de la monnaie envoyée, dans `currency`
     val priceNative: Double = 0.0,     // prix de la monnaie des frais (gas), dans `currency`
-    val feeNativeAmount: Double? = null, // montant numérique des frais (unité native)
+    // PLAFOND des frais, unité native. Sert à RÉSERVER : bouton MAX, contrôle
+    // de solde avant envoi. Sous-réserver = transaction rejetée faute de gas.
+    val feeNativeAmount: Double? = null,
+    // Frais ATTENDUS, unité native. Sert à AFFICHER, et à rien d'autre.
+    // Sur-afficher = annoncer un prix que personne ne paiera.
+    val feeAfficheAmount: Double? = null,
     val serviceFeeAmount: Double = 0.0, // frais de service VaultEx (BTC), unité crypto
     // Adresse valide mais SOSIE d'une adresse connue (address poisoning probable).
     val poisonWarning: Boolean = false,
@@ -295,12 +300,30 @@ class SendViewModel @Inject constructor(
         fetchFee(eff)
     }
 
-    /** Frais réseau réel de la chaîne (gas live) — recalculé à chaque changement. */
+    /**
+     * Frais réseau de la chaîne (gas live) — recalculés à chaque changement.
+     *
+     * Deux valeurs distinctes, voir SendCryptoUseCase.FraisReseau :
+     *
+     * · [SendState.feeNativeAmount] garde le PLAFOND. C'est ce que lisaient
+     *   déjà la réserve du bouton MAX et le contrôle de solde avant l'envoi ;
+     *   ils continuent de lire exactement le même nombre qu'avant, donc aucun
+     *   envoi ne change de comportement.
+     * · [SendState.feeAfficheAmount] porte le coût ATTENDU, et ne sert qu'à
+     *   l'écran. C'est lui qui divise par trois le chiffre annoncé sur les
+     *   transferts de jetons Ethereum.
+     */
     private fun fetchFee(chain: String) {
         viewModelScope.launch {
-            val feeNative = sendCryptoUseCase.estimateFeeNative(chain)
-            val formatted = feeNative?.let { "≈ " + formatFeeAmount(it) + " " + nativeUnit(chain) } ?: ""
-            _state.update { it.copy(estimatedFee = formatted, feeNativeAmount = feeNative) }
+            val frais = sendCryptoUseCase.estimerFrais(chain)
+            val formatted = frais?.let { "≈ " + formatFeeAmount(it.attendu) + " " + nativeUnit(chain) } ?: ""
+            _state.update {
+                it.copy(
+                    estimatedFee = formatted,
+                    feeNativeAmount = frais?.plafond,
+                    feeAfficheAmount = frais?.attendu
+                )
+            }
         }
     }
 
@@ -787,7 +810,9 @@ class SendViewModel @Inject constructor(
                                 toAddress = s.toAddress,
                                 amount = s.amount,
                                 tokenSymbol = s.customToken?.symbol ?: displaySymbol(s.selectedChain),
-                                fee = formatFeeAmount(s.feeNativeAmount ?: 0.0),
+                                // Ligne d'historique : ce que l'utilisateur
+                                // paiera, pas le plafond provisionné.
+                                fee = formatFeeAmount(s.feeAfficheAmount ?: 0.0),
                                 status = "pending",
                                 timestamp = System.currentTimeMillis(),
                                 confirmations = 0,
