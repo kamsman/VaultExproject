@@ -148,7 +148,23 @@ fun SendScreen(navController: NavController) {
     val svcFeeFiat = if (svcFee > 0.0 && price > 0.0) fiat(svcFee * price) else null
     // Total déduit : montant + frais réseau (si natif, même actif) + frais de
     // service VaultEx (BTC). Pour un token, les frais réseau sont en natif.
-    val totalToken = (if (isNative) amountNum + feeNum else amountNum) + svcFee
+    /*
+    « Vous envoyez » vaut ZÉRO tant qu'aucun montant n'est saisi.
+
+    La ligne additionne le montant et les frais — juste, pour une monnaie
+    native : c'est bien ce qui quitte le portefeuille. Mais avec un montant
+    vide, elle n'affichait plus que les frais : « Vous envoyez 0,00000126 BNB »
+    alors que l'utilisateur n'avait rien tapé.
+
+    C'est visible sur toutes les captures depuis le début, et c'est ce qui a
+    rendu la course aux frais si spectaculaire : le montant nul laissait la
+    ligne montrer les frais d'une AUTRE monnaie — « Vous envoyez 6,5 SOL ».
+
+    On n'envoie rien tant qu'on n'a rien demandé à envoyer.
+    */
+    val totalToken =
+        if (amountNum <= 0.0) 0.0
+        else (if (isNative) amountNum + feeNum else amountNum) + svcFee
     val totalFiatValue = totalToken * price
     val totalFiat = if (price > 0.0) fiat(totalFiatValue) else null
 
