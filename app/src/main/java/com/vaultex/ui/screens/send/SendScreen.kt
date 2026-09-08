@@ -136,7 +136,8 @@ fun SendScreen(navController: NavController) {
     val price = state.priceSelected
     val amountNum = state.amount.replace(",", ".").toDoubleOrNull() ?: 0.0
     val availNum = state.availableBalance?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
-    val feeNum = state.feeNativeAmount ?: 0.0
+    // Contre-valeur des frais : c'est de l'affichage, donc l'ATTENDU.
+    val feeNum = state.feeAfficheAmount ?: 0.0
     val svcFee = state.serviceFeeAmount          // frais de service VaultEx (BTC), même actif
 
     fun fiat(v: Double): String? =
