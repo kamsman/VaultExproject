@@ -44,7 +44,23 @@ fun SplashScreen(navController: NavHostController) {
         // Dernier instant où « nouvel arrivant » et « mise à jour » se
         // distinguent : après l'intégration, les deux ont un portefeuille.
         com.vaultex.ui.components.marquerDemarrage(contexteApp, aUnPortefeuille)
-        val destination = if (aUnPortefeuille) Routes.PIN_UNLOCK else Routes.FIRST_LAUNCH
+        /*
+        Trois destinations, pas deux.
+
+        hasWallet() ne dit que « du chiffré est enregistré ». Quand le
+        Keystore de l'appareil a perdu la clé maîtresse, c'était encore vrai
+        — et l'application ouvrait l'écran de code sur un portefeuille
+        qu'elle ne savait plus lire : code accepté, puis soldes à zéro,
+        adresses vides, envois refusés. L'utilisateur y lisait des fonds
+        volatilisés.
+
+        La vérification coûte un déchiffrement, une fois au démarrage.
+        */
+        val destination = when {
+            aUnPortefeuille && viewModel.seedIllisible() -> Routes.SEED_ILLISIBLE
+            aUnPortefeuille -> Routes.PIN_UNLOCK
+            else -> Routes.FIRST_LAUNCH
+        }
         navController.navigate(destination) {
             popUpTo(Routes.SPLASH) { inclusive = true }
         }

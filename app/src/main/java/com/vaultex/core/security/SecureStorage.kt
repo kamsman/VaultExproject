@@ -165,6 +165,55 @@ class SecureStorage @Inject constructor(
     }
 
     /**
+     * Le seed du portefeuille actif est PRÉSENT mais ILLISIBLE.
+     *
+     * ═══════════════════════════════════════════════════════════════════════
+     * CE QUE VIVAIT L'UTILISATEUR, ET POURQUOI C'ÉTAIT LE PIRE CAS
+     * ═══════════════════════════════════════════════════════════════════════
+     *
+     * Remonté par le bot d'administration sur un appareil réel :
+     * « dechiffrement du magasin securise — IllegalBlockSizeException ».
+     *
+     * hasMnemonic() ne vérifie que la PRÉSENCE du texte chiffré, pas qu'il se
+     * déchiffre. L'application concluait donc « il y a un portefeuille »,
+     * affichait l'écran de code, acceptait le code — puis chaque opération
+     * ayant besoin du seed recevait null :
+     *
+     *   · aucune adresse dérivée → les écrans Recevoir restent vides
+     *   · aucun solde → tout à zéro
+     *   · tout envoi refusé par « Wallet non trouvé »
+     *
+     * Pour la personne qui tient le téléphone, c'est exactement l'image de
+     * fonds volatilisés. Elle ne l'est pas : les fonds sont sur la chaîne, et
+     * sa phrase de récupération les rouvre. Mais rien ne le lui disait, et le
+     * réflexe naturel — désinstaller, réinstaller, recréer un portefeuille —
+     * est précisément celui qui condamne l'accès quand la phrase n'a pas été
+     * notée.
+     *
+     * LES CAUSES. La clé maîtresse vit dans le Keystore Android, hors de
+     * l'application : mise à jour du système qui corrompt le magasin (fréquent
+     * sur les appareils d'entrée de gamme), retrait du verrouillage d'écran,
+     * défaut du keymaster du fabricant. On ne peut RIEN y faire depuis
+     * l'application, et surtout pas récupérer la donnée.
+     *
+     * Ce qu'on peut faire, c'est le SAVOIR et le DIRE. C'est tout l'objet de
+     * cette méthode.
+     *
+     * Elle ne signale rien au bot : dec() le fait déjà au premier échec réel,
+     * et un doublon à chaque démarrage noierait le diagnostic.
+     */
+    fun seedIllisible(): Boolean {
+        val id = ensureActiveWallet() ?: return false
+        val b64 = prefs.getString(mnKey(id), null) ?: return false
+        return try {
+            keystoreManager.decrypt(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP))
+            false
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    /**
      * Passphrase BIP39 optionnelle (« 13e mot ») du wallet ACTIF.
      */
     fun savePassphrase(passphrase: String) {

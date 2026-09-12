@@ -189,6 +189,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             BackupScreen(navController)
         }
 
+        composable(Routes.SEED_ILLISIBLE) {
+            com.vaultex.ui.screens.recovery.SeedIllisibleScreen(navController)
+        }
+
         composable(Routes.SEND) {
             SendScreen(navController)
         }

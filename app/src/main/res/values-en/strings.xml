@@ -960,4 +960,11 @@
     <string name="whats_new_2">Swap: the rate stays readable on very low-value coins</string>
     <string name="whats_new_3">Filter the market by blockchain: Ethereum, BNB, Solana, Tron</string>
     <string name="whats_new_4">Viewing a coin no longer adds it to your home screen</string>
+    <!-- Seed present but unreadable: the device Keystore lost the key -->
+    <string name="seed_unreadable_title">Your funds are safe.\nThis phone can no longer read your key.</string>
+    <string name="seed_unreadable_body">Nothing was lost on the blockchain. It is the encrypted copy of your key, on this device, that has become unreadable. Your recovery phrase restores access immediately.</string>
+    <string name="seed_unreadable_why_title">Why this happened</string>
+    <string name="seed_unreadable_why_body">Your key is held by Android\'s secure vault, outside VaultEx. A system update, a screen-lock change or a manufacturer fault can empty it. You did nothing wrong, and VaultEx cannot repair it remotely.</string>
+    <string name="seed_unreadable_restore">Restore with my recovery phrase</string>
+    <string name="seed_unreadable_no_phrase">Don\'t have your phrase to hand? Look for it before anything else. Creating a new wallet will not bring the old one back — it would be a different wallet, unconnected to your funds.</string>
 </resources>
