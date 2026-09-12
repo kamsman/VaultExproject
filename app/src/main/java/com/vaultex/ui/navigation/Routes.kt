@@ -14,6 +14,13 @@ object Routes {
 
     const val IMPORT_WALLET = "importWallet"
 
+    /**
+     * Seed présent sur l'appareil mais que le Keystore ne sait plus
+     * déchiffrer. Écran de dernier recours : il ne propose QUE la
+     * restauration par phrase.
+     */
+    const val SEED_ILLISIBLE = "seedIllisible"
+
     /*
     =========================
     PIN

@@ -956,4 +956,11 @@
     <string name="whats_new_2">Swap : le taux reste lisible sur les monnaies de très faible valeur</string>
     <string name="whats_new_3">Marché triable par blockchain : Ethereum, BNB, Solana, Tron</string>
     <string name="whats_new_4">Consulter une monnaie ne l\'ajoute plus à l\'accueil</string>
+    <!-- Seed present mais illisible : le Keystore de l'appareil a perdu la cle -->
+    <string name="seed_unreadable_title">Vos fonds sont intacts.\nCe téléphone ne peut plus lire votre clé.</string>
+    <string name="seed_unreadable_body">Rien n\'a été perdu sur la blockchain. C\'est la copie chiffrée de votre clé, sur cet appareil, qui est devenue illisible. Votre phrase de récupération vous rend l\'accès immédiatement.</string>
+    <string name="seed_unreadable_why_title">Pourquoi c\'est arrivé</string>
+    <string name="seed_unreadable_why_body">Votre clé est gardée par le coffre sécurisé d\'Android, en dehors de VaultEx. Une mise à jour du système, un changement de verrouillage d\'écran ou un défaut du fabricant peuvent le vider. Vous n\'avez rien fait de mal, et VaultEx ne peut pas le réparer à distance.</string>
+    <string name="seed_unreadable_restore">Restaurer avec ma phrase de récupération</string>
+    <string name="seed_unreadable_no_phrase">Vous n\'avez pas votre phrase sous la main ? Cherchez-la avant toute chose. Créer un nouveau portefeuille ne ramènera pas l\'ancien : ce serait un portefeuille différent, sans lien avec vos fonds.</string>
 </resources>
