@@ -272,9 +272,33 @@ object AdminBot {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, e ->
             try {
-                val where = e.stackTrace.firstOrNull { it.className.startsWith("com.vaultex") }
-                    ?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
-                    ?: e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                /*
+                TROIS NIVEAUX DE PILE, PAS UN.
+
+                Le rapport ne donnait que la PREMIÈRE ligne applicative :
+                « s.invoke:47 ». Sur une version release, les noms de classes
+                sont brouillés par R8 et `invoke` ne dit qu'une chose — c'est
+                une lambda. Il a fallu fouiller tout le code à la recherche
+                d'un accès indexé plausible pour retrouver le vrai coupable.
+
+                Trois niveaux suffisent presque toujours à trianguler : même
+                brouillés, l'appelant et son appelant situent la lambda dans
+                son écran. Le coût est de deux lignes de message.
+
+                Pour une lecture EXACTE, il faut de toute façon le fichier
+                mapping.txt produit par R8 à chaque build release — il est à
+                conserver pour chaque version distribuée, sans quoi aucune
+                pile ne sera jamais déchiffrable a posteriori.
+                */
+                val cadre = e.stackTrace
+                    .filter { it.className.startsWith("com.vaultex") }
+                    .take(3)
+                    .joinToString(" ← ") {
+                        "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
+                    }
+                val where = cadre.ifEmpty {
+                    e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                }
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
                     "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
                     "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +

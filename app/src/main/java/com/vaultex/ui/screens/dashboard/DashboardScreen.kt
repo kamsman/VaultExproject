@@ -366,7 +366,38 @@ fun DashboardScreen(navController: NavHostController) {
                     Crossfade(
                         targetState = bannerIndex.coerceIn(0, bannerSlots.lastIndex),
                         label = "dashboard_banner"
-                    ) { i -> bannerSlots[i]() }
+                    ) { i ->
+                        /*
+                        ═══════════════════════════════════════════════════
+                        getOrNull, PAS [i] — ET coerceIn NE SUFFIT PAS
+                        ═══════════════════════════════════════════════════
+
+                        Remonté par le bot : « IndexOutOfBoundsException :
+                        index: 2, size: 2 » sur le tableau de bord, deux
+                        minutes après la création d'un portefeuille.
+
+                        bannerSlots est reconstruit à CHAQUE recomposition, et
+                        sa taille varie : la bannière de dépôt disparaît dès
+                        qu'un fonds arrive ou qu'on la ferme, celle de
+                        sauvegarde apparaît quand il y a quelque chose à
+                        protéger. Passer de trois bandeaux à deux est un
+                        événement ordinaire.
+
+                        Le coerceIn ci-dessus ne protège que la valeur qui
+                        ARRIVE. Or Crossfade, par construction, continue de
+                        composer l'ANCIENNE pendant toute la transition : si
+                        la liste rétrécit à ce moment-là, cette lambda est
+                        rappelée avec un index devenu hors bornes. D'où
+                        « index: 2 » sur une liste de 2.
+
+                        getOrNull ferme le cas de façon définitive : pendant
+                        la fraction de seconde où l'ancien index n'existe
+                        plus, on n'affiche rien — ce que personne ne verra,
+                        puisque ce bandeau est justement en train de
+                        disparaître.
+                        */
+                        bannerSlots.getOrNull(i)?.invoke()
+                    }
                 }
             }
 
