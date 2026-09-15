@@ -271,12 +271,27 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         "$" + formatMarketUsd(c.currentPrice),
                         fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                     )
-                    // Contre-valeur dans la devise de l'utilisateur. Elle ne
-                    // s'affiche que si CoinGecko a coté — jamais de zéro
-                    // inventé à la place.
+                    /*
+                    Le prix dans la devise de l'utilisateur, ET SON LIBELLÉ.
+
+                    Sans libellé, deux montants en FCFA se retrouvaient sur le
+                    même écran sans rien pour les distinguer : le prix d'un
+                    bitcoin ici, la valeur du solde détenu dans la carte
+                    « Mon portefeuille » plus bas. Des ordres de grandeur sans
+                    rapport — 49 000 000 FCFA et 350 FCFA — que rien
+                    n'expliquait.
+
+                    « le BTC » lève l'ambiguïté en trois caractères, et la
+                    contre-valeur reste là où elle sert : personne n'a besoin
+                    de posséder du bitcoin pour vouloir savoir ce qu'il coûte
+                    en francs.
+                    */
                     if (devise != "USD") {
                         enDevise(1.0)?.let {
-                            Text("≈ $it", fontSize = 14.sp, color = TextSecondary)
+                            Text(
+                                "≈ $it " + stringResource(R.string.coin_per_unit, symbol),
+                                fontSize = 14.sp, color = TextSecondary
+                            )
                         }
                     }
 
@@ -371,7 +386,11 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             chartPoints.size < 2 ->
                                 Text(stringResource(R.string.coin_chart_unavailable), color = TextMuted, fontSize = 13.sp)
                             else ->
-                                PriceLineChart(points = chartPoints, modifier = Modifier.fillMaxSize())
+                                PriceLineChart(
+                                    points = chartPoints,
+                                    jours = daysForPeriod(selectedPeriod),
+                                    modifier = Modifier.fillMaxSize()
+                                )
                         }
                     }
                 }
@@ -603,50 +622,160 @@ private fun trimAmount(v: Double): String =
 
 
 /** Courbe de prix dessinée au Canvas (sans dépendance externe). */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE GRAPHIQUE PREND SES AXES
+═══════════════════════════════════════════════════════════════════════════
+
+La courbe était nue : une ligne dans un cadre, sans échelle ni dates. Jolie,
+et muette — on voyait que ça montait, sans savoir de combien ni depuis quand.
+Les graduations sont ce qui sépare une décoration d'une information.
+
+LES ÉTIQUETTES SONT DES Text, PAS DU DESSIN. Elles pourraient être tracées
+dans le Canvas avec un TextMeasurer ; posées autour en composables, elles
+suivent gratuitement la police du système, la langue et le thème — et le code
+tient sans mesure de texte à la main.
+
+CE QUE LA MAQUETTE AVAIT EN TROP : une bulle « 76 202 » sur le dernier point.
+C'est exactement le nombre déjà écrit en grand deux cartes plus haut. Le point
+et son trait suffisent à dire « ici, maintenant » ; le chiffre, on l'a déjà lu.
+*/
 @Composable
-private fun PriceLineChart(points: List<Float>, modifier: Modifier = Modifier) {
+private fun PriceLineChart(
+    points: List<Float>,
+    jours: Int,
+    modifier: Modifier = Modifier
+) {
     val rising = points.last() >= points.first()
     val lineColor = if (rising) AccentGreen else AccentRed
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val min = points.min()
-        val max = points.max()
-        val range = (max - min).takeIf { it > 0f } ?: 1f
-        val stepX = if (points.size > 1) size.width / (points.size - 1) else size.width
-        fun y(v: Float) = size.height - ((v - min) / range) * size.height
 
-        val linePath = androidx.compose.ui.graphics.Path()
-        val fillPath = androidx.compose.ui.graphics.Path()
-        points.forEachIndexed { i, v ->
-            val px = i * stepX
-            val py = y(v)
-            if (i == 0) {
-                linePath.moveTo(px, py)
-                fillPath.moveTo(px, size.height)
-                fillPath.lineTo(px, py)
-            } else {
-                linePath.lineTo(px, py)
-                fillPath.lineTo(px, py)
+    val min = points.min()
+    val max = points.max()
+
+    // Quatre intervalles, donc cinq niveaux : assez pour situer une valeur,
+    // pas assez pour quadriller l'écran.
+    val niveaux = 5
+    val paliers = remember(min, max) {
+        List(niveaux) { i -> max - (max - min) * i / (niveaux - 1f) }
+    }
+
+    val dates = remember(jours, points.size) { etiquettesDates(jours) }
+
+    Row(modifier) {
+        // ── Échelle des prix, à gauche ──
+        Column(
+            Modifier.fillMaxHeight().padding(end = 6.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.End
+        ) {
+            paliers.forEach { v ->
+                Text(compact(v.toDouble()), fontSize = 9.sp, color = TextMuted, maxLines = 1)
             }
         }
-        fillPath.lineTo((points.size - 1) * stepX, size.height)
-        fillPath.close()
 
-        drawPath(
-            path = fillPath,
-            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                listOf(lineColor.copy(alpha = 0.22f), lineColor.copy(alpha = 0f))
-            )
-        )
-        drawPath(
-            path = linePath,
-            color = lineColor,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 3f,
-                cap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        )
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            androidx.compose.foundation.Canvas(Modifier.weight(1f).fillMaxWidth()) {
+                val range = (max - min).takeIf { it > 0f } ?: 1f
+                val stepX = if (points.size > 1) size.width / (points.size - 1) else size.width
+                fun y(v: Float) = size.height - ((v - min) / range) * size.height
+
+                // Lignes de repère, en pointillé : présentes sans concurrencer
+                // la courbe.
+                val pointille = androidx.compose.ui.graphics.PathEffect
+                    .dashPathEffect(floatArrayOf(4.dp.toPx(), 6.dp.toPx()))
+                repeat(niveaux) { i ->
+                    val py = size.height * i / (niveaux - 1f)
+                    drawLine(
+                        color = BorderColor.copy(alpha = 0.5f),
+                        start = androidx.compose.ui.geometry.Offset(0f, py),
+                        end = androidx.compose.ui.geometry.Offset(size.width, py),
+                        strokeWidth = 1f,
+                        pathEffect = pointille
+                    )
+                }
+
+                val linePath = androidx.compose.ui.graphics.Path()
+                val fillPath = androidx.compose.ui.graphics.Path()
+                points.forEachIndexed { i, v ->
+                    val px = i * stepX
+                    val py = y(v)
+                    if (i == 0) {
+                        linePath.moveTo(px, py)
+                        fillPath.moveTo(px, size.height)
+                        fillPath.lineTo(px, py)
+                    } else {
+                        linePath.lineTo(px, py)
+                        fillPath.lineTo(px, py)
+                    }
+                }
+                fillPath.lineTo((points.size - 1) * stepX, size.height)
+                fillPath.close()
+
+                drawPath(
+                    path = fillPath,
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(lineColor.copy(alpha = 0.22f), lineColor.copy(alpha = 0f))
+                    )
+                )
+                drawPath(
+                    path = linePath,
+                    color = lineColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                )
+
+                // « Ici, maintenant » : un trait vertical et un point sur la
+                // dernière valeur. Sans chiffre — il est déjà en haut de
+                // l'écran, en grand.
+                val dernierX = (points.size - 1) * stepX
+                val dernierY = y(points.last())
+                drawLine(
+                    color = lineColor.copy(alpha = 0.45f),
+                    start = androidx.compose.ui.geometry.Offset(dernierX, dernierY),
+                    end = androidx.compose.ui.geometry.Offset(dernierX, size.height),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = pointille
+                )
+                drawCircle(
+                    color = lineColor,
+                    radius = 3.5.dp.toPx(),
+                    center = androidx.compose.ui.geometry.Offset(dernierX, dernierY)
+                )
+            }
+
+            // ── Dates, en dessous ──
+            Row(
+                Modifier.fillMaxWidth().height(18.dp).padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                dates.forEach {
+                    Text(it, fontSize = 9.sp, color = TextMuted, maxLines = 1)
+                }
+            }
+        }
     }
 }
+
+/**
+ * Quatre repères de temps répartis sur la période, du plus ancien au plus
+ * récent.
+ *
+ * CoinGecko rend des points régulièrement espacés sans horodatage : on les
+ * reconstitue depuis la durée demandée. Sous deux jours on affiche l'heure,
+ * au-delà la date — « 14:00 » ne veut rien dire sur un an, « 8 sept. » ne
+ * veut rien dire sur une journée.
+ */
+private fun etiquettesDates(jours: Int): List<String> {
+    val repères = 4
+    val maintenant = System.currentTimeMillis()
+    val motif = if (jours <= 2) "HH:mm" else if (jours <= 365) "d MMM" else "MMM yy"
+    val fmt = java.text.SimpleDateFormat(motif, com.vaultex.core.session.LocaleManager.appLocale())
+    val duree = jours * 86_400_000L
+    return List(repères) { i ->
+        val t = maintenant - duree + duree * i / (repères - 1L)
+        fmt.format(java.util.Date(t))
+    }
+}
+
 
 private fun tokenColor(symbol: String) = when (symbol) {
     "BTC" -> NetworkBtc

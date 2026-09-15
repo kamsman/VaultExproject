@@ -965,6 +965,7 @@
     <string name="seed_unreadable_no_phrase">Vous n\'avez pas votre phrase sous la main ? Cherchez-la avant toute chose. Créer un nouveau portefeuille ne ramènera pas l\'ancien : ce serait un portefeuille différent, sans lien avec vos fonds.</string>
     <!-- Fiche d'une monnaie : en-tête, portefeuille -->
     <string name="coin_live">En direct</string>
+    <string name="coin_per_unit">le %1$s</string>
     <string name="coin_my_wallet">Mon portefeuille</string>
     <string name="coin_value_in">Valeur (%1$s)</string>
 </resources>

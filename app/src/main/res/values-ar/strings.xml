@@ -969,6 +969,7 @@
     <string name="seed_unreadable_no_phrase">ليست عبارتك في متناولك؟ ابحث عنها قبل أي شيء آخر. إنشاء محفظة جديدة لن يعيد القديمة — ستكون محفظة مختلفة لا صلة لها بأموالك.</string>
     <!-- تفاصيل العملة: الترويسة، المحفظة -->
     <string name="coin_live">مباشر</string>
+    <string name="coin_per_unit">لكل %1$s</string>
     <string name="coin_my_wallet">محفظتي</string>
     <string name="coin_value_in">القيمة (%1$s)</string>
 </resources>
