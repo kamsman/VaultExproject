@@ -19,6 +19,7 @@ class MarketViewModel @Inject constructor(
     private val coinGeckoApi: com.vaultex.data.remote.api.CoinGeckoApi,
     private val tokenInfoService: com.vaultex.core.tx.TokenInfoService,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    private val currencyController: com.vaultex.core.session.CurrencyController,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -80,10 +81,35 @@ class MarketViewModel @Inject constructor(
      * re-télécharger toute la liste marché. Échec/réseau ⇒ coinError = true
      * (l'écran montre « réessayer » au lieu d'un spinner infini).
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE PRIX DANS LA DEVISE DE L'UTILISATEUR
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le Marché ne parlait que dollars. Partout ailleurs — Accueil, Envoyer,
+    Portefeuille — l'application respecte la devise choisie ; le Marché
+    l'ignorait, sur l'écran le plus consulté d'une application dont le
+    message est « le franc CFA, pas une application étrangère traduite ».
+
+    Un utilisateur qui lit « $0,00000528 » ne sait pas ce que ça vaut pour
+    lui. « 3,2 FCFA », il le sait.
+
+    CoinGecko sait coter en XOF : l'application le demande déjà ailleurs
+    (« vs_currencies=usd,eur,xof »). Un seul appel rend les trois devises,
+    et l'écran choisit celle du moment — pas de taux de change à maintenir,
+    pas de parité à recalculer.
+    */
+    val devise: StateFlow<String> = currencyController.currency
+
+    private val _prixDevise = MutableStateFlow<Double?>(null)
+    /** Prix de la monnaie ouverte, dans la devise de l'utilisateur. */
+    val prixDevise: StateFlow<Double?> = _prixDevise
+
     fun loadCoin(coinId: String) {
         viewModelScope.launch {
             _coinLoading.value = true
             _coinError.value = false
+            _prixDevise.value = null
             try {
                 val result = withContext(Dispatchers.IO) { repository.getMarket(coinId) }
                 _coin.value = result.firstOrNull()
@@ -92,6 +118,28 @@ class MarketViewModel @Inject constructor(
                 _coinError.value = true
             } finally {
                 _coinLoading.value = false
+            }
+            /*
+            Après le prix en dollars, jamais avant : la fiche doit s'afficher
+            même si cet appel échoue. Une contre-valeur manquante fait
+            disparaître une ligne ; une fiche vide fait fermer l'application.
+            */
+            if (currencyController.currency.value != "USD") {
+                _prixDevise.value = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val dto = coinGeckoApi.getPrices(
+                            ids = coinId,
+                            vsCurrencies = "usd,eur,xof",
+                            include24hChange = false,
+                            includeMarketCap = false
+                        )[coinId]
+                        when (currencyController.currency.value) {
+                            "XOF" -> dto?.xof
+                            "EUR" -> dto?.eur
+                            else -> dto?.usd
+                        }?.takeIf { it > 0.0 }
+                    }.getOrNull()
+                }
             }
         }
     }
