@@ -221,12 +221,36 @@ fun VaultExNavGraph(navController: NavHostController) {
             com.vaultex.ui.screens.notifications.NotificationCenterScreen(navController)
         }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UNE SEULE FICHE DE MONNAIE, QUELLE QUE SOIT LA PORTE D'ENTRÉE
+        ═══════════════════════════════════════════════════════════════════
+
+        Il y avait DEUX écrans de détail, et l'utilisateur voyait l'un ou
+        l'autre selon l'endroit où il avait touché : depuis le Marché la
+        fiche complète, depuis l'Accueil un écran plus ancien et plus
+        pauvre. Refondre l'un laissait l'autre en arrière — c'est
+        exactement ce qui vient d'arriver.
+
+        L'écart n'était pas un choix de conception, c'était deux chemins
+        qui avaient grandi séparément. Les routes diffèrent par leur clé :
+        le Marché connaît l'identifiant CoinGecko, l'Accueil le symbole.
+        CoinIds.BY_SYMBOL fait la traduction, et les deux mènent au même
+        écran.
+
+        LE REPLI COMPTE. Un jeton ajouté par adresse de contrat n'est pas
+        dans cette table : CoinDetailScreen ne saurait pas quoi charger. Il
+        garde donc l'ancienne fiche, qui travaille à partir du symbole et
+        des données du portefeuille.
+        */
         composable(
             route = Routes.TOKEN_DETAIL,
             arguments = listOf(navArgument("symbol") { type = NavType.StringType })
         ) { backStackEntry ->
             val symbol = backStackEntry.arguments?.getString("symbol") ?: "ETH"
-            TokenDetailScreen(navController, symbol)
+            val coinId = com.vaultex.core.market.CoinIds.BY_SYMBOL[symbol.uppercase()]
+            if (coinId != null) CoinDetailScreen(navController, coinId)
+            else TokenDetailScreen(navController, symbol)
         }
 
         composable(Routes.ADDRESS_BOOK) {

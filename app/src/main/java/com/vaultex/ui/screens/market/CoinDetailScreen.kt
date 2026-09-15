@@ -3,10 +3,8 @@ package com.vaultex.ui.screens.market
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -204,15 +202,38 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         fun enDevise(quantite: Double): String? =
             prixDevise?.let { com.vaultex.core.util.CurrencyFormat.format(quantite * it, devise) }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        SANS DÉFILEMENT : C'EST LE GRAPHIQUE QUI S'ADAPTE
+        ═══════════════════════════════════════════════════════════════════
+
+        Demandé : tout voir sans faire défiler. Or les trois cartes et les
+        quatre boutons demandent plus que la hauteur d'un téléphone si
+        chacun garde une taille fixe — et rogner partout aurait donné un
+        écran serré sur les grands appareils pour un résultat encore trop
+        long sur les petits.
+
+        Une seule des quatre zones peut se contracter sans rien perdre :
+        LE GRAPHIQUE. Une courbe de 100 points se lit sur 90 dp comme sur
+        220 ; les chiffres, eux, ont une hauteur incompressible.
+
+        Le graphique prend donc `weight(1f)` : il absorbe exactement ce qui
+        reste. Grand sur un écran haut, court sur un petit, et le total
+        tombe juste dans les deux cas. Sur une monnaie qu'on ne détient
+        pas, la carte « Mon portefeuille » disparaît et le graphique
+        récupère sa place — sans qu'on ait à le prévoir.
+
+        Le verticalScroll a disparu : il n'aurait servi à rien, et il est
+        incompatible avec weight — un enfant pondéré dans une colonne
+        défilante reçoit une hauteur infinie et s'étire sans fin.
+        */
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(Modifier.height(4.dp))
 
             /* ─────────── CARTE 1 — identité, prix, trois chiffres ─────────── */
             Surface(
@@ -221,7 +242,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val logoUrl = c.image
                         if (!logoUrl.isNullOrEmpty()) {
@@ -265,11 +286,11 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Text(
                         "$" + formatMarketUsd(c.currentPrice),
-                        fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                        fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                     )
                     /*
                     Le prix dans la devise de l'utilisateur, ET SON LIBELLÉ.
@@ -309,9 +330,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         )
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = BorderColor)
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     /*
                     Trois chiffres, en notation courte.
@@ -331,20 +352,31 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
             }
 
-            /* ─────────── CARTE 2 — le graphique ─────────── */
+            /* ─────────── CARTE 2 — le graphique, élastique ─────────── */
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
+                /*
+                weight(1f) SEUL, sans hauteur minimale.
+
+                Un heightIn(min = 150.dp) aurait paru prudent : en dessous, la
+                courbe se lit mal. Mais dans une colonne sans défilement, un
+                enfant qui refuse de se réduire pousse ses voisins hors de
+                l'écran — et les voisins d'ici, ce sont les quatre boutons.
+
+                Une courbe un peu écrasée reste une courbe. Un bouton
+                « Envoyer » hors écran n'est plus rien.
+                */
+                modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
-                Column(Modifier.padding(14.dp)) {
+                Column(Modifier.padding(12.dp)) {
                     Text(
                         titrePeriode(selectedPeriod),
-                        fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                     )
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     // Sélecteur de période, en pilules.
                     Row(
@@ -372,12 +404,12 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     val sparklineF = c.sparkline_in_7d?.price?.map { it.toFloat() } ?: emptyList()
                     val chartPoints = if (selectedPeriod == "7j" && sparklineF.size >= 2) sparklineF else chart
                     Box(
-                        Modifier.fillMaxWidth().height(160.dp),
+                        Modifier.fillMaxWidth().weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         when {
@@ -405,7 +437,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(14.dp)) {
                         Text(
                             stringResource(R.string.coin_my_wallet),
                             fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
@@ -421,9 +453,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             fontSize = 13.sp, color = TextSecondary
                         )
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(10.dp))
                         HorizontalDivider(color = BorderColor)
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(10.dp))
 
                         Row(Modifier.fillMaxWidth()) {
                             /*
@@ -480,8 +512,8 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             val transferable = supported != null || receiveOnlyKey != null
             val bufferKey = supported?.key ?: receiveOnlyKey
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionFiche(
                         Icons.Default.Send, stringResource(R.string.action_send),
                         plein = true, actif = transferable, modifier = Modifier.weight(1f)
@@ -502,7 +534,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         navController.navigate(Routes.RECEIVE)
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionFiche(
                         Icons.Default.SwapHoriz, stringResource(R.string.tab_swap),
                         plein = false, actif = supported != null, modifier = Modifier.weight(1f)
@@ -542,7 +574,6 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
         }
     }
 }
@@ -582,7 +613,7 @@ private fun ActionFiche(
         color = if (plein && actif) AccentBlue else Color.Transparent,
         border = if (plein && actif) null
             else androidx.compose.foundation.BorderStroke(1.dp, if (actif) AccentBlue.copy(alpha = 0.5f) else BorderColor),
-        modifier = modifier.height(52.dp)
+        modifier = modifier.height(48.dp)
     ) {
         Row(
             Modifier.fillMaxSize(),
