@@ -11,7 +11,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -48,8 +51,10 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
     val chart by viewModel.chart.collectAsState()
     val chartLoading by viewModel.chartLoading.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
-    val periods = listOf("24H", "7J", "1M", "3M", "1A")
-    var selectedPeriod by remember { mutableStateOf("7J") }
+    // Libellés de la maquette. « Tout » remplace « 3M » : entre un mois et un
+    // an, trois mois n'apportait rien qu'on ne lise déjà sur la courbe.
+    val periods = listOf("24h", "7j", "1M", "1A", "Tout")
+    var selectedPeriod by remember { mutableStateOf("7j") }
 
     LaunchedEffect(coinId, selectedPeriod, coin) {
         /*
@@ -60,7 +65,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         charger. On demande alors explicitement market_chart sur 7 jours.
          */
         val hasSparkline = (coin?.sparkline_in_7d?.price?.size ?: 0) >= 2
-        if (selectedPeriod != "7J" || !hasSparkline) {
+        if (selectedPeriod != "7j" || !hasSparkline) {
             viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
         }
     }
@@ -88,6 +93,33 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             if (isFav) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = stringResource(R.string.market_filter_favs),
                             tint = if (isFav) Color(0xFFF5B301) else TextSecondary
+                        )
+                    }
+                    /*
+                    L'alerte reste ici, contrairement à la maquette qui ne
+                    gardait que l'étoile et le rafraîchissement.
+
+                    « M'alerter sur CETTE monnaie » n'a de sens qu'ici : depuis
+                    la cloche générale du Marché, il faut ensuite la
+                    rechercher. Une action qui perd son contexte perd son
+                    intérêt, et celle-ci est l'une des rares raisons de revenir
+                    dans l'application sans y être poussé.
+                    */
+                    IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
+                        Icon(
+                            Icons.Default.NotificationsNone,
+                            contentDescription = stringResource(R.string.coin_alert),
+                            tint = TextSecondary
+                        )
+                    }
+                    IconButton(onClick = {
+                        viewModel.loadCoin(coinId)
+                        viewModel.loadChart(coinId, daysForPeriod(selectedPeriod))
+                    }) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.history_refresh),
+                            tint = AccentBlue
                         )
                     }
                 },
@@ -133,327 +165,442 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
         val symbol = c.symbol.uppercase()
 
         /*
-        ─── LA FICHE TIENT SUR UN ÉCRAN ───
+        ═══════════════════════════════════════════════════════════════════
+        TROIS CARTES ET QUATRE ACTIONS
+        ═══════════════════════════════════════════════════════════════════
 
-        Elle demandait un peu de défilement pour être lue en entier, alors
-        qu'on l'ouvre justement pour tout voir d'un coup : le prix, la
-        variation, le graphique, les six chiffres du bas.
+        Repris d'une maquette. La fiche était une colonne d'éléments posés
+        les uns sous les autres ; elle devient trois blocs qui répondent
+        chacun à une question : qu'est-ce que ça vaut, comment ça bouge, et
+        combien j'en ai.
 
-        Aucune information n'a été retirée. Ce sont les espaces, le logo et la
-        hauteur du graphique qui ont été resserrés — environ 120 dp gagnés, de
-        quoi ramener l'ensemble dans la hauteur d'un téléphone courant.
+        TROIS CHOSES DE LA MAQUETTE N'ONT PAS ÉTÉ REPRISES.
 
-        Le verticalScroll RESTE. Sur un petit écran, ou quand l'utilisateur a
-        agrandi la police du système, le contenu peut encore dépasser : sans
-        défilement, le bas serait alors coupé sans aucun moyen d'y accéder. Un
-        défilement qui ne sert jamais ne coûte rien ; son absence coûte les
-        chiffres du bas.
+        · « Prix d'achat moyen ». VaultEx ne peut pas le connaître : il lit
+          les soldes sur la chaîne, et les fonds arrivent d'ailleurs — on
+          reçoit du BTC, on ne l'achète pas ici. Ce chiffre aurait été
+          inventé, et c'est sur lui qu'on décide de vendre.
+
+        · L'adresse en clair. Le bouton « Recevoir » est juste en dessous et
+          c'est sa place. Ici, elle allongeait la page et exposait une
+          adresse sur l'écran qu'on montre le plus volontiers à quelqu'un.
+
+        · L'œil de masquage. Il aurait fallu le brancher sur la visibilité
+          des soldes ; un bouton décoratif qui ne fait rien est pire que pas
+          de bouton.
+
+        ET UN POURCENTAGE A ÉTÉ CLARIFIÉ. La maquette affichait « −3,28 %
+        (24h) » pour la monnaie et « +2,14 % » pour le portefeuille, sans
+        dire ce que mesurait le second. Deux nombres impossibles à
+        réconcilier côte à côte : la ligne du portefeuille porte maintenant
+        un gain EN MONNAIE, explicitement daté.
         */
+        val devise by viewModel.devise.collectAsState()
+        val prixDevise by viewModel.prixDevise.collectAsState()
+        val hausse = c.change24h >= 0
+        val couleurVar = if (hausse) AccentGreen else AccentRed
+
+        /** Valeur dans la devise de l'utilisateur, ou null si on ne l'a pas. */
+        fun enDevise(quantite: Double): String? =
+            prixDevise?.let { com.vaultex.core.util.CurrencyFormat.format(quantite * it, devise) }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
-            // Logo token (réel via CoinGecko) ou cercle coloré en repli + prix
-            val logoUrl = c.image
-            if (!logoUrl.isNullOrEmpty()) {
-                coil.compose.AsyncImage(
-                    model = logoUrl,
-                    contentDescription = symbol,
-                    modifier = Modifier.size(48.dp).clip(CircleShape)
-                )
-            } else {
-                Box(
-                    Modifier.size(48.dp).clip(CircleShape).background(tokenColor(symbol)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            // « SYMBOLE · Nom  #rang » (maquette)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("$symbol · ${c.name}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                if (c.rank > 0) {
-                    Surface(shape = RoundedCornerShape(6.dp), color = BgPrimary) {
-                        Text("#${c.rank}", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+            /* ─────────── CARTE 1 — identité, prix, trois chiffres ─────────── */
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Transparent,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val logoUrl = c.image
+                        if (!logoUrl.isNullOrEmpty()) {
+                            coil.compose.AsyncImage(
+                                model = logoUrl, contentDescription = symbol,
+                                modifier = Modifier.size(44.dp).clip(CircleShape)
+                            )
+                        } else {
+                            Box(
+                                Modifier.size(44.dp).clip(CircleShape).background(tokenColor(symbol)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(symbol.take(2), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(symbol, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextPrimary)
+                            Text(c.name, fontSize = 13.sp, color = TextSecondary)
+                        }
+                        // « En direct » : la donnée vient d'être relue. Le point
+                        // vert dit la fraîcheur mieux qu'un horodatage.
+                        if (!coinLoading) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color.Transparent,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentGreen.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(Modifier.size(7.dp).clip(CircleShape).background(AccentGreen))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(R.string.coin_live),
+                                        fontSize = 11.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(
+                        "$" + formatMarketUsd(c.currentPrice),
+                        fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    )
+                    // Contre-valeur dans la devise de l'utilisateur. Elle ne
+                    // s'affiche que si CoinGecko a coté — jamais de zéro
+                    // inventé à la place.
+                    if (devise != "USD") {
+                        enDevise(1.0)?.let {
+                            Text("≈ $it", fontSize = 14.sp, color = TextSecondary)
+                        }
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (hausse) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                            null, tint = couleurVar, modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "%+.2f %% (24h)".format(c.change24h),
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = couleurVar
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    HorizontalDivider(color = BorderColor)
+                    Spacer(Modifier.height(12.dp))
+
+                    /*
+                    Trois chiffres, en notation courte.
+
+                    La maquette écrivait « $ 1,530,207,504,529.00 » — treize
+                    chiffres et les centimes d'une capitalisation. Personne ne
+                    lit ça. compact() existait déjà dans ce fichier et rend
+                    « 1,53 T ».
+                    */
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        ChiffreCle(stringResource(R.string.market_cap), "$" + compact(c.marketCap), Modifier.weight(1f))
+                        Box(Modifier.height(34.dp).width(1.dp).background(BorderColor))
+                        ChiffreCle(stringResource(R.string.coin_volume_label), "$" + compact(c.volume24h), Modifier.weight(1f))
+                        Box(Modifier.height(34.dp).width(1.dp).background(BorderColor))
+                        ChiffreCle(stringResource(R.string.coin_supply), compact(c.circulatingSupply) + " " + symbol, Modifier.weight(1f))
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "$" + formatMarketUsd(c.currentPrice),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(Modifier.height(4.dp))
-            val positive = c.change24h >= 0
+
+            /* ─────────── CARTE 2 — le graphique ─────────── */
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (positive) AccentGreen.copy(alpha = 0.12f) else AccentRed.copy(alpha = 0.12f)
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Transparent,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    "%+.2f%%".format(c.change24h),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (positive) AccentGreen else AccentRed
-                )
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        titrePeriode(selectedPeriod),
+                        fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Sélecteur de période, en pilules.
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        periods.forEach { period ->
+                            val actif = period == selectedPeriod
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (actif) AccentBlue else Color.Transparent)
+                                    .clickable { selectedPeriod = period }
+                                    .padding(vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    period,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (actif) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (actif) Color.White else TextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    val sparklineF = c.sparkline_in_7d?.price?.map { it.toFloat() } ?: emptyList()
+                    val chartPoints = if (selectedPeriod == "7j" && sparklineF.size >= 2) sparklineF else chart
+                    Box(
+                        Modifier.fillMaxWidth().height(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when {
+                            chartLoading && chartPoints.isEmpty() ->
+                                CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(28.dp))
+                            chartPoints.size < 2 ->
+                                Text(stringResource(R.string.coin_chart_unavailable), color = TextMuted, fontSize = 13.sp)
+                            else ->
+                                PriceLineChart(points = chartPoints, modifier = Modifier.fillMaxSize())
+                        }
+                    }
+                }
             }
 
-            // ─── « Votre solde / Gain 24h » si l'utilisateur détient la monnaie ───
+            /* ─────────── CARTE 3 — mon portefeuille ─────────── */
             val holding = remember(symbol) { viewModel.holdingOf(symbol) }
             if (holding != null) {
-                Spacer(Modifier.height(10.dp))
-                Card(
+                Surface(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgPrimary),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    color = Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(Modifier.padding(vertical = 10.dp)) {
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.coin_your_balance), fontSize = 12.sp, color = TextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            Text(trimAmount(holding.amount) + " " + symbol, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
-                            Text("≈ $" + usdFmt.format(holding.valueUsd), fontSize = 12.sp, color = TextSecondary)
-                        }
-                        VerticalDivider(Modifier.height(52.dp), color = BorderColor)
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.coin_gain_24h), fontSize = 12.sp, color = TextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            val gainTok = holding.amount * c.change24h / 100.0
-                            val gainUsd = holding.valueUsd * c.change24h / 100.0
-                            val gCol = if (c.change24h >= 0) AccentGreen else AccentRed
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.coin_my_wallet),
+                            fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            trimAmount(holding.amount) + " " + symbol,
+                            fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "≈ $" + usdFmt.format(holding.valueUsd),
+                            fontSize = 13.sp, color = TextSecondary
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider(color = BorderColor)
+                        Spacer(Modifier.height(12.dp))
+
+                        Row(Modifier.fillMaxWidth()) {
                             /*
-                            « +0 BTC ≈ $0 (+0,02 %) » — vu sur capture.
+                            Un gain EN MONNAIE, et daté.
 
-                            Sur un solde de 0,000007 BTC, un gain de 0,02 %
-                            vaut 0,0000000014 BTC. Tronqué à huit décimales, il
-                            devient zéro ; à deux décimales, la contre-valeur
-                            aussi. Trois chiffres se contredisaient donc dans
-                            la même ligne : un pourcentage non nul à côté de
-                            deux zéros.
-
-                            « < 0,00000001 » dit la vérité — le gain existe,
-                            il est simplement plus petit que ce qu'on sait
-                            écrire. Un zéro affirme qu'il n'y en a pas.
+                            Le pourcentage de la monnaie est déjà en haut de
+                            l'écran : le répéter ici n'apprenait rien, et la
+                            maquette en affichait un second, différent, sans
+                            dire ce qu'il mesurait. Ce que la personne veut
+                            savoir, c'est combien ça fait pour ELLE.
                             */
-                            Text(
-                                (if (gainTok >= 0) "+" else "") + gainLisible(gainTok) + " " + symbol,
-                                fontWeight = FontWeight.Bold, fontSize = 17.sp, color = gCol
-                            )
-                            val gainAbs = kotlin.math.abs(gainUsd)
-                            val gainFiat = if (gainAbs > 0.0 && gainAbs < 0.01) "< $0.01"
-                                else "≈ $" + usdFmt.format(gainAbs)
-                            Text("$gainFiat (${"%+.2f".format(c.change24h)}%)", fontSize = 12.sp, color = gCol)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.coin_gain_24h), fontSize = 12.sp, color = TextSecondary)
+                                Spacer(Modifier.height(3.dp))
+                                val gainUsd = holding.valueUsd * c.change24h / 100.0
+                                val gainAbs = kotlin.math.abs(gainUsd)
+                                val signe = if (gainUsd >= 0) "+" else "−"
+                                Text(
+                                    if (gainAbs > 0.0 && gainAbs < 0.01) "$signe < $0.01"
+                                    else "$signe $" + usdFmt.format(gainAbs),
+                                    fontSize = 15.sp, fontWeight = FontWeight.Bold, color = couleurVar
+                                )
+                            }
+                            if (devise != "USD") {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.coin_value_in, devise),
+                                        fontSize = 12.sp, color = TextSecondary
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(
+                                        enDevise(holding.amount)?.let { "≈ $it" } ?: "—",
+                                        fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-
-            // Graphique : pour 7J on réutilise le sparkline déjà en cache (aucun
-            // appel réseau) ; les autres périodes passent par market_chart.
-            val sparklineF = c.sparkline_in_7d?.price?.map { it.toFloat() } ?: emptyList()
-            val chartPoints = if (selectedPeriod == "7J" && sparklineF.size >= 2) sparklineF else chart
-            Box(
-                Modifier.fillMaxWidth().height(148.dp).background(BgPrimary),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    chartLoading && chartPoints.isEmpty() ->
-                        CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(28.dp))
-                    chartPoints.size < 2 ->
-                        Text(
-                            stringResource(R.string.coin_chart_unavailable),
-                            color = TextMuted,
-                            fontSize = 13.sp
-                        )
-                    else ->
-                        PriceLineChart(
-                            points = chartPoints,
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)
-                        )
-                }
-            }
-
-            // Sélecteur de période
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                periods.forEach { period ->
-                    val selected = period == selectedPeriod
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (selected) AccentBlue else Color.Transparent)
-                            .clickable { selectedPeriod = period }
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            period,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (selected) Color.White else TextSecondary
-                        )
-                    }
-                }
-            }
-
-            // ─── Actions : Envoyer · Recevoir · (Swap) · Alerte ───
-            // 3 niveaux réels de support :
-            //  🟢 Échangeable (registre swap)         → Envoyer + Recevoir + Swap
+            /* ─────────── QUATRE ACTIONS, EN GRILLE 2×2 ─────────── */
+            // 3 niveaux réels de support, inchangés :
+            //  🟢 Échangeable (registre swap)             → Envoyer + Recevoir + Swap
             //  🔵 Existe sur Ethereum/BSC (hors registre) → Envoyer + Recevoir seuls
-            //  ⚪ Ni l'un ni l'autre                    → consultation + alerte
+            //  ⚪ Ni l'un ni l'autre                       → consultation seule
             val supported = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
             val receivable by viewModel.receivableToken.collectAsState()
             val receivableChecking by viewModel.receivableChecking.collectAsState()
             LaunchedEffect(coinId, supported) {
-                // Inutile de sonder ETH/BSC : déjà pleinement pris en charge.
                 if (supported == null) viewModel.checkReceivable(coinId)
             }
             val receiveOnlyKey = receivable?.symbol
+            val transferable = supported != null || receiveOnlyKey != null
+            val bufferKey = supported?.key ?: receiveOnlyKey
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = BgPrimary),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            ) {
-                Column {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        if (supported != null || receiveOnlyKey != null) {
-                            val bufferKey = supported?.key ?: receiveOnlyKey!!
-                            CircleAction(Icons.Default.ArrowUpward, stringResource(R.string.action_send)) {
-                                // Ouvre le formulaire d'envoi DIRECTEMENT sur cette
-                                // monnaie ; le token (registre OU déjà résolu par
-                                // contrat ETH/BSC) est reconnu côté SendViewModel.
-                                //
-                                // C'EST ICI que le jeton entre dans le portefeuille,
-                                // et nulle part avant : simplement consulter une
-                                // fiche ne doit rien y ajouter.
-                                if (supported == null) viewModel.enregistrerPourUsage()
-                                com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
-                                navController.navigate(Routes.SEND)
-                            }
-                            CircleAction(Icons.Default.ArrowDownward, stringResource(R.string.action_receive)) {
-                                if (supported == null) viewModel.enregistrerPourUsage()
-                                com.vaultex.core.session.TokenSelectionBuffer.set(bufferKey)
-                                navController.navigate(Routes.RECEIVE)
-                            }
-                            if (supported != null) {
-                                CircleAction(Icons.Default.SwapHoriz, stringResource(R.string.tab_swap)) {
-                                    com.vaultex.core.session.TokenSelectionBuffer.set(supported.key)
-                                    navController.navigate(Routes.SWAP)
-                                }
-                            }
-                        }
-                        CircleAction(Icons.Default.NotificationsNone, stringResource(R.string.coin_alert)) {
-                            navController.navigate(Routes.NOTIFICATIONS)
-                        }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ActionFiche(
+                        Icons.Default.Send, stringResource(R.string.action_send),
+                        plein = true, actif = transferable, modifier = Modifier.weight(1f)
+                    ) {
+                        // C'EST ICI que le jeton entre dans le portefeuille, et
+                        // nulle part avant : consulter une fiche ne doit rien y
+                        // ajouter.
+                        if (supported == null) viewModel.enregistrerPourUsage()
+                        bufferKey?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
+                        navController.navigate(Routes.SEND)
                     }
-                    when {
-                        supported != null -> {}
-                        receivableChecking -> {
-                            Row(
-                                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(color = AccentBlue, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.coin_checking_network), fontSize = 12.sp, color = TextSecondary)
-                            }
-                        }
-                        receiveOnlyKey != null -> {
-                            val netLabel = if (receivable?.chainTicker == "BNB") "BEP20 · BNB Chain" else "ERC20 · Ethereum"
-                            Text(
-                                stringResource(R.string.coin_receive_only, netLabel),
-                                fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
-                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                        else -> {
-                            Text(
-                                stringResource(R.string.coin_view_only),
-                                fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
-                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
+                    ActionFiche(
+                        Icons.Default.ArrowDownward, stringResource(R.string.action_receive),
+                        plein = false, actif = transferable, modifier = Modifier.weight(1f)
+                    ) {
+                        if (supported == null) viewModel.enregistrerPourUsage()
+                        bufferKey?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
+                        navController.navigate(Routes.RECEIVE)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ActionFiche(
+                        Icons.Default.SwapHoriz, stringResource(R.string.tab_swap),
+                        plein = false, actif = supported != null, modifier = Modifier.weight(1f)
+                    ) {
+                        supported?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it.key) }
+                        navController.navigate(Routes.SWAP)
+                    }
+                    ActionFiche(
+                        Icons.Default.History, stringResource(R.string.tab_history),
+                        plein = false, actif = true, modifier = Modifier.weight(1f)
+                    ) {
+                        navController.navigate(Routes.HISTORY)
                     }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-
-            // ─── Stats 3×2 : Cap / Volume / Offre — High / Low / ATH (maquette) ───
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(stringResource(R.string.market_cap), "$" + compact(c.marketCap), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_volume_label), "$" + compact(c.volume24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_supply), compact(c.circulatingSupply) + " " + symbol, Modifier.weight(1f))
+            // Pourquoi certaines actions sont grisées — dit une fois, en petit.
+            when {
+                supported != null -> {}
+                receivableChecking -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = AccentBlue, strokeWidth = 2.dp, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.coin_checking_network), fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f))
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(stringResource(R.string.coin_high_24h), "$" + formatMarketUsd(c.high24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_low_24h), "$" + formatMarketUsd(c.low24h), Modifier.weight(1f))
-                    StatCard(stringResource(R.string.coin_ath), "$" + formatMarketUsd(c.ath), Modifier.weight(1f))
+                receiveOnlyKey != null -> {
+                    val netLabel = if (receivable?.chainTicker == "BNB") "BEP20 · BNB Chain" else "ERC20 · Ethereum"
+                    Text(
+                        stringResource(R.string.coin_receive_only, netLabel),
+                        fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f)
+                    )
                 }
+                else -> Text(
+                    stringResource(R.string.coin_view_only),
+                    fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f)
+                )
             }
-            Spacer(Modifier.height(12.dp))
+
+            Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+/** Un des trois chiffres clés de l'en-tête (libellé au-dessus, valeur dessous). */
+@Composable
+private fun ChiffreCle(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+        Spacer(Modifier.height(3.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
+    }
+}
+
+/**
+ * Bouton d'action de la fiche.
+ *
+ * [actif] à false grise le bouton SANS le retirer : un bouton qui disparaît
+ * laisse croire que l'application est incomplète, alors qu'un bouton grisé
+ * dit « pas pour cette monnaie » — et la ligne d'explication juste en dessous
+ * dit pourquoi.
+ */
+@Composable
+private fun ActionFiche(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    plein: Boolean,
+    actif: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val teinte = if (!actif) TextMuted else if (plein) Color.White else AccentBlue
+    Surface(
+        onClick = onClick,
+        enabled = actif,
+        shape = RoundedCornerShape(14.dp),
+        color = if (plein && actif) AccentBlue else Color.Transparent,
+        border = if (plein && actif) null
+            else androidx.compose.foundation.BorderStroke(1.dp, if (actif) AccentBlue.copy(alpha = 0.5f) else BorderColor),
+        modifier = modifier.height(52.dp)
+    ) {
+        Row(
+            Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = teinte, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = teinte)
         }
     }
 }
 
 /** Mappe la période UI vers le nombre de jours pour CoinGecko market_chart. */
 private fun daysForPeriod(period: String): Int = when (period) {
-    "24H" -> 1
-    "7J" -> 7
+    "24h" -> 1
+    "7j" -> 7
     "1M" -> 30
-    "3M" -> 90
     "1A" -> 365
+    "Tout" -> 1825   // cinq ans : au-delà, CoinGecko renvoie l'historique complet
     else -> 7
 }
 
-/** Montant lisible (8 décimales max, sans zéros inutiles). */
-/**
- * Gain en jeton, qui ne se réduit jamais à « 0 » quand il est simplement
- * plus petit que la précision affichable.
- */
-private fun gainLisible(v: Double): String {
-    val abs = kotlin.math.abs(v)
-    if (abs == 0.0) return "0"
-    if (abs < 0.00000001) return "<0.00000001"
-    return trimAmount(v)
+/** Titre du bloc graphique, accordé à la période choisie. */
+private fun titrePeriode(period: String): String = when (period) {
+    "24h" -> "Évolution 24 heures"
+    "7j" -> "Évolution 7 jours"
+    "1M" -> "Évolution 1 mois"
+    "1A" -> "Évolution 1 an"
+    else -> "Évolution complète"
 }
+
 
 private fun trimAmount(v: Double): String =
     java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN)
         .stripTrailingZeros().toPlainString()
 
-/** Bouton d'action rond (icône bleue sur pastille + libellé). */
-@Composable
-private fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier.size(46.dp).clip(CircleShape).background(AccentBlue)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(21.dp))
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-    }
-}
 
 /** Courbe de prix dessinée au Canvas (sans dépendance externe). */
 @Composable
@@ -517,20 +664,3 @@ private fun compact(value: Double): String = when {
     else -> "%.0f".format(value)
 }
 
-@Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = BgPrimary),
-        modifier = modifier
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(label, fontSize = 12.sp, color = TextSecondary)
-            Spacer(Modifier.height(4.dp))
-            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        }
-    }
-}

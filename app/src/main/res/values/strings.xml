@@ -963,4 +963,8 @@
     <string name="seed_unreadable_why_body">Votre clé est gardée par le coffre sécurisé d\'Android, en dehors de VaultEx. Une mise à jour du système, un changement de verrouillage d\'écran ou un défaut du fabricant peuvent le vider. Vous n\'avez rien fait de mal, et VaultEx ne peut pas le réparer à distance.</string>
     <string name="seed_unreadable_restore">Restaurer avec ma phrase de récupération</string>
     <string name="seed_unreadable_no_phrase">Vous n\'avez pas votre phrase sous la main ? Cherchez-la avant toute chose. Créer un nouveau portefeuille ne ramènera pas l\'ancien : ce serait un portefeuille différent, sans lien avec vos fonds.</string>
+    <!-- Fiche d'une monnaie : en-tête, portefeuille -->
+    <string name="coin_live">En direct</string>
+    <string name="coin_my_wallet">Mon portefeuille</string>
+    <string name="coin_value_in">Valeur (%1$s)</string>
 </resources>

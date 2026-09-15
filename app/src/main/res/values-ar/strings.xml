@@ -967,4 +967,8 @@
     <string name="seed_unreadable_why_body">يحتفظ خزنة أندرويد الآمنة بمفتاحك، خارج VaultEx. قد يؤدي تحديث النظام أو تغيير قفل الشاشة أو خلل من الشركة المصنّعة إلى إفراغها. لم ترتكب أي خطأ، ولا يستطيع VaultEx إصلاح ذلك عن بُعد.</string>
     <string name="seed_unreadable_restore">الاسترداد بعبارة الاسترداد</string>
     <string name="seed_unreadable_no_phrase">ليست عبارتك في متناولك؟ ابحث عنها قبل أي شيء آخر. إنشاء محفظة جديدة لن يعيد القديمة — ستكون محفظة مختلفة لا صلة لها بأموالك.</string>
+    <!-- تفاصيل العملة: الترويسة، المحفظة -->
+    <string name="coin_live">مباشر</string>
+    <string name="coin_my_wallet">محفظتي</string>
+    <string name="coin_value_in">القيمة (%1$s)</string>
 </resources>
