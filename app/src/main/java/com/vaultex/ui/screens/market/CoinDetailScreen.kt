@@ -649,6 +649,22 @@ private fun PriceLineChart(
     val rising = points.last() >= points.first()
     val lineColor = if (rising) AccentGreen else AccentRed
 
+    /*
+    LES COULEURS SE LISENT ICI, PAS DANS LE CANVAS.
+
+    Toute la palette de l'application est déclarée en propriétés composables
+    — `val BorderColor: Color @Composable get() = …` — parce qu'elle suit le
+    thème clair ou sombre. Or la lambda de dessin d'un Canvas n'est PAS un
+    contexte composable : y lire une de ces couleurs ne compile pas.
+
+    C'est exactement l'erreur qui a cassé la compilation, et la deuxième fois
+    que cette palette me prend au même piège. La règle est simple : une
+    couleur du thème se lit au niveau du composable, jamais à l'intérieur
+    d'un onDraw.
+    */
+    val couleurRepere = BorderColor.copy(alpha = 0.5f)
+    val couleurFin = lineColor.copy(alpha = 0.45f)
+
     val min = points.min()
     val max = points.max()
 
@@ -686,7 +702,7 @@ private fun PriceLineChart(
                 repeat(niveaux) { i ->
                     val py = size.height * i / (niveaux - 1f)
                     drawLine(
-                        color = BorderColor.copy(alpha = 0.5f),
+                        color = couleurRepere,
                         start = androidx.compose.ui.geometry.Offset(0f, py),
                         end = androidx.compose.ui.geometry.Offset(size.width, py),
                         strokeWidth = 1f,
@@ -729,7 +745,7 @@ private fun PriceLineChart(
                 val dernierX = (points.size - 1) * stepX
                 val dernierY = y(points.last())
                 drawLine(
-                    color = lineColor.copy(alpha = 0.45f),
+                    color = couleurFin,
                     start = androidx.compose.ui.geometry.Offset(dernierX, dernierY),
                     end = androidx.compose.ui.geometry.Offset(dernierX, size.height),
                     strokeWidth = 1.dp.toPx(),
