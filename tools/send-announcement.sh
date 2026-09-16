@@ -200,11 +200,20 @@ en_utf8() {
 # (petit-boutiste sur PC et telephone), ce qui inversait chaque caractere et
 # rendait « V » en 嘀. Octet par octet, l'ordre est celui d'iconv.
 json_escape() {
+  # Chaine vide : on rend une chaine vide et on s'arrete la.
+  #
+  # SANS CE GARDE, LE SCRIPT MOURAIT EN SILENCE. Le symbole et l'image sont
+  # facultatifs ; quand ils ne sont pas fournis, json_escape recevait "".
+  # Le tube ne produisait alors aucune ligne, grep n'en trouvait aucune et
+  # rendait 1 — ce que `set -euo pipefail`, en tete de ce script, traite
+  # comme une erreur fatale. L'annonce s'arretait avant d'etre envoyee, sans
+  # un mot a l'ecran.
+  if [ -z "$1" ]; then printf ''; return 0; fi
   en_utf8 "$1" \
   | iconv -f UTF-8 -t UTF-16BE 2>/dev/null \
   | od -An -tx1 -v \
   | tr -s ' \n' '\n' \
-  | grep -v '^$' \
+  | sed '/^$/d' \
   | while read -r hi && read -r lo; do
       u="$hi$lo"
       d=$((16#$u))
