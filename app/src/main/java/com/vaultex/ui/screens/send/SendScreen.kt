@@ -140,8 +140,29 @@ fun SendScreen(navController: NavController) {
     val feeNum = state.feeAfficheAmount ?: 0.0
     val svcFee = state.serviceFeeAmount          // frais de service VaultEx (BTC), même actif
 
-    fun fiat(v: Double): String? =
-        if (v > 0.0) com.vaultex.core.util.CurrencyFormat.format(v, state.currency) else null
+    /*
+    UN MONTANT QUI EXISTE NE S'AFFICHE PLUS COMME ZÉRO.
+
+    Vu sur capture : « Frais réseau ≈ 0.00000114 ETH / $0,00 ». Les frais
+    valaient trois dixièmes de centime — pas rien, mais moins que le plus
+    petit chiffre affichable. Le formateur arrondissait, et l'écran
+    annonçait la gratuité.
+
+    C'est la même faute que le gain « +0 BTC (+0,02 %) » corrigé sur la
+    fiche d'une monnaie : trois chiffres qui se contredisent dans la même
+    ligne. « < 0,01 $ » dit la vérité — la somme existe, elle est
+    simplement plus petite que ce qu'on sait écrire.
+
+    Le seuil suit la devise : le franc CFA ne s'écrit pas avec des
+    centimes, son plus petit montant affichable est 1.
+    */
+    val plusPetitAffichable = if (state.currency == "XOF") 1.0 else 0.01
+    fun fiat(v: Double): String? = when {
+        v <= 0.0 -> null
+        v < plusPetitAffichable ->
+            "< " + com.vaultex.core.util.CurrencyFormat.format(plusPetitAffichable, state.currency)
+        else -> com.vaultex.core.util.CurrencyFormat.format(v, state.currency)
+    }
     val availFiat = if (price > 0.0) fiat(availNum * price) else null
     val amountFiat = if (price > 0.0) fiat(amountNum * price) else null
     val feeFiat = if (state.priceNative > 0.0) fiat(feeNum * state.priceNative) else null
@@ -1154,7 +1175,11 @@ private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.(
 private fun StatusHeader(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     ringColor: Color, title: String, subtitle: String, titleColor: Color,
-    animated: Boolean = false
+    animated: Boolean = false,
+    // Maquette : la coche est posée dans un DISQUE BLANC sur le rond de
+    // couleur, pas peinte à même le fond. Réservé au succès — sur l'écran
+    // d'attente, l'icône pleine se lit mieux dans un anneau qui tourne.
+    pastilleBlanche: Boolean = false
 ) {
     Box(Modifier.padding(top = 8.dp).size(132.dp), contentAlignment = Alignment.Center) {
         if (animated) {
@@ -1192,11 +1217,25 @@ private fun StatusHeader(
             Box(Modifier.size(120.dp).clip(CircleShape).background(ringColor.copy(alpha = 0.12f)))
         }
         Box(Modifier.size(88.dp).clip(CircleShape).background(ringColor), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(46.dp))
+            if (pastilleBlanche) {
+                Box(
+                    Modifier.size(52.dp).clip(CircleShape).background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = ringColor, modifier = Modifier.size(34.dp))
+                }
+            } else {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(46.dp))
+            }
         }
     }
     Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = titleColor)
-    Text(subtitle, fontSize = 14.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    // Sous-titre facultatif : sur le reçu d'envoi, la pastille de statut
+    // juste en dessous dit déjà où en est la transaction. Deux phrases qui
+    // se suivent pour dire la même chose, l'œil n'en lit aucune.
+    if (subtitle.isNotBlank()) {
+        Text(subtitle, fontSize = 14.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
 }
 
 private fun composeColor(hex: String, fallback: Long = 0xFF3B82F6): Color =
@@ -1526,10 +1565,13 @@ internal fun SendSuccessScreen(
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
         // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
         StatusHeader(
-            Icons.Default.CheckCircle, AccentGreen,
+            Icons.Default.Check, AccentGreen,
             stringResource(R.string.send_success_title),
-            stringResource(R.string.send_success_subtitle),
-            AccentGreen
+            // Pas de sous-titre : la pastille de statut, deux lignes plus
+            // bas, dit exactement la même chose en mieux — avec le décompte.
+            "",
+            AccentGreen,
+            pastilleBlanche = true
         )
         // Pastille de statut : ambre tant que la blockchain n'a pas tranché,
         // verte ensuite. Elle bascule toute seule si la confirmation tombe
@@ -1565,6 +1607,22 @@ internal fun SendSuccessScreen(
         le titre le disent deja. Restent deux cartes — la transaction, puis sa
         trace (date et identifiant).
          */
+        /*
+        UNE SEULE CARTE, comme sur la maquette.
+
+        Le reçu en portait deux : la transaction d'un côté, sa trace — date
+        et identifiant — de l'autre. Une séparation qui avait du sens pour
+        qui a écrit le code, aucune pour qui lit le reçu : c'est UNE
+        opération, et tout ce qui la décrit tient ensemble.
+
+        La ligne « Réseau » ne reste que pour les JETONS. Sur un envoi
+        d'ETH, « Envoi ETH » en titre, « Ethereum » sous le symbole et
+        « Voir sur Etherscan » en bas le disent déjà trois fois. Sur un
+        USDT, en revanche, TRC20 ou ERC20 change tout — et rien d'autre ne
+        le dit.
+        */
+        val estJeton = detail.coinShort != detail.coinName &&
+            !detail.netFull.contains(detail.coinName, ignoreCase = true)
         StatusCard {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
@@ -1598,18 +1656,19 @@ internal fun SendSuccessScreen(
                 shorten(detail.toAddress),
                 onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
             )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Hub, stringResource(R.string.send_summary_network),
-                detail.netFull
-            )
+            if (estJeton) {
+                HorizontalDivider(color = BorderColor)
+                StatusRow(
+                    Icons.Default.Hub, stringResource(R.string.send_summary_network),
+                    detail.netFull
+                )
+            }
             HorizontalDivider(color = BorderColor)
             StatusRow(
                 Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee),
                 detail.feeNative.ifEmpty { "…" }, detail.feeFiat
             )
-        }
-        StatusCard {
+            HorizontalDivider(color = BorderColor)
             StatusRow(
                 Icons.Default.Schedule, stringResource(R.string.send_success_date), sentAt
             )
@@ -1621,25 +1680,42 @@ internal fun SendSuccessScreen(
             )
         }
         Spacer(Modifier.height(4.dp))
-        OutlinedButton(
-            onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
+        /*
+        LES DEUX BOUTONS CÔTE À CÔTE, comme sur la maquette.
+
+        Empilés, « Terminé » se retrouvait tout en bas — souvent sous le
+        pli sur un petit écran, alors que c'est l'action que neuf personnes
+        sur dix veulent. Côte à côte, les deux sont atteignables d'un
+        pouce, et la couleur dit laquelle est la principale.
+        */
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.send_success_view_on, explorerName), fontWeight = FontWeight.Bold)
-        }
-        Button(
-            onClick = onDone,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
-        ) {
-            Text(stringResource(R.string.send_success_done), color = Color.White,
-                fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            OutlinedButton(
+                onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
+                modifier = Modifier.weight(1f).height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.send_success_view_on, explorerName),
+                    fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1
+                )
+            }
+            Button(
+                onClick = onDone,
+                modifier = Modifier.weight(1f).height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+            ) {
+                Text(stringResource(R.string.send_success_done), color = Color.White,
+                    fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
+            }
         }
         // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
         if (!confirmed) {
