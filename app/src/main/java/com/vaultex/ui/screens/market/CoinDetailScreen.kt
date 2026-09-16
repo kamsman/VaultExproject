@@ -429,8 +429,24 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
 
             /* ─────────── CARTE 3 — mon portefeuille ─────────── */
+            /*
+            LA CARTE EST TOUJOURS LÀ, MÊME À ZÉRO.
+
+            Elle ne s'affichait que si l'on détenait la monnaie. Résultat :
+            deux écrans de formes différentes selon la monnaie ouverte — et
+            comme on ne détient qu'une poignée des 19 000 du Marché, c'est la
+            version sans carte qu'on voit presque toujours.
+
+            Pire, le graphique porte un weight(1f) : privé de sa voisine, il
+            absorbait toute la place libérée et doublait de hauteur. Deux
+            fiches côte à côte ne se ressemblaient plus du tout.
+
+            Une carte à zéro n'est pas une carte vide : elle répond à la
+            question qu'on se pose en ouvrant l'écran — « est-ce que j'en
+            ai ? ». Et elle fige la mise en page, ce qui est tout l'objet.
+            */
             val holding = remember(symbol) { viewModel.holdingOf(symbol) }
-            if (holding != null) {
+            run {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.Transparent,
@@ -444,12 +460,18 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            trimAmount(holding.amount) + " " + symbol,
-                            fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                            // trimAmount coupe à huit décimales et retire les
+                            // zéros inutiles : le « 407306.90088002 SHIB » vu
+                            // sur capture est le solde exact, pas un débordement.
+                            trimAmount(holding?.amount ?: 0.0) + " " + symbol,
+                            fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                            color = if (holding != null) TextPrimary else TextMuted,
+                            maxLines = 1
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            "≈ $" + usdFmt.format(holding.valueUsd),
+                            if (holding != null) "≈ $" + usdFmt.format(holding.valueUsd)
+                            else stringResource(R.string.coin_not_held),
                             fontSize = 13.sp, color = TextSecondary
                         )
 
@@ -470,13 +492,14 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             Column(Modifier.weight(1f)) {
                                 Text(stringResource(R.string.coin_gain_24h), fontSize = 12.sp, color = TextSecondary)
                                 Spacer(Modifier.height(3.dp))
-                                val gainUsd = holding.valueUsd * c.change24h / 100.0
+                                val gainUsd = (holding?.valueUsd ?: 0.0) * c.change24h / 100.0
                                 val gainAbs = kotlin.math.abs(gainUsd)
                                 val signe = if (gainUsd >= 0) "+" else "−"
                                 Text(
                                     if (gainAbs > 0.0 && gainAbs < 0.01) "$signe < $0.01"
                                     else "$signe $" + usdFmt.format(gainAbs),
-                                    fontSize = 15.sp, fontWeight = FontWeight.Bold, color = couleurVar
+                                    fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                    color = if (holding != null) couleurVar else TextMuted
                                 )
                             }
                             if (devise != "USD") {
@@ -487,8 +510,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                                     )
                                     Spacer(Modifier.height(3.dp))
                                     Text(
-                                        enDevise(holding.amount)?.let { "≈ $it" } ?: "—",
-                                        fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                                        enDevise(holding?.amount ?: 0.0)?.let { "≈ $it" } ?: "—",
+                                        fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                        color = if (holding != null) TextPrimary else TextMuted
                                     )
                                 }
                             }

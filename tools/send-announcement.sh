@@ -87,15 +87,31 @@
 
 set -euo pipefail
 
-TITLE="${1:-}"
-BODY="${2:-}"
-SYMBOL="${3:-}"
-IMAGE="${4:-}"
+# --fichier <chemin> : premiere ligne = titre, le reste = corps.
+# L'argument ne passe alors plus par la ligne de commande, donc aucun
+# encodage ne peut l'abimer. C'est la voie sure pour un texte accentue.
+if [ "${1:-}" = "--fichier" ]; then
+  FICHIER="${2:-}"
+  if [ ! -f "$FICHIER" ]; then
+    echo "ERREUR : fichier introuvable : $FICHIER" >&2
+    exit 1
+  fi
+  TITLE=$(head -n 1 "$FICHIER")
+  BODY=$(tail -n +2 "$FICHIER")
+  SYMBOL="${3:-}"
+  IMAGE="${4:-}"
+else
+  TITLE="${1:-}"
+  BODY="${2:-}"
+  SYMBOL="${3:-}"
+  IMAGE="${4:-}"
+fi
 SA_FILE="${SA_FILE:-firebase-service-account.json}"
 TOPIC="vaultex_all"   # doit correspondre a VaultExApplication.ANNOUNCE_TOPIC
 
 if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
   echo "Usage : $0 \"Titre\" \"Corps du message\" [SYMBOLE] [IMAGE]" >&2
+  echo "   ou : $0 --fichier message.txt [SYMBOLE] [IMAGE]   (titre = 1re ligne)" >&2
   exit 1
 fi
 
@@ -144,8 +160,64 @@ if [ -z "$ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-# ─── Echappement JSON du titre et du corps ────────────────────────────────
-json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r' | sed ':a;N;$!ba;s/\n/\\n/g'; }
+# ══════════════════════════════════════════════════════════════════════════
+# ECHAPPEMENT JSON — ET LE PROBLEME DES ACCENTS
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Constate sur telephone : « VaultEx a  t  concu », « Vos cl s restent chez
+# vous », « phrase de r cup ration ». Chaque lettre accentuee AVAIT DISPARU,
+# en laissant son espace.
+#
+# La cause n'etait pas dans l'echappement. Le texte est tape dans PowerShell,
+# qui passe les arguments au format de la page de codes Windows (CP-1252) :
+# « e » y vaut UN octet, 0xE9. Or ce meme octet, seul, n'est pas de l'UTF-8
+# valide. Le JSON partait donc avec des octets illegaux, et le premier
+# maillon strict de la chaine — l'analyseur de Firebase — les jetait.
+#
+# DEUX PARADES, ET IL FAUT LES DEUX.
+#
+# 1. RECONNAITRE L'ENCODAGE D'ARRIVEE. On teste si le texte est de l'UTF-8
+#    valide ; sinon on le lit comme du CP-1252 et on le convertit. Le cas
+#    Windows se repare alors tout seul, sans rien changer a la commande.
+#
+# 2. N'ENVOYER QUE DE L'ASCII. Chaque caractere non-ASCII devient \uXXXX,
+#    une sequence que JSON comprend et qu'aucun intermediaire ne peut
+#    abimer. Plus aucun octet fragile ne circule.
+#
+# Pour une garantie totale, --fichier lit le texte depuis un fichier UTF-8 :
+# l'argument ne traverse alors plus du tout la ligne de commande.
+# ══════════════════════════════════════════════════════════════════════════
+
+en_utf8() {
+  if printf '%s' "$1" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; then
+    printf '%s' "$1"
+  else
+    printf '%s' "$1" | iconv -f CP1252 -t UTF-8 2>/dev/null || printf '%s' "$1"
+  fi
+}
+
+# od -tx1 et NON -tx2 : od lit les paires d'octets dans l'ordre de la machine
+# (petit-boutiste sur PC et telephone), ce qui inversait chaque caractere et
+# rendait « V » en 嘀. Octet par octet, l'ordre est celui d'iconv.
+json_escape() {
+  en_utf8 "$1" \
+  | iconv -f UTF-8 -t UTF-16BE 2>/dev/null \
+  | od -An -tx1 -v \
+  | tr -s ' \n' '\n' \
+  | grep -v '^$' \
+  | while read -r hi && read -r lo; do
+      u="$hi$lo"
+      d=$((16#$u))
+      if   [ "$d" -eq 34 ]; then printf '\\"'
+      elif [ "$d" -eq 92 ]; then printf '\\\\'
+      elif [ "$d" -eq 10 ]; then printf '\\n'
+      elif [ "$d" -eq 13 ]; then :
+      elif [ "$d" -eq 9  ]; then printf '\\t'
+      elif [ "$d" -ge 32 ] && [ "$d" -lt 127 ]; then printf "\\$(printf '%03o' "$d")"
+      else printf '\\u%s' "$u"
+      fi
+    done
+}
 TITLE_J=$(json_escape "$TITLE")
 BODY_J=$(json_escape "$BODY")
 SYMBOL_J=$(json_escape "$SYMBOL")
