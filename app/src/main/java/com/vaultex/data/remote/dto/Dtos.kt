@@ -263,6 +263,57 @@ data class ChangeNowTransactionDto(
     val amount: String
 )
 
+// ─── SIMPLESWAP ────────────────────────────────────────────────────
+//
+// Deuxieme fournisseur d'echange. ChangeNOW impose 0,4 % de commission
+// partenaire ; SimpleSwap laisse la fixer entre 0,4 et 5 % sur la cle
+// elle-meme, ce qui permet d'atteindre l'objectif de 1,5 % SANS seconde
+// transaction — la seule voie viable, les frais reseau d'un second envoi
+// depassant la commission sous 220 $ d'echange.
+
+/** Bornes d'une paire : en dessous du minimum, l'echange est refuse. */
+data class SimpleSwapRangeDto(
+    val min: String? = null,
+    val max: String? = null
+)
+
+/**
+ * Corps de creation d'un echange.
+ *
+ * `address_to` est l'adresse de l'utilisateur, celle qui RECOIT. L'adresse
+ * de depot, elle, est rendue par la reponse (`address_from`).
+ */
+data class SimpleSwapCreateBody(
+    val fixed: Boolean = false,
+    val currency_from: String,
+    val currency_to: String,
+    val amount: String,
+    val address_to: String,
+    val extra_id_to: String = "",
+    val user_refund_address: String = "",
+    val user_refund_extra_id: String = ""
+)
+
+/**
+ * Echange SimpleSwap, en creation comme en suivi (meme forme).
+ *
+ * TOUS LES CHAMPS SONT NULLABLES, et c'est voulu : la reponse est lue
+ * defensivement. Un champ manquant doit remonter comme une erreur claire,
+ * jamais devenir une chaine vide qui partirait comme adresse de depot.
+ */
+data class SimpleSwapExchangeDto(
+    val id: String? = null,
+    val status: String? = null,
+    @SerializedName("address_from") val addressFrom: String? = null,
+    @SerializedName("extra_id_from") val extraIdFrom: String? = null,
+    @SerializedName("address_to") val addressTo: String? = null,
+    @SerializedName("amount_from") val amountFrom: String? = null,
+    @SerializedName("amount_to") val amountTo: String? = null,
+    @SerializedName("expected_amount") val expectedAmount: String? = null,
+    @SerializedName("tx_from") val txFrom: String? = null,
+    @SerializedName("tx_to") val txTo: String? = null
+)
+
 data class ChangeNowStatusDto(
     val id: String,
     val status: String,  // waiting, confirming, exchanging, sending, finished, failed

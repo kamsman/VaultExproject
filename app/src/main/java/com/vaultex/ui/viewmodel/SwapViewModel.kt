@@ -2,11 +2,8 @@ package com.vaultex.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaultex.core.config.ApiKeys
 import com.vaultex.core.crypto.WalletManager
 import com.vaultex.core.security.SecureStorage
-import com.vaultex.data.remote.api.ChangeNowApi
-import com.vaultex.data.remote.dto.ChangeNowTransactionBody
 import com.vaultex.domain.usecase.SendCryptoUseCase
 import com.vaultex.domain.usecase.SwapUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +37,16 @@ data class SwapState(
 
 @HiltViewModel
 class SwapViewModel @Inject constructor(
-    private val changeNowApi: ChangeNowApi,
+    /*
+    L'ÉCHANGEUR EST DÉSORMAIS DERRIÈRE UNE INTERFACE.
+
+    ChangeNOW était appelé ici en direct. Changer de fournisseur revenait donc
+    à retoucher le ViewModel — alors que le choix de l'échangeur ne regarde ni
+    l'état de l'écran ni la façon dont il s'affiche.
+
+    Le module Hilt décide lequel des deux répond, selon `swap.provider`.
+    */
+    private val fournisseur: com.vaultex.domain.swap.FournisseurSwap,
     private val secureStorage: SecureStorage,
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
@@ -72,7 +78,6 @@ class SwapViewModel @Inject constructor(
     )
 
     companion object {
-        private val CHANGENOW_API_KEY get() = ApiKeys.CHANGENOW
 
         /**
          * Registre des actifs échangeables. Contrainte non-custodial : uniquement
@@ -307,22 +312,23 @@ class SwapViewModel @Inject constructor(
             // On échange le montant COMPLET. La commission VaultEx vient de
             // ChangeNOW (programme partenaire), pas en rognant le montant.
             try {
-                val fromTo = "${assetOf(_state.value.fromToken).cn}_${assetOf(_state.value.toToken).cn}"
+                val de = _state.value.fromToken
+                val vers = _state.value.toToken
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.
                 val est = withContext(Dispatchers.IO) {
                     try {
-                        changeNowApi.getEstimatedAmount(amount = apiAmount(input), fromTo = fromTo, apiKey = CHANGENOW_API_KEY)
+                        fournisseur.devis(de, vers, input)
                     } catch (e: Exception) {
                         if (e is java.net.SocketTimeoutException || e is java.net.UnknownHostException) {
                             kotlinx.coroutines.delay(1200)
-                            changeNowApi.getEstimatedAmount(amount = apiAmount(input), fromTo = fromTo, apiKey = CHANGENOW_API_KEY)
+                            fournisseur.devis(de, vers, input)
                         } else throw e
                     }
                 }
                 // Ignorer les devis obsolètes (l'utilisateur a déjà changé le montant).
                 if (_state.value.fromAmount != amount) return@launch
-                _state.update { it.copy(toAmount = est.estimatedAmount, error = null) }
+                _state.update { it.copy(toAmount = est.montantEstime, error = null) }
             } catch (e: Exception) {
                 if (_state.value.fromAmount != amount) return@launch
                 // Pas de devis : on n'affiche PAS un faux montant, on vide ET on
@@ -384,28 +390,33 @@ class SwapViewModel @Inject constructor(
                 // fonds chez eux (récupération uniquement via leur support).
                 val refundAddress = addrFor(assetOf(s.fromToken).chain)
 
-                val fromTo = "${assetOf(s.fromToken).cn}_${assetOf(s.toToken).cn}"
+                /*
+                Le minimum vient du fournisseur, et peut être ABSENT.
 
-                // Vérifier le montant minimum
-                val minRes = withContext(Dispatchers.IO) {
-                    changeNowApi.getMinAmount(fromTo, CHANGENOW_API_KEY)
-                }
-                if (net < minRes.minAmount) {
-                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_below_min, trimNum(minRes.minAmount), s.fromToken)) }
+                Auparavant l'appel n'était pas protégé : un échec réseau ou une
+                paire inconnue faisait échouer toute la création. Un minimum
+                qu'on ne connaît pas ne doit pas empêcher d'essayer — c'est le
+                fournisseur qui tranchera, et son refus portera un message
+                précis.
+                */
+                val minimum = withContext(Dispatchers.IO) { fournisseur.minimum(s.fromToken, s.toToken) }
+                if (minimum != null && net < minimum) {
+                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_below_min, trimNum(minimum), s.fromToken)) }
                     return@launch
                 }
 
-                // Créer la transaction ChangeNOW
+                // Créer l'échange chez le fournisseur en service.
+                //
+                // creerEchange ÉCHOUE plutôt que de rendre une adresse de dépôt
+                // vide : c'est vers elle que partiront les fonds, et une réponse
+                // incomplète ne doit jamais devenir un virement dans le vide.
                 val txRes = withContext(Dispatchers.IO) {
-                    changeNowApi.createTransaction(
-                        apiKey = CHANGENOW_API_KEY,
-                        body = ChangeNowTransactionBody(
-                            from = assetOf(s.fromToken).cn,
-                            to = assetOf(s.toToken).cn,
-                            address = toAddress,
-                            amount = apiAmount(net),
-                            refundAddress = refundAddress
-                        )
+                    fournisseur.creerEchange(
+                        de = s.fromToken,
+                        vers = s.toToken,
+                        montant = net,
+                        adresseReception = toAddress,
+                        adresseRemboursement = refundAddress
                     )
                 }
                 swapUseCase.recordSwap(
@@ -413,7 +424,7 @@ class SwapViewModel @Inject constructor(
                     fromToken = s.fromToken,
                     toToken = s.toToken,
                     amount = apiAmount(net),
-                    payinAddress = txRes.payinAddress,
+                    payinAddress = txRes.adresseDepot,
                     payoutAddress = toAddress
                 )
                 // Token ERC-20/BEP-20 reçu : on l'ajoute au portefeuille pour que
@@ -436,7 +447,7 @@ class SwapViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         swapId = txRes.id,
-                        payinAddress = txRes.payinAddress,
+                        payinAddress = txRes.adresseDepot,
                         depositAmount = apiAmount(net),
                         swapInProgress = true,
                         swapStatus = "depositing"
@@ -452,7 +463,7 @@ class SwapViewModel @Inject constructor(
                 // fonds vers l'adresse payin via le moteur d'envoi déjà testé.
                 val depChain = swapSendChainOf(s.fromToken)
                 val dep = withContext(Dispatchers.IO) {
-                    sendCryptoUseCase.sendByChain(depChain, txRes.payinAddress, apiAmount(net))
+                    sendCryptoUseCase.sendByChain(depChain, txRes.adresseDepot, apiAmount(net))
                 }
                 when (dep) {
                     is SendCryptoUseCase.Result.Success -> {
@@ -559,7 +570,7 @@ class SwapViewModel @Inject constructor(
                 kotlinx.coroutines.delay(stepMs)
                 elapsedMs += stepMs
                 val statusDto = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
-                val remote = statusDto?.status
+                val remote = statusDto?.statut
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
                     // Dès l'étape « sending », ChangeNOW a DIFFUSÉ le versement et
@@ -568,7 +579,7 @@ class SwapViewModel @Inject constructor(
                     // attente » sur le dashboard le plus tôt possible (track() ignore
                     // les doublons, l'appeler à chaque tour est sans effet). Le badge
                     // s'efface tout seul dès la confirmation on-chain du versement.
-                    statusDto?.payoutHash?.takeIf { it.isNotBlank() }?.let { payHash ->
+                    statusDto?.hashSortie?.takeIf { it.isNotBlank() }?.let { payHash ->
                         pendingTxManager.track(
                             assetOf(_state.value.toToken).base,
                             assetOf(_state.value.toToken).chain,
