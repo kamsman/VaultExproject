@@ -967,6 +967,7 @@
     <string name="coin_live">En direct</string>
     <string name="coin_per_unit">le %1$s</string>
     <string name="coin_not_held">Vous n\'en détenez pas encore</string>
+    <string name="coin_held_on">sur %1$s</string>
     <string name="coin_my_wallet">Mon portefeuille</string>
     <string name="coin_value_in">Valeur (%1$s)</string>
 </resources>

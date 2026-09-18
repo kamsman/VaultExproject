@@ -971,6 +971,7 @@
     <string name="coin_live">مباشر</string>
     <string name="coin_per_unit">لكل %1$s</string>
     <string name="coin_not_held">لا تملك منها بعد</string>
+    <string name="coin_held_on">على %1$s</string>
     <string name="coin_my_wallet">محفظتي</string>
     <string name="coin_value_in">القيمة (%1$s)</string>
 </resources>

@@ -474,6 +474,30 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                             else stringResource(R.string.coin_not_held),
                             fontSize = 13.sp, color = TextSecondary
                         )
+                        /*
+                        SUR QUEL RÉSEAU — quand la question se pose.
+
+                        Tether existe sur trois chaînes, et le portefeuille en
+                        tient trois soldes distincts. La fiche les additionne,
+                        ce qui est juste : un dollar Tether vaut un dollar
+                        partout.
+
+                        Mais l'envoyer, non. Quelqu'un lisant « 3,1 USDT » sans
+                        plus de précision pourrait croire pouvoir les envoyer
+                        sur Tron alors qu'ils sont sur BNB Chain — et des fonds
+                        envoyés sur la mauvaise chaîne ne reviennent pas.
+
+                        La ligne n'apparaît que lorsqu'elle apprend quelque
+                        chose : une monnaie native comme BTC ou ETH ne la
+                        déclenche pas.
+                        */
+                        holding?.reseaux?.takeIf { it.isNotEmpty() }?.let { reseaux ->
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                stringResource(R.string.coin_held_on, reseaux.joinToString(" · ")),
+                                fontSize = 11.sp, color = TextMuted, maxLines = 2, lineHeight = 14.sp
+                            )
+                        }
 
                         Spacer(Modifier.height(10.dp))
                         HorizontalDivider(color = BorderColor)

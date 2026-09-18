@@ -23,19 +23,77 @@ class MarketViewModel @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
-    // ─── Solde détenu d'une monnaie (carte « Votre solde » du détail) ───
-    data class Holding(val amount: Double, val valueUsd: Double)
+    // ─── Solde détenu d'une monnaie (carte « Mon portefeuille » du détail) ───
+    data class Holding(
+        val amount: Double,
+        val valueUsd: Double,
+        /** Réseaux qui portent ce solde, en clair — « BNB Chain (BEP20) »… */
+        val reseaux: List<String> = emptyList()
+    )
     private data class SnapLite(val tokens: List<TokLite>?)
     private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE MONNAIE DU MARCHÉ, PLUSIEURS SOLDES DANS LE PORTEFEUILLE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : l'accueil affichait « USDT-BNB · 3,10 $ », et la
+    fiche Tether répondait « Vous n'en détenez pas encore ».
+
+    La recherche prenait le PREMIER jeton dont le symbole valait exactement
+    « USDT » — c'est-à-dire la variante Tron, à zéro. Les 3,10 $ détenus
+    étaient enregistrés sous « USDT-BNB », un symbole différent, et
+    n'étaient donc jamais vus.
+
+    Or le Marché ne connaît qu'une seule Tether. Le portefeuille, lui, en
+    connaît trois — Tron, Ethereum, BNB Chain — parce que ce sont trois
+    jetons distincts sur trois chaînes. Cette asymétrie est normale ; ce qui
+    ne l'était pas, c'est que la fiche n'en retienne qu'une.
+
+    On additionne donc toutes les variantes : « USDT » et tout ce qui
+    commence par « USDT- ». C'est économiquement juste — un dollar Tether
+    vaut un dollar quelle que soit la chaîne qui le porte.
+
+    ET ON DIT SUR QUELLE CHAÎNE. Sans cette mention, quelqu'un lisant
+    « 3,1 USDT » sur la fiche pourrait croire pouvoir l'envoyer sur Tron.
+    Le réseau n'est pas un détail : c'est ce qui décide si les fonds
+    arrivent.
+    */
     fun holdingOf(symbol: String): Holding? {
         return try {
             val json = secureStorage.getPortfolioSnapshot() ?: return null
-            val t = com.google.gson.Gson().fromJson(json, SnapLite::class.java)
-                ?.tokens?.firstOrNull { it.symbol.equals(symbol, ignoreCase = true) } ?: return null
-            if (t.amountRaw > 0.0) Holding(t.amountRaw, t.amountRaw * t.priceUsd) else null
+            val tokens = com.google.gson.Gson().fromJson(json, SnapLite::class.java)?.tokens
+                ?: return null
+            val cible = symbol.uppercase()
+            val parts = tokens.filter {
+                val s = it.symbol.uppercase()
+                (s == cible || s.startsWith("$cible-")) && it.amountRaw > 0.0
+            }
+            if (parts.isEmpty()) return null
+            Holding(
+                amount = parts.sumOf { it.amountRaw },
+                valueUsd = parts.sumOf { it.amountRaw * it.priceUsd },
+                // Une seule variante SANS suffixe (le cas courant : BTC, ETH…)
+                // n'a pas besoin d'être située — la fiche parle déjà d'elle.
+                reseaux = if (parts.size == 1 && parts[0].symbol.uppercase() == cible) emptyList()
+                    else parts.mapNotNull { reseauDe(it.symbol) }.distinct()
+            )
         } catch (_: Exception) { null }
     }
+
+    /**
+     * Nom lisible du réseau d'un jeton, depuis le registre des échanges.
+     *
+     * On repasse par le registre plutôt que d'écrire une seconde table :
+     * dupliquer la correspondance, c'est se garantir qu'elle divergera un
+     * jour sans que rien ne le signale. null pour un jeton hors registre —
+     * mieux vaut ne rien dire que dire « Bitcoin » par défaut.
+     */
+    private fun reseauDe(cle: String): String? =
+        SwapViewModel.SWAP_ASSETS
+            .firstOrNull { it.key.equals(cle, ignoreCase = true) }
+            ?.network
 
     private val _markets = MutableStateFlow<List<CoinGeckoMarketDto>>(emptyList())
     val markets: StateFlow<List<CoinGeckoMarketDto>> = _markets
