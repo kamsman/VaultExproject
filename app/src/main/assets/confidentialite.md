@@ -98,5 +98,5 @@ Cette politique peut évoluer. La version en vigueur est celle publiée dans l'A
 Pour toute question relative à vos données :
 
 - **WhatsApp :** +226 72 30 65 26
-- **Telegram :** https://t.me/vaultexWallet
+- **Telegram :** https://t.me/vaultexCommunity
 - **Facebook :** VaultEx

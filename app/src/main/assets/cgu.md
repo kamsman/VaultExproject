@@ -92,7 +92,7 @@ Les présentes CGU sont régies par le droit du Burkina Faso. Tout litige relèv
 Pour toute question relative aux présentes CGU :
 
 - **WhatsApp :** +226 72 30 65 26
-- **Telegram :** https://t.me/vaultexWallet
+- **Telegram :** https://t.me/vaultexCommunity
 - **Facebook :** VaultEx
 
 ---

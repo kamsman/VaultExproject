@@ -662,7 +662,7 @@ private object BackupReminderBannerState {
 
 /** Lien d'invitation du groupe Telegram COMMUNAUTÉ (public) — distinct du
  *  groupe admin privé « Vaultex Administration » utilisé pour le monitoring. */
-private const val TELEGRAM_COMMUNITY_URL = "https://t.me/+TAgIGCHKMKpjZGI0"
+private const val TELEGRAM_COMMUNITY_URL = "https://t.me/vaultexCommunity"
 
 /** Bandeau Telegram : rappel marketing NON définitif — il réapparaît ~1 fois
  *  par semaine. On mémorise l'INSTANT du dernier refus (✕ ou clic « Rejoindre »)

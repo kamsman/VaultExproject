@@ -53,7 +53,7 @@ import com.vaultex.ui.components.rememberEtatRecherche
 private const val SUPPORT_EMAIL = "vaultexteams@gmail.com"
 private const val SUPPORT_EMAILS = "vaultexteams@gmail.com"
 private const val SUPPORT_WHATSAPP = "22672306526"           // wa.me : international sans « + »
-private const val SUPPORT_TELEGRAM = "https://t.me/vaultexWallet"
+private const val SUPPORT_TELEGRAM = "https://t.me/vaultexCommunity"
 private const val SUPPORT_FACEBOOK = "https://www.facebook.com/profile.php?id=61591429450182"
 private const val SUPPORT_PHONE = "+226 79 38 84 55"
 private const val SUPPORT_PHONE_DIAL = "+22679388455"
@@ -140,7 +140,7 @@ fun HelpScreen(navController: NavHostController) {
                 icon = Icons.Default.Send,
                 iconBg = Color(0xFF229ED9),
                 title = "Telegram",
-                subtitle = "@vaultexWallet"
+                subtitle = "@vaultexCommunity"
             ) {
                 runCatching {
                     context.startActivity(
