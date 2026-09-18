@@ -277,7 +277,7 @@ class SwapViewModel @Inject constructor(
         if (fraction < 1.0) {
             val bal = _state.value.fromBalance
             if (bal <= 0.0) {
-                _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_no_funds, _state.value.fromToken)) }
+                _state.update { it.copy(error = messageSoldeVide(_state.value.fromToken)) }
                 return
             }
             setFromAmount(
@@ -291,7 +291,7 @@ class SwapViewModel @Inject constructor(
         val tok = _state.value.fromToken
         val bal = _state.value.fromBalance
         if (bal <= 0.0) {
-            _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_no_funds, tok)) }
+            _state.update { it.copy(error = messageSoldeVide(tok)) }
             return
         }
         val reserve = when (tok.uppercase()) {
@@ -578,6 +578,45 @@ class SwapViewModel @Inject constructor(
     /** Nombre lisible (jusqu'à 8 décimales, sans zéros inutiles) pour les messages. */
     private fun trimNum(v: Double): String =
         java.math.BigDecimal.valueOf(v).setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « SOLDE VIDE » QUAND LE SOLDE EXISTE, SUR UNE AUTRE CHAÎNE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : l'écran d'échange s'ouvre sur USDT (TRC20),
+    annonce « Solde : 0 USDT », et répond « Solde USDT vide. Reçois d'abord
+    des USDT. » — alors que le portefeuille contient 3,10 USDT sur BNB Chain.
+
+    La phrase est fausse dans ce qu'elle CONSEILLE. Elle envoie recevoir des
+    USDT qu'on détient déjà, et laisse croire à une panne là où il n'y a
+    qu'un sélecteur de réseau resté sur la mauvaise ligne. Quelqu'un qui la
+    suit peut se faire envoyer des USDT sur Tron pour rien, en payant des
+    frais, pendant que ses fonds dorment ailleurs.
+
+    Le portefeuille, lui, SAIT où sont les fonds. Il n'y a aucune raison de
+    le taire : on nomme le réseau qui les porte et le montant exact.
+
+    ON NE CHANGE PAS DE RÉSEAU À SA PLACE. Basculer tout seul le ferait
+    partir d'une autre chaîne que celle qu'il regardait — sur un écran qui
+    déplace de l'argent, une substitution silencieuse est précisément ce
+    qu'il ne faut pas faire. On dit où regarder ; il choisit.
+    */
+    private fun messageSoldeVide(token: String): String {
+        val base = assetOf(token).base
+        val ailleurs = SWAP_ASSETS
+            .filter { it.base.equals(base, ignoreCase = true) && !it.key.equals(token, ignoreCase = true) }
+            .map { it to balanceOf(it.key) }
+            .filter { it.second > 0.0 }
+            .maxByOrNull { it.second }
+            ?: return str(com.vaultex.R.string.swap_msg_no_funds, base)
+        return str(
+            com.vaultex.R.string.swap_msg_funds_other_chain,
+            base,
+            "${trimNum(ailleurs.second)} $base",
+            ailleurs.first.network
+        )
+    }
 
     /** Extrait la VRAIE raison d'un échec ChangeNOW (corps de la réponse HTTP),
      *  ou un message clair pour les pannes réseau (hors-ligne, délai dépassé). */

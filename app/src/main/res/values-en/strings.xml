@@ -646,6 +646,7 @@
 
     <!-- Swap messages -->
     <string name="swap_msg_no_funds">No %1$s balance. Receive some %1$s first.</string>
+    <string name="swap_msg_funds_other_chain">No %1$s on this network. You hold %2$s on %3$s — switch network above.</string>
     <string name="swap_msg_low_gas">%1$s balance too low: %2$s available, keep ~%3$s %1$s for network fees.</string>
     <string name="swap_msg_max_below_min">Max %1$s %2$s: below the minimum (%3$s %2$s).</string>
     <string name="swap_msg_quote_failed">Quote unavailable. %1$s</string>
