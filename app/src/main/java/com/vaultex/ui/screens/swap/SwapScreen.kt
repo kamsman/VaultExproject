@@ -134,7 +134,9 @@ fun SwapScreen(navController: NavHostController) {
     // Pré-sélection « De » depuis la page d'une crypto.
     LaunchedEffect(Unit) {
         com.vaultex.core.session.TokenSelectionBuffer.consume()?.let { sym ->
-            if (tokens.any { it.equals(sym, ignoreCase = true) }) viewModel.setFromToken(sym)
+            // preselect… et non setFromToken : la fiche du Marché parle de
+            // Tether en général, pas de la chaîne qui porte les fonds.
+            if (tokens.any { it.equals(sym, ignoreCase = true) }) viewModel.preselectFromToken(sym)
         }
     }
 
