@@ -164,14 +164,64 @@ class SwapViewModel @Inject constructor(
     private data class SnapLite(val tokens: List<TokLite>?)
     private data class TokLite(val symbol: String = "", val amountRaw: Double = 0.0, val priceUsd: Double = 0.0, val priceXof: Double = 0.0)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    S'OUVRIR SUR LA VARIANTE QU'ON DÉTIENT, PAS SUR CELLE QUI EST VIDE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran s'ouvrait toujours sur USDT (TRC20), premier de la liste. Pour
+    quelqu'un dont les USDT sont sur BNB Chain, il s'ouvrait donc sur un
+    solde à zéro, affichait « Solde : 0 USDT » et bloquait le bouton — sans
+    que rien n'indique que les fonds étaient une ligne plus bas dans le
+    sélecteur.
+
+    On ouvre désormais sur la variante qui porte le solde. Ce n'est pas une
+    substitution : au moment de l'ouverture, aucun choix n'a encore été fait,
+    et le réseau reste écrit en toutes lettres sur le sélecteur (« BEP20 »,
+    « TRC20 ») comme sur l'écran de confirmation.
+
+    CE N'EST QUE LE RÉGLAGE D'OUVERTURE. Dès que l'utilisateur choisit une
+    ligne lui-même, setFromToken l'applique telle quelle : on n'a rien à
+    redire à quelqu'un qui sélectionne sciemment une variante vide — il peut
+    vouloir y recevoir des fonds. Corriger ce choix-là serait le genre de
+    substitution silencieuse qu'un écran qui déplace de l'argent ne doit
+    jamais se permettre.
+    */
+    private fun varianteDetenue(cle: String): String {
+        if (balanceOf(cle) > 0.0) return cle
+        val base = assetOf(cle).base
+        val riche = SWAP_ASSETS
+            .filter { it.base.equals(base, ignoreCase = true) && !it.key.equals(cle, ignoreCase = true) }
+            .map { it.key to balanceOf(it.key) }
+            .filter { it.second > 0.0 }
+            .maxByOrNull { it.second }
+            ?.first
+            ?: return cle
+        // Une variante ne doit jamais devenir la monnaie d'arrivée : on
+        // n'échange pas une monnaie contre elle-même.
+        return if (riche.equals(_state.value.toToken, ignoreCase = true)) cle else riche
+    }
+
     init {
+        val depart = varianteDetenue(_state.value.fromToken)
         _state.update { it.copy(
-            fromBalance = balanceOf(it.fromToken),
-            fromPriceUsd = priceUsdOf(it.fromToken),
+            fromToken = depart,
+            fromBalance = balanceOf(depart),
+            fromPriceUsd = priceUsdOf(depart),
             toPriceUsd = priceUsdOf(it.toToken)
         ) }
         chargerMinimum()
     }
+
+    /**
+     * Pré-sélection venue de la fiche d'une crypto (Marché → « Échanger »).
+     *
+     * La fiche parle de Tether en général ; elle ne sait pas sur quelle
+     * chaîne se trouvent les fonds. On applique donc la même règle qu'à
+     * l'ouverture : arriver sur la variante détenue plutôt que sur la
+     * première de la liste.
+     */
+    fun preselectFromToken(symbole: String) = setFromToken(varianteDetenue(symbole))
 
     /*
     ═══════════════════════════════════════════════════════════════════════
