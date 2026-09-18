@@ -23,7 +23,6 @@ data class SwapState(
     val toPriceUsd: Double = 0.0,       // prix USD de la monnaie cible
     val estimatedFee: String = "",
     val minAmount: Double? = null,
-    val vaultexFeePercent: Double = SwapUseCase.VAULTEX_FEE_PERCENT,
     val isCrossChain: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -171,7 +170,68 @@ class SwapViewModel @Inject constructor(
             fromPriceUsd = priceUsdOf(it.fromToken),
             toPriceUsd = priceUsdOf(it.toToken)
         ) }
+        chargerMinimum()
     }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MINIMUM SE LIT AVANT DE TAPER, PAS APRÈS S'ÊTRE FAIT REFUSER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le minimum n'était demandé qu'à deux moments : au clic sur MAX, et à la
+    création de l'échange. Autrement dit, on le découvrait en se faisant
+    refuser — après avoir choisi les monnaies, saisi un montant et touché
+    « Continuer ».
+
+    Or il ne s'agit pas d'un détail : mesuré sur le vrai service,
+    USDT-TRC20 → BTC exige 17,30 USDT, soit environ 10 400 FCFA. Un
+    utilisateur qui détient 2 000 FCFA n'a aucune chance, et rien ne le lui
+    disait avant l'échec.
+
+    CE MINIMUM N'EST PAS ARBITRAIRE, ET ON NE LE DEVINE PAS. Il dépend du
+    coût de retrait de la monnaie d'ARRIVÉE : sortir du BTC coûte cher,
+    sortir du TRX coûte des centimes. Il change donc avec les frais de la
+    chaîne, et l'écrire en dur serait faux dès le lendemain.
+
+    On le demande au fournisseur à chaque changement de paire. Un échec
+    laisse simplement la ligne vide — jamais un chiffre inventé.
+
+    ET ON NE BLOQUE RIEN. Le fournisseur refusera ce qu'il refuse, avec son
+    propre message ; l'avertissement « Valeur perdue » dit déjà ce que
+    l'opération coûte en proportion. À l'utilisateur de décider — c'est son
+    argent, et un portefeuille non-dépositaire n'a pas à choisir pour lui.
+    */
+    private var jobMinimum: kotlinx.coroutines.Job? = null
+
+    private fun chargerMinimum() {
+        // Une seule requête à la fois : changer de paire deux fois
+        // rapidement ne doit pas laisser la réponse la plus lente écraser
+        // l'écran — le même piège que les frais de l'écran d'envoi.
+        jobMinimum?.cancel()
+        val de = _state.value.fromToken
+        val vers = _state.value.toToken
+        _state.update { it.copy(minAmount = null) }
+        jobMinimum = viewModelScope.launch {
+            val min = withContext(Dispatchers.IO) { swapUseCase.getMinAmount(de, vers) }
+            // La paire a changé pendant l'appel : ce minimum ne la concerne
+            // plus.
+            if (_state.value.fromToken != de || _state.value.toToken != vers) return@launch
+            _state.update { it.copy(minAmount = min) }
+        }
+    }
+
+    /** Minimum de la paire, prêt à afficher — ou null s'il est inconnu. */
+    fun minimumLisible(): String? =
+        _state.value.minAmount?.let {
+            java.math.BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() +
+                " " + assetOf(_state.value.fromToken).base
+        }
+
+    /** Commission VaultEx réellement appliquée par le fournisseur en service. */
+    val commissionPourcent: Double get() = swapUseCase.commissionPourcent
+
+    /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
+    val nomFournisseur: String get() = swapUseCase.nomFournisseur
 
     private fun snapTok(token: String): TokLite? {
         val json = secureStorage.getPortfolioSnapshot() ?: return null
@@ -274,12 +334,14 @@ class SwapViewModel @Inject constructor(
 
     fun setFromToken(token: String) {
         _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token)) }
+        chargerMinimum()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
 
     fun setToToken(token: String) {
         _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token)) }
+        chargerMinimum()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -292,13 +354,19 @@ class SwapViewModel @Inject constructor(
         if (normalized.isNotEmpty()) estimateOutput(normalized)
     }
 
-    fun swapTokens() = _state.update {
-        it.copy(
-            fromToken = it.toToken, toToken = it.fromToken,
-            fromAmount = it.toAmount, toAmount = it.fromAmount,
-            fromBalance = balanceOf(it.toToken),
-            fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken)
-        )
+    fun swapTokens() {
+        _state.update {
+            it.copy(
+                fromToken = it.toToken, toToken = it.fromToken,
+                fromAmount = it.toAmount, toAmount = it.fromAmount,
+                fromBalance = balanceOf(it.toToken),
+                fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken)
+            )
+        }
+        // Inverser la paire, c'est en changer : le minimum de BTC→USDT n'a
+        // rien à voir avec celui d'USDT→BTC, puisque la monnaie qui sort
+        // n'est plus la même.
+        chargerMinimum()
     }
 
     private fun estimateOutput(amount: String) {
@@ -592,9 +660,21 @@ class SwapViewModel @Inject constructor(
                         run {
                             val st = _state.value
                             if (remote == "finished") {
-                                // Commission VaultEx (1,5 % du montant) en USD — suivi du revenu.
+                                /*
+                                Revenu estimé de ce swap, en dollars.
+
+                                Calculé sur la commission RÉELLE du fournisseur
+                                en service — et non sur l'ancienne constante de
+                                1,5 %, qui donnait un revenu imaginaire : rien
+                                n'était prélevé, donc le suivi comptait de
+                                l'argent qui n'arrivait jamais.
+
+                                Reste une ESTIMATION : le versement effectif se
+                                lit dans le tableau de bord partenaire, et peut
+                                différer du montant déposé si la paire a bougé.
+                                */
                                 val usdFee = (st.fromAmount.toDoubleOrNull() ?: 0.0) *
-                                    (SwapUseCase.VAULTEX_FEE_PERCENT / 100.0) * st.fromPriceUsd
+                                    (commissionPourcent / 100.0) * st.fromPriceUsd
                                 com.vaultex.core.monitoring.AdminBot.swapFinished(
                                     st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
                                 // Jalon de MONÉTISATION : tout premier swap abouti.
