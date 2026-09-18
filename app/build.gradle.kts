@@ -206,6 +206,25 @@ android {
         buildConfigField("String", "ETHERSCAN_KEY",   "\"${secret("etherscan.key")}\"")
         buildConfigField("String", "BSCSCAN_KEY",     "\"${secret("bscscan.key")}\"")
         buildConfigField("String", "CHANGENOW_KEY",   "\"${secret("changenow.key")}\"")
+        /*
+        ─── SIMPLESWAP : CLE, COMMISSION, INTERRUPTEUR ─────────────────────
+        ChangeNOW verse 0,4 % au partenaire, sans plus. SimpleSwap laisse
+        fixer ce taux entre 0,4 et 5 % SUR LA CLE : la commission est prise
+        DANS l'echange, sans seconde transaction — la seule facon d'atteindre
+        1,5 % sans payer des frais reseau superieurs a ce qu'on encaisse.
+
+        `swap.provider` choisit le fournisseur. Il vaut « changenow » tant que
+        rien n'est ecrit dans local.properties : basculer se fait d'une ligne,
+        et revenir en arriere aussi. Aucune version distribuee ne change de
+        comportement sans decision explicite.
+
+        `simpleswap.commission` ne PRELEVE rien — la cle s'en charge. Il ne
+        sert qu'a AFFICHER le bon chiffre, la ou l'ecran annoncait 1,5 %
+        quand rien n'etait pris.
+        */
+        buildConfigField("String", "SIMPLESWAP_KEY",  "\"${secret("simpleswap.key")}\"")
+        buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
+        buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${secret("flutterwave.key")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
         buildConfigField("String", "TRONGRID_KEY",    "\"${secret("trongrid.key")}\"")

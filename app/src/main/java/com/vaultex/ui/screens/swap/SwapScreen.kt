@@ -162,7 +162,9 @@ fun SwapScreen(navController: NavHostController) {
         screen == "confirm" -> SwapConfirmScreen(
             state = state,
             onBack = { screen = "form" },
-            onConfirm = confirmAndExecute
+            onConfirm = confirmAndExecute,
+            commissionPourcent = viewModel.commissionPourcent,
+            nomFournisseur = viewModel.nomFournisseur
         )
         else -> SwapFormScreen(
             navController = navController,
@@ -177,7 +179,10 @@ fun SwapScreen(navController: NavHostController) {
             onContinue = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 screen = "confirm"
-            }
+            },
+            minimumPaire = viewModel.minimumLisible(),
+            commissionPourcent = viewModel.commissionPourcent,
+            nomFournisseur = viewModel.nomFournisseur
         )
     }
 }
@@ -195,7 +200,13 @@ private fun SwapFormScreen(
     onAmount: (String) -> Unit,
     onFraction: (Double) -> Unit,
     onInvert: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: () -> Unit,
+    /** Minimum de la paire, mis en forme par le ViewModel. */
+    minimumPaire: String?,
+    /** Commission réellement appliquée par le fournisseur en service. */
+    commissionPourcent: Double,
+    /** Nom de l'échangeur — ChangeNOW ou SimpleSwap. */
+    nomFournisseur: String
 ) {
     val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
@@ -358,7 +369,8 @@ private fun SwapFormScreen(
                 rightLabel = "Solde : $balTxt ${swapBaseOf(state.fromToken)}",
                 token = state.fromToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onFromToken,
                 amount = state.fromAmount, editable = true, onAmountChange = onAmount,
-                fiat = fromFiat, onFraction = onFraction, highlight = true
+                fiat = fromFiat, onFraction = onFraction, highlight = true,
+                minimum = minimumPaire
             )
 
             // Inversion (le bouton fait un demi-tour à chaque clic → preuve visuelle de l'échange)
@@ -500,7 +512,9 @@ private fun SwapFormScreen(
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("ChangeNOW", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
+                    // Le nom vient du fournisseur en service : l'écrire en dur
+                    // mentirait dès la bascule vers SimpleSwap.
+                    Text(nomFournisseur, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                 }
@@ -520,7 +534,11 @@ private fun SwapFormScreen(
 private fun SwapConfirmScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onBack: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    /** Commission réellement appliquée par le fournisseur en service. */
+    commissionPourcent: Double,
+    /** Nom de l'échangeur — ChangeNOW ou SimpleSwap. */
+    nomFournisseur: String
 ) {
     val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
@@ -649,8 +667,28 @@ private fun SwapConfirmScreen(
             val rate = (if (fromAmt > 0.0 && toAmt > 0.0)
                 tauxLisible(swapBaseOf(state.fromToken), swapBaseOf(state.toToken), fromAmt, toAmt)
             else null) ?: "—"
-            val feeTxt = if (fromAmt > 0.0)
-                "${montantLisible(fromAmt * com.vaultex.domain.usecase.SwapUseCase.VAULTEX_FEE_PERCENT / 100.0)} ${swapBaseOf(state.fromToken)}" else "—"
+            /*
+            LA COMMISSION AFFICHÉE EST CELLE QUI EST PRÉLEVÉE.
+
+            Cette ligne annonçait 1,5 % calculés depuis une constante du code,
+            alors que RIEN n'était prélevé : applyFee() n'était appelée que
+            par les tests, et le corps envoyé à ChangeNOW n'avait aucun champ
+            de commission. L'application annonçait donc un frais qu'elle ne
+            prenait pas — une déclaration inexacte sur un produit financier,
+            et l'un des points que la Play Console examine.
+
+            La commission vit désormais sur la CLÉ du fournisseur : 0,4 % chez
+            ChangeNOW, réglable de 0,4 à 5 % chez SimpleSwap. Le code ne
+            prélève rien — il lit ce que le fournisseur applique et le dit.
+
+            Le pourcentage accompagne le montant : « 0,075 USDT (1,5 %) ». Un
+            montant seul ne permet pas de comparer, et c'est précisément ce
+            qu'un utilisateur veut faire avec un frais.
+            */
+            val feeTxt = if (fromAmt > 0.0 && commissionPourcent > 0.0)
+                "${montantLisible(fromAmt * commissionPourcent / 100.0)} ${swapBaseOf(state.fromToken)}" +
+                    " (%.2f %%)".format(commissionPourcent)
+            else "—"
 
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
@@ -661,7 +699,7 @@ private fun SwapConfirmScreen(
                         summary = "Frais inclus : $feeTxt"
                     ) {
                         Divider(color = swapBorder)
-                        ConfirmRow("Fournisseur", "ChangeNOW", chevron = true)
+                        ConfirmRow("Fournisseur", nomFournisseur, chevron = true)
                         Divider(color = swapBorder)
                         ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
                         Divider(color = swapBorder)
@@ -1001,7 +1039,14 @@ private fun SwapCoinCard(
     onAmountChange: (String) -> Unit,
     fiat: String?,
     onFraction: ((Double) -> Unit)?,
-    highlight: Boolean
+    highlight: Boolean,
+    /**
+     * Minimum de la paire, déjà mis en forme — ou null s'il est inconnu.
+     *
+     * Ne concerne que la carte du HAUT : c'est le montant qu'on saisit qui
+     * doit atteindre le seuil, pas celui qu'on reçoit.
+     */
+    minimum: String? = null
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -1118,6 +1163,29 @@ private fun SwapCoinCard(
                         Text(amount.ifEmpty { "0" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapText)
                     }
                     fiat?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
+                    /*
+                    LE MINIMUM SE LIT AVANT DE TAPER.
+
+                    Il n'était demandé qu'au clic sur MAX et à la création de
+                    l'échange : on le découvrait donc en se faisant refuser,
+                    après avoir choisi les monnaies, saisi un montant et
+                    touché « Continuer ».
+
+                    Mesuré sur le vrai service, USDT-TRC20 → BTC exige 17,30
+                    USDT — environ 10 400 FCFA. Quelqu'un qui détient 2 000
+                    FCFA n'avait aucune chance, et rien ne le lui disait.
+
+                    Rien n'est bloqué pour autant : le fournisseur refusera
+                    ce qu'il refuse, et la ligne « Valeur perdue » dit déjà ce
+                    que l'opération coûte en proportion. C'est à l'utilisateur
+                    de décider — c'est son argent.
+                    */
+                    minimum?.let {
+                        Text(
+                            stringResource(com.vaultex.R.string.send_min_hint, it),
+                            fontSize = 11.sp, color = swapTextFaint
+                        )
+                    }
                 }
             }
         }

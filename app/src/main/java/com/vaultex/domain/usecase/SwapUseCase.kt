@@ -1,10 +1,7 @@
 package com.vaultex.domain.usecase
 
-import com.vaultex.core.config.ApiKeys
 import com.vaultex.data.local.dao.TransactionDao
 import com.vaultex.data.local.entity.TransactionEntity
-import com.vaultex.data.remote.api.ChangeNowApi
-import com.vaultex.data.remote.dto.ChangeNowStatusDto
 import javax.inject.Inject
 
 /**
@@ -13,9 +10,32 @@ import javax.inject.Inject
  * l'historique local (table transactions, type "swap").
  */
 class SwapUseCase @Inject constructor(
-    private val changeNowApi: ChangeNowApi,
+    /*
+    L'ÉCHANGEUR PASSE DERRIÈRE UNE INTERFACE.
+
+    Ce cas d'usage appelait ChangeNOW directement, et son type de réponse
+    remontait jusqu'au ViewModel : changer de fournisseur revenait à toucher
+    l'affichage. Le nom de l'échangeur n'a rien à y faire.
+
+    FournisseurSwap expose quatre opérations — coter, minimum, créer, suivre —
+    et le module Hilt choisit l'implémentation selon `swap.provider`.
+    */
+    private val fournisseur: com.vaultex.domain.swap.FournisseurSwap,
     private val transactionDao: TransactionDao
 ) {
+
+    /** Nom de l'échangeur en service, pour l'affichage. */
+    val nomFournisseur: String get() = fournisseur.nom
+
+    /**
+     * Commission VaultEx réellement appliquée, en pourcentage.
+     *
+     * Elle est portée par la CLÉ d'API du fournisseur, pas par ce code :
+     * l'application ne prélève rien elle-même. Cette valeur existe pour que
+     * l'écran annonce ce qui est vraiment pris — il affichait 1,5 % alors
+     * que rien ne l'était.
+     */
+    val commissionPourcent: Double get() = fournisseur.commissionPourcent
 
     sealed class ValidationResult {
         data object Valid : ValidationResult()
@@ -39,19 +59,13 @@ class SwapUseCase @Inject constructor(
         return ValidationResult.Valid
     }
 
-    /** Montant minimum ChangeNOW pour la paire, ou null si l'appel échoue. */
-    suspend fun getMinAmount(fromToken: String, toToken: String): Double? = try {
-        changeNowApi.getMinAmount(pair(fromToken, toToken), ApiKeys.CHANGENOW).minAmount
-    } catch (_: Exception) {
-        null
-    }
+    /** Montant minimum de la paire chez le fournisseur, ou null s'il ne le dit pas. */
+    suspend fun getMinAmount(fromToken: String, toToken: String): Double? =
+        fournisseur.minimum(fromToken, toToken)
 
-    /** Statut courant d'un swap ChangeNOW (waiting/confirming/exchanging/sending/finished/failed). */
-    suspend fun getStatus(swapId: String): ChangeNowStatusDto? = try {
-        changeNowApi.getTransactionStatus(swapId, ApiKeys.CHANGENOW)
-    } catch (_: Exception) {
-        null
-    }
+    /** Statut courant d'un échange (waiting/confirming/exchanging/sending/finished/failed). */
+    suspend fun getStatus(swapId: String): com.vaultex.domain.swap.StatutSwap? =
+        fournisseur.statut(swapId)
 
     /** Enregistre le swap créé dans l'historique local. */
     suspend fun recordSwap(
@@ -80,10 +94,10 @@ class SwapUseCase @Inject constructor(
         )
     }
 
-    /** Met à jour le statut local d'un swap depuis ChangeNOW. Retourne le statut distant complet. */
-    suspend fun refreshSwapStatus(swapId: String): com.vaultex.data.remote.dto.ChangeNowStatusDto? {
+    /** Met à jour le statut local d'un swap. Retourne le statut distant complet. */
+    suspend fun refreshSwapStatus(swapId: String): com.vaultex.domain.swap.StatutSwap? {
         val status = getStatus(swapId) ?: return null
-        val localStatus = when (status.status) {
+        val localStatus = when (status.statut) {
             "finished" -> "confirmed"
             "failed", "refunded", "expired" -> "failed"
             else -> "pending"
@@ -91,8 +105,6 @@ class SwapUseCase @Inject constructor(
         transactionDao.updateStatus(swapId, localStatus, if (localStatus == "confirmed") 1 else 0)
         return status
     }
-
-    private fun pair(from: String, to: String) = "${cnTicker(from)}_${cnTicker(to)}"
 
     companion object {
         const val VAULTEX_FEE_PERCENT = 1.5

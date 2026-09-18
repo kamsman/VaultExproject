@@ -266,6 +266,74 @@ interface ChangeNowApi {
 }
 
 /**
+ * SimpleSwap — echangeur instantane, base https://api.simpleswap.io/
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI UN SECOND ECHANGEUR
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * ChangeNOW verse 0,4 % au partenaire, point. SimpleSwap laisse fixer ce
+ * taux entre 0,4 et 5 % SUR LA CLE elle-meme : la commission est prelevee
+ * DANS l'echange, sans transaction supplementaire.
+ *
+ * Cette nuance decide de tout. Prelever soi-meme 1 % demanderait un second
+ * envoi vers une adresse VaultEx — soit ~2,20 $ de frais reseau sur Tron
+ * pour encaisser 0,50 $ sur un echange de 50 $. Perte nette en dessous de
+ * 220 $ par operation, c'est-a-dire sur la quasi-totalite des echanges
+ * reels de l'application.
+ *
+ * La cle porte donc la commission, et le code n'a rien a prelever.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LECTURE DEFENSIVE DES REPONSES
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * get_estimated rend un nombre nu (« "0.0123" »), pas un objet. D'ou le
+ * JsonElement : on lit la valeur quelle que soit sa forme plutot que de
+ * parier sur l'une d'elles.
+ *
+ * Les champs des echanges sont tous nullables cote DTO. Une adresse de
+ * depot absente doit remonter comme une erreur franche — jamais devenir
+ * une chaine vide vers laquelle on enverrait des fonds.
+ */
+interface SimpleSwapApi {
+    @GET("get_estimated")
+    suspend fun getEstimated(
+        @Query("api_key") apiKey: String,
+        @Query("currency_from") from: String,
+        @Query("currency_to") to: String,
+        @Query("amount") amount: String,
+        @Query("fixed") fixed: Boolean = false
+    ): com.google.gson.JsonElement
+
+    @GET("get_ranges")
+    suspend fun getRanges(
+        @Query("api_key") apiKey: String,
+        @Query("currency_from") from: String,
+        @Query("currency_to") to: String,
+        @Query("fixed") fixed: Boolean = false
+    ): com.vaultex.data.remote.dto.SimpleSwapRangeDto
+
+    @POST("create_exchange")
+    suspend fun createExchange(
+        @Query("api_key") apiKey: String,
+        @Body body: com.vaultex.data.remote.dto.SimpleSwapCreateBody
+    ): com.vaultex.data.remote.dto.SimpleSwapExchangeDto
+
+    @GET("get_exchange")
+    suspend fun getExchange(
+        @Query("api_key") apiKey: String,
+        @Query("id") id: String
+    ): com.vaultex.data.remote.dto.SimpleSwapExchangeDto
+
+    /** Catalogue complet — sert a verifier qu'une monnaie existe chez eux. */
+    @GET("get_all_currencies")
+    suspend fun getAllCurrencies(
+        @Query("api_key") apiKey: String
+    ): com.google.gson.JsonElement
+}
+
+/**
  * Flutterwave — Mobile Money UEMOA (Orange Money, Wave, Moov, Free).
  * Base URL : https://api.flutterwave.com/v3/
  * Requires Authorization: Bearer <secret_key> header.

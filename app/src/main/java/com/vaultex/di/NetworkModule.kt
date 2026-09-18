@@ -471,6 +471,15 @@ object NetworkModule {
     }
 
     @Provides @Singleton
+    fun provideSimpleSwapApi(
+        @ApplicationContext ctx: Context, client: OkHttpClient
+    ): SimpleSwapApi {
+        val default = "https://api.simpleswap.io/"
+        return retrofit(default, dynamicClient(client, rpcPrefs(ctx), "rpc_simpleswap", default))
+            .create(SimpleSwapApi::class.java)
+    }
+
+    @Provides @Singleton
     fun provideFlutterwaveApi(client: OkHttpClient): FlutterwaveApi {
         val authedClient = client.newBuilder()
             .addInterceptor { chain ->

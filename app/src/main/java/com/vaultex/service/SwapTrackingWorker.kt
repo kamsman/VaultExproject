@@ -99,21 +99,21 @@ class SwapTrackingWorker @AssistedInject constructor(
                 // Dès « sending », ChangeNOW a diffusé le versement : le badge
                 // « en attente » doit apparaître sur la monnaie reçue sans
                 // attendre la confirmation finale.
-                status.payoutHash?.takeIf { it.isNotBlank() }?.let { payHash ->
+                status.hashSortie?.takeIf { it.isNotBlank() }?.let { payHash ->
                     toAsset?.let { runCatching { pendingTxManager.track(it.base, it.chain, payHash) } }
                 }
 
-                if (status.status !in TERMINAL) continue
+                if (status.statut !in TERMINAL) continue
 
-                if (status.status == "finished") {
+                if (status.statut == "finished") {
                     com.vaultex.core.monitoring.AdminBot.swapFinished(swap.amount, from, to, 0.0)
                 } else {
-                    com.vaultex.core.monitoring.AdminBot.swapFailed(from, to, status.status)
+                    com.vaultex.core.monitoring.AdminBot.swapFailed(from, to, status.statut)
                 }
 
                 if (!notifPrefs.txAlerts.value) continue
                 val ctx = applicationContext
-                if (status.status == "finished") {
+                if (status.statut == "finished") {
                     hub.post(
                         // Clé identique à celle de SwapViewModel : si l'écran a
                         // déjà notifié, le hub ignore ce doublon.
