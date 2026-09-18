@@ -57,10 +57,16 @@ fi
 
 # Les huit monnaies qui comptent. Les trois USDT sont des monnaies DISTINCTES
 # chez SimpleSwap, comme chez ChangeNOW : un reseau, un ticker.
+#
+# ATTENTION : ces tickers sont ceux de SIMPLESWAP, pas ceux de ChangeNOW. Les
+# deux catalogues ne s'ecrivent pas pareil — ici « usdtbep20 » et « bnb-bsc »,
+# la-bas « usdtbsc » et « bnbbsc ». Cette liste contenait les seconds ; deux
+# lignes entieres du tableau sortaient donc vides, ce qui ressemblait a un
+# service indisponible alors que c'etait une faute de frappe.
 if [ $# -gt 0 ]; then
   MONNAIES=("$@")
 else
-  MONNAIES=(usdttrc20 usdterc20 usdtbsc btc eth bnbbsc trx sol)
+  MONNAIES=(usdttrc20 usdterc20 usdtbep20 btc eth bnb-bsc trx sol)
 fi
 
 echo

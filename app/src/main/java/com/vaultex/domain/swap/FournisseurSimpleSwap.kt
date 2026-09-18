@@ -122,20 +122,65 @@ class FournisseurSimpleSwap @Inject constructor(
     }
 
     /*
-    Les tickers de SimpleSwap suivent la même logique que ceux de ChangeNOW —
-    une monnaie par RÉSEAU, pas par symbole — mais rien ne garantit qu'ils
-    s'écrivent pareil. Ceux qui suivent sont ceux du catalogue SimpleSwap ;
-    ils sont à confirmer contre get_all_currencies avant de basculer la
-    production.
+    ═══════════════════════════════════════════════════════════════════════
+    LES TICKERS SIMPLESWAP NE SE DEVINENT PAS — ILS SE VÉRIFIENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cette table était recopiée de celle de ChangeNOW en supposant que les deux
+    maisons écrivent pareil. Elles n'écrivent pas pareil, et deux lignes
+    étaient fausses :
+
+        BNB      « bnbbsc »  n'existe pas → « bnb-bsc »
+        USDT-BNB « usdtbsc » n'existe pas → « usdtbep20 »
+
+    Constaté sur appareil : un échange ETH → BNB répondait « Not Found » SANS
+    afficher de minimum. C'est la signature d'une monnaie inconnue et non d'un
+    montant trop petit — quand la paire existe mais que le montant est
+    insuffisant, get_ranges répond quand même et le minimum s'affiche. Ici
+    get_ranges échouait aussi : le ticker lui-même était refusé.
+
+    Conséquence directe : les USDT détenus sur BNB Chain — le seul solde réel
+    du portefeuille — n'étaient tout simplement pas échangeables.
+
+    IL N'Y A AUCUNE RÈGLE À APPLIQUER. Dans le même catalogue cohabitent
+    « usdtbep20 », « usdcbep20 », « unibep20 » et « ethbsc », « linkbsc »,
+    « solbsc », « trxbsc » — même chaîne, deux suffixes. « bnb-bsc » prend un
+    trait d'union que personne d'autre ne prend. Et « usdt » tout court désigne
+    l'Omni Layer, pas Ethereum : concaténer un symbole et un réseau produit
+    tôt ou tard un ticker qui existe et qui désigne autre chose.
+
+    D'où une table EXHAUSTIVE, vérifiée ligne à ligne contre get_all_currencies
+    (symbole, réseau et adresse de contrat). Ajouter un actif au registre sans
+    l'ajouter ici le fait retomber sur le repli, qui ne vaut que pour les
+    monnaies natives portant leur nom — et c'est justement là que le piège
+    « usdt = Omni » se referme.
 
     Se tromper ici n'expose à aucune perte : un ticker inconnu fait échouer le
-    devis, donc l'échange n'est jamais créé.
+    devis, donc l'échange n'est jamais créé. Ce qu'on perd, c'est la
+    fonctionnalité — silencieusement.
     */
     private fun ticker(token: String): String = when (token.uppercase()) {
-        "USDT"     -> "usdttrc20"
+        // Natives
+        "BTC"      -> "btc"
+        "ETH"      -> "eth"
+        "BNB"      -> "bnb-bsc"    // trait d'union ; « bnb » seul = Beacon Chain
+        "SOL"      -> "sol"
+        "TRX"      -> "trx"
+        // Tether — trois jetons distincts sur trois chaînes
+        "USDT"     -> "usdttrc20"  // notre USDT = Tron
         "USDT-ETH" -> "usdterc20"
-        "USDT-BNB" -> "usdtbsc"
-        "BNB"      -> "bnbbsc"
+        "USDT-BNB" -> "usdtbep20"  // et non « usdtbsc », qui n'existe pas
+        // Jetons Ethereum
+        "USDC"     -> "usdc"
+        "DAI"      -> "dai"
+        "LINK"     -> "link"
+        "SHIB"     -> "shib"
+        "PEPE"     -> "pepe"
+        "UNI"      -> "uni"
+        "AAVE"     -> "aave"
+        "WBTC"     -> "wbtc"
+        // Jeton BNB Chain
+        "CAKE"     -> "cake"
         else       -> token.lowercase()
     }
 
