@@ -22,6 +22,33 @@
 # https://changenow.io/affiliate
 changenow.key=
 
+# ─── SimpleSwap : le second échangeur ────────────────────────────────────
+# ChangeNOW verse 0,4 % au partenaire, sans plus. SimpleSwap laisse fixer ce
+# taux entre 0,4 et 5 % SUR LA CLÉ : la commission est prise DANS l'échange,
+# sans seconde transaction — la seule façon d'atteindre 1,5 % sans payer des
+# frais réseau supérieurs à ce qu'on encaisse.
+# https://simpleswap.io → Web Tools → API
+simpleswap.key=
+
+# QUEL ÉCHANGEUR RÉPOND. Deux valeurs : « changenow » ou « simpleswap ».
+#
+# ABSENT = changenow. C'est voulu : aucune version distribuée ne change de
+# comportement sans décision écrite, et le retour en arrière tient en un mot.
+#
+# Les deux maisons n'écrivent PAS les tickers pareil — « usdtbep20 » et
+# « bnb-bsc » chez SimpleSwap, « usdtbsc » et « bnbbsc » chez ChangeNOW. Une
+# table par fournisseur, dans FournisseurSimpleSwap.kt et
+# FournisseurChangeNow.kt. Si un échange échoue avec « Not Found » SANS
+# afficher de minimum, c'est le ticker qui est refusé, pas le montant :
+# vérifier la table du fournisseur EN SERVICE, pas celle de l'autre.
+swap.provider=changenow
+
+# Ce que la clé SimpleSwap prélève réellement, en pourcent. Ne PRÉLÈVE rien —
+# la clé s'en charge. Ne sert qu'à AFFICHER le bon chiffre, là où l'écran
+# annonçait 1,5 % quand rien n'était pris. À aligner sur le réglage de
+# l'espace partenaire, sous peine d'annoncer un frais qui n'est pas celui-là.
+simpleswap.commission=1.5
+
 # ─── Historique des transactions ─────────────────────────────────────────
 # Etherscan API V2 : une clé couvre Ethereum (les chaînes se distinguent
 # par le paramètre chainid, plus par le nom d'hôte). La V1 est désactivée :
