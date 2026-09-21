@@ -139,7 +139,11 @@ class SwapTrackingWorker @AssistedInject constructor(
                     toAsset?.let { runCatching { pendingTxManager.track(it.base, it.chain, payHash) } }
                 }
 
-                if (status.statut !in TERMINAL) continue
+                // Normalisé avant comparaison, comme dans refreshSwapStatus :
+                // « Finished » avec une majuscule ne doit pas passer pour un
+                // échange encore en cours.
+                val etat = status.statut.trim().lowercase()
+                if (etat !in TERMINAL) continue
 
                 // Échange conclu : il sort de getPendingSwaps(), sa mémoire de
                 // suivi n'a plus d'objet. Sans ce ménage, les préférences
@@ -147,7 +151,7 @@ class SwapTrackingWorker @AssistedInject constructor(
                 suivi.edit().remove(CLE_DERNIER_ESSAI + swap.hash)
                     .remove(CLE_ABANDON + swap.hash).apply()
 
-                if (status.statut == "finished") {
+                if (etat == "finished") {
                     com.vaultex.core.monitoring.AdminBot.swapFinished(swap.amount, from, to, 0.0)
                 } else {
                     com.vaultex.core.monitoring.AdminBot.swapFailed(from, to, status.statut)
@@ -155,7 +159,7 @@ class SwapTrackingWorker @AssistedInject constructor(
 
                 if (!notifPrefs.txAlerts.value) continue
                 val ctx = applicationContext
-                if (status.statut == "finished") {
+                if (etat == "finished") {
                     hub.post(
                         // Clé identique à celle de SwapViewModel : si l'écran a
                         // déjà notifié, le hub ignore ce doublon.

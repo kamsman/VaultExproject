@@ -883,12 +883,36 @@ private fun SwapTrackingScreen(
     l'échange commence à peine, et il durera deux à cinq minutes de plus.
     */
     val depotEnvoye = state.depositTxHash != null
-    var secondes by remember { mutableStateOf(5) }
-    var decompteAnnule by remember { mutableStateOf(false) }
-    val decompteActif = depotEnvoye && !finished && !failed && !decompteAnnule
 
-    LaunchedEffect(decompteActif) {
-        if (!decompteActif) return@LaunchedEffect
+    /*
+    DEUX MOMENTS OÙ L'ON PEUT PARTIR, ET UN SEUL OÙ L'ON NE DOIT PAS.
+
+    · le dépôt vient d'être diffusé — il n'y a plus rien à faire ici ;
+    · l'échange vient d'aboutir — on l'a vu, tout est vert.
+
+    Un échec, lui, ne renvoie nulle part : c'est le seul cas où l'écran
+    contient une information qu'on ne retrouvera pas ailleurs, et où
+    l'utilisateur a une décision à prendre.
+
+    Le compteur repart à cinq quand la phase change : quelqu'un qui atteint
+    la fin de l'échange sur cet écran dispose de ses cinq secondes pour voir
+    le vert, même si le décompte du dépôt était déjà écoulé.
+
+    Et « Rester ici » vaut pour tout l'écran, définitivement. Qui a demandé
+    à rester n'est pas chassé cinq minutes plus tard par le succès.
+    */
+    val phase = when {
+        failed -> null
+        finished -> "fini"
+        depotEnvoye -> "depot"
+        else -> null
+    }
+    var decompteAnnule by remember { mutableStateOf(false) }
+    var secondes by remember(phase) { mutableStateOf(5) }
+    val decompteActif = phase != null && !decompteAnnule
+
+    LaunchedEffect(phase, decompteAnnule) {
+        if (phase == null || decompteAnnule) return@LaunchedEffect
         while (secondes > 0) {
             kotlinx.coroutines.delay(1000)
             secondes--
@@ -934,7 +958,8 @@ private fun SwapTrackingScreen(
                             Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "Dépôt envoyé  ·  retour à l'accueil dans $secondes s",
+                                (if (phase == "fini") "Échange terminé" else "Dépôt envoyé") +
+                                    "  ·  retour à l'accueil dans $secondes s",
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
@@ -1017,6 +1042,35 @@ private fun SwapTrackingScreen(
                     finished -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(40.dp))
                     failed -> Text("!", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     else -> CircularProgressIndicator(color = SwapPurple, strokeWidth = 4.dp, modifier = Modifier.size(40.dp))
+                }
+            }
+
+            /*
+            LE SUCCÈS N'ÉTAIT NULLE PART ÉCRIT.
+
+            L'écran passait bien au vert — grande coche, frise cochée, badge
+            « Terminé » — mais pas une phrase ne disait ce qui venait de se
+            passer. Des symboles verts se lisent vite, et se lisent MAL : rien
+            n'y distinguait « les fonds sont arrivés » de « la demande a été
+            acceptée ».
+
+            Sur la dernière image que l'on voit d'une opération qui déplace de
+            l'argent, l'ambiguïté n'a pas sa place.
+
+            La phrase affirme les deux choses qu'on veut savoir : l'échange a
+            réussi, et les fonds ont bougé. Elle n'est affichée que sur un
+            statut « finished » du fournisseur, qui signifie exactement cela.
+            */
+            if (finished) {
+                Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Succès de l'échange. Tous les fonds ont été transférés.",
+                            fontSize = 12.sp, color = swapText, lineHeight = 16.sp
+                        )
+                    }
                 }
             }
 

@@ -121,7 +121,19 @@ class SwapUseCase @Inject constructor(
     /** Met à jour le statut local d'un swap. Retourne le statut distant complet. */
     suspend fun refreshSwapStatus(swapId: String): com.vaultex.domain.swap.StatutSwap? {
         val status = getStatus(swapId) ?: return null
-        val localStatus = when (status.statut) {
+        /*
+        COMPARAISON INSENSIBLE À LA CASSE, ET C'EST TOUT SAUF DÉCORATIF.
+
+        Ce mot vient d'un service extérieur. S'il arrive « Finished » au lieu
+        de « finished », l'égalité stricte échoue, le when tombe dans else,
+        et la ligne repasse en « pending » — À CHAQUE VÉRIFICATION, pour
+        toujours. Aucune exception, aucun message : un échange terminé,
+        fonds reçus, resterait annoncé « en cours » indéfiniment.
+
+        Le même piège vaut pour un espace en fin de chaîne. On normalise donc
+        avant de comparer, ici comme dans SwapTrackingWorker.
+        */
+        val localStatus = when (status.statut.trim().lowercase()) {
             "finished" -> "confirmed"
             "failed", "refunded", "expired" -> "failed"
             else -> "pending"
