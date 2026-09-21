@@ -64,20 +64,56 @@ class SwapTrackingWorker @AssistedInject constructor(
 
             val now = System.currentTimeMillis()
             for (swap in pending) {
-                // Au-delà de MAX_TRACK_MS, on cesse d'interroger : un échange
-                // encore ouvert après ce délai ne se débloquera pas tout seul,
-                // et continuer à l'interroger toutes les 15 min pendant des
-                // semaines consommerait le quota ChangeNOW pour rien. On ne le
-                // marque PAS en échec pour autant — les fonds peuvent encore
-                // arriver, et déclarer un échec à tort serait pire que se
-                // taire. L'incident part au diagnostic administrateur.
-                if (now - swap.timestamp > MAX_TRACK_MS) {
-                    com.vaultex.core.monitoring.AdminBot.serviceFailed(
-                        "swap bloque",
-                        "id=${swap.hash} ouvert depuis plus de 24 h (${swap.tokenSymbol})"
-                    )
+                /*
+                ═══════════════════════════════════════════════════════════
+                24 H D'HORLOGE N'ÉTAIT PAS 24 H D'ESSAIS
+                ═══════════════════════════════════════════════════════════
+
+                On cessait d'interroger 24 h après la CRÉATION de l'échange,
+                quoi qu'il se soit passé entre-temps. Un téléphone éteint le
+                week-end, un forfait épuisé, un voyage sans réseau — et le
+                délai s'écoulait sans qu'une seule question ait été posée au
+                fournisseur. L'échange restait « pending » à vie : pas de
+                notification de fin, historique faux. Les fonds, eux,
+                arrivaient — mais l'application l'ignorait pour toujours.
+
+                Le budget porte désormais sur les ESSAIS, pas sur le temps.
+                Trois régimes :
+
+                  · jusqu'à 24 h        — à chaque passage, comme avant ;
+                  · de 24 h à 7 jours   — une fois par heure, pas plus ;
+                  · au-delà de 7 jours  — on renonce, et on le signale.
+
+                Le plafond existe parce qu'un échange ouvert depuis une
+                semaine ne se débloquera pas, et qu'interroger indéfiniment
+                consommerait le quota du fournisseur pour rien.
+
+                ON NE MARQUE TOUJOURS PAS EN ÉCHEC. Les fonds sont partis ;
+                ils peuvent encore arriver. Déclarer un échec à tort serait
+                pire que se taire — c'est la différence avec un dépôt refusé,
+                où l'on SAIT que rien n'a quitté le portefeuille.
+
+                L'accueil, lui, garde sa fenêtre de 24 h : il montre ce qui
+                est vivant, pendant que le worker tient les comptes à jour.
+                */
+                val age = now - swap.timestamp
+                val cle = CLE_DERNIER_ESSAI + swap.hash
+
+                if (age > PLAFOND_SUIVI_MS) {
+                    // Une seule alerte par échange : ce travail repasse toutes
+                    // les 15 min, et le diagnostic n'a pas à être répété.
+                    if (!suivi.getBoolean(CLE_ABANDON + swap.hash, false)) {
+                        suivi.edit().putBoolean(CLE_ABANDON + swap.hash, true).apply()
+                        com.vaultex.core.monitoring.AdminBot.serviceFailed(
+                            "swap abandonne",
+                            "id=${swap.hash} ouvert depuis plus de 7 jours (${swap.tokenSymbol})"
+                        )
+                    }
                     continue
                 }
+
+                if (age > MAX_TRACK_MS && now - suivi.getLong(cle, 0L) < RALENTI_MS) continue
+                suivi.edit().putLong(cle, now).apply()
 
                 // refreshSwapStatus met déjà à jour le statut en base : une fois
                 // « confirmed » ou « failed », le swap sort de getPendingSwaps()
@@ -104,6 +140,12 @@ class SwapTrackingWorker @AssistedInject constructor(
                 }
 
                 if (status.statut !in TERMINAL) continue
+
+                // Échange conclu : il sort de getPendingSwaps(), sa mémoire de
+                // suivi n'a plus d'objet. Sans ce ménage, les préférences
+                // grossiraient d'une entrée par échange, définitivement.
+                suivi.edit().remove(CLE_DERNIER_ESSAI + swap.hash)
+                    .remove(CLE_ABANDON + swap.hash).apply()
 
                 if (status.statut == "finished") {
                     com.vaultex.core.monitoring.AdminBot.swapFinished(swap.amount, from, to, 0.0)
@@ -158,22 +200,45 @@ class SwapTrackingWorker @AssistedInject constructor(
         com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
             .firstOrNull { it.key.equals(key, ignoreCase = true) }
 
+    /**
+     * Mémoire du suivi : date du dernier essai par échange, et marque
+     * d'abandon. Des préférences plutôt qu'une colonne : la base n'a pas à
+     * migrer pour un état qui ne concerne que ce worker, et qu'on peut perdre
+     * sans dommage — au pire, un échange est réinterrogé une fois de trop.
+     */
+    private val suivi by lazy {
+        applicationContext.getSharedPreferences("vaultex_suivi_swaps", Context.MODE_PRIVATE)
+    }
+
     companion object {
         const val WORK_NAME = "vaultex_swap_tracking"
+
+        private const val CLE_DERNIER_ESSAI = "dernier:"
+        private const val CLE_ABANDON = "abandon:"
+
+        /** Entre 24 h et 7 jours, on n'interroge plus qu'une fois par heure. */
+        private const val RALENTI_MS = 60L * 60 * 1000
+
+        /** Au-delà, on renonce : un échange ouvert depuis une semaine est mort. */
+        private const val PLAFOND_SUIVI_MS = 7L * 24 * 60 * 60 * 1000
 
         /** Terminaux côté ChangeNOW : plus rien ne bougera après. */
         private val TERMINAL = setOf("finished", "failed", "refunded", "expired")
 
         /**
-         * Au-delà, on cesse d'interroger (voir doWork).
+         * Fin du suivi RAPPROCHÉ, et fenêtre de l'accueil.
          *
-         * Public, et c'est délibéré : l'accueil s'en sert pour décider ce
-         * qu'il appelle « en cours ». Dès l'instant où ce worker renonce à
-         * interroger le fournisseur, l'application ne sait plus rien de cet
-         * échange — continuer à l'annoncer vivant serait affirmer ce qu'on
-         * ne croit plus. Deux seuils séparés auraient fini par diverger, et
-         * l'écart se serait vu sous la forme de « Échange en cours » restés
-         * là des semaines.
+         * Deux usages pour une seule valeur, et c'est délibéré.
+         *
+         * Ici, elle marque le passage au régime ralenti : au-delà, le worker
+         * continue d'interroger, mais une fois par heure seulement (voir
+         * doWork).
+         *
+         * L'accueil s'en sert pour décider ce qu'il appelle « en cours ».
+         * Passé ce délai, un échange n'est plus une opération en cours mais
+         * une anomalie : l'annoncer en tournant sur l'écran principal
+         * inquiéterait sans rien apporter — le worker, lui, continue en
+         * silence jusqu'à conclure ou renoncer.
          */
         const val MAX_TRACK_MS = 24L * 60 * 60 * 1000
     }

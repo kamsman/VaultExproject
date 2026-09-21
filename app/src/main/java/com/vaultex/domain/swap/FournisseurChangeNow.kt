@@ -72,6 +72,24 @@ class FournisseurChangeNow @Inject constructor(
         )
     }
 
+    /*
+    UN STATUT QU'ON NE SAIT PAS LIRE NE DOIT PAS DISPARAÎTRE EN SILENCE.
+
+    Ce bloc rendait null sur n'importe quelle exception. Or le suivi ne
+    dispose d'aucun autre moyen de conclure : sans réponse, la ligne reste
+    « pending », l'accueil continue d'annoncer un échange en cours, et la
+    notification de fin ne part jamais — pour un échange pourtant abouti
+    chez le fournisseur.
+
+    C'est un silence coûteux, parce qu'il est INDISTINGUABLE d'un échange
+    réellement en cours. Une clé révoquée, un identifiant refusé, une
+    réponse dont la forme a changé : tout cela ressemble, vu de
+    l'application, à « ce n'est pas encore fini ».
+
+    On rend toujours null — l'appelant doit pouvoir réessayer — mais
+    l'incident part au diagnostic administrateur. Une annulation de
+    coroutine, elle, n'est pas un incident : reportUnlessCancelled l'écarte.
+    */
     override suspend fun statut(id: String): StatutSwap? = try {
         val r = api.getTransactionStatus(id, ApiKeys.CHANGENOW)
         StatutSwap(
@@ -84,7 +102,8 @@ class FournisseurChangeNow @Inject constructor(
             hashSortie = r.payoutHash,
             montantRecu = r.amountTo
         )
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        com.vaultex.core.monitoring.reportUnlessCancelled("statut ChangeNOW", e)
         null
     }
 
