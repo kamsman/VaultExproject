@@ -862,9 +862,30 @@ private fun SwapTrackingScreen(
     Rien ne se déclenche sur un échange terminé ou échoué : dans ces
     deux cas, le résultat est précisément ce qu'on est venu voir.
     */
+    /*
+    LE DÉCOMPTE NE PART QU'UNE FOIS LE DÉPÔT PARTI.
+
+    Il démarrait dès l'ouverture de l'écran — c'est-à-dire dès la création
+    de l'échange chez le fournisseur, AVANT que les fonds n'aient quitté le
+    portefeuille. Or l'envoi sur la chaîne prend rarement moins de cinq
+    secondes.
+
+    On pouvait donc être renvoyé à l'accueil pendant que la transaction
+    était encore en cours de diffusion. Et si elle échouait ensuite — gaz
+    insuffisant, réseau coupé — le message d'erreur s'affichait sur un
+    écran que l'on avait déjà quitté. L'utilisateur repartait en croyant son
+    échange lancé, alors que rien n'était parti.
+
+    Le hash du dépôt est la preuve matérielle que la transaction est
+    diffusée : tant qu'il n'existe pas, aucun compte à rebours. C'est aussi
+    ce qui permet à la ligne d'annoncer quelque chose de VRAI — « Dépôt
+    envoyé », et non « Échange réussi », qui serait faux : à cet instant
+    l'échange commence à peine, et il durera deux à cinq minutes de plus.
+    */
+    val depotEnvoye = state.depositTxHash != null
     var secondes by remember { mutableStateOf(5) }
     var decompteAnnule by remember { mutableStateOf(false) }
-    val decompteActif = !finished && !failed && !decompteAnnule
+    val decompteActif = depotEnvoye && !finished && !failed && !decompteAnnule
 
     LaunchedEffect(decompteActif) {
         if (!decompteActif) return@LaunchedEffect
@@ -910,8 +931,10 @@ private fun SwapTrackingScreen(
                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                "Retour à l'accueil dans $secondes s",
+                                "Dépôt envoyé  ·  retour à l'accueil dans $secondes s",
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
