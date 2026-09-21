@@ -159,7 +159,8 @@ fun SwapScreen(navController: NavHostController) {
         state.swapInProgress -> SwapTrackingScreen(
             state = state,
             onClose = { viewModel.resetSwap(); screen = "form" },
-            onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) }
+            onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) },
+            nomFournisseur = viewModel.nomFournisseur
         )
         screen == "confirm" -> SwapConfirmScreen(
             state = state,
@@ -750,7 +751,9 @@ private fun SwapConfirmScreen(
 private fun SwapTrackingScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onClose: () -> Unit,
-    onHistory: () -> Unit
+    onHistory: () -> Unit,
+    /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
+    nomFournisseur: String
 ) {
     val clipboard = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
@@ -805,11 +808,32 @@ private fun SwapTrackingScreen(
         }
     ) { padding ->
         Column(
+            /*
+            ═══════════════════════════════════════════════════════════════
+            TOUT TIENT SUR UN ÉCRAN
+            ═══════════════════════════════════════════════════════════════
+
+            Constaté sur appareil : il fallait faire défiler pour voir ce
+            qu'on recevait et l'identifiant de l'échange. Sur un écran qui
+            dit « votre argent est parti », ce qui se trouve sous la ligne
+            de flottaison n'existe pas : on referme avant d'y arriver.
+
+            Trois coupes, aucune information perdue :
+            · la carte « Vous recevez » répétait le montant déjà écrit en
+              haut ; seul l'identifiant était nouveau, il rejoint la frise ;
+            · le pavé d'attente disait en quatre lignes ce qui en prend
+              deux ;
+            · les espacements passent de 14 à 10, la frise de 16 à 10.
+
+            Le défilement reste en place : une langue plus verbeuse, un
+            grand corps de texte ou un petit écran doivent pouvoir
+            déborder sans rien masquer.
+            */
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             // Deux logos + flèche
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 TokenBadgeWithCheck(state.fromToken, finished)
@@ -852,7 +876,10 @@ private fun SwapTrackingScreen(
                             // écran et mourait en le quittant. SwapTrackingWorker
                             // le reprend désormais depuis la base, donc on peut
                             // annoncer la notification sans mentir.
-                            "Le dépôt est envoyé ✓. L'échange se termine tout seul en 2 à 5 min — pas besoin d'attendre ici. Tu recevras une notification dès qu'il est terminé, même si tu fermes l'application.",
+                            // Quatre lignes pour dire deux choses : c'est parti,
+                            // tu peux fermer. Le reste — la durée, la
+                            // notification — tient dans la même phrase.
+                            "Dépôt envoyé ✓ · 2 à 5 min. Tu peux fermer l'app : une notification t'avertira.",
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
@@ -870,31 +897,38 @@ private fun SwapTrackingScreen(
                             Text(statusTxt, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, color = statusCol, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
                     TimelineStep("Transaction créée", null, done = rank >= 0 || finished, active = false, last = false)
                     TimelineStep("Confirmations réseau ${swapNetworkBadge(state.fromToken)}", null, done = rank > 2 || finished, active = rank in 1..2 && !finished, last = false)
-                    TimelineStep("Échange effectué", "Par ChangeNOW", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
+                    // « Par ChangeNOW » était écrit en dur : l'écran nommait le
+                    // mauvais échangeur dès que SimpleSwap répondait.
+                    TimelineStep("Échange effectué", "Par $nomFournisseur", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
                     TimelineStep("Envoi des ${swapBaseOf(state.toToken)}", swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
                     TimelineStep("Terminé", null, done = finished, active = false, last = true)
-                }
-            }
 
-            // Adresse de réception
-            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Vous recevez", fontSize = 12.sp, color = swapTextDim)
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
-                    Spacer(Modifier.height(8.dp))
-                    Text("À l'adresse de $payoutAddr", fontSize = 12.sp, color = swapTextDim)
+                    /*
+                    L'IDENTIFIANT RESTE, LA CARTE QUI L'ENTOURAIT PART.
+
+                    « Vous recevez ≈ 0,001015 ETH » répétait mot pour mot la
+                    ligne déjà affichée sous les logos. Seul l'identifiant
+                    était neuf — et c'est le seul élément de cet écran qu'on
+                    ne peut pas reconstituer : sans lui, impossible de
+                    retrouver l'échange auprès du fournisseur si quelque
+                    chose se passe mal. Il descend donc au pied de la frise,
+                    toujours copiable d'un doigt.
+                    */
                     state.swapId?.let { id ->
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable {
                                 clipboard.setText(AnnotatedString(id))
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }) {
-                            Text("ID : ${id.take(18)}…", fontSize = 12.sp, color = SwapPurple, modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ContentCopy, "Copier", tint = SwapPurple, modifier = Modifier.size(16.dp))
+                            }
+                        ) {
+                            Text("Reçu sur $payoutAddr · ID ${id.take(12)}…",
+                                fontSize = 11.sp, color = swapTextDim, modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ContentCopy, "Copier", tint = SwapPurple, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
@@ -961,7 +995,9 @@ private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active
             if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else swapBorder))
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.padding(bottom = if (last) 0.dp else 16.dp)) {
+        // 16 dp entre chaque étape faisaient déborder la frise sous la ligne
+        // de flottaison ; 10 dp la laissent parfaitement lisible.
+        Column(Modifier.padding(bottom = if (last) 0.dp else 10.dp)) {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                 color = if (done || active) swapText else swapTextDim)
             subtitle?.let { Text(it, fontSize = 11.sp, color = swapTextDim) }
