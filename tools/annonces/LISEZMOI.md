@@ -38,6 +38,29 @@ d'un mois sur l'autre. L'application le demande au fournisseur et
 l'affiche sous le champ de saisie ; une annonce qui graverait un chiffre
 serait fausse avant d'être lue.
 
+## Deux publics qui veulent l'inverse l'un de l'autre
+
+Quelqu'un qui n'a jamais rien déposé NE PEUT PAS échanger : il n'a rien à
+mettre en face, et chaque paire impose en plus un minimum qui dépasse
+souvent 10 $. Lui envoyer une annonce sur le Swap, c'est lui montrer une
+porte qu'il ne peut pas franchir — au mieux le message tombe à plat, au
+pire il fait couper toutes les notifications suivantes.
+
+    swap-*    →  portefeuilles qui ont déjà quelque chose
+    depot-*   →  portefeuilles vides
+
+Tant que les annonces partent sur le canal unique `vaultex_all`, les deux
+publics reçoivent tout. Les textes sont donc écrits pour que chacun
+reconnaisse en une ligne si le message le concerne — « Ton portefeuille
+est encore vide ? » se saute tout seul quand on a des fonds. Le jour où
+la segmentation par canal sera en place, il n'y aura rien à réécrire.
+
+Les deux annonces `depot-*` insistent sur le RÉSEAU, et ce n'est pas de
+la prudence décorative : de l'USDT envoyé sur la mauvaise chaîne est
+perdu définitivement. C'est la seule erreur de cet écran qui ne se
+rattrape pas, et le moment où quelqu'un reçoit ses premiers fonds est
+précisément celui où il ne le sait pas encore.
+
 ## Lequel envoyer
 
 Le 01 et le 03 attirent, le 02 rassure, le 04 prépare. Le 03 est le plus
@@ -46,6 +69,19 @@ gagne à partir avec le logo USDT. Le 04 se garde pour une seconde vague :
 adressé à quelqu'un qui n'a jamais échangé, il inquiète ; adressé à
 quelqu'un qui vient de voir « Coût de l'échange ≈ 26 % », il explique.
 
+Pour un portefeuille vide, `depot-01` ouvre la marche : il dit quoi
+faire, en trois gestes. `depot-02` le suit plus tard — c'est un
+avertissement, et un avertissement envoyé avant qu'on ait compris à quoi
+il sert ne s'imprime pas.
+
 Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
+
+## Envoi
+
+    ./tools/send-announcement.sh --fichier tools/annonces/depot-01-premier-depot.txt
+    ./tools/send-announcement.sh --fichier tools/annonces/depot-02-le-reseau.txt USDT
+
+`depot-01` parle de toutes les monnaies : il garde le logo VaultEx.
+`depot-02` ne parle que d'USDT, le logo Tether y est à sa place.
