@@ -1,0 +1,2 @@
+Avant de recevoir tes premiers fonds : le réseau
+De l'USDT sur Tron et de l'USDT sur BNB Chain ne sont PAS la même chose. Envoyé sur le mauvais réseau, l'argent est perdu pour de bon. Dans VaultEx, onglet Recevoir : choisis la monnaie, puis le réseau, et partage le QR affiché. Ton correspondant utilise exactement celui-là.

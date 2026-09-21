@@ -472,8 +472,13 @@ private fun SwapFormScreen(
                                 fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText
                             )
                         }
+                        // « Frais inclus » juste au-dessus d'une ligne « Frais
+                        // estimés » se contredisait : on comprenait soit que
+                        // les frais étaient offerts, soit qu'il y en avait
+                        // deux. Le taux est estimé, les frais sont dedans, et
+                        // c'est la ligne des frais qui le dit.
                         Text(
-                            "Frais inclus  ·  2 – 5 min",
+                            "Taux estimé  ·  2 – 5 min",
                             fontSize = 12.sp, color = swapTextDim
                         )
                     }
@@ -510,34 +515,60 @@ private fun SwapFormScreen(
             et en reçoit 2,20 $ le découvrira de toute façon. Un coût
             annoncé est un coût ; un coût découvert est une arnaque.
             */
-            pertePourcent(state, fromAmt, toAmt)?.let { cout ->
+            coutEchange(state, fromAmt, toAmt)?.let { cout ->
                 val teinte = when {
-                    cout >= SEUIL_COUT_ELEVE -> SwapRed
-                    cout >= SEUIL_COUT_NOTABLE -> SwapOrange
+                    cout.pourcent >= SEUIL_COUT_ELEVE -> SwapRed
+                    cout.pourcent >= SEUIL_COUT_NOTABLE -> SwapOrange
                     else -> swapTextDim
                 }
                 Spacer(Modifier.height(6.dp))
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.Transparent,
-                    border = BorderStroke(1.dp, if (cout >= SEUIL_COUT_NOTABLE) teinte.copy(alpha = 0.5f) else swapBorder),
+                    border = BorderStroke(1.dp, if (cout.pourcent >= SEUIL_COUT_NOTABLE) teinte.copy(alpha = 0.5f) else swapBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Info, null, tint = teinte, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text("Coût de l'échange", fontSize = 13.sp, color = swapTextDim)
+                            Text("Frais estimés", fontSize = 13.sp, color = swapTextDim)
                             Spacer(Modifier.weight(1f))
-                            Text("≈ $cout %", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte)
+                            // LE MONTANT D'ABORD, LE POURCENTAGE ENSUITE.
+                            //
+                            // « ≈ 11 % » seul se lit comme un tarif — donc
+                            // comme le tarif de VaultEx. « ≈ 0,51 $ » est ce
+                            // que l'utilisateur compare réellement à ce que lui
+                            // prendrait un changeur du quartier, et ce chiffre
+                            // est modeste.
+                            //
+                            // Le pourcentage reste, entre parenthèses, parce
+                            // que lui seul dit « tu échanges trop peu » : sur
+                            // 3 $, « 0,80 $ » sonne raisonnable alors que c'est
+                            // le quart de la somme. Le retirer rendrait l'écran
+                            // rassurant et faux.
+                            Text(
+                                "${sommeUsd(cout.usd)}  (${cout.pourcent} %)",
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte
+                            )
                         }
+                        Spacer(Modifier.height(4.dp))
+                        // D'OÙ VIENNENT CES FRAIS, ET QU'ILS SONT DÉJÀ COMPTÉS.
+                        //
+                        // Sans « déjà déduits », une ligne de frais placée sous
+                        // le montant reçu se lit comme un prélèvement À VENIR :
+                        // l'utilisateur croit qu'on lui retirera 0,51 $ de plus
+                        // que ce que l'écran annonce.
+                        Text(
+                            "Frais de réseau + commission, déjà déduits du montant reçu.",
+                            fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp
+                        )
                         // La cause n'est rappelée que lorsque le chiffre
                         // surprend. Sur un échange ordinaire, elle
                         // n'apprendrait rien et occuperait une ligne.
-                        if (cout >= SEUIL_COUT_NOTABLE) {
-                            Spacer(Modifier.height(6.dp))
+                        if (cout.pourcent >= SEUIL_COUT_NOTABLE) {
                             Text(
-                                "Surtout des frais de réseau fixes — ils pèsent d'autant plus que le montant est petit.",
+                                "Les frais de réseau sont fixes : ils pèsent d'autant plus que le montant est petit.",
                                 fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp
                             )
                         }
@@ -552,11 +583,27 @@ private fun SwapFormScreen(
                 border = BorderStroke(1.dp, swapBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                /*
+                « MEILLEUR TAUX » ANNONÇAIT UNE COMPARAISON QUI N'A PAS LIEU.
+
+                Un seul échangeur répond : SwapModule en choisit un selon
+                `swap.provider`, et aucun devis concurrent n'est demandé.
+                Rien, dans le code, ne permettait donc d'affirmer que ce taux
+                est le meilleur — et la coche verte donnait à cette affirmation
+                l'apparence d'une vérification.
+
+                Sur un écran qui déplace de l'argent, un label invérifiable est
+                le pire endroit où se montrer approximatif : c'est exactement
+                ce qu'un utilisateur échaudé ira relire. « Échange via » dit ce
+                qui est vrai, et n'ôte rien — savoir QUI exécute l'opération
+                est l'information utile.
+
+                Le jour où plusieurs devis seront réellement comparés, la
+                mention se rétablira d'elle-même, et elle sera vraie.
+                */
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Meilleur taux", fontSize = 13.sp, color = swapTextDim)
+                    Text("Échange via", fontSize = 13.sp, color = swapTextDim)
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.Verified, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
                     // Le nom vient du fournisseur en service : l'écrire en dur
                     // mentirait dès la bascule vers SimpleSwap.
                     Text(nomFournisseur, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SwapPurple)
@@ -1475,15 +1522,25 @@ private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, v
     return "1 $versTexte ≈ $v $deTexte"
 }
 
+/** Ce que l'échange coûte : la somme, et sa part du montant envoyé. */
+private data class CoutEchange(val usd: Double, val pourcent: Int)
+
 /**
- * Ce que l'échange coûte, en pourcentage de la valeur envoyée — ou null si
- * l'on ne peut pas le calculer (montant vide, prix indisponible).
+ * Écart entre la valeur envoyée et la valeur reçue — ou null si l'on ne peut
+ * pas le calculer (montant vide, prix indisponible).
  *
  * Sur un petit montant, les frais de réseau du fournisseur peuvent dépasser
  * la moitié de la somme : l'écran affichait « ≈ 1,32 $ » d'un côté et
  * « ≈ 0,66 $ » de l'autre, sans un mot. Les deux chiffres étaient exacts et
  * la conclusion — la moitié part en frais — restait à la charge de qui
  * penserait à les comparer.
+ *
+ * LES DEUX MESURES SONT RENDUES, parce qu'aucune ne suffit seule. La somme
+ * (« 0,51 $ ») est ce que l'utilisateur compare à ce que lui prendrait un
+ * changeur ; le pourcentage (« 11 % ») est le seul qui dise « tu échanges
+ * trop peu ». Montrer le pourcentage seul fait passer VaultEx pour cher ;
+ * montrer la somme seule rend rassurant un échange qui coûte le quart de la
+ * mise.
  *
  * Plus aucun seuil d'affichage : le chiffre est rendu dès qu'il existe. Une
  * ligne qui ne paraît qu'au-dessus de 10 % est une alarme, pas une mesure —
@@ -1494,14 +1551,27 @@ private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, v
  * portefeuille, et un léger décalage entre les deux suffirait à annoncer un
  * gain là où il n'y en a pas.
  */
-private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: Double, versMontant: Double): Int? {
+private fun coutEchange(state: com.vaultex.ui.viewmodel.SwapState, deMontant: Double, versMontant: Double): CoutEchange? {
     if (deMontant <= 0.0 || versMontant <= 0.0) return null
     if (state.fromPriceUsd <= 0.0 || state.toPriceUsd <= 0.0) return null
     val envoye = deMontant * state.fromPriceUsd
     val recu = versMontant * state.toPriceUsd
     if (envoye <= 0.0) return null
-    return ((1.0 - recu / envoye) * 100.0).toInt().coerceAtLeast(0)
+    return CoutEchange(
+        usd = (envoye - recu).coerceAtLeast(0.0),
+        pourcent = ((1.0 - recu / envoye) * 100.0).toInt().coerceAtLeast(0)
+    )
 }
+
+/**
+ * Somme en dollars, au format des deux lignes « ≈ 4,37 $ » de l'écran.
+ *
+ * En dessous d'un centime, « 0,00 $ » ferait croire à la gratuité : on écrit
+ * « < 0,01 $ », qui est à la fois vrai et modeste.
+ */
+private fun sommeUsd(v: Double): String =
+    if (v < 0.01) "< 0,01 $"
+    else "≈ " + String.format(java.util.Locale.US, "%,.2f", v) + " $"
 
 /** Au-delà, le coût mérite une couleur et un mot d'explication. */
 private const val SEUIL_COUT_NOTABLE = 10

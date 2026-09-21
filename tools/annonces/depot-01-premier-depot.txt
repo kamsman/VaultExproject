@@ -1,0 +1,2 @@
+Ton portefeuille est encore vide ?
+Ouvre l'onglet Recevoir, choisis la monnaie et le réseau, puis partage ton QR ou ton adresse. Celui qui t'envoie les fonds les verra arriver directement chez toi — VaultEx ne garde rien, ne demande aucun compte. Attention au réseau : il doit être le même des deux côtés.
