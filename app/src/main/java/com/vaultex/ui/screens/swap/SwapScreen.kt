@@ -819,7 +819,7 @@ private fun SwapTrackingScreen(
     /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
     nomFournisseur: String
 ) {
-    val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val finished = state.swapStatus == "finished"
@@ -985,10 +985,7 @@ private fun SwapTrackingScreen(
                         Spacer(Modifier.height(12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                clipboard.setText(AnnotatedString(id))
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
+                            modifier = Modifier.fillMaxWidth().clickable { copier(id) }
                         ) {
                             Text("Reçu sur $payoutAddr · ID ${id.take(12)}…",
                                 fontSize = 11.sp, color = swapTextDim, modifier = Modifier.weight(1f))

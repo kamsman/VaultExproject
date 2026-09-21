@@ -52,7 +52,7 @@ import com.vaultex.ui.viewmodel.ReceiveViewModel
 fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: String) {
     val viewModel: ReceiveViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
-    val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val context = LocalContext.current
 
     val chainKey = chain.uppercase()
@@ -64,7 +64,7 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
 
     fun copy() {
         if (address.isEmpty()) return
-        clipboard.setText(AnnotatedString(address))
+        copier(address)
         Toast.makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT).show()
     }
     fun share() {

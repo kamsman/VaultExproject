@@ -70,7 +70,7 @@ fun AddressBookScreen(navController: NavHostController) {
     val searchQuery = etatRecherche.texte
     var contactToDelete by remember { mutableStateOf<ContactEntity?>(null) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
     if (ui.showAddDialog) {
         AddContactDialog(
@@ -220,7 +220,7 @@ fun AddressBookScreen(navController: NavHostController) {
                         ContactCard(
                             contact,
                             onCopy = { addr ->
-                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(addr))
+                                copier(addr)
                                 android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
                             },
                             onDelete = { contactToDelete = contact }

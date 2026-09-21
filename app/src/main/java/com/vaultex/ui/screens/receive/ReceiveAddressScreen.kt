@@ -55,7 +55,7 @@ fun ReceiveAddressScreen(
 ) {
     val viewModel: ReceiveViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
-    val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
 
@@ -184,7 +184,7 @@ fun ReceiveAddressScreen(
 
                 OutlinedButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(address))
+                        copier(address)
                         copied = true
                     },
                     modifier = Modifier
