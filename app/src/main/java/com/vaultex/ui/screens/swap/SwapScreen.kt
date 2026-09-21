@@ -528,55 +528,33 @@ private fun SwapFormScreen(
                     border = BorderStroke(1.dp, if (cout.pourcent >= SEUIL_COUT_NOTABLE) teinte.copy(alpha = 0.5f) else swapBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, null, tint = teinte, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(10.dp))
-                            Text("Frais estimés", fontSize = 13.sp, color = swapTextDim)
-                            Spacer(Modifier.weight(1f))
-                            // UNE SOMME, PAS UN TAUX.
-                            //
-                            // Un pourcentage se lit comme un TARIF — donc comme
-                            // le tarif de VaultEx, alors que l'essentiel part
-                            // en frais de réseau. « ≈ 11 % » sur un premier
-                            // échange suffit à faire croire que l'application
-                            // est chère, et cette impression-là ne se rattrape
-                            // pas par une ligne d'explication.
-                            //
-                            // « ≈ 0,51 $ » est ce que l'utilisateur compare
-                            // réellement à ce que lui prendrait un changeur, et
-                            // ce chiffre soutient la comparaison.
-                            //
-                            // La proportion n'est pas tue pour autant : elle
-                            // passe par la couleur — sobre, ambre au-delà de
-                            // 10 %, rouge au-delà de 25 % — et par la phrase
-                            // sur les frais fixes, qui dit la même chose sans
-                            // le chiffre qui accuse.
-                            Text(
-                                sommeUsd(cout.usd),
-                                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        // D'OÙ VIENNENT CES FRAIS, ET QU'ILS SONT DÉJÀ COMPTÉS.
-                        //
-                        // Sans « déjà déduits », une ligne de frais placée sous
-                        // le montant reçu se lit comme un prélèvement À VENIR :
-                        // l'utilisateur croit qu'on lui retirera 0,51 $ de plus
-                        // que ce que l'écran annonce.
+                    /*
+                    UNE SOMME, RIEN D'AUTRE.
+
+                    Ni pourcentage, ni phrase d'explication : la ligne tient
+                    en « Frais estimés — ≈ 0,51 $ ». Un taux se lit comme un
+                    tarif, donc comme celui de VaultEx, alors que l'essentiel
+                    part en frais de réseau ; et deux lignes de justification
+                    sous un chiffre attirent l'attention sur lui au lieu de le
+                    banaliser. Une somme posée sans commentaire se lit comme
+                    ce qu'elle est : le prix de l'opération.
+
+                    La proportion reste calculée et continue de TEINTER la
+                    ligne — sobre, ambre au-delà de 10 %, rouge au-delà de
+                    25 %. Le signal demeure, sans le chiffre qui accuse.
+
+                    Le détail appartient désormais à l'écran de confirmation,
+                    qui dispose de la place pour le dire correctement.
+                    */
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = teinte, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Frais estimés", fontSize = 13.sp, color = swapTextDim)
+                        Spacer(Modifier.weight(1f))
                         Text(
-                            "Frais de réseau + commission, déjà déduits du montant reçu.",
-                            fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp
+                            sommeUsd(cout.usd),
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte
                         )
-                        // La cause n'est rappelée que lorsque le chiffre
-                        // surprend. Sur un échange ordinaire, elle
-                        // n'apprendrait rien et occuperait une ligne.
-                        if (cout.pourcent >= SEUIL_COUT_NOTABLE) {
-                            Text(
-                                "Les frais de réseau sont fixes : ils pèsent d'autant plus que le montant est petit.",
-                                fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp
-                            )
-                        }
                     }
                 }
             }
@@ -1543,9 +1521,8 @@ private data class CoutEchange(val usd: Double, val pourcent: Int)
  * LA SOMME EST AFFICHÉE, LA PROPORTION EST TEINTÉE. Un pourcentage se lit
  * comme un tarif, donc comme celui de VaultEx, alors que l'essentiel part en
  * frais de réseau ; c'est la somme que l'utilisateur compare à ce que lui
- * prendrait un changeur. La proportion reste calculée et continue de décider
- * de la couleur de la ligne et du rappel sur les frais fixes — elle informe
- * sans chiffrer une accusation.
+ * prendrait un changeur. La proportion reste calculée et décide de la couleur
+ * de la ligne — elle signale sans chiffrer une accusation.
  *
  * Plus aucun seuil d'affichage : le chiffre est rendu dès qu'il existe. Une
  * ligne qui ne paraît qu'au-dessus de 10 % est une alarme, pas une mesure —
