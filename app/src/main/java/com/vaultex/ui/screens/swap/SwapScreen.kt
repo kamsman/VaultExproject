@@ -159,7 +159,8 @@ fun SwapScreen(navController: NavHostController) {
         state.swapInProgress -> SwapTrackingScreen(
             state = state,
             onClose = { viewModel.resetSwap(); screen = "form" },
-            onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) }
+            onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) },
+            nomFournisseur = viewModel.nomFournisseur
         )
         screen == "confirm" -> SwapConfirmScreen(
             state = state,
@@ -480,24 +481,66 @@ private fun SwapFormScreen(
                 }
             }
 
-            pertePourcent(state, fromAmt, toAmt)?.let { perte ->
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UN COÛT S'ACCEPTE, UNE PERTE SE SUBIT
+            ═══════════════════════════════════════════════════════════════
+
+            Cette ligne s'intitulait « Valeur perdue » et n'apparaissait
+            qu'au-dessus de 10 %. Deux défauts, et le second est le pire.
+
+            « Valeur perdue » ne dit ni qui perd, ni au profit de qui. Sur
+            un écran qui appartient à VaultEx, « ≈ 26 % » se lit donc
+            spontanément « VaultEx me prend 26 % » — alors que la
+            commission est de 1,5 % et que l'essentiel est constitué des
+            FRAIS DE RÉSEAU du fournisseur. Ces frais sont FIXES : sortir
+            de l'ETH coûte la même somme qu'on retire 3 $ ou 3 000 $. Sur
+            3 $, cela pèse un quart ; sur 300 $, quelques millièmes. Le
+            chiffre ne décrit pas une ponction, il décrit un petit montant
+            — encore faut-il le dire, sinon il accuse.
+
+            NE PARAÎTRE QUE QUAND ÇA VA MAL, C'EST ÊTRE UNE ALARME. Sous
+            10 %, la ligne disparaissait ; sa seule présence signalait donc
+            un problème, et personne n'apprenait jamais à quoi ressemble un
+            échange ordinaire. Affichée en permanence — 2 % en sobre, 26 %
+            en rouge — elle donne l'échelle, et le 26 % se lit enfin pour
+            ce qu'il est : une anomalie de MONTANT, pas de probité.
+
+            Le cacher n'a jamais été une option : quelqu'un qui envoie 3 $
+            et en reçoit 2,20 $ le découvrira de toute façon. Un coût
+            annoncé est un coût ; un coût découvert est une arnaque.
+            */
+            pertePourcent(state, fromAmt, toAmt)?.let { cout ->
+                val teinte = when {
+                    cout >= SEUIL_COUT_ELEVE -> SwapRed
+                    cout >= SEUIL_COUT_NOTABLE -> SwapOrange
+                    else -> swapTextDim
+                }
                 Spacer(Modifier.height(6.dp))
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.Transparent,
-                    border = BorderStroke(1.dp, (if (perte >= 25) SwapRed else SwapOrange).copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, if (cout >= SEUIL_COUT_NOTABLE) teinte.copy(alpha = 0.5f) else swapBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, null, tint = if (perte >= 25) SwapRed else SwapOrange, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text("Valeur perdue", fontSize = 13.sp, color = swapTextDim)
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            "≈ $perte %",
-                            fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                            color = if (perte >= 25) SwapRed else SwapOrange
-                        )
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, null, tint = teinte, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text("Coût de l'échange", fontSize = 13.sp, color = swapTextDim)
+                            Spacer(Modifier.weight(1f))
+                            Text("≈ $cout %", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte)
+                        }
+                        // La cause n'est rappelée que lorsque le chiffre
+                        // surprend. Sur un échange ordinaire, elle
+                        // n'apprendrait rien et occuperait une ligne.
+                        if (cout >= SEUIL_COUT_NOTABLE) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Surtout des frais de réseau fixes — ils pèsent d'autant plus que le montant est petit.",
+                                fontSize = 11.sp, color = swapTextDim, lineHeight = 15.sp
+                            )
+                        }
                     }
                 }
             }
@@ -750,7 +793,9 @@ private fun SwapConfirmScreen(
 private fun SwapTrackingScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onClose: () -> Unit,
-    onHistory: () -> Unit
+    onHistory: () -> Unit,
+    /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
+    nomFournisseur: String
 ) {
     val clipboard = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
@@ -805,11 +850,32 @@ private fun SwapTrackingScreen(
         }
     ) { padding ->
         Column(
+            /*
+            ═══════════════════════════════════════════════════════════════
+            TOUT TIENT SUR UN ÉCRAN
+            ═══════════════════════════════════════════════════════════════
+
+            Constaté sur appareil : il fallait faire défiler pour voir ce
+            qu'on recevait et l'identifiant de l'échange. Sur un écran qui
+            dit « votre argent est parti », ce qui se trouve sous la ligne
+            de flottaison n'existe pas : on referme avant d'y arriver.
+
+            Trois coupes, aucune information perdue :
+            · la carte « Vous recevez » répétait le montant déjà écrit en
+              haut ; seul l'identifiant était nouveau, il rejoint la frise ;
+            · le pavé d'attente disait en quatre lignes ce qui en prend
+              deux ;
+            · les espacements passent de 14 à 10, la frise de 16 à 10.
+
+            Le défilement reste en place : une langue plus verbeuse, un
+            grand corps de texte ou un petit écran doivent pouvoir
+            déborder sans rien masquer.
+            */
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             // Deux logos + flèche
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 TokenBadgeWithCheck(state.fromToken, finished)
@@ -852,7 +918,10 @@ private fun SwapTrackingScreen(
                             // écran et mourait en le quittant. SwapTrackingWorker
                             // le reprend désormais depuis la base, donc on peut
                             // annoncer la notification sans mentir.
-                            "Le dépôt est envoyé ✓. L'échange se termine tout seul en 2 à 5 min — pas besoin d'attendre ici. Tu recevras une notification dès qu'il est terminé, même si tu fermes l'application.",
+                            // Quatre lignes pour dire deux choses : c'est parti,
+                            // tu peux fermer. Le reste — la durée, la
+                            // notification — tient dans la même phrase.
+                            "Dépôt envoyé ✓ · 2 à 5 min. Tu peux fermer l'app : une notification t'avertira.",
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
@@ -870,31 +939,38 @@ private fun SwapTrackingScreen(
                             Text(statusTxt, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, color = statusCol, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
                     TimelineStep("Transaction créée", null, done = rank >= 0 || finished, active = false, last = false)
                     TimelineStep("Confirmations réseau ${swapNetworkBadge(state.fromToken)}", null, done = rank > 2 || finished, active = rank in 1..2 && !finished, last = false)
-                    TimelineStep("Échange effectué", "Par ChangeNOW", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
+                    // « Par ChangeNOW » était écrit en dur : l'écran nommait le
+                    // mauvais échangeur dès que SimpleSwap répondait.
+                    TimelineStep("Échange effectué", "Par $nomFournisseur", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
                     TimelineStep("Envoi des ${swapBaseOf(state.toToken)}", swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
                     TimelineStep("Terminé", null, done = finished, active = false, last = true)
-                }
-            }
 
-            // Adresse de réception
-            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Vous recevez", fontSize = 12.sp, color = swapTextDim)
-                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText)
-                    Spacer(Modifier.height(8.dp))
-                    Text("À l'adresse de $payoutAddr", fontSize = 12.sp, color = swapTextDim)
+                    /*
+                    L'IDENTIFIANT RESTE, LA CARTE QUI L'ENTOURAIT PART.
+
+                    « Vous recevez ≈ 0,001015 ETH » répétait mot pour mot la
+                    ligne déjà affichée sous les logos. Seul l'identifiant
+                    était neuf — et c'est le seul élément de cet écran qu'on
+                    ne peut pas reconstituer : sans lui, impossible de
+                    retrouver l'échange auprès du fournisseur si quelque
+                    chose se passe mal. Il descend donc au pied de la frise,
+                    toujours copiable d'un doigt.
+                    */
                     state.swapId?.let { id ->
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable {
                                 clipboard.setText(AnnotatedString(id))
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }) {
-                            Text("ID : ${id.take(18)}…", fontSize = 12.sp, color = SwapPurple, modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ContentCopy, "Copier", tint = SwapPurple, modifier = Modifier.size(16.dp))
+                            }
+                        ) {
+                            Text("Reçu sur $payoutAddr · ID ${id.take(12)}…",
+                                fontSize = 11.sp, color = swapTextDim, modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ContentCopy, "Copier", tint = SwapPurple, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
@@ -961,7 +1037,9 @@ private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active
             if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else swapBorder))
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.padding(bottom = if (last) 0.dp else 16.dp)) {
+        // 16 dp entre chaque étape faisaient déborder la frise sous la ligne
+        // de flottaison ; 10 dp la laissent parfaitement lisible.
+        Column(Modifier.padding(bottom = if (last) 0.dp else 10.dp)) {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                 color = if (done || active) swapText else swapTextDim)
             subtitle?.let { Text(it, fontSize = 11.sp, color = swapTextDim) }
@@ -1178,7 +1256,7 @@ private fun SwapCoinCard(
                     FCFA n'avait aucune chance, et rien ne le lui disait.
 
                     Rien n'est bloqué pour autant : le fournisseur refusera
-                    ce qu'il refuse, et la ligne « Valeur perdue » dit déjà ce
+                    ce qu'il refuse, et la ligne « Coût de l'échange » dit déjà ce
                     que l'opération coûte en proportion. C'est à l'utilisateur
                     de décider — c'est son argent.
                     */
@@ -1398,14 +1476,23 @@ private fun tauxLisible(deTexte: String, versTexte: String, deMontant: Double, v
 }
 
 /**
- * Part de valeur perdue dans l'échange, en pourcentage, ou null si l'on ne
- * peut pas la calculer.
+ * Ce que l'échange coûte, en pourcentage de la valeur envoyée — ou null si
+ * l'on ne peut pas le calculer (montant vide, prix indisponible).
  *
  * Sur un petit montant, les frais de réseau du fournisseur peuvent dépasser
  * la moitié de la somme : l'écran affichait « ≈ 1,32 $ » d'un côté et
  * « ≈ 0,66 $ » de l'autre, sans un mot. Les deux chiffres étaient exacts et
  * la conclusion — la moitié part en frais — restait à la charge de qui
  * penserait à les comparer.
+ *
+ * Plus aucun seuil d'affichage : le chiffre est rendu dès qu'il existe. Une
+ * ligne qui ne paraît qu'au-dessus de 10 % est une alarme, pas une mesure —
+ * on ne peut pas juger « 26 % » sans avoir jamais vu à quoi ressemble un
+ * échange ordinaire.
+ *
+ * Jamais négatif : les prix des deux monnaies viennent d'un instantané du
+ * portefeuille, et un léger décalage entre les deux suffirait à annoncer un
+ * gain là où il n'y en a pas.
  */
 private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: Double, versMontant: Double): Int? {
     if (deMontant <= 0.0 || versMontant <= 0.0) return null
@@ -1413,12 +1500,14 @@ private fun pertePourcent(state: com.vaultex.ui.viewmodel.SwapState, deMontant: 
     val envoye = deMontant * state.fromPriceUsd
     val recu = versMontant * state.toPriceUsd
     if (envoye <= 0.0) return null
-    val perte = (1.0 - recu / envoye) * 100.0
-    return if (perte >= SEUIL_PERTE_VISIBLE) perte.toInt() else null
+    return ((1.0 - recu / envoye) * 100.0).toInt().coerceAtLeast(0)
 }
 
-/** En dessous, la perte relève des frais ordinaires d'un échange. */
-private const val SEUIL_PERTE_VISIBLE = 10.0
+/** Au-delà, le coût mérite une couleur et un mot d'explication. */
+private const val SEUIL_COUT_NOTABLE = 10
+
+/** Au-delà, il mérite du rouge : l'échange coûte le quart de la somme. */
+private const val SEUIL_COUT_ELEVE = 25
 
 /**
  * Petit montant de jeton, LISIBLE — jamais arrondi à zéro.
