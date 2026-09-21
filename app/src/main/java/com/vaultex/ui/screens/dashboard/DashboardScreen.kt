@@ -507,28 +507,24 @@ fun DashboardScreen(navController: NavHostController) {
                 )
             }
 
+            /*
+            ─── ÉCHANGE EN COURS : UNE LIGNE, PAS UN ENCART ──────────────
+            Trois cartes empilées repoussaient les tuiles d'action hors de
+            l'écran, pour une information qui tient en six mots. Et un encadré
+            appelle l'attention — or il n'y a rien à faire : l'échange se
+            termine seul.
+
+            Une ligne posée sous le solde suffit à dire « ton argent bouge ».
+            Elle mène au suivi pour qui veut le détail, et s'efface d'elle-même
+            à l'aboutissement.
+            */
+            if (echangesEnCours.isNotEmpty()) {
+                item(key = "swaps_en_cours") { LigneEchangeEnCours(echangesEnCours) { navController.navigate(Routes.SWAP) } }
+            }
+
             // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───
             if (funded.size >= 2) {
                 item(key = "donut") { PortfolioDonutCard(funded) }
-            }
-
-            /*
-            ─── ÉCHANGES EN COURS ────────────────────────────────────────
-            Placé AVANT les tuiles d'action, donc dans le premier écran sans
-            défilement : quelqu'un qui revient vérifier que son argent n'a
-            pas disparu ne doit pas avoir à chercher.
-
-            La carte mène au suivi complet. Elle s'efface d'elle-même quand
-            l'échange aboutit — c'est la base qui décide, pas un minuteur.
-            */
-            if (echangesEnCours.isNotEmpty()) {
-                item(key = "swaps_en_cours") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        echangesEnCours.forEach { echange ->
-                            EchangeEnCoursCard(echange) { navController.navigate(Routes.SWAP) }
-                        }
-                    }
-                }
             }
 
             // ─── 3 tuiles d'action (modèle, sans MoMo) ───
@@ -1365,56 +1361,30 @@ private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onC
 }
 
 /**
- * Carte « Échange en cours » de l'accueil.
+ * Ligne « Échange en cours » de l'accueil.
  *
- * Elle dit trois choses et s'arrête là : quelle paire, depuis combien de
- * temps, et que c'est en cours. Le détail — identifiant, frise des étapes —
- * appartient à l'écran de suivi, qu'un appui ouvre.
- *
- * Le temps écoulé compte plus qu'il n'y paraît : « il y a 1 min » rassure,
- * « il y a 40 min » signale que quelque chose cloche et qu'il est temps
- * d'aller voir l'identifiant de l'échange.
+ * Une seule ligne quel que soit le nombre d'échanges : au-delà d'un, la paire
+ * n'apprend plus rien et seul le compte importe. Qui veut le détail touche la
+ * ligne.
  */
 @Composable
-private fun EchangeEnCoursCard(
-    echange: com.vaultex.data.local.entity.TransactionEntity,
+private fun LigneEchangeEnCours(
+    echanges: List<com.vaultex.data.local.entity.TransactionEntity>,
     onClick: () -> Unit
 ) {
-    val minutes = ((System.currentTimeMillis() - echange.timestamp) / 60_000L).coerceAtLeast(0L)
-    val depuis = when {
-        minutes < 1 -> "à l'instant"
-        minutes < 60 -> "il y a $minutes min"
-        else -> "il y a ${minutes / 60} h"
-    }
-    // clickable plutôt que Surface(onClick = …) : cet écran n'ouvre pas
-    // ExperimentalMaterial3Api, et BorderStroke n'y est pas importé — on
-    // suit la forme déjà employée par les autres cartes du fichier.
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        // Qualifié : dans ce fichier, « Surface » seul désigne le composable
-        // Material3, pas la couleur du thème. C'est la forme employée par
-        // les autres cartes d'ici.
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    val texte =
+        if (echanges.size == 1) "Échange en cours  ·  ${echanges[0].tokenSymbol.replace("→", " → ")}"
+        else "${echanges.size} échanges en cours"
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircularProgressIndicator(
-                color = AccentBlue, strokeWidth = 2.dp,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Échange en cours", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
-                Text(
-                    "${echange.tokenSymbol.replace("→", " → ")}  ·  $depuis",
-                    fontSize = 12.sp, color = TextSecondary
-                )
-            }
-            Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
-        }
+        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(12.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(texte, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(15.dp))
     }
 }
