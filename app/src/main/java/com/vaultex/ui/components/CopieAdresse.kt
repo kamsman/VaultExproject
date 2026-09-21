@@ -1,6 +1,7 @@
 package com.vaultex.ui.components
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -42,7 +43,7 @@ délibérée, rare, et dont l'utilisateur ATTEND une confirmation : la ranger
 dans la même catégorie était l'erreur.
 
 On passe donc par le vibreur, que la permission VIBRATE du manifeste
-autorise déjà. 28 ms : une tape sèche, pas un bourdonnement.
+autorise déjà — voir plus bas pour la forme exacte de la tape.
 
 Ce qui reste respecté, et doit l'être : le mode silencieux, l'intensité de
 vibration réglée par l'utilisateur, et l'absence pure et simple de vibreur.
@@ -79,10 +80,35 @@ fun rememberCopieAvecVibration(): (String) -> Unit {
     }
 }
 
-/**
- * Une tape courte. Repli sur le retour haptique de la vue si le vibreur est
- * absent ou refuse — mieux vaut la secousse que rien.
- */
+/*
+DEUXIÈME CORRECTION : LA TAPE ÉTAIT TROP COURTE POUR SE SENTIR
+──────────────────────────────────────────────────────────────
+Passer par le vibreur ne suffisait pas. `createOneShot(28 ms)` à
+l'amplitude par défaut est imperceptible sur beaucoup d'appareils, Samsung
+en tête : le moteur n'a pas le temps de monter en régime, et la commande
+réussit sans que rien ne se sente.
+
+Deux changements, et il fallait les deux.
+
+EFFECT_CLICK PLUTÔT QU'UNE DURÉE CHOISIE PAR NOUS. Depuis Android 10, le
+système expose des effets tactiles calibrés PAR LE CONSTRUCTEUR pour son
+propre moteur. Un « clic » y est net sur un appareil dont la vibration est
+molle comme sur un autre où elle est sèche. Deviner une durée revenait à
+régler à l'aveugle un matériel qu'on ne connaît pas ; en dessous
+d'Android 10, faute de mieux, on allonge à 50 ms.
+
+DES ATTRIBUTS QUI DISENT CE QUE C'EST. Une vibration émise sans attribut
+est rangée dans « usage inconnu », et le système la supprime dans plusieurs
+situations — certains modes de concentration, certaines surcouches.
+Déclarer une sonification la range avec les retours d'interface, qui
+survivent à ces filtres.
+
+Ce qui continue d'être respecté : le mode silencieux, l'intensité de
+vibration réglée par l'utilisateur, et l'absence de vibreur. Dans ces cas
+le système ne fait rien, et c'est sa décision.
+*/
+
+/** Une tape nette, calibrée par le système quand il sait le faire. */
 private fun vibrerCourt(contexte: Context, secours: HapticFeedback) {
     val vibreur: Vibrator? = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -97,9 +123,18 @@ private fun vibrerCourt(contexte: Context, secours: HapticFeedback) {
     }
 
     if (vibreur != null && vibreur.hasVibrator()) {
-        val ok = runCatching {
-            vibreur.vibrate(VibrationEffect.createOneShot(28L, VibrationEffect.DEFAULT_AMPLITUDE))
-        }.isSuccess
+        val effet =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+            else
+                VibrationEffect.createOneShot(50L, VibrationEffect.DEFAULT_AMPLITUDE)
+
+        val attributs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        val ok = runCatching { vibreur.vibrate(effet, attributs) }.isSuccess
         if (ok) return
     }
     // Aucun vibreur, ou appel refusé : on tente au moins le retour de la vue.
