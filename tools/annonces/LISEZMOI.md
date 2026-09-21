@@ -78,6 +78,37 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## Le logo d'une mise à jour
+
+Le 3e argument du script n'accepte qu'un TICKER de monnaie : il va chercher
+l'icone correspondante chez le fournisseur d'icones. Il n'existe donc aucun
+symbole « mise a jour » a lui passer — laisse-le vide, le logo VaultEx
+s'affiche, et c'est le bon choix pour une annonce qui parle de l'application
+elle-meme.
+
+Le signe visuel tient dans le TITRE : l'emoji 🔄 ou ⬆️ en tete. Il traverse
+sans dommage l'echappement du script, qui convertit chaque caractere non-ASCII
+en sequence \uXXXX — y compris les paires de substitution des emoji.
+
+Pour un vrai visuel, il reste le 4e argument (banniere 1024x512). Facultatif,
+et pas indispensable pour une annonce de mise a jour.
+
+## Annoncer une mise a jour : une date est une promesse
+
+maj-01 annonce, maj-02 confirme la disponibilite. N'envoie maj-01 QUE si le
+paquet est deja construit et pret a publier. Une date annoncee a des milliers
+de personnes et non tenue coute plus cher que deux jours de retard : la
+prochaine annonce sera lue avec le souvenir de celle-la.
+
+Si le moindre doute subsiste sur la date, saute maj-01 et n'envoie que
+maj-02, le jour ou la version est effectivement disponible. Une mise a jour
+qui arrive sans preavis ne decoit personne.
+
+VERIFIE AUSSI QUE version.code A AUGMENTE. Sans cela, beaucoup
+d'installateurs affichent « installe » sans rien remplacer : les gens
+croiront avoir mis a jour et ne verront aucun changement — et c'est
+l'annonce qui passera pour mensongere.
+
 ## Envoi
 
     ./tools/send-announcement.sh --fichier tools/annonces/depot-01-premier-depot.txt
@@ -85,3 +116,9 @@ suivantes.
 
 `depot-01` parle de toutes les monnaies : il garde le logo VaultEx.
 `depot-02` ne parle que d'USDT, le logo Tether y est à sa place.
+
+    ./tools/send-announcement.sh --fichier tools/annonces/maj-01-a-venir.txt
+    ./tools/send-announcement.sh --fichier tools/annonces/maj-02-disponible.txt
+
+Les deux gardent le logo VaultEx : elles parlent de l'application, pas
+d'une monnaie.
