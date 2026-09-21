@@ -159,6 +159,17 @@ fun SwapScreen(navController: NavHostController) {
             state = state,
             onClose = { viewModel.resetSwap(); screen = "form" },
             onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) },
+            onAccueil = {
+                viewModel.resetSwap()
+                screen = "form"
+                // Même forme que la barre du bas : on revient à l'accueil
+                // sans empiler une seconde copie de l'écran.
+                navController.navigate(Routes.DASHBOARD) {
+                    popUpTo(Routes.DASHBOARD) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
             nomFournisseur = viewModel.nomFournisseur
         )
         screen == "confirm" -> SwapConfirmScreen(
@@ -816,6 +827,8 @@ private fun SwapTrackingScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onClose: () -> Unit,
     onHistory: () -> Unit,
+    /** Retour à l'accueil, automatique après le décompte ou sur demande. */
+    onAccueil: () -> Unit,
     /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
     nomFournisseur: String
 ) {
@@ -827,6 +840,40 @@ private fun SwapTrackingScreen(
     val rank = statusRank(state.swapStatus)
 
     LaunchedEffect(finished) { if (finished) haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    RETOUR AUTOMATIQUE À L'ACCUEIL — VISIBLE, ET ANNULABLE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le dépôt parti, il n'y a plus rien à faire ici : l'échange se termine
+    seul, le worker le suit, et l'accueil affiche désormais « Échange en
+    cours ». Rester planté devant une roue qui tourne n'apporte rien.
+
+    MAIS ON NE FAIT PAS DISPARAÎTRE UN ÉCRAN SOUS LES YEUX DE QUELQU'UN. Cet
+    écran porte l'identifiant de l'échange — la seule donnée qu'on ne peut
+    pas reconstituer, celle qu'il faut pour réclamer auprès du fournisseur.
+    Le lui retirer pendant qu'il la lit ou la copie serait le genre de geste
+    qu'on ne pardonne pas sur un écran qui déplace de l'argent.
+
+    D'où un décompte ÉCRIT, et un appui qui l'arrête définitivement. Celui
+    qui veut partir n'attend pas ; celui qui veut lire n'est pas chassé.
+
+    Rien ne se déclenche sur un échange terminé ou échoué : dans ces
+    deux cas, le résultat est précisément ce qu'on est venu voir.
+    */
+    var secondes by remember { mutableStateOf(5) }
+    var decompteAnnule by remember { mutableStateOf(false) }
+    val decompteActif = !finished && !failed && !decompteAnnule
+
+    LaunchedEffect(decompteActif) {
+        if (!decompteActif) return@LaunchedEffect
+        while (secondes > 0) {
+            kotlinx.coroutines.delay(1000)
+            secondes--
+        }
+        onAccueil()
+    }
 
     val payoutAddr = "votre portefeuille"
 
@@ -852,6 +899,28 @@ private fun SwapTrackingScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (decompteActif) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, swapBorder),
+                        modifier = Modifier.fillMaxWidth().clickable { decompteAnnule = true }
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Retour à l'accueil dans $secondes s",
+                                fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                "Rester ici",
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = SwapPurple
+                            )
+                        }
+                    }
+                }
                 // Bouton PRINCIPAL « Nouveau swap » (remplace « Partager le reçu ») :
                 // toujours actif — pendant le traitement, l'échange se termine tout
                 // seul en arrière-plan, l'utilisateur n'a pas à attendre.
