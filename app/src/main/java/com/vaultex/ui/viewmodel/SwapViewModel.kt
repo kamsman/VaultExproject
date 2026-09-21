@@ -594,6 +594,14 @@ class SwapViewModel @Inject constructor(
                         trackSwapStatus(txRes.id)
                     }
                     is SendCryptoUseCase.Result.Error -> {
+                        // La ligne d'historique existe déjà (recordSwap l'écrit
+                        // dès la création chez le fournisseur, avant l'envoi).
+                        // Sans ce passage elle resterait « pending » à vie, et
+                        // l'accueil annoncerait un échange en cours pour lequel
+                        // pas un centime n'a bougé.
+                        withContext(Dispatchers.IO) {
+                            runCatching { swapUseCase.markDepositFailed(txRes.id) }
+                        }
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
                         com.vaultex.core.monitoring.AdminBot.swapFailed(
