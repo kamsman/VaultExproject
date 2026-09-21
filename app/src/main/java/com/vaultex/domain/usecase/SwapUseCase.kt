@@ -63,6 +63,30 @@ class SwapUseCase @Inject constructor(
     suspend fun getMinAmount(fromToken: String, toToken: String): Double? =
         fournisseur.minimum(fromToken, toToken)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE DÉPÔT N'EST JAMAIS PARTI : L'ÉCHANGE N'AURA PAS LIEU
+    ═══════════════════════════════════════════════════════════════════════
+
+    recordSwap écrit la ligne dès que le FOURNISSEUR a créé l'échange —
+    donc AVANT l'envoi des fonds. C'est voulu : si l'application meurt entre
+    les deux, l'identifiant de l'échange n'est pas perdu.
+
+    Mais quand le dépôt échoue ensuite — gaz insuffisant, réseau coupé,
+    solde entamé entre-temps — rien ne repassait sur la ligne. Elle restait
+    « pending » à vie. Constaté sur appareil : trois échanges « en cours »
+    depuis sept et seize jours, pour lesquels pas un centime n'avait bougé.
+
+    Ici, et seulement ici, on peut conclure sans risque. Le worker de suivi
+    s'interdit de déclarer un échec après 24 h, et il a raison : les fonds
+    sont partis, ils peuvent encore arriver. Dans le cas présent, c'est
+    l'inverse — on SAIT que rien n'a quitté le portefeuille. L'échange
+    expirera chez le fournisseur sans que personne n'ait rien perdu.
+    */
+    suspend fun markDepositFailed(swapId: String) {
+        transactionDao.updateStatus(swapId, "failed", 0)
+    }
+
     /** Statut courant d'un échange (waiting/confirming/exchanging/sending/finished/failed). */
     suspend fun getStatus(swapId: String): com.vaultex.domain.swap.StatutSwap? =
         fournisseur.statut(swapId)

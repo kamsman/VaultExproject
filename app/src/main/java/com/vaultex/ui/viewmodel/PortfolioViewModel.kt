@@ -133,7 +133,24 @@ class PortfolioViewModel @Inject constructor(
     val echangesEnCours: StateFlow<List<com.vaultex.data.local.entity.TransactionEntity>> =
         transactionDao.observeAll()
             .map { list ->
-                list.filter { it.type == "swap" && it.status == "pending" }
+                /*
+                « PENDING » NE VEUT PAS DIRE « EN COURS ».
+
+                Constaté sur appareil : trois cartes « Échange en cours »,
+                datées de 169 h et 380 h. Sept et seize jours.
+
+                Ces lignes restent « pending » VOLONTAIREMENT. Passé 24 h, le
+                worker cesse d'interroger le fournisseur mais se garde de les
+                marquer en échec : les fonds peuvent encore arriver, et
+                déclarer un échec à tort serait pire que se taire. Le statut
+                ne dit donc pas « en cours », il dit « jamais conclu ».
+
+                On s'aligne sur la fenêtre du worker. Dès qu'il renonce à
+                interroger, l'accueil renonce à annoncer — même constante, pour
+                que les deux ne puissent pas diverger.
+                */
+                val limite = System.currentTimeMillis() - com.vaultex.service.SwapTrackingWorker.MAX_TRACK_MS
+                list.filter { it.type == "swap" && it.status == "pending" && it.timestamp >= limite }
                     .sortedByDescending { it.timestamp }
             }
             .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())

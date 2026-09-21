@@ -164,7 +164,17 @@ class SwapTrackingWorker @AssistedInject constructor(
         /** Terminaux côté ChangeNOW : plus rien ne bougera après. */
         private val TERMINAL = setOf("finished", "failed", "refunded", "expired")
 
-        /** Au-delà, on cesse d'interroger (voir doWork). */
-        private const val MAX_TRACK_MS = 24L * 60 * 60 * 1000
+        /**
+         * Au-delà, on cesse d'interroger (voir doWork).
+         *
+         * Public, et c'est délibéré : l'accueil s'en sert pour décider ce
+         * qu'il appelle « en cours ». Dès l'instant où ce worker renonce à
+         * interroger le fournisseur, l'application ne sait plus rien de cet
+         * échange — continuer à l'annoncer vivant serait affirmer ce qu'on
+         * ne croit plus. Deux seuils séparés auraient fini par diverger, et
+         * l'écart se serait vu sous la forme de « Échange en cours » restés
+         * là des semaines.
+         */
+        const val MAX_TRACK_MS = 24L * 60 * 60 * 1000
     }
 }
