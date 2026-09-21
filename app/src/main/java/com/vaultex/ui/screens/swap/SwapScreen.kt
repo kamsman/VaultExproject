@@ -89,7 +89,6 @@ private val swapText: Color      @Composable get() = TextPrimary
 private val swapTextDim: Color   @Composable get() = TextSecondary
 private val swapTextFaint: Color @Composable get() = TextMuted
 private val swapPurpleDim: Color @Composable get() = SwapPurple.copy(alpha = 0.16f)
-private val swapGreenDim: Color  @Composable get() = SwapGreen.copy(alpha = 0.14f)
 private val swapErrBg: Color     @Composable get() = AccentRed.copy(alpha = 0.12f)
 
 private fun tokenColor(token: String): Color = when (token.uppercase()) {
@@ -619,8 +618,6 @@ private fun SwapConfirmScreen(
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
     val fromFiat = if (state.fromPriceUsd > 0.0 && fromAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", fromAmt * state.fromPriceUsd) + " $" else ""
     val toFiat = if (state.toPriceUsd > 0.0 && toAmt > 0.0) "≈ " + String.format(java.util.Locale.US, "%,.2f", toAmt * state.toPriceUsd) + " $" else ""
-    // Montant minimum reçu (~2% de marge sous l'estimation, comme un slippage).
-    val minReceive = if (toAmt > 0.0) String.format(java.util.Locale.US, "%.6f", toAmt * 0.98).trimEnd('0').trimEnd('.') else "—"
 
     Scaffold(
         containerColor = swapBg,
@@ -776,7 +773,7 @@ private fun SwapConfirmScreen(
                         Divider(color = swapBorder)
                         ConfirmRow("Fournisseur", nomFournisseur, chevron = true)
                         Divider(color = swapBorder)
-                        ConfirmRow("Frais (inclus)", feeTxt, valueColor = SwapGreen)
+                        ConfirmRow("Frais (inclus)", feeTxt)
                         Divider(color = swapBorder)
                         ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
                         Divider(color = swapBorder)
@@ -785,31 +782,26 @@ private fun SwapConfirmScreen(
                 }
             }
 
-            // Estimation
-            Surface(shape = RoundedCornerShape(12.dp), color = swapGreenDim, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = SwapGreen, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        "Le montant que vous recevrez est estimé. Vous recevrez au moins $minReceive ${swapBaseOf(state.toToken)}",
-                        fontSize = 12.sp, color = SwapGreen, lineHeight = 16.sp
-                    )
-                }
-            }
+            /*
+            DEUX ENCARTS RETIRÉS DE CET ÉCRAN.
 
-            // Avertissement réseau
-            Surface(shape = RoundedCornerShape(12.dp), color = swapCardAlt, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp)) {
-                    Text("Soyez attentif au réseau", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = swapText)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        buildAnnotatedString(
-                            "Le dépôt se fait sur le réseau ", swapNetworkLong(state.fromToken), ". L'app dépose automatiquement, vous n'avez rien à copier."
-                        ),
-                        fontSize = 12.sp, color = swapTextDim, lineHeight = 16.sp
-                    )
-                }
-            }
+            Le bandeau vert annonçait « vous recevrez au moins X ». Le vert
+            est la couleur du succès : l'employer pour une RÉSERVE sur le
+            montant à recevoir envoyait deux messages contraires en même
+            temps. Et l'écran dit déjà « Taux estimé » ; le répéter ici, en
+            couleur, appuyait sur l'incertitude au moment précis où l'on
+            demande de confirmer.
+
+            « Soyez attentif au réseau » mettait en garde contre une erreur
+            impossible à commettre : le dépôt est envoyé PAR L'APPLICATION,
+            rien n'est à copier ni à coller — la phrase le disait elle-même.
+            Un avertissement sans danger correspondant apprend à ignorer les
+            avertissements, y compris ceux de l'écran d'envoi, où une adresse
+            sur la mauvaise chaîne perd réellement les fonds.
+
+            Le réseau reste indiqué, sans dramatisation, dans la ligne
+            « Réseau » du détail juste au-dessus.
+            */
 
             // (L'erreur n'est plus ici : elle est épinglée à « Confirmer ».)
             Spacer(Modifier.height(4.dp))
@@ -1099,14 +1091,6 @@ private fun ConfirmRow(label: String, value: String, valueColor: Color = swapTex
         if (chevron) { Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(16.dp)) }
     }
 }
-
-private fun buildAnnotatedString(a: String, b: String, c: String): AnnotatedString =
-    androidx.compose.ui.text.buildAnnotatedString {
-        append(a)
-        pushStyle(androidx.compose.ui.text.SpanStyle(color = SwapPurple, fontWeight = FontWeight.SemiBold))
-        append(b); pop()
-        append(c)
-    }
 
 /**
  * Pastille « 25% », « 50% », « MAX » au-dessus du champ de montant.
