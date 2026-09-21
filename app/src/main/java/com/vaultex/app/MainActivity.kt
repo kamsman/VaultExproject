@@ -309,6 +309,60 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+        /*
+        ─── SUIVI RAPIDE DES ÉCHANGES QUAND L'APP EST OUVERTE ─────────────
+
+        Constaté sur appareil : échange lancé, retour à l'accueil, coupure
+        réseau, reconnexion deux minutes plus tard. Les fonds arrivent
+        normalement — mais « Échange en cours » continue de tourner.
+
+        La cause n'est pas la coupure : c'est la cadence. Le suivi d'un
+        échange ne vivait qu'à deux endroits. Dans le ViewModel de l'écran
+        Swap, qui interroge toutes les 20 s — mais meurt dès qu'on quitte
+        l'écran, donc dès la redirection vers l'accueil. Et dans le worker
+        périodique, qu'Android ne lance pas plus souvent que toutes les
+        15 minutes.
+
+        Autrement dit : dès l'instant où l'on quitte l'écran de suivi, la
+        ligne de l'accueil pouvait rester à tourner un quart d'heure après
+        la fin réelle de l'échange. Un échange dure 2 à 5 minutes : on
+        passait donc plus de temps à regarder une roue mensongère qu'à
+        attendre l'opération.
+
+        Même remède que pour les dépôts, une ligne plus bas : au premier
+        plan, on relance le MÊME worker à la minute. Le coût est nul quand
+        il n'y a rien à suivre — doWork sort immédiatement si aucun échange
+        n'est en attente, sans toucher au réseau.
+
+        Une minute et non trente secondes : contrairement à un dépôt, qui se
+        détecte en scrutant cinq chaînes, un échange se demande au
+        fournisseur, dont le quota n'est pas illimité.
+        */
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    androidx.work.WorkManager.getInstance(this@MainActivity).enqueueUniqueWork(
+                        com.vaultex.service.SwapTrackingWorker.WORK_NAME + "_fg",
+                        // KEEP, pour la raison exposée juste au-dessus : REPLACE
+                        // annulerait une interrogation en cours.
+                        androidx.work.ExistingWorkPolicy.KEEP,
+                        androidx.work.OneTimeWorkRequest.Builder(
+                            com.vaultex.service.SwapTrackingWorker::class.java
+                        ).setConstraints(
+                            // Sans réseau, le travail attend au lieu d'échouer :
+                            // WorkManager le lance de lui-même au retour de la
+                            // connexion, ce qui couvre exactement le cas d'une
+                            // coupure pendant l'échange.
+                            androidx.work.Constraints.Builder()
+                                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                .build()
+                        ).build()
+                    )
+                    kotlinx.coroutines.delay(60_000L)
+                }
+            }
+        }
+
         setContent {
 
             val themeMode by themeController.mode.collectAsState()
