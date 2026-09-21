@@ -1373,7 +1373,7 @@ private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> 
 
 @Composable
 internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
     SendStatusScaffold(stringResource(R.string.send_confirm_title)) {
         // Carte monnaie + montant (verte, mise en avant)
@@ -1402,7 +1402,7 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         RecipientAddressCard(
             address = detail.toAddress,
             isNew = detail.isNewRecipient,
-            onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
+            onCopy = { copier(detail.toAddress) }
         )
         /*
         HIÉRARCHIE DE L'ÉCRAN. L'utilisateur décide sur trois choses : combien
@@ -1556,7 +1556,7 @@ internal fun SendSuccessScreen(
     onDone: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val orange = Color(0xFFF59E0B)
     val sentAt = remember {
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
@@ -1654,7 +1654,7 @@ internal fun SendSuccessScreen(
             StatusRow(
                 Icons.Default.Send, stringResource(R.string.send_recipient_label),
                 shorten(detail.toAddress),
-                onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(detail.toAddress)) }
+                onCopy = { copier(detail.toAddress) }
             )
             if (estJeton) {
                 HorizontalDivider(color = BorderColor)
@@ -1676,7 +1676,7 @@ internal fun SendSuccessScreen(
             StatusRow(
                 Icons.Default.Receipt, stringResource(R.string.send_success_txid),
                 shorten(txHash),
-                onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(txHash)) }
+                onCopy = { copier(txHash) }
             )
         }
         Spacer(Modifier.height(4.dp))
