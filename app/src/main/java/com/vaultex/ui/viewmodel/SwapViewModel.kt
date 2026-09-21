@@ -247,7 +247,7 @@ class SwapViewModel @Inject constructor(
     laisse simplement la ligne vide — jamais un chiffre inventé.
 
     ET ON NE BLOQUE RIEN. Le fournisseur refusera ce qu'il refuse, avec son
-    propre message ; l'avertissement « Valeur perdue » dit déjà ce que
+    propre message ; la ligne « Coût de l'échange » dit déjà ce que
     l'opération coûte en proportion. À l'utilisateur de décider — c'est son
     argent, et un portefeuille non-dépositaire n'a pas à choisir pour lui.
     */
