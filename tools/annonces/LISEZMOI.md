@@ -109,6 +109,31 @@ d'installateurs affichent « installe » sans rien remplacer : les gens
 croiront avoir mis a jour et ne verront aucun changement — et c'est
 l'annonce qui passera pour mensongere.
 
+## La banniere
+
+banniere-maj-01.svg est prete, aux couleurs du theme sombre (#0B1120) et
+avec le VRAI logo du depot encode dedans : elle ne depend d'aucun fichier
+externe. Dimensions 1024x512, le format attendu par Android.
+
+Android ne sait PAS afficher un SVG dans une notification. Il faut donc en
+tirer un PNG :
+
+  · l'ouvrir dans Chrome, puis capture d'ecran de la zone ; ou
+  · n'importe quel convertisseur SVG vers PNG en ligne ; ou
+  · Android Studio, clic droit sur le fichier, « Convert to PNG ».
+
+Deposer ensuite le PNG dans tools/annonces/, le pousser, et l'adresse
+devient :
+
+  https://raw.githubusercontent.com/kamsman/vaultexproject/master/tools/annonces/banniere-maj-01.png
+
+Le depot est public, donc cette adresse est servie telle quelle. Ne jamais
+ecraser une image : le CDN et l'application la gardent en cache. Une image
+modifiee prend un nouveau numero.
+
+L'IMAGE NE PORTE AUCUN CHIFFRE - ni pourcentage, ni minimum, ni montant.
+Elle reste en cache des semaines alors que ces valeurs changent.
+
 ## Envoi
 
     ./tools/send-announcement.sh --fichier tools/annonces/depot-01-premier-depot.txt
@@ -122,3 +147,13 @@ l'annonce qui passera pour mensongere.
 
 Les deux gardent le logo VaultEx : elles parlent de l'application, pas
 d'une monnaie.
+
+Annonce globale, avec banniere :
+
+    ./tools/send-announcement.sh --fichier tools/annonces/maj-03-globale.txt "" \
+      https://raw.githubusercontent.com/kamsman/vaultexproject/master/tools/annonces/banniere-maj-01.png
+
+Le "" garde le logo VaultEx comme petite icone ; le 4e argument ajoute la
+banniere, visible quand l'utilisateur DEROULE la notification. Repliee,
+celle-ci n'affiche que le titre et le texte - l'annonce doit donc se tenir
+sans l'image.
