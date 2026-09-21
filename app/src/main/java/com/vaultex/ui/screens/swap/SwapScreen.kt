@@ -534,21 +534,26 @@ private fun SwapFormScreen(
                             Spacer(Modifier.width(10.dp))
                             Text("Frais estimés", fontSize = 13.sp, color = swapTextDim)
                             Spacer(Modifier.weight(1f))
-                            // LE MONTANT D'ABORD, LE POURCENTAGE ENSUITE.
+                            // UNE SOMME, PAS UN TAUX.
                             //
-                            // « ≈ 11 % » seul se lit comme un tarif — donc
-                            // comme le tarif de VaultEx. « ≈ 0,51 $ » est ce
-                            // que l'utilisateur compare réellement à ce que lui
-                            // prendrait un changeur du quartier, et ce chiffre
-                            // est modeste.
+                            // Un pourcentage se lit comme un TARIF — donc comme
+                            // le tarif de VaultEx, alors que l'essentiel part
+                            // en frais de réseau. « ≈ 11 % » sur un premier
+                            // échange suffit à faire croire que l'application
+                            // est chère, et cette impression-là ne se rattrape
+                            // pas par une ligne d'explication.
                             //
-                            // Le pourcentage reste, entre parenthèses, parce
-                            // que lui seul dit « tu échanges trop peu » : sur
-                            // 3 $, « 0,80 $ » sonne raisonnable alors que c'est
-                            // le quart de la somme. Le retirer rendrait l'écran
-                            // rassurant et faux.
+                            // « ≈ 0,51 $ » est ce que l'utilisateur compare
+                            // réellement à ce que lui prendrait un changeur, et
+                            // ce chiffre soutient la comparaison.
+                            //
+                            // La proportion n'est pas tue pour autant : elle
+                            // passe par la couleur — sobre, ambre au-delà de
+                            // 10 %, rouge au-delà de 25 % — et par la phrase
+                            // sur les frais fixes, qui dit la même chose sans
+                            // le chiffre qui accuse.
                             Text(
-                                "${sommeUsd(cout.usd)}  (${cout.pourcent} %)",
+                                sommeUsd(cout.usd),
                                 fontSize = 13.sp, fontWeight = FontWeight.Bold, color = teinte
                             )
                         }
@@ -1535,12 +1540,12 @@ private data class CoutEchange(val usd: Double, val pourcent: Int)
  * la conclusion — la moitié part en frais — restait à la charge de qui
  * penserait à les comparer.
  *
- * LES DEUX MESURES SONT RENDUES, parce qu'aucune ne suffit seule. La somme
- * (« 0,51 $ ») est ce que l'utilisateur compare à ce que lui prendrait un
- * changeur ; le pourcentage (« 11 % ») est le seul qui dise « tu échanges
- * trop peu ». Montrer le pourcentage seul fait passer VaultEx pour cher ;
- * montrer la somme seule rend rassurant un échange qui coûte le quart de la
- * mise.
+ * LA SOMME EST AFFICHÉE, LA PROPORTION EST TEINTÉE. Un pourcentage se lit
+ * comme un tarif, donc comme celui de VaultEx, alors que l'essentiel part en
+ * frais de réseau ; c'est la somme que l'utilisateur compare à ce que lui
+ * prendrait un changeur. La proportion reste calculée et continue de décider
+ * de la couleur de la ligne et du rappel sur les frais fixes — elle informe
+ * sans chiffrer une accusation.
  *
  * Plus aucun seuil d'affichage : le chiffre est rendu dès qu'il existe. Une
  * ligne qui ne paraît qu'au-dessus de 10 % est une alarme, pas une mesure —
