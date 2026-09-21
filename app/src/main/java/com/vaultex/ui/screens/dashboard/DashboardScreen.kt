@@ -57,6 +57,7 @@ fun DashboardScreen(navController: NavHostController) {
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
+    val echangesEnCours by viewModel.echangesEnCours.collectAsState()
 
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
@@ -509,6 +510,25 @@ fun DashboardScreen(navController: NavHostController) {
             // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───
             if (funded.size >= 2) {
                 item(key = "donut") { PortfolioDonutCard(funded) }
+            }
+
+            /*
+            ─── ÉCHANGES EN COURS ────────────────────────────────────────
+            Placé AVANT les tuiles d'action, donc dans le premier écran sans
+            défilement : quelqu'un qui revient vérifier que son argent n'a
+            pas disparu ne doit pas avoir à chercher.
+
+            La carte mène au suivi complet. Elle s'efface d'elle-même quand
+            l'échange aboutit — c'est la base qui décide, pas un minuteur.
+            */
+            if (echangesEnCours.isNotEmpty()) {
+                item(key = "swaps_en_cours") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        echangesEnCours.forEach { echange ->
+                            EchangeEnCoursCard(echange) { navController.navigate(Routes.SWAP) }
+                        }
+                    }
+                }
             }
 
             // ─── 3 tuiles d'action (modèle, sans MoMo) ───
@@ -1340,6 +1360,58 @@ private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onC
         Column(horizontalAlignment = Alignment.End) {
             Text("$sign${tx.amount} $amountSym", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tint)
             Text(date, fontSize = 11.sp, color = TextSecondary)
+        }
+    }
+}
+
+/**
+ * Carte « Échange en cours » de l'accueil.
+ *
+ * Elle dit trois choses et s'arrête là : quelle paire, depuis combien de
+ * temps, et que c'est en cours. Le détail — identifiant, frise des étapes —
+ * appartient à l'écran de suivi, qu'un appui ouvre.
+ *
+ * Le temps écoulé compte plus qu'il n'y paraît : « il y a 1 min » rassure,
+ * « il y a 40 min » signale que quelque chose cloche et qu'il est temps
+ * d'aller voir l'identifiant de l'échange.
+ */
+@Composable
+private fun EchangeEnCoursCard(
+    echange: com.vaultex.data.local.entity.TransactionEntity,
+    onClick: () -> Unit
+) {
+    val minutes = ((System.currentTimeMillis() - echange.timestamp) / 60_000L).coerceAtLeast(0L)
+    val depuis = when {
+        minutes < 1 -> "à l'instant"
+        minutes < 60 -> "il y a $minutes min"
+        else -> "il y a ${minutes / 60} h"
+    }
+    // clickable plutôt que Surface(onClick = …) : cet écran n'ouvre pas
+    // ExperimentalMaterial3Api, et BorderStroke n'y est pas importé — on
+    // suit la forme déjà employée par les autres cartes du fichier.
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                color = AccentBlue, strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Échange en cours", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+                Text(
+                    "${echange.tokenSymbol.replace("→", " → ")}  ·  $depuis",
+                    fontSize = 12.sp, color = TextSecondary
+                )
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
         }
     }
 }

@@ -108,6 +108,36 @@ class PortfolioViewModel @Inject constructor(
     /** Nombre de notifications non lues (pastille cloche du Dashboard). */
     val unreadNotifs: StateFlow<Int> = notificationCenter.unreadCount
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN ÉCHANGE EN COURS DOIT SE VOIR DEPUIS L'ACCUEIL
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le dépôt d'un échange est bien suivi : il pose un badge « En attente »
+    sur la monnaie de DÉPART. Mais ce badge tombe dès que le dépôt est
+    confirmé sur sa chaîne — alors que l'échange, lui, continue, et que la
+    monnaie d'ARRIVÉE n'existe encore nulle part.
+
+    Il reste donc une fenêtre de plusieurs minutes pendant laquelle l'argent
+    est en transit et l'accueil n'en porte AUCUNE trace. Quelqu'un qui quitte
+    l'écran de suivi pendant ce temps n'a plus rien à regarder : ni montant
+    parti, ni montant à venir. C'est précisément le moment où l'on se demande
+    si l'opération a échoué.
+
+    L'échange lui-même est déjà enregistré en base, avec le statut
+    « pending » jusqu'à son aboutissement — c'est ce qui permet au worker de
+    reprendre le suivi après un redémarrage. On lit la même source : aucune
+    seconde vérité à tenir à jour, et l'indicateur disparaît tout seul quand
+    le worker passe la ligne à « confirmed ».
+    */
+    val echangesEnCours: StateFlow<List<com.vaultex.data.local.entity.TransactionEntity>> =
+        transactionDao.observeAll()
+            .map { list ->
+                list.filter { it.type == "swap" && it.status == "pending" }
+                    .sortedByDescending { it.timestamp }
+            }
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
     /** 3 dernières transactions (section « Activité récente » du Dashboard). */
     val recentTxs: StateFlow<List<com.vaultex.data.local.entity.TransactionEntity>> =
         transactionDao.observeAll()
