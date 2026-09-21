@@ -1391,7 +1391,10 @@ private fun EchangeEnCoursCard(
     // suit la forme déjà employée par les autres cartes du fichier.
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = SurfaceColor,
+        // Qualifié : dans ce fichier, « Surface » seul désigne le composable
+        // Material3, pas la couleur du thème. C'est la forme employée par
+        // les autres cartes d'ici.
+        color = com.vaultex.ui.theme.Surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
