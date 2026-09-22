@@ -917,23 +917,39 @@ private fun SwapTrackingScreen(
     décision à prendre.
     */
     val depotEnvoye = state.depositTxHash != null
-    val phase = when {
-        failed -> null
-        finished -> "fini"
-        depotEnvoye -> "depot"
-        else -> null
-    }
+    val phase = if (failed) null else if (finished) "fini" else "depot"
     var decompteAnnule by remember { mutableStateOf(false) }
     var secondes by remember(phase) { mutableStateOf(5) }
     val decompteActif = phase != null && !decompteAnnule
 
+    /*
+    LE DÉCOMPTE TOURNE PENDANT LA DIFFUSION, PAS APRÈS.
+
+    Il démarrait une fois le dépôt diffusé : la durée totale valait donc
+    « diffusion + 5 s », soit six à quinze secondes selon l'état du réseau.
+    Imprévisible, et inutilement long — pendant la diffusion, l'écran ne
+    fait qu'attendre, exactement comme pendant le décompte.
+
+    Les deux attentes se superposent donc. Le compteur part à l'ouverture,
+    et le départ effectif exige EN PLUS la preuve que le dépôt est parti.
+    Quand la diffusion prend moins de cinq secondes — le cas courant — le
+    total est de cinq secondes, exactement. Quand elle traîne, on attend
+    qu'elle aboutisse : on ne quitte jamais l'écran sur une transaction
+    encore en vol, dont l'échec doit s'afficher sous les yeux de
+    l'utilisateur.
+    */
     LaunchedEffect(phase, decompteAnnule) {
         if (phase == null || decompteAnnule) return@LaunchedEffect
         while (secondes > 0) {
             kotlinx.coroutines.delay(1000)
             secondes--
         }
-        onAccueil()
+    }
+
+    LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
+        if (phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
+        // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
+        if (phase == "fini" || depotEnvoye) onAccueil()
     }
 
     val payoutAddr = "votre portefeuille"
@@ -971,11 +987,20 @@ private fun SwapTrackingScreen(
                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
+                            if (depotEnvoye || phase == "fini") {
+                                Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            // Le texte ne revendique que ce qui est acquis :
+                            // « Dépôt envoyé » attend le hash, et un décompte
+                            // arrivé à zéro sans hash dit qu'il attend.
                             Text(
-                                (if (phase == "fini") "Échange terminé" else "Dépôt envoyé") +
-                                    "  ·  retour à l'accueil dans $secondes s",
+                                when {
+                                    phase == "fini" -> "Échange terminé  ·  retour à l'accueil dans $secondes s"
+                                    depotEnvoye -> "Dépôt envoyé  ·  retour à l'accueil dans $secondes s"
+                                    secondes > 0 -> "Retour à l'accueil dans $secondes s"
+                                    else -> "Retour à l'accueil dès l'envoi du dépôt"
+                                },
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
