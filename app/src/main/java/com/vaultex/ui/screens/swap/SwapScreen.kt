@@ -106,7 +106,15 @@ private fun swapNetworkBadge(key: String): String = SwapViewModel.assetOf(key).b
 private fun swapNetworkLong(key: String): String = SwapViewModel.assetOf(key).network
 
 /** Rang d'avancement d'un statut ChangeNOW (pour la frise). */
-private fun statusRank(status: String?): Int = when (status) {
+/**
+ * Étape atteinte, de 0 à 5.
+ *
+ * Normalise par précaution : le statut arrive déjà en minuscules du
+ * ViewModel, mais cette fonction décide seule de ce que l'écran montre.
+ * Qu'elle dépende de la casse d'une chaîne venue d'un service extérieur
+ * serait une fragilité de trop pour ce qu'elle coûte à éviter.
+ */
+private fun statusRank(status: String?): Int = when (status?.trim()?.lowercase()) {
     "creating", "depositing" -> 0
     "waiting" -> 1
     "confirming" -> 2
@@ -853,8 +861,11 @@ private fun SwapTrackingScreen(
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
-    val finished = state.swapStatus == "finished"
-    val failed = state.swapStatus in listOf("failed", "refunded", "expired")
+    // Même précaution que statusRank : ces deux booléens commandent le vert,
+    // le message de succès et le retour à l'accueil.
+    val etat = state.swapStatus?.trim()?.lowercase()
+    val finished = etat == "finished"
+    val failed = etat in listOf("failed", "refunded", "expired")
     val rank = statusRank(state.swapStatus)
 
     LaunchedEffect(finished) { if (finished) haptic.performHapticFeedback(HapticFeedbackType.LongPress) }

@@ -735,7 +735,22 @@ class SwapViewModel @Inject constructor(
                 kotlinx.coroutines.delay(stepMs)
                 elapsedMs += stepMs
                 val statusDto = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
-                val remote = statusDto?.statut
+                /*
+                NORMALISÉ AVANT D'ENTRER DANS L'ÉTAT.
+
+                Ce mot vient d'un service extérieur et pilote TOUT l'écran de
+                suivi : la frise, le passage au vert, le message de succès, le
+                retour à l'accueil. Comparé au caractère près, « Finished » au
+                lieu de « finished » ne correspond à rien — statusRank rend 0,
+                aucune étape ne s'allume, et la roue tourne indéfiniment sur un
+                échange pourtant abouti.
+
+                C'est le symptôme constaté : l'écran ne faisait plus que
+                tourner. La normalisation existait déjà dans refreshSwapStatus
+                et dans le worker ; il manquait ce chemin-ci, celui que
+                l'utilisateur regarde.
+                */
+                val remote = statusDto?.statut?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
                 if (remote != null) {
                     _state.update { it.copy(swapStatus = remote) }
                     // Dès l'étape « sending », ChangeNOW a DIFFUSÉ le versement et
