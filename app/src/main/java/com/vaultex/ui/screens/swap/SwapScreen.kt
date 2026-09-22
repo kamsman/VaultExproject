@@ -1090,8 +1090,37 @@ private fun SwapTrackingScreen(
                 }
             }
 
+            /*
+            « DÉPÔT ENVOYÉ » NE DOIT PAS S'AFFICHER AVANT QUE CE SOIT VRAI.
+
+            Ce bandeau paraissait dès l'ouverture de l'écran, c'est-à-dire dès
+            la création de l'échange chez le fournisseur — alors que la
+            transaction de dépôt n'est diffusée qu'ensuite, une à dix secondes
+            plus tard, et qu'elle peut encore échouer.
+
+            Pendant ce court instant, l'écran affirmait que les fonds étaient
+            partis et invitait à fermer l'application. Quelqu'un qui aurait
+            obéi aurait manqué le message d'erreur d'un dépôt refusé, et cru
+            son échange lancé alors que rien n'avait bougé.
+
+            La phrase attend donc le hash du dépôt. Avant lui, l'écran dit ce
+            qu'il fait, sans rien promettre.
+            */
+            if (!finished && !failed && !depotEnvoye) {
+                Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Envoi du dépôt en cours…",
+                            fontSize = 12.sp, color = swapText, lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
             // Message « pas besoin d'attendre » pendant le traitement (2–5 min).
-            if (!finished && !failed) {
+            if (!finished && !failed && depotEnvoye) {
                 Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
