@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.swap
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -1256,11 +1257,54 @@ private fun TokenBadgeWithCheck(token: String, finished: Boolean) {
 
 @Composable
 private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active: Boolean, last: Boolean) {
+    /*
+    UNE ÉTAPE QUI CHANGE SANS TRANSITION SE MANQUE EN CLIGNANT DES YEUX.
+
+    La pastille passait de gris à violet à vert d'un seul coup, et la barre
+    de liaison basculait brutalement. Sur un écran que l'on regarde quelques
+    secondes, un changement instantané ne se perçoit pas comme un
+    changement : on croit avoir toujours vu l'état d'arrivée.
+
+    Trois transitions, courtes — le but est de rendre le passage visible,
+    pas de faire patienter :
+
+    · la couleur de la pastille et de la barre glisse en 400 ms ;
+    · la pastille enfle brièvement quand l'étape s'achève, ce qui attire
+      l'œil à l'endroit exact où quelque chose vient de se produire ;
+    · la coche apparaît avec ce même mouvement.
+
+    Rien ici ne modifie CE QUI est affiché : ces animations suivent l'état
+    réel rendu par le fournisseur, elles ne l'anticipent jamais.
+    */
+    val couleurPastille by androidx.compose.animation.animateColorAsState(
+        targetValue = if (done) SwapGreen else if (active) SwapPurple else swapCardAlt,
+        animationSpec = tween(durationMillis = 400),
+        label = "pastille"
+    )
+    val couleurBarre by androidx.compose.animation.animateColorAsState(
+        targetValue = if (done) SwapGreen else swapBorder,
+        animationSpec = tween(durationMillis = 400),
+        label = "barre"
+    )
+    val gonflement by animateFloatAsState(
+        // Pleine taille dès que l'étape est EN COURS, pas seulement une fois
+        // finie : l'étape courante est celle qu'on cherche du regard, elle ne
+        // doit pas être la plus petite de la frise. Les étapes à venir restent
+        // légèrement en retrait.
+        targetValue = if (done || active) 1f else 0.86f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+        ),
+        label = "gonflement"
+    )
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(22.dp).clip(CircleShape)
-                    .background(if (done) SwapGreen else if (active) SwapPurple else swapCardAlt),
+                Modifier.size(22.dp)
+                    .scale(gonflement)
+                    .clip(CircleShape)
+                    .background(couleurPastille),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -1269,7 +1313,7 @@ private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active
                     else -> Box(Modifier.size(6.dp).clip(CircleShape).background(swapTextFaint))
                 }
             }
-            if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else swapBorder))
+            if (!last) Box(Modifier.width(2.dp).weight(1f).background(couleurBarre))
         }
         Spacer(Modifier.width(12.dp))
         // 16 dp entre chaque étape faisaient déborder la frise sous la ligne
