@@ -858,55 +858,38 @@ private fun SwapTrackingScreen(
 
     D'où un décompte ÉCRIT, et un appui qui l'arrête définitivement. Celui
     qui veut partir n'attend pas ; celui qui veut lire n'est pas chassé.
-
-    Rien ne se déclenche sur un échange terminé ou échoué : dans ces
-    deux cas, le résultat est précisément ce qu'on est venu voir.
     */
     /*
-    LE DÉCOMPTE NE PART QU'UNE FOIS LE DÉPÔT PARTI.
+    ═══════════════════════════════════════════════════════════════════════
+    ON NE PART QU'UNE FOIS LA FRISE ARRIVÉE AU BOUT
+    ═══════════════════════════════════════════════════════════════════════
 
-    Il démarrait dès l'ouverture de l'écran — c'est-à-dire dès la création
-    de l'échange chez le fournisseur, AVANT que les fonds n'aient quitté le
-    portefeuille. Or l'envoi sur la chaîne prend rarement moins de cinq
-    secondes.
+    Le retour automatique se déclenchait dès le dépôt diffusé. L'écran
+    s'affichait donc cinq secondes, une seule étape cochée, les quatre
+    autres grises — puis disparaissait. La frise annonçait un déroulement
+    qu'on ne voyait jamais se dérouler ; autant ne pas la montrer.
 
-    On pouvait donc être renvoyé à l'accueil pendant que la transaction
-    était encore en cours de diffusion. Et si elle échouait ensuite — gaz
-    insuffisant, réseau coupé — le message d'erreur s'affichait sur un
-    écran que l'on avait déjà quitté. L'utilisateur repartait en croyant son
-    échange lancé, alors que rien n'était parti.
+    Or c'est elle qui porte tout le sens de cet écran : « Confirmations
+    réseau », « Échange effectué », « Envoi des ETH », « Terminé » sont les
+    quatre moments d'une opération qui dure deux à cinq minutes. Chacun
+    s'allume quand le fournisseur le confirme réellement, et la coche finale
+    n'arrive que lorsque les fonds sont versés.
 
-    Le hash du dépôt est la preuve matérielle que la transaction est
-    diffusée : tant qu'il n'existe pas, aucun compte à rebours. C'est aussi
-    ce qui permet à la ligne d'annoncer quelque chose de VRAI — « Dépôt
-    envoyé », et non « Échange réussi », qui serait faux : à cet instant
-    l'échange commence à peine, et il durera deux à cinq minutes de plus.
+    Le départ est donc repoussé à la FIN. On voit l'opération se faire, on
+    voit la confirmation, et l'écran se referme ensuite — cinq secondes plus
+    tard, le temps de lire le vert.
+
+    PERSONNE N'EST RETENU POUR AUTANT. Le bandeau dit dès la première
+    seconde que l'échange se termine tout seul et qu'on peut fermer
+    l'application ; les deux boutons et la flèche de retour sont là. Ce qui
+    change, c'est que partir redevient une décision, au lieu d'une
+    expulsion au bout de cinq secondes.
+
+    Un échec ne renvoie nulle part : c'est le seul cas où l'écran porte une
+    information qu'on ne retrouvera pas ailleurs, et où l'utilisateur a une
+    décision à prendre.
     */
-    val depotEnvoye = state.depositTxHash != null
-
-    /*
-    DEUX MOMENTS OÙ L'ON PEUT PARTIR, ET UN SEUL OÙ L'ON NE DOIT PAS.
-
-    · le dépôt vient d'être diffusé — il n'y a plus rien à faire ici ;
-    · l'échange vient d'aboutir — on l'a vu, tout est vert.
-
-    Un échec, lui, ne renvoie nulle part : c'est le seul cas où l'écran
-    contient une information qu'on ne retrouvera pas ailleurs, et où
-    l'utilisateur a une décision à prendre.
-
-    Le compteur repart à cinq quand la phase change : quelqu'un qui atteint
-    la fin de l'échange sur cet écran dispose de ses cinq secondes pour voir
-    le vert, même si le décompte du dépôt était déjà écoulé.
-
-    Et « Rester ici » vaut pour tout l'écran, définitivement. Qui a demandé
-    à rester n'est pas chassé cinq minutes plus tard par le succès.
-    */
-    val phase = when {
-        failed -> null
-        finished -> "fini"
-        depotEnvoye -> "depot"
-        else -> null
-    }
+    val phase = if (finished && !failed) "fini" else null
     var decompteAnnule by remember { mutableStateOf(false) }
     var secondes by remember(phase) { mutableStateOf(5) }
     val decompteActif = phase != null && !decompteAnnule
@@ -958,8 +941,7 @@ private fun SwapTrackingScreen(
                             Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                (if (phase == "fini") "Échange terminé" else "Dépôt envoyé") +
-                                    "  ·  retour à l'accueil dans $secondes s",
+                                "Échange terminé  ·  retour à l'accueil dans $secondes s",
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
