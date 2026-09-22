@@ -744,7 +744,23 @@ class SwapViewModel @Inject constructor(
             */
             var elapsedMs = 0L
             while (elapsedMs < 4 * 60 * 60_000L) {
+                /*
+                LES PREMIÈRES SECONDES SONT LES SEULES QUI SOIENT REGARDÉES.
+
+                La première demande tombait à 10 s — c'est-à-dire APRÈS le
+                départ automatique vers l'accueil, qui a lieu à 5 s. La frise
+                ne bougeait donc jamais grâce au fournisseur pendant qu'on la
+                regardait : elle affichait l'état de départ, puis l'écran se
+                fermait. D'où l'impression, exacte, qu'elle ne servait à rien.
+
+                Les trois premières demandes sont donc rapprochées — 1 s, 4 s,
+                7 s — ce qui donne deux ou trois occasions de voir une étape
+                s'allumer avant de partir. Ensuite la cadence se détend, car
+                plus personne ne regarde.
+                */
                 val stepMs = when {
+                    elapsedMs == 0L -> 1_000L
+                    elapsedMs < 10_000L -> 3_000L
                     elapsedMs < 5 * 60_000L -> 10_000L
                     elapsedMs < 30 * 60_000L -> 20_000L
                     else -> 60_000L

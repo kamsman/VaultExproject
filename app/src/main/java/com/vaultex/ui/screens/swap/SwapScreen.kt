@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.swap
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -917,23 +918,39 @@ private fun SwapTrackingScreen(
     décision à prendre.
     */
     val depotEnvoye = state.depositTxHash != null
-    val phase = when {
-        failed -> null
-        finished -> "fini"
-        depotEnvoye -> "depot"
-        else -> null
-    }
+    val phase = if (failed) null else if (finished) "fini" else "depot"
     var decompteAnnule by remember { mutableStateOf(false) }
     var secondes by remember(phase) { mutableStateOf(5) }
     val decompteActif = phase != null && !decompteAnnule
 
+    /*
+    LE DÉCOMPTE TOURNE PENDANT LA DIFFUSION, PAS APRÈS.
+
+    Il démarrait une fois le dépôt diffusé : la durée totale valait donc
+    « diffusion + 5 s », soit six à quinze secondes selon l'état du réseau.
+    Imprévisible, et inutilement long — pendant la diffusion, l'écran ne
+    fait qu'attendre, exactement comme pendant le décompte.
+
+    Les deux attentes se superposent donc. Le compteur part à l'ouverture,
+    et le départ effectif exige EN PLUS la preuve que le dépôt est parti.
+    Quand la diffusion prend moins de cinq secondes — le cas courant — le
+    total est de cinq secondes, exactement. Quand elle traîne, on attend
+    qu'elle aboutisse : on ne quitte jamais l'écran sur une transaction
+    encore en vol, dont l'échec doit s'afficher sous les yeux de
+    l'utilisateur.
+    */
     LaunchedEffect(phase, decompteAnnule) {
         if (phase == null || decompteAnnule) return@LaunchedEffect
         while (secondes > 0) {
             kotlinx.coroutines.delay(1000)
             secondes--
         }
-        onAccueil()
+    }
+
+    LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
+        if (phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
+        // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
+        if (phase == "fini" || depotEnvoye) onAccueil()
     }
 
     val payoutAddr = "votre portefeuille"
@@ -971,11 +988,20 @@ private fun SwapTrackingScreen(
                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
+                            if (depotEnvoye || phase == "fini") {
+                                Icon(Icons.Default.Check, null, tint = SwapGreen, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            // Le texte ne revendique que ce qui est acquis :
+                            // « Dépôt envoyé » attend le hash, et un décompte
+                            // arrivé à zéro sans hash dit qu'il attend.
                             Text(
-                                (if (phase == "fini") "Échange terminé" else "Dépôt envoyé") +
-                                    "  ·  retour à l'accueil dans $secondes s",
+                                when {
+                                    phase == "fini" -> "Échange terminé  ·  retour à l'accueil dans $secondes s"
+                                    depotEnvoye -> "Dépôt envoyé  ·  retour à l'accueil dans $secondes s"
+                                    secondes > 0 -> "Retour à l'accueil dans $secondes s"
+                                    else -> "Retour à l'accueil dès l'envoi du dépôt"
+                                },
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
@@ -1090,8 +1116,37 @@ private fun SwapTrackingScreen(
                 }
             }
 
+            /*
+            « DÉPÔT ENVOYÉ » NE DOIT PAS S'AFFICHER AVANT QUE CE SOIT VRAI.
+
+            Ce bandeau paraissait dès l'ouverture de l'écran, c'est-à-dire dès
+            la création de l'échange chez le fournisseur — alors que la
+            transaction de dépôt n'est diffusée qu'ensuite, une à dix secondes
+            plus tard, et qu'elle peut encore échouer.
+
+            Pendant ce court instant, l'écran affirmait que les fonds étaient
+            partis et invitait à fermer l'application. Quelqu'un qui aurait
+            obéi aurait manqué le message d'erreur d'un dépôt refusé, et cru
+            son échange lancé alors que rien n'avait bougé.
+
+            La phrase attend donc le hash du dépôt. Avant lui, l'écran dit ce
+            qu'il fait, sans rien promettre.
+            */
+            if (!finished && !failed && !depotEnvoye) {
+                Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Envoi du dépôt en cours…",
+                            fontSize = 12.sp, color = swapText, lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
             // Message « pas besoin d'attendre » pendant le traitement (2–5 min).
-            if (!finished && !failed) {
+            if (!finished && !failed && depotEnvoye) {
                 Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
@@ -1202,11 +1257,54 @@ private fun TokenBadgeWithCheck(token: String, finished: Boolean) {
 
 @Composable
 private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active: Boolean, last: Boolean) {
+    /*
+    UNE ÉTAPE QUI CHANGE SANS TRANSITION SE MANQUE EN CLIGNANT DES YEUX.
+
+    La pastille passait de gris à violet à vert d'un seul coup, et la barre
+    de liaison basculait brutalement. Sur un écran que l'on regarde quelques
+    secondes, un changement instantané ne se perçoit pas comme un
+    changement : on croit avoir toujours vu l'état d'arrivée.
+
+    Trois transitions, courtes — le but est de rendre le passage visible,
+    pas de faire patienter :
+
+    · la couleur de la pastille et de la barre glisse en 400 ms ;
+    · la pastille enfle brièvement quand l'étape s'achève, ce qui attire
+      l'œil à l'endroit exact où quelque chose vient de se produire ;
+    · la coche apparaît avec ce même mouvement.
+
+    Rien ici ne modifie CE QUI est affiché : ces animations suivent l'état
+    réel rendu par le fournisseur, elles ne l'anticipent jamais.
+    */
+    val couleurPastille by androidx.compose.animation.animateColorAsState(
+        targetValue = if (done) SwapGreen else if (active) SwapPurple else swapCardAlt,
+        animationSpec = tween(durationMillis = 400),
+        label = "pastille"
+    )
+    val couleurBarre by androidx.compose.animation.animateColorAsState(
+        targetValue = if (done) SwapGreen else swapBorder,
+        animationSpec = tween(durationMillis = 400),
+        label = "barre"
+    )
+    val gonflement by animateFloatAsState(
+        // Pleine taille dès que l'étape est EN COURS, pas seulement une fois
+        // finie : l'étape courante est celle qu'on cherche du regard, elle ne
+        // doit pas être la plus petite de la frise. Les étapes à venir restent
+        // légèrement en retrait.
+        targetValue = if (done || active) 1f else 0.86f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+        ),
+        label = "gonflement"
+    )
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(22.dp).clip(CircleShape)
-                    .background(if (done) SwapGreen else if (active) SwapPurple else swapCardAlt),
+                Modifier.size(22.dp)
+                    .scale(gonflement)
+                    .clip(CircleShape)
+                    .background(couleurPastille),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -1215,7 +1313,7 @@ private fun TimelineStep(title: String, subtitle: String?, done: Boolean, active
                     else -> Box(Modifier.size(6.dp).clip(CircleShape).background(swapTextFaint))
                 }
             }
-            if (!last) Box(Modifier.width(2.dp).weight(1f).background(if (done) SwapGreen else swapBorder))
+            if (!last) Box(Modifier.width(2.dp).weight(1f).background(couleurBarre))
         }
         Spacer(Modifier.width(12.dp))
         // 16 dp entre chaque étape faisaient déborder la frise sous la ligne
