@@ -725,13 +725,30 @@ class SwapViewModel @Inject constructor(
     fun trackSwapStatus(swapId: String) {
         statusJob?.cancel()
         statusJob = viewModelScope.launch {
-            // Un swap DEPUIS BTC attend ses confirmations (souvent > 30 min) :
-            // l'ancien plafond de 30 min arrêtait le suivi EN SILENCE et la notif
-            // de fin ne partait jamais. On suit jusqu'à 4 h : toutes les 20 s la
-            // première demi-heure, puis toutes les 60 s.
+            /*
+            Un swap DEPUIS BTC attend ses confirmations (souvent > 30 min) :
+            l'ancien plafond de 30 min arrêtait le suivi EN SILENCE et la notif
+            de fin ne partait jamais. On suit donc jusqu'à 4 h.
+
+            LA CADENCE ÉPOUSE LA DURÉE RÉELLE D'UN ÉCHANGE. Toutes les 20 s,
+            la frise avait l'air morte : sur une opération de deux minutes,
+            elle ne bougeait que six fois, et l'utilisateur restait vingt
+            secondes devant un écran figé en se demandant si quelque chose
+            tournait encore.
+
+            Les cinq premières minutes — celles où l'échange se joue, et les
+            seules où quelqu'un regarde — sont donc suivies toutes les 10 s.
+            Au-delà, on retombe à 20 s puis à 60 s : passé ce délai, plus
+            personne n'attend devant l'écran, et c'est le worker qui prend le
+            relais.
+            */
             var elapsedMs = 0L
             while (elapsedMs < 4 * 60 * 60_000L) {
-                val stepMs = if (elapsedMs < 30 * 60_000L) 20_000L else 60_000L
+                val stepMs = when {
+                    elapsedMs < 5 * 60_000L -> 10_000L
+                    elapsedMs < 30 * 60_000L -> 20_000L
+                    else -> 60_000L
+                }
                 kotlinx.coroutines.delay(stepMs)
                 elapsedMs += stepMs
                 val statusDto = withContext(Dispatchers.IO) { swapUseCase.refreshSwapStatus(swapId) }
