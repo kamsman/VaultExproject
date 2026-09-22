@@ -70,6 +70,8 @@ import com.vaultex.ui.viewmodel.SendViewModel
 fun SendScreen(navController: NavController) {
     val viewModel: SendViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
+    val deblocage by viewModel.deblocage.collectAsState()
+
     val customTokens by viewModel.customTokens.collectAsState()
     val pendingTxs by viewModel.pendingTxs.collectAsState()
 
@@ -319,6 +321,42 @@ fun SendScreen(navController: NavController) {
                             Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
                             Text(state.error!!, fontSize = 13.sp, color = AccentRed)
                         }
+                    }
+                }
+
+                /*
+                LE BOUTON QUI DÉBLOQUE, ET QUI SAIT NE PAS PARAÎTRE.
+
+                « Il te faut un peu de TRX pour payer les frais » était un
+                cul-de-sac : les fonds étaient là, visibles, et rien ne pouvait
+                en sortir. L'utilisateur partait chercher de quoi payer
+                ailleurs, ou renonçait.
+
+                Le bouton n'apparaît QUE si le ViewModel a trouvé une source
+                tenable — solde suffisant, minimum de la paire inférieur au
+                quart de ce solde. Sinon rien ne s'affiche : proposer un
+                échange qui mobiliserait tout l'argent de quelqu'un pour payer
+                une commission de réseau serait un mauvais conseil, et il vaut
+                mieux se taire que mal conseiller sur de l'argent.
+                */
+                deblocage?.let { proposition ->
+                    OutlinedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            com.vaultex.core.session.DeblocageFraisBuffer.set(proposition)
+                            navController.navigate(Routes.SWAP)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
+                    ) {
+                        Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Obtenir du ${proposition.vers} depuis mes ${swapBaseCourt(proposition.de)}",
+                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
                 Button(
@@ -1727,3 +1765,9 @@ internal fun SendSuccessScreen(
         }
     }
 }
+
+
+/** Symbole affiché d'une clé du registre — « USDT-BNB » devient « USDT ». */
+private fun swapBaseCourt(cle: String): String =
+    com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
+        .firstOrNull { it.key.equals(cle, ignoreCase = true) }?.base ?: cle

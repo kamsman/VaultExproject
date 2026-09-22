@@ -75,6 +75,8 @@ class SendViewModel @Inject constructor(
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val contactDao: com.vaultex.data.local.dao.ContactDao,
     private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
+    /** Sert uniquement à proposer un échange quand les frais manquent. */
+    private val swapUseCase: com.vaultex.domain.usecase.SwapUseCase,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -625,6 +627,110 @@ class SendViewModel @Inject constructor(
         return if (value < minimum) "${plainAmount(minimum)} ${displaySymbol(chain)}" else null
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    PROPOSER UN ÉCHANGE QUAND LES FRAIS MANQUENT — OU SE TAIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Détenir un jeton sans la monnaie qui paie les frais est un cul-de-sac.
+    L'écran le disait déjà (« il te faut un peu de TRX ») et s'arrêtait là ;
+    l'utilisateur partait chercher ailleurs, ou renonçait.
+
+    LA SOURCE N'EST PAS FORCÉMENT LE JETON QU'ON ENVOIE. Quelqu'un bloqué
+    sur BNB Chain peut détenir de l'ETH sur Ethereum : ETH → BNB le
+    débloque. On cherche donc parmi TOUT le portefeuille, pas seulement
+    parmi ce qui est à l'écran.
+
+    ET SURTOUT, ON SAIT SE TAIRE. Le minimum d'échange est un plancher du
+    fournisseur, sans rapport avec le peu qu'il faut pour payer des frais :
+    mesuré sur appareil, USDT → TRX exige 12,78 USDT. Proposer cela à
+    quelqu'un qui détient 15 USDT reviendrait à lui faire convertir les
+    quatre cinquièmes de son argent pour payer une commission de réseau.
+
+    D'où la règle : le minimum ne doit pas dépasser le quart du solde de la
+    source. En dessous, aucun bouton — et le message honnête reste « fais-toi
+    envoyer un peu de TRX, c'est moins cher qu'un échange ». C'est vrai, et
+    c'est le bon conseil.
+
+    À solde équivalent, on préfère un stable : échanger de l'USDT ne fait
+    renoncer à aucune hausse, contrairement à de l'ETH.
+    */
+    /** Monnaie native manquante, renseignée par preflightError. */
+    private var natifManquant: String? = null
+
+    private val _deblocage = MutableStateFlow<com.vaultex.core.session.PropositionDeblocage?>(null)
+    val deblocage: StateFlow<com.vaultex.core.session.PropositionDeblocage?> = _deblocage.asStateFlow()
+
+    private var jobDeblocage: kotlinx.coroutines.Job? = null
+
+    /**
+     * Cherche de quoi payer les frais manquants de [natifManquant].
+     *
+     * Rend son résultat dans [deblocage] : null tant qu'aucune proposition
+     * tenable n'existe, ce qui est le cas le plus fréquent.
+     */
+    fun chercherDeblocage(natifManquant: String) {
+        jobDeblocage?.cancel()
+        _deblocage.value = null
+        jobDeblocage = viewModelScope.launch {
+            val cible = natifManquant.uppercase()
+
+            // Candidats : tout actif échangeable détenu, sauf la monnaie
+            // manquante elle-même — l'échanger contre elle n'a aucun sens.
+            val candidats = com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
+                .filter { !it.key.equals(cible, ignoreCase = true) }
+                .mapNotNull { actif ->
+                    val solde = soldeExact(actif.key) ?: return@mapNotNull null
+                    if (solde <= 0.0) null else actif to solde
+                }
+                // Le plus gros d'abord, les stables devant à solde comparable.
+                .sortedWith(
+                    compareByDescending<Pair<com.vaultex.ui.viewmodel.SwapViewModel.SwapAsset, Double>> {
+                        it.second * prixUsd(it.first.key)
+                    }.thenByDescending { it.first.base.startsWith("USD") }
+                )
+
+            for ((actif, solde) in candidats) {
+                val min = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { swapUseCase.getMinAmount(actif.key, cible) }.getOrNull()
+                } ?: continue
+                // Un minimum qui dévore plus du quart du solde : on n'en parle pas.
+                if (min > solde * PART_MAX_SOURCE) continue
+                _deblocage.value = com.vaultex.core.session.PropositionDeblocage(
+                    de = actif.key,
+                    vers = cible,
+                    montant = java.math.BigDecimal.valueOf(min)
+                        .setScale(8, java.math.RoundingMode.UP)
+                        .stripTrailingZeros().toPlainString()
+                )
+                return@launch
+            }
+        }
+    }
+
+    /** Efface la proposition — l'erreur de frais a disparu. */
+    fun oublierDeblocage() {
+        jobDeblocage?.cancel()
+        _deblocage.value = null
+    }
+
+    /** Solde exact d'une clé du registre, ou null si absente du portefeuille. */
+    private fun soldeExact(cle: String): Double? {
+        val json = secureStorage.getPortfolioSnapshot() ?: return null
+        return try {
+            gson.fromJson(json, SnapshotLite::class.java)?.tokens
+                ?.firstOrNull { it.symbol.equals(cle, ignoreCase = true) }?.amountRaw
+        } catch (_: Exception) { null }
+    }
+
+    private fun prixUsd(cle: String): Double {
+        val json = secureStorage.getPortfolioSnapshot() ?: return 0.0
+        return try {
+            gson.fromJson(json, SnapshotLite::class.java)?.tokens
+                ?.firstOrNull { it.symbol.equals(cle, ignoreCase = true) }?.priceUsd ?: 0.0
+        } catch (_: Exception) { 0.0 }
+    }
+
     /** Lit le solde de [chain] dans l'instantané portefeuille (aucun appel réseau). */
     private fun availableFor(chain: String): String? {
         val json = secureStorage.getPortfolioSnapshot() ?: return null
@@ -688,6 +794,15 @@ class SendViewModel @Inject constructor(
          * pour juger d'une ressemblance suspecte. Voir isPoisonLookalike.
          */
         private const val CARACTERES_COMPARES = 6
+
+        /**
+         * Part maximale du solde qu'un échange de déblocage peut mobiliser.
+         *
+         * Le minimum du fournisseur est un plancher fixe : au-delà du quart
+         * du solde, se débloquer coûterait plus que le blocage. On se tait
+         * plutôt que de proposer un mauvais marché.
+         */
+        private const val PART_MAX_SOURCE = 0.25
 
         private val NATIVE_CHAINS = setOf(
             "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB"
@@ -777,7 +892,13 @@ class SendViewModel @Inject constructor(
         if (isToken && fee > 0.0) {
             val nativeSym = nativeUnit(effectiveChain(s))
             val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
-            if (nativeBal < fee) return locStr(R.string.send_err_need_gas, nativeSym)
+            if (nativeBal < fee) {
+                // Mémorisé ici plutôt que redevine ailleurs : c'est le seul
+                // endroit qui SAIT quelle monnaie native manque. L'écran n'a
+                // plus qu'à observer la proposition.
+                natifManquant = nativeSym
+                return locStr(R.string.send_err_need_gas, nativeSym)
+            }
         }
         // Montant sous le minimum réseau
         val min = minimumPour(s.selectedChain)
@@ -789,7 +910,16 @@ class SendViewModel @Inject constructor(
     fun send() {
         val s = _state.value
         if (s.isLoading) return
-        preflightError(s)?.let { msg -> _state.update { it.copy(error = msg) }; return }
+        natifManquant = null
+        preflightError(s)?.let { msg ->
+            _state.update { it.copy(error = msg) }
+            // Le blocage par manque de frais est le seul qui ait une sortie :
+            // on cherche de quoi le lever. Toute autre erreur efface une
+            // proposition qui ne correspondrait plus à rien.
+            natifManquant?.let { chercherDeblocage(it) } ?: oublierDeblocage()
+            return
+        }
+        oublierDeblocage()
 
         /*
         ═══════════════════════════════════════════════════════════════════
