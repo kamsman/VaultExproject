@@ -137,6 +137,24 @@ fun SwapScreen(navController: NavHostController) {
             // Tether en général, pas de la chaîne qui porte les fonds.
             if (tokens.any { it.equals(sym, ignoreCase = true) }) viewModel.preselectFromToken(sym)
         }
+        /*
+        Échange de déblocage venu de l'écran d'envoi : les trois champs sont
+        déjà décidés là-bas, source comprise — setFromToken tel quel, sans
+        passer par preselect… qui irait chercher « la variante détenue » et
+        pourrait choisir une autre chaîne que celle qui a été évaluée.
+
+        Rien n'est confirmé pour autant : l'écran affiche le minimum, le coût
+        et le taux, et c'est l'utilisateur qui valide.
+        */
+        com.vaultex.core.session.DeblocageFraisBuffer.consume()?.let { p ->
+            if (tokens.any { it.equals(p.de, ignoreCase = true) } &&
+                tokens.any { it.equals(p.vers, ignoreCase = true) }
+            ) {
+                viewModel.setFromToken(p.de)
+                viewModel.setToToken(p.vers)
+                viewModel.setFromAmount(p.montant)
+            }
+        }
     }
 
     val confirmAndExecute = {
