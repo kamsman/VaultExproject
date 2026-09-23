@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -217,6 +218,60 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                             color = TextSecondary.copy(alpha = 0.8f),
                             lineHeight = 14.sp
                         )
+                    }
+                }
+
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE RÉSEAU SE CHOISIT UNE FOIS, ET SE SUBIT ENSUITE
+                ═══════════════════════════════════════════════════════════
+
+                Mesuré chez le fournisseur, paire par paire : sortir de
+                l'USDT-Tron exige 12,46 à 17,41 USDT de minimum, quelle que
+                soit la destination. Depuis BNB Chain, les mêmes échanges
+                partent de 0,19 à 5,15. Un facteur vingt à quatre-vingts.
+
+                La cause est technique : un transfert USDT-TRC20 consomme
+                aujourd'hui pour plusieurs dollars d'énergie Tron, que
+                l'échangeur paie à l'entrée comme à la sortie.
+
+                Or Tron est le réseau d'habitude ici, parce que s'envoyer de
+                l'USDT y est réputé bon marché — ce qui est vrai pour un
+                simple transfert, et faux dès qu'on veut échanger. Quelqu'un
+                qui reçoit 5 000 FCFA d'USDT sur Tron les y trouve
+                immobilisés, sans jamais avoir été prévenu.
+
+                CE N'EST PAS UN AVERTISSEMENT, ET IL NE DOIT PAS EN AVOIR
+                L'AIR. Recevoir sur Tron reste parfaitement valide, et rien
+                n'est en danger : c'est une information de coût, donnée au
+                seul moment où elle change quelque chose — avant que
+                l'adresse ne soit partagée. D'où le ton neutre, la taille
+                réduite, et l'absence de rouge ou de triangle.
+                */
+                if (symbol.equals("USDT", ignoreCase = true) && chainKey == "TRX") {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AccentBlue.copy(alpha = 0.06f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info, null,
+                                tint = AccentBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.receive_usdt_tron_cout),
+                                fontSize = 11.sp,
+                                color = TextSecondary.copy(alpha = 0.8f),
+                                lineHeight = 14.sp
+                            )
+                        }
                     }
                 }
             }

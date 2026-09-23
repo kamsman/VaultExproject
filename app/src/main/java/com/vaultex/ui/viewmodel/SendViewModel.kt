@@ -519,6 +519,23 @@ class SendViewModel @Inject constructor(
         else -> null
     }
 
+    /**
+     * Monnaie native manquante pour payer les frais, ou null.
+     *
+     * Extraite de preflightError pour être posée à DEUX endroits : la
+     * validation finale, et la saisie du montant. Une seule définition de
+     * « il manque de quoi payer les frais » — dupliquer la condition, c'est
+     * se garantir que les deux écrans finiront par répondre différemment.
+     */
+    private fun natifManquantDe(s: SendState): String? {
+        val isToken = s.customToken != null || s.selectedChain.startsWith("USDT")
+        val fee = s.feeNativeAmount ?: 0.0
+        if (!isToken || fee <= 0.0) return null
+        val nativeSym = nativeUnit(effectiveChain(s))
+        val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
+        return if (nativeBal < fee) nativeSym else null
+    }
+
     fun setAmount(amount: String) {
         // Clavier français : normaliser la virgule décimale en point partout
         // (l'état sert directement aux couches réseau).
@@ -527,6 +544,36 @@ class SendViewModel @Inject constructor(
         val warning = dustWarning(s.selectedChain, normalized)
         val svc = serviceFeeCrypto(s.selectedChain, normalized.toDoubleOrNull() ?: 0.0)
         _state.update { it.copy(amount = normalized, dustWarning = warning, error = null, serviceFeeAmount = svc) }
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE BLOCAGE SE DIT À LA SAISIE, PAS APRÈS L'EMPREINTE DIGITALE
+        ═══════════════════════════════════════════════════════════════════
+
+        La détection ne tournait que dans preflightError, c'est-à-dire au
+        tout dernier moment : l'utilisateur remplissait le montant, touchait
+        Continuer, lisait l'écran de confirmation, posait son doigt sur le
+        capteur — et c'est SEULEMENT là qu'on lui annonçait qu'il ne pouvait
+        pas envoyer.
+
+        Or l'information est disponible dès la première frappe : le solde
+        natif et les frais sont connus bien avant l'adresse ou la
+        confirmation. Faire traverser tout un parcours pour refuser à la fin
+        n'ajoute rien, sinon l'impression d'avoir été mené en bateau.
+
+        Le message et le bouton de déblocage paraissent donc dès que le
+        montant est saisi. La validation finale garde la même vérification —
+        elle reste le dernier rempart, et les deux passent par la même
+        fonction pour ne pas diverger.
+        */
+        if ((normalized.toDoubleOrNull() ?: 0.0) > 0.0) {
+            natifManquantDe(_state.value)?.let { natif ->
+                _state.update { it.copy(error = locStr(R.string.send_err_need_gas, natif)) }
+                chercherDeblocage(natif)
+                return
+            }
+        }
+        oublierDeblocage()
     }
 
     /**
@@ -889,16 +936,11 @@ class SendViewModel @Inject constructor(
         if (!isToken && available != null && amountNum + fee > available + 1e-12)
             return locStr(R.string.send_err_keep_fee, formatFeeAmount(fee) + " " + nativeUnit(s.selectedChain))
         // Token : il faut du natif pour le gas
-        if (isToken && fee > 0.0) {
-            val nativeSym = nativeUnit(effectiveChain(s))
-            val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
-            if (nativeBal < fee) {
-                // Mémorisé ici plutôt que redevine ailleurs : c'est le seul
-                // endroit qui SAIT quelle monnaie native manque. L'écran n'a
-                // plus qu'à observer la proposition.
-                natifManquant = nativeSym
-                return locStr(R.string.send_err_need_gas, nativeSym)
-            }
+        natifManquantDe(s)?.let { nativeSym ->
+            // Mémorisé plutôt que redevine ailleurs : l'écran n'a plus qu'à
+            // observer la proposition.
+            natifManquant = nativeSym
+            return locStr(R.string.send_err_need_gas, nativeSym)
         }
         // Montant sous le minimum réseau
         val min = minimumPour(s.selectedChain)

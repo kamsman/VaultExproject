@@ -50,6 +50,8 @@ class SwapViewModel @Inject constructor(
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    /** Cours des monnaies que l'utilisateur ne détient pas encore. */
+    private val priceRepository: com.vaultex.data.repository.PriceRepository,
     private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
@@ -122,6 +124,14 @@ class SwapViewModel @Inject constructor(
                 "ERC20:BNB:0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82:18",
                 contract = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals = 18)
         )
+
+        /**
+         * Monnaies dont le prix est un dollar par construction.
+         *
+         * Leur cours réel s'en écarte de quelques centièmes de pourcent —
+         * mille fois moins que la précision de ce que l'écran affiche.
+         */
+        private val STABLES_DOLLAR = setOf("USDT", "USDC", "DAI", "BUSD")
 
         fun assetOf(key: String): SwapAsset =
             SWAP_ASSETS.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SWAP_ASSETS[0]
@@ -211,6 +221,7 @@ class SwapViewModel @Inject constructor(
             toPriceUsd = priceUsdOf(it.toToken)
         ) }
         chargerMinimum()
+        chargerPrixManquants()
     }
 
     /**
@@ -299,7 +310,88 @@ class SwapViewModel @Inject constructor(
     private fun balanceOf(token: String): Double = snapTok(token)?.amountRaw ?: 0.0
 
     /** Prix USD de [token] (instantané portefeuille). */
-    private fun priceUsdOf(token: String): Double = snapTok(token)?.priceUsd ?: 0.0
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE PRIX D'UNE MONNAIE QU'ON NE DÉTIENT PAS ENCORE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : ETH → USDC affiche bien le montant reçu, mais la
+    ligne « Frais estimés » disparaît. Même chose pour d'autres paires.
+
+    La cause : le prix vient de l'instantané du portefeuille, qui ne contient
+    que ce qu'on DÉTIENT. La monnaie d'arrivée d'un échange est, par
+    définition, celle qu'on n'a pas encore — son prix vaut donc zéro, le
+    coût devient incalculable, et la ligne s'efface sans un mot.
+
+    Or c'est exactement l'écran où ce chiffre compte le plus.
+
+    UN DOLLAR STABLE VAUT UN DOLLAR. Pour USDT, USDC et DAI, le prix est
+    connu sans rien demander à personne : c'est leur raison d'être. Sur la
+    capture du Marché, l'USDT valait 0,9998 $ — deux centièmes de pourcent
+    d'écart, contre un coût affiché autour de 11 %. L'approximation est mille
+    fois plus fine que ce qu'on affiche.
+
+    ET ON S'ARRÊTE LÀ. Pour une monnaie volatile qu'on ne détient pas — du
+    BTC, du SOL — aucune valeur par défaut n'est acceptable, et la ligne
+    continue de disparaître. Mieux vaut pas de chiffre qu'un chiffre inventé,
+    surtout celui-là : il sert justement à juger si l'échange vaut la peine.
+    */
+    private fun priceUsdOf(token: String): Double {
+        snapTok(token)?.priceUsd?.takeIf { it > 0.0 }?.let { return it }
+        if (assetOf(token).base.uppercase() in STABLES_DOLLAR) return 1.0
+        return prixDistants[token.uppercase()] ?: 0.0
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES COURS DES MONNAIES QU'ON NE DÉTIENT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les stables se devinent, pas le reste. Échanger de l'ETH contre du BTC
+    ou du SOL n'affichait ni la valeur en dollars du montant reçu, ni les
+    frais — faute de cours pour une monnaie absente du portefeuille.
+
+    ON RÉUTILISE LA TABLE EXISTANTE. CoinIds.BY_SYMBOL fait déjà
+    correspondre les clés du registre aux identifiants de cotation, et son
+    en-tête raconte pourquoi elle a été centralisée : elle vivait en trois
+    exemplaires, qui ont divergé, et des alertes de prix ne se
+    déclenchaient jamais. En écrire une quatrième ici serait refaire
+    exactement l'erreur dont ce fichier porte le récit.
+
+    Un seul appel réseau couvre les deux monnaies de la paire, et le
+    résultat est gardé en mémoire : rejouer la même paire ne redemande
+    rien.
+
+    Un échec ne casse rien — le cours reste inconnu, la ligne des frais
+    disparaît comme avant. C'est un agrément, pas une dépendance.
+    */
+    private val prixDistants = mutableMapOf<String, Double>()
+    private var jobPrix: kotlinx.coroutines.Job? = null
+
+    private fun chargerPrixManquants() {
+        jobPrix?.cancel()
+        jobPrix = viewModelScope.launch {
+            val s = _state.value
+            val besoins = listOf(s.fromToken, s.toToken)
+                .distinct()
+                .filter { priceUsdOf(it) <= 0.0 }
+            if (besoins.isEmpty()) return@launch
+            val ids = besoins.mapNotNull { com.vaultex.core.market.CoinIds.BY_SYMBOL[it.uppercase()] }.distinct()
+            if (ids.isEmpty()) return@launch
+            val cours = withContext(Dispatchers.IO) {
+                runCatching { priceRepository.getMultiplePrices(ids) }.getOrNull()
+            } ?: return@launch
+            besoins.forEach { cle ->
+                val id = com.vaultex.core.market.CoinIds.BY_SYMBOL[cle.uppercase()] ?: return@forEach
+                cours[id]?.takeIf { it > 0.0 }?.let { prixDistants[cle.uppercase()] = it }
+            }
+            // La paire a pu changer pendant l'appel : on recalcule depuis
+            // l'état COURANT plutôt que d'y écrire des prix périmés.
+            _state.update {
+                it.copy(fromPriceUsd = priceUsdOf(it.fromToken), toPriceUsd = priceUsdOf(it.toToken))
+            }
+        }
+    }
 
     /** (solde, valeur en XOF) d'un actif — lignes du sélecteur de crypto. */
     fun balanceInfo(key: String): Pair<Double, Double> {
@@ -385,6 +477,7 @@ class SwapViewModel @Inject constructor(
     fun setFromToken(token: String) {
         _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token)) }
         chargerMinimum()
+        chargerPrixManquants()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -392,6 +485,7 @@ class SwapViewModel @Inject constructor(
     fun setToToken(token: String) {
         _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token)) }
         chargerMinimum()
+        chargerPrixManquants()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -417,6 +511,7 @@ class SwapViewModel @Inject constructor(
         // rien à voir avec celui d'USDT→BTC, puisque la monnaie qui sort
         // n'est plus la même.
         chargerMinimum()
+        chargerPrixManquants()
     }
 
     private fun estimateOutput(amount: String) {
@@ -429,9 +524,11 @@ class SwapViewModel @Inject constructor(
             }
             // On échange le montant COMPLET. La commission VaultEx vient de
             // ChangeNOW (programme partenaire), pas en rognant le montant.
+            // Déclarés AVANT le try : le bloc catch en a besoin pour demander
+            // le minimum de la paire, et une variable du try n'y est pas visible.
+            val de = _state.value.fromToken
+            val vers = _state.value.toToken
             try {
-                val de = _state.value.fromToken
-                val vers = _state.value.toToken
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.
                 val est = withContext(Dispatchers.IO) {
@@ -469,7 +566,30 @@ class SwapViewModel @Inject constructor(
                 disponible.
                 */
                 val saisi = amount.replace(",", ".").toDoubleOrNull()
-                val min = _state.value.minAmount
+                /*
+                SI LE MINIMUM N'EST PAS ENCORE LÀ, ON LE DEMANDE MAINTENANT.
+
+                Le message clair ne s'affichait que si minAmount était déjà
+                chargé. Or il arrive par un appel séparé, lancé au changement
+                de paire : quelqu'un qui saisit un montant dans la foulée
+                obtient le refus AVANT que le minimum ne soit revenu — et
+                retombe sur « Devis indisponible » suivi du jargon du serveur.
+
+                C'est précisément le cas le plus fréquent, puisque c'est en
+                tapant qu'on découvre le refus. On demande donc le minimum à
+                ce moment-là s'il manque, et on le range dans l'état au
+                passage : la ligne « Min. » sous le champ se remplit du même
+                coup.
+                */
+                var min = _state.value.minAmount
+                if (min == null) {
+                    min = withContext(Dispatchers.IO) {
+                        runCatching { swapUseCase.getMinAmount(de, vers) }.getOrNull()
+                    }
+                    if (min != null && _state.value.fromAmount == amount) {
+                        _state.update { it.copy(minAmount = min) }
+                    }
+                }
                 val message = if (saisi != null && min != null && saisi > 0.0 && saisi < min)
                     str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), assetOf(_state.value.fromToken).base)
                 else
