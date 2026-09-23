@@ -50,6 +50,8 @@ class SwapViewModel @Inject constructor(
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
+    /** Cours des monnaies que l'utilisateur ne détient pas encore. */
+    private val priceRepository: com.vaultex.data.repository.PriceRepository,
     private val hub: com.vaultex.core.session.NotificationHub,
     private val notifPrefs: com.vaultex.core.session.NotifPrefs,
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
@@ -219,6 +221,7 @@ class SwapViewModel @Inject constructor(
             toPriceUsd = priceUsdOf(it.toToken)
         ) }
         chargerMinimum()
+        chargerPrixManquants()
     }
 
     /**
@@ -335,7 +338,59 @@ class SwapViewModel @Inject constructor(
     */
     private fun priceUsdOf(token: String): Double {
         snapTok(token)?.priceUsd?.takeIf { it > 0.0 }?.let { return it }
-        return if (assetOf(token).base.uppercase() in STABLES_DOLLAR) 1.0 else 0.0
+        if (assetOf(token).base.uppercase() in STABLES_DOLLAR) return 1.0
+        return prixDistants[token.uppercase()] ?: 0.0
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES COURS DES MONNAIES QU'ON NE DÉTIENT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les stables se devinent, pas le reste. Échanger de l'ETH contre du BTC
+    ou du SOL n'affichait ni la valeur en dollars du montant reçu, ni les
+    frais — faute de cours pour une monnaie absente du portefeuille.
+
+    ON RÉUTILISE LA TABLE EXISTANTE. CoinIds.BY_SYMBOL fait déjà
+    correspondre les clés du registre aux identifiants de cotation, et son
+    en-tête raconte pourquoi elle a été centralisée : elle vivait en trois
+    exemplaires, qui ont divergé, et des alertes de prix ne se
+    déclenchaient jamais. En écrire une quatrième ici serait refaire
+    exactement l'erreur dont ce fichier porte le récit.
+
+    Un seul appel réseau couvre les deux monnaies de la paire, et le
+    résultat est gardé en mémoire : rejouer la même paire ne redemande
+    rien.
+
+    Un échec ne casse rien — le cours reste inconnu, la ligne des frais
+    disparaît comme avant. C'est un agrément, pas une dépendance.
+    */
+    private val prixDistants = mutableMapOf<String, Double>()
+    private var jobPrix: kotlinx.coroutines.Job? = null
+
+    private fun chargerPrixManquants() {
+        jobPrix?.cancel()
+        jobPrix = viewModelScope.launch {
+            val s = _state.value
+            val besoins = listOf(s.fromToken, s.toToken)
+                .distinct()
+                .filter { priceUsdOf(it) <= 0.0 }
+            if (besoins.isEmpty()) return@launch
+            val ids = besoins.mapNotNull { com.vaultex.core.market.CoinIds.BY_SYMBOL[it.uppercase()] }.distinct()
+            if (ids.isEmpty()) return@launch
+            val cours = withContext(Dispatchers.IO) {
+                runCatching { priceRepository.getMultiplePrices(ids) }.getOrNull()
+            } ?: return@launch
+            besoins.forEach { cle ->
+                val id = com.vaultex.core.market.CoinIds.BY_SYMBOL[cle.uppercase()] ?: return@forEach
+                cours[id]?.takeIf { it > 0.0 }?.let { prixDistants[cle.uppercase()] = it }
+            }
+            // La paire a pu changer pendant l'appel : on recalcule depuis
+            // l'état COURANT plutôt que d'y écrire des prix périmés.
+            _state.update {
+                it.copy(fromPriceUsd = priceUsdOf(it.fromToken), toPriceUsd = priceUsdOf(it.toToken))
+            }
+        }
     }
 
     /** (solde, valeur en XOF) d'un actif — lignes du sélecteur de crypto. */
@@ -422,6 +477,7 @@ class SwapViewModel @Inject constructor(
     fun setFromToken(token: String) {
         _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token)) }
         chargerMinimum()
+        chargerPrixManquants()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -429,6 +485,7 @@ class SwapViewModel @Inject constructor(
     fun setToToken(token: String) {
         _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token)) }
         chargerMinimum()
+        chargerPrixManquants()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -454,6 +511,7 @@ class SwapViewModel @Inject constructor(
         // rien à voir avec celui d'USDT→BTC, puisque la monnaie qui sort
         // n'est plus la même.
         chargerMinimum()
+        chargerPrixManquants()
     }
 
     private fun estimateOutput(amount: String) {
