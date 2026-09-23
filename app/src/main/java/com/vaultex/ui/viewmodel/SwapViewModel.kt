@@ -449,9 +449,32 @@ class SwapViewModel @Inject constructor(
                 _state.update { it.copy(toAmount = est.montantEstime, error = null) }
             } catch (e: Exception) {
                 if (_state.value.fromAmount != amount) return@launch
-                // Pas de devis : on n'affiche PAS un faux montant, on vide ET on
-                // montre la vraie raison (ex. montant sous le minimum de la paire).
-                _state.update { it.copy(toAmount = "", error = str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))) }
+                /*
+                « UNPROCESSABLE ENTITY » N'EST PAS UN MESSAGE.
+
+                Constaté sur appareil : solde 1,1555 USDT, minimum affiché
+                1,541508 juste au-dessus du champ, et sous le bouton
+                « Devis indisponible. Unprocessable Entity ». Le mot du
+                serveur, recopié tel quel, pour une situation que
+                l'application connaissait parfaitement.
+
+                Quand le montant saisi est sous le minimum déjà connu de la
+                paire, on le dit avec le chiffre. Le refus devient une
+                information au lieu d'un jargon, et il porte la seule action
+                possible : mettre davantage.
+
+                Le message du fournisseur reste affiché dans tous les autres
+                cas — panne, paire retirée, clé refusée. Là il n'y a rien de
+                mieux à dire, et le masquer priverait du seul indice
+                disponible.
+                */
+                val saisi = amount.replace(",", ".").toDoubleOrNull()
+                val min = _state.value.minAmount
+                val message = if (saisi != null && min != null && saisi > 0.0 && saisi < min)
+                    str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), assetOf(_state.value.fromToken).base)
+                else
+                    str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))
+                _state.update { it.copy(toAmount = "", error = message) }
             }
         }
     }
