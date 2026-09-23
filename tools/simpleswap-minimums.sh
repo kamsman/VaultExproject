@@ -97,9 +97,20 @@ for de in "${MONNAIES[@]}"; do
     if [ -z "$min" ] || [ "$min" = "null" ]; then
       printf "%12s" "—"
     else
-      # Deux decimales suffisent pour decider ; le chiffre exact est rendu
-      # par l'application au moment du devis.
-      printf "%12s" "$(printf '%.2f' "$min" 2>/dev/null || printf '%s' "$min")"
+      # ASSEZ DE DECIMALES POUR QUE LE CHIFFRE VEUILLE DIRE QUELQUE CHOSE.
+      #
+      # Le format a deux decimales ecrasait a « 0.00 » tous les minimums des
+      # monnaies natives : 0,0003 ETH devenait zero, et le tableau laissait
+      # croire qu'echanger depuis l'ETH etait gratuit. Or 0,005 ETH vaut une
+      # dizaine de dollars — la difference entre « negligeable » et « hors de
+      # portee » disparaissait dans l'arrondi.
+      #
+      # On affiche donc six decimales, en retirant les zeros inutiles pour
+      # que les stables restent lisibles : 12.46 reste 12.46, et 0.000303
+      # cesse d'etre 0.00.
+      fmt=$(printf '%.6f' "$min" 2>/dev/null || printf '%s' "$min")
+      fmt=$(printf '%s' "$fmt" | sed 's/0*$//; s/\.$//')
+      printf "%12s" "$fmt"
     fi
     # Respiration : SimpleSwap limite le debit, et une rafale de soixante
     # appels se ferait couper au milieu du tableau.
