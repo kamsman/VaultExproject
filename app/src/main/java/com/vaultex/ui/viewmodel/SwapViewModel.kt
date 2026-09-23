@@ -429,9 +429,11 @@ class SwapViewModel @Inject constructor(
             }
             // On échange le montant COMPLET. La commission VaultEx vient de
             // ChangeNOW (programme partenaire), pas en rognant le montant.
+            // Déclarés AVANT le try : le bloc catch en a besoin pour demander
+            // le minimum de la paire, et une variable du try n'y est pas visible.
+            val de = _state.value.fromToken
+            val vers = _state.value.toToken
             try {
-                val de = _state.value.fromToken
-                val vers = _state.value.toToken
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.
                 val est = withContext(Dispatchers.IO) {
@@ -469,7 +471,30 @@ class SwapViewModel @Inject constructor(
                 disponible.
                 */
                 val saisi = amount.replace(",", ".").toDoubleOrNull()
-                val min = _state.value.minAmount
+                /*
+                SI LE MINIMUM N'EST PAS ENCORE LÀ, ON LE DEMANDE MAINTENANT.
+
+                Le message clair ne s'affichait que si minAmount était déjà
+                chargé. Or il arrive par un appel séparé, lancé au changement
+                de paire : quelqu'un qui saisit un montant dans la foulée
+                obtient le refus AVANT que le minimum ne soit revenu — et
+                retombe sur « Devis indisponible » suivi du jargon du serveur.
+
+                C'est précisément le cas le plus fréquent, puisque c'est en
+                tapant qu'on découvre le refus. On demande donc le minimum à
+                ce moment-là s'il manque, et on le range dans l'état au
+                passage : la ligne « Min. » sous le champ se remplit du même
+                coup.
+                */
+                var min = _state.value.minAmount
+                if (min == null) {
+                    min = withContext(Dispatchers.IO) {
+                        runCatching { swapUseCase.getMinAmount(de, vers) }.getOrNull()
+                    }
+                    if (min != null && _state.value.fromAmount == amount) {
+                        _state.update { it.copy(minAmount = min) }
+                    }
+                }
                 val message = if (saisi != null && min != null && saisi > 0.0 && saisi < min)
                     str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), assetOf(_state.value.fromToken).base)
                 else
