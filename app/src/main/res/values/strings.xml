@@ -753,6 +753,10 @@
          serait faux : les fonds sont déjà là, sur la ligne d\'à côté.
          %1$s = symbole · %2$s = montant détenu · %3$s = réseau qui le porte -->
     <string name="swap_msg_funds_other_chain">Aucun %1$s sur ce réseau. Tu détiens %2$s sur %3$s — change de réseau ci-dessus.</string>
+    <!-- Mesuré chez le fournisseur : sortir de l'USDT-Tron exige ~13 USDT de
+         minimum, contre ~1 sur BNB Chain. Le réseau se choisit une fois, à la
+         réception, et se subit ensuite — c'est ici que l'information sert. -->
+    <string name="receive_usdt_tron_cout">Pour échanger ensuite, il te faudra ~13 USDT sur Tron, contre ~1 USDT sur BNB Chain.</string>
     <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
     <string name="swap_msg_max_below_min">Max %1$s %2$s : sous le minimum (%3$s %2$s).</string>
     <string name="swap_msg_quote_failed">Devis indisponible. %1$s</string>
