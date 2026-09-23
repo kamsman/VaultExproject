@@ -558,7 +558,20 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
             val receiveOnlyKey = receivable?.symbol
             val transferable = supported != null || receiveOnlyKey != null
-            val bufferKey = supported?.key ?: receiveOnlyKey
+            /*
+            LA VARIANTE DÉTENUE PASSE DEVANT CELLE DU REGISTRE.
+
+            assetForSymbol rend la première variante portant ce symbole, sans
+            regarder où sont les fonds : pour Tether, celle de Tron. La carte
+            « Mon portefeuille » juste au-dessus nomme pourtant la chaîne
+            réellement détenue — Ethereum. Les deux se contredisaient sur le
+            même écran, et c'est l'adresse Tron qui s'ouvrait.
+
+            Le danger n'est pas théorique : partager cette adresse à quelqu'un
+            qui a lu « sur Ethereum » et qui enverra sur Ethereum, c'est
+            perdre les fonds. Une adresse Tron n'existe pas sur Ethereum.
+            */
+            val bufferKey = viewModel.cleDetenue(symbol) ?: supported?.key ?: receiveOnlyKey
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -587,7 +600,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         Icons.Default.SwapHoriz, stringResource(R.string.tab_swap),
                         plein = false, actif = supported != null, modifier = Modifier.weight(1f)
                     ) {
-                        supported?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it.key) }
+                        // Même règle : on part de ce qu'on détient, sinon du registre.
+                        (viewModel.cleDetenue(symbol) ?: supported?.key)
+                            ?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
                         navController.navigate(Routes.SWAP)
                     }
                     ActionFiche(

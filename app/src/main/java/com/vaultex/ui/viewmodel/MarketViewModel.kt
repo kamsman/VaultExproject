@@ -82,6 +82,47 @@ class MarketViewModel @Inject constructor(
         } catch (_: Exception) { null }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA FICHE DIT UNE CHAÎNE, LE BOUTON EN OUVRAIT UNE AUTRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : la fiche Tether annonce « 1,155527 USDT sur
+    Ethereum (ERC20) », et le bouton Recevoir ouvre « Recevoir USDT
+    (TRC20) » avec une adresse Tron.
+
+    La cause : assetForSymbol rend la PREMIÈRE variante du registre portant
+    ce symbole — celle de Tron — sans regarder où sont les fonds. La carte
+    « Mon portefeuille », elle, nomme la chaîne réellement détenue. Deux
+    réponses différentes à la même question, sur le même écran.
+
+    Ce n'est pas qu'inesthétique. Quelqu'un qui lit « sur Ethereum » puis
+    touche Recevoir et partage l'adresse affichée donne une adresse TRON à
+    son correspondant. Si celui-ci envoie sur Ethereum comme la fiche le
+    laissait croire, les fonds sont perdus — une adresse Tron n'existe pas
+    sur Ethereum.
+
+    On retient donc la variante DÉTENUE, la mieux fournie s'il y en a
+    plusieurs. Sans solde, on garde le comportement d'avant : la première du
+    registre, faute de mieux.
+    */
+    fun cleDetenue(symbole: String): String? {
+        return try {
+            val json = secureStorage.getPortfolioSnapshot() ?: return null
+            val tokens = com.google.gson.Gson().fromJson(json, SnapLite::class.java)?.tokens
+                ?: return null
+            SwapViewModel.SWAP_ASSETS
+                .filter { it.base.equals(symbole, ignoreCase = true) }
+                .mapNotNull { actif ->
+                    val solde = tokens.firstOrNull { it.symbol.equals(actif.key, ignoreCase = true) }
+                        ?.amountRaw ?: 0.0
+                    if (solde > 0.0) actif.key to solde else null
+                }
+                .maxByOrNull { it.second }
+                ?.first
+        } catch (_: Exception) { null }
+    }
+
     /**
      * Nom lisible du réseau d'un jeton, depuis le registre des échanges.
      *
