@@ -947,10 +947,38 @@ private fun SwapTrackingScreen(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON NE COUPE PAS EN PLEIN MILIEU
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : les étapes s'allument une à une, puis l'écran
+    disparaît d'un coup, au milieu de la séquence. La progression n'a pas de
+    fin : elle s'interrompt. C'est exactement ce qui donne l'impression que
+    l'application a planté, ou qu'on vous a chassé avant que ce soit fini.
+
+    Un départ a besoin d'une conclusion. Une seconde et demie suffit : la
+    roue cède la place à une coche, l'écran affirme ce qui est ACQUIS, et
+    c'est sur cette image que l'on part.
+
+    « ÉCHANGE LANCÉ », ET NON « RÉUSSI ». À cet instant le dépôt est diffusé
+    et l'échange est enregistré chez le fournisseur — voilà ce qui est vrai.
+    Les fonds, eux, arriveront dans deux à cinq minutes. Une coche verte sur
+    un écran d'argent est une affirmation, pas une décoration : elle ne doit
+    porter que sur ce qui a réellement eu lieu.
+
+    Quand l'échange est réellement abouti, le mot change et dit le succès.
+    */
+    var enSortie by remember { mutableStateOf(false) }
+
     LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
         if (phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
         // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
-        if (phase == "fini" || depotEnvoye) onAccueil()
+        if (phase == "fini" || depotEnvoye) {
+            enSortie = true
+            kotlinx.coroutines.delay(1500)
+            onAccueil()
+        }
     }
 
     val payoutAddr = "votre portefeuille"
@@ -977,7 +1005,7 @@ private fun SwapTrackingScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (decompteActif) {
+                if (decompteActif && !enSortie) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color.Transparent,
@@ -1075,13 +1103,32 @@ private fun SwapTrackingScreen(
             }
 
             // Grand cercle d'état
+            val conclu = finished || enSortie
+            val fondCercle by androidx.compose.animation.animateColorAsState(
+                targetValue = if (conclu) SwapGreen else if (failed) AccentRed else swapPurpleDim,
+                animationSpec = tween(durationMillis = 350),
+                label = "cercle"
+            )
+            // La coche arrive en grandissant : c'est ce mouvement qui fait la
+            // conclusion. Apparue d'un coup, elle passerait pour un changement
+            // d'image de plus.
+            val tailleCoche by animateFloatAsState(
+                targetValue = if (conclu) 1f else 0.4f,
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+                ),
+                label = "coche"
+            )
             Box(
-                Modifier.size(72.dp).clip(CircleShape)
-                    .background(if (finished) SwapGreen else if (failed) AccentRed else swapPurpleDim),
+                Modifier.size(72.dp).clip(CircleShape).background(fondCercle),
                 contentAlignment = Alignment.Center
             ) {
                 when {
-                    finished -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    conclu -> Icon(
+                        Icons.Default.Check, null, tint = Color.White,
+                        modifier = Modifier.size(40.dp).scale(tailleCoche)
+                    )
                     failed -> Text("!", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     else -> CircularProgressIndicator(color = SwapPurple, strokeWidth = 4.dp, modifier = Modifier.size(40.dp))
                 }
@@ -1103,13 +1150,14 @@ private fun SwapTrackingScreen(
             réussi, et les fonds ont bougé. Elle n'est affichée que sur un
             statut « finished » du fournisseur, qui signifie exactement cela.
             */
-            if (finished) {
+            if (finished || enSortie) {
                 Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Succès de l'échange. Tous les fonds ont été transférés.",
+                            if (finished) "Succès de l'échange. Tous les fonds ont été transférés."
+                            else "Échange lancé. Suis la suite depuis l'accueil.",
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
@@ -1132,7 +1180,7 @@ private fun SwapTrackingScreen(
             La phrase attend donc le hash du dépôt. Avant lui, l'écran dit ce
             qu'il fait, sans rien promettre.
             */
-            if (!finished && !failed && !depotEnvoye) {
+            if (!finished && !failed && !depotEnvoye && !enSortie) {
                 Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
@@ -1146,7 +1194,7 @@ private fun SwapTrackingScreen(
             }
 
             // Message « pas besoin d'attendre » pendant le traitement (2–5 min).
-            if (!finished && !failed && depotEnvoye) {
+            if (!finished && !failed && depotEnvoye && !enSortie) {
                 Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
