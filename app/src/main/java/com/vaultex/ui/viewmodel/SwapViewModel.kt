@@ -123,6 +123,14 @@ class SwapViewModel @Inject constructor(
                 contract = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals = 18)
         )
 
+        /**
+         * Monnaies dont le prix est un dollar par construction.
+         *
+         * Leur cours réel s'en écarte de quelques centièmes de pourcent —
+         * mille fois moins que la précision de ce que l'écran affiche.
+         */
+        private val STABLES_DOLLAR = setOf("USDT", "USDC", "DAI", "BUSD")
+
         fun assetOf(key: String): SwapAsset =
             SWAP_ASSETS.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SWAP_ASSETS[0]
 
@@ -299,7 +307,36 @@ class SwapViewModel @Inject constructor(
     private fun balanceOf(token: String): Double = snapTok(token)?.amountRaw ?: 0.0
 
     /** Prix USD de [token] (instantané portefeuille). */
-    private fun priceUsdOf(token: String): Double = snapTok(token)?.priceUsd ?: 0.0
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE PRIX D'UNE MONNAIE QU'ON NE DÉTIENT PAS ENCORE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : ETH → USDC affiche bien le montant reçu, mais la
+    ligne « Frais estimés » disparaît. Même chose pour d'autres paires.
+
+    La cause : le prix vient de l'instantané du portefeuille, qui ne contient
+    que ce qu'on DÉTIENT. La monnaie d'arrivée d'un échange est, par
+    définition, celle qu'on n'a pas encore — son prix vaut donc zéro, le
+    coût devient incalculable, et la ligne s'efface sans un mot.
+
+    Or c'est exactement l'écran où ce chiffre compte le plus.
+
+    UN DOLLAR STABLE VAUT UN DOLLAR. Pour USDT, USDC et DAI, le prix est
+    connu sans rien demander à personne : c'est leur raison d'être. Sur la
+    capture du Marché, l'USDT valait 0,9998 $ — deux centièmes de pourcent
+    d'écart, contre un coût affiché autour de 11 %. L'approximation est mille
+    fois plus fine que ce qu'on affiche.
+
+    ET ON S'ARRÊTE LÀ. Pour une monnaie volatile qu'on ne détient pas — du
+    BTC, du SOL — aucune valeur par défaut n'est acceptable, et la ligne
+    continue de disparaître. Mieux vaut pas de chiffre qu'un chiffre inventé,
+    surtout celui-là : il sert justement à juger si l'échange vaut la peine.
+    */
+    private fun priceUsdOf(token: String): Double {
+        snapTok(token)?.priceUsd?.takeIf { it > 0.0 }?.let { return it }
+        return if (assetOf(token).base.uppercase() in STABLES_DOLLAR) 1.0 else 0.0
+    }
 
     /** (solde, valeur en XOF) d'un actif — lignes du sélecteur de crypto. */
     fun balanceInfo(key: String): Pair<Double, Double> {
