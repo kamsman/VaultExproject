@@ -754,10 +754,22 @@
          serait faux : les fonds sont déjà là, sur la ligne d\'à côté.
          %1$s = symbole · %2$s = montant détenu · %3$s = réseau qui le porte -->
     <string name="swap_msg_funds_other_chain">Aucun %1$s sur ce réseau. Tu détiens %2$s sur %3$s — change de réseau ci-dessus.</string>
-    <!-- Mesuré chez le fournisseur : sortir de l'USDT-Tron exige ~13 USDT de
-         minimum, contre ~1 sur BNB Chain. Le réseau se choisit une fois, à la
-         réception, et se subit ensuite — c'est ici que l'information sert. -->
-    <string name="receive_usdt_tron_cout">Pour échanger ensuite, il te faudra ~13 USDT sur Tron, contre ~1 USDT sur BNB Chain.</string>
+    <!-- SANS CHIFFRE, ET C'EST UNE LEÇON PAYÉE.
+
+         La première version annonçait « ~13 USDT sur Tron contre ~1 sur BNB
+         Chain ». Quatre jours plus tard, une flambée du gaz Ethereum faisait
+         passer le minimum depuis l'USDT-ERC20 de 1,3 à 7,5 — pendant que
+         celui de BNB Chain ne bougeait pas d'un centième.
+
+         Un minimum d'échange suit le coût de retrait de la chaîne : il varie
+         d'un facteur six en une semaine. L'écrire dans une chaîne de
+         caractères, c'est publier une valeur fausse à date inconnue, sur le
+         seul écran qu'on lit AVANT de choisir — donc au pire endroit.
+
+         La phrase dit donc le RAPPORT, qui lui est stable : BNB Chain est
+         nettement moins cher que Tron et Ethereum, et l'a été à chaque
+         mesure. Le chiffre du jour, l'écran Swap le donne, à la seconde. -->
+    <string name="receive_usdt_reseau_cout">Sur BNB Chain, le minimum pour échanger tes USDT est nettement plus bas qu\'ici.</string>
     <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
     <!-- « Max 1.155527 USDT-ETH : sous le minimum (10.2 USDT-ETH) » disait
          deux fois le même chiffre, nommait la monnaie par sa CLÉ interne
