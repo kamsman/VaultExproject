@@ -245,10 +245,36 @@ class TransactionSyncService @Inject constructor(
                 et repondent status=0 — que le code interpretait comme « aucune
                 transaction nouvelle », sans exception, sans trace.
                 Desormais l'app le dit.
-                 */
-                com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.errorText())
-                // Refus de l'API = balayage NON abouti : on ne marque pas.
-                return
+
+                MAIS UN PORTEFEUILLE VIDE N'EST PAS UNE PANNE.
+
+                Remonte par le bot : « Historique illisible : ETH — No
+                transactions found », sur un portefeuille cree le jour meme.
+                Etherscan repond status=0 avec ce message quand l'adresse
+                n'a JAMAIS rien recu — le cas normal de tout nouvel
+                utilisateur, et de la plupart des utilisateurs de cette
+                application aujourd'hui.
+
+                Deux consequences, toutes deux mauvaises. Le canal
+                d'administration se remplissait d'alertes pour des
+                portefeuilles qui vont parfaitement bien, ce qui noie les
+                vraies pannes. Et le `return` ci-dessous empechait de marquer
+                le balayage comme abouti : l'application recommencait
+                indefiniment le premier scan, a chaque reveil, pour une
+                adresse dont la reponse ne changera pas tant que personne ne
+                lui envoie rien.
+
+                Une liste vide est une reponse VALIDE. On la traite comme
+                telle : aucune alerte, aucune transaction a enregistrer, et
+                le balayage compte comme fait.
+                */
+                val vide = response.errorText()
+                    ?.contains("no transactions found", ignoreCase = true) == true
+                if (!vide) {
+                    com.vaultex.core.monitoring.AdminBot.historyReadFailed(blockchain, response.errorText())
+                    // Refus de l'API = balayage NON abouti : on ne marque pas.
+                    return
+                }
             }
             for (tx in response.transactions(gson)) {
                 val isIncoming = tx.to.equals(address, ignoreCase = true)

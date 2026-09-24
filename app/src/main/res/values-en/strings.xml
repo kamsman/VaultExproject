@@ -256,7 +256,7 @@
     <string name="swap_send_instruction">Send %1$s %2$s to the following address to trigger the swap:</string>
     <string name="swap_id_label">ID: %1$s…</string>
     <string name="swap_mode_same_chain">Same chain (1inch)</string>
-    <string name="swap_mode_cross_chain">Cross-chain (ChangeNOW)</string>
+    <string name="swap_mode_cross_chain">Cross-chain</string>
     <string name="swap_you_send">You send</string>
     <string name="swap_you_receive_estimated">You receive (estimated)</string>
     <string name="swap_invert_tokens">Swap tokens</string>
@@ -557,7 +557,7 @@
     <string name="help_a_send">Home → Send → pick the coin → paste or scan the address → enter the amount (or MAX) → Continue → confirm with fingerprint or PIN. Always double-check the address and network: transactions are irreversible.</string>
     <string name="help_q_receive">How do I receive crypto?</string>
     <string name="help_a_receive">Home → Receive → pick the coin → share your address or QR code. Make sure the sender uses the SAME network as shown (e.g. USDT on TRC20).</string>
-    <string name="help_a_swap">Swap tab → pick the coin to send and the one to receive → enter the amount (or MAX) → Continue → Confirm. The deposit is automatic and the exchange takes 2–5 min via ChangeNOW. Each pair has a minimum: the app shows it if your amount is too low.</string>
+    <string name="help_a_swap">Swap tab → pick the coin to send and the one to receive → enter the amount (or MAX) → Continue → Confirm. The deposit is automatic and the exchange takes 2–5 min via our exchange partner. Each pair has a minimum: the app shows it if your amount is too low.</string>
     <string name="help_a_momo">Buying/selling in FCFA via Mobile Money (Orange, MTN, Moov, Wave) is rolling out for the UEMOA zone. Tap \"MoMo\" on the home screen to check availability in your country.</string>
     <string name="help_a_secure">Enable biometrics and auto-lock (Settings → Security). NEVER share your 12 words or PIN — VaultEx will never ask for them. Do your backup from Settings → Backup.</string>
     <string name="help_q_fees">What are the fees?</string>

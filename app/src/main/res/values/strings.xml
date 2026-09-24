@@ -297,7 +297,9 @@
     <string name="swap_provider">Fournisseur</string>
     <string name="swap_best_rate">Meilleur taux</string>
     <string name="swap_mode_same_chain">Même chaîne (1inch)</string>
-    <string name="swap_mode_cross_chain">Cross-chain (ChangeNOW)</string>
+    <!-- Sans nom d'échangeur : il est choisi par swap.provider, et l'écran
+         Swap affiche celui qui répond réellement (« Échange via … »). -->
+    <string name="swap_mode_cross_chain">Cross-chain</string>
     <string name="swap_you_send">Vous envoyez</string>
     <string name="swap_you_receive_estimated">Vous recevez (estimé)</string>
     <string name="swap_invert_tokens">Inverser les tokens</string>
@@ -649,7 +651,7 @@
     <string name="help_a_send">Accueil → Envoyer → choisis la monnaie → colle ou scanne l\'adresse → entre le montant (ou MAX) → Continuer → confirme avec ton empreinte ou PIN. Vérifie toujours l\'adresse et le réseau : une transaction est irréversible.</string>
     <string name="help_q_receive">Comment recevoir des cryptos ?</string>
     <string name="help_a_receive">Accueil → Recevoir → choisis la monnaie → partage ton adresse ou le QR code. Assure-toi que l\'expéditeur envoie sur le MÊME réseau que celui affiché (ex. USDT sur TRC20).</string>
-    <string name="help_a_swap">Onglet Swap → choisis la monnaie à envoyer et celle à recevoir → entre le montant (ou MAX) → Continuer → Confirmer. Le dépôt est automatique et l\'échange prend 2 à 5 min via ChangeNOW. Chaque paire a un minimum : l\'app te l\'affiche si ton montant est trop bas.</string>
+    <string name="help_a_swap">Onglet Swap → choisis la monnaie à envoyer et celle à recevoir → entre le montant (ou MAX) → Continuer → Confirmer. Le dépôt est automatique et l\'échange prend 2 à 5 min via notre partenaire d\'échange. Chaque paire a un minimum : l\'app te l\'affiche si ton montant est trop bas.</string>
     <string name="help_a_momo">L\'achat/vente en FCFA via Mobile Money (Orange, MTN, Moov, Wave) est en cours de déploiement pour la zone UEMOA. Touche « MoMo » sur l\'accueil pour voir sa disponibilité dans ton pays.</string>
     <string name="help_a_secure">Active la biométrie et le verrouillage automatique (Réglages → Sécurité). Ne partage JAMAIS tes 12 mots ni ton PIN — VaultEx ne te les demandera jamais. Fais ta sauvegarde depuis Réglages → Sauvegarde.</string>
     <string name="help_q_fees">Quels sont les frais ?</string>
