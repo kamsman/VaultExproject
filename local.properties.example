@@ -82,6 +82,23 @@ telegram.admin.token=
 # ajouté le bot au groupe et y avoir écrit un message.
 telegram.admin.chat=
 
+# ─── Test : simuler le manque de frais (DEBUG uniquement) ────────────────
+# Fait croire à l'application qu'il manque la monnaie native pour payer le
+# gaz, afin d'essayer le bouton « Obtenir du BNB depuis mes ETH » sans avoir
+# à vider un portefeuille.
+#
+# Créer la situation pour de vrai est impraticable : on ne peut pas descendre
+# à zéro — envoyer son BNB ailleurs coûte du BNB — et à quelques centimes
+# près, le résultat dépend du prix du gaz à l'instant du test plutôt que du
+# code.
+#
+# ATTENTION : seule la CONDITION est simulée. Les soldes restent réels, les
+# appels au fournisseur aussi, et l'échange proposé partirait pour de bon
+# s'il était confirmé.
+#
+# Inerte en release : la lecture est encadrée par BuildConfig.DEBUG.
+debug.force.gas.shortfall=false
+
 # ─── Mobile Money (non branché à ce jour) ────────────────────────────────
 flutterwave.key=
 
