@@ -315,48 +315,55 @@ fun SendScreen(navController: NavController) {
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE MESSAGE ET SA SORTIE TIENNENT DANS UN SEUL BLOC
+                ═══════════════════════════════════════════════════════════
+
+                Constaté sur appareil : dès que le bouton de déblocage
+                apparaît, la barre du bas gagne une soixantaine de points, le
+                contenu se retrouve comprimé d'autant, et il faut faire
+                défiler pour relire les frais et le montant — au moment
+                précis où l'on cherche à comprendre pourquoi ça bloque.
+
+                Un encadré rouge suivi d'un bouton encadré, c'est deux
+                cadres, deux marges et deux fois la même idée. La sortie
+                appartient au problème : elle vit maintenant DANS la carte
+                d'erreur, sous forme d'une ligne d'action.
+
+                Le bouton « Continuer » garde sa place et sa taille : c'est
+                l'action principale, et elle ne doit pas rétrécir parce qu'un
+                message est apparu au-dessus.
+                */
                 if (state.error != null) {
                     Surface(shape = RoundedCornerShape(12.dp), color = AccentRed.copy(alpha = 0.08f), modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
-                            Text(state.error!!, fontSize = 13.sp, color = AccentRed)
+                        Column(Modifier.padding(12.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                                Text(state.error!!, fontSize = 13.sp, color = AccentRed)
+                            }
+                            deblocage?.let { proposition ->
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            com.vaultex.core.session.DeblocageFraisBuffer.set(proposition)
+                                            navController.navigate(Routes.SWAP)
+                                        },
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "Obtenir du ${proposition.vers} depuis mes ${swapBaseCourt(proposition.de)}",
+                                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue
+                                    )
+                                }
+                            }
                         }
-                    }
-                }
-
-                /*
-                LE BOUTON QUI DÉBLOQUE, ET QUI SAIT NE PAS PARAÎTRE.
-
-                « Il te faut un peu de TRX pour payer les frais » était un
-                cul-de-sac : les fonds étaient là, visibles, et rien ne pouvait
-                en sortir. L'utilisateur partait chercher de quoi payer
-                ailleurs, ou renonçait.
-
-                Le bouton n'apparaît QUE si le ViewModel a trouvé une source
-                tenable — solde suffisant, minimum de la paire inférieur au
-                quart de ce solde. Sinon rien ne s'affiche : proposer un
-                échange qui mobiliserait tout l'argent de quelqu'un pour payer
-                une commission de réseau serait un mauvais conseil, et il vaut
-                mieux se taire que mal conseiller sur de l'argent.
-                */
-                deblocage?.let { proposition ->
-                    OutlinedButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            com.vaultex.core.session.DeblocageFraisBuffer.set(proposition)
-                            navController.navigate(Routes.SWAP)
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
-                    ) {
-                        Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Obtenir du ${proposition.vers} depuis mes ${swapBaseCourt(proposition.de)}",
-                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold
-                        )
                     }
                 }
                 Button(
