@@ -57,14 +57,33 @@ fun BackupScreen(navController: NavController) {
     val viewModel: BackupViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val clipboard = LocalClipboardManager.current
+    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val clipScope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
-    // Copie SÉCURISÉE d'un secret : place au presse-papiers puis l'EFFACE
-    // automatiquement après 60 s, pour qu'une clé privée ne traîne pas et
-    // qu'une autre app ne puisse pas la lire indéfiniment.
+    /*
+    Copie SÉCURISÉE d'un secret : place au presse-papiers puis l'EFFACE
+    automatiquement après 60 s, pour qu'une clé privée ne traîne pas et
+    qu'une autre app ne puisse pas la lire indéfiniment.
+
+    LA VIBRATION VAUT ENCORE PLUS ICI QU'AILLEURS.
+
+    Elle a été posée sur les sept copies d'adresse de l'application ; cette
+    copie-ci en était exclue, alors qu'elle porte l'unique chose qu'on ne
+    peut pas récupérer : la phrase qui donne accès à tous les fonds.
+
+    Et elle arrive au pire moment pour douter. On vient de saisir son code
+    ou de poser son doigt sur le capteur, le message d'effacement
+    automatique s'affiche, le compte à rebours de soixante secondes est
+    lancé — se demander si la copie a réussi conduit à appuyer une seconde
+    fois, donc à relancer le délai, ou à coller sans regarder une phrase
+    qu'on ne pourra pas vérifier après coup.
+
+    Le reste du comportement est inchangé : le message d'avertissement et
+    l'effacement automatique restent exactement ce qu'ils étaient.
+    */
     fun copySecret(value: String) {
-        clipboard.setText(AnnotatedString(value))
+        copier(value)
         android.widget.Toast.makeText(ctx, ctx.getString(R.string.backup_copied_autoclear), android.widget.Toast.LENGTH_LONG).show()
         clipScope.launch {
             kotlinx.coroutines.delay(60_000)
