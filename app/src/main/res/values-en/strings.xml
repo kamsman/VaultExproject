@@ -649,7 +649,7 @@
     <string name="swap_msg_funds_other_chain">No %1$s on this network. You hold %2$s on %3$s — switch network above.</string>
     <string name="receive_usdt_tron_cout">To swap later you will need ~13 USDT on Tron, against ~1 USDT on BNB Chain.</string>
     <string name="swap_msg_low_gas">%1$s balance too low: %2$s available, keep ~%3$s %1$s for network fees.</string>
-    <string name="swap_msg_max_below_min">Max %1$s %2$s: below the minimum (%3$s %2$s).</string>
+    <string name="swap_msg_max_below_min">Your balance (%1$s %2$s) is below the %3$s %2$s minimum.</string>
     <string name="swap_msg_quote_failed">Quote unavailable. %1$s</string>
     <string name="swap_msg_enter_amount">Enter an amount to swap.</string>
     <string name="swap_msg_same_coin">Choose two different coins.</string>

@@ -468,7 +468,25 @@ class SwapViewModel @Inject constructor(
             _state.update { st ->
                 if (st.fromAmount == txt && spendable < min) {
                     val minTxt = java.math.BigDecimal.valueOf(min).stripTrailingZeros().toPlainString()
-                    st.copy(minAmount = min, error = str(com.vaultex.R.string.swap_msg_max_below_min, txt, fromTok, minTxt))
+                    /*
+                    LA MONNAIE PORTE LE NOM QUE L'ÉCRAN AFFICHE.
+
+                    Le message nommait la clé INTERNE — « USDT-ETH » — alors
+                    que le sélecteur, le solde et la ligne « Min. » affichent
+                    tous « USDT ». Sur un écran où trois Tether coexistent,
+                    faire apparaître un quatrième nom pour la même monnaie ne
+                    lève aucune ambiguïté : il en crée une.
+
+                    assetOf().base rend exactement ce qui est écrit partout
+                    ailleurs.
+                    */
+                    st.copy(
+                        minAmount = min,
+                        error = str(
+                            com.vaultex.R.string.swap_msg_max_below_min,
+                            txt, assetOf(fromTok).base, minTxt
+                        )
+                    )
                 } else st.copy(minAmount = min)
             }
         }
