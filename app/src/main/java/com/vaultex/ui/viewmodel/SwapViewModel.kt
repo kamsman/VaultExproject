@@ -480,11 +480,25 @@ class SwapViewModel @Inject constructor(
                     assetOf().base rend exactement ce qui est écrit partout
                     ailleurs.
                     */
+                    /*
+                    ON DIT CE QUI MANQUE, PAS CE QU'ON A.
+
+                    Le solde est déjà écrit au-dessus du champ, le minimum
+                    juste en dessous. Répéter les deux dans le message rouge
+                    n'apprenait rien : il ne restait à l'utilisateur qu'une
+                    soustraction à faire, sur des nombres à six décimales.
+
+                    La différence est la seule chose sur laquelle il peut
+                    agir — et c'est précisément celle qui manquait.
+                    */
+                    val manque = java.math.BigDecimal.valueOf(min - spendable)
+                        .setScale(8, java.math.RoundingMode.UP)
+                        .stripTrailingZeros().toPlainString()
                     st.copy(
                         minAmount = min,
                         error = str(
                             com.vaultex.R.string.swap_msg_max_below_min,
-                            txt, assetOf(fromTok).base, minTxt
+                            manque, assetOf(fromTok).base, minTxt
                         )
                     )
                 } else st.copy(minAmount = min)

@@ -649,7 +649,7 @@
     <string name="swap_msg_funds_other_chain">لا يوجد %1$s على هذه الشبكة. لديك %2$s على %3$s — غيّر الشبكة أعلاه.</string>
     <string name="receive_usdt_tron_cout">للمبادلة لاحقًا ستحتاج إلى ~13 USDT على ترون، مقابل ~1 USDT على BNB Chain.</string>
     <string name="swap_msg_low_gas">رصيد %1$s منخفض جداً: %2$s متاح، احتفظ بـ ~%3$s %1$s لرسوم الشبكة.</string>
-    <string name="swap_msg_max_below_min">رصيدك (%1$s %2$s) أقل من الحد الأدنى %3$s %2$s.</string>
+    <string name="swap_msg_max_below_min">ينقصك %1$s %2$s للوصول إلى الحد الأدنى %3$s %2$s.</string>
     <string name="swap_msg_quote_failed">التسعير غير متاح. %1$s</string>
     <string name="swap_msg_enter_amount">أدخل مبلغاً للتبادل.</string>
     <string name="swap_msg_same_coin">اختر عملتين مختلفتين.</string>
