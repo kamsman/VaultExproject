@@ -468,14 +468,63 @@ class SwapViewModel @Inject constructor(
             _state.update { st ->
                 if (st.fromAmount == txt && spendable < min) {
                     val minTxt = java.math.BigDecimal.valueOf(min).stripTrailingZeros().toPlainString()
-                    st.copy(minAmount = min, error = str(com.vaultex.R.string.swap_msg_max_below_min, txt, fromTok, minTxt))
+                    /*
+                    LA MONNAIE PORTE LE NOM QUE L'ÉCRAN AFFICHE.
+
+                    Le message nommait la clé INTERNE — « USDT-ETH » — alors
+                    que le sélecteur, le solde et la ligne « Min. » affichent
+                    tous « USDT ». Sur un écran où trois Tether coexistent,
+                    faire apparaître un quatrième nom pour la même monnaie ne
+                    lève aucune ambiguïté : il en crée une.
+
+                    assetOf().base rend exactement ce qui est écrit partout
+                    ailleurs.
+                    */
+                    /*
+                    ON DIT CE QUI MANQUE, PAS CE QU'ON A.
+
+                    Le solde est déjà écrit au-dessus du champ, le minimum
+                    juste en dessous. Répéter les deux dans le message rouge
+                    n'apprenait rien : il ne restait à l'utilisateur qu'une
+                    soustraction à faire, sur des nombres à six décimales.
+
+                    La différence est la seule chose sur laquelle il peut
+                    agir — et c'est précisément celle qui manquait.
+                    */
+                    val manque = java.math.BigDecimal.valueOf(min - spendable)
+                        .setScale(8, java.math.RoundingMode.UP)
+                        .stripTrailingZeros().toPlainString()
+                    st.copy(
+                        minAmount = min,
+                        error = str(
+                            com.vaultex.R.string.swap_msg_max_below_min,
+                            manque, assetOf(fromTok).base, minTxt
+                        )
+                    )
                 } else st.copy(minAmount = min)
             }
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN MESSAGE D'ERREUR NE SURVIT PAS À LA PAIRE QUI L'A PRODUIT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Changer de monnaie laissait le message rouge précédent à l'écran. Or il
+    parle d'une paire qu'on vient de quitter : son minimum, son solde, son
+    refus. Affiché sous une nouvelle paire, il devient une affirmation
+    fausse — et particulièrement difficile à démêler ici, puisque le
+    minimum, lui, se recharge correctement. On se retrouve avec un chiffre
+    juste en haut de l'écran et un chiffre périmé en bas, sans rien pour
+    distinguer les deux.
+
+    Le message part donc avec la paire. S'il y a encore un problème, le
+    devis relancé juste en dessous le dira — avec les chiffres de la
+    nouvelle paire.
+    */
     fun setFromToken(token: String) {
-        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token)) }
+        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token), error = null) }
         chargerMinimum()
         chargerPrixManquants()
         val amt = _state.value.fromAmount
@@ -483,7 +532,7 @@ class SwapViewModel @Inject constructor(
     }
 
     fun setToToken(token: String) {
-        _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token)) }
+        _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token), error = null) }
         chargerMinimum()
         chargerPrixManquants()
         val amt = _state.value.fromAmount
@@ -504,7 +553,8 @@ class SwapViewModel @Inject constructor(
                 fromToken = it.toToken, toToken = it.fromToken,
                 fromAmount = it.toAmount, toAmount = it.fromAmount,
                 fromBalance = balanceOf(it.toToken),
-                fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken)
+                fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken),
+                error = null
             )
         }
         // Inverser la paire, c'est en changer : le minimum de BTC→USDT n'a

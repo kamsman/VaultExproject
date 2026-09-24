@@ -465,7 +465,8 @@
     <string name="send_err_insufficient_balance">Solde insuffisant. Disponible : %1$s.</string>
     <string name="send_err_keep_fee">Montant trop élevé : il faut garder ~%1$s pour les frais de réseau. Appuie sur MAX pour envoyer le maximum possible.</string>
     <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
-    <string name="send_min_hint">Min. %1$s</string>
+    <!-- « Min. » est une abréviation de tableau, pas un mot qu'on lit. -->
+    <string name="send_min_hint">Minimum %1$s</string>
     <string name="send_err_below_min">Montant trop petit. Minimum : %1$s.</string>
     <string name="send_err_dust">Montant trop petit pour le réseau (poussière). Augmente le montant.</string>
     <string name="send_err_addr_rejected">Adresse de destination invalide ou rejetée par le réseau.</string>
@@ -753,12 +754,33 @@
          serait faux : les fonds sont déjà là, sur la ligne d\'à côté.
          %1$s = symbole · %2$s = montant détenu · %3$s = réseau qui le porte -->
     <string name="swap_msg_funds_other_chain">Aucun %1$s sur ce réseau. Tu détiens %2$s sur %3$s — change de réseau ci-dessus.</string>
-    <!-- Mesuré chez le fournisseur : sortir de l'USDT-Tron exige ~13 USDT de
-         minimum, contre ~1 sur BNB Chain. Le réseau se choisit une fois, à la
-         réception, et se subit ensuite — c'est ici que l'information sert. -->
-    <string name="receive_usdt_tron_cout">Pour échanger ensuite, il te faudra ~13 USDT sur Tron, contre ~1 USDT sur BNB Chain.</string>
+    <!-- SANS CHIFFRE, ET C'EST UNE LEÇON PAYÉE.
+
+         La première version annonçait « ~13 USDT sur Tron contre ~1 sur BNB
+         Chain ». Quatre jours plus tard, une flambée du gaz Ethereum faisait
+         passer le minimum depuis l'USDT-ERC20 de 1,3 à 7,5 — pendant que
+         celui de BNB Chain ne bougeait pas d'un centième.
+
+         Un minimum d'échange suit le coût de retrait de la chaîne : il varie
+         d'un facteur six en une semaine. L'écrire dans une chaîne de
+         caractères, c'est publier une valeur fausse à date inconnue, sur le
+         seul écran qu'on lit AVANT de choisir — donc au pire endroit.
+
+         La phrase dit donc le RAPPORT, qui lui est stable : BNB Chain est
+         nettement moins cher que Tron et Ethereum, et l'a été à chaque
+         mesure. Le chiffre du jour, l'écran Swap le donne, à la seconde. -->
+    <string name="receive_usdt_reseau_cout">Sur BNB Chain, le minimum pour échanger tes USDT est nettement plus bas qu\'ici.</string>
     <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
-    <string name="swap_msg_max_below_min">Max %1$s %2$s : sous le minimum (%3$s %2$s).</string>
+    <!-- « Max 1.155527 USDT-ETH : sous le minimum (10.2 USDT-ETH) » disait
+         deux fois le même chiffre, nommait la monnaie par sa CLÉ interne
+         (« USDT-ETH ») alors que l'écran affiche « USDT » partout ailleurs,
+         et employait « Max », qui est le nom d'un bouton, pas une idée.
+         %1$s = solde · %2$s = monnaie telle qu'affichée · %3$s = minimum -->
+    <!-- Le montant QUI MANQUE plutôt que la comparaison : le solde est déjà
+         écrit au-dessus du champ, le minimum aussi. Ce que l'écran ne disait
+         nulle part, c'est la différence — la seule chose sur laquelle on peut
+         agir. %1$s = ce qui manque · %2$s = monnaie · %3$s = minimum -->
+    <string name="swap_msg_max_below_min">Il te manque %1$s %2$s pour atteindre le minimum de %3$s %2$s.</string>
     <string name="swap_msg_quote_failed">Devis indisponible. %1$s</string>
     <string name="swap_msg_enter_amount">Entre un montant à échanger.</string>
     <string name="swap_msg_same_coin">Choisis deux monnaies différentes.</string>

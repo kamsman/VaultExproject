@@ -226,20 +226,33 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 LE RÉSEAU SE CHOISIT UNE FOIS, ET SE SUBIT ENSUITE
                 ═══════════════════════════════════════════════════════════
 
-                Mesuré chez le fournisseur, paire par paire : sortir de
-                l'USDT-Tron exige 12,46 à 17,41 USDT de minimum, quelle que
-                soit la destination. Depuis BNB Chain, les mêmes échanges
-                partent de 0,19 à 5,15. Un facteur vingt à quatre-vingts.
+                Mesuré chez le fournisseur, paire par paire, à une semaine
+                d'intervalle :
 
-                La cause est technique : un transfert USDT-TRC20 consomme
-                aujourd'hui pour plusieurs dollars d'énergie Tron, que
-                l'échangeur paie à l'entrée comme à la sortie.
+                    USDT-Tron       12,5 à 17,4     stable
+                    USDT-Ethereum    1,3  puis 7,5  x6 en quatre jours
+                    USDT-BNB Chain   0,2  à  5,1    stable
+
+                Tron coûte cher parce qu'un transfert USDT-TRC20 consomme
+                pour plusieurs dollars d'énergie, à l'entrée comme à la
+                sortie. Ethereum coûte ce que coûte son gaz — donc n'importe
+                quoi, d'une semaine à l'autre. BNB Chain, lui, n'a pas bougé
+                d'un centième entre les deux mesures.
 
                 Or Tron est le réseau d'habitude ici, parce que s'envoyer de
-                l'USDT y est réputé bon marché — ce qui est vrai pour un
-                simple transfert, et faux dès qu'on veut échanger. Quelqu'un
-                qui reçoit 5 000 FCFA d'USDT sur Tron les y trouve
+                l'USDT y est réputé bon marché — vrai pour un simple
+                transfert, faux dès qu'on veut échanger. Quelqu'un qui reçoit
+                5 000 FCFA d'USDT sur Tron ou sur Ethereum les y trouve
                 immobilisés, sans jamais avoir été prévenu.
+
+                LA PHRASE NE PORTE AUCUN CHIFFRE, ET C'EST DÉLIBÉRÉ. La
+                première version en annonçait deux ; l'un était faux quatre
+                jours plus tard. Un minimum varie d'un facteur six en une
+                semaine — l'écrire en dur, c'est publier une valeur périmée à
+                date inconnue, sur le seul écran qu'on lit AVANT de choisir.
+                Le rapport entre les chaînes, lui, tient : BNB Chain est
+                moins cher, à chaque mesure. Le chiffre du jour appartient à
+                l'écran Swap, qui le demande au fournisseur.
 
                 CE N'EST PAS UN AVERTISSEMENT, ET IL NE DOIT PAS EN AVOIR
                 L'AIR. Recevoir sur Tron reste parfaitement valide, et rien
@@ -248,7 +261,7 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 l'adresse ne soit partagée. D'où le ton neutre, la taille
                 réduite, et l'absence de rouge ou de triangle.
                 */
-                if (symbol.equals("USDT", ignoreCase = true) && chainKey == "TRX") {
+                if (symbol.equals("USDT", ignoreCase = true) && chainKey in listOf("TRX", "ETH")) {
                     Spacer(Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(10.dp),
@@ -266,7 +279,7 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                stringResource(R.string.receive_usdt_tron_cout),
+                                stringResource(R.string.receive_usdt_reseau_cout),
                                 fontSize = 11.sp,
                                 color = TextSecondary.copy(alpha = 0.8f),
                                 lineHeight = 14.sp
