@@ -660,7 +660,21 @@ private fun SwapConfirmScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            /*
+            statusBarsPadding() : LE SLOT topBar NE REÇOIT AUCUNE MARGE.
+
+            Constaté sur appareil : le titre « Swap en cours » passait SOUS la
+            découpe de la caméra, sur un écran à poinçon central.
+
+            L'application est en edge-to-edge : le contenu occupe toute la
+            dalle, barre d'état comprise. Scaffold ne pose pas cette marge
+            pour nous — l'écran du formulaire le fait déjà de lui-même, deux
+            cents lignes plus haut ; ces deux-ci avaient été oubliés.
+
+            Le mal est purement visuel, mais il touche le titre, c'est-à-dire
+            la première chose qu'on lit pour savoir où l'on est.
+            */
+            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart), onClick = onBack)
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
@@ -1021,7 +1035,21 @@ private fun SwapTrackingScreen(
     Scaffold(
         containerColor = swapBg,
         topBar = {
-            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            /*
+            statusBarsPadding() : LE SLOT topBar NE REÇOIT AUCUNE MARGE.
+
+            Constaté sur appareil : le titre « Swap en cours » passait SOUS la
+            découpe de la caméra, sur un écran à poinçon central.
+
+            L'application est en edge-to-edge : le contenu occupe toute la
+            dalle, barre d'état comprise. Scaffold ne pose pas cette marge
+            pour nous — l'écran du formulaire le fait déjà de lui-même, deux
+            cents lignes plus haut ; ces deux-ci avaient été oubliés.
+
+            Le mal est purement visuel, mais il touche le titre, c'est-à-dire
+            la première chose qu'on lit pour savoir où l'on est.
+            */
+            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 BoxIconButton(Icons.Default.ArrowBack, "Fermer", Modifier.align(Alignment.CenterStart), onClick = onClose)
                 Text(
                     if (finished) "Swap terminé !" else if (failed) "Swap échoué" else "Swap en cours",
