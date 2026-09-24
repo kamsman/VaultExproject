@@ -131,6 +131,7 @@ fun SwapScreen(navController: NavHostController) {
     val viewModel: SwapViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current as androidx.fragment.app.FragmentActivity
     val biometricHelper = remember { com.vaultex.core.security.BiometricHelper(context) }
 
@@ -187,14 +188,37 @@ fun SwapScreen(navController: NavHostController) {
             onClose = { viewModel.resetSwap(); screen = "form" },
             onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) },
             onAccueil = {
-                viewModel.resetSwap()
-                screen = "form"
-                // Même forme que la barre du bas : on revient à l'accueil
-                // sans empiler une seconde copie de l'écran.
+                /*
+                ═══════════════════════════════════════════════════════════
+                ON VOYAIT LE FORMULAIRE DE SWAP AVANT L'ACCUEIL
+                ═══════════════════════════════════════════════════════════
+
+                La navigation visait bien le tableau de bord — mais
+                resetSwap() était appelé AVANT. Il met swapInProgress à
+                false, ce qui fait basculer le `when` de cet écran : la
+                composition remplace le suivi par le FORMULAIRE, et c'est lui
+                qu'on voit pendant toute la transition de sortie.
+
+                D'où l'impression, exacte, d'être renvoyé sur Swap : on y est
+                bel et bien passé, le temps d'une animation, avant d'arriver
+                à l'accueil.
+
+                On navigue donc d'abord, et la remise à zéro attend que
+                l'écran soit parti. Le délai couvre la transition ; il ne
+                retarde rien d'autre, puisque personne ne regarde plus cet
+                écran.
+                */
                 navController.navigate(Routes.DASHBOARD) {
+                    // Même forme que la barre du bas : on revient à l'accueil
+                    // sans empiler une seconde copie de l'écran.
                     popUpTo(Routes.DASHBOARD) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
+                }
+                scope.launch {
+                    kotlinx.coroutines.delay(500)
+                    viewModel.resetSwap()
+                    screen = "form"
                 }
             },
             nomFournisseur = viewModel.nomFournisseur
