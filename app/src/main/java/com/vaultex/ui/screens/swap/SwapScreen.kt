@@ -30,6 +30,9 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+// launch est une fonction d'EXTENSION sur CoroutineScope : contrairement à
+// delay(), elle ne peut pas être appelée sous forme pleinement qualifiée.
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
