@@ -23,6 +23,8 @@ data class SwapState(
     val toPriceUsd: Double = 0.0,       // prix USD de la monnaie cible
     val estimatedFee: String = "",
     val minAmount: Double? = null,
+    /** Un devis est en vol : le montant reçu n'est ni connu ni refusé. */
+    val devisEnCours: Boolean = false,
     val isCrossChain: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -564,12 +566,18 @@ class SwapViewModel @Inject constructor(
         chargerPrixManquants()
     }
 
+    /** Un devis ne décrit plus l'écran dès que l'un des trois a changé. */
+    private fun obsolete(montant: String, de: String, vers: String): Boolean {
+        val s = _state.value
+        return s.fromAmount != montant || s.fromToken != de || s.toToken != vers
+    }
+
     private fun estimateOutput(amount: String) {
         viewModelScope.launch {
             val input = amount.toDoubleOrNull() ?: return@launch
             if (input <= 0.0) {
                 // « 0 » ou saisie incomplète : on vide le résultat sans appeler l'API.
-                _state.update { it.copy(toAmount = "") }
+                _state.update { it.copy(toAmount = "", devisEnCours = false) }
                 return@launch
             }
             // On échange le montant COMPLET. La commission VaultEx vient de
@@ -578,6 +586,7 @@ class SwapViewModel @Inject constructor(
             // le minimum de la paire, et une variable du try n'y est pas visible.
             val de = _state.value.fromToken
             val vers = _state.value.toToken
+            _state.update { it.copy(devisEnCours = true) }
             try {
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.
@@ -591,11 +600,23 @@ class SwapViewModel @Inject constructor(
                         } else throw e
                     }
                 }
-                // Ignorer les devis obsolètes (l'utilisateur a déjà changé le montant).
-                if (_state.value.fromAmount != amount) return@launch
-                _state.update { it.copy(toAmount = est.montantEstime, error = null) }
+                /*
+                LE GARDE NE REGARDAIT QUE LE MONTANT, PAS LA PAIRE.
+
+                Changer de monnaie pendant qu'un devis est en vol laissait sa
+                réponse s'écrire dans le nouvel état : on pouvait voir le
+                montant d'un ETH → USDC s'afficher sous un ETH → BNB. Le
+                montant, lui, n'avait pas bougé — le garde laissait donc
+                passer.
+
+                On compare désormais les trois : montant, source et
+                destination. Un devis qui ne décrit plus ce qui est à l'écran
+                est jeté.
+                */
+                if (obsolete(amount, de, vers)) return@launch
+                _state.update { it.copy(toAmount = est.montantEstime, error = null, devisEnCours = false) }
             } catch (e: Exception) {
-                if (_state.value.fromAmount != amount) return@launch
+                if (obsolete(amount, de, vers)) return@launch
                 /*
                 « UNPROCESSABLE ENTITY » N'EST PAS UN MESSAGE.
 
@@ -644,7 +665,7 @@ class SwapViewModel @Inject constructor(
                     str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), assetOf(_state.value.fromToken).base)
                 else
                     str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))
-                _state.update { it.copy(toAmount = "", error = message) }
+                _state.update { it.copy(toAmount = "", error = message, devisEnCours = false) }
             }
         }
     }
