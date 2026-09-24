@@ -134,14 +134,21 @@ modifiee prend un nouveau numero.
 L'IMAGE NE PORTE AUCUN CHIFFRE - ni pourcentage, ni minimum, ni montant.
 Elle reste en cache des semaines alors que ces valeurs changent.
 
-## Une annonce ne porte une date que si elle est tenue
+## Avec ou sans date
 
-maj-01 et maj-03 nomment le 25 septembre. Une date dans un fichier
-versionne mal : elle est juste le jour ou on l'ecrit, fausse des le
-lendemain, et personne ne pense a relire un texte deja redige.
+maj-01 et maj-03 nomment le 25 septembre : elles servent tant que cette
+date tient. Une date dans un fichier ne se relit pas toute seule — si la
+publication glisse, ces deux textes deviennent faux sans que rien ne le
+signale.
 
-maj-04 n'en porte aucune. C'est la version a reprendre pour toute
-publication ulterieure — il suffit d'ajuster ce qu'elle annonce.
+maj-04 nomme aussi le 25, mais sous la forme « a partir du 25 septembre » :
+elle reste vraie qu'on l'envoie la veille ou le jour meme. C'est la
+difference qui compte — « demain » ou « ce 25 septembre » ne survivent pas
+a un report d'une journee.
+
+C'est aussi celle qui mentionne le PLANTAGE corrige. Deux utilisateurs
+l'ont subi, le bot l'a remonte : c'est la seule des quatre qui donne une
+raison d'installer tout de suite plutot que plus tard.
 
 ## Envoi
 
