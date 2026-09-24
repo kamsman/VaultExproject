@@ -256,7 +256,7 @@
     <string name="swap_send_instruction">أرسل %1$s %2$s إلى العنوان التالي لبدء المبادلة:</string>
     <string name="swap_id_label">المعرّف: %1$s…</string>
     <string name="swap_mode_same_chain">السلسلة نفسها (1inch)</string>
-    <string name="swap_mode_cross_chain">عبر السلاسل (ChangeNOW)</string>
+    <string name="swap_mode_cross_chain">عبر السلاسل</string>
     <string name="swap_you_send">أنت ترسل</string>
     <string name="swap_you_receive_estimated">أنت تستلم (تقديري)</string>
     <string name="swap_invert_tokens">عكس الرموز</string>
@@ -557,7 +557,7 @@
     <string name="help_a_send">الرئيسية → إرسال → اختر العملة → الصق أو امسح العنوان → أدخل المبلغ (أو MAX) → متابعة → أكّد بالبصمة أو PIN. تحقق دائماً من العنوان والشبكة: المعاملات لا رجعة فيها.</string>
     <string name="help_q_receive">كيف أستقبل العملات الرقمية؟</string>
     <string name="help_a_receive">الرئيسية → استلام → اختر العملة → شارك عنوانك أو رمز QR. تأكد أن المُرسل يستخدم نفس الشبكة المعروضة (مثل USDT على TRC20).</string>
-    <string name="help_a_swap">تبويب Swap → اختر عملة الإرسال وعملة الاستلام → أدخل المبلغ (أو MAX) → متابعة → تأكيد. الإيداع تلقائي ويستغرق التبادل 2–5 دقائق عبر ChangeNOW. لكل زوج حد أدنى: يعرضه التطبيق إذا كان مبلغك منخفضاً.</string>
+    <string name="help_a_swap">تبويب Swap → اختر عملة الإرسال وعملة الاستلام → أدخل المبلغ (أو MAX) → متابعة → تأكيد. الإيداع تلقائي ويستغرق التبادل 2–5 دقائق عبر شريك التبادل لدينا. لكل زوج حد أدنى: يعرضه التطبيق إذا كان مبلغك منخفضاً.</string>
     <string name="help_a_momo">الشراء/البيع بالفرنك FCFA عبر Mobile Money (Orange وMTN وMoov وWave) قيد الإطلاق في منطقة UEMOA. اضغط «MoMo» في الرئيسية لمعرفة توفره في بلدك.</string>
     <string name="help_a_secure">فعّل البصمة والقفل التلقائي (الإعدادات → الأمان). لا تشارك أبداً كلماتك الـ12 أو رمز PIN — لن يطلبها VaultEx أبداً. قم بالنسخ الاحتياطي من الإعدادات → النسخ الاحتياطي.</string>
     <string name="help_q_fees">ما هي الرسوم؟</string>
