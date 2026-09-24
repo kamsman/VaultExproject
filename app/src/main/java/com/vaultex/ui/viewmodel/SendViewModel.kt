@@ -532,6 +532,10 @@ class SendViewModel @Inject constructor(
         val fee = s.feeNativeAmount ?: 0.0
         if (!isToken || fee <= 0.0) return null
         val nativeSym = nativeUnit(effectiveChain(s))
+        // Interrupteur de test (debug uniquement) : on répond « il manque »
+        // sans regarder le solde. Un seul endroit détourné, celui qui DÉCIDE
+        // — le reste du parcours reste exactement celui de la vraie vie.
+        if (com.vaultex.core.config.ApiKeys.FORCE_GAS_SHORTFALL) return nativeSym
         val nativeBal = availableFor(nativeSym)?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
         return if (nativeBal < fee) nativeSym else null
     }

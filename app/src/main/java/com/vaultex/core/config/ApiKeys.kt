@@ -46,6 +46,19 @@ object ApiKeys {
      * rien ne change pour les versions déjà distribuées.
      */
     val SWAP_PROVIDER: String = BuildConfig.SWAP_PROVIDER
+    /**
+     * Interrupteur de TEST : fait croire qu'il manque la monnaie des frais.
+     *
+     * La condition `BuildConfig.DEBUG` n'est pas décorative. Sans elle, une
+     * ligne oubliée dans local.properties ferait afficher « il te faut du
+     * BNB » à tous les utilisateurs d'une version distribuée, sur des
+     * portefeuilles parfaitement approvisionnés — et R8 ne peut pas
+     * supprimer ce qu'il ne sait pas mort. Avec elle, la valeur est une
+     * constante fausse en release : le compilateur retire la branche
+     * entière.
+     */
+    val FORCE_GAS_SHORTFALL: Boolean = BuildConfig.DEBUG && BuildConfig.FORCE_GAS_SHORTFALL
+
     val FLUTTERWAVE: String = BuildConfig.FLUTTERWAVE_KEY
     val TRONGRID:    String = BuildConfig.TRONGRID_KEY
     val COINGECKO:   String = BuildConfig.COINGECKO_KEY

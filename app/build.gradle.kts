@@ -225,6 +225,30 @@ android {
         buildConfigField("String", "SIMPLESWAP_KEY",  "\"${secret("simpleswap.key")}\"")
         buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
         buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
+        /*
+        ─── INTERRUPTEUR DE TEST : MANQUE DE FRAIS ─────────────────────────
+        Simule l'absence de monnaie native pour payer le gaz, afin de pouvoir
+        essayer le bouton de deblocage sans avoir a vider un portefeuille.
+
+        Creer la situation pour de vrai est impraticable : on ne peut pas
+        descendre a zero — envoyer son BNB ailleurs coute du BNB — et a
+        quelques centimes pres le resultat depend du prix du gaz a l'instant
+        du test, pas du code. Un essai dont l'issue varie avec le reseau ne
+        prouve rien.
+
+        Cette cle ne simule QUE la condition de declenchement. Les soldes
+        restent reels, les appels au fournisseur aussi, et l'echange propose
+        partirait pour de bon s'il etait confirme.
+
+        Elle ne peut pas atteindre la production : elle n'existe que dans
+        local.properties, jamais versionne, et sa lecture est encadree par
+        BuildConfig.DEBUG cote application.
+        ───────────────────────────────────────────────────────────────────
+        */
+        buildConfigField(
+            "boolean", "FORCE_GAS_SHORTFALL",
+            localProps.getProperty("debug.force.gas.shortfall", "false")
+        )
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${secret("flutterwave.key")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
         buildConfigField("String", "TRONGRID_KEY",    "\"${secret("trongrid.key")}\"")
