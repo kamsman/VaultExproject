@@ -438,7 +438,19 @@ private fun SwapFormScreen(
                 label = "Vous recevez",
                 rightLabel = null,
                 token = state.toToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onToToken,
-                amount = state.toAmount, editable = false, onAmountChange = {},
+                /*
+                « 0 » PENDANT UN DEVIS EN VOL RESSEMBLE À UN REFUS.
+
+                Constaté sur appareil : ETH → BNB affichait « 0 », sans
+                minimum ni message, le bouton grisé. Rien ne distinguait
+                « la réponse arrive » de « la paire est refusée » — et
+                l'attente peut durer, puisqu'un délai réseau déclenche une
+                seconde tentative après 1,2 s.
+
+                Trois petits points disent ce que l'écran fait.
+                */
+                amount = if (state.devisEnCours) "…" else state.toAmount,
+                editable = false, onAmountChange = {},
                 fiat = toFiat, onFraction = null, highlight = false
             )
 
