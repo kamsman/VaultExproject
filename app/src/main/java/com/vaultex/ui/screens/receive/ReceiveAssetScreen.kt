@@ -226,11 +226,11 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 LE RÉSEAU SE CHOISIT UNE FOIS, ET SE SUBIT ENSUITE
                 ═══════════════════════════════════════════════════════════
 
-                Mesuré chez le fournisseur, paire par paire, à une semaine
-                d'intervalle :
+                Mesuré chez le fournisseur, paire par paire, à VINGT-QUATRE
+                HEURES d'intervalle :
 
                     USDT-Tron       12,5 à 17,4     stable
-                    USDT-Ethereum    1,3  puis 7,5  x6 en quatre jours
+                    USDT-Ethereum    1,3  puis 7,5  x6 en un jour
                     USDT-BNB Chain   0,2  à  5,1    stable
 
                 Tron coûte cher parce qu'un transfert USDT-TRC20 consomme
@@ -246,9 +246,9 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 immobilisés, sans jamais avoir été prévenu.
 
                 LA PHRASE NE PORTE AUCUN CHIFFRE, ET C'EST DÉLIBÉRÉ. La
-                première version en annonçait deux ; l'un était faux quatre
-                jours plus tard. Un minimum varie d'un facteur six en une
-                semaine — l'écrire en dur, c'est publier une valeur périmée à
+                première version en annonçait deux ; l'un était faux DÈS LE
+                LENDEMAIN. Un minimum varie d'un facteur six en vingt-quatre
+                heures — l'écrire en dur, c'est publier une valeur périmée à
                 date inconnue, sur le seul écran qu'on lit AVANT de choisir.
                 Le rapport entre les chaînes, lui, tient : BNB Chain est
                 moins cher, à chaque mesure. Le chiffre du jour appartient à

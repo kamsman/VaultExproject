@@ -134,14 +134,16 @@ modifiee prend un nouveau numero.
 L'IMAGE NE PORTE AUCUN CHIFFRE - ni pourcentage, ni minimum, ni montant.
 Elle reste en cache des semaines alors que ces valeurs changent.
 
-## Une annonce ne porte une date que si elle est tenue
+## Avec ou sans date
 
-maj-01 et maj-03 nomment le 25 septembre. Une date dans un fichier
-versionne mal : elle est juste le jour ou on l'ecrit, fausse des le
-lendemain, et personne ne pense a relire un texte deja redige.
+maj-01 et maj-03 nomment le 25 septembre : elles servent tant que cette
+date tient. Une date dans un fichier ne se relit pas toute seule — si la
+publication glisse, ces deux textes deviennent faux sans que rien ne le
+signale.
 
 maj-04 n'en porte aucune. C'est la version a reprendre pour toute
-publication ulterieure — il suffit d'ajuster ce qu'elle annonce.
+publication ulterieure, ou des que la date n'est plus certaine — il suffit
+d'ajuster ce qu'elle annonce.
 
 ## Envoi
 
