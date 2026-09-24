@@ -141,9 +141,14 @@ date tient. Une date dans un fichier ne se relit pas toute seule — si la
 publication glisse, ces deux textes deviennent faux sans que rien ne le
 signale.
 
-maj-04 n'en porte aucune. C'est la version a reprendre pour toute
-publication ulterieure, ou des que la date n'est plus certaine — il suffit
-d'ajuster ce qu'elle annonce.
+maj-04 nomme aussi le 25, mais sous la forme « a partir du 25 septembre » :
+elle reste vraie qu'on l'envoie la veille ou le jour meme. C'est la
+difference qui compte — « demain » ou « ce 25 septembre » ne survivent pas
+a un report d'une journee.
+
+C'est aussi celle qui mentionne le PLANTAGE corrige. Deux utilisateurs
+l'ont subi, le bot l'a remonte : c'est la seule des quatre qui donne une
+raison d'installer tout de suite plutot que plus tard.
 
 ## Envoi
 

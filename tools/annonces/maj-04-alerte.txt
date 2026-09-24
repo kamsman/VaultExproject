@@ -1,2 +1,2 @@
-🔔 Mise à jour importante — installe-la maintenant
-Cette version corrige un plantage qui touchait certains appareils, fiabilise les échanges, et affiche le montant minimum et les frais AVANT que tu valides. Elle est disponible dès maintenant.
+🔔 Mise à jour importante — 25 septembre
+Cette version corrige un plantage qui touchait certains appareils, fiabilise les échanges, et affiche le montant minimum et les frais AVANT que tu valides. Disponible à partir du 25 septembre : pense à l'installer.
