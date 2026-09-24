@@ -134,6 +134,15 @@ modifiee prend un nouveau numero.
 L'IMAGE NE PORTE AUCUN CHIFFRE - ni pourcentage, ni minimum, ni montant.
 Elle reste en cache des semaines alors que ces valeurs changent.
 
+## Une annonce ne porte une date que si elle est tenue
+
+maj-01 et maj-03 nomment le 25 septembre. Une date dans un fichier
+versionne mal : elle est juste le jour ou on l'ecrit, fausse des le
+lendemain, et personne ne pense a relire un texte deja redige.
+
+maj-04 n'en porte aucune. C'est la version a reprendre pour toute
+publication ulterieure — il suffit d'ajuster ce qu'elle annonce.
+
 ## Envoi
 
     ./tools/send-announcement.sh --fichier tools/annonces/depot-01-premier-depot.txt
@@ -147,6 +156,14 @@ Elle reste en cache des semaines alors que ces valeurs changent.
 
 Les deux gardent le logo VaultEx : elles parlent de l'application, pas
 d'une monnaie.
+
+Alerte de mise a jour, sans date :
+
+    ./tools/send-announcement.sh --fichier tools/annonces/maj-04-alerte.txt
+
+Logo VaultEx, aucune image. Le 3e argument reste vide : l'annonce parle de
+l'application, et aucun symbole « mise a jour » n'existe chez le
+fournisseur d'icones.
 
 Annonce globale, avec banniere :
 
