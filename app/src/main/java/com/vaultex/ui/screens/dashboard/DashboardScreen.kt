@@ -204,9 +204,7 @@ fun DashboardScreen(navController: NavHostController) {
                 accent = Color(0xFF16A34A),   // vert : recevoir des fonds (positif)
                 icon = Icons.Default.AccountBalanceWallet,
                 title = stringResource(R.string.dashboard_first_deposit_title),
-                body = stringResource(R.string.dashboard_first_deposit_body),
                 ctaLabel = stringResource(R.string.dashboard_first_deposit_cta),
-                ctaIcon = Icons.Default.ArrowDownward,
                 onDismiss = { depositDismissed = true },
                 onCtaClick = { navController.navigate(Routes.RECEIVE) }
             )
@@ -221,9 +219,7 @@ fun DashboardScreen(navController: NavHostController) {
                 accent = Color(0xFFF59E0B),   // ambre : rappel de sécurité (seed)
                 icon = Icons.Default.Shield,
                 title = stringResource(R.string.dashboard_backup_title),
-                body = stringResource(R.string.dashboard_backup_body),
                 ctaLabel = stringResource(R.string.dashboard_backup_cta),
-                ctaIcon = Icons.Default.Shield,
                 onDismiss = { backupDismissed = true },
                 onCtaClick = { navController.navigate(Routes.BACKUP) }
             )
@@ -237,9 +233,7 @@ fun DashboardScreen(navController: NavHostController) {
                 accent = Color(0xFFF59E0B),
                 icon = Icons.Default.NotificationsActive,
                 title = stringResource(R.string.dashboard_autostart_title),
-                body = stringResource(R.string.dashboard_autostart_body),
                 ctaLabel = stringResource(R.string.dashboard_autostart_cta),
-                ctaIcon = Icons.Default.Settings,
                 onDismiss = {
                     com.vaultex.core.session.BackgroundReliability.dismiss(bannerContext)
                     autostartTipDismissed = true
@@ -263,9 +257,7 @@ fun DashboardScreen(navController: NavHostController) {
                 accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
                 icon = Icons.Default.Chat,
                 title = stringResource(R.string.dashboard_telegram_title),
-                body = stringResource(R.string.dashboard_telegram_body),
                 ctaLabel = stringResource(R.string.dashboard_telegram_cta),
-                ctaIcon = Icons.Default.Send,
                 onDismiss = { TelegramBannerState.dismiss(bannerContext) },
                 onCtaClick = {
                     bannerContext.startActivity(
@@ -712,58 +704,84 @@ private fun DashboardBanner(
     accent: Color,
     icon: ImageVector,
     title: String,
-    body: String,
     ctaLabel: String,
-    ctaIcon: ImageVector,
     onDismiss: () -> Unit,
     onCtaClick: () -> Unit
 ) {
-    // Même MODÈLE pour les 3 bandeaux (taille, forme, disposition) ; seule la
-    // couleur d'accent change (fond teinté + icône + bouton) pour les
-    // distinguer d'un coup d'œil. Bouton toujours plein, texte blanc.
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE CARTE CLIQUABLE, PAS UN BLOC AVEC UN BOUTON
+    ═══════════════════════════════════════════════════════════════════════
+
+    La version précédente empilait : fond teinté, icône, titre forcé sur deux
+    lignes, corps forcé sur deux lignes, croix, puis un bouton plein pleine
+    largeur. Cent trente points de haut, sur un écran où la carte de solde et
+    la répartition se disputent déjà le premier coup d'œil.
+
+    Les deux lignes forcées avaient une bonne raison — que tous les bandeaux
+    fassent la même hauteur, pour que l'écran ne saute pas pendant le fondu.
+    Mais « Fais ton premier dépôt » en occupe deux dont une vide.
+
+    TOUTE LA CARTE EST DÉSORMAIS LE BOUTON. C'est là qu'est l'essentiel de
+    l'économie : un élément de moins à regarder, une cible bien plus grande
+    pour le pouce, et plus de doute sur ce qui est cliquable. Le libellé
+    d'action reste écrit, en petit, avec le chevron qui dit où l'on va.
+
+    LE FOND REDEVIENT NEUTRE, bordure fine plutôt que bloc coloré. Sur cet
+    écran, un aplat de couleur entre en concurrence avec les vrais signaux —
+    et cette application en a qui comptent, comme l'avertissement de réseau
+    qui prévient d'une perte de fonds. La couleur d'accent ne subsiste que
+    sur l'icône : assez pour distinguer le dépôt de la sauvegarde d'un coup
+    d'œil, trop peu pour crier.
+
+    LA CROIX RESTE. Trust Wallet n'en a pas : leur carrousel tourne et on
+    subit. Pouvoir écarter un bandeau est un respect qu'on garde.
+
+    Hauteur ramenée de 130 à ~72 points, à contenu identique.
+    */
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = accent.copy(alpha = 0.10f),
-        modifier = Modifier.fillMaxWidth()
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onCtaClick)
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    // minLines = maxLines : titre et corps occupent TOUJOURS le
-                    // même nombre de lignes quel que soit le texte (ou la langue)
-                    // → tous les bandeaux ont la MÊME hauteur, donc l'écran ne
-                    // « saute » plus au changement de slide (crossfade).
-                    Text(
-                        title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                        minLines = 2, maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        body, color = TextSecondary, fontSize = 12.sp, lineHeight = 15.sp,
-                        minLines = 2, maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = onCtaClick,
-                modifier = Modifier.fillMaxWidth().height(42.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accent,
-                    contentColor = Color.White
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = accent, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                // Une ligne chacun, et TOUJOURS une : la hauteur reste
+                // identique d'un bandeau à l'autre, donc le fondu du
+                // carrousel ne fait plus sauter l'écran.
+                /*
+                DEUX LIGNES FIXES POUR LE TITRE, ET C'EST MESURÉ.
+
+                Une seule ligne aurait tronqué « As-tu sauvegardé ta phrase
+                de récupération ? » en « …ta phrase de récup… ». Couper un
+                rappel de sauvegarde est exactement ce qu'il ne faut pas
+                faire : c'est le message qui protège contre la perte
+                définitive des fonds.
+
+                Deux lignes TOUJOURS — minLines autant que maxLines — pour
+                que tous les bandeaux gardent la même hauteur et que le fondu
+                du carrousel ne fasse pas sauter l'écran.
+                */
+                Text(
+                    title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    lineHeight = 17.sp, minLines = 2, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
-            ) {
-                Icon(ctaIcon, null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(ctaLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    ctaLabel, color = TextSecondary, fontSize = 12.sp,
+                    minLines = 1, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = TextMuted, modifier = Modifier.size(16.dp))
             }
         }
     }
