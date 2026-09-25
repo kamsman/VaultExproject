@@ -15,7 +15,16 @@ data class NotifItem(
     val body: String,
     val timestamp: Long,
     val symbol: String? = null,
-    val read: Boolean = false
+    val read: Boolean = false,
+    /**
+     * Hash de la transaction dont parle la notification, s'il y en a une.
+     *
+     * Permet à la cloche d'ouvrir le détail de CETTE transaction plutôt que
+     * la fiche de la monnaie. Nul pour une alerte de prix ou une annonce —
+     * et nul aussi sur toutes les notifications enregistrées avant l'ajout
+     * de ce champ, que Gson relit sans broncher.
+     */
+    val hash: String? = null
 )
 
 /**
@@ -75,14 +84,15 @@ class NotificationCenter @Inject constructor(
 
     /** Ajoute une notification en tête de liste (max 100 conservées). */
     @Synchronized
-    fun push(title: String, body: String, symbol: String? = null) {
+    fun push(title: String, body: String, symbol: String? = null, hash: String? = null) {
         val item = NotifItem(
             id = System.currentTimeMillis(),
             title = title,
             body = body,
             timestamp = System.currentTimeMillis(),
             symbol = symbol,
-            read = false
+            read = false,
+            hash = hash
         )
         apply((listOf(item) + _items.value).take(100))
     }

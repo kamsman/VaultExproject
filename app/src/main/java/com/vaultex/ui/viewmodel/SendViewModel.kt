@@ -1093,7 +1093,9 @@ class SendViewModel @Inject constructor(
                             key = "sent:${result.txHash}",
                             title = locStr(R.string.notif_sent_title),
                             body = locStr(R.string.notif_sent_body, s.amount, sym),
-                            symbol = sym
+                            symbol = sym,
+                            // La cloche ouvrira le détail de CETTE transaction.
+                            hash = result.txHash
                         )
                     }
                 }

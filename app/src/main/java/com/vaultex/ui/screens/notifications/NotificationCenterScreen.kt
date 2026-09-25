@@ -108,11 +108,28 @@ fun NotificationCenterScreen(navController: NavHostController) {
                     l'application, par exemple — la ligne reste inerte plutôt
                     que d'ouvrir quelque chose au hasard.
                     */
+                    /*
+                    UN MOUVEMENT DE FONDS MÈNE À SA TRANSACTION, LE RESTE À
+                    LA MONNAIE.
+
+                    Quand la notification porte un hash — un envoi, une
+                    réception — c'est de CETTE opération qu'elle parle, et
+                    l'écran de détail en donne le montant exact, le
+                    destinataire, les frais et le lien vers l'explorateur.
+                    Ouvrir la fiche de la monnaie obligerait à la retrouver
+                    dans l'historique.
+
+                    Sans hash — alerte de prix, annonce — le sujet reste la
+                    monnaie, et sa fiche est la bonne destination.
+                    */
                     val coinId = item.symbol
                         ?.let { com.vaultex.core.market.CoinIds.BY_SYMBOL[it.uppercase()] }
-                    NotifRow(item) {
-                        coinId?.let { navController.navigate(Routes.coinDetail(it)) }
+                    val destination = when {
+                        !item.hash.isNullOrBlank() -> Routes.historyDetail(item.hash!!)
+                        coinId != null -> Routes.coinDetail(coinId)
+                        else -> null
                     }
+                    NotifRow(item, destination?.let { { navController.navigate(it) } })
                 }
             }
         }
