@@ -313,10 +313,14 @@ fun SwapScreen(navController: NavHostController) {
     arrière-plan. Dans ce cas on ne navigue pas, ce qui est le bon choix :
     personne ne regarde.
     */
+    var conclusion by remember { mutableStateOf(false) }
     val cycleDeVie = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.swapInProgress, state.swapId) {
         if (!state.swapInProgress || suiviDemande || viewModel.sortieAccueilFaite)
             return@LaunchedEffect
+
+        val debut = System.currentTimeMillis()
+        conclusion = true
 
         var attente = 0
         while (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
@@ -327,6 +331,17 @@ fun SwapScreen(navController: NavHostController) {
         }
         if (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
             return@LaunchedEffect
+
+        // Trois secondes AU PLUS, comptées depuis l'apparition de l'écran :
+        // l'attente du premier plan est déduite, jamais ajoutée.
+        val reste = 3000L - (System.currentTimeMillis() - debut)
+        if (reste > 0) kotlinx.coroutines.delay(reste)
+
+        // « Nouveau swap » touché pendant les trois secondes : on ne l'arrache
+        // pas au formulaire qu'il vient d'ouvrir. (La remise à zéro change
+        // déjà les clés de cet effet, donc l'annule ; ce contrôle ne dépend
+        // pas de ce détail.)
+        if (!conclusion) return@LaunchedEffect
 
         viewModel.marquerSortieAccueil()
         navController.navigate(Routes.DASHBOARD) {
@@ -340,6 +355,12 @@ fun SwapScreen(navController: NavHostController) {
     val montrerSuivi = state.swapInProgress && suiviDemande
 
     when {
+        // Le rempart passe AVANT le suivi : pendant ses trois secondes, c'est
+        // lui qu'on voit, et rien d'autre ne doit le remplacer.
+        conclusion -> SwapConclusionScreen(
+            state = state,
+            onNouveauSwap = { conclusion = false; viewModel.resetSwap(); screen = "form" }
+        )
         montrerSuivi -> SwapTrackingScreen(
             state = state,
             onClose = { viewModel.resetSwap(); screen = "form" },
@@ -1058,6 +1079,145 @@ private fun SwapConfirmScreen(
 }
 
 /* ════════════════════════════ 3) SUIVI / SUCCÈS ════════════════════════════ */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE DERNIER REMPART AVANT L'ACCUEIL — TROIS SECONDES, PAS UNE DE PLUS
+═══════════════════════════════════════════════════════════════════════════
+
+Passer de l'écran de confirmation à l'accueil sans rien dire fonctionne, mais
+ne rassure personne : on vient de valider un mouvement d'argent et l'écran
+change, sans qu'aucune phrase ne confirme que c'est parti. Cet écran-ci est
+la réponse — court, affirmatif, et qui se referme seul.
+
+TROIS SECONDES AU PLUS, comptées depuis son apparition. Ce n'est pas un
+décompte à ajuster : c'est un plafond. Le temps passé à attendre le retour au
+premier plan — la boîte d'empreinte qui se referme — est DÉDUIT de ces trois
+secondes, pas ajouté. Si ce retour tarde, l'écran part plus tôt ; il ne
+dépasse jamais.
+
+CE QUI EST VERT EST VRAI. « Échange enregistré » l'est dès que le fournisseur
+a rendu un identifiant. Les deux autres attendent le hash du dépôt, la preuve
+matérielle que les fonds ont quitté le portefeuille. Le hash arrive souvent en
+une à trois secondes, parfois plus : dans ce cas les deux dernières lignes
+restent grises au départ, et c'est exact — mieux vaut une coche manquante
+qu'une coche qui affirme un virement qui n'est pas encore parti.
+
+IL N'Y A RIEN À LIRE ICI QU'ON NE RETROUVE. L'identifiant de l'échange, les
+étapes détaillées, le statut du fournisseur : tout est sur l'écran de suivi,
+qu'ouvre la ligne « Échange en cours » de l'accueil.
+*/
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwapConclusionScreen(
+    state: com.vaultex.ui.viewmodel.SwapState,
+    onNouveauSwap: () -> Unit
+) {
+    val depotEnvoye = state.depositTxHash != null
+    val reseau = swapNetworkBadge(state.fromToken)
+
+    Scaffold(
+        containerColor = swapBg,
+        topBar = {
+            // statusBarsPadding() : le slot topBar ne reçoit aucune marge
+            // système, il doit la poser lui-même (écrans à poinçon).
+            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text(
+                    "Swap en cours",
+                    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        },
+        bottomBar = {
+            Column(
+                Modifier.background(swapBg).navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Button(
+                    onClick = onNouveauSwap,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SwapPurple, contentColor = Color.White)
+                ) { Text("Nouveau swap", fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+            }
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                TokenLogo(state.fromToken, 56)
+                Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(26.dp))
+                TokenLogo(state.toToken, 56)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${state.fromAmount} ${swapBaseOf(state.fromToken)}",
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text(reseau, fontSize = 11.sp, color = swapTextDim)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("≈ ${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}",
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText)
+                    Text(swapNetworkBadge(state.toToken), fontSize = 11.sp, color = swapTextDim)
+                }
+            }
+
+            Box(
+                Modifier.size(72.dp).clip(CircleShape).background(SwapGreen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(40.dp))
+            }
+
+            Surface(shape = RoundedCornerShape(12.dp), color = swapPurpleDim, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Échange lancé. Suis la suite depuis l'accueil.",
+                        fontSize = 12.sp, color = swapText, lineHeight = 16.sp)
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp), color = swapCard,
+                border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    LigneConclusion("Échange enregistré", true)
+                    LigneConclusion("Dépôt diffusé sur $reseau", depotEnvoye)
+                    LigneConclusion("Opération lancée", depotEnvoye)
+                }
+            }
+        }
+    }
+}
+
+/** Une ligne de la carte de conclusion : coche verte si acquis, point sinon. */
+@Composable
+private fun LigneConclusion(libelle: String, acquis: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(28.dp).clip(CircleShape)
+                .background(if (acquis) SwapGreen else swapCardAlt),
+            contentAlignment = Alignment.Center
+        ) {
+            if (acquis) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(17.dp))
+            else Box(Modifier.size(7.dp).clip(CircleShape).background(swapTextFaint))
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            libelle,
+            fontSize = 15.sp,
+            fontWeight = if (acquis) FontWeight.Bold else FontWeight.Normal,
+            color = if (acquis) swapText else swapTextDim
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwapTrackingScreen(
