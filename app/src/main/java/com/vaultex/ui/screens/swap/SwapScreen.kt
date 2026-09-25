@@ -991,7 +991,7 @@ private fun SwapTrackingScreen(
 
     DEUXIÈME MOMENT, POUR CEUX QUI SONT RESTÉS. Si l'échange aboutit alors
     que l'écran est encore ouvert — décompte annulé, retour volontaire — le
-    compteur repart à cinq une fois tout au vert. Ceux-là voient la frise
+    compteur repart une fois tout au vert. Ceux-là voient la frise
     aller jusqu'au bout et la confirmation s'afficher.
 
     UN ÉCHEC NE RENVOIE NULLE PART. C'est le seul cas où l'écran porte une
@@ -1001,21 +1001,35 @@ private fun SwapTrackingScreen(
     val depotEnvoye = state.depositTxHash != null
     val phase = if (failed) null else if (finished) "fini" else "depot"
     var decompteAnnule by remember { mutableStateOf(false) }
-    var secondes by remember(phase) { mutableStateOf(5) }
+    /*
+    TROIS SECONDES, PAS CINQ.
+
+    Cinq secondes se justifiaient tant que cet écran avait quelque chose à
+    faire lire. Il n'a plus rien : la frise dit « en cours », le bandeau dit
+    de suivre depuis l'accueil, et l'identifiant reste accessible en revenant
+    par la ligne « Échange en cours ». Attendre devant un écran dont on a
+    déjà tout lu est exactement ce que cet écran était censé éviter.
+
+    On ne descend pas plus bas. « Rester ici » doit rester atteignable par
+    quelqu'un qui vient de lever les yeux du bouton de confirmation : sous
+    trois secondes, l'écran partirait avant d'avoir été vu, et c'est
+    précisément le reproche qui avait fait ajouter le décompte.
+    */
+    var secondes by remember(phase) { mutableStateOf(3) }
     val decompteActif = phase != null && !decompteAnnule
 
     /*
     LE DÉCOMPTE TOURNE PENDANT LA DIFFUSION, PAS APRÈS.
 
     Il démarrait une fois le dépôt diffusé : la durée totale valait donc
-    « diffusion + 5 s », soit six à quinze secondes selon l'état du réseau.
-    Imprévisible, et inutilement long — pendant la diffusion, l'écran ne
-    fait qu'attendre, exactement comme pendant le décompte.
+    « diffusion + décompte », soit six à quinze secondes selon l'état du
+    réseau. Imprévisible, et inutilement long — pendant la diffusion, l'écran
+    ne fait qu'attendre, exactement comme pendant le décompte.
 
     Les deux attentes se superposent donc. Le compteur part à l'ouverture,
     et le départ effectif exige EN PLUS la preuve que le dépôt est parti.
-    Quand la diffusion prend moins de cinq secondes — le cas courant — le
-    total est de cinq secondes, exactement. Quand elle traîne, on attend
+    Quand la diffusion prend moins de trois secondes — le cas courant — le
+    total est de trois secondes, exactement. Quand elle traîne, on attend
     qu'elle aboutisse : on ne quitte jamais l'écran sur une transaction
     encore en vol, dont l'échec doit s'afficher sous les yeux de
     l'utilisateur.
@@ -1038,7 +1052,7 @@ private fun SwapTrackingScreen(
     fin : elle s'interrompt. C'est exactement ce qui donne l'impression que
     l'application a planté, ou qu'on vous a chassé avant que ce soit fini.
 
-    Un départ a besoin d'une conclusion. Une seconde et demie suffit : la
+    Un départ a besoin d'une conclusion. Moins d'une seconde suffit : la
     roue cède la place à une coche, l'écran affirme ce qui est ACQUIS, et
     c'est sur cette image que l'on part.
 
@@ -1091,7 +1105,7 @@ private fun SwapTrackingScreen(
     `remember(phase)` : ce basculement annule l'effet en cours ET remet le
     compteur à cinq.
 
-    Si cela tombe pendant la seconde et demie d'attente, `onAccueil()` n'est
+    Si cela tombe pendant cette courte attente, `onAccueil()` n'est
     jamais atteint. L'écran reste alors sur son état de sortie — coche verte,
     « Échange lancé » — mais sans le bandeau de décompte, que `enSortie`
     masque. Plus rien n'avance et rien n'explique pourquoi : vu de
@@ -1103,7 +1117,11 @@ private fun SwapTrackingScreen(
     */
     LaunchedEffect(enSortie) {
         if (!enSortie) return@LaunchedEffect
-        kotlinx.coroutines.delay(1400)
+        // 900 ms : le temps que la coche finisse de grandir (ressort ~600 ms)
+        // et se pose. En dessous, on partirait pendant l'animation — ce qui
+        // redonne l'impression de coupure que cette conclusion existe pour
+        // supprimer. Au-dessus, c'est de l'attente devant une image figée.
+        kotlinx.coroutines.delay(900)
         onAccueil()
     }
 
