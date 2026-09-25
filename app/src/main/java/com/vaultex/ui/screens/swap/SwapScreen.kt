@@ -283,9 +283,51 @@ fun SwapScreen(navController: NavHostController) {
     est le seul chemin qui le demande. Le bouton Swap de la barre du bas
     ouvre le formulaire, même pendant un échange.
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE NAVIGATION DEMANDÉE TROP TÔT EST IGNORÉE, EN SILENCE
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'est l'explication de tout ce chapitre, et elle n'a rien à voir avec les
+    durées qu'on a passé des heures à raccourcir.
+
+    Le parcours est celui-ci : on touche « Confirmer le swap », le système
+    affiche la demande d'empreinte, et cette boîte de dialogue fait SORTIR
+    l'écran de l'état RESUMED. L'empreinte acceptée, `executeSwap()` part
+    pendant que la boîte se referme ; l'échange est créé, `swapInProgress`
+    passe à vrai, et cet effet demande la navigation — alors que la
+    destination courante n'est pas encore revenue au premier plan.
+
+    NavController REFUSE de naviguer depuis une destination qui n'est pas
+    RESUMED. Il ne lève rien, il ne journalise rien : l'appel est ignoré. On
+    reste sur l'écran de confirmation, sans le moindre indice.
+
+    ET C'EST POURQUOI RACCOURCIR AGGRAVAIT LES CHOSES. Tant que le départ
+    attendait cinq, puis trois secondes, il tombait bien après le retour au
+    premier plan et passait sans encombre. En le ramenant à zéro, on l'a
+    placé exactement dans la fenêtre où il est jeté.
+
+    On attend donc le premier plan. Le plafond de cinq secondes n'est pas une
+    temporisation : c'est une garantie de ne pas tourner indéfiniment si cet
+    état n'arrive jamais — écran quitté à la main, application mise en
+    arrière-plan. Dans ce cas on ne navigue pas, ce qui est le bon choix :
+    personne ne regarde.
+    */
+    val cycleDeVie = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.swapInProgress, state.swapId) {
         if (!state.swapInProgress || suiviDemande || viewModel.sortieAccueilFaite)
             return@LaunchedEffect
+
+        var attente = 0
+        while (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+            attente < 100
+        ) {
+            kotlinx.coroutines.delay(50)
+            attente++
+        }
+        if (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+            return@LaunchedEffect
+
         viewModel.marquerSortieAccueil()
         navController.navigate(Routes.DASHBOARD) {
             popUpTo(Routes.DASHBOARD) { saveState = true }
