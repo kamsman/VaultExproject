@@ -1,6 +1,11 @@
 package com.vaultex.ui.screens.dashboard
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
@@ -501,15 +507,15 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             /*
-            ─── ÉCHANGE EN COURS : UNE LIGNE, PAS UN ENCART ──────────────
-            Trois cartes empilées repoussaient les tuiles d'action hors de
-            l'écran, pour une information qui tient en six mots. Et un encadré
-            appelle l'attention — or il n'y a rien à faire : l'échange se
-            termine seul.
+            ─── ÉCHANGE EN COURS : UNE SEULE CARTE ───────────────────────
+            Trois cartes empilées — une par échange — repoussaient les tuiles
+            d'action hors de l'écran, pour une information qui tient en six
+            mots. C'était ÇA le problème, pas la carte : au-delà d'un échange,
+            la paire n'apprend plus rien et seul le compte importe.
 
-            Une ligne posée sous le solde suffit à dire « ton argent bouge ».
-            Elle mène au suivi pour qui veut le détail, et s'efface d'elle-même
-            à l'aboutissement.
+            Il en reste donc une, quel que soit le nombre d'échanges. Elle dit
+            « ton argent bouge », mène au suivi pour qui veut le détail, et
+            s'efface d'elle-même à l'aboutissement.
             */
             if (echangesEnCours.isNotEmpty()) {
                 item(key = "swaps_en_cours") { LigneEchangeEnCours(echangesEnCours) { navController.navigate(Routes.SWAP) } }
@@ -1476,94 +1482,113 @@ private fun LigneEchangeEnCours(
 ) {
     /*
     ═══════════════════════════════════════════════════════════════════════
-    DEUX LIGNES, SANS CADRE
+    LA CARTE REVIENT — C'EST LA MAQUETTE QUI TRANCHE
     ═══════════════════════════════════════════════════════════════════════
 
-    Une seule ligne entassait tout derrière un point médian : « Échange en
-    cours · USDT-ETH → ETH ». Le titre et la paire se disputaient la même
-    ligne, et sur un écran étroit la paire était la première coupée — alors
-    que c'est elle qui dit DE QUOI on parle.
+    Cette ligne a été mise à plat quand la cloche a perdu ses cartes, par
+    souci de cohérence : une carte isolée sur un écran qui n'en a plus
+    attirait l'œil plus que son contenu ne le méritait.
 
-    Le titre passe donc au-dessus, la paire en dessous, comme dans la
-    maquette. Mais sans le cadre ni le fond qu'elle porte : la cloche vient
-    d'en être débarrassée, et une carte isolée au milieu d'un écran qui n'en
-    a pas attirerait l'œil plus que son contenu ne le mérite — il n'y a rien
-    à faire, seulement à attendre.
+    Le raisonnement était bon pour la CLOCHE, où chaque notification est une
+    ligne parmi vingt. Il ne l'est pas ici. Cette ligne n'apparaît que
+    lorsqu'un échange est réellement en cours — c'est-à-dire pendant quelques
+    minutes, une fois de temps en temps — et pendant ce temps elle est la
+    seule information vivante de l'accueil. Le cadre n'est pas une décoration :
+    c'est ce qui la détache du solde au-dessus et de la répartition en
+    dessous, deux blocs qui, eux, sont toujours là.
 
     LES NOMS VIENNENT DU REGISTRE, PAS DE LA BASE. tokenSymbol y est stocké
     sous forme de CLÉS — « USDT-ETH→ETH » — parce que c'est ce qui permet au
-    worker de retrouver l'actif. Les afficher telles quelles ferait paraître
-    un nom que l'utilisateur ne voit nulle part ailleurs : le sélecteur, le
-    solde et la fiche disent tous « USDT ».
+    worker de retrouver l'actif. La maquette les montre telles quelles ; on
+    ne les reprend pas. « USDT-ETH » n'apparaît nulle part ailleurs : le
+    sélecteur, le solde et la fiche disent tous « USDT ».
 
-    La roue reste bleue : c'est la couleur de la tuile Swap juste en
-    dessous, celle dont cette ligne parle. Et elle tourne, ce qui est le
-    seul moyen de distinguer « en cours » de « figé ».
-    */
-    /*
-    LES LOGOS S'AJOUTENT AUX NOMS, ILS NE LES REMPLACENT PAS.
+    LES LOGOS S'AJOUTENT AUX NOMS, ILS NE LES REMPLACENT PAS. Deux logos et
+    une flèche diraient la paire sans rien lire, mais les trois USDT du
+    portefeuille portent le MÊME logo : un échange partant de Tron et un
+    partant de BNB Chain donneraient une ligne identique. Le symbole reste
+    écrit ; le logo le rend seulement reconnaissable d'un coup d'œil.
 
-    Deux logos et une flèche diraient la paire d'un coup d'œil, sans rien
-    lire. Sauf que les trois USDT du portefeuille portent le MÊME logo : un
-    échange partant de l'USDT sur Tron et un partant de l'USDT sur BNB Chain
-    donneraient exactement la même ligne. On garde donc le symbole écrit, et
-    le logo ne fait que le rendre reconnaissable sans lecture.
+    LA ROUE TOURNE POUR DE VRAI. C'est le seul moyen de distinguer « en
+    cours » de « figé » — un échange dure des minutes, et une icône immobile
+    pendant ce temps-là se lit comme une panne. Le violet est celui du bouton
+    Swap de la barre du bas (0xFF7C5CFC) : la même couleur pour la même
+    chose, où qu'elle apparaisse.
     */
     val cles = echanges.firstOrNull()?.tokenSymbol
         ?.split("→")
         ?.map { it.trim() }
         ?.filter { it.isNotEmpty() }
         .orEmpty()
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+
+    val rotation = rememberInfiniteTransition(label = "echange-en-cours")
+    val angle by rotation.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing)),
+        label = "rotation"
+    )
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(13.dp))
-        Spacer(Modifier.width(10.dp))
-        /*
-        SERRÉ AU PLUS JUSTE : ENVIRON 42 POINTS.
-
-        Deux lignes coûtent forcément plus qu'une — c'était 27 points avant,
-        au prix d'une paire tronquée sur écran étroit. On récupère ce qu'on
-        peut sur les marges et les interlignes plutôt que sur l'information.
-
-        Les interlignes sont fixés explicitement : sans eux, Compose réserve
-        la hauteur par défaut de chaque taille de police, ce qui ajoutait
-        cinq points invisibles entre les deux lignes.
-        */
-        Column(Modifier.weight(1f)) {
-            Text(
-                if (echanges.size == 1) "Échange en cours" else "${echanges.size} échanges en cours",
-                fontSize = 13.sp, lineHeight = 15.sp,
-                fontWeight = FontWeight.SemiBold, color = TextPrimary
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Autorenew,
+                contentDescription = null,
+                tint = SwapViolet,
+                modifier = Modifier.size(26.dp).rotate(angle)
             )
-            if (echanges.size == 1 && cles.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    cles.forEachIndexed { i, cle ->
-                        if (i > 0) {
-                            Text("→", fontSize = 11.sp, lineHeight = 13.sp, color = TextMuted)
+            Spacer(Modifier.width(12.dp))
+            /*
+            Les interlignes sont fixés explicitement : sans eux, Compose
+            réserve la hauteur par défaut de chaque taille de police, ce qui
+            ajoutait cinq points invisibles entre les deux lignes.
+            */
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (echanges.size == 1) "Échange en cours" else "${echanges.size} échanges en cours",
+                    fontSize = 14.sp, lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold, color = TextPrimary
+                )
+                if (echanges.size == 1 && cles.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        cles.forEachIndexed { i, cle ->
+                            if (i > 0) {
+                                Text("→", fontSize = 12.sp, lineHeight = 15.sp, color = TextMuted)
+                            }
+                            coil.compose.AsyncImage(
+                                model = com.vaultex.ui.components.CryptoIcon.url(
+                                    SwapViewModel.assetOf(cle).base
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp).clip(CircleShape)
+                            )
+                            Text(
+                                SwapViewModel.assetOf(cle).base,
+                                fontSize = 12.sp, lineHeight = 15.sp, color = TextSecondary
+                            )
                         }
-                        coil.compose.AsyncImage(
-                            model = com.vaultex.ui.components.CryptoIcon.url(
-                                SwapViewModel.assetOf(cle).base
-                            ),
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp).clip(CircleShape)
-                        )
-                        Text(
-                            SwapViewModel.assetOf(cle).base,
-                            fontSize = 11.sp, lineHeight = 13.sp, color = TextSecondary
-                        )
                     }
                 }
             }
+            Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
         }
-        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
     }
 }
+
+/**
+ * Violet du Swap — identique à celui du bouton central de la barre du bas.
+ * Fixe, comme lui : c'est une couleur d'identité, pas une couleur de thème.
+ */
+private val SwapViolet = Color(0xFF7C5CFC)
