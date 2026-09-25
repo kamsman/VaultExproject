@@ -1249,22 +1249,83 @@ private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
                     modifier = Modifier.size(120.dp)
                 )
                 Spacer(Modifier.width(20.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                LA LÉGENDE MONTRE LES MONNAIES, PLUS SEULEMENT DES PASTILLES
+                ═══════════════════════════════════════════════════════════
+
+                Elle affichait une pastille de couleur et la CLÉ INTERNE du
+                jeton : « USDT-BNB ». Ce nom n'existe nulle part ailleurs
+                dans l'application — le solde, le sélecteur et la fiche
+                disent tous « USDT · BEP20 ». Une clé de registre qui fuit
+                jusqu'à l'écran ressemble à un code d'erreur.
+
+                Le logo remplace la pastille, avec un ANNEAU de la couleur de
+                la part. Sans cet anneau, plus rien ne relierait une ligne de
+                légende à sa portion du cercle : la couleur est le seul lien
+                entre les deux, et un logo qui l'efface transforme la
+                répartition en simple liste.
+
+                LE LOGO SEUL NE SUFFIT PAS, ET CE N'EST PAS UN DÉTAIL. Les
+                trois USDT du portefeuille — Tron, Ethereum, BNB Chain —
+                partagent le même logo, parce que c'est la même monnaie sur
+                trois réseaux. Trois lignes identiques dans la légende, avec
+                des montants différents : c'est exactement la confusion qui a
+                déjà fait ouvrir une adresse Tron sur une page Ethereum. Le
+                réseau reste donc écrit, mais SEULEMENT là où il y a une
+                ambiguïté à lever — sur les variantes. Écrire « Bitcoin »
+                sous le logo du bitcoin n'apprend rien.
+                */
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     tokens.forEach { token ->
                         val pct = if (total > 0.0) token.valueUsd / total * 100 else 0.0
+                        val couleur = colorOf(token.colorHex)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            // L'anneau, c'est le FOND qui dépasse : disque de
+                            // 18 points à la couleur de la part, logo de 15
+                            // posé au centre. Un vrai .border de la même
+                            // couleur serait invisible, et un logo qui touche
+                            // le bord perdrait l'anneau.
                             Box(
-                                Modifier.size(10.dp).clip(CircleShape).background(colorOf(token.colorHex))
-                            )
+                                Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(couleur),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Initiales en repli : un jeton importé par
+                                // contrat n'a souvent aucun logo publié.
+                                Text(
+                                    token.symbol.take(1),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                )
+                                coil.compose.AsyncImage(
+                                    model = com.vaultex.ui.components.CryptoIcon.urlFor(
+                                        token.symbol, token.contractAddress, token.blockchain.ticker
+                                    ),
+                                    contentDescription = token.symbol,
+                                    modifier = Modifier.size(15.dp).clip(CircleShape)
+                                )
+                            }
                             Text(
-                                token.symbol,
+                                token.symbol.substringBefore("-"),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary
                             )
+                            if (token.symbol.contains("-")) {
+                                Text(
+                                    networkLabel(token.symbol),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = couleur
+                                )
+                            }
                             Text(
                                 "%.0f%%".format(pct),
                                 fontSize = 12.sp,
@@ -1439,10 +1500,20 @@ private fun LigneEchangeEnCours(
     dessous, celle dont cette ligne parle. Et elle tourne, ce qui est le
     seul moyen de distinguer « en cours » de « figé ».
     */
-    val paire = echanges.firstOrNull()?.tokenSymbol
+    /*
+    LES LOGOS S'AJOUTENT AUX NOMS, ILS NE LES REMPLACENT PAS.
+
+    Deux logos et une flèche diraient la paire d'un coup d'œil, sans rien
+    lire. Sauf que les trois USDT du portefeuille portent le MÊME logo : un
+    échange partant de l'USDT sur Tron et un partant de l'USDT sur BNB Chain
+    donneraient exactement la même ligne. On garde donc le symbole écrit, et
+    le logo ne fait que le rendre reconnaissable sans lecture.
+    */
+    val cles = echanges.firstOrNull()?.tokenSymbol
         ?.split("→")
-        ?.mapNotNull { cle -> cle.trim().takeIf { it.isNotEmpty() }?.let { SwapViewModel.assetOf(it).base } }
-        ?.joinToString(" → ")
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        .orEmpty()
     Row(
         Modifier
             .fillMaxWidth()
@@ -1469,8 +1540,28 @@ private fun LigneEchangeEnCours(
                 fontSize = 13.sp, lineHeight = 15.sp,
                 fontWeight = FontWeight.SemiBold, color = TextPrimary
             )
-            if (echanges.size == 1 && !paire.isNullOrBlank()) {
-                Text(paire, fontSize = 11.sp, lineHeight = 13.sp, color = TextSecondary)
+            if (echanges.size == 1 && cles.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    cles.forEachIndexed { i, cle ->
+                        if (i > 0) {
+                            Text("→", fontSize = 11.sp, lineHeight = 13.sp, color = TextMuted)
+                        }
+                        coil.compose.AsyncImage(
+                            model = com.vaultex.ui.components.CryptoIcon.url(
+                                SwapViewModel.assetOf(cle).base
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp).clip(CircleShape)
+                        )
+                        Text(
+                            SwapViewModel.assetOf(cle).base,
+                            fontSize = 11.sp, lineHeight = 13.sp, color = TextSecondary
+                        )
+                    }
+                }
             }
         }
         Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
