@@ -518,7 +518,29 @@ fun DashboardScreen(navController: NavHostController) {
             s'efface d'elle-même à l'aboutissement.
             */
             if (echangesEnCours.isNotEmpty()) {
-                item(key = "swaps_en_cours") { LigneEchangeEnCours(echangesEnCours) { navController.navigate(Routes.SWAP) } }
+                /*
+                LA MÊME NAVIGATION QUE LE BOUTON SWAP DE LA BARRE DU BAS.
+
+                Cette ligne appelait `navigate` tout court, ce qui EMPILE une
+                nouvelle page Swap : nouveau ViewModel, état vierge, donc le
+                FORMULAIRE — pas le suivi de l'échange dont la ligne parle.
+                Le bouton de la barre, lui, restaure l'état sauvegardé et
+                rouvrait bien le suivi. Deux chemins vers le même écran, deux
+                résultats.
+
+                C'est devenu la condition du reste : l'écran de suivi ne
+                retient plus personne, précisément parce qu'on peut y revenir
+                d'un doigt. Encore faut-il que ce doigt y ramène.
+                */
+                item(key = "swaps_en_cours") {
+                    LigneEchangeEnCours(echangesEnCours) {
+                        navController.navigate(Routes.SWAP) {
+                            popUpTo(Routes.DASHBOARD) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
             }
 
             // ─── Donut de répartition (#10) : seulement si >= 2 actifs financés ───

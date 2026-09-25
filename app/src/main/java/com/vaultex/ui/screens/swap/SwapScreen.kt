@@ -242,6 +242,7 @@ fun SwapScreen(navController: NavHostController) {
                 où aucune horloge n'intervient. Ici, on se contente de
                 partir.
                 */
+                viewModel.marquerSortieAccueil()
                 navController.navigate(Routes.DASHBOARD) {
                     // Même forme que la barre du bas : on revient à l'accueil
                     // sans empiler une seconde copie de l'écran.
@@ -252,6 +253,7 @@ fun SwapScreen(navController: NavHostController) {
                 // La remise à zéro n'a plus lieu ici : voir le bloc « UN ÉCHANGE
                 // CONCLU SE RANGE À L'ENTRÉE » en tête de cet écran.
             },
+            sortieDejaFaite = viewModel.sortieAccueilFaite,
             nomFournisseur = viewModel.nomFournisseur
         )
         screen == "confirm" -> SwapConfirmScreen(
@@ -935,8 +937,17 @@ private fun SwapTrackingScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onClose: () -> Unit,
     onHistory: () -> Unit,
-    /** Retour à l'accueil, automatique après le décompte ou sur demande. */
+    /** Retour à l'accueil, automatique juste après la création, ou sur demande. */
     onAccueil: () -> Unit,
+    /**
+     * Vrai si cet écran a DÉJÀ rendu la main à l'accueil pour cet échange.
+     *
+     * Sans cette mémoire, revenir par la ligne « Échange en cours » relancerait
+     * le départ automatique et renverrait aussitôt d'où l'on vient : le suivi
+     * deviendrait impossible à consulter. Le drapeau vit dans le ViewModel, qui
+     * survit à la recomposition ; un `remember` ne survivrait pas au retour.
+     */
+    sortieDejaFaite: Boolean,
     /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
     nomFournisseur: String
 ) {
@@ -954,21 +965,22 @@ private fun SwapTrackingScreen(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    RETOUR AUTOMATIQUE À L'ACCUEIL — VISIBLE, ET ANNULABLE
+    RETOUR AUTOMATIQUE À L'ACCUEIL
     ═══════════════════════════════════════════════════════════════════════
 
-    Le dépôt parti, il n'y a plus rien à faire ici : l'échange se termine
-    seul, le worker le suit, et l'accueil affiche désormais « Échange en
-    cours ». Rester planté devant une roue qui tourne n'apporte rien.
+    L'échange se termine seul, le worker le suit, l'accueil l'annonce et une
+    notification conclut. Il n'y a rien à faire ici.
 
-    MAIS ON NE FAIT PAS DISPARAÎTRE UN ÉCRAN SOUS LES YEUX DE QUELQU'UN. Cet
-    écran porte l'identifiant de l'échange — la seule donnée qu'on ne peut
-    pas reconstituer, celle qu'il faut pour réclamer auprès du fournisseur.
-    Le lui retirer pendant qu'il la lit ou la copie serait le genre de geste
-    qu'on ne pardonne pas sur un écran qui déplace de l'argent.
+    Cet écran a longtemps retenu l'utilisateur — cinq secondes, puis trois —
+    parce qu'il porte l'identifiant de l'échange, la seule donnée qu'on ne
+    peut pas reconstituer. Le lui retirer pendant qu'il la lit aurait été le
+    genre de geste qu'on ne pardonne pas sur un écran qui déplace de
+    l'argent.
 
-    D'où un décompte ÉCRIT, et un appui qui l'arrête définitivement. Celui
-    qui veut partir n'attend pas ; celui qui veut lire n'est pas chassé.
+    Ce qui a changé, c'est qu'on y REVIENT : la ligne « Échange en cours »
+    rouvre ce suivi dans l'état où il en est, et le détail de la transaction
+    porte l'identifiant. L'écran n'est plus une dernière chance de lire ; il
+    n'a donc plus de raison de retenir personne.
     */
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -1002,21 +1014,28 @@ private fun SwapTrackingScreen(
     val phase = if (failed) null else if (finished) "fini" else "depot"
     var decompteAnnule by remember { mutableStateOf(false) }
     /*
-    TROIS SECONDES, PAS CINQ.
+    ═══════════════════════════════════════════════════════════════════════
+    PLUS DE DÉCOMPTE DU TOUT
+    ═══════════════════════════════════════════════════════════════════════
 
-    Cinq secondes se justifiaient tant que cet écran avait quelque chose à
-    faire lire. Il n'a plus rien : la frise dit « en cours », le bandeau dit
-    de suivre depuis l'accueil, et l'identifiant reste accessible en revenant
-    par la ligne « Échange en cours ». Attendre devant un écran dont on a
-    déjà tout lu est exactement ce que cet écran était censé éviter.
+    Cinq secondes, puis trois. Le décompte existait pour ne pas faire
+    disparaître un écran sous les yeux de quelqu'un qui pouvait encore avoir
+    besoin de le lire — l'identifiant de l'échange, notamment.
 
-    On ne descend pas plus bas. « Rester ici » doit rester atteignable par
-    quelqu'un qui vient de lever les yeux du bouton de confirmation : sous
-    trois secondes, l'écran partirait avant d'avoir été vu, et c'est
-    précisément le reproche qui avait fait ajouter le décompte.
+    Ce raisonnement supposait que partir, c'était perdre l'écran. Ce n'est
+    plus vrai : la ligne « Échange en cours » de l'accueil ROUVRE ce même
+    suivi, dans l'état où il en est, et le détail de la transaction porte
+    l'identifiant. Retenir quelqu'un devant une roue pour une information
+    qu'il retrouve d'un doigt n'a plus de justification.
+
+    Reste une conclusion brève — voir plus bas — pour que l'écran se referme
+    au lieu de clignoter.
+
+    « Rester ici » disparaît avec le décompte. Ce n'était pas un réglage,
+    c'était une échappatoire au décompte lui-même.
     */
-    var secondes by remember(phase) { mutableStateOf(3) }
-    val decompteActif = phase != null && !decompteAnnule
+    var secondes by remember(phase) { mutableStateOf(0) }
+    val decompteActif = phase != null && !decompteAnnule && secondes > 0
 
     /*
     LE DÉCOMPTE TOURNE PENDANT LA DIFFUSION, PAS APRÈS.
@@ -1088,10 +1107,38 @@ private fun SwapTrackingScreen(
     fonds arriveront deux à cinq minutes plus tard. Une coche verte sur un
     écran d'argent est une affirmation, pas une décoration.
     */
-    LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
-        if (enSortie || phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
-        // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
-        if (phase == "fini" || depotEnvoye) enSortie = true
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON N'ATTEND PLUS LA DIFFUSION DU DÉPÔT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le départ exigeait le hash du dépôt : tant que la transaction n'était pas
+    diffusée, l'écran restait. L'intention était juste — ne pas partir sur une
+    transaction en vol dont l'échec doit se lire — mais le prix ne l'était
+    pas. La diffusion demande plusieurs allers-retours à un nœud public qui
+    rate-limite : vingt secondes mesurées sur appareil, parfois plus. Vingt
+    secondes devant une roue, pour une opération qui se termine seule.
+
+    Or l'accueil porte « Échange en cours » jusqu'à l'aboutissement, et une
+    notification annonce la fin même application fermée. Il n'y a donc rien
+    ici qu'on ne retrouve ailleurs.
+
+    CE QU'ON DOIT À L'UTILISATEUR EN PARTANT PLUS TÔT. Un dépôt qui échoue
+    après le départ ne peut plus s'afficher sur cet écran : SwapViewModel
+    pousse désormais une notification, hors du réglage « Alertes
+    transactions » — voir le bloc « CETTE NOTIFICATION EST DEVENUE LE SEUL
+    AVERTISSEMENT ». La ligne d'historique est marquée échouée dans le même
+    mouvement, donc l'accueil cesse d'annoncer un échange qui n'existe pas.
+
+    CE QU'ON NE FAIT PAS : affirmer. Sans le hash, rien n'est acquis — le
+    rond reste violet et le bandeau dit ce qu'il fait, pas ce qu'il a réussi.
+    Une coche verte sur un dépôt encore en vol serait un mensonge, et sur un
+    écran qui déplace de l'argent c'est le seul défaut impardonnable.
+    */
+    LaunchedEffect(secondes, phase, decompteAnnule) {
+        if (sortieDejaFaite || enSortie || phase == null || decompteAnnule || secondes > 0)
+            return@LaunchedEffect
+        enSortie = true
     }
 
     /*
@@ -1187,11 +1234,13 @@ private fun SwapTrackingScreen(
                             // « Dépôt envoyé » attend le hash, et un décompte
                             // arrivé à zéro sans hash dit qu'il attend.
                             Text(
+                                // « dès l'envoi du dépôt » n'a plus lieu d'être :
+                                // le départ n'attend plus la diffusion. Le
+                                // décompte dit donc toujours un nombre.
                                 when {
                                     phase == "fini" -> "Échange terminé  ·  retour à l'accueil dans $secondes s"
                                     depotEnvoye -> "Dépôt envoyé  ·  retour à l'accueil dans $secondes s"
-                                    secondes > 0 -> "Retour à l'accueil dans $secondes s"
-                                    else -> "Retour à l'accueil dès l'envoi du dépôt"
+                                    else -> "Retour à l'accueil dans $secondes s"
                                 },
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
@@ -1268,7 +1317,10 @@ private fun SwapTrackingScreen(
             // Grand cercle d'état
             // La grande coche ne vient qu'APRÈS les trois confirmations :
             // c'est elle qui clôt la séquence, pas qui l'ouvre.
-            val conclu = finished || enSortie
+            // Le vert n'est pas décoratif : il dit qu'une chose est ACQUISE.
+            // Partir sans le hash du dépôt n'acquiert rien — le rond reste
+            // violet et la roue tourne, ce qui est exactement l'état réel.
+            val conclu = finished || (enSortie && depotEnvoye)
             val fondCercle by androidx.compose.animation.animateColorAsState(
                 targetValue = if (conclu) SwapGreen else if (failed) AccentRed else swapPurpleDim,
                 animationSpec = tween(durationMillis = 350),
@@ -1321,8 +1373,14 @@ private fun SwapTrackingScreen(
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            if (finished) "Succès de l'échange. Tous les fonds ont été transférés."
-                            else "Échange lancé. Suis la suite depuis l'accueil.",
+                            // Trois phrases, trois vérités différentes. « Échange
+                            // lancé » suppose le dépôt diffusé ; sans son hash, on
+                            // ne dit que ce qui est en train de se faire.
+                            when {
+                                finished -> "Succès de l'échange. Tous les fonds ont été transférés."
+                                depotEnvoye -> "Échange lancé. Suis la suite depuis l'accueil."
+                                else -> "Envoi du dépôt en cours. Suis la suite depuis l'accueil."
+                            },
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }

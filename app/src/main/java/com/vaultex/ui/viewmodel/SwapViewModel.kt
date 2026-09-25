@@ -670,9 +670,35 @@ class SwapViewModel @Inject constructor(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SUIVI NE REND LA MAIN QU'UNE FOIS PAR ÉCHANGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran de suivi repart vers l'accueil tout seul, presque aussitôt : il
+    n'y a rien à y faire, l'échange se termine seul et l'accueil l'annonce.
+
+    Mais on y REVIENT — par la ligne « Échange en cours », ou par le bouton
+    Swap de la barre du bas, qui restaurent tous deux cet écran dans l'état
+    où il en est. Sans mémoire du départ déjà fait, ce retour relancerait le
+    départ automatique et renverrait aussitôt d'où l'on vient : le suivi
+    serait devenu impossible à consulter.
+
+    Ce drapeau vit ICI, et pas dans la composition : un `remember` meurt avec
+    l'écran, et c'est précisément l'écran qu'on quitte. Le ViewModel, lui,
+    est restauré avec l'entrée de navigation.
+    */
+    var sortieAccueilFaite: Boolean = false
+        private set
+
+    /** L'écran de suivi vient de rendre la main : il ne le refera plus seul. */
+    fun marquerSortieAccueil() { sortieAccueilFaite = true }
+
     fun executeSwap() {
         val s = _state.value
         if (s.isLoading) return
+        // Nouvel échange : le suivi a de nouveau le droit de rendre la main.
+        sortieAccueilFaite = false
         val inputAmount = s.fromAmount.toDoubleOrNull() ?: run {
             _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_enter_amount)) }
             return
@@ -822,6 +848,40 @@ class SwapViewModel @Inject constructor(
                         }
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
+                        /*
+                        ═══════════════════════════════════════════════════
+                        CETTE NOTIFICATION EST DEVENUE LE SEUL AVERTISSEMENT
+                        ═══════════════════════════════════════════════════
+
+                        Le message d'erreur ci-dessus s'affiche sur l'écran de
+                        swap. Or l'écran de suivi ne retient plus personne : il
+                        rend la main à l'accueil au bout de trois secondes, sans
+                        attendre que le dépôt soit diffusé. Quand l'envoi échoue
+                        après ce départ, plus personne n'est là pour lire quoi
+                        que ce soit.
+
+                        Ce n'est pas un échec anodin. L'échange existe chez le
+                        fournisseur, la ligne d'historique existe — et pas un
+                        centime n'a bougé. Sans avertissement, l'utilisateur
+                        croit son échange lancé et attend des fonds qui ne
+                        viendront jamais.
+
+                        ELLE N'EST PAS SOUMISE À « ALERTES TRANSACTIONS ». Ce
+                        réglage écarte le bruit : dépôts reçus, swaps aboutis,
+                        confirmations. Ici il ne s'agit pas d'informer d'un
+                        événement de plus, mais de rattraper quelqu'un à qui
+                        l'application vient de retirer l'écran qui portait
+                        l'erreur. Un réglage de confort ne doit pas pouvoir
+                        supprimer ça.
+                        */
+                        runCatching {
+                            hub.post(
+                                key = "swap:depotko:${txRes.id}",
+                                title = str(com.vaultex.R.string.notif_swap_failed_title),
+                                body = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message),
+                                symbol = assetOf(s.fromToken).base
+                            )
+                        }
                         com.vaultex.core.monitoring.AdminBot.swapFailed(
                             assetOf(s.fromToken).base, assetOf(s.toToken).base,
                             "dépôt refusé : ${dep.message}")
@@ -1085,5 +1145,8 @@ class SwapViewModel @Inject constructor(
         super.onCleared()
     }
 
-    fun resetSwap() = _state.update { SwapState() }
+    fun resetSwap() {
+        sortieAccueilFaite = false
+        _state.update { SwapState() }
+    }
 }
