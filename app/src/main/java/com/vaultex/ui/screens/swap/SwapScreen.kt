@@ -361,13 +361,42 @@ fun SwapScreen(navController: NavHostController) {
         Quatre secondes de tentatives au plus. Au-delà, quelque chose de plus
         grave se passe, et boucler indéfiniment ne le réparerait pas.
         */
-        repeat(40) {
+        var methode = "aucune"
+        repeat(40) { essai ->
             if (navController.currentBackStackEntry?.destination?.route == Routes.DASHBOARD)
                 return@LaunchedEffect
-            navController.navigate(Routes.DASHBOARD) {
-                popUpTo(Routes.DASHBOARD) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
+
+            when {
+                /*
+                1. DÉPILER, PLUTÔT QUE NAVIGUER. L'accueil est SOUS nous dans
+                   la pile : il n'y a rien à créer, seulement à revenir. Et
+                   surtout, popBackStack REND UN BOOLÉEN — c'est la seule des
+                   trois méthodes qui dise si elle a fait quelque chose, là
+                   où navigate échoue sans un mot.
+                */
+                essai < 10 -> {
+                    val ok = navController.popBackStack(Routes.DASHBOARD, false)
+                    methode = "popBackStack=$ok"
+                }
+                // 2. La navigation de la barre du bas, mot pour mot. Elle
+                //    fonctionne au doigt ; elle est ignorée ici.
+                essai < 20 -> {
+                    navController.navigate(Routes.DASHBOARD) {
+                        popUpTo(Routes.DASHBOARD) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    methode = "navigate+popUpTo"
+                }
+                /*
+                3. EMPILEMENT NU, en dernier recours. Il laisse le swap sous
+                   l'accueil — le bouton retour y ramènerait — ce qui n'est
+                   pas idéal, mais rester bloqué l'est beaucoup moins.
+                */
+                else -> {
+                    navController.navigate(Routes.DASHBOARD)
+                    methode = "navigate nu"
+                }
             }
             kotlinx.coroutines.delay(100)
         }
@@ -386,7 +415,10 @@ fun SwapScreen(navController: NavHostController) {
             "retour accueil après swap",
             IllegalStateException(
                 "navigation refusée, destination courante = " +
-                    (navController.currentBackStackEntry?.destination?.route ?: "inconnue")
+                    (navController.currentBackStackEntry?.destination?.route ?: "inconnue") +
+                    ", dernière méthode = " + methode +
+                    ", pile = " + navController.currentBackStack.value
+                        .mapNotNull { it.destination.route }.joinToString(">")
             )
         )
     }
