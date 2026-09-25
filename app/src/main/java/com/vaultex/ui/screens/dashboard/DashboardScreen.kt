@@ -817,8 +817,29 @@ private fun BalanceCard(
         else com.vaultex.core.util.CurrencyFormat.format(usd, "USD")
     val masked = "••••••"
 
-    // Maquette : bloc SANS fond (à plat sur l'écran), identique en clair et en
-    // sombre — les couleurs de texte viennent du thème et s'adaptent seules.
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SOLDE REPREND SA CARTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le bloc était posé à plat sur l'écran. Il reçoit un fond discret et une
+    bordure fine, comme sur la maquette.
+
+    Ce n'est pas contradictoire avec les cartes retirées ailleurs. Une LISTE
+    n'a pas besoin de cadres : dix rectangles empilés font compter des boîtes
+    au lieu de lire. Un ÉLÉMENT UNIQUE, lui, gagne à être délimité — surtout
+    celui-ci, qui porte le chiffre le plus important de l'application et qui
+    se retrouve sinon à flotter entre le logo et les tuiles d'action, sans
+    rien qui dise où il commence.
+
+    Le fond reste très proche de celui de l'écran : il sépare sans peser.
+    */
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = com.vaultex.ui.theme.Surface.copy(alpha = 0.45f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         // Courbe violette décorative à droite (maquette) — pas d'historique de
         // solde disponible localement, la forme est stable (déterministe).
@@ -956,6 +977,7 @@ private fun BalanceCard(
                 )
             }
         }
+    }
     }
 }
 
