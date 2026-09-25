@@ -1099,21 +1099,26 @@ private fun SwapTrackingScreen(
     UNE SORTIE ENGAGÉE NE S'ANNULE PLUS
     ═══════════════════════════════════════════════════════════════════════
 
-    Le départ attendait 1,4 s DANS l'effet ci-dessus, dont les clés
-    comprennent `phase` et `secondes`. Or `phase` bascule de « depot » à
-    « fini » dès que le fournisseur conclut, et `secondes` est
+    Le départ attendait DANS l'effet ci-dessus, dont les clés comprennent
+    `phase` et `secondes`. Un effet à clés est annulé et relancé dès qu'une
+    clé change, y compris au milieu d'une attente. Or `phase` bascule de
+    « depot » à « fini » quand le fournisseur conclut, et `secondes` est
     `remember(phase)` : ce basculement annule l'effet en cours ET remet le
-    compteur à cinq.
+    compteur à son maximum.
 
-    Si cela tombe pendant cette courte attente, `onAccueil()` n'est
-    jamais atteint. L'écran reste alors sur son état de sortie — coche verte,
+    Si cela tombe pendant cette courte attente, `onAccueil()` n'est jamais
+    atteint. L'écran reste alors sur son état de sortie — coche verte,
     « Échange lancé » — mais sans le bandeau de décompte, que `enSortie`
-    masque. Plus rien n'avance et rien n'explique pourquoi : vu de
-    l'utilisateur, l'application est bloquée sur l'écran final.
+    masque. Plus rien n'avance et rien ne l'explique : vu de l'utilisateur,
+    l'application est bloquée sur l'écran final.
 
-    Le départ vit donc dans son propre effet, dont la seule clé est la
-    décision de partir. Une fois `enSortie` posé, plus aucun changement
-    d'état ne peut interrompre le compte à rebours.
+    Le départ vit donc dans son propre effet, dont la SEULE clé est la
+    décision de partir. `enSortie` ne redevient jamais faux : une fois posé,
+    plus aucun changement d'état ne peut interrompre l'attente.
+
+    L'effet d'armement ci-dessus garde ses clés, et c'est sans conséquence :
+    il ne suspend rien. Être relancé lui fait seulement réexaminer des
+    conditions — ce qui est exactement son travail.
     */
     LaunchedEffect(enSortie) {
         if (!enSortie) return@LaunchedEffect
