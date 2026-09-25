@@ -43,6 +43,7 @@ import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.PortfolioViewModel
+import com.vaultex.ui.viewmodel.SwapViewModel
 import com.vaultex.ui.viewmodel.TokenBalance
 import java.util.Locale
 
@@ -1390,19 +1391,54 @@ private fun LigneEchangeEnCours(
     echanges: List<com.vaultex.data.local.entity.TransactionEntity>,
     onClick: () -> Unit
 ) {
-    val texte =
-        if (echanges.size == 1) "Échange en cours  ·  ${echanges[0].tokenSymbol.replace("→", " → ")}"
-        else "${echanges.size} échanges en cours"
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DEUX LIGNES, SANS CADRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Une seule ligne entassait tout derrière un point médian : « Échange en
+    cours · USDT-ETH → ETH ». Le titre et la paire se disputaient la même
+    ligne, et sur un écran étroit la paire était la première coupée — alors
+    que c'est elle qui dit DE QUOI on parle.
+
+    Le titre passe donc au-dessus, la paire en dessous, comme dans la
+    maquette. Mais sans le cadre ni le fond qu'elle porte : la cloche vient
+    d'en être débarrassée, et une carte isolée au milieu d'un écran qui n'en
+    a pas attirerait l'œil plus que son contenu ne le mérite — il n'y a rien
+    à faire, seulement à attendre.
+
+    LES NOMS VIENNENT DU REGISTRE, PAS DE LA BASE. tokenSymbol y est stocké
+    sous forme de CLÉS — « USDT-ETH→ETH » — parce que c'est ce qui permet au
+    worker de retrouver l'actif. Les afficher telles quelles ferait paraître
+    un nom que l'utilisateur ne voit nulle part ailleurs : le sélecteur, le
+    solde et la fiche disent tous « USDT ».
+
+    La roue reste bleue : c'est la couleur de la tuile Swap juste en
+    dessous, celle dont cette ligne parle. Et elle tourne, ce qui est le
+    seul moyen de distinguer « en cours » de « figé ».
+    */
+    val paire = echanges.firstOrNull()?.tokenSymbol
+        ?.split("→")
+        ?.mapNotNull { cle -> cle.trim().takeIf { it.isNotEmpty() }?.let { SwapViewModel.assetOf(it).base } }
+        ?.joinToString(" → ")
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(12.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(texte, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(15.dp))
+        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (echanges.size == 1) "Échange en cours" else "${echanges.size} échanges en cours",
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            )
+            if (echanges.size == 1 && !paire.isNullOrBlank()) {
+                Text(paire, fontSize = 12.sp, color = TextSecondary)
+            }
+        }
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
     }
 }
