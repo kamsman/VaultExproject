@@ -314,7 +314,6 @@ fun SwapScreen(navController: NavHostController) {
     personne ne regarde.
     */
     var conclusion by remember { mutableStateOf(false) }
-    val cycleDeVie = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.swapInProgress, state.swapId) {
         if (!state.swapInProgress || suiviDemande || viewModel.sortieAccueilFaite)
             return@LaunchedEffect
@@ -322,18 +321,7 @@ fun SwapScreen(navController: NavHostController) {
         val debut = System.currentTimeMillis()
         conclusion = true
 
-        var attente = 0
-        while (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
-            attente < 100
-        ) {
-            kotlinx.coroutines.delay(50)
-            attente++
-        }
-        if (!cycleDeVie.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
-            return@LaunchedEffect
-
-        // Trois secondes AU PLUS, comptées depuis l'apparition de l'écran :
-        // l'attente du premier plan est déduite, jamais ajoutée.
+        // Trois secondes AU PLUS, comptées depuis l'apparition de l'écran.
         val reste = 3000L - (System.currentTimeMillis() - debut)
         if (reste > 0) kotlinx.coroutines.delay(reste)
 
@@ -344,11 +332,63 @@ fun SwapScreen(navController: NavHostController) {
         if (!conclusion) return@LaunchedEffect
 
         viewModel.marquerSortieAccueil()
-        navController.navigate(Routes.DASHBOARD) {
-            popUpTo(Routes.DASHBOARD) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        ON VÉRIFIE QUE LA NAVIGATION A EU LIEU — ELLE PEUT ÊTRE IGNORÉE
+        ═══════════════════════════════════════════════════════════════════
+
+        NavController refuse de naviguer depuis une destination qui n'est pas
+        RESUMED, et il le fait EN SILENCE : pas d'exception, pas de journal,
+        l'appel disparaît. Or « Confirmer le swap » passe par la demande
+        d'empreinte, dont la boîte de dialogue peut retarder ce retour au
+        premier plan de quelques centaines de millisecondes.
+
+        Un seul appel, tombé dans cette fenêtre, laisse l'écran en place
+        définitivement — sans le moindre indice, et c'est précisément ce qui
+        a été constaté : la conclusion s'affiche et ne part jamais.
+
+        Une tentative d'attendre l'état RESUMED avant d'appeler n'a rien
+        changé, ce qui veut dire que la cause n'est pas exactement celle-là.
+        On cesse donc de la deviner : on REGARDE le résultat. Tant que la
+        destination courante n'est pas l'accueil, on redemande.
+
+        La demande est idempotente — `popUpTo(DASHBOARD)` et
+        `launchSingleTop` garantissent une seule copie de l'accueil, quel que
+        soit le nombre d'appels — et le contrôle précède chaque tentative,
+        donc l'appel qui aboutit est le dernier.
+
+        Quatre secondes de tentatives au plus. Au-delà, quelque chose de plus
+        grave se passe, et boucler indéfiniment ne le réparerait pas.
+        */
+        repeat(40) {
+            if (navController.currentBackStackEntry?.destination?.route == Routes.DASHBOARD)
+                return@LaunchedEffect
+            navController.navigate(Routes.DASHBOARD) {
+                popUpTo(Routes.DASHBOARD) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            kotlinx.coroutines.delay(100)
         }
+
+        /*
+        QUATRE SECONDES DE REFUS : ON LAISSE UNE TRACE.
+
+        Ce chemin ne devrait jamais s'exécuter. S'il s'exécute, l'écran est
+        resté, l'utilisateur ne le comprend pas, et nous non plus — faute
+        d'avoir jamais vu autre chose qu'une capture d'écran. Le diagnostic
+        administrateur nomme la destination réellement courante, ce qui
+        distingue « la navigation est ignorée » de « elle a eu lieu, mais pas
+        vers l'accueil ».
+        */
+        com.vaultex.core.monitoring.reportUnlessCancelled(
+            "retour accueil après swap",
+            IllegalStateException(
+                "navigation refusée, destination courante = " +
+                    (navController.currentBackStackEntry?.destination?.route ?: "inconnue")
+            )
+        )
     }
 
     // Le suivi ne s'affiche plus que sur demande explicite.
