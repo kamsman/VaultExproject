@@ -771,6 +771,10 @@ class SwapViewModel @Inject constructor(
                 if (notifPrefs.txAlerts.value) {
                     hub.post(
                         key = "swap:started:${txRes.id}",
+                        // L'échange est enregistré dans la table des
+                        // transactions sous ce même identifiant : la cloche
+                        // ouvrira donc son détail.
+                        hash = txRes.id,
                         title = str(com.vaultex.R.string.notif_swap_started_title),
                         body = str(com.vaultex.R.string.notif_swap_started_body, s.fromAmount, assetOf(s.fromToken).base, assetOf(s.toToken).base),
                         symbol = assetOf(s.fromToken).base
@@ -1054,6 +1058,7 @@ class SwapViewModel @Inject constructor(
                             if (remote == "finished") {
                                 hub.post(
                                     key = "swap:done:$swapId",
+                                    hash = swapId,
                                     title = str(com.vaultex.R.string.notif_swap_done_title),
                                     body = str(com.vaultex.R.string.notif_swap_done_body, st.fromAmount, fromSym, toSym),
                                     symbol = toSym
@@ -1061,6 +1066,7 @@ class SwapViewModel @Inject constructor(
                             } else {
                                 hub.post(
                                     key = "swap:failed:$swapId",
+                                    hash = swapId,
                                     title = str(com.vaultex.R.string.notif_swap_failed_title),
                                     body = str(com.vaultex.R.string.notif_swap_failed_body, fromSym, toSym),
                                     symbol = fromSym

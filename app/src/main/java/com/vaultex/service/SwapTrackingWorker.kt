@@ -164,6 +164,7 @@ class SwapTrackingWorker @AssistedInject constructor(
                         // Clé identique à celle de SwapViewModel : si l'écran a
                         // déjà notifié, le hub ignore ce doublon.
                         key = "swap:done:${swap.hash}",
+                        hash = swap.hash,
                         title = ctx.getString(R.string.notif_swap_done_title),
                         body = ctx.getString(R.string.notif_swap_done_body, swap.amount, from, to),
                         symbol = to
@@ -171,6 +172,7 @@ class SwapTrackingWorker @AssistedInject constructor(
                 } else {
                     hub.post(
                         key = "swap:failed:${swap.hash}",
+                        hash = swap.hash,
                         title = ctx.getString(R.string.notif_swap_failed_title),
                         body = ctx.getString(R.string.notif_swap_failed_body, from, to),
                         symbol = from
