@@ -131,6 +131,7 @@ class PendingSendWorker @AssistedInject constructor(
                         if (notifPrefs.txAlerts.value) {
                             hub.post(
                                 key = "sent:${res.txHash}",
+                                hash = res.txHash,
                                 title = "Envoi effectué",
                                 body = "Envoi de ${item.amount} $sym confirmé (mis en file hors-ligne)",
                                 symbol = sym
