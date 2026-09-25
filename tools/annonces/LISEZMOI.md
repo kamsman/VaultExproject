@@ -78,6 +78,31 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## Le numéro de contact
+
+`maj-05-swap-rapide.txt` se termine par un numéro joignable. C'est le seul
+fichier qui en porte un, et c'est volontaire : un numéro dans chaque annonce
+devient du décor qu'on ne lit plus, et il occupe une place qui compte —
+beaucoup de surcouches Android coupent la notification après deux lignes.
+
+Il n'y est pas non plus par hasard. Cette annonce parle d'un changement de
+COMPORTEMENT : l'écran de suivi ne s'affiche plus après une confirmation.
+Quelqu'un qui avait l'habitude de le voir peut croire que son échange n'est
+pas parti. C'est exactement le moment où l'on veut pouvoir demander — et où
+une question sans réponse se transforme en fonds qu'on croit perdus.
+
+Ne le recopier dans un autre message que si ce message, lui aussi, peut
+faire douter quelqu'un de l'état de son argent.
+
+## Ce que celle-ci ne promet pas non plus
+
+« Plus rapide » porte sur l'ATTENTE À L'ÉCRAN, pas sur l'échange. L'échange
+dure toujours 2 à 5 minutes chez le fournisseur, et rien de ce qui a été
+fait ne change cela : ce qui a changé, c'est qu'on n'est plus obligé de
+regarder. Le texte dit donc « ne te fait plus attendre », et non « plus
+rapide » tout court — la nuance est la différence entre une promesse tenue
+et une promesse démentie par le premier échange.
+
 ## Le logo d'une mise à jour
 
 Le 3e argument du script n'accepte qu'un TICKER de monnaie : il va chercher
