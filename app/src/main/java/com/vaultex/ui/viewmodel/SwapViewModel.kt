@@ -822,6 +822,40 @@ class SwapViewModel @Inject constructor(
                         }
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
+                        /*
+                        ═══════════════════════════════════════════════════
+                        CETTE NOTIFICATION EST DEVENUE LE SEUL AVERTISSEMENT
+                        ═══════════════════════════════════════════════════
+
+                        Le message d'erreur ci-dessus s'affiche sur l'écran de
+                        swap. Or l'écran de suivi ne retient plus personne : il
+                        rend la main à l'accueil au bout de trois secondes, sans
+                        attendre que le dépôt soit diffusé. Quand l'envoi échoue
+                        après ce départ, plus personne n'est là pour lire quoi
+                        que ce soit.
+
+                        Ce n'est pas un échec anodin. L'échange existe chez le
+                        fournisseur, la ligne d'historique existe — et pas un
+                        centime n'a bougé. Sans avertissement, l'utilisateur
+                        croit son échange lancé et attend des fonds qui ne
+                        viendront jamais.
+
+                        ELLE N'EST PAS SOUMISE À « ALERTES TRANSACTIONS ». Ce
+                        réglage écarte le bruit : dépôts reçus, swaps aboutis,
+                        confirmations. Ici il ne s'agit pas d'informer d'un
+                        événement de plus, mais de rattraper quelqu'un à qui
+                        l'application vient de retirer l'écran qui portait
+                        l'erreur. Un réglage de confort ne doit pas pouvoir
+                        supprimer ça.
+                        */
+                        runCatching {
+                            hub.post(
+                                key = "swap:depotko:${txRes.id}",
+                                title = str(com.vaultex.R.string.notif_swap_failed_title),
+                                body = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message),
+                                symbol = assetOf(s.fromToken).base
+                            )
+                        }
                         com.vaultex.core.monitoring.AdminBot.swapFailed(
                             assetOf(s.fromToken).base, assetOf(s.toToken).base,
                             "dépôt refusé : ${dep.message}")

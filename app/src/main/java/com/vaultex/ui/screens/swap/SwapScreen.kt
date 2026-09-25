@@ -1088,10 +1088,37 @@ private fun SwapTrackingScreen(
     fonds arriveront deux à cinq minutes plus tard. Une coche verte sur un
     écran d'argent est une affirmation, pas une décoration.
     */
-    LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON N'ATTEND PLUS LA DIFFUSION DU DÉPÔT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le départ exigeait le hash du dépôt : tant que la transaction n'était pas
+    diffusée, l'écran restait. L'intention était juste — ne pas partir sur une
+    transaction en vol dont l'échec doit se lire — mais le prix ne l'était
+    pas. La diffusion demande plusieurs allers-retours à un nœud public qui
+    rate-limite : vingt secondes mesurées sur appareil, parfois plus. Vingt
+    secondes devant une roue, pour une opération qui se termine seule.
+
+    Or l'accueil porte « Échange en cours » jusqu'à l'aboutissement, et une
+    notification annonce la fin même application fermée. Il n'y a donc rien
+    ici qu'on ne retrouve ailleurs.
+
+    CE QU'ON DOIT À L'UTILISATEUR EN PARTANT PLUS TÔT. Un dépôt qui échoue
+    après le départ ne peut plus s'afficher sur cet écran : SwapViewModel
+    pousse désormais une notification, hors du réglage « Alertes
+    transactions » — voir le bloc « CETTE NOTIFICATION EST DEVENUE LE SEUL
+    AVERTISSEMENT ». La ligne d'historique est marquée échouée dans le même
+    mouvement, donc l'accueil cesse d'annoncer un échange qui n'existe pas.
+
+    CE QU'ON NE FAIT PAS : affirmer. Sans le hash, rien n'est acquis — le
+    rond reste violet et le bandeau dit ce qu'il fait, pas ce qu'il a réussi.
+    Une coche verte sur un dépôt encore en vol serait un mensonge, et sur un
+    écran qui déplace de l'argent c'est le seul défaut impardonnable.
+    */
+    LaunchedEffect(secondes, phase, decompteAnnule) {
         if (enSortie || phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
-        // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
-        if (phase == "fini" || depotEnvoye) enSortie = true
+        enSortie = true
     }
 
     /*
@@ -1187,11 +1214,13 @@ private fun SwapTrackingScreen(
                             // « Dépôt envoyé » attend le hash, et un décompte
                             // arrivé à zéro sans hash dit qu'il attend.
                             Text(
+                                // « dès l'envoi du dépôt » n'a plus lieu d'être :
+                                // le départ n'attend plus la diffusion. Le
+                                // décompte dit donc toujours un nombre.
                                 when {
                                     phase == "fini" -> "Échange terminé  ·  retour à l'accueil dans $secondes s"
                                     depotEnvoye -> "Dépôt envoyé  ·  retour à l'accueil dans $secondes s"
-                                    secondes > 0 -> "Retour à l'accueil dans $secondes s"
-                                    else -> "Retour à l'accueil dès l'envoi du dépôt"
+                                    else -> "Retour à l'accueil dans $secondes s"
                                 },
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
@@ -1268,7 +1297,10 @@ private fun SwapTrackingScreen(
             // Grand cercle d'état
             // La grande coche ne vient qu'APRÈS les trois confirmations :
             // c'est elle qui clôt la séquence, pas qui l'ouvre.
-            val conclu = finished || enSortie
+            // Le vert n'est pas décoratif : il dit qu'une chose est ACQUISE.
+            // Partir sans le hash du dépôt n'acquiert rien — le rond reste
+            // violet et la roue tourne, ce qui est exactement l'état réel.
+            val conclu = finished || (enSortie && depotEnvoye)
             val fondCercle by androidx.compose.animation.animateColorAsState(
                 targetValue = if (conclu) SwapGreen else if (failed) AccentRed else swapPurpleDim,
                 animationSpec = tween(durationMillis = 350),
@@ -1321,8 +1353,14 @@ private fun SwapTrackingScreen(
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            if (finished) "Succès de l'échange. Tous les fonds ont été transférés."
-                            else "Échange lancé. Suis la suite depuis l'accueil.",
+                            // Trois phrases, trois vérités différentes. « Échange
+                            // lancé » suppose le dépôt diffusé ; sans son hash, on
+                            // ne dit que ce qui est en train de se faire.
+                            when {
+                                finished -> "Succès de l'échange. Tous les fonds ont été transférés."
+                                depotEnvoye -> "Échange lancé. Suis la suite depuis l'accueil."
+                                else -> "Envoi du dépôt en cours. Suis la suite depuis l'accueil."
+                            },
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
