@@ -242,6 +242,7 @@ fun SwapScreen(navController: NavHostController) {
                 où aucune horloge n'intervient. Ici, on se contente de
                 partir.
                 */
+                viewModel.marquerSortieAccueil()
                 navController.navigate(Routes.DASHBOARD) {
                     // Même forme que la barre du bas : on revient à l'accueil
                     // sans empiler une seconde copie de l'écran.
@@ -252,6 +253,7 @@ fun SwapScreen(navController: NavHostController) {
                 // La remise à zéro n'a plus lieu ici : voir le bloc « UN ÉCHANGE
                 // CONCLU SE RANGE À L'ENTRÉE » en tête de cet écran.
             },
+            sortieDejaFaite = viewModel.sortieAccueilFaite,
             nomFournisseur = viewModel.nomFournisseur
         )
         screen == "confirm" -> SwapConfirmScreen(
@@ -935,8 +937,17 @@ private fun SwapTrackingScreen(
     state: com.vaultex.ui.viewmodel.SwapState,
     onClose: () -> Unit,
     onHistory: () -> Unit,
-    /** Retour à l'accueil, automatique après le décompte ou sur demande. */
+    /** Retour à l'accueil, automatique juste après la création, ou sur demande. */
     onAccueil: () -> Unit,
+    /**
+     * Vrai si cet écran a DÉJÀ rendu la main à l'accueil pour cet échange.
+     *
+     * Sans cette mémoire, revenir par la ligne « Échange en cours » relancerait
+     * le départ automatique et renverrait aussitôt d'où l'on vient : le suivi
+     * deviendrait impossible à consulter. Le drapeau vit dans le ViewModel, qui
+     * survit à la recomposition ; un `remember` ne survivrait pas au retour.
+     */
+    sortieDejaFaite: Boolean,
     /** Nom de l'échangeur en service — ChangeNOW ou SimpleSwap. */
     nomFournisseur: String
 ) {
@@ -954,21 +965,22 @@ private fun SwapTrackingScreen(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    RETOUR AUTOMATIQUE À L'ACCUEIL — VISIBLE, ET ANNULABLE
+    RETOUR AUTOMATIQUE À L'ACCUEIL
     ═══════════════════════════════════════════════════════════════════════
 
-    Le dépôt parti, il n'y a plus rien à faire ici : l'échange se termine
-    seul, le worker le suit, et l'accueil affiche désormais « Échange en
-    cours ». Rester planté devant une roue qui tourne n'apporte rien.
+    L'échange se termine seul, le worker le suit, l'accueil l'annonce et une
+    notification conclut. Il n'y a rien à faire ici.
 
-    MAIS ON NE FAIT PAS DISPARAÎTRE UN ÉCRAN SOUS LES YEUX DE QUELQU'UN. Cet
-    écran porte l'identifiant de l'échange — la seule donnée qu'on ne peut
-    pas reconstituer, celle qu'il faut pour réclamer auprès du fournisseur.
-    Le lui retirer pendant qu'il la lit ou la copie serait le genre de geste
-    qu'on ne pardonne pas sur un écran qui déplace de l'argent.
+    Cet écran a longtemps retenu l'utilisateur — cinq secondes, puis trois —
+    parce qu'il porte l'identifiant de l'échange, la seule donnée qu'on ne
+    peut pas reconstituer. Le lui retirer pendant qu'il la lit aurait été le
+    genre de geste qu'on ne pardonne pas sur un écran qui déplace de
+    l'argent.
 
-    D'où un décompte ÉCRIT, et un appui qui l'arrête définitivement. Celui
-    qui veut partir n'attend pas ; celui qui veut lire n'est pas chassé.
+    Ce qui a changé, c'est qu'on y REVIENT : la ligne « Échange en cours »
+    rouvre ce suivi dans l'état où il en est, et le détail de la transaction
+    porte l'identifiant. L'écran n'est plus une dernière chance de lire ; il
+    n'a donc plus de raison de retenir personne.
     */
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -1002,21 +1014,28 @@ private fun SwapTrackingScreen(
     val phase = if (failed) null else if (finished) "fini" else "depot"
     var decompteAnnule by remember { mutableStateOf(false) }
     /*
-    TROIS SECONDES, PAS CINQ.
+    ═══════════════════════════════════════════════════════════════════════
+    PLUS DE DÉCOMPTE DU TOUT
+    ═══════════════════════════════════════════════════════════════════════
 
-    Cinq secondes se justifiaient tant que cet écran avait quelque chose à
-    faire lire. Il n'a plus rien : la frise dit « en cours », le bandeau dit
-    de suivre depuis l'accueil, et l'identifiant reste accessible en revenant
-    par la ligne « Échange en cours ». Attendre devant un écran dont on a
-    déjà tout lu est exactement ce que cet écran était censé éviter.
+    Cinq secondes, puis trois. Le décompte existait pour ne pas faire
+    disparaître un écran sous les yeux de quelqu'un qui pouvait encore avoir
+    besoin de le lire — l'identifiant de l'échange, notamment.
 
-    On ne descend pas plus bas. « Rester ici » doit rester atteignable par
-    quelqu'un qui vient de lever les yeux du bouton de confirmation : sous
-    trois secondes, l'écran partirait avant d'avoir été vu, et c'est
-    précisément le reproche qui avait fait ajouter le décompte.
+    Ce raisonnement supposait que partir, c'était perdre l'écran. Ce n'est
+    plus vrai : la ligne « Échange en cours » de l'accueil ROUVRE ce même
+    suivi, dans l'état où il en est, et le détail de la transaction porte
+    l'identifiant. Retenir quelqu'un devant une roue pour une information
+    qu'il retrouve d'un doigt n'a plus de justification.
+
+    Reste une conclusion brève — voir plus bas — pour que l'écran se referme
+    au lieu de clignoter.
+
+    « Rester ici » disparaît avec le décompte. Ce n'était pas un réglage,
+    c'était une échappatoire au décompte lui-même.
     */
-    var secondes by remember(phase) { mutableStateOf(3) }
-    val decompteActif = phase != null && !decompteAnnule
+    var secondes by remember(phase) { mutableStateOf(0) }
+    val decompteActif = phase != null && !decompteAnnule && secondes > 0
 
     /*
     LE DÉCOMPTE TOURNE PENDANT LA DIFFUSION, PAS APRÈS.
@@ -1117,7 +1136,8 @@ private fun SwapTrackingScreen(
     écran qui déplace de l'argent c'est le seul défaut impardonnable.
     */
     LaunchedEffect(secondes, phase, decompteAnnule) {
-        if (enSortie || phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
+        if (sortieDejaFaite || enSortie || phase == null || decompteAnnule || secondes > 0)
+            return@LaunchedEffect
         enSortie = true
     }
 

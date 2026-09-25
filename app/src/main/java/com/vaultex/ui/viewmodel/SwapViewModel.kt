@@ -670,9 +670,35 @@ class SwapViewModel @Inject constructor(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SUIVI NE REND LA MAIN QU'UNE FOIS PAR ÉCHANGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran de suivi repart vers l'accueil tout seul, presque aussitôt : il
+    n'y a rien à y faire, l'échange se termine seul et l'accueil l'annonce.
+
+    Mais on y REVIENT — par la ligne « Échange en cours », ou par le bouton
+    Swap de la barre du bas, qui restaurent tous deux cet écran dans l'état
+    où il en est. Sans mémoire du départ déjà fait, ce retour relancerait le
+    départ automatique et renverrait aussitôt d'où l'on vient : le suivi
+    serait devenu impossible à consulter.
+
+    Ce drapeau vit ICI, et pas dans la composition : un `remember` meurt avec
+    l'écran, et c'est précisément l'écran qu'on quitte. Le ViewModel, lui,
+    est restauré avec l'entrée de navigation.
+    */
+    var sortieAccueilFaite: Boolean = false
+        private set
+
+    /** L'écran de suivi vient de rendre la main : il ne le refera plus seul. */
+    fun marquerSortieAccueil() { sortieAccueilFaite = true }
+
     fun executeSwap() {
         val s = _state.value
         if (s.isLoading) return
+        // Nouvel échange : le suivi a de nouveau le droit de rendre la main.
+        sortieAccueilFaite = false
         val inputAmount = s.fromAmount.toDoubleOrNull() ?: run {
             _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_enter_amount)) }
             return
@@ -1119,5 +1145,8 @@ class SwapViewModel @Inject constructor(
         super.onCleared()
     }
 
-    fun resetSwap() = _state.update { SwapState() }
+    fun resetSwap() {
+        sortieAccueilFaite = false
+        _state.update { SwapState() }
+    }
 }
