@@ -534,6 +534,10 @@ fun DashboardScreen(navController: NavHostController) {
                 */
                 item(key = "swaps_en_cours") {
                     LigneEchangeEnCours(echangesEnCours) {
+                        // Cette ligne est le SEUL chemin qui demande le suivi.
+                        // Le bouton Swap de la barre du bas ouvre le formulaire,
+                        // même pendant un échange — voir SuiviSwapBuffer.
+                        com.vaultex.core.session.SuiviSwapBuffer.demanderSuivi()
                         navController.navigate(Routes.SWAP) {
                             popUpTo(Routes.DASHBOARD) { saveState = true }
                             launchSingleTop = true

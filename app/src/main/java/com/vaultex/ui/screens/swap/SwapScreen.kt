@@ -212,8 +212,50 @@ fun SwapScreen(navController: NavHostController) {
         } else viewModel.executeSwap()
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    QUI A DEMANDÉ LE SUIVI ?
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cet écran choisissait d'après un seul fait — y a-t-il un échange en
+    cours ? — et montrait donc le suivi quelle que soit la porte d'entrée.
+    Pendant les deux à cinq minutes que dure un échange, le bouton central de
+    la barre du bas ramenait ainsi sur le suivi du précédent, restauré tel
+    quel, coche verte comprise, au lieu d'ouvrir le formulaire.
+
+    Vu de l'utilisateur, c'est indistinguable d'un écran bloqué : il croit
+    être reparti, il touche Swap, et le même écran est là. C'est ce qui a été
+    rapporté comme « cet écran ne part jamais » alors que le départ
+    automatique fonctionnait.
+
+    Le suivi ne s'affiche donc que sur DEMANDE — la ligne « Échange en
+    cours » de l'accueil — ou tant qu'on ne l'a pas encore quitté, c'est-à-
+    dire juste après la création, le temps de la conclusion.
+
+    `remember` et non `LaunchedEffect` : la décision est prise PENDANT la
+    composition, sinon la première image montrerait le formulaire avant de
+    basculer.
+    */
+    val suiviDemande = remember { com.vaultex.core.session.SuiviSwapBuffer.consume() }
+
+    /*
+    LA DÉCISION EST FIGÉE, ELLE N'EST PAS RECALCULÉE À CHAQUE IMAGE.
+
+    `marquerSortieAccueil()` est appelé au moment de partir. Si cette
+    condition se relisait ensuite, elle basculerait aussitôt sur le
+    FORMULAIRE — que l'on verrait pendant toute la transition de sortie. Le
+    dépôt de swap a déjà connu exactement ce défaut, pour une autre raison
+    (voir le bloc « ON VOYAIT LE FORMULAIRE DE SWAP AVANT L'ACCUEIL »).
+
+    On la fige donc sur l'identité de l'échange : elle ne se rejoue qu'au
+    prochain échange, ou à la prochaine ouverture de l'écran.
+    */
+    val montrerSuivi = remember(state.swapInProgress, state.swapId) {
+        state.swapInProgress && (suiviDemande || !viewModel.sortieAccueilFaite)
+    }
+
     when {
-        state.swapInProgress -> SwapTrackingScreen(
+        montrerSuivi -> SwapTrackingScreen(
             state = state,
             onClose = { viewModel.resetSwap(); screen = "form" },
             onHistory = { viewModel.resetSwap(); screen = "form"; navController.navigate(Routes.HISTORY) },
