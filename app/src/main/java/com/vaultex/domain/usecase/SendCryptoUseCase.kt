@@ -19,6 +19,8 @@ import com.vaultex.data.remote.dto.TronAddressBody
 import com.vaultex.data.remote.dto.TronBroadcastDto
 import com.vaultex.data.remote.dto.TronCreateTxBody
 import com.vaultex.data.remote.dto.TronTriggerSmartContractBody
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
@@ -335,30 +337,70 @@ class SendCryptoUseCase @Inject constructor(
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
             val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).eth
 
-            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
-                mutableListOf(fromAddress as Any, "pending" as Any)))
-            val nonce = BigInteger((nonceRes.result as? String ?: "0x0")
-                .removePrefix("0x").ifEmpty { "0" }, 16)
+            /*
+            ═══════════════════════════════════════════════════════════════
+            TROIS INTERROGATIONS QUI NE S'ATTENDENT PAS
+            ═══════════════════════════════════════════════════════════════
 
-            val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
-                mapOf("from" to fromAddress, "to" to toAddress,
-                    "value" to "0x${amountWei.toString(16)}") as Any))
-            val gasLimit = try {
-                BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0x5208")
-                    .removePrefix("0x"), 16)
-                    .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
-            } catch (_: Exception) { BigInteger.valueOf(GAS_LIMIT_NATIVE) }
+            Le nonce, la limite de gas et le prix du gas étaient demandés
+            l'un APRÈS l'autre. Aucun des trois ne dépend de la réponse des
+            autres : la chaîne payait donc trois fois la latence du réseau
+            pour un travail qui en coûte une.
+
+            Et ce n'est pas trois allers-retours, c'est cinq sur Ethereum :
+            le prix du gas en réclame deux à lui seul, plus la diffusion.
+            Chacun traverse RpcFallbackInterceptor, qui réessaie sur un nœud
+            de secours quand le premier répond 429 ou 403 — ce que font
+            constamment les nœuds publics gratuits. Sur une liaison mobile
+            lente, l'addition se compte en dizaines de secondes.
+
+            Constaté sur appareil : l'écran de suivi du swap tenait vingt
+            secondes ou plus, alors qu'il ne fait qu'attendre la preuve que
+            le dépôt est parti. Ce n'était pas l'écran qui traînait, c'était
+            la diffusion.
+
+            Les trois partent donc ensemble. Il reste deux temps : tout
+            savoir, puis diffuser. La signature, elle, est locale.
+
+            Ce que cela ne change pas : si l'un échoue, `coroutineScope`
+            annule les autres et propage l'exception — exactement ce que
+            faisait la chaîne séquentielle, et le `catch` en bas rend la
+            même erreur.
+            */
+            val (nonce, gasLimit, fraisGas) = coroutineScope {
+                val nonceAsync = async {
+                    val r = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
+                        mutableListOf(fromAddress as Any, "pending" as Any)))
+                    BigInteger((r.result as? String ?: "0x0")
+                        .removePrefix("0x").ifEmpty { "0" }, 16)
+                }
+                val gasAsync = async {
+                    val estimateReq = JsonRpcRequest("eth_estimateGas", mutableListOf(
+                        mapOf("from" to fromAddress, "to" to toAddress,
+                            "value" to "0x${amountWei.toString(16)}") as Any))
+                    try {
+                        BigInteger((rpc.rpcCall(estimateReq).result as? String ?: "0x5208")
+                            .removePrefix("0x"), 16)
+                            .multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100))
+                    } catch (_: Exception) { BigInteger.valueOf(GAS_LIMIT_NATIVE) }
+                }
+                val fraisAsync = async {
+                    // Ethereum : EIP-1559 (type-2). BNB Chain et le reste : type-0,
+                    // sans pourboire séparé — d'où le zéro, jamais lu dans ce cas.
+                    if (chainId == 1L) fetchEip1559Fees(rpc)
+                    else BigInteger.ZERO to
+                        fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
+                }
+                Triple(nonceAsync.await(), gasAsync.await(), fraisAsync.await())
+            }
 
             val signed = if (chainId == 1L) {
-                // Ethereum mainnet: EIP-1559 (type-2) — accurate base fee + tip
-                val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
+                val (maxPriority, maxFee) = fraisGas
                 evmTx.signTransactionEip1559(mnemonic, passphrase, toAddress, amountWei,
                     maxPriority, maxFee, gasLimit, nonce, chainId, coinType)
             } else {
-                // BSC and others: legacy (type-0)
-                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
                 evmTx.signTransaction(mnemonic, passphrase, toAddress, amountWei,
-                    gasPrice, gasLimit, nonce, chainId, coinType)
+                    fraisGas.second, gasLimit, nonce, chainId, coinType)
             }
 
             val broadcastRes = rpc.rpcCall(JsonRpcRequest("eth_sendRawTransaction",
@@ -374,6 +416,20 @@ class SendCryptoUseCase @Inject constructor(
         }
     }
 
+    /**
+     * Les quatre lectures menées EN PARALLÈLE avant un envoi ERC-20.
+     *
+     * Kotlin s'arrête à Triple : il fallait un porteur pour la quatrième.
+     * Une classe nommée vaut mieux qu'un tuple de toute façon — `frais` et
+     * `soldeNatifHex` ne se devinent pas derrière `third` et `fourth`.
+     */
+    private data class LecturesErc20(
+        val nonce: BigInteger,
+        val gasLimit: BigInteger,
+        val frais: Pair<BigInteger, BigInteger>,
+        val soldeNatifHex: String?
+    )
+
     // ─── ERC-20 (USDT on ETH / BNB) ──────────────────────────────────
 
     suspend fun sendErc20(
@@ -388,11 +444,6 @@ class SendCryptoUseCase @Inject constructor(
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
             val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).eth
-
-            val nonceRes = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
-                mutableListOf(fromAddress as Any, "pending" as Any)))
-            val nonce = BigInteger((nonceRes.result as? String ?: "0x0")
-                .removePrefix("0x").ifEmpty { "0" }, 16)
 
             val paddedTo  = toAddress.removePrefix("0x").padStart(64, '0')
             val paddedAmt = amountWei.toString(16).padStart(64, '0')
@@ -428,35 +479,68 @@ class SendCryptoUseCase @Inject constructor(
             les frais sans transférer le jeton.
             ────────────────────────────────────────────────────────────────
              */
-            val estimation: BigInteger? = try {
-                val hex = (rpc.rpcCall(estimateReq).result as? String)?.removePrefix("0x")
-                if (hex.isNullOrEmpty()) null
-                else BigInteger(hex, 16).takeIf { it.signum() > 0 }
-            } catch (_: Exception) { null }
-            val gasLimit = estimation
-                ?.multiply(BigInteger.valueOf(125))?.divide(BigInteger.valueOf(100))
-                ?: BigInteger.valueOf(GAS_LIMIT_TOKEN)
+            /*
+            QUATRE INTERROGATIONS, UN SEUL ALLER-RETOUR — MÊME RAISON QUE
+            POUR L'ENVOI NATIF, voir le bloc du même nom dans sendEvm.
+
+            Le nonce, l'estimation de gas, le prix du gas et le solde natif
+            ne se doivent rien. Le solde n'est comparé qu'APRÈS la signature,
+            mais sa LECTURE n'attend rien : elle part avec les autres.
+            */
+            val (nonce, gasLimit, fraisGas, soldeNatifHex) = coroutineScope {
+                val nonceAsync = async {
+                    val r = rpc.rpcCall(JsonRpcRequest("eth_getTransactionCount",
+                        mutableListOf(fromAddress as Any, "pending" as Any)))
+                    BigInteger((r.result as? String ?: "0x0")
+                        .removePrefix("0x").ifEmpty { "0" }, 16)
+                }
+                val gasAsync = async {
+                    val estimation: BigInteger? = try {
+                        val hex = (rpc.rpcCall(estimateReq).result as? String)?.removePrefix("0x")
+                        if (hex.isNullOrEmpty()) null
+                        else BigInteger(hex, 16).takeIf { it.signum() > 0 }
+                    } catch (_: Exception) { null }
+                    estimation
+                        ?.multiply(BigInteger.valueOf(125))?.divide(BigInteger.valueOf(100))
+                        ?: BigInteger.valueOf(GAS_LIMIT_TOKEN)
+                }
+                val fraisAsync = async {
+                    if (chainId == 1L) fetchEip1559Fees(rpc)
+                    else BigInteger.ZERO to
+                        fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
+                }
+                // Le garde-fou de solde ne doit JAMAIS faire échouer un envoi
+                // par lui-même : sans réponse, on n'affirme rien et on laisse
+                // le nœud trancher, comme avant.
+                val soldeAsync = async {
+                    try {
+                        rpc.rpcCall(JsonRpcRequest("eth_getBalance",
+                            mutableListOf(fromAddress as Any, "latest" as Any))).result as? String
+                    } catch (_: Exception) { null }
+                }
+                LecturesErc20(
+                    nonceAsync.await(), gasAsync.await(), fraisAsync.await(), soldeAsync.await()
+                )
+            }
 
             val signed: String
             val feePerGas: BigInteger
             if (chainId == 1L) {
-                val (maxPriority, maxFee) = fetchEip1559Fees(rpc)
+                val (maxPriority, maxFee) = fraisGas
                 feePerGas = maxFee
                 signed = evmTx.signErc20TransferEip1559(mnemonic, passphrase, contractAddress, toAddress,
                     amountWei, maxPriority, maxFee, gasLimit, nonce, chainId)
             } else {
-                val gasPrice = fetchLegacyGasPrice(rpc, default = 5_000_000_000L, maxGwei = BSC_MAX_GAS_GWEI)
-                feePerGas = gasPrice
+                feePerGas = fraisGas.second
                 signed = evmTx.signErc20Transfer(mnemonic, passphrase, contractAddress, toAddress,
-                    amountWei, gasPrice, gasLimit, nonce, chainId)
+                    amountWei, feePerGas, gasLimit, nonce, chainId)
             }
 
             // ── Garde-fou gas : un token se paie en NATIF (ETH/BNB). Sans assez
             // de natif, le nœud rejetterait avec un message opaque — on bloque
             // AVANT avec le montant manquant, en clair.
             try {
-                val balHex = rpc.rpcCall(JsonRpcRequest("eth_getBalance",
-                    mutableListOf(fromAddress as Any, "latest" as Any))).result as? String
+                val balHex = soldeNatifHex
                 if (balHex != null) {
                     val nativeBal = BigInteger(balHex.removePrefix("0x").ifEmpty { "0" }, 16)
                     val gasCost = gasLimit.multiply(feePerGas)
@@ -1120,8 +1204,23 @@ class SendCryptoUseCase @Inject constructor(
      * EIP-1559 fees: returns (maxPriorityFeePerGas, maxFeePerGas).
      * maxFeePerGas = 2 × baseFee + maxPriorityFeePerGas (canonical formula).
      */
-    private suspend fun fetchEip1559Fees(rpc: EvmRpcApi): Pair<BigInteger, BigInteger> {
-        val priorityRes = rpc.rpcCall(JsonRpcRequest("eth_maxPriorityFeePerGas", mutableListOf()))
+    private suspend fun fetchEip1559Fees(rpc: EvmRpcApi): Pair<BigInteger, BigInteger> = coroutineScope {
+        /*
+        LES DEUX APPELS PARTENT ENSEMBLE : ILS NE SE DOIVENT RIEN.
+
+        Le pourboire et le bloc courant étaient demandés l'un après l'autre.
+        Aucun des deux ne dépend de la réponse de l'autre : les enchaîner
+        payait deux fois la latence du réseau pour rien. Sur une liaison
+        mobile lente et un nœud public sous quota, un aller-retour se compte
+        en secondes, pas en millisecondes.
+        */
+        val priorityAsync = async { rpc.rpcCall(JsonRpcRequest("eth_maxPriorityFeePerGas", mutableListOf())) }
+        val blockAsync = async {
+            rpc.rpcCall(JsonRpcRequest("eth_getBlockByNumber",
+                mutableListOf("latest" as Any, false as Any)))
+        }
+
+        val priorityRes = priorityAsync.await()
         val rawPriority = try {
             BigInteger((priorityRes.result as? String ?: "0x3B9ACA00").removePrefix("0x"), 16)
         } catch (_: Exception) { BigInteger.valueOf(1_000_000_000L) }  // 1 gwei fallback
@@ -1129,8 +1228,7 @@ class SendCryptoUseCase @Inject constructor(
         // détournerait un nœud hostile pour vider un portefeuille.
         val maxPriority = requireSaneGas(rawPriority, ETH_MAX_PRIORITY_GWEI, "pourboire mineur")
 
-        val blockRes = rpc.rpcCall(JsonRpcRequest("eth_getBlockByNumber",
-            mutableListOf("latest" as Any, false as Any)))
+        val blockRes = blockAsync.await()
         @Suppress("UNCHECKED_CAST")
         val baseFeeHex = (blockRes.result as? Map<String, Any>)
             ?.get("baseFeePerGas") as? String ?: "0x0"
@@ -1143,7 +1241,9 @@ class SendCryptoUseCase @Inject constructor(
         val maxFee = effectiveBase.multiply(BigInteger.TWO).add(maxPriority)
         // Second garde-fou : un baseFee mensonger gonflerait le plafond total,
         // et c'est ce plafond que le garde-fou de solde met en réserve.
-        return Pair(maxPriority, requireSaneGas(maxFee, ETH_MAX_FEE_GWEI, "plafond de gas"))
+        // Valeur du bloc `coroutineScope`, et non `return` : ce bloc n'est pas
+        // inline, un retour non local n'y compilerait pas.
+        Pair(maxPriority, requireSaneGas(maxFee, ETH_MAX_FEE_GWEI, "plafond de gas"))
     }
 
     /**
