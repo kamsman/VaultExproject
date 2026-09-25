@@ -1054,45 +1054,32 @@ private fun SwapTrackingScreen(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    UNE SÉQUENCE QUI VA JUSQU'AU BOUT, ET QUI NE MENT PAS
+    LE PARCOURS TIENT EN TROIS ÉCRANS, PAS QUATRE
     ═══════════════════════════════════════════════════════════════════════
 
-    Constaté sur appareil : « Transaction créée » passe au vert, l'étape
-    suivante s'allume — et l'écran disparaît au milieu. Une progression
-    interrompue se lit comme une panne, pas comme un départ.
+    La conclusion occupait un quatrième écran : la frise disparaissait, trois
+    confirmations s'allumaient une à une dans une carte neuve, puis la grande
+    coche. Vu de l'utilisateur, ce n'était plus le même écran — c'en était un
+    de plus, dans un parcours qui en comptait déjà trois.
 
-    Ce qu'il fallait : des confirmations qui s'enchaînent une à une, puis la
-    grande coche, puis le départ.
+    Or il n'y a rien à annoncer qui mérite sa propre page. La conclusion se
+    dit sur place : la roue devient une coche verte, le bandeau passe à
+    « Échange lancé », la frise reste où elle est. Même écran, état final.
 
-    POURQUOI PAS LA FRISE ELLE-MÊME. Ses cinq étapes décrivent l'ÉCHANGE, qui
-    dure deux à cinq minutes. Les faire toutes verdir en quatre secondes
-    reviendrait à afficher « Envoi des BNB » et « Terminé » alors que rien
-    n'est parti de chez le fournisseur. Sur un écran d'argent, une coche
-    verte est une affirmation : quelqu'un qui la voit peut fermer
-    l'application en croyant ses fonds arrivés, et conclure au vol quand il
-    ne trouve rien.
+    Formulaire → confirmation → suivi. Trois écrans, et le troisième se
+    referme tout seul.
 
-    LA SÉQUENCE PORTE DONC SUR CE QUI EST ACQUIS. À cet instant, trois faits
-    sont vrais et vérifiés : l'échange est enregistré chez le fournisseur, la
-    transaction de dépôt est diffusée, et l'opération est lancée. Trois
-    lignes, une seconde chacune, puis la grande coche. Le rythme demandé,
-    sans une affirmation fausse.
-
-    La frise de l'échange s'efface pendant ce temps : elle parle de la suite,
-    qui continue sans nous.
+    « ÉCHANGE LANCÉ », ET NON « RÉUSSI ». À cet instant le dépôt est diffusé
+    et l'échange enregistré chez le fournisseur : voilà ce qui est vrai. Les
+    fonds arriveront deux à cinq minutes plus tard. Une coche verte sur un
+    écran d'argent est une affirmation, pas une décoration.
     */
-    var etapeSortie by remember { mutableStateOf(0) }
-
     LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
         if (phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
         // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
         if (phase == "fini" || depotEnvoye) {
             enSortie = true
-            repeat(3) {
-                kotlinx.coroutines.delay(900)
-                etapeSortie++
-            }
-            kotlinx.coroutines.delay(800)
+            kotlinx.coroutines.delay(1400)
             onAccueil()
         }
     }
@@ -1235,7 +1222,7 @@ private fun SwapTrackingScreen(
             // Grand cercle d'état
             // La grande coche ne vient qu'APRÈS les trois confirmations :
             // c'est elle qui clôt la séquence, pas qui l'ouvre.
-            val conclu = finished || (enSortie && etapeSortie >= 3)
+            val conclu = finished || enSortie
             val fondCercle by androidx.compose.animation.animateColorAsState(
                 targetValue = if (conclu) SwapGreen else if (failed) AccentRed else swapPurpleDim,
                 animationSpec = tween(durationMillis = 350),
@@ -1347,33 +1334,8 @@ private fun SwapTrackingScreen(
                 }
             }
 
-            /*
-            LES TROIS CONFIRMATIONS DE SORTIE.
-
-            Elles remplacent la frise pendant la séquence de départ. Chacune
-            énonce un fait ACQUIS au moment où elle s'affiche :
-
-              · l'échange est enregistré chez le fournisseur (il a rendu un
-                identifiant, visible juste en dessous) ;
-              · la transaction de dépôt est diffusée (on tient son hash) ;
-              · l'opération est donc lancée.
-
-            Rien sur l'arrivée des fonds, qui n'a pas eu lieu. La suite se
-            suit depuis l'accueil et par la notification.
-            */
-            if (enSortie && !finished) {
-                Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ConfirmationSortie("Échange enregistré", etapeSortie >= 1)
-                        ConfirmationSortie("Dépôt diffusé sur ${swapNetworkBadge(state.fromToken)}", etapeSortie >= 2)
-                        ConfirmationSortie("Opération lancée", etapeSortie >= 3)
-                    }
-                }
-            }
-
-            // Détails / frise — masquée pendant la séquence de sortie : elle
-            // décrit la suite de l'échange, qui continue sans nous.
-            if (!enSortie || finished) Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
+            // Détails / frise
+            Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Détails de la transaction", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText, modifier = Modifier.weight(1f))
@@ -2029,44 +1991,4 @@ private fun montantLisible(valeur: Double): String {
 }
 
 
-/**
- * Une ligne de la séquence de sortie : pastille, puis coche, puis texte.
- *
- * Tant qu'elle n'est pas confirmée, la pastille reste creuse et le texte
- * effacé — l'œil suit ainsi la progression sans avoir à comparer.
- */
-@Composable
-private fun ConfirmationSortie(texte: String, confirme: Boolean) {
-    val fond by androidx.compose.animation.animateColorAsState(
-        targetValue = if (confirme) SwapGreen else swapCardAlt,
-        animationSpec = tween(durationMillis = 300),
-        label = "confirmation"
-    )
-    val taille by animateFloatAsState(
-        targetValue = if (confirme) 1f else 0.8f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
-        label = "taille"
-    )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(22.dp).scale(taille).clip(CircleShape).background(fond),
-            contentAlignment = Alignment.Center
-        ) {
-            if (confirme) {
-                Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
-            } else {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(swapTextFaint))
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(
-            texte,
-            fontSize = 14.sp,
-            fontWeight = if (confirme) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (confirme) swapText else swapTextDim
-        )
-    }
-}
+
