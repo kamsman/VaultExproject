@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.notifications
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.*
@@ -29,6 +31,7 @@ import com.vaultex.ui.theme.BorderColor
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.viewmodel.NotificationCenterViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -85,18 +88,45 @@ fun NotificationCenterScreen(navController: NavHostController) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(items, key = { it.id }) { NotifRow(it) }
+                items(items, key = { it.id }) { item ->
+                    /*
+                    UNE NOTIFICATION MÈNE À CE DONT ELLE PARLE.
+
+                    La liste était inerte : on lisait « CAKE en hausse » ou
+                    « Vous avez reçu 0,01 SOL », et il fallait ressortir,
+                    retrouver l'onglet Marché ou l'Historique, et chercher la
+                    monnaie à la main. Une notification qui ne mène nulle part
+                    oblige à refaire le chemin qu'elle vient de signaler.
+
+                    Le sujet d'une notification, c'est toujours une MONNAIE :
+                    celle qui monte, celle qu'on a reçue, celle qu'on a
+                    envoyée. Sa fiche porte le cours, le solde détenu et
+                    l'accès à l'historique — c'est la bonne destination dans
+                    les trois cas.
+
+                    Faute de monnaie identifiable — une annonce de
+                    l'application, par exemple — la ligne reste inerte plutôt
+                    que d'ouvrir quelque chose au hasard.
+                    */
+                    val coinId = item.symbol
+                        ?.let { com.vaultex.core.market.CoinIds.BY_SYMBOL[it.uppercase()] }
+                    NotifRow(item) {
+                        coinId?.let { navController.navigate(Routes.coinDetail(it)) }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun NotifRow(item: NotifItem) {
+private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = SurfaceColor,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        )
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             // Logo crypto si dispo, sinon pastille bleue.
@@ -117,8 +147,21 @@ private fun NotifRow(item: NotifItem) {
                 Text(item.body, fontSize = 12.sp, color = TextSecondary)
                 Text(formatTime(item.timestamp), fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.7f))
             }
-            if (!item.read) {
-                Box(Modifier.size(9.dp).clip(CircleShape).background(AccentBlue))
+            /*
+            LA PASTILLE « NON LU » DISPARAÎT.
+
+            Elle ne survivait de toute façon pas à la seconde qui suit :
+            l'écran marque tout comme lu dès son ouverture, donc elle ne se
+            voyait qu'au premier rendu. Un point qui s'éteint sous les yeux
+            n'informe de rien, et il occupait la place du chevron — le seul
+            signe qui dise que la ligne mène quelque part.
+            */
+            if (onClick != null) {
+                Icon(
+                    Icons.Default.ChevronRight, null,
+                    tint = TextSecondary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
