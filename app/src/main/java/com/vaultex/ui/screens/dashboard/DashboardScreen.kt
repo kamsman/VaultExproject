@@ -1425,18 +1425,30 @@ private fun LigneEchangeEnCours(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(12.dp))
+        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(13.dp))
+        Spacer(Modifier.width(10.dp))
+        /*
+        SERRÉ AU PLUS JUSTE : ENVIRON 42 POINTS.
+
+        Deux lignes coûtent forcément plus qu'une — c'était 27 points avant,
+        au prix d'une paire tronquée sur écran étroit. On récupère ce qu'on
+        peut sur les marges et les interlignes plutôt que sur l'information.
+
+        Les interlignes sont fixés explicitement : sans eux, Compose réserve
+        la hauteur par défaut de chaque taille de police, ce qui ajoutait
+        cinq points invisibles entre les deux lignes.
+        */
         Column(Modifier.weight(1f)) {
             Text(
                 if (echanges.size == 1) "Échange en cours" else "${echanges.size} échanges en cours",
-                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+                fontSize = 13.sp, lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold, color = TextPrimary
             )
             if (echanges.size == 1 && !paire.isNullOrBlank()) {
-                Text(paire, fontSize = 12.sp, color = TextSecondary)
+                Text(paire, fontSize = 11.sp, lineHeight = 13.sp, color = TextSecondary)
             }
         }
         Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
