@@ -101,7 +101,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount, "TRX", address)
+                    notify("Vous avez reçu $amount TRX", "Transaction TRON confirmée", "TRX", entity.timestamp, amount, "TRX", address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -144,7 +144,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount, "TRX", address)
+                    notify("Vous avez reçu $amount $symbol", "Transaction TRC20 confirmée", symbol, entity.timestamp, amount, "TRX", address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -207,7 +207,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount, "BTC", address)
+                    notify("Vous avez reçu $amount BTC", "Transaction Bitcoin confirmée", "BTC", entity.timestamp, amount, "BTC", address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -299,7 +299,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming && status == "confirmed") {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -367,7 +367,7 @@ class TransactionSyncService @Inject constructor(
                 val existedBefore = transactionDao.getHash(tx.hash) != null
                 transactionDao.insert(entity)
                 if (!existedBefore && isIncoming) {
-                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address)
+                    notify("Vous avez reçu $amount $symbol", "Transaction $blockchain confirmée", symbol, entity.timestamp, amount, blockchain, address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -457,7 +457,7 @@ class TransactionSyncService @Inject constructor(
                 )
                 val inserted = transactionDao.insertIgnore(entity)
                 if (inserted > 0 && isIncoming) {
-                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount, "SOL", address)
+                    notify("Vous avez reçu $amount SOL", "Transaction Solana confirmée", "SOL", entity.timestamp, amount, "SOL", address, entity.hash)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -564,7 +564,22 @@ class TransactionSyncService @Inject constructor(
      */
     private fun notify(
         title: String, body: String, symbol: String? = null,
-        timestamp: Long, amount: String, chain: String, address: String
+        timestamp: Long, amount: String, chain: String, address: String,
+        /*
+        LE HASH MANQUAIT SUR CE CHEMIN-LÀ, ET SUR CELUI-LÀ SEULEMENT.
+
+        Une réception peut être signalée par deux sources : le worker de
+        détection de dépôt, qui transmettait déjà le hash, et cette
+        synchronisation d'historique, qui ne le transmettait pas. La cloche
+        menait donc au détail de la transaction ou à la fiche de la monnaie
+        selon laquelle des deux avait gagné la course — un comportement qui
+        change d'une fois sur l'autre sans que rien ne le laisse prévoir.
+
+        La ligne d'historique vient d'être insérée juste au-dessus avec ce
+        même hash : il est disponible à tous les appels, il n'y avait qu'à le
+        passer.
+        */
+        hash: String? = null
     ) {
         if (!notifPrefs.txAlerts.value) return
         // Premier balayage de cette adresse : import silencieux de l'historique.
@@ -572,7 +587,7 @@ class TransactionSyncService @Inject constructor(
         if (isTooOld(timestamp)) return
         hub.post(
             key = com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount),
-            title = title, body = body, symbol = symbol
+            title = title, body = body, symbol = symbol, hash = hash
         )
     }
 

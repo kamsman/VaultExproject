@@ -82,6 +82,15 @@ class PendingTxManager @Inject constructor(
                                     try {
                                         hub.post(
                                             key = "confirmed:${tx.hash}",
+                                            // La notification parle d'UNE
+                                            // transaction dont on tient le
+                                            // hash : la cloche ouvre son
+                                            // détail, pas la fiche de la
+                                            // monnaie. Sans cette ligne,
+                                            // « Transaction confirmée »
+                                            // menait à la liste des envois,
+                                            // à charge de retrouver lequel.
+                                            hash = tx.hash,
                                             title = context.getString(
                                                 com.vaultex.R.string.notif_tx_confirmed_title, tx.symbol
                                             ),
