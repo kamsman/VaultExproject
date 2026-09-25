@@ -145,7 +145,7 @@ private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
             if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
         )
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             // Logo crypto si dispo, sinon pastille bleue.
             Box(Modifier.size(40.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                 if (item.symbol != null) {
@@ -162,7 +162,19 @@ private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
             Column(Modifier.weight(1f)) {
                 Text(item.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
                 Text(item.body, fontSize = 12.sp, color = TextSecondary)
-                Text(formatTime(item.timestamp), fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.7f))
+                /*
+                LA DATE SEULE, PUISQUE L'HEURE EST À DROITE.
+
+                La maquette porte « 12:13 » en haut à droite ET
+                « 25/09/2026 12:13 » en bas. Le même instant, écrit deux fois
+                à trois centimètres d'écart : l'œil s'arrête dessus pour
+                vérifier qu'il s'agit bien du même, et n'apprend rien.
+
+                L'heure reste là où la maquette la place — c'est ce qu'on
+                cherche sur une notification récente. La ligne du bas ne
+                garde que la date, qui elle n'est écrite nulle part ailleurs.
+                */
+                Text(formatDate(item.timestamp), fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.7f))
             }
             /*
             LA PASTILLE « NON LU » DISPARAÎT.
@@ -173,16 +185,40 @@ private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
             n'informe de rien, et il occupait la place du chevron — le seul
             signe qui dise que la ligne mène quelque part.
             */
-            if (onClick != null) {
-                Icon(
-                    Icons.Default.ChevronRight, null,
-                    tint = TextSecondary.copy(alpha = 0.6f),
-                    modifier = Modifier.size(18.dp)
+            /*
+            HEURE EN HAUT, CHEVRON EN DESSOUS.
+
+            L'heure est ce qu'on cherche d'abord sur une notification :
+            « c'est de quand ? ». La placer à droite, alignée sur le titre,
+            la rend lisible sans traverser le texte.
+
+            Le chevron dessous dit que la ligne mène quelque part — et il
+            n'apparaît que lorsque c'est vrai. Une notification sans sujet
+            identifiable n'en porte pas, plutôt que de promettre une
+            destination qui n'existe pas.
+            */
+            Spacer(Modifier.width(8.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    formatHeure(item.timestamp),
+                    fontSize = 12.sp,
+                    color = TextSecondary.copy(alpha = 0.8f)
                 )
+                if (onClick != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Icon(
+                        Icons.Default.ChevronRight, null,
+                        tint = TextSecondary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
 }
 
-private fun formatTime(ts: Long): String =
-    SimpleDateFormat("dd/MM/yyyy HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(Date(ts))
+private fun formatHeure(ts: Long): String =
+    SimpleDateFormat("HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(Date(ts))
+
+private fun formatDate(ts: Long): String =
+    SimpleDateFormat("dd/MM/yyyy", com.vaultex.core.session.LocaleManager.appLocale()).format(Date(ts))
