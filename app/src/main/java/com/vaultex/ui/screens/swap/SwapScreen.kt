@@ -134,8 +134,18 @@ fun SwapScreen(navController: NavHostController) {
     val context = LocalContext.current as androidx.fragment.app.FragmentActivity
     val biometricHelper = remember { com.vaultex.core.security.BiometricHelper(context) }
 
-    // "form" | "confirm" — le suivi (state.swapInProgress) prend la priorité.
+    // "form" | "confirm" — le suivi prend la priorité, mais SEULEMENT quand
+    // il a été demandé : voir SuiviSwapBuffer.
     var screen by remember { mutableStateOf("form") }
+
+    /*
+    QUI A DEMANDÉ LE SUIVI ?
+
+    Consommé PENDANT la composition, et non dans un effet : la décision sert
+    dès la première image, un effet arriverait trop tard et l'écran
+    basculerait sous les yeux.
+    */
+    val suiviDemande = remember { com.vaultex.core.session.SuiviSwapBuffer.consume() }
 
     val tokens = SwapViewModel.SWAP_ASSETS.map { it.key }
 
@@ -166,6 +176,19 @@ fun SwapScreen(navController: NavHostController) {
             listOf("finished", "failed", "refunded", "expired")
         if (conclu) {
             viewModel.resetSwap()
+            screen = "form"
+        } else if (viewModel.sortieAccueilFaite && !suiviDemande) {
+            /*
+            GARDE-FOU DE RÉOUVERTURE. Rouvrir Swap pendant un échange doit
+            donner le FORMULAIRE, jamais l'écran de confirmation de
+            l'échange précédent — récapitulatif et bouton « Confirmer le
+            swap » sur une opération déjà lancée.
+
+            En principe `screen` vaut déjà « form » : c'est un `remember`
+            ordinaire, que la restauration de l'entrée de navigation ne
+            rétablit pas. La ligne ne coûte rien et ne dépend pas de ce
+            détail-là.
+            */
             screen = "form"
         }
     }
@@ -236,23 +259,43 @@ fun SwapScreen(navController: NavHostController) {
     composition, sinon la première image montrerait le formulaire avant de
     basculer.
     */
-    val suiviDemande = remember { com.vaultex.core.session.SuiviSwapBuffer.consume() }
-
     /*
-    LA DÉCISION EST FIGÉE, ELLE N'EST PAS RECALCULÉE À CHAQUE IMAGE.
+    ═══════════════════════════════════════════════════════════════════════
+    L'ÉCHANGE LANCÉ, ON REND LA MAIN — SANS PASSER PAR L'ÉCRAN DE SUIVI
+    ═══════════════════════════════════════════════════════════════════════
 
-    `marquerSortieAccueil()` est appelé au moment de partir. Si cette
-    condition se relisait ensuite, elle basculerait aussitôt sur le
-    FORMULAIRE — que l'on verrait pendant toute la transition de sortie. Le
-    dépôt de swap a déjà connu exactement ce défaut, pour une autre raison
-    (voir le bloc « ON VOYAIT LE FORMULAIRE DE SWAP AVANT L'ACCUEIL »).
+    Le suivi s'affichait d'abord, puis se refermait tout seul après une
+    brève conclusion. Trois ajustements successifs n'ont pas suffi : signalé
+    à répétition comme tenant vingt secondes ou plus, alors que le code
+    n'en prévoyait qu'une.
 
-    On la fige donc sur l'identité de l'échange : elle ne se rejoue qu'au
-    prochain échange, ou à la prochaine ouverture de l'écran.
+    Plutôt que de continuer à corriger une temporisation qu'on ne peut pas
+    observer d'ici, on la supprime. Le départ ne dépend plus d'une chaîne
+    d'effets à l'intérieur de l'écran de suivi : l'écran n'est tout
+    simplement plus affiché sur ce chemin.
+
+    CE QU'ON VOIT À LA PLACE. L'écran de confirmation reste, son bouton
+    tournant, le temps que le fournisseur enregistre l'échange — une à trois
+    secondes. Puis l'accueil, avec « Échange en cours ». Rien ne clignote,
+    rien ne s'intercale.
+
+    LE SUIVI N'EST PAS PERDU. La ligne « Échange en cours » l'ouvre, et elle
+    est le seul chemin qui le demande. Le bouton Swap de la barre du bas
+    ouvre le formulaire, même pendant un échange.
     */
-    val montrerSuivi = remember(state.swapInProgress, state.swapId) {
-        state.swapInProgress && (suiviDemande || !viewModel.sortieAccueilFaite)
+    LaunchedEffect(state.swapInProgress, state.swapId) {
+        if (!state.swapInProgress || suiviDemande || viewModel.sortieAccueilFaite)
+            return@LaunchedEffect
+        viewModel.marquerSortieAccueil()
+        navController.navigate(Routes.DASHBOARD) {
+            popUpTo(Routes.DASHBOARD) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
+
+    // Le suivi ne s'affiche plus que sur demande explicite.
+    val montrerSuivi = state.swapInProgress && suiviDemande
 
     when {
         montrerSuivi -> SwapTrackingScreen(
