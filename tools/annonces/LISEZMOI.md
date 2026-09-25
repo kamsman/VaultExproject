@@ -78,6 +78,44 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## Le numéro de contact
+
+`maj-05-v604.txt` se termine par un numéro joignable. C'est le seul fichier
+qui en porte un, et c'est volontaire : un numéro dans chaque annonce devient
+du décor qu'on ne lit plus, et il occupe une place qui compte — beaucoup de
+surcouches Android coupent la notification après deux lignes.
+
+Il n'y est pas non plus par hasard. Cette version change un COMPORTEMENT :
+l'écran de suivi ne s'affiche plus après une confirmation d'échange.
+Quelqu'un qui avait l'habitude de le voir peut croire que son échange n'est
+pas parti. C'est exactement le moment où l'on veut pouvoir demander — et où
+une question sans réponse se transforme en fonds qu'on croit perdus.
+
+Ne le recopier dans un autre message que si ce message, lui aussi, peut
+faire douter quelqu'un de l'état de son argent.
+
+## « Sauvegarde automatique » : ne jamais l'annoncer
+
+Cette formule figurait dans le brouillon de `maj-05` et n'a pas été retenue.
+Elle n'est pas seulement inexacte, elle est dangereuse, et c'est le seul
+endroit de ce fichier où l'enjeu n'est pas la confiance mais les fonds.
+
+VaultEx ne sauvegarde RIEN automatiquement, par construction :
+`allowBackup="false"` et `fullBackupContent="false"` dans le manifeste. Ni
+Google Drive, ni le cloud du constructeur ne reçoivent quoi que ce soit — et
+c'est exactement ce qu'on veut d'un portefeuille non-custodial, dont la
+phrase de récupération donne accès à tous les fonds.
+
+La seule sauvegarde qui existe est MANUELLE : douze mots BIP-39 que
+l'utilisateur écrit lui-même. L'accueil le lui demande en toutes lettres —
+« As-tu sauvegardé ta phrase de récupération ? ».
+
+Annoncer une sauvegarde automatique conduirait donc quelqu'un à NE PAS
+écrire ses douze mots, en croyant que l'application s'en charge. Téléphone
+perdu, volé ou réinitialisé : les fonds sont perdus définitivement, sans
+recours d'aucune sorte. Et l'annonce serait démentie par la bannière de
+l'accueil dès la première ouverture.
+
 ## Le logo d'une mise à jour
 
 Le 3e argument du script n'accepte qu'un TICKER de monnaie : il va chercher
