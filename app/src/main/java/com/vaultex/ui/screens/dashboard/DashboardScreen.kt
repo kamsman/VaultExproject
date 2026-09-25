@@ -43,6 +43,7 @@ import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.PortfolioViewModel
+import com.vaultex.ui.viewmodel.SwapViewModel
 import com.vaultex.ui.viewmodel.TokenBalance
 import java.util.Locale
 
@@ -816,8 +817,29 @@ private fun BalanceCard(
         else com.vaultex.core.util.CurrencyFormat.format(usd, "USD")
     val masked = "••••••"
 
-    // Maquette : bloc SANS fond (à plat sur l'écran), identique en clair et en
-    // sombre — les couleurs de texte viennent du thème et s'adaptent seules.
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SOLDE REPREND SA CARTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le bloc était posé à plat sur l'écran. Il reçoit un fond discret et une
+    bordure fine, comme sur la maquette.
+
+    Ce n'est pas contradictoire avec les cartes retirées ailleurs. Une LISTE
+    n'a pas besoin de cadres : dix rectangles empilés font compter des boîtes
+    au lieu de lire. Un ÉLÉMENT UNIQUE, lui, gagne à être délimité — surtout
+    celui-ci, qui porte le chiffre le plus important de l'application et qui
+    se retrouve sinon à flotter entre le logo et les tuiles d'action, sans
+    rien qui dise où il commence.
+
+    Le fond reste très proche de celui de l'écran : il sépare sans peser.
+    */
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = com.vaultex.ui.theme.Surface.copy(alpha = 0.45f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         // Courbe violette décorative à droite (maquette) — pas d'historique de
         // solde disponible localement, la forme est stable (déterministe).
@@ -955,6 +977,7 @@ private fun BalanceCard(
                 )
             }
         }
+    }
     }
 }
 
@@ -1390,9 +1413,36 @@ private fun LigneEchangeEnCours(
     echanges: List<com.vaultex.data.local.entity.TransactionEntity>,
     onClick: () -> Unit
 ) {
-    val texte =
-        if (echanges.size == 1) "Échange en cours  ·  ${echanges[0].tokenSymbol.replace("→", " → ")}"
-        else "${echanges.size} échanges en cours"
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DEUX LIGNES, SANS CADRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Une seule ligne entassait tout derrière un point médian : « Échange en
+    cours · USDT-ETH → ETH ». Le titre et la paire se disputaient la même
+    ligne, et sur un écran étroit la paire était la première coupée — alors
+    que c'est elle qui dit DE QUOI on parle.
+
+    Le titre passe donc au-dessus, la paire en dessous, comme dans la
+    maquette. Mais sans le cadre ni le fond qu'elle porte : la cloche vient
+    d'en être débarrassée, et une carte isolée au milieu d'un écran qui n'en
+    a pas attirerait l'œil plus que son contenu ne le mérite — il n'y a rien
+    à faire, seulement à attendre.
+
+    LES NOMS VIENNENT DU REGISTRE, PAS DE LA BASE. tokenSymbol y est stocké
+    sous forme de CLÉS — « USDT-ETH→ETH » — parce que c'est ce qui permet au
+    worker de retrouver l'actif. Les afficher telles quelles ferait paraître
+    un nom que l'utilisateur ne voit nulle part ailleurs : le sélecteur, le
+    solde et la fiche disent tous « USDT ».
+
+    La roue reste bleue : c'est la couleur de la tuile Swap juste en
+    dessous, celle dont cette ligne parle. Et elle tourne, ce qui est le
+    seul moyen de distinguer « en cours » de « figé ».
+    */
+    val paire = echanges.firstOrNull()?.tokenSymbol
+        ?.split("→")
+        ?.mapNotNull { cle -> cle.trim().takeIf { it.isNotEmpty() }?.let { SwapViewModel.assetOf(it).base } }
+        ?.joinToString(" → ")
     Row(
         Modifier
             .fillMaxWidth()
@@ -1400,9 +1450,29 @@ private fun LigneEchangeEnCours(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(12.dp))
+        CircularProgressIndicator(color = AccentBlue, strokeWidth = 1.5.dp, modifier = Modifier.size(13.dp))
         Spacer(Modifier.width(10.dp))
-        Text(texte, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(15.dp))
+        /*
+        SERRÉ AU PLUS JUSTE : ENVIRON 42 POINTS.
+
+        Deux lignes coûtent forcément plus qu'une — c'était 27 points avant,
+        au prix d'une paire tronquée sur écran étroit. On récupère ce qu'on
+        peut sur les marges et les interlignes plutôt que sur l'information.
+
+        Les interlignes sont fixés explicitement : sans eux, Compose réserve
+        la hauteur par défaut de chaque taille de police, ce qui ajoutait
+        cinq points invisibles entre les deux lignes.
+        */
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (echanges.size == 1) "Échange en cours" else "${echanges.size} échanges en cours",
+                fontSize = 13.sp, lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold, color = TextPrimary
+            )
+            if (echanges.size == 1 && !paire.isNullOrBlank()) {
+                Text(paire, fontSize = 11.sp, lineHeight = 13.sp, color = TextSecondary)
+            }
+        }
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(16.dp))
     }
 }

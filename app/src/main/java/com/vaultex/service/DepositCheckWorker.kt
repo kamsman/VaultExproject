@@ -266,7 +266,10 @@ class DepositCheckWorker @AssistedInject constructor(
                             key = com.vaultex.core.session.NotificationHub.receiveKey(symbol, amount),
                             title = "Vous avez reçu $amount $symbol",
                             body = "Fonds crédités sur votre portefeuille",
-                            symbol = symbol
+                            symbol = symbol,
+                            // Même hash que la ligne d'historique écrite
+                            // juste au-dessus : la cloche mène à son détail.
+                            hash = localHash
                         )
                     }
                 } catch (_: Exception) { }

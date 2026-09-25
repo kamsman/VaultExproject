@@ -51,7 +51,15 @@ class NotificationHub @Inject constructor(
          * déroulée. Réservée aux annonces : une alerte de prix ou un dépôt
          * n'a rien à illustrer.
          */
-        imageUrl: String? = null
+        imageUrl: String? = null,
+        /**
+         * Hash de la transaction concernée, quand il y en a une.
+         *
+         * Sert uniquement à la cloche : une notification de mouvement de
+         * fonds devient alors cliquable vers le DÉTAIL de cette transaction,
+         * au lieu de la fiche de la monnaie. Une alerte de prix n'en a pas.
+         */
+        hash: String? = null
     ): Boolean {
         if (isDuplicate(key)) return false
         remember(key)
@@ -59,7 +67,7 @@ class NotificationHub @Inject constructor(
         // La cloche d'abord : c'est la trace durable. Si l'affichage système
         // échoue (permission refusée, canal bloqué), l'utilisateur retrouve
         // quand même l'événement dans l'application.
-        center.push(title, body, symbol)
+        center.push(title, body, symbol, hash)
 
         /*
         ═══════════════════════════════════════════════════════════════════

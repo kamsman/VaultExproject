@@ -30,9 +30,6 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-// launch est une fonction d'EXTENSION sur CoroutineScope : contrairement à
-// delay(), elle ne peut pas être appelée sous forme pleinement qualifiée.
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -134,7 +131,6 @@ fun SwapScreen(navController: NavHostController) {
     val viewModel: SwapViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current as androidx.fragment.app.FragmentActivity
     val biometricHelper = remember { com.vaultex.core.security.BiometricHelper(context) }
 
@@ -142,6 +138,37 @@ fun SwapScreen(navController: NavHostController) {
     var screen by remember { mutableStateOf("form") }
 
     val tokens = SwapViewModel.SWAP_ASSETS.map { it.key }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN ÉCHANGE CONCLU SE RANGE À L'ENTRÉE, PAS À LA SORTIE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Remettre l'état à zéro en quittant l'écran obligeait à attendre la fin
+    de la transition — sans quoi la composition faisait apparaître le
+    formulaire de swap avant l'accueil. Un délai en dur y parvenait, au prix
+    d'une supposition sur une durée d'animation qu'on ne contrôle pas.
+
+    En le faisant à l'ENTRÉE, aucune horloge n'intervient : l'écran qui part
+    garde son état jusqu'au bout, et celui qui revient décide de ce qu'il
+    montre.
+
+    LA CONDITION COMPTE AUTANT QUE LE MOMENT. On ne range que ce qui est
+    CONCLU — terminé, échoué, remboursé, expiré. Un échange encore en cours
+    doit retrouver son écran de suivi : c'est exactement ce qui se passe
+    quand on touche la ligne « Échange en cours » de l'accueil, et effacer
+    son état à ce moment-là ferait disparaître l'opération sous les yeux de
+    celui qui vient la consulter.
+    */
+    LaunchedEffect(Unit) {
+        val st = viewModel.state.value
+        val conclu = st.swapStatus?.trim()?.lowercase() in
+            listOf("finished", "failed", "refunded", "expired")
+        if (conclu) {
+            viewModel.resetSwap()
+            screen = "form"
+        }
+    }
 
     // Pré-sélection « De » depuis la page d'une crypto.
     LaunchedEffect(Unit) {
@@ -206,10 +233,14 @@ fun SwapScreen(navController: NavHostController) {
                 bel et bien passé, le temps d'une animation, avant d'arriver
                 à l'accueil.
 
-                On navigue donc d'abord, et la remise à zéro attend que
-                l'écran soit parti. Le délai couvre la transition ; il ne
-                retarde rien d'autre, puisque personne ne regarde plus cet
-                écran.
+                Première correction : naviguer d'abord, remettre à zéro
+                ensuite, après un délai couvrant la transition. Cela marchait,
+                mais reposait sur une supposition — la durée d'une animation
+                qu'on ne contrôle pas et qui changera.
+
+                La remise à zéro a donc été déplacée à l'ENTRÉE de l'écran,
+                où aucune horloge n'intervient. Ici, on se contente de
+                partir.
                 */
                 navController.navigate(Routes.DASHBOARD) {
                     // Même forme que la barre du bas : on revient à l'accueil
@@ -218,11 +249,8 @@ fun SwapScreen(navController: NavHostController) {
                     launchSingleTop = true
                     restoreState = true
                 }
-                scope.launch {
-                    kotlinx.coroutines.delay(500)
-                    viewModel.resetSwap()
-                    screen = "form"
-                }
+                // La remise à zéro n'a plus lieu ici : voir le bloc « UN ÉCHANGE
+                // CONCLU SE RANGE À L'ENTRÉE » en tête de cet écran.
             },
             nomFournisseur = viewModel.nomFournisseur
         )
