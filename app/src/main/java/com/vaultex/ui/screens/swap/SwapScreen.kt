@@ -1075,13 +1075,36 @@ private fun SwapTrackingScreen(
     écran d'argent est une affirmation, pas une décoration.
     */
     LaunchedEffect(secondes, depotEnvoye, phase, decompteAnnule) {
-        if (phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
+        if (enSortie || phase == null || decompteAnnule || secondes > 0) return@LaunchedEffect
         // « fini » se suffit à lui-même ; sinon il faut le hash du dépôt.
-        if (phase == "fini" || depotEnvoye) {
-            enSortie = true
-            kotlinx.coroutines.delay(1400)
-            onAccueil()
-        }
+        if (phase == "fini" || depotEnvoye) enSortie = true
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE SORTIE ENGAGÉE NE S'ANNULE PLUS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le départ attendait 1,4 s DANS l'effet ci-dessus, dont les clés
+    comprennent `phase` et `secondes`. Or `phase` bascule de « depot » à
+    « fini » dès que le fournisseur conclut, et `secondes` est
+    `remember(phase)` : ce basculement annule l'effet en cours ET remet le
+    compteur à cinq.
+
+    Si cela tombe pendant la seconde et demie d'attente, `onAccueil()` n'est
+    jamais atteint. L'écran reste alors sur son état de sortie — coche verte,
+    « Échange lancé » — mais sans le bandeau de décompte, que `enSortie`
+    masque. Plus rien n'avance et rien n'explique pourquoi : vu de
+    l'utilisateur, l'application est bloquée sur l'écran final.
+
+    Le départ vit donc dans son propre effet, dont la seule clé est la
+    décision de partir. Une fois `enSortie` posé, plus aucun changement
+    d'état ne peut interrompre le compte à rebours.
+    */
+    LaunchedEffect(enSortie) {
+        if (!enSortie) return@LaunchedEffect
+        kotlinx.coroutines.delay(1400)
+        onAccueil()
     }
 
     val payoutAddr = "votre portefeuille"
