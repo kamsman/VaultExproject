@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
@@ -27,8 +26,6 @@ import com.vaultex.core.session.NotifItem
 import com.vaultex.ui.components.CryptoIcon
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.BgPrimary
-import com.vaultex.ui.theme.BorderColor
-import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.navigation.Routes
@@ -138,23 +135,45 @@ fun NotificationCenterScreen(navController: NavHostController) {
 
 @Composable
 private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    NI FOND NI CONTOUR : LA LISTE RESPIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Chaque ligne était une carte — fond gris, coins arrondis. Sur une liste
+    de dix notifications, cela fait dix rectangles empilés : l'œil compte
+    des boîtes avant de lire des phrases, et le fond gris rapproche tout de
+    la couleur des logos de monnaies, qui perdent leur relief.
+
+    Les lignes posent désormais leur texte à même l'écran, séparées par
+    l'espace seul. C'est ce que montre la maquette, et c'est ce que font les
+    listes qu'on parcourt vite : un fil, pas un tiroir.
+
+    Le disque disparaît aussi derrière l'icône. Le logo d'une monnaie est
+    déjà rond et coloré — l'enfermer dans un halo bleu lui ajoutait une
+    couleur qui n'est celle de personne. Le cercle n'est conservé que pour
+    l'icône de repli, une cloche grise qui flotterait sans lui.
+    */
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = SurfaceColor,
+        color = Color.Transparent,
         modifier = Modifier.fillMaxWidth().then(
             if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
         )
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+        // Sans fond, c'est la marge seule qui sépare les lignes.
+        Row(Modifier.padding(vertical = 12.dp, horizontal = 4.dp), verticalAlignment = Alignment.Top) {
             // Logo crypto si dispo, sinon pastille bleue.
-            Box(Modifier.size(40.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                if (item.symbol != null) {
-                    coil.compose.AsyncImage(
-                        model = CryptoIcon.url(item.symbol),
-                        contentDescription = item.symbol,
-                        modifier = Modifier.size(40.dp).clip(CircleShape)
-                    )
-                } else {
+            if (item.symbol != null) {
+                coil.compose.AsyncImage(
+                    model = CryptoIcon.url(item.symbol),
+                    contentDescription = item.symbol,
+                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                )
+            } else {
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(Icons.Default.NotificationsNone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                 }
             }
