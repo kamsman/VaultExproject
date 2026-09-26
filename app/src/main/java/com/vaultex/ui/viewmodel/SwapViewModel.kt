@@ -214,14 +214,56 @@ class SwapViewModel @Inject constructor(
         return if (riche.equals(_state.value.toToken, ignoreCase = true)) cle else riche
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR QUOI OUVRIR QUAND ON NE DÉTIENT PAS D'USDT
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran s'ouvrait sur USDT, toujours, et `varianteDetenue` ne corrigeait
+    que la CHAÎNE — Tron, Ethereum ou BNB Chain selon celle qui porte des
+    fonds. Un portefeuille sans le moindre USDT arrivait donc sur « USDT,
+    solde 0 », alors qu'il contenait peut-être de l'ETH, du SOL ou du BNB.
+
+    C'est le même défaut que l'écran d'envoi vient de perdre, et il a la
+    même gravité : un écran qui annonce zéro à quelqu'un qui possède quelque
+    chose fait douter de l'application avant de faire douter du solde.
+
+    ON COMPARE DES VALEURS, PAS DES QUANTITÉS. 2 TRX et 0,0004 ETH : la
+    quantité désigne le TRX, la valeur désigne l'ETH, qui vaut près du
+    double. Trier sur la quantité reviendrait à ouvrir sur la monnaie dont le
+    cours est le plus bas, ce qui n'a aucun sens.
+
+    L'ARRIVÉE S'ÉCARTE SI ELLE GÊNE. La destination par défaut est TRX ; si
+    c'est justement le TRX qui est le mieux garni, l'écran proposerait un
+    échange d'une monnaie contre elle-même — que le fournisseur refuse par
+    « Not Found ». L'arrivée devient alors USDT, et inversement.
+    */
+    private fun actifDeDepart(): String {
+        val usdt = varianteDetenue(_state.value.fromToken)
+        if (balanceOf(usdt) > 0.0) return usdt
+        val riche = SWAP_ASSETS
+            .map { it.key to balanceOf(it.key) * priceUsdOf(it.key) }
+            .filter { it.second > 0.0 }
+            .maxByOrNull { it.second }
+            ?.first
+        return riche ?: usdt
+    }
+
     init {
-        val depart = varianteDetenue(_state.value.fromToken)
-        _state.update { it.copy(
-            fromToken = depart,
-            fromBalance = balanceOf(depart),
-            fromPriceUsd = priceUsdOf(depart),
-            toPriceUsd = priceUsdOf(it.toToken)
-        ) }
+        val depart = actifDeDepart()
+        _state.update {
+            val arrivee =
+                if (depart.equals(it.toToken, ignoreCase = true)) {
+                    if (assetOf(depart).base.equals("USDT", ignoreCase = true)) "TRX" else "USDT"
+                } else it.toToken
+            it.copy(
+                fromToken = depart,
+                toToken = arrivee,
+                fromBalance = balanceOf(depart),
+                fromPriceUsd = priceUsdOf(depart),
+                toPriceUsd = priceUsdOf(arrivee)
+            )
+        }
         chargerMinimum()
         chargerPrixManquants()
     }
