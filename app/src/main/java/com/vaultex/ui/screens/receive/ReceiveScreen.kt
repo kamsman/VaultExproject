@@ -31,6 +31,7 @@ import com.vaultex.core.util.CurrencyFormat
 import com.vaultex.ui.components.CryptoIcon
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.BgTertiary
 import com.vaultex.ui.theme.Surface as SurfaceColor
@@ -196,7 +197,58 @@ private fun AssetRow(asset: ReceiveAsset, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(asset.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(asset.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE RÉSEAU SE CHOISIT ICI, ET SE PAIE PENDANT DES MOIS
+                    ═══════════════════════════════════════════════════════
+
+                    Cette liste est le seul endroit où le choix se fait
+                    encore. Une fois l'adresse partagée et les fonds reçus,
+                    la chaîne est subie : chaque envoi, chaque échange se
+                    paiera à son tarif, et le seul moyen d'en changer est
+                    d'en payer un de plus.
+
+                    L'écart n'est pas de quelques centimes. Un transfert
+                    d'USDT coûte quelques centimes sur BNB Chain et plusieurs
+                    dollars sur Tron, dont l'énergie se consomme à l'entrée
+                    comme à la sortie. Pour quelqu'un qui manipule cinq ou
+                    dix dollars, c'est la différence entre un portefeuille
+                    utilisable et des fonds immobilisés.
+
+                    Or Tron est le réseau d'habitude ici, réputé bon marché —
+                    vrai pour qui a gelé des TRX contre de l'énergie, faux
+                    pour tous les autres. Personne ne le découvre avant
+                    d'essayer de ressortir ses fonds.
+
+                    AUCUN CHIFFRE, DÉLIBÉRÉMENT. Les frais bougent d'un jour
+                    à l'autre — l'écran de réception a déjà publié un montant
+                    qui était faux le lendemain. Le RAPPORT entre les
+                    chaînes, lui, tient à chaque mesure. On annonce donc un
+                    classement, pas un prix.
+
+                    ET CE N'EST PAS UN AVERTISSEMENT. Recevoir sur Tron reste
+                    parfaitement valide et rien n'est en danger : d'où un
+                    libellé neutre, pas de rouge, pas de triangle. On désigne
+                    le meilleur choix sans condamner les autres.
+                    */
+                    if (asset.symbol.equals("USDT-BNB", ignoreCase = true)) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            color = AccentGreen.copy(alpha = 0.14f)
+                        ) {
+                            Text(
+                                stringResource(R.string.receive_frais_les_plus_bas),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AccentGreen
+                            )
+                        }
+                    }
+                }
                 Text(asset.network, fontSize = 11.sp, color = TextSecondary)
             }
             Column(horizontalAlignment = Alignment.End) {
