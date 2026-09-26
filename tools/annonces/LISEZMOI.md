@@ -86,6 +86,29 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## L'annonce Telegram, et son bandeau
+
+    ./tools/send-announcement.sh --fichier tools/annonces/communaute-01-telegram.txt "" <URL du bandeau>
+
+`banniere-telegram.png` (1024 × 512, 21 Ko) est fait pour ce message. Il doit
+être servi depuis une ADRESSE HTTPS PUBLIQUE : Android télécharge l'image sur
+le réseau mobile de chaque utilisateur, il ne lit pas un fichier du dépôt. Si
+le dépôt est privé, un lien `raw.githubusercontent.com` renverra 404 sur les
+téléphones alors qu'il s'ouvre très bien sur une machine déjà authentifiée —
+à vérifier en navigation privée avant d'envoyer.
+
+Une image injoignable n'empêche rien : la notification part sans bandeau.
+
+LE LIEN N'EST PAS CLIQUABLE, ET C'EST LA LIMITE DE CE MESSAGE. Android ne
+rend pas les adresses d'un corps de notification actives, et toucher celle-ci
+ouvre VaultEx comme n'importe quelle annonce. L'adresse est donc écrite pour
+être RETENUE et retapée — courte, sans `https://`, sans barre oblique finale.
+Le bandeau la répète en grand, ce qui est sa vraie fonction ici.
+
+La rendre cliquable demanderait de porter un lien depuis le message FCM
+jusqu'à l'intention de la notification. C'est faisable ; ça n'existe pas
+aujourd'hui.
+
 ## Le 07 est le seul écrit pour séduire
 
 Les autres informent ; celui-là vend. Il ne décrit aucune fonctionnalité : il
