@@ -91,12 +91,38 @@ class PendingTxManager @Inject constructor(
                                             // menait à la liste des envois,
                                             // à charge de retrouver lequel.
                                             hash = tx.hash,
-                                            title = context.getString(
-                                                com.vaultex.R.string.notif_tx_confirmed_title, tx.symbol
-                                            ),
-                                            body = context.getString(
-                                                com.vaultex.R.string.notif_tx_confirmed_body
-                                            ),
+                                            /*
+                                            LA LANGUE DE L'APPLICATION, PAS
+                                            CELLE DU TÉLÉPHONE.
+
+                                            `context.getString` résout dans
+                                            la langue du SYSTÈME. Un appareil
+                                            réglé en anglais recevait donc
+                                            « SOL transfer confirmed » au
+                                            milieu d'une application en
+                                            français — constaté dans la
+                                            cloche, deux lignes sous une
+                                            annonce française.
+
+                                            LocaleManager.wrap applique la
+                                            langue CHOISIE dans VaultEx.
+                                            C'est ce que font déjà les
+                                            ViewModels ; les workers et les
+                                            services, qui s'exécutent
+                                            application fermée, l'avaient
+                                            oublié.
+                                            */
+                                            title = com.vaultex.core.session.LocaleManager
+                                                .wrap(context)
+                                                .getString(
+                                                    com.vaultex.R.string.notif_tx_confirmed_title,
+                                                    tx.symbol
+                                                ),
+                                            body = com.vaultex.core.session.LocaleManager
+                                                .wrap(context)
+                                                .getString(
+                                                    com.vaultex.R.string.notif_tx_confirmed_body
+                                                ),
                                             symbol = tx.symbol
                                         )
                                     } catch (_: Exception) { }
