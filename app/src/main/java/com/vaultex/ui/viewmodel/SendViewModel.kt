@@ -794,8 +794,75 @@ class SendViewModel @Inject constructor(
      * ce repli il aurait fallu écrire une ligne par réseau, et en oublier
      * une revenait à ne plus avoir de minimum du tout — silencieusement.
      */
-    private fun minimumPour(chain: String): Double? =
-        MINIMUM_AMOUNTS[chain] ?: MINIMUM_AMOUNTS[chain.substringBefore("-")]
+    private fun minimumPour(chain: String): Double? {
+        val plancher = MINIMUM_PROTOCOLE[chain]
+        val economique = minimumEconomique(chain)
+        return when {
+            economique != null && plancher != null -> maxOf(economique, plancher)
+            economique != null -> economique
+            // Ni frais ni cours connus : on retombe sur la table écrite, qui
+            // reste le comportement d'avant. Jamais pire, jamais muet.
+            else -> MINIMUM_AMOUNTS[chain] ?: MINIMUM_AMOUNTS[chain.substringBefore("-")]
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MINIMUM SE CALCULE, IL NE S'ÉCRIT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un seuil écrit en dur est faux le jour où on l'écrit, et de plus en plus
+    faux ensuite. « 1 USDT » l'illustrait dans les deux sens à la fois :
+
+        BNB Chain   transfert ≈ 0,05 $  →  seuil de 1 $ : vingt fois trop HAUT
+        Tron        transfert ≈ 9 $     →  seuil de 1 $ : neuf fois trop BAS
+
+    Le même chiffre empêchait donc des envois parfaitement rentables sur une
+    chaîne, et en autorisait de ruineux sur une autre — où l'utilisateur perd
+    neuf fois la somme envoyée, sans que rien ne l'en avertisse. (Tron n'est
+    bon marché que pour qui a gelé des TRX contre de l'énergie ; sans énergie,
+    un transfert TRC-20 brûle 65 000 unités, soit ~27 TRX.)
+
+    LA RÈGLE : ENVOYER DOIT VALOIR AU MOINS TROIS FOIS LE TRANSPORT. Le
+    facteur est le seul chiffre décidé ici, et il l'est en connaissance de
+    cause — plus bas, on laisse quelqu'un brûler son argent en frais ; plus
+    haut, on bloque des envois légitimes. Tout le reste vient du réseau.
+
+    ON N'INTERROGE RIEN DE PLUS. Les frais sont déjà demandés à l'ouverture
+    de l'écran, les cours sont déjà dans l'instantané du portefeuille. Le
+    minimum suit donc le réseau à chaque estimation, sans un appel de plus.
+
+    CONVERSION. Les frais se paient en monnaie NATIVE, le minimum s'exprime
+    dans la monnaie ENVOYÉE. Sur un envoi natif les deux se confondent et le
+    calcul se réduit à trois fois les frais ; sur un jeton, il faut passer par
+    les deux cours.
+
+    ZÉRO EST UNE RÉPONSE VALIDE. Un transfert TRX couvert par la bande
+    passante offerte ne coûte rien : son minimum vaut alors zéro, et
+    l'écran cesse d'afficher une ligne qui n'a plus d'objet.
+    */
+    private fun minimumEconomique(chain: String): Double? {
+        val s = _state.value
+        val frais = s.feeAfficheAmount ?: return null
+        if (frais < 0.0) return null
+        if (frais == 0.0) return 0.0
+
+        val natif = s.customToken?.blockchain ?: nativeUnit(chain)
+        val prixNatif = priceFor(natif, "USD")
+        // Le symbole envoyé : celui du jeton personnalisé, sinon la chaîne
+        // elle-même — « USDT-BNB » est une clé de l'instantané, pas « USDT ».
+        val prixEnvoye =
+            if (chain == natif) prixNatif
+            else priceFor(s.customToken?.symbol ?: chain, "USD")
+        if (prixNatif <= 0.0 || prixEnvoye <= 0.0) return null
+
+        val brut = FACTEUR_MINIMUM * frais * prixNatif / prixEnvoye
+        // Deux chiffres significatifs, arrondis vers le HAUT : un seuil qu'on
+        // arrondirait vers le bas autoriserait un envoi qui ne le vaut pas.
+        return java.math.BigDecimal.valueOf(brut)
+            .round(java.math.MathContext(2, java.math.RoundingMode.CEILING))
+            .toDouble()
+    }
 
     /**
      * Minimum affichable pour la monnaie courante, ex. « 0.0001 BNB ».
@@ -805,7 +872,10 @@ class SendViewModel @Inject constructor(
      * qu'en se faisant refuser, après avoir tapé un montant et une adresse.
      */
     fun minimumLisible(chain: String): String? =
-        minimumPour(chain)?.let { "${plainAmount(it)} ${displaySymbol(chain)}" }
+        // Un minimum nul — transfert réellement gratuit — n'est pas une
+        // information : la ligne disparaît plutôt que d'annoncer « 0 ».
+        minimumPour(chain)?.takeIf { it > 0.0 }
+            ?.let { "${plainAmount(it)} ${displaySymbol(chain)}" }
 
     private fun dustWarning(chain: String, amount: String): String? {
         val value = amount.replace(",", ".").toDoubleOrNull() ?: return null
@@ -1035,6 +1105,39 @@ class SendViewModel @Inject constructor(
         (« SHIB-ETH »), d'où le repli sur le symbole de base dans
         minimumPour().
         */
+        /**
+         * Combien l'envoi doit valoir, au minimum, par rapport à son coût.
+         *
+         * Le seul chiffre décidé par nous dans tout ce calcul. Plus bas, on
+         * laisse quelqu'un brûler son argent en frais de réseau ; plus haut,
+         * on bloque des envois légitimes.
+         */
+        private const val FACTEUR_MINIMUM = 3.0
+
+        /**
+         * Seuils imposés par le PROTOCOLE, que nul ne peut abaisser.
+         *
+         * Bitcoin refuse de relayer une sortie de moins de 546 satoshis — il
+         * l'appelle poussière. Ce n'est pas un avis économique mais une règle
+         * de consensus : la transaction ne partirait pas.
+         *
+         * Aucune autre chaîne servie ici n'en a. Le minimum y est donc
+         * entièrement économique, donc entièrement calculé.
+         */
+        private val MINIMUM_PROTOCOLE = mapOf(
+            "BTC" to 0.00000546
+        )
+
+        /**
+         * REPLI, employé tant que les frais ou les cours sont inconnus —
+         * écran tout juste ouvert, réseau coupé, instantané vide.
+         *
+         * Ces valeurs ne sont plus la règle : elles étaient fausses dans les
+         * deux sens, trop hautes sur BNB Chain et bien trop basses sur Tron.
+         * Voir minimumEconomique. On les garde parce qu'un écran sans
+         * minimum du tout laisserait passer n'importe quoi pendant la
+         * seconde où l'estimation n'est pas revenue.
+         */
         private val MINIMUM_AMOUNTS = mapOf(
             "BTC"      to 0.00000546,   // règle de protocole : poussière
             "ETH"      to 0.0001,
