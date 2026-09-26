@@ -81,6 +81,36 @@ fun rememberCopieAvecVibration(): (String) -> Unit {
 }
 
 /*
+LA MÊME TAPE, SANS RIEN COPIER
+──────────────────────────────
+La vérification de la phrase de récupération fait toucher douze mots l'un
+après l'autre, et rien ne confirmait qu'un mot avait été pris : seul son
+déplacement dans la grille le disait, ce qui oblige à regarder ailleurs que
+là où le doigt appuie.
+
+C'est l'écran le plus important de l'application — celui qui décide si
+quelqu'un pourra retrouver ses fonds après avoir perdu son téléphone. Douter
+d'avoir touché le bon mot y conduit à recommencer, ou pire, à cocher sans
+vérifier.
+
+CE N'EST PAS UNE COPIE, DONC PAS rememberCopieAvecVibration. Le presse-papier
+n'a rien à faire ici — et une phrase de récupération est précisément ce qu'on
+ne veut JAMAIS y voir passer.
+
+Même chemin que la copie néanmoins : le vibreur plutôt que le retour de vue,
+pour la raison expliquée plus haut — le système ignore le second quand
+« Vibration au toucher » est désactivé, ce qui est courant.
+*/
+
+/** Une tape nette, sans autre effet. Pour un geste qui mérite d'être senti. */
+@Composable
+fun rememberVibrationTactile(): () -> Unit {
+    val secours = LocalHapticFeedback.current
+    val contexte = LocalContext.current
+    return remember(secours, contexte) { { vibrerCourt(contexte, secours) } }
+}
+
+/*
 DEUXIÈME CORRECTION : LA TAPE ÉTAIT TROP COURTE POUR SE SENTIR
 ──────────────────────────────────────────────────────────────
 Passer par le vibreur ne suffisait pas. `createOneShot(28 ms)` à

@@ -43,6 +43,15 @@ fun MnemonicVerifyScreen(
         }
     }
 
+    /*
+    Chaque mot touché se sent dans la main. Sur cet écran plus qu'ailleurs :
+    c'est lui qui décide si quelqu'un retrouvera ses fonds après avoir perdu
+    son téléphone, et rien d'autre ne confirmait la prise d'un mot que son
+    déplacement dans la grille — donc en regardant ailleurs que là où le
+    doigt appuie.
+    */
+    val vibrer = com.vaultex.ui.components.rememberVibrationTactile()
+
     // Pool mélangé (stable tant que la mnémonique ne change pas)
     val shuffled = remember(mnemonic) { mnemonic.withIndex().shuffled() }
 
@@ -108,6 +117,7 @@ fun MnemonicVerifyScreen(
                                 .background(BgSecondary)
                                 .border(1.dp, AccentBlue, RoundedCornerShape(10.dp))
                                 .clickable {
+                                    vibrer()
                                     selected = selected.filterNot { it == poolIndex }
                                     showError = false
                                 }
@@ -148,6 +158,7 @@ fun MnemonicVerifyScreen(
                                 .border(1.dp, AccentBlue.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                                 .clickable {
                                     if (selected.size < mnemonic.size) {
+                                        vibrer()
                                         selected = selected + poolIndex
                                         showError = false
                                     }
