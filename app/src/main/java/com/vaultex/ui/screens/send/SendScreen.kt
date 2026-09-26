@@ -29,10 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -111,16 +109,33 @@ fun SendScreen(navController: NavController) {
     }
     val context = LocalContext.current as FragmentActivity
     val biometricHelper = remember { BiometricHelper(context) }
-    val haptic = LocalHapticFeedback.current
+    /*
+    LE VIBREUR, PAS LE RETOUR DE VUE.
+
+    `performHapticFeedback` passe par View.performHapticFeedback, que le
+    système IGNORE EN SILENCE quand « Vibration au toucher » est désactivé —
+    courant sur Samsung, où beaucoup le coupent pour la batterie. L'appel
+    réussit, ne rend aucune erreur, et rien ne se produit.
+
+    Le défaut était donc VISIBLE À L'INTÉRIEUR D'UN MÊME ÉCRAN : copier une
+    adresse vibrait, parce que cette voie-là avait été corrigée il y a
+    longtemps ; confirmer un envoi ne vibrait pas. Le retour manquait
+    précisément sur le geste le plus engageant.
+
+    rememberVibrationTactile emprunte le même chemin que la copie : le
+    vibreur, avec un effet calibré par le constructeur. Voir CopieAdresse.kt,
+    qui raconte les deux tentatives qu'il a fallu pour y arriver.
+    */
+    val vibrer = com.vaultex.ui.components.rememberVibrationTactile()
     var showConfirm by remember { mutableStateOf(false) }
     var showCoinPicker by remember { mutableStateOf(false) }
 
     // Retour haptique de confirmation quand la transaction part (ou est mise en file)
     LaunchedEffect(state.txHash) {
-        if (state.txHash != null) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        if (state.txHash != null) vibrer()
     }
     LaunchedEffect(state.queued) {
-        if (state.queued) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        if (state.queued) vibrer()
     }
 
     // Regroupement par RÉSEAU (blockchain) : chaque réseau liste toutes ses
@@ -271,7 +286,7 @@ fun SendScreen(navController: NavController) {
             onCancel = { showConfirm = false },
             onConfirm = {
                 showConfirm = false
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                vibrer()
                 // m-05 : ré-authentification OBLIGATOIRE avant un envoi.
                 val bioStatus = biometricHelper.checkAvailability()
                 if (bioStatus == BiometricHelper.BiometricStatus.AVAILABLE ||
@@ -348,7 +363,7 @@ fun SendScreen(navController: NavController) {
                                     Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            vibrer()
                                             com.vaultex.core.session.DeblocageFraisBuffer.set(proposition)
                                             navController.navigate(Routes.SWAP)
                                         },
@@ -368,7 +383,7 @@ fun SendScreen(navController: NavController) {
                 }
                 Button(
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        vibrer()
                         showConfirm = true
                     },
                     modifier = Modifier.fillMaxWidth().height(54.dp),

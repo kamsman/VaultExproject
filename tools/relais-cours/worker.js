@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 5
+const VERSION = 6
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -134,6 +134,13 @@ monnaies de CoinGecko sans peser sur le quota.
 */
 const TTL_COURS = 120
 const TTL_MARCHE = 600
+/*
+COURBES : /coins/markets filtré par `ids`, demandé par l'accueil pour la
+forme de ses quatre mini-courbes. Une heure, parce que rien de ce qui se lit
+sur ces cartes n'en dépend — le prix et la variation viennent de
+/simple/price. Voir le commentaire du routage.
+*/
+const TTL_COURBES = 3600
 const TTL_CATALOGUE = 86400
 
 /*
@@ -200,6 +207,27 @@ export default {
 
     if (url.pathname === '/api/v3/search') {
       return await recherche(url, env)
+    }
+
+    /*
+    LES COURBES DE L'ACCUEIL N'ONT PAS BESOIN D'ÊTRE FRAÎCHES
+    ────────────────────────────────────────────────────────
+    L'accueil demande /coins/markets avec `ids` : quatre monnaies nommées,
+    uniquement pour la forme des mini-courbes. À dix minutes de cache, cette
+    seule URL peut coûter 4 300 appels par mois — 43 % d'un quota Demo, pour
+    un dessin.
+
+    Le prix et la variation affichés sur ces cartes NE VIENNENT PAS D'ICI :
+    ils arrivent par /simple/price, que Binance sert en premier, donc hors
+    quota CoinGecko. Ce qu'on retarde en allongeant ce cache, c'est la forme
+    d'une courbe sur vingt-quatre heures — invisible à l'heure près.
+
+    On distingue par la présence d'`ids` : une liste de marché ORDINAIRE
+    n'en a pas, et celle-là garde ses dix minutes parce qu'on la fait défiler
+    en lisant des prix.
+    */
+    if (url.pathname === '/api/v3/coins/markets' && url.searchParams.has('ids')) {
+      return await relaisCoinGecko(url, env, TTL_COURBES)
     }
 
     // Tout le reste part chez CoinGecko, mais UNE SEULE FOIS par période de
