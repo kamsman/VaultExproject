@@ -875,7 +875,7 @@
     <string name="send_summary_network">الشبكة</string>
     <string name="send_summary_fee">رسوم الشبكة</string>
     <string name="send_summary_you_send">سترسل</string>
-    <string name="send_summary_total">أنت ترسل</string>
+    <string name="send_summary_total">إجمالي المخصوم</string>
     <string name="send_summary_fee_note">تُدفع الرسوم بـ %1$s (بشكل منفصل عن الرمز).</string>
     <string name="send_service_fee">رسوم الخدمة</string>
     <string name="receive_search_asset">ابحث عن أصل</string>

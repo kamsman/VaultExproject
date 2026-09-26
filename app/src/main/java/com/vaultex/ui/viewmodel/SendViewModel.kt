@@ -390,7 +390,17 @@ class SendViewModel @Inject constructor(
             val adresseBtc =
                 if (chain == "BTC") myAddressFor("BTC").takeIf { it.isNotBlank() }
                 else null
-            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron, adresseBtc)
+            /*
+            Sur Tron, une partie des frais dépend du DESTINATAIRE : activer un
+            compte qui n'existe pas coûte 1 TRX. On ne la transmet que valide
+            — une adresse à moitié tapée ne renseigne sur rien, et la réserve
+            prudente reste alors en place.
+            */
+            val destinationTron =
+                if (chain == "TRX") _state.value.toAddress
+                    .takeIf { it.isNotBlank() && AddressValidator.isValid(it, "TRX") }
+                else null
+            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron, adresseBtc, destinationTron)
 
             // La monnaie a changé pendant que la réponse arrivait : ces frais
             // ne concernent plus l'écran affiché, on les jette.
@@ -439,6 +449,22 @@ class SendViewModel @Inject constructor(
                 newRecipient = valid && isNewRecipient(address)
             )
         }
+        /*
+        TRON EST LA SEULE CHAÎNE OÙ LES FRAIS DÉPENDENT DE QUI REÇOIT.
+
+        Partout ailleurs, le coût d'un transfert ne regarde que l'expéditeur
+        et l'état du réseau : l'adresse saisie n'y change rien, et relancer
+        l'estimation à chaque frappe serait du gaspillage.
+
+        Sur Tron, activer un compte inexistant coûte 1 TRX. Connaître le
+        destinataire permet donc de savoir si cette somme doit être réservée
+        — et c'est elle qui décide de ce que le bouton MAX propose.
+
+        On ne relance que sur une adresse VALIDE et RÉELLEMENT nouvelle :
+        pendant la frappe, aucune adresse intermédiaire ne passe la
+        validation, et un collage identique ne redemande rien.
+        */
+        if (s.selectedChain == "TRX" && valid && address != s.toAddress) fetchFee("TRX")
     }
 
     /**

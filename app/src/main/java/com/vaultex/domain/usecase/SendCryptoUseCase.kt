@@ -974,7 +974,16 @@ class SendCryptoUseCase @Inject constructor(
     suspend fun estimerFrais(
         chain: String,
         adresseTron: String? = null,
-        adresseBtc: String? = null
+        adresseBtc: String? = null,
+        /**
+         * Adresse TRON du DESTINATAIRE, quand elle est déjà saisie et valide.
+         *
+         * Sur Tron, une partie des frais ne dépend pas de l'expéditeur mais de
+         * celui qui reçoit : activer un compte qui n'existe pas encore coûte
+         * 1 TRX, brûlé. Sans cette adresse, on doit provisionner ce montant
+         * par prudence — et il est retranché du bouton MAX.
+         */
+        destinationTron: String? = null
     ): FraisReseau? = try {
         // Token personnalisé : gas d'un transfert ERC-20/BEP-20, payé en
         // natif (ETH ou BNB).
@@ -992,7 +1001,8 @@ class SendCryptoUseCase @Inject constructor(
             // Tron : demandé à la chaîne. En cas d'échec — réseau coupé,
             // TronGrid indisponible — on retombe sur les anciennes constantes,
             // donc jamais pire qu'avant.
-            "TRX"  -> runCatching { fraisTron(false, adresseTron) }.getOrNull() ?: identiques(0.3)
+            "TRX"  -> runCatching { fraisTron(false, adresseTron, destinationTron) }.getOrNull()
+                ?: identiques(0.3)
             "USDT" -> runCatching { fraisTron(true, adresseTron) }.getOrNull() ?: identiques(27.0)
             else   -> null
         }
@@ -1132,7 +1142,11 @@ class SendCryptoUseCase @Inject constructor(
     private val SUN_PAR_OCTET_DEFAUT = 1_000L
     private val SUN_ACTIVATION_COMPTE_DEFAUT = 1_000_000L   // 1 TRX
 
-    private suspend fun fraisTron(estJeton: Boolean, adresseTron: String?): FraisReseau {
+    private suspend fun fraisTron(
+        estJeton: Boolean,
+        adresseTron: String?,
+        destinationTron: String? = null
+    ): FraisReseau {
         val params = tronApi.getChainParameters().chainParameter
             .associate { it.key to it.value }
         val prixEnergie = params["getEnergyFee"]?.takeIf { it > 0 } ?: SUN_PAR_ENERGIE_DEFAUT
@@ -1162,8 +1176,33 @@ class SendCryptoUseCase @Inject constructor(
             val attendu =
                 if (octetsDispo >= OCTETS_TRANSFERT_TRX) 0.0
                 else OCTETS_TRANSFERT_TRX * prixOctet / 1e6
+            /*
+            ═══════════════════════════════════════════════════════════════
+            L'ACTIVATION SE PAIE POUR UN COMPTE QUI N'EXISTE PAS ENCORE
+            ═══════════════════════════════════════════════════════════════
+
+            Elle était provisionnée SYSTÉMATIQUEMENT, faute de savoir à qui
+            l'on envoie. C'est prudent et presque toujours faux : la plupart
+            des adresses saisies existent déjà, et 1 TRX immobilisé pour rien
+            se remarque quand on en détient 1,08 — le bouton MAX ne proposait
+            alors que 0,08 TRX, soit 8 % de ce qui était réellement
+            envoyable.
+
+            Le destinataire est donc interrogé. On ne renonce à la réserve
+            que sur une réponse CLAIRE : le compte existe. Réseau coupé,
+            TronGrid muet, adresse pas encore saisie — dans tous ces cas la
+            réserve est maintenue, parce qu'un envoi refusé faute d'1 TRX
+            coûte plus cher qu'un MAX trop prudent.
+
+            TronGrid rend `data: []` pour une adresse inconnue de la chaîne :
+            c'est le test d'existence, et il ne coûte qu'un appel.
+            */
+            val compteExistant = destinationTron
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { tronApi.getAccount(it).data.isNotEmpty() }.getOrNull() }
             val activation =
-                (params["getCreateNewAccountFeeInSystemContract"] ?: SUN_ACTIVATION_COMPTE_DEFAUT) / 1e6
+                if (compteExistant == true) 0.0
+                else (params["getCreateNewAccountFeeInSystemContract"] ?: SUN_ACTIVATION_COMPTE_DEFAUT) / 1e6
             FraisReseau(attendu = attendu, plafond = attendu + activation)
         }
     }
