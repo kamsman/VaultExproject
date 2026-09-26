@@ -158,7 +158,9 @@ class SwapTrackingWorker @AssistedInject constructor(
                 }
 
                 if (!notifPrefs.txAlerts.value) continue
-                val ctx = applicationContext
+                // Langue CHOISIE dans l'application, pas celle du système :
+                // voir le bloc de PendingTxManager, même défaut, même correctif.
+                val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
                 if (etat == "finished") {
                     hub.post(
                         // Clé identique à celle de SwapViewModel : si l'écran a

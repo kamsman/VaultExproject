@@ -332,8 +332,11 @@ class DepositCheckWorker @AssistedInject constructor(
             val total = com.google.gson.Gson().fromJson(json, SnapMini::class.java)?.totalBalanceXof ?: return
             val threshold = notifPrefs.thresholdXof.value.toDouble()
             if (total < threshold && !notifPrefs.lowBalanceNotified) {
-                val title = applicationContext.getString(com.vaultex.R.string.notif_lowbal_title)
-                val body = applicationContext.getString(
+                // Langue CHOISIE dans l'application, pas celle du système :
+                // voir le bloc de PendingTxManager, même défaut, même correctif.
+                val ctxLangue = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
+                val title = ctxLangue.getString(com.vaultex.R.string.notif_lowbal_title)
+                val body = ctxLangue.getString(
                     com.vaultex.R.string.notif_lowbal_body,
                     java.text.NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale()).format(threshold.toLong())
                 )

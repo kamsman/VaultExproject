@@ -138,7 +138,7 @@ class PriceAlertWorker @AssistedInject constructor(
     }
 
     private fun notifyMove(symbol: String, changePercent: Double, priceXof: Double, isUp: Boolean) {
-        val ctx = applicationContext
+        val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
         /*
         Canal SÉPARÉ, mais en importance HAUTE.
 
@@ -216,7 +216,7 @@ class PriceAlertWorker @AssistedInject constructor(
     }
 
     private fun notify(symbol: String, condition: String, target: Double, current: Double) {
-        val ctx = applicationContext
+        val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
         val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
