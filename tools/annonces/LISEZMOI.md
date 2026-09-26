@@ -97,6 +97,17 @@ s'adressent à qui hésite déjà.
 Il tient en trois promesses, toutes vérifiables à l'écran : pas de compte,
 réception directe dans le portefeuille, clés qui restent sur l'appareil.
 
+LE NOM ET « LA NOUVELLE VERSION » SONT DANS LE CORPS, PAS DANS LE TITRE. Le
+titre est la seule ligne certaine d'être lue : elle doit accrocher, pas
+s'annoncer. « VaultEx, la nouvelle version » se lit comme une note de
+publication et se balaie ; l'image du bureau de change, non. Le nom vient
+juste après, quand l'attention est déjà prise, et il sert alors deux fois —
+il dit qui parle, et il invite à mettre à jour.
+
+AUCUN NUMÉRO DE VERSION. Il figerait le fichier à une semaine précise, alors
+que ce message peut resservir des mois durant. « La nouvelle version » reste
+vrai tant qu'il y en a une ; « 1.0.616 » est faux dès le build suivant.
+
 « TES CLÉS », ET NON « TES CRYPTOS ». La première rédaction disait que les
 cryptos ne quittaient jamais le téléphone. C'est faux, et gravement : dans un
 échange les fonds partent bel et bien chez le fournisseur, qui renvoie l'autre
