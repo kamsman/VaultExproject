@@ -86,6 +86,24 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## Le 07 est le seul écrit pour séduire
+
+Les autres informent ; celui-là vend. Il ne décrit aucune fonctionnalité : il
+pose une image — le bureau de change qu'on n'a plus à aller chercher — et
+laisse l'application faire la démonstration. C'est le message à envoyer à
+quelqu'un qui ne sait pas encore ce qu'est un échange, là où le 02 ou le 04
+s'adressent à qui hésite déjà.
+
+Il tient en trois promesses, toutes vérifiables à l'écran : pas de compte,
+réception directe dans le portefeuille, clés qui restent sur l'appareil.
+
+« TES CLÉS », ET NON « TES CRYPTOS ». La première rédaction disait que les
+cryptos ne quittaient jamais le téléphone. C'est faux, et gravement : dans un
+échange les fonds partent bel et bien chez le fournisseur, qui renvoie l'autre
+monnaie. Ce qui ne part jamais, c'est la phrase de récupération — donc le
+contrôle. Promettre l'inverse se ferait démentir par le premier écran de suivi,
+qui affiche le dépôt en train d'être envoyé.
+
 ## Le 06 ne cite aucun minimum, et ce n'est pas un oubli
 
 Il dit « bien plus bas qu'ailleurs », jamais un chiffre. Un minimum dépend du
