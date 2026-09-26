@@ -37,10 +37,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -130,7 +128,24 @@ private fun statusRank(status: String?): Int = when (status?.trim()?.lowercase()
 fun SwapScreen(navController: NavHostController) {
     val viewModel: SwapViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
-    val haptic = LocalHapticFeedback.current
+    /*
+    LE VIBREUR, PAS LE RETOUR DE VUE.
+
+    `performHapticFeedback` passe par View.performHapticFeedback, que le
+    système IGNORE EN SILENCE quand « Vibration au toucher » est désactivé —
+    courant sur Samsung, où beaucoup le coupent pour la batterie. L'appel
+    réussit, ne rend aucune erreur, et rien ne se produit.
+
+    Le défaut était donc VISIBLE À L'INTÉRIEUR D'UN MÊME ÉCRAN : copier une
+    adresse vibrait, parce que cette voie-là avait été corrigée il y a
+    longtemps ; confirmer un envoi ne vibrait pas. Le retour manquait
+    précisément sur le geste le plus engageant.
+
+    rememberVibrationTactile emprunte le même chemin que la copie : le
+    vibreur, avec un effet calibré par le constructeur. Voir CopieAdresse.kt,
+    qui raconte les deux tentatives qu'il a fallu pour y arriver.
+    */
+    val vibrer = com.vaultex.ui.components.rememberVibrationTactile()
     val context = LocalContext.current as androidx.fragment.app.FragmentActivity
     val biometricHelper = remember { com.vaultex.core.security.BiometricHelper(context) }
 
@@ -221,7 +236,7 @@ fun SwapScreen(navController: NavHostController) {
     }
 
     val confirmAndExecute = {
-        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        vibrer()
         val bio = biometricHelper.checkAvailability()
         if (bio == com.vaultex.core.security.BiometricHelper.BiometricStatus.AVAILABLE ||
             biometricHelper.canUseDeviceCredential()
@@ -494,7 +509,7 @@ fun SwapScreen(navController: NavHostController) {
             onFraction = viewModel::onFractionClicked,
             onInvert = viewModel::swapTokens,
             onContinue = {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                vibrer()
                 screen = "confirm"
             },
             minimumPaire = viewModel.minimumLisible(),
@@ -1311,7 +1326,7 @@ private fun SwapTrackingScreen(
     nomFournisseur: String
 ) {
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
-    val haptic = LocalHapticFeedback.current
+    val vibrer = com.vaultex.ui.components.rememberVibrationTactile()
     val context = LocalContext.current
     // Même précaution que statusRank : ces deux booléens commandent le vert,
     // le message de succès et le retour à l'accueil.
@@ -1320,7 +1335,7 @@ private fun SwapTrackingScreen(
     val failed = etat in listOf("failed", "refunded", "expired")
     val rank = statusRank(state.swapStatus)
 
-    LaunchedEffect(finished) { if (finished) haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+    LaunchedEffect(finished) { if (finished) vibrer() }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
