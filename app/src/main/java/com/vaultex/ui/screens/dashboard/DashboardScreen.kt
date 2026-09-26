@@ -65,6 +65,7 @@ fun DashboardScreen(navController: NavHostController) {
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
     val echangesEnCours by viewModel.echangesEnCours.collectAsState()
+    val courbes by viewModel.courbes.collectAsState()
 
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
@@ -649,7 +650,11 @@ fun DashboardScreen(navController: NavHostController) {
                             Modifier.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            majors.forEach { t -> MarketMiniCard(t) { navController.navigate(Routes.tokenDetail(t.symbol)) } }
+                            majors.forEach { t ->
+                                MarketMiniCard(t, courbes[t.symbol].orEmpty()) {
+                                    navController.navigate(Routes.tokenDetail(t.symbol))
+                                }
+                            }
                         }
                     }
                 }
@@ -1538,7 +1543,13 @@ private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: 
 
 /** Carte marché compacte : logo + symbole, prix $, variation 24 h + mini-courbe. */
 @Composable
-private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
+private fun MarketMiniCard(
+    token: TokenBalance,
+    /** Cours réels des 24 dernières heures ; vide tant qu'ils n'ont pas été
+     *  chargés, ou si l'appel a échoué. */
+    courbe: List<Double>,
+    onClick: () -> Unit
+) {
     val up = token.changePercent24h >= 0
     val trendColor = if (up) AccentGreen else AccentRed
     // Maquette (mise à jour) : carte à fond léger, comme les tuiles d'action.
@@ -1587,15 +1598,44 @@ private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
             trois millimètres au-dessus.
             */
             Canvas(Modifier.fillMaxWidth().height(26.dp)) {
-                val rnd = kotlin.random.Random(token.symbol.hashCode())
-                val n = 10
-                val pente = if (up) -1f else 1f   // l'axe y descend quand ça monte
-                val ys = List(n + 1) { i ->
-                    val bruit = 0.18f + rnd.nextFloat() * 0.5f
-                    val inclinaison = pente * 0.2f * (i / n.toFloat() - 0.5f)
-                    (bruit + inclinaison).coerceIn(0.08f, 0.92f) * size.height
+                /*
+                LES VRAIS COURS QUAND ON LES A, LE TRACÉ DÉCORATIF SINON.
+
+                Le repli n'est pas un pis-aller à supprimer un jour : l'appel
+                peut échouer, et il n'a de toute façon pas encore répondu
+                pendant les premières secondes. Un cadre vide à cet endroit se
+                lirait comme une panne.
+
+                Les deux chemins produisent la même forme — un tracé, une aire
+                dégradée — pour que le passage de l'un à l'autre ne se voie
+                pas.
+                */
+                val ys: List<Float>
+                val pas: Float
+                if (courbe.size >= 2) {
+                    // Normalisation sur la plage RÉELLE de la fenêtre : une
+                    // variation de 0,2 % doit se voir, sinon la courbe d'une
+                    // journée calme serait une ligne droite.
+                    val bas = courbe.min()
+                    val haut = courbe.max()
+                    val etendue = (haut - bas).takeIf { it > 0.0 } ?: 1.0
+                    ys = courbe.map { p ->
+                        // 8 % de marge en haut et en bas : une courbe qui
+                        // touche les bords paraît coupée.
+                        (0.92f - 0.84f * ((p - bas) / etendue).toFloat()) * size.height
+                    }
+                    pas = size.width / (courbe.size - 1)
+                } else {
+                    val rnd = kotlin.random.Random(token.symbol.hashCode())
+                    val n = 10
+                    val pente = if (up) -1f else 1f   // l'axe y descend quand ça monte
+                    ys = List(n + 1) { i ->
+                        val bruit = 0.18f + rnd.nextFloat() * 0.5f
+                        val inclinaison = pente * 0.2f * (i / n.toFloat() - 0.5f)
+                        (bruit + inclinaison).coerceIn(0.08f, 0.92f) * size.height
+                    }
+                    pas = size.width / n
                 }
-                val pas = size.width / n
                 val trace = Path().apply {
                     ys.forEachIndexed { i, y -> if (i == 0) moveTo(0f, y) else lineTo(i * pas, y) }
                 }
