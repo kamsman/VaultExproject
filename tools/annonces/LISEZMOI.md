@@ -74,9 +74,57 @@ faire, en trois gestes. `depot-02` le suit plus tard — c'est un
 avertissement, et un avertissement envoyé avant qu'on ait compris à quoi
 il sert ne s'imprime pas.
 
+Le 05 et le 06 sont venus plus tard et ne se remplacent pas. Le 05 lève une
+objection — on croit devoir rester devant l'écran pendant l'échange, et on
+ne commence donc pas. Le 06 s'adresse à qui a peu : il dit que le minimum
+dépend du RÉSEAU, ce que personne ne sait, et que BNB Chain ouvre des
+montants que les autres chaînes refusent. C'est le message le plus utile ici,
+et le seul qui puisse transformer un portefeuille bloqué en portefeuille qui
+sert.
+
 Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
+
+## Le 07 est le seul écrit pour séduire
+
+Les autres informent ; celui-là vend. Il ne décrit aucune fonctionnalité : il
+pose une image — le bureau de change qu'on n'a plus à aller chercher — et
+laisse l'application faire la démonstration. C'est le message à envoyer à
+quelqu'un qui ne sait pas encore ce qu'est un échange, là où le 02 ou le 04
+s'adressent à qui hésite déjà.
+
+Il tient en trois promesses, toutes vérifiables à l'écran : pas de compte,
+réception directe dans le portefeuille, clés qui restent sur l'appareil.
+
+LE NOM ET « LA NOUVELLE VERSION » SONT DANS LE CORPS, PAS DANS LE TITRE. Le
+titre est la seule ligne certaine d'être lue : elle doit accrocher, pas
+s'annoncer. « VaultEx, la nouvelle version » se lit comme une note de
+publication et se balaie ; l'image du bureau de change, non. Le nom vient
+juste après, quand l'attention est déjà prise, et il sert alors deux fois —
+il dit qui parle, et il invite à mettre à jour.
+
+AUCUN NUMÉRO DE VERSION. Il figerait le fichier à une semaine précise, alors
+que ce message peut resservir des mois durant. « La nouvelle version » reste
+vrai tant qu'il y en a une ; « 1.0.616 » est faux dès le build suivant.
+
+« TES CLÉS », ET NON « TES CRYPTOS ». La première rédaction disait que les
+cryptos ne quittaient jamais le téléphone. C'est faux, et gravement : dans un
+échange les fonds partent bel et bien chez le fournisseur, qui renvoie l'autre
+monnaie. Ce qui ne part jamais, c'est la phrase de récupération — donc le
+contrôle. Promettre l'inverse se ferait démentir par le premier écran de suivi,
+qui affiche le dépôt en train d'être envoyé.
+
+## Le 06 ne cite aucun minimum, et ce n'est pas un oubli
+
+Il dit « bien plus bas qu'ailleurs », jamais un chiffre. Un minimum dépend du
+coût de retrait des DEUX chaînes et bouge avec elles : mesuré ici, un même
+minimum a varié d'un facteur six en vingt-quatre heures.
+
+Le RAPPORT entre les chaînes, lui, tient à chaque mesure — BNB Chain est en
+dessous, toujours. Une annonce peut donc promettre un classement ; elle ne
+peut pas promettre un prix. Le chiffre du jour appartient à l'écran, qui le
+demande au fournisseur au moment où on le lit.
 
 ## Le numéro de contact
 
