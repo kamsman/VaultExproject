@@ -50,6 +50,20 @@
 # notification s'affiche sans bandeau.
 #
 # --------------------------------------------------------------------------
+# UN LIEN OUVERT AU TOUCHER (5e argument)
+# --------------------------------------------------------------------------
+#
+# Par defaut, toucher une annonce ouvre VaultEx. Le cinquieme argument la fait
+# ouvrir une ADRESSE — le groupe Telegram, une page du projet — depuis la
+# banniere systeme comme depuis la cloche.
+#
+#   ./tools/send-announcement.sh --fichier msg.txt "" <image> https://t.me/xxx
+#
+# L'application n'accepte que t.me, telegram.me et vaultex.app, en https. Tout
+# le reste fait simplement ouvrir l'accueil, sans un mot : voir LienAnnonce.kt,
+# qui explique pourquoi cette liste est si courte.
+#
+# --------------------------------------------------------------------------
 # PREPARATION — a faire UNE SEULE FOIS
 # --------------------------------------------------------------------------
 #
@@ -100,11 +114,13 @@ if [ "${1:-}" = "--fichier" ]; then
   BODY=$(tail -n +2 "$FICHIER")
   SYMBOL="${3:-}"
   IMAGE="${4:-}"
+  LIEN="${5:-}"
 else
   TITLE="${1:-}"
   BODY="${2:-}"
   SYMBOL="${3:-}"
   IMAGE="${4:-}"
+  LIEN="${5:-}"
 fi
 SA_FILE="${SA_FILE:-firebase-service-account.json}"
 TOPIC="vaultex_all"   # doit correspondre a VaultExApplication.ANNOUNCE_TOPIC
@@ -258,6 +274,33 @@ else
   IMAGE_FIELD=""
 fi
 
+LIEN_J=$(json_escape "$LIEN")
+if [ -n "$LIEN" ]; then
+  # --------------------------------------------------------------------------
+  # LE VRAI CONTROLE EST DANS L'APPLICATION, PAS ICI
+  # --------------------------------------------------------------------------
+  #
+  # LienAnnonce.kt n'accepte que t.me et les pages du projet, et c'est lui qui
+  # decide : un lien refuse fait simplement ouvrir l'application. Ce controle
+  # s'execute sur le telephone, donc il vaut aussi contre un message qui ne
+  # serait PAS parti d'ici.
+  #
+  # Ce qui suit ne protege que de la faute de frappe. C'est utile — se tromper
+  # de domaine produirait une annonce qui ouvre l'accueil sans qu'on comprenne
+  # pourquoi — mais ce n'est pas une securite.
+  case "$LIEN" in
+    https://t.me/*|https://telegram.me/*|https://vaultex.app/*|https://*.vaultex.app/*) ;;
+    *)
+      echo "ERREUR : lien refuse. L'application n'ouvre que t.me et vaultex.app," >&2
+      echo "         en https. Voir LienAnnonce.kt." >&2
+      exit 1
+      ;;
+  esac
+  LIEN_FIELD=$(printf ',"lien":"%s"' "$LIEN_J")
+else
+  LIEN_FIELD=""
+fi
+
 # `key` sert a la deduplication cote application : deux envois du meme
 # contenu a quelques minutes d'intervalle ne produiront qu'une entree dans la
 # cloche. L'horodatage la rend unique pour une annonce reellement nouvelle.
@@ -265,14 +308,15 @@ MSG_KEY="announce:$NOW"
 
 # AUCUN champ `notification` : c'est ce qui force le passage par
 # onMessageReceived. En ajouter un ferait retomber dans le probleme d'origine.
-PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s%s},"android":{"priority":"high"}}}' \
-  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD" "$IMAGE_FIELD")
+PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s%s%s},"android":{"priority":"high"}}}' \
+  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD" "$IMAGE_FIELD" "$LIEN_FIELD")
 
 echo "Projet : $PROJECT_ID"
 echo "Canal  : $TOPIC"
 echo "Titre  : $TITLE"
 echo "Logo   : ${SYMBOL:-VaultEx}"
 echo "Image  : ${IMAGE:-aucune}"
+echo "Lien   : ${LIEN:-aucun, ouvre VaultEx}"
 echo
 
 RESPONSE=$(curl -s -X POST \

@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,7 @@ import java.util.Locale
 fun NotificationCenterScreen(navController: NavHostController) {
     val viewModel: NotificationCenterViewModel = hiltViewModel()
     val items by viewModel.items.collectAsState()
+    val contexte = LocalContext.current
 
     // À l'ouverture, on marque tout comme lu (la pastille disparaît).
     LaunchedEffect(Unit) {
@@ -126,7 +128,36 @@ fun NotificationCenterScreen(navController: NavHostController) {
                         coinId != null -> Routes.coinDetail(coinId)
                         else -> null
                     }
-                    NotifRow(item, destination?.let { { navController.navigate(it) } })
+                    /*
+                    UNE ANNONCE QUI MÈNE AILLEURS RESTE CLIQUABLE DANS LA
+                    CLOCHE.
+
+                    La bannière système s'efface d'un balayage, souvent sans
+                    être lue ; la cloche, elle, garde l'annonce cent entrées
+                    durant. Rendre le lien actif dans la bannière mais pas
+                    ici, c'est le perdre pour tous ceux qui la retrouvent
+                    plus tard — c'est-à-dire la plupart.
+
+                    L'adresse a déjà passé la liste blanche au moment de la
+                    publication (voir LienAnnonce) : rien n'est revérifié ici,
+                    mais rien d'arbitraire n'y est stocké non plus.
+                    */
+                    val ouvrirLien = item.lien
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { url ->
+                            {
+                                runCatching {
+                                    contexte.startActivity(
+                                        android.content.Intent(
+                                            android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(url)
+                                        )
+                                    )
+                                }
+                                Unit
+                            }
+                        }
+                    NotifRow(item, ouvrirLien ?: destination?.let { { navController.navigate(it) } })
                 }
             }
         }
