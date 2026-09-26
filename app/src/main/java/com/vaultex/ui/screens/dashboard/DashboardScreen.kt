@@ -1561,20 +1561,64 @@ private fun MarketMiniCard(token: TokenBalance, onClick: () -> Unit) {
                 (if (up) "▲ " else "▼ ") + String.format(Locale.US, "%.1f", kotlin.math.abs(token.changePercent24h)) + "%",
                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = trendColor
             )
-            // Mini-courbe DÉCORATIVE (déterministe par symbole) — pas de données
-            // historiques ici ; la vraie courbe est sur l'écran Marché.
-            Canvas(Modifier.fillMaxWidth().height(20.dp)) {
+            /*
+            ═══════════════════════════════════════════════════════════════
+            MINI-COURBE : UN APLAT SOUS LE TRAIT, ET UN SENS QUI NE MENT PAS
+            ═══════════════════════════════════════════════════════════════
+
+            Le trait seul se lisait comme un gribouillis ; l'aire dégradée
+            sous la courbe est ce qui distingue un graphique d'un trait, et
+            c'est ce que font tous les écrans de marché sérieux.
+
+            MAIS ELLE RESTE DÉCORATIVE. Ces points ne sont pas des cours : ils
+            viennent d'un tirage déterministe sur le symbole, faute de données
+            historiques ici — le vrai historique vit sur l'écran Marché, qui
+            appelle un autre point d'entrée.
+
+            D'OÙ UNE CORRECTION QUI DEVIENT NÉCESSAIRE. Un trait fin passe
+            pour un ornement ; une aire pleine passe pour une mesure. Or rien
+            n'empêchait la courbe de MONTER au-dessus d'un « ▼ 0,4 % » — c'est
+            exactement ce que montre la maquette qui a inspiré ce changement,
+            sans que personne l'ait fait exprès.
+
+            Le tirage est donc incliné selon la VRAIE variation sur 24 h : la
+            forme reste inventée, la direction ne l'est plus. Une décoration
+            peut être muette ; elle ne peut pas contredire le chiffre écrit
+            trois millimètres au-dessus.
+            */
+            Canvas(Modifier.fillMaxWidth().height(26.dp)) {
                 val rnd = kotlin.random.Random(token.symbol.hashCode())
                 val n = 10
-                var prev = androidx.compose.ui.geometry.Offset(0f, size.height * (0.3f + rnd.nextFloat() * 0.4f))
-                for (i in 1..n) {
-                    val next = androidx.compose.ui.geometry.Offset(
-                        size.width * i / n,
-                        size.height * (0.15f + rnd.nextFloat() * 0.7f)
-                    )
-                    drawLine(trendColor, prev, next, strokeWidth = 2f)
-                    prev = next
+                val pente = if (up) -1f else 1f   // l'axe y descend quand ça monte
+                val ys = List(n + 1) { i ->
+                    val bruit = 0.18f + rnd.nextFloat() * 0.5f
+                    val inclinaison = pente * 0.2f * (i / n.toFloat() - 0.5f)
+                    (bruit + inclinaison).coerceIn(0.08f, 0.92f) * size.height
                 }
+                val pas = size.width / n
+                val trace = Path().apply {
+                    ys.forEachIndexed { i, y -> if (i == 0) moveTo(0f, y) else lineTo(i * pas, y) }
+                }
+                // L'aire ferme la courbe sur le bas du cadre. Le dégradé
+                // s'éteint complètement : un aplat uniforme ferait un bloc de
+                // couleur, et cette carte en a déjà un derrière elle.
+                val aire = Path().apply {
+                    addPath(trace)
+                    lineTo(size.width, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }
+                drawPath(
+                    aire,
+                    brush = Brush.verticalGradient(
+                        listOf(trendColor.copy(alpha = 0.32f), trendColor.copy(alpha = 0f))
+                    )
+                )
+                drawPath(
+                    trace,
+                    color = trendColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f)
+                )
             }
         }
     }
