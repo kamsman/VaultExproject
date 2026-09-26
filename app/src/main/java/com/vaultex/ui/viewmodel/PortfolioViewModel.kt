@@ -292,9 +292,65 @@ class PortfolioViewModel @Inject constructor(
         val lastUpdated: Long
     )
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES VRAIES COURBES DES QUATRE CARTES DE L'ACCUEIL
+    ═══════════════════════════════════════════════════════════════════════
+
+    Ces mini-courbes étaient dessinées au hasard — un tirage déterministe sur
+    le symbole — faute d'historique sur cet écran. Tant qu'il s'agissait d'un
+    trait fin, c'était un ornement assumé. Avec une aire pleine sous la
+    courbe, ça devient une mesure, et une mesure inventée n'a pas sa place
+    sur un écran d'argent.
+
+    UN SEUL APPEL, QUATRE MONNAIES. `ids` filtre la réponse aux seules cartes
+    affichées : BTC, ETH, SOL, BNB. C'est une requête de plus par
+    rafraîchissement du portefeuille, pas une par carte, et elle emprunte le
+    même relais que le reste — donc le coût ne dépend pas du nombre
+    d'installations.
+
+    ON GARDE LES VINGT-QUATRE DERNIÈRES HEURES, PAS LES SEPT JOURS. CoinGecko
+    ne rend que du 7 jours, à raison d'un point par heure. Or la carte affiche
+    une variation sur 24 h : montrer sept jours à côté d'un chiffre qui en
+    couvre un ramènerait exactement le défaut qu'on corrige — une courbe qui
+    monte sous un pourcentage négatif, sans que rien ne soit faux pour
+    autant. Les deux doivent parler de la même période.
+
+    UN ÉCHEC NE CASSE RIEN. La carte retombe sur son tracé décoratif, qui
+    suit au moins le sens de la variation. C'est un agrément, pas une
+    dépendance.
+    */
+    private val _courbes = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
+    val courbes: StateFlow<Map<String, List<Double>>> = _courbes.asStateFlow()
+
+    private fun chargerCourbes() {
+        viewModelScope.launch {
+            val symboles = listOf("BTC", "ETH", "SOL", "BNB")
+            val ids = symboles.mapNotNull { com.vaultex.core.market.CoinIds.BY_SYMBOL[it] }
+            if (ids.isEmpty()) return@launch
+            val dtos = try {
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    coinGeckoApi.getMarkets(ids = ids.joinToString(","))
+                }
+            } catch (_: Exception) {
+                return@launch   // tracé décoratif conservé
+            }
+            val parId = dtos.associateBy { it.id }
+            _courbes.value = symboles.mapNotNull { sym ->
+                val prix = com.vaultex.core.market.CoinIds.BY_SYMBOL[sym]
+                    ?.let { parId[it] }
+                    ?.sparkline_in_7d?.price
+                    ?.takeIf { it.size >= 2 }
+                    ?: return@mapNotNull null
+                sym to prix.takeLast(24)
+            }.toMap()
+        }
+    }
+
     init {
         loadCachedSnapshot()
         loadPortfolio()
+        chargerCourbes()
         // Reprend le suivi des transactions en attente persistées (badge « ! »).
         pendingTxManager.kick()
         // Enregistre le jeton FCM + adresses pour les push « Fonds reçus » (sans
