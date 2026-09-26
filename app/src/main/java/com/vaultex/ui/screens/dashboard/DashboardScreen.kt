@@ -327,7 +327,37 @@ fun DashboardScreen(navController: NavHostController) {
                 .fillMaxSize()
                 .pullRefresh(pullState)
         ) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        REVENIR À L'ACCUEIL PENDANT UN ÉCHANGE REMONTE EN HAUT
+        ═══════════════════════════════════════════════════════════════════
+
+        Le retour à l'accueil RESTAURE la position de défilement : on revient
+        là où on était avant d'ouvrir le Swap — souvent au milieu du marché,
+        largement en dessous de la ligne « Échange en cours ».
+
+        C'est fâcheux à ce moment précis, et à ce moment seulement. On vient
+        de lancer un mouvement d'argent, l'écran de conclusion vient de dire
+        « suis la suite depuis l'accueil » — et l'accueil s'ouvre sur autre
+        chose. Il faut deviner qu'il faut remonter.
+
+        On remonte donc, mais seulement quand il y a quelque chose à voir :
+        la condition est l'EXISTENCE d'un échange en cours, pas le fait
+        d'arriver du Swap. Revenir à l'accueil depuis n'importe où pendant un
+        échange donne le même résultat, ce qui est cohérent : c'est
+        l'information vivante du moment.
+
+        L'animation n'est pas décorative — un saut instantané se
+        confondrait avec un écran qui n'a jamais défilé. Le mouvement dit
+        qu'on a été déplacé, et vers quoi.
+        */
+        val listeAccueil = androidx.compose.foundation.lazy.rememberLazyListState()
+        LaunchedEffect(echangesEnCours.isNotEmpty()) {
+            if (echangesEnCours.isNotEmpty()) listeAccueil.animateScrollToItem(0)
+        }
+
         LazyColumn(
+            state = listeAccueil,
             modifier = Modifier.fillMaxSize(),
             // Marge basse = hauteur de la barre flottante : le dernier élément
             // reste atteignable au lieu de disparaître dessous.
