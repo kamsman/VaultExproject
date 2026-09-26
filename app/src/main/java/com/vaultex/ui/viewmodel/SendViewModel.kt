@@ -659,7 +659,40 @@ class SendViewModel @Inject constructor(
                     un message parlant de solde indisponible alors que le
                     solde était là.
                     */
-                    val marge = if (chain == "TRX") 1.0 else 1.6
+                    val marge = when (chain) {
+                        "TRX" -> 1.0
+                        /*
+                        ETHEREUM : LA HAUSSE ÉTAIT PROVISIONNÉE DEUX FOIS.
+
+                        Le plafond rendu par l'estimateur vaut déjà
+                        « 2 × frais de base + pourboire » — la formule
+                        canonique EIP-1559, qui absorbe À ELLE SEULE un
+                        doublement du prix. Le multiplier encore par 1,6
+                        réservait donc plus du triple du coût réel.
+
+                        Sur un gros solde, personne ne le remarque. Sur
+                        1,17 $ d'ETH, MAX ne proposait que 0,18 $ : la
+                        prudence coûtait les deux tiers de ce qui était
+                        envoyable.
+
+                        25 % suffisent. Le frais de base d'Ethereum ne peut
+                        monter que de 12,5 % PAR BLOC : cette marge couvre
+                        deux blocs, soit une vingtaine de secondes, et elle
+                        s'ajoute au doublement déjà contenu dans le plafond.
+                        L'écart entre l'estimation et la diffusion se compte
+                        en secondes.
+                        */
+                        "ETH" -> 1.25
+                        /*
+                        BNB Chain et Bitcoin gardent 1,6, et ce n'est pas par
+                        symétrie. Leur plafond ne contient AUCUN doublement :
+                        c'est le prix courant multiplié par la limite de gaz
+                        pour l'un, le tarif du mempool pour l'autre. Il n'y a
+                        donc rien à retrancher — la marge y est le seul
+                        coussin.
+                        */
+                        else -> 1.6
+                    }
                     java.math.BigDecimal.valueOf(liveFee)
                         .multiply(java.math.BigDecimal.valueOf(marge))
                 } else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
