@@ -469,6 +469,7 @@
     <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
     <!-- « Min. » est une abréviation de tableau, pas un mot qu'on lit. -->
     <string name="send_min_hint">Minimum %1$s</string>
+    <string name="send_err_fee_reserve">Solde trop faible pour les frais de réseau : tu as %1$s, et il faut en garder ~%2$s pour payer le transfert.</string>
     <string name="send_err_below_min">Montant trop petit. Minimum : %1$s — en dessous, les frais de réseau coûtent plus cher que ce que tu envoies.</string>
     <string name="send_err_dust">Montant trop petit pour le réseau (poussière). Augmente le montant.</string>
     <string name="send_err_addr_rejected">Adresse de destination invalide ou rejetée par le réseau.</string>

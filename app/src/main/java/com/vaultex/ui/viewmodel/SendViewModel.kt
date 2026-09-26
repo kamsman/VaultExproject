@@ -613,9 +613,30 @@ class SendViewModel @Inject constructor(
             }
             else {
                 val liveFee = _state.value.feeNativeAmount
-                if (liveFee != null && liveFee > 0.0)
-                    java.math.BigDecimal.valueOf(liveFee).multiply(java.math.BigDecimal.valueOf(1.6))
-                else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
+                if (liveFee != null && liveFee > 0.0) {
+                    /*
+                    LA MARGE NE VAUT PAS POUR TOUTES LES CHAÎNES.
+
+                    Le ×1,6 protège d'un prix du gaz qui monte entre
+                    l'estimation et la diffusion : c'est le risque réel sur
+                    Ethereum et BNB Chain, et sur Bitcoin dont le mempool
+                    bouge.
+
+                    Sur Tron, le plafond CONTIENT déjà le pire cas, et ce
+                    pire cas est un montant FIXE et connu : 1 TRX d'activation
+                    si le compte destinataire n'existe pas encore. Rien n'y
+                    fluctue, il n'y a donc rien à provisionner en plus.
+
+                    Constaté sur appareil : un solde de 1,080275 TRX, un
+                    transfert réellement gratuit (bande passante offerte), et
+                    MAX qui réservait 1,6 TRX — donc refusait tout envoi, avec
+                    un message parlant de solde indisponible alors que le
+                    solde était là.
+                    */
+                    val marge = if (chain == "TRX") 1.0 else 1.6
+                    java.math.BigDecimal.valueOf(liveFee)
+                        .multiply(java.math.BigDecimal.valueOf(marge))
+                } else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
                     ?: java.math.BigDecimal.ZERO
             }
         // Le frais de service VaultEx (BTC) est aussi prélevé → on le retranche
@@ -623,11 +644,45 @@ class SendViewModel @Inject constructor(
         val svc = java.math.BigDecimal.valueOf(serviceFeeCrypto(chain, balance.toDouble()))
         val spendable = balance.subtract(reserve).subtract(svc)
         if (spendable.signum() <= 0) {
-            _state.update { it.copy(error = locStr(R.string.send_no_balance)) }
+            /*
+            « SOLDE INDISPONIBLE » ÉTAIT FAUX ICI.
+
+            Ce message sert au cas où l'on ne connaît AUCUN solde. Arrivé là,
+            on en connaît un — il est simplement plus petit que la réserve de
+            frais. Dire « indisponible » à quelqu'un qui voit son solde
+            affiché juste au-dessus lui fait croire à un défaut de
+            l'application, et c'est ce qui a été rapporté.
+
+            On nomme donc les deux nombres : ce qu'il a, et ce qu'il faudrait
+            garder. La différence se lit d'elle-même.
+            */
+            _state.update {
+                it.copy(
+                    error = locStr(
+                        R.string.send_err_fee_reserve,
+                        formatFeeAmount(balance.toDouble()) + " " + nativeUnit(chain),
+                        formatFeeAmount(reserve.add(svc).toDouble()) + " " + nativeUnit(chain)
+                    )
+                )
+            }
             return
         }
+        /*
+        L'ÉCHELLE EST CELLE DE LA CHAÎNE, PAS UN ARRONDI COMMODE.
+
+        Solana compte en lamports : neuf décimales. Tronquer à huit laisse
+        jusqu'à neuf lamports sur le compte — et Solana REFUSE de laisser un
+        compte entre 1 lamport et le minimum « rent-exempt » (~0,00089 SOL).
+
+        Constaté sur appareil : MAX proposait 0.00178281 sur un solde de
+        0.001787816, l'envoi était rejeté, et le message du réseau disait
+        exactement quoi faire — « envoie tout (0.001782816) » — c'est-à-dire
+        le chiffre que MAX aurait dû écrire. Six lamports d'arrondi
+        rendaient l'envoi impossible.
+        */
+        val echelle = if (chain == "SOL") 9 else 8
         setAmount(
-            spendable.setScale(8, java.math.RoundingMode.DOWN)
+            spendable.setScale(echelle, java.math.RoundingMode.DOWN)
                 .stripTrailingZeros()
                 .toPlainString()
         )
