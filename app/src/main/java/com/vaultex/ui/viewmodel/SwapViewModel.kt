@@ -249,6 +249,41 @@ class SwapViewModel @Inject constructor(
         return riche ?: usdt
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CES TROIS PROPRIÉTÉS DOIVENT PRÉCÉDER `init` — CE N'EST PAS UN RANGEMENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Kotlin initialise les propriétés et les blocs `init` DANS L'ORDRE DU
+    FICHIER. Une propriété déclarée plus bas n'existe pas encore quand `init`
+    s'exécute : le champ vaut la valeur par défaut de la JVM, donc `null`,
+    quel que soit l'initialiseur écrit à côté.
+
+    Elles étaient déclarées cent-soixante lignes plus bas. Conséquences, et
+    elles n'ont pas la même gravité :
+
+    · `prixDistants` — PLANTAGE. `init` appelle priceUsdOf, qui finit par
+      lire cette table quand la monnaie n'est ni dans l'instantané du
+      portefeuille ni un stable. Sur un portefeuille NEUF, l'instantané est
+      vide et aucune monnaie n'y figure : ouvrir l'écran Swap levait un
+      NullPointerException au premier cours demandé, et l'application se
+      fermait. Remonté quatre fois depuis un même appareil, sur un
+      portefeuille resté vide vingt jours — il ne pouvait pas en être
+      autrement, l'écran plantait avant d'afficher quoi que ce soit.
+
+    · `jobMinimum` et `jobPrix` — PERTE SILENCIEUSE. `init` leur affecte une
+      coroutine, puis leur initialiseur `= null` s'exécute APRÈS et l'écrase.
+      La référence est perdue : le garde-fou « une seule requête à la fois »
+      ne pouvait pas annuler la première, et une réponse lente pouvait
+      écraser un écran déjà changé.
+
+    Le commentaire qui expliquait `prixDistants` reste où il était : il
+    raconte le chargement des cours distants, pas la déclaration.
+    */
+    private val prixDistants = mutableMapOf<String, Double>()
+    private var jobPrix: kotlinx.coroutines.Job? = null
+    private var jobMinimum: kotlinx.coroutines.Job? = null
+
     init {
         val depart = actifDeDepart()
         _state.update {
@@ -306,8 +341,6 @@ class SwapViewModel @Inject constructor(
     l'opération coûte en proportion. À l'utilisateur de décider — c'est son
     argent, et un portefeuille non-dépositaire n'a pas à choisir pour lui.
     */
-    private var jobMinimum: kotlinx.coroutines.Job? = null
-
     private fun chargerMinimum() {
         // Une seule requête à la fois : changer de paire deux fois
         // rapidement ne doit pas laisser la réponse la plus lente écraser
@@ -414,9 +447,6 @@ class SwapViewModel @Inject constructor(
     Un échec ne casse rien — le cours reste inconnu, la ligne des frais
     disparaît comme avant. C'est un agrément, pas une dépendance.
     */
-    private val prixDistants = mutableMapOf<String, Double>()
-    private var jobPrix: kotlinx.coroutines.Job? = null
-
     private fun chargerPrixManquants() {
         jobPrix?.cancel()
         jobPrix = viewModelScope.launch {

@@ -220,6 +220,22 @@ class SendViewModel @Inject constructor(
         return detenue ?: "USDT-BNB"
     }
 
+    /**
+     * Requête de frais en cours. Une seule à la fois : la suivante annule la
+     * précédente.
+     *
+     * DÉCLARÉE AVANT `init`, ET C'EST OBLIGATOIRE. Kotlin initialise dans
+     * l'ordre du fichier : `init` appelle fetchFee, qui affecte cette
+     * propriété — puis l'initialiseur `= null` s'exécutait APRÈS et écrasait
+     * la référence. La première requête devenait donc inannulable, et sa
+     * réponse pouvait écraser un écran déjà passé à une autre monnaie, ce
+     * que le reste du fichier s'emploie précisément à éviter.
+     *
+     * Le même piège coûtait un PLANTAGE dans SwapViewModel, où la propriété
+     * concernée était une Map, nulle au moment de l'appel.
+     */
+    private var jobFrais: kotlinx.coroutines.Job? = null
+
     init {
         val cur = currencyController.currency.value
         val depart = varianteUsdtDeDepart()
@@ -377,12 +393,6 @@ class SendViewModel @Inject constructor(
      *   l'écran. C'est lui qui divise par trois le chiffre annoncé sur les
      *   transferts de jetons Ethereum.
      */
-    /**
-     * Requête de frais en cours. Une seule à la fois : la suivante annule la
-     * précédente.
-     */
-    private var jobFrais: kotlinx.coroutines.Job? = null
-
     private fun fetchFee(chain: String) {
         /*
         ═══════════════════════════════════════════════════════════════════
