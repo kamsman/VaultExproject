@@ -259,7 +259,45 @@ fun DashboardScreen(navController: NavHostController) {
                 }
             )
         }
-        if (!telegramHidden) add {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        L'IMAGE EN FRANÇAIS, LE BANDEAU ÉCRIT PARTOUT AILLEURS
+        ═══════════════════════════════════════════════════════════════════
+
+        Une image porte son texte gravé : « Rejoins la communauté VaultEx »
+        restera français sur un téléphone réglé en anglais ou en arabe, quoi
+        qu'on fasse. C'est le prix d'un visuel, et il ne se négocie pas.
+
+        Plutôt que de choisir entre une belle bannière fausse pour une partie
+        des utilisateurs et un bandeau correct mais terne pour tous, on garde
+        les deux et on laisse la langue trancher. Le français couvre
+        l'essentiel du public visé ; les autres gardent un bandeau traduit,
+        qui mène au même endroit.
+
+        Le jour où l'image existera en trois langues, cette condition
+        disparaîtra — c'est une dépendance à un fichier, pas à du code.
+        */
+        if (!telegramHidden &&
+            com.vaultex.core.session.LocaleManager.appLocale().language == "fr"
+        ) add {
+            BandeauTelegramImage(
+                onDismiss = { TelegramBannerState.dismiss(bannerContext) },
+                onClick = {
+                    runCatching {
+                        bannerContext.startActivity(
+                            android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(TELEGRAM_COMMUNITY_URL)
+                            )
+                        )
+                    }
+                    TelegramBannerState.dismiss(bannerContext)
+                }
+            )
+        }
+        if (!telegramHidden &&
+            com.vaultex.core.session.LocaleManager.appLocale().language != "fr"
+        ) add {
             DashboardBanner(
                 accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
                 icon = Icons.Default.Chat,
@@ -757,6 +795,65 @@ private object TelegramBannerState {
         hidden.value = true
         context.getSharedPreferences(DASHBOARD_BANNER_PREFS, android.content.Context.MODE_PRIVATE)
             .edit().putLong(KEY_LAST_DISMISS, System.currentTimeMillis()).apply()
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE BANDEAU TELEGRAM, EN IMAGE
+═══════════════════════════════════════════════════════════════════════════
+
+Les autres bandeaux de ce carrousel servent l'application : faire un premier
+dépôt, sauvegarder sa phrase, autoriser le démarrage automatique. Ils doivent
+se ressembler, et surtout ne pas crier — l'écran porte de vrais
+avertissements, comme celui qui prévient d'une perte de fonds.
+
+Celui-ci ne sert pas l'application, il invite ailleurs. Il n'a donc pas à
+emprunter la grammaire des autres, et l'image fait ce qu'aucun bandeau écrit
+ne peut faire : dire d'un coup d'œil de quoi il s'agit, avec l'adresse en
+grand pour qui ne cliquera pas.
+
+L'IMAGE EST DANS L'APPLICATION, PAS SUR LE RÉSEAU. Vingt-et-un kilo-octets
+dans l'APK, affichés instantanément et hors ligne. La télécharger aurait
+signifié un bandeau vide sur une connexion lente — c'est-à-dire souvent, ici.
+
+`drawable-nodpi` : l'image est en 1024 × 512 et doit être affichée telle
+quelle, mise à l'échelle par la largeur de l'écran. Rangée dans un dossier de
+densité, Android la redimensionnerait selon l'appareil, pour rien.
+
+LA CROIX EST POSÉE SUR UN DISQUE SOMBRE. Sans lui, elle disparaîtrait dans
+les zones claires du visuel — et une croix qu'on ne trouve pas transforme une
+invitation en nuisance.
+*/
+@Composable
+private fun BandeauTelegramImage(onDismiss: () -> Unit, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth()) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(R.drawable.banniere_telegram),
+            contentDescription = stringResource(R.string.dashboard_telegram_title),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+            contentScale = androidx.compose.ui.layout.ContentScale.FillWidth
+        )
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.close),
+                tint = Color.White,
+                modifier = Modifier.size(15.dp)
+            )
+        }
     }
 }
 
