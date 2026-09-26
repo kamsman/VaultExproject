@@ -74,9 +74,28 @@ faire, en trois gestes. `depot-02` le suit plus tard — c'est un
 avertissement, et un avertissement envoyé avant qu'on ait compris à quoi
 il sert ne s'imprime pas.
 
+Le 05 et le 06 sont venus plus tard et ne se remplacent pas. Le 05 lève une
+objection — on croit devoir rester devant l'écran pendant l'échange, et on
+ne commence donc pas. Le 06 s'adresse à qui a peu : il dit que le minimum
+dépend du RÉSEAU, ce que personne ne sait, et que BNB Chain ouvre des
+montants que les autres chaînes refusent. C'est le message le plus utile ici,
+et le seul qui puisse transformer un portefeuille bloqué en portefeuille qui
+sert.
+
 Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
+
+## Le 06 ne cite aucun minimum, et ce n'est pas un oubli
+
+Il dit « bien plus bas qu'ailleurs », jamais un chiffre. Un minimum dépend du
+coût de retrait des DEUX chaînes et bouge avec elles : mesuré ici, un même
+minimum a varié d'un facteur six en vingt-quatre heures.
+
+Le RAPPORT entre les chaînes, lui, tient à chaque mesure — BNB Chain est en
+dessous, toujours. Une annonce peut donc promettre un classement ; elle ne
+peut pas promettre un prix. Le chiffre du jour appartient à l'écran, qui le
+demande au fournisseur au moment où on le lit.
 
 ## Le numéro de contact
 
