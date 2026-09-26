@@ -274,6 +274,11 @@ class SwapViewModel @Inject constructor(
         val de = _state.value.fromToken
         val vers = _state.value.toToken
         _state.update { it.copy(minAmount = null) }
+        // Ceinture : une paire identique n'existe chez aucun fournisseur.
+        // Les sélecteurs l'inversent désormais, mais un chemin d'entrée qui
+        // pose les deux monnaies d'affilée pourrait la recréer le temps d'une
+        // recomposition — et l'appel partirait pour rien.
+        if (de.equals(vers, ignoreCase = true)) return
         jobMinimum = viewModelScope.launch {
             val min = withContext(Dispatchers.IO) { swapUseCase.getMinAmount(de, vers) }
             // La paire a changé pendant l'appel : ce minimum ne la concerne
@@ -525,8 +530,41 @@ class SwapViewModel @Inject constructor(
     devis relancé juste en dessous le dira — avec les chiffres de la
     nouvelle paire.
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CHOISIR LA MONNAIE DÉJÀ EN FACE INVERSE LA PAIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Rien n'empêchait d'avoir la même monnaie des deux côtés. L'écran affichait
+    alors « ETH → ETH », demandait un devis à SimpleSwap, qui ne connaît
+    évidemment pas cette paire, et rendait « Devis indisponible. Not Found ».
+
+    Trois défauts dans une seule situation : un état qui n'a aucun sens, un
+    appel réseau pour rien, et un message technique qui accuse le fournisseur
+    d'une panne alors que c'est la demande qui est absurde.
+
+    L'inversion est le geste attendu — c'est ce que font tous les écrans
+    d'échange, et c'est presque toujours l'intention : quelqu'un qui échange
+    ETH → BNB et qui choisit BNB à gauche veut aller dans l'autre sens.
+
+    LA COMPARAISON PORTE SUR LA CLÉ, PAS SUR LE SYMBOLE. « USDT » et
+    « USDT-ETH » sont le même jeton sur deux chaînes, et les échanger l'un
+    contre l'autre est une opération parfaitement valide — c'est même l'un des
+    usages les plus courants de cet écran. Seules deux clés identiques
+    déclenchent l'inversion.
+    */
     fun setFromToken(token: String) {
-        _state.update { it.copy(fromToken = token, fromBalance = balanceOf(token), fromPriceUsd = priceUsdOf(token), error = null) }
+        _state.update {
+            val destination = if (token.equals(it.toToken, ignoreCase = true)) it.fromToken else it.toToken
+            it.copy(
+                fromToken = token,
+                toToken = destination,
+                toPriceUsd = priceUsdOf(destination),
+                fromBalance = balanceOf(token),
+                fromPriceUsd = priceUsdOf(token),
+                error = null
+            )
+        }
         chargerMinimum()
         chargerPrixManquants()
         val amt = _state.value.fromAmount
@@ -534,7 +572,17 @@ class SwapViewModel @Inject constructor(
     }
 
     fun setToToken(token: String) {
-        _state.update { it.copy(toToken = token, toPriceUsd = priceUsdOf(token), error = null) }
+        _state.update {
+            val depart = if (token.equals(it.fromToken, ignoreCase = true)) it.toToken else it.fromToken
+            it.copy(
+                toToken = token,
+                toPriceUsd = priceUsdOf(token),
+                fromToken = depart,
+                fromBalance = balanceOf(depart),
+                fromPriceUsd = priceUsdOf(depart),
+                error = null
+            )
+        }
         chargerMinimum()
         chargerPrixManquants()
         val amt = _state.value.fromAmount
@@ -586,6 +634,13 @@ class SwapViewModel @Inject constructor(
             // le minimum de la paire, et une variable du try n'y est pas visible.
             val de = _state.value.fromToken
             val vers = _state.value.toToken
+            // Même ceinture que chargerMinimum : pas de devis d'une monnaie
+            // vers elle-même. Le fournisseur répondrait « Not Found », ce qui
+            // se lit comme une panne de son côté.
+            if (de.equals(vers, ignoreCase = true)) {
+                _state.update { it.copy(toAmount = "", devisEnCours = false) }
+                return@launch
+            }
             _state.update { it.copy(devisEnCours = true) }
             try {
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
