@@ -24,7 +24,17 @@ data class NotifItem(
      * et nul aussi sur toutes les notifications enregistrées avant l'ajout
      * de ce champ, que Gson relit sans broncher.
      */
-    val hash: String? = null
+    val hash: String? = null,
+    /**
+     * Adresse ouverte au toucher depuis la cloche, quand l'annonce mène
+     * quelque part.
+     *
+     * Déjà filtrée par LienAnnonce au moment de la publication : ce qui est
+     * stocké ici a donc passé la liste blanche. Nul sur tout le reste — et
+     * nul aussi sur les notifications enregistrées avant l'ajout de ce champ,
+     * que Gson relit sans broncher.
+     */
+    val lien: String? = null
 )
 
 /**
@@ -84,7 +94,13 @@ class NotificationCenter @Inject constructor(
 
     /** Ajoute une notification en tête de liste (max 100 conservées). */
     @Synchronized
-    fun push(title: String, body: String, symbol: String? = null, hash: String? = null) {
+    fun push(
+        title: String,
+        body: String,
+        symbol: String? = null,
+        hash: String? = null,
+        lien: String? = null
+    ) {
         val item = NotifItem(
             id = System.currentTimeMillis(),
             title = title,
@@ -92,7 +108,8 @@ class NotificationCenter @Inject constructor(
             timestamp = System.currentTimeMillis(),
             symbol = symbol,
             read = false,
-            hash = hash
+            hash = hash,
+            lien = lien
         )
         apply((listOf(item) + _items.value).take(100))
     }

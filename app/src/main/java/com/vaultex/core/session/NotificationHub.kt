@@ -59,7 +59,16 @@ class NotificationHub @Inject constructor(
          * fonds devient alors cliquable vers le DÉTAIL de cette transaction,
          * au lieu de la fiche de la monnaie. Une alerte de prix n'en a pas.
          */
-        hash: String? = null
+        hash: String? = null,
+        /**
+         * Adresse à ouvrir au toucher, pour les annonces qui mènent quelque
+         * part — le groupe Telegram, une page du projet.
+         *
+         * Filtrée par [LienAnnonce] : hors liste blanche, elle est ignorée et
+         * la notification ouvre l'application, comme avant. Voir le
+         * commentaire de ce fichier-là, la raison n'est pas décorative.
+         */
+        lien: String? = null
     ): Boolean {
         if (isDuplicate(key)) return false
         remember(key)
@@ -67,7 +76,8 @@ class NotificationHub @Inject constructor(
         // La cloche d'abord : c'est la trace durable. Si l'affichage système
         // échoue (permission refusée, canal bloqué), l'utilisateur retrouve
         // quand même l'événement dans l'application.
-        center.push(title, body, symbol, hash)
+        val lienSur = LienAnnonce.valide(lien)
+        center.push(title, body, symbol, hash, lienSur)
 
         /*
         ═══════════════════════════════════════════════════════════════════
@@ -101,19 +111,38 @@ class NotificationHub @Inject constructor(
         ═══════════════════════════════════════════════════════════════════
          */
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            Thread { showSystemNotification(key, title, body, symbol, channelId, imageUrl) }.start()
+            Thread { showSystemNotification(key, title, body, symbol, channelId, imageUrl, lienSur) }.start()
         } else {
-            showSystemNotification(key, title, body, symbol, channelId, imageUrl)
+            showSystemNotification(key, title, body, symbol, channelId, imageUrl, lienSur)
         }
         return true
     }
 
     private fun showSystemNotification(
         key: String, title: String, body: String, symbol: String?, channelId: String,
-        imageUrl: String? = null
+        imageUrl: String? = null,
+        /** Déjà passée par LienAnnonce.valide : null signifie « ouvrir l'app ». */
+        lien: String? = null
     ) {
         try {
-            val intent = Intent(context, com.vaultex.app.MainActivity::class.java).apply {
+            /*
+            L'adresse l'emporte, quand il y en a une d'acceptée. Sinon on
+            ouvre l'application — le comportement de toujours, et le repli
+            de tout ce qui a été refusé.
+
+            ACTION_VIEW peut ne trouver PERSONNE : téléphone sans navigateur,
+            profil restreint. Une intention sans destinataire ferait échouer
+            la notification entière, alors qu'elle a un texte parfaitement
+            lisible à afficher. On vérifie donc avant, et on retombe sur
+            l'accueil.
+            */
+            val versLien = lien?.let {
+                val vue = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(it)).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                vue.takeIf { i -> i.resolveActivity(context.packageManager) != null }
+            }
+            val intent = versLien ?: Intent(context, com.vaultex.app.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
             val pending = PendingIntent.getActivity(

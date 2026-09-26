@@ -83,6 +83,14 @@ class VaultExFcmService : FirebaseMessagingService() {
         // Image de bandeau, réservée aux annonces. Absente ou injoignable, la
         // notification s'affiche sans elle.
         val imageUrl = message.data["image"]
+        /*
+        Adresse ouverte au toucher, pour les annonces qui mènent quelque part.
+        Elle n'est PAS vérifiée ici : NotificationHub la passe par
+        LienAnnonce, qui n'accepte que t.me et les pages du projet. Le
+        contrôle appartient au point de passage unique, pas à chacun de ses
+        appelants — c'est ce qui garantit qu'aucun chemin ne l'oublie.
+        */
+        val lien = message.data["lien"] ?: message.data["link"]
         val amount = message.data["amount"]
 
         val isDeposit = message.data["type"] == "deposit"
@@ -101,7 +109,10 @@ class VaultExFcmService : FirebaseMessagingService() {
             // contenu, ce qui évite au moins les répétitions à l'identique.
             else -> "fcm:" + (message.data["key"] ?: "$title|$body")
         }
-        hub.post(key = key, title = title, body = body, symbol = symbol, imageUrl = imageUrl)
+        hub.post(
+            key = key, title = title, body = body, symbol = symbol,
+            imageUrl = imageUrl, lien = lien
+        )
     }
 
 }
