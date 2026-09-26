@@ -639,7 +639,28 @@ class SendViewModel @Inject constructor(
             }
             else {
                 val liveFee = _state.value.feeNativeAmount
-                if (liveFee != null && liveFee > 0.0) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                ZÉRO EST UNE RÉPONSE, PAS UNE ABSENCE DE RÉPONSE
+                ═══════════════════════════════════════════════════════════
+
+                La condition exigeait `liveFee > 0`, confondant « le réseau
+                dit que c'est gratuit » avec « je ne sais pas encore ». Le
+                repli prudent — 1,1 TRX — s'appliquait alors précisément
+                quand l'estimation était la PLUS juste.
+
+                Sur Tron, zéro est le cas NORMAL : la bande passante offerte
+                couvre un transfert simple, et depuis que le destinataire est
+                interrogé, un compte déjà existant ramène l'activation à zéro
+                elle aussi. Le plafond vaut donc 0 — et l'application
+                réservait 1,1 TRX sur un solde de 1,080275, refusant tout
+                envoi.
+
+                Plus l'estimation devenait exacte, plus la réserve devenait
+                fausse. Seul `null` — aucune réponse encore reçue, ou
+                fournisseur muet — justifie le repli.
+                */
+                if (liveFee != null) {
                     /*
                     LA MARGE NE VAUT PAS POUR TOUTES LES CHAÎNES.
 
