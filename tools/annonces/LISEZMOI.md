@@ -99,15 +99,18 @@ téléphones alors qu'il s'ouvre très bien sur une machine déjà authentifiée
 
 Une image injoignable n'empêche rien : la notification part sans bandeau.
 
-LE LIEN N'EST PAS CLIQUABLE, ET C'EST LA LIMITE DE CE MESSAGE. Android ne
-rend pas les adresses d'un corps de notification actives, et toucher celle-ci
-ouvre VaultEx comme n'importe quelle annonce. L'adresse est donc écrite pour
-être RETENUE et retapée — courte, sans `https://`, sans barre oblique finale.
-Le bandeau la répète en grand, ce qui est sa vraie fonction ici.
+LE LIEN S'OUVRE AU TOUCHER, à condition de le passer en 5e argument :
 
-La rendre cliquable demanderait de porter un lien depuis le message FCM
-jusqu'à l'intention de la notification. C'est faisable ; ça n'existe pas
-aujourd'hui.
+    ./tools/send-announcement.sh --fichier tools/annonces/communaute-01-telegram.txt "" <URL du bandeau> https://t.me/vaultexCommunity
+
+Sans lui, toucher l'annonce ouvre VaultEx — Android ne rend pas actives les
+adresses écrites dans un corps de notification. L'adresse reste donc rédigée
+pour être RETENUE et retapée — courte, sans schéma, sans barre oblique finale
+— parce qu'elle est le seul recours de qui balaie la bannière sans la toucher.
+
+L'application n'ouvre que `t.me`, `telegram.me` et `vaultex.app`, en https.
+Tout autre domaine fait ouvrir l'accueil, sans un mot : voir `LienAnnonce.kt`,
+qui explique pourquoi cette liste est si courte.
 
 ## Le 07 est le seul écrit pour séduire
 

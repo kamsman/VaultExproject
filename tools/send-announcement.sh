@@ -50,6 +50,20 @@
 # notification s'affiche sans bandeau.
 #
 # --------------------------------------------------------------------------
+# UN LIEN OUVERT AU TOUCHER (5e argument)
+# --------------------------------------------------------------------------
+#
+# Par defaut, toucher une annonce ouvre VaultEx. Le cinquieme argument la fait
+# ouvrir une ADRESSE — le groupe Telegram, une page du projet — depuis la
+# banniere systeme comme depuis la cloche.
+#
+#   ./tools/send-announcement.sh --fichier msg.txt "" <image> https://t.me/xxx
+#
+# L'application n'accepte que t.me, telegram.me et vaultex.app, en https. Tout
+# le reste fait simplement ouvrir l'accueil, sans un mot : voir LienAnnonce.kt,
+# qui explique pourquoi cette liste est si courte.
+#
+# --------------------------------------------------------------------------
 # PREPARATION — a faire UNE SEULE FOIS
 # --------------------------------------------------------------------------
 #
