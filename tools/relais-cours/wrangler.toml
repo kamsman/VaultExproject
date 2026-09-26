@@ -1,0 +1,53 @@
+# ==========================================================================
+# Configuration de déploiement du relais de cours
+# ==========================================================================
+#
+# Ce fichier manquait, et son absence ne se voyait pas : le worker avait été
+# créé depuis le tableau de bord Cloudflare, où l'on colle le code à la main.
+# `wrangler deploy` échouait donc avec un message trompeur — « aucun dossier
+# de fichiers statiques » — parce que, faute de configuration, Wrangler
+# suppose qu'on déploie un site web.
+#
+# --------------------------------------------------------------------------
+# DÉPLOYER
+# --------------------------------------------------------------------------
+#
+#   cd tools/relais-cours
+#   npx wrangler deploy
+#
+# Sous PowerShell, si `npx` est bloqué par la politique d'exécution, appeler
+# `npx.cmd` : il contourne le script .ps1 sans rien changer aux réglages de
+# sécurité de la machine.
+#
+# La première fois, une page de connexion Cloudflare s'ouvre dans le
+# navigateur. C'est une fois pour toutes sur cette machine.
+#
+# --------------------------------------------------------------------------
+# VÉRIFIER APRÈS COUP — ET NE PAS SAUTER CETTE ÉTAPE
+# --------------------------------------------------------------------------
+#
+#   https://vaultex-prix.<compte>.workers.dev/sante
+#
+# La réponse porte le numéro de VERSION défini en tête de worker.js. C'est le
+# seul moyen de savoir si le code déployé est bien le dernier : on a déjà
+# perdu du temps à corriger un défaut qui l'était déjà, simplement parce que
+# l'ancienne version tournait encore.
+#
+# --------------------------------------------------------------------------
+# LE NOM DOIT CORRESPONDRE À CELUI DU TABLEAU DE BORD
+# --------------------------------------------------------------------------
+#
+# Sinon Wrangler crée un SECOND worker, à une autre adresse, et l'application
+# continue d'appeler l'ancien — sans aucune erreur nulle part. Le nom ci-
+# dessous est celui déduit de l'URL configurée dans local.properties
+# (prix.relay.url) ; s'il diffère du tableau de bord, corriger ICI et non là-
+# bas, l'URL étant déjà distribuée dans des APK installés.
+# ==========================================================================
+
+name = "vaultex-prix"
+main = "worker.js"
+
+# Fige le comportement de la plateforme à une date connue : une mise à jour
+# de Cloudflare ne peut donc pas changer le fonctionnement du relais sans
+# qu'on l'ait décidé en modifiant cette ligne.
+compatibility_date = "2025-09-26"
