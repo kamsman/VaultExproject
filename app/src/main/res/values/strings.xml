@@ -772,6 +772,7 @@
          La phrase dit donc le RAPPORT, qui lui est stable : BNB Chain est
          nettement moins cher que Tron et Ethereum, et l'a été à chaque
          mesure. Le chiffre du jour, l'écran Swap le donne, à la seconde. -->
+    <string name="receive_frais_les_plus_bas">Frais les plus bas</string>
     <string name="receive_usdt_reseau_cout">Sur BNB Chain, le minimum pour échanger tes USDT est nettement plus bas qu\'ici.</string>
     <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
     <!-- « Max 1.155527 USDT-ETH : sous le minimum (10.2 USDT-ETH) » disait

@@ -186,14 +186,50 @@ class SendViewModel @Inject constructor(
 
     private val gson = com.google.gson.Gson()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR QUEL USDT S'OUVRIR
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'écran s'ouvrait sur « USDT » tout court, c'est-à-dire TRC20 — et c'est
+    le rail le plus cher des trois pour qui n'a pas gelé de TRX contre de
+    l'énergie. Un transfert y consomme 65 000 unités d'énergie, soit une
+    trentaine de TRX, quand le même transfert coûte quelques centimes sur
+    BNB Chain.
+
+    Deux conséquences, et la première est la pire : quelqu'un qui détient ses
+    USDT sur BNB Chain arrivait sur un écran annonçant « solde 0 », et pouvait
+    en conclure que ses fonds avaient disparu. C'est le même piège qui avait
+    fait ouvrir une adresse Tron sur une page Ethereum.
+
+    On ouvre donc sur la variante RÉELLEMENT DÉTENUE, la mieux garnie s'il y
+    en a plusieurs. À défaut — portefeuille vide, premier envoi — sur BNB
+    Chain : c'est le rail le moins cher, et un défaut enseigne autant qu'il
+    sert.
+
+    RIEN N'EST IMPOSÉ. Le sélecteur reste ouvert, et tout ce qui arrive
+    ensuite — scan d'un QR code, lien profond, monnaie choisie depuis le
+    Marché — écrase ce choix, puisque ces chemins savent mieux.
+    */
+    private fun varianteUsdtDeDepart(): String {
+        val detenue = listOf("USDT", "USDT-ETH", "USDT-BNB")
+            .map { it to (availableFor(it)?.toDoubleOrNull() ?: 0.0) }
+            .filter { it.second > 0.0 }
+            .maxByOrNull { it.second }
+            ?.first
+        return detenue ?: "USDT-BNB"
+    }
+
     init {
         val cur = currencyController.currency.value
+        val depart = varianteUsdtDeDepart()
         _state.update {
             it.copy(
+                selectedChain = depart,
                 currency = cur,
-                availableBalance = availableFor(it.selectedChain),
-                priceSelected = priceFor(it.selectedChain, cur),
-                priceNative = priceFor(nativeUnit(effectiveChain(it)), cur)
+                availableBalance = availableFor(depart),
+                priceSelected = priceFor(depart, cur),
+                priceNative = priceFor(nativeUnit(depart), cur)
             )
         }
         fetchFee(_state.value.selectedChain)
