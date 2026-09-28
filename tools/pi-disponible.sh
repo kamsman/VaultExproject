@@ -90,6 +90,34 @@ else
   done
 fi
 
+# --------------------------------------------------------------------------
+# LES CATALOGUES OUVERTS — SANS CLE, DONC SANS COMPTE
+# --------------------------------------------------------------------------
+#
+# Ces trois-la publient leur liste de monnaies sans authentification. On n'y
+# verifie donc pas une paire mais une PRESENCE : tant que PI n'est meme pas au
+# catalogue, la question des paires ne se pose pas.
+#
+# Ils servent aussi a autre chose. Le jour ou SimpleSwap tombe ou revoque la
+# cle, l'application n'a plus d'echange du tout. Savoir lesquels repondent
+# sans compte, c'est connaitre ses recours.
+echo
+echo "  PI est-il seulement au CATALOGUE ailleurs ?"
+for entree in \
+  "exolix|https://exolix.com/api/v2/currencies?search=pi&size=100" \
+  "godex|https://api.godex.io/api/v1/coins" \
+  "stealthex|https://api.stealthex.io/api/v2/currency" ; do
+  nom="${entree%%|*}"
+  url="${entree#*|}"
+  rep=$(curl -s --max-time 25 "$url" 2>/dev/null)
+  if printf '%s' "$rep" | grep -qoiE '"(code|ticker|symbol)":"pi"'; then
+    printf "    %-12s PRESENT — verifier si une paire est ouverte\n" "$nom"
+    trouve=1
+  else
+    printf "    %-12s absent\n" "$nom"
+  fi
+done
+
 echo
 if [ "$trouve" = "1" ]; then
   echo "  >>> UNE PAIRE EST OUVERTE. L'integration Pi redevient utile."
