@@ -475,15 +475,15 @@ class SendViewModel @Inject constructor(
         }
     }
 
-    private fun nativeUnit(chain: String): String = when {
-        chain.startsWith("ERC20:") -> if (chain.split(":").getOrNull(1) == "BNB") "BNB" else "ETH"
-        chain == "ETH" || chain == "USDT-ETH" -> "ETH"
-        chain == "BNB" || chain == "USDT-BNB" -> "BNB"
-        chain == "BTC" -> "BTC"
-        chain == "SOL" -> "SOL"
-        chain == "TRX" || chain == "USDT" -> "TRX"
-        else -> chain
-    }
+    /**
+     * Monnaie dans laquelle se paient les frais de [chain].
+     *
+     * Délègue : la même correspondance sert au bouton MAX de l'écran de swap,
+     * et deux copies d'une table finissent toujours par diverger — ce fichier
+     * et CoinIds en portent chacun le récit.
+     */
+    private fun nativeUnit(chain: String): String =
+        com.vaultex.core.tx.ReserveFrais.natifDe(chain)
 
     private fun formatFeeAmount(value: Double): String =
         java.math.BigDecimal.valueOf(value)
@@ -684,99 +684,22 @@ class SendViewModel @Inject constructor(
         // (Avant : une constante figée — ex. 0.0003 BTC — bloquait Max quand le
         //  solde était plus petit que la réserve, alors que le vrai frais est minime.)
         val isToken = _state.value.customToken != null || chain.startsWith("USDT")
-        val reserve = if (isToken) java.math.BigDecimal.ZERO
-            else if (chain == "SOL") {
-                // SOL : frais FIXE (5000 lamports/signature) → réserve EXACTE,
-                // sans marge. La marge ×1.6 laissait ~0.000003 SOL de résidu, or
-                // Solana refuse un compte laissé entre 1 lamport et le minimum
-                // « rent-exempt » (~0.00089 SOL) → « simulation failed ». MAX
-                // doit vider le compte à 0 pile.
-                java.math.BigDecimal.valueOf(
-                    _state.value.feeNativeAmount?.takeIf { it > 0.0 } ?: 0.000005
-                )
-            }
-            else {
-                val liveFee = _state.value.feeNativeAmount
-                /*
-                ═══════════════════════════════════════════════════════════
-                ZÉRO EST UNE RÉPONSE, PAS UNE ABSENCE DE RÉPONSE
-                ═══════════════════════════════════════════════════════════
+        /*
+        LA RÈGLE DE RÉSERVE VIT DANS ReserveFrais, ET NULLE PART AILLEURS.
 
-                La condition exigeait `liveFee > 0`, confondant « le réseau
-                dit que c'est gratuit » avec « je ne sais pas encore ». Le
-                repli prudent — 1,1 TRX — s'appliquait alors précisément
-                quand l'estimation était la PLUS juste.
+        Elle existait ici ET dans l'écran de swap, et les deux avaient déjà
+        divergé : cet écran demandait le frais réel au réseau pendant que
+        l'autre restait sur une table écrite en dur. Sur 0,0006031 ETH, le
+        swap réservait la moitié du solde. Voir l'en-tête de ReserveFrais.
 
-                Sur Tron, zéro est le cas NORMAL : la bande passante offerte
-                couvre un transfert simple, et depuis que le destinataire est
-                interrogé, un compte déjà existant ramène l'activation à zéro
-                elle aussi. Le plafond vaut donc 0 — et l'application
-                réservait 1,1 TRX sur un solde de 1,080275, refusant tout
-                envoi.
-
-                Plus l'estimation devenait exacte, plus la réserve devenait
-                fausse. Seul `null` — aucune réponse encore reçue, ou
-                fournisseur muet — justifie le repli.
-                */
-                if (liveFee != null) {
-                    /*
-                    LA MARGE NE VAUT PAS POUR TOUTES LES CHAÎNES.
-
-                    Le ×1,6 protège d'un prix du gaz qui monte entre
-                    l'estimation et la diffusion : c'est le risque réel sur
-                    Ethereum et BNB Chain, et sur Bitcoin dont le mempool
-                    bouge.
-
-                    Sur Tron, le plafond CONTIENT déjà le pire cas, et ce
-                    pire cas est un montant FIXE et connu : 1 TRX d'activation
-                    si le compte destinataire n'existe pas encore. Rien n'y
-                    fluctue, il n'y a donc rien à provisionner en plus.
-
-                    Constaté sur appareil : un solde de 1,080275 TRX, un
-                    transfert réellement gratuit (bande passante offerte), et
-                    MAX qui réservait 1,6 TRX — donc refusait tout envoi, avec
-                    un message parlant de solde indisponible alors que le
-                    solde était là.
-                    */
-                    val marge = when (chain) {
-                        "TRX" -> 1.0
-                        /*
-                        ETHEREUM : LA HAUSSE ÉTAIT PROVISIONNÉE DEUX FOIS.
-
-                        Le plafond rendu par l'estimateur vaut déjà
-                        « 2 × frais de base + pourboire » — la formule
-                        canonique EIP-1559, qui absorbe À ELLE SEULE un
-                        doublement du prix. Le multiplier encore par 1,6
-                        réservait donc plus du triple du coût réel.
-
-                        Sur un gros solde, personne ne le remarque. Sur
-                        1,17 $ d'ETH, MAX ne proposait que 0,18 $ : la
-                        prudence coûtait les deux tiers de ce qui était
-                        envoyable.
-
-                        25 % suffisent. Le frais de base d'Ethereum ne peut
-                        monter que de 12,5 % PAR BLOC : cette marge couvre
-                        deux blocs, soit une vingtaine de secondes, et elle
-                        s'ajoute au doublement déjà contenu dans le plafond.
-                        L'écart entre l'estimation et la diffusion se compte
-                        en secondes.
-                        */
-                        "ETH" -> 1.25
-                        /*
-                        BNB Chain et Bitcoin gardent 1,6, et ce n'est pas par
-                        symétrie. Leur plafond ne contient AUCUN doublement :
-                        c'est le prix courant multiplié par la limite de gaz
-                        pour l'un, le tarif du mempool pour l'autre. Il n'y a
-                        donc rien à retrancher — la marge y est le seul
-                        coussin.
-                        */
-                        else -> 1.6
-                    }
-                    java.math.BigDecimal.valueOf(liveFee)
-                        .multiply(java.math.BigDecimal.valueOf(marge))
-                } else NATIVE_FEE_RESERVE[chain]?.let { java.math.BigDecimal.valueOf(it) }
-                    ?: java.math.BigDecimal.ZERO
-            }
+        Un jeton ne réserve rien : son gaz se paie en monnaie native,
+        séparément, et le contrôle de solde natif s'en charge ailleurs.
+        */
+        val reserve =
+            if (isToken) java.math.BigDecimal.ZERO
+            else java.math.BigDecimal.valueOf(
+                com.vaultex.core.tx.ReserveFrais.pour(chain, _state.value.feeNativeAmount)
+            )
         // Le frais de service VaultEx (BTC) est aussi prélevé → on le retranche
         // pour que MAX laisse de quoi le payer.
         val svc = java.math.BigDecimal.valueOf(serviceFeeCrypto(chain, balance.toDouble()))

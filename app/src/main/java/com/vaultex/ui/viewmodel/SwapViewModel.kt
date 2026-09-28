@@ -25,6 +25,14 @@ data class SwapState(
     val minAmount: Double? = null,
     /** Un devis est en vol : le montant reçu n'est ni connu ni refusé. */
     val devisEnCours: Boolean = false,
+    /**
+     * Plafond de frais du DÉPÔT — ce que coûtera l'envoi vers l'adresse du
+     * fournisseur, dans la monnaie native de la chaîne source.
+     *
+     * Null tant que l'estimation n'est pas revenue : ReserveFrais retombe
+     * alors sur son repli. Zéro est une valeur valide, pas une absence.
+     */
+    val fraisDepot: Double? = null,
     val isCrossChain: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -281,6 +289,7 @@ class SwapViewModel @Inject constructor(
     raconte le chargement des cours distants, pas la déclaration.
     */
     private val prixDistants = mutableMapOf<String, Double>()
+    private var jobFraisDepot: kotlinx.coroutines.Job? = null
     private var jobPrix: kotlinx.coroutines.Job? = null
     private var jobMinimum: kotlinx.coroutines.Job? = null
 
@@ -301,6 +310,7 @@ class SwapViewModel @Inject constructor(
         }
         chargerMinimum()
         chargerPrixManquants()
+        chargerFraisDepot()
     }
 
     /**
@@ -515,17 +525,32 @@ class SwapViewModel @Inject constructor(
             _state.update { it.copy(error = messageSoldeVide(tok)) }
             return
         }
-        val reserve = when (tok.uppercase()) {
-            "BTC" -> 0.00002
-            "ETH" -> 0.0003
-            "BNB" -> 0.00005
-            // SOL : frais FIXE (5000 lamports). Réserve EXACTE : le compte doit
-            // se vider à 0 pile — un résidu < 0.00089 SOL (rent-exempt) ferait
-            // rejeter le dépôt du swap par le réseau.
-            "SOL" -> 0.000005
-            "TRX" -> 1.1   // bande passante brûlée + activation éventuelle du destinataire
-            else  -> 0.0   // USDT & tokens : gas en natif séparé
-        }
+        /*
+        LA RÉSERVE VENAIT D'UNE TABLE ÉCRITE EN DUR, ET ELLE MENTAIT.
+
+        « ETH » y valait 0,0003. Sur un solde de 0,0006031 ETH — constaté sur
+        appareil — MAX proposait donc 0,00030313, soit la MOITIÉ du solde,
+        d'après un nombre figé dans le code plutôt que mesuré sur la chaîne.
+
+        L'écran d'envoi avait perdu ce défaut il y a longtemps ; celui-ci l'a
+        gardé parce que la règle existait en deux exemplaires. Elle n'en a plus
+        qu'un : voir ReserveFrais, qui explique aussi pourquoi la marge diffère
+        d'une chaîne à l'autre.
+        */
+        val natif = com.vaultex.core.tx.ReserveFrais.natifDe(swapSendChainOf(tok))
+        /*
+        UN JETON NE RETRANCHE RIEN DE SON PROPRE SOLDE.
+
+        Son gaz se paie en monnaie native, dans une autre unité : soustraire
+        une réserve exprimée en BNB d'un solde exprimé en USDT n'aurait aucun
+        sens et retirerait des dollars entiers au montant échangeable. Le
+        manque de natif est traité ailleurs, par le contrôle qui propose un
+        déblocage.
+        */
+        val reserve =
+            if (natif.equals(tok, ignoreCase = true))
+                com.vaultex.core.tx.ReserveFrais.pour(natif, _state.value.fraisDepot)
+            else 0.0
         val spendable = bal - reserve
         if (spendable <= 0.0) {
             // Solde présent mais trop faible pour couvrir le gas du dépôt → message
@@ -533,8 +558,16 @@ class SwapViewModel @Inject constructor(
             _state.update { it.copy(error = str(com.vaultex.R.string.swap_msg_low_gas, tok, trimNum(bal), trimNum(reserve))) }
             return
         }
+        /*
+        L'ÉCHELLE EST CELLE DE LA CHAÎNE. Solana compte en lamports, neuf
+        décimales : tronquer à huit laisse jusqu'à neuf lamports sur le
+        compte, et Solana REFUSE d'en laisser un entre 1 lamport et le minimum
+        « rent-exempt ». Le dépôt du swap serait rejeté. Même défaut, même
+        correctif que sur l'écran d'envoi.
+        */
+        val echelle = if (tok.equals("SOL", ignoreCase = true)) 9 else 8
         val txt = java.math.BigDecimal.valueOf(spendable)
-            .setScale(8, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+            .setScale(echelle, java.math.RoundingMode.DOWN).stripTrailingZeros().toPlainString()
         // On affiche d'abord le montant MAX (et on lance le devis).
         setFromAmount(txt)
         // Puis on vérifie EN MÊME TEMPS si ce MAX atteint le minimum requis pour
@@ -639,6 +672,7 @@ class SwapViewModel @Inject constructor(
         }
         chargerMinimum()
         chargerPrixManquants()
+        chargerFraisDepot()
         val amt = _state.value.fromAmount
         if (amt.isNotEmpty()) estimateOutput(amt)
     }
@@ -1027,6 +1061,52 @@ class SwapViewModel @Inject constructor(
 
     /** Chaîne d'envoi pour déposer la monnaie source (registre des actifs). */
     private fun swapSendChainOf(fromToken: String): String = assetOf(fromToken).sendChain
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE FRAIS DU DÉPÔT, DEMANDÉ À LA CHAÎNE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un échange commence par un ENVOI : les fonds partent vers l'adresse de
+    dépôt du fournisseur, et ce transport se paie comme n'importe quel envoi.
+    C'est ce montant que MAX doit mettre de côté.
+
+    Il était deviné par une table écrite en dur. Il est maintenant mesuré,
+    comme sur l'écran d'envoi — et par le même estimateur, donc les deux
+    écrans ne peuvent plus annoncer deux chiffres différents pour la même
+    opération.
+
+    UNE SEULE REQUÊTE À LA FOIS. Changer deux fois de monnaie rapidement ne
+    doit pas laisser la réponse la plus lente écraser l'écran : c'est le piège
+    qui faisait afficher « ≈ 6,5 TRX » sur un écran Solana, de l'autre côté.
+
+    UN ÉCHEC NE CASSE RIEN. Le champ reste null, ReserveFrais retombe sur son
+    repli, et MAX continue de fonctionner comme avant.
+    */
+    private fun chargerFraisDepot() {
+        jobFraisDepot?.cancel()
+        val tok = _state.value.fromToken
+        val chaine = swapSendChainOf(tok)
+        _state.update { it.copy(fraisDepot = null) }
+        jobFraisDepot = viewModelScope.launch {
+            val adresses = withContext(Dispatchers.IO) {
+                val m = secureStorage.getMnemonic() ?: return@withContext null
+                runCatching { WalletManager.deriveAddresses(m, secureStorage.getPassphrase()) }.getOrNull()
+            }
+            val frais = withContext(Dispatchers.IO) {
+                runCatching {
+                    sendCryptoUseCase.estimerFrais(
+                        chaine,
+                        adresseTron = adresses?.trx,
+                        adresseBtc = adresses?.btc
+                    )
+                }.getOrNull()
+            }
+            // La monnaie a changé pendant l'appel : ce frais ne la concerne plus.
+            if (_state.value.fromToken != tok) return@launch
+            _state.update { it.copy(fraisDepot = frais?.plafond) }
+        }
+    }
 
     /**
      * Format de montant pour les APIs : point décimal garanti (toPlainString),
