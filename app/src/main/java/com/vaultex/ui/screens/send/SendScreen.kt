@@ -212,12 +212,17 @@ fun SendScreen(navController: NavController) {
     // Hors-ligne : transaction mise en file
     if (state.queued) {
         AlertDialog(
-            onDismissRequest = { viewModel.reset(); navController.popBackStack() },
+            // Même raison qu'au « Terminé » : popBackStack() sans argument
+            // remonte d'UN cran, c'est-à-dire sur le sélecteur de monnaie.
+            onDismissRequest = { navController.popBackStack(Routes.DASHBOARD, false); viewModel.reset() },
             icon = { Icon(Icons.Default.Schedule, null, tint = AccentBlue) },
             title = { Text(stringResource(R.string.send_queued_title)) },
             text = { Text(stringResource(R.string.send_queued_body), fontSize = 14.sp) },
             confirmButton = {
-                TextButton(onClick = { viewModel.reset(); navController.popBackStack() }) {
+                TextButton(onClick = {
+                    navController.popBackStack(Routes.DASHBOARD, false)
+                    viewModel.reset()
+                }) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -282,12 +287,40 @@ fun SendScreen(navController: NavController) {
             transaction déjà partie.
             */
             onDone = {
-                viewModel.reset()
-                navController.navigate(Routes.DASHBOARD) {
-                    popUpTo(Routes.DASHBOARD) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
+                /*
+                ═══════════════════════════════════════════════════════════
+                ON PART D'ABORD, ON RANGE ENSUITE
+                ═══════════════════════════════════════════════════════════
+
+                `reset()` était appelé AVANT la navigation. Il met txHash à
+                null, ce qui fait basculer le `when` de cet écran : la
+                composition remplace le reçu par le FORMULAIRE D'ENVOI, et
+                c'est lui qu'on voit. Si la navigation est en outre ignorée —
+                ce qui arrive, voir plus bas — on y reste.
+
+                D'où l'impression, exacte, d'être renvoyé sur « Envoyer » en
+                touchant « Terminé ». L'écran de swap a connu le même défaut,
+                pour la même raison, et le commentaire « ON VOYAIT LE
+                FORMULAIRE DE SWAP AVANT L'ACCUEIL » en garde le récit.
+
+                DÉPILER PLUTÔT QUE NAVIGUER. L'accueil est SOUS nous dans la
+                pile : il n'y a rien à créer, seulement à revenir. Et
+                popBackStack REND UN BOOLÉEN, là où navigate peut être ignoré
+                en silence — sans exception, sans journal. C'est ce silence
+                qui avait coûté le plus de temps sur le swap.
+
+                La remise à zéro vient après : à cet instant l'écran a déjà
+                quitté la composition, elle ne peut plus rien faire paraître.
+                */
+                val parti = navController.popBackStack(Routes.DASHBOARD, false)
+                if (!parti) {
+                    navController.navigate(Routes.DASHBOARD) {
+                        popUpTo(Routes.DASHBOARD) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
+                viewModel.reset()
             }
         )
         return
