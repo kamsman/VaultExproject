@@ -374,11 +374,44 @@ class SwapViewModel @Inject constructor(
     }
 
     /** Minimum de la paire, prêt à afficher — ou null s'il est inconnu. */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN MINIMUM SE LIT EN UN COUP D'ŒIL, OU IL NE SERT À RIEN
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il s'affichait brut : « Minimum 0.0108639486 ETH ». Dix décimales, et pas
+    un mot de ce que ça représente. Or c'est le chiffre qui décide si
+    l'échange est possible, lu au moment où l'on tape un montant — et à ce
+    moment-là, personne ne convertit 0,0108639486 ETH de tête.
+
+    DEUX CHANGEMENTS, ET LE SECOND COMPTE PLUS QUE LE PREMIER.
+
+    Trois chiffres significatifs, ARRONDIS VERS LE HAUT. Le sens de l'arrondi
+    n'est pas un détail : arrondir vers le bas afficherait un minimum qui se
+    ferait refuser, et l'application se contredirait elle-même.
+
+    L'équivalent en dollars à côté. « ≈ 29 $ » dit immédiatement que l'échange
+    est hors de portée d'un solde de 1,63 $, là où « 0,0109 ETH » demande un
+    calcul. Il n'apparaît que si le cours est connu : inventer un chiffre
+    serait pire que de n'en donner aucun.
+    */
+    private fun minimumEcrit(min: Double, cleSource: String): String {
+        val arrondi = java.math.BigDecimal.valueOf(min)
+            .round(java.math.MathContext(3, java.math.RoundingMode.CEILING))
+            .stripTrailingZeros()
+            .toPlainString()
+        val texte = "$arrondi ${assetOf(cleSource).base}"
+        val prix = priceUsdOf(cleSource)
+        if (prix <= 0.0) return texte
+        val usd = min * prix
+        // Sous un dollar, la décimale compte ; au-dessus, elle est du bruit.
+        val montant = if (usd < 1.0) String.format(java.util.Locale.US, "%.2f", usd)
+                      else String.format(java.util.Locale.US, "%.0f", usd)
+        return "$texte (≈ $montant $)"
+    }
+
     fun minimumLisible(): String? =
-        _state.value.minAmount?.let {
-            java.math.BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() +
-                " " + assetOf(_state.value.fromToken).base
-        }
+        _state.value.minAmount?.let { minimumEcrit(it, _state.value.fromToken) }
 
     /** Commission VaultEx réellement appliquée par le fournisseur en service. */
     val commissionPourcent: Double get() = swapUseCase.commissionPourcent
@@ -823,7 +856,7 @@ class SwapViewModel @Inject constructor(
                     }
                 }
                 val message = if (saisi != null && min != null && saisi > 0.0 && saisi < min)
-                    str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), assetOf(_state.value.fromToken).base)
+                    str(com.vaultex.R.string.swap_msg_below_min, minimumEcrit(min, _state.value.fromToken))
                 else
                     str(com.vaultex.R.string.swap_msg_quote_failed, changeNowError(e))
                 _state.update { it.copy(toAmount = "", error = message, devisEnCours = false) }
@@ -876,7 +909,7 @@ class SwapViewModel @Inject constructor(
                                 str(com.vaultex.R.string.swap_msg_same_coin)
                             SwapUseCase.ValidationResult.Reason.BELOW_MINIMUM -> {
                                 val min = swapUseCase.getMinAmount(s.fromToken, s.toToken)
-                                if (min != null) str(com.vaultex.R.string.swap_msg_below_min, trimNum(min), s.fromToken)
+                                if (min != null) str(com.vaultex.R.string.swap_msg_below_min, minimumEcrit(min, s.fromToken))
                                 else str(com.vaultex.R.string.swap_msg_below_min_generic, s.fromToken, s.toToken)
                             }
                         }
@@ -920,7 +953,7 @@ class SwapViewModel @Inject constructor(
                 */
                 val minimum = withContext(Dispatchers.IO) { fournisseur.minimum(s.fromToken, s.toToken) }
                 if (minimum != null && net < minimum) {
-                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_below_min, trimNum(minimum), s.fromToken)) }
+                    _state.update { it.copy(isLoading = false, error = str(com.vaultex.R.string.swap_msg_below_min, minimumEcrit(minimum, s.fromToken))) }
                     return@launch
                 }
 
@@ -1191,7 +1224,13 @@ class SwapViewModel @Inject constructor(
             when {
                 err == "deposit_too_small" || msg?.contains("min amount", true) == true -> {
                     val min = Regex("""[0-9]+(?:\.[0-9]+)?""").find(msg ?: "")?.value
-                    if (min != null) str(com.vaultex.R.string.swap_msg_below_min, min, _state.value.fromToken)
+                    if (min != null) str(
+                        com.vaultex.R.string.swap_msg_below_min,
+                        // Le minimum vient ici du TEXTE d'erreur du fournisseur :
+                        // on le relit en nombre pour l'écrire comme les autres.
+                        min.toDoubleOrNull()?.let { minimumEcrit(it, _state.value.fromToken) }
+                            ?: "$min ${assetOf(_state.value.fromToken).base}"
+                    )
                     else str(com.vaultex.R.string.swap_msg_below_min_generic, _state.value.fromToken, _state.value.toToken)
                 }
                 err == "pair_is_inactive" || err == "unavailable_pair" || err == "not_valid_pair" ->
