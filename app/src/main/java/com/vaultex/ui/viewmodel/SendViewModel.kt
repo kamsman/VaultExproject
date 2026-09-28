@@ -57,7 +57,16 @@ data class SendState(
     // Adresse jamais utilisée et absente du carnet : c'est le seul cas où une
     // substitution (presse-papiers détourné) ne peut être contredite par
     // l'historique → vérification caractère par caractère demandée à l'écran.
-    val newRecipient: Boolean = false
+    val newRecipient: Boolean = false,
+    /**
+     * Monnaie native qui manque pour payer les frais, quand c'est elle qui
+     * bloque l'envoi — « BNB » pour un jeton BEP-20, « ETH » pour un ERC-20.
+     *
+     * L'écran en a besoin pour proposer une SORTIE quand aucun échange de
+     * déblocage n'est possible : il faut alors en recevoir de l'extérieur, et
+     * autant mener directement à l'adresse où la recevoir.
+     */
+    val natifRequis: String? = null
 )
 
 @HiltViewModel
@@ -644,11 +653,14 @@ class SendViewModel @Inject constructor(
         */
         if ((normalized.toDoubleOrNull() ?: 0.0) > 0.0) {
             natifManquantDe(_state.value)?.let { natif ->
-                _state.update { it.copy(error = locStr(R.string.send_err_need_gas, natif)) }
+                _state.update {
+                    it.copy(error = locStr(R.string.send_err_need_gas, natif), natifRequis = natif)
+                }
                 chercherDeblocage(natif)
                 return
             }
         }
+        _state.update { it.copy(natifRequis = null) }
         oublierDeblocage()
     }
 

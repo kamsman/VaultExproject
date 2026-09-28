@@ -357,6 +357,52 @@ fun SendScreen(navController: NavController) {
                                 Icon(Icons.Default.ErrorOutline, null, tint = AccentRed, modifier = Modifier.size(18.dp))
                                 Text(state.error!!, fontSize = 13.sp, color = AccentRed)
                             }
+                            /*
+                            QUAND AUCUN ÉCHANGE NE PEUT DÉBLOQUER, IL RESTE
+                            UNE SORTIE — ET ELLE DOIT ÊTRE ÉCRITE.
+
+                            Un portefeuille qui ne contient qu'un jeton BEP-20
+                            est verrouillé : les fonds sont là, visibles, et
+                            rien ne peut en sortir. Aucun échange n'y changera
+                            quoi que ce soit, puisque l'échange lui-même
+                            commence par un envoi qui demande du BNB.
+
+                            Le message seul — « il te faut un peu de BNB » —
+                            est exact et laisse démuni : il dit ce qui manque,
+                            pas où le prendre. On mène donc à l'adresse où en
+                            recevoir, qui est la seule issue réelle.
+
+                            L'échange passe en premier quand il est possible :
+                            il se fait en deux minutes sans rien attendre de
+                            personne, là où recevoir suppose une source
+                            extérieure.
+                            */
+                            val natifRequis = state.natifRequis
+                            if (deblocage == null && natifRequis != null) {
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            vibrer()
+                                            navController.navigate(
+                                                Routes.receiveAsset(natifRequis, natifRequis)
+                                            )
+                                        },
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowDownward, null,
+                                        tint = AccentBlue, modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(R.string.send_recevoir_natif, natifRequis),
+                                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue
+                                    )
+                                }
+                            }
                             deblocage?.let { proposition ->
                                 Spacer(Modifier.height(8.dp))
                                 Row(
