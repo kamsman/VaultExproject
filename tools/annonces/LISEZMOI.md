@@ -131,6 +131,29 @@ L'application n'ouvre que `t.me`, `telegram.me` et `vaultex.app`, en https.
 Tout autre domaine fait ouvrir l'accueil, sans un mot : voir `LienAnnonce.kt`,
 qui explique pourquoi cette liste est si courte.
 
+## Le 08 nomme un BESOIN, pas une fonctionnalité
+
+`swap-08-trio.txt` s'adresse au trio que les gens détiennent vraiment — USDT,
+BNB, ETH — et il est le seul à donner une RAISON d'échanger pour chacun :
+
+    BNB   pour payer ses frais
+    ETH   pour bouger un jeton
+    USDT  pour mettre à l'abri
+
+Personne n'échange pour le plaisir d'échanger. On échange parce qu'il manque
+de quoi payer le gaz, ou parce qu'on veut cesser de subir les variations. Les
+annonces précédentes décrivent l'outil ; celle-ci décrit le moment où l'on en
+a besoin, ce qui est la seule chose qui fasse ouvrir l'application.
+
+Son bandeau `banniere-swap-trio.png` (1024 × 512, 45 Ko) montre les trois
+logos reliés par des flèches DOUBLES : l'échange va dans les deux sens, et
+c'est ce qui distingue un portefeuille d'un guichet.
+
+    ./tools/send-announcement.sh --fichier tools/annonces/swap-08-trio.txt "" <URL du bandeau>
+
+Les logos viennent du dépôt d'icônes que l'application utilise déjà pour ses
+propres écrans : le bandeau et l'app montrent donc exactement les mêmes.
+
 ## Le 07 est le seul écrit pour séduire
 
 Les autres informent ; celui-là vend. Il ne décrit aucune fonctionnalité : il
