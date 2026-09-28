@@ -655,7 +655,7 @@
     <string name="swap_msg_quote_failed">Quote unavailable. %1$s</string>
     <string name="swap_msg_enter_amount">Enter an amount to swap.</string>
     <string name="swap_msg_same_coin">Choose two different coins.</string>
-    <string name="swap_msg_below_min">Minimum %1$s %2$s for this pair.</string>
+    <string name="swap_msg_below_min">Minimum %1$s for this pair.</string>
     <string name="swap_msg_below_min_generic">Amount below the minimum for %1$s→%2$s.</string>
     <string name="swap_msg_wallet">Wallet not loaded. Reopen the app and try again.</string>
     <string name="swap_msg_deposit_failed">Deposit failed. %1$s</string>
