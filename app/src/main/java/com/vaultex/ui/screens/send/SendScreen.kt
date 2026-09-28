@@ -268,7 +268,27 @@ fun SendScreen(navController: NavController) {
             confirmations = pending?.confirmations ?: 0,
             target = pending?.target ?: 0,
             onShare = { shareReceipt(context, detail, hash) },
-            onDone = { viewModel.reset(); navController.popBackStack() }
+            /*
+            « TERMINÉ » RAMÈNE À L'ACCUEIL, PAS À L'ÉCRAN PRÉCÉDENT.
+
+            popBackStack remontait d'un cran — c'est-à-dire sur le SÉLECTEUR
+            DE MONNAIE, puisque c'est par là qu'on arrive. Après un envoi
+            réussi, l'application proposait donc de choisir quoi envoyer,
+            comme si rien ne venait de se passer.
+
+            Même forme que le retour du swap : on revient à l'accueil sans
+            empiler une seconde copie, et l'écran d'envoi est retiré de la
+            pile — le bouton retour du téléphone ne doit pas ramener sur une
+            transaction déjà partie.
+            */
+            onDone = {
+                viewModel.reset()
+                navController.navigate(Routes.DASHBOARD) {
+                    popUpTo(Routes.DASHBOARD) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
         )
         return
     }
@@ -499,7 +519,28 @@ fun SendScreen(navController: NavController) {
                     // montant suivi de son unité ne peut être que cela. Le
                     // chiffre gagne la place que l'étiquette occupait.
                     Column(horizontalAlignment = Alignment.End) {
-                        Text((state.availableBalance ?: "—") + " " + coinShort, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        /*
+                        LE SOLDE S'AFFICHE ARRONDI, ET SE CALCULE EXACT.
+
+                        `availableBalance` porte la valeur BRUTE — dix-huit
+                        décimales sur une chaîne EVM. Elle doit rester telle
+                        quelle : c'est elle que lit le bouton MAX, et un
+                        arrondi y ferait dépasser le solde réel ou en laisser
+                        derrière.
+
+                        Mais l'écrire telle quelle donnait
+                        « 0.000603138859291773 ETH », qui pousse le nom de la
+                        monnaie à la ligne — « Ethereu / m » sur la capture.
+                        Dix-huit décimales n'apprennent rien à personne ; huit
+                        suffisent à distinguer deux soldes.
+
+                        L'arrondi ne vit donc QUE dans l'affichage, à
+                        l'endroit exact où l'on dessine.
+                        */
+                        val soldeLisible = availNum.takeIf { it > 0.0 }
+                            ?.let { formatTokenAmount(it) }
+                            ?: (state.availableBalance ?: "—")
+                        Text("$soldeLisible $coinShort", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
                         availFiat?.let { Text("≈ $it", fontSize = 12.sp, color = TextSecondary) }
                     }
                 }
@@ -1268,8 +1309,25 @@ private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.(
         },
         containerColor = BgPrimary
     ) { padding ->
+        /*
+        navigationBarsPadding() : LE CONTENU S'ARRÊTAIT SOUS LA BARRE SYSTÈME.
+
+        L'application est en edge-to-edge — le contenu occupe toute la dalle,
+        barre de navigation comprise — et Scaffold ne pose pas cette marge
+        pour nous. Constaté sur appareil : « Confirmer l'envoi » et
+        « Terminé » sont coupés en bas, sur les deux écrans que ce squelette
+        sert.
+
+        Ce ne sont pas des boutons ordinaires : l'un engage un mouvement
+        d'argent, l'autre est la seule sortie de l'écran. Les atteindre en
+        devinant où finit la barre du téléphone n'est pas acceptable.
+
+        La marge est posée AVANT le défilement : la zone défilante s'arrête
+        donc au-dessus de la barre, au lieu de passer dessous.
+        */
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().padding(padding).navigationBarsPadding()
+                .verticalScroll(rememberScrollState()).padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content
