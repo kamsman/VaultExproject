@@ -1393,7 +1393,29 @@ private fun recentDateFormat(): java.text.SimpleDateFormat {
 }
 
 @Composable
-private fun PortfolioDonutCard(tokens: List<TokenBalance>) {
+private fun PortfolioDonutCard(tokensBruts: List<TokenBalance>) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE RÉPARTITION SE LIT DE LA PLUS GROSSE PART À LA PLUS PETITE
+    ═══════════════════════════════════════════════════════════════════════
+
+    La légende suivait l'ordre du portefeuille, c'est-à-dire l'ordre
+    d'apparition des monnaies. Constaté sur appareil : « BTC 37 %, ETH 1 %,
+    BNB 0 %, USDT 63 %, DAI 0 % » — la part majoritaire en quatrième
+    position, derrière deux lignes à zéro.
+
+    Un camembert existe pour répondre à une seule question : qu'est-ce qui
+    pèse le plus ? Le lecteur doit alors comparer cinq nombres au lieu de
+    lire le premier, et l'ordre lui suggère en plus un classement qui n'en
+    est pas un.
+
+    LE TRI SERT AUSSI AU DESSIN. Les portions sont tracées dans cet ordre :
+    trier regroupe les miettes à la fin, au lieu de les éparpiller entre les
+    grosses parts — c'est le fil jaune qu'on voit couper l'anneau sur la
+    capture. Une seule liste triée nourrit le cercle ET la légende, donc les
+    deux ne peuvent pas diverger.
+    */
+    val tokens = remember(tokensBruts) { tokensBruts.sortedByDescending { it.valueUsd } }
     val total = tokens.sumOf { it.valueUsd }
     val fallbackColor = AccentBlue   // lu dans le contexte @Composable
     fun colorOf(hex: String): Color = try {
