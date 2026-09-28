@@ -1299,12 +1299,46 @@ private fun DetailLine(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SendStatusScaffold(
+    title: String,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES BOUTONS D'ACTION NE DÉFILENT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Ils vivaient à la FIN du contenu défilant. Poser la marge système a bien
+    cessé de les couper — ils s'affichent entiers — mais ils restaient hors
+    écran à l'ouverture : il fallait faire défiler pour les trouver.
+
+    Sur un écran de confirmation, c'est le pire endroit possible. « Confirmer
+    l'envoi » est ce pour quoi l'écran existe, et « Terminé » en est la seule
+    sortie. Les chercher, c'est douter d'avoir tout lu — ou pire, valider sans
+    avoir vu le total.
+
+    Ils vivent donc dans un emplacement épinglé, comme « Continuer » sur le
+    formulaire d'envoi : toujours visibles, toujours à la même hauteur, quelle
+    que soit la longueur du récapitulatif au-dessus.
+    */
+    actions: @Composable ColumnScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
+            )
+        },
+        bottomBar = {
+            // Le slot bottomBar ne reçoit aucune marge système : il la pose
+            // lui-même, sinon les boutons repassent sous la barre du téléphone.
+            Column(
+                Modifier.background(BgPrimary).fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                content = actions
             )
         },
         containerColor = BgPrimary
@@ -1326,7 +1360,7 @@ private fun SendStatusScaffold(title: String, content: @Composable ColumnScope.(
         donc au-dessus de la barre, au lieu de passer dessous.
         */
         Column(
-            Modifier.fillMaxSize().padding(padding).navigationBarsPadding()
+            Modifier.fillMaxSize().padding(padding)
                 .verticalScroll(rememberScrollState()).padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -1539,7 +1573,32 @@ private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> 
 internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
-    SendStatusScaffold(stringResource(R.string.send_confirm_title)) {
+    SendStatusScaffold(
+        stringResource(R.string.send_confirm_title),
+        actions = {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderColor)
+                ) { Text(stringResource(R.string.cancel), color = TextPrimary, fontWeight = FontWeight.SemiBold) }
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                ) { Text(stringResource(R.string.send_confirm_cta), color = Color.White, fontWeight = FontWeight.Bold) }
+            }
+            // La mention de sécurité suit les boutons : elle les qualifie, et
+            // n'a aucun sens séparée d'eux par un défilement.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.send_confirm_secured), fontSize = 11.sp, color = TextSecondary)
+            }
+        }
+    ) {
         // Carte monnaie + montant (verte, mise en avant)
         Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1600,25 +1659,6 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             ConfirmRowRight(Icons.Default.Schedule, stringResource(R.string.send_confirm_eta_label), stringResource(R.string.send_confirm_eta_value), stringResource(R.string.send_confirm_eta_sub))
         }
         Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(
-                onClick = onCancel,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderColor)
-            ) { Text(stringResource(R.string.cancel), color = TextPrimary, fontWeight = FontWeight.SemiBold) }
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
-            ) { Text(stringResource(R.string.send_confirm_cta), color = Color.White, fontWeight = FontWeight.Bold) }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.send_confirm_secured), fontSize = 11.sp, color = TextSecondary)
-        }
     }
 }
 
@@ -1725,7 +1765,60 @@ internal fun SendSuccessScreen(
     val sentAt = remember {
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
     }
-    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+    SendStatusScaffold(
+        stringResource(R.string.send_processing_appbar, detail.coinShort),
+        actions = {
+            /*
+            LES DEUX BOUTONS CÔTE À CÔTE, comme sur la maquette.
+
+            Empilés, « Terminé » se retrouvait tout en bas, alors que c'est
+            l'action que neuf personnes sur dix veulent. Côte à côte, les deux
+            sont atteignables d'un pouce, et la couleur dit laquelle est la
+            principale.
+
+            Et ils sont désormais ÉPINGLÉS : la disposition ne suffisait pas,
+            puisque le bloc entier défilait hors de l'écran — voir le
+            commentaire de SendStatusScaffold.
+            */
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
+                    modifier = Modifier.weight(1f).height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.send_success_view_on, explorerName),
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1
+                    )
+                }
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.weight(1f).height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                ) {
+                    Text(stringResource(R.string.send_success_done), color = Color.White,
+                        fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
+                }
+            }
+            // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
+            if (!confirmed) {
+                Text(
+                    stringResource(R.string.send_status_leave_hint),
+                    fontSize = 11.sp, color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+    ) {
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
         // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
         StatusHeader(
@@ -1841,52 +1934,6 @@ internal fun SendSuccessScreen(
                 Icons.Default.Receipt, stringResource(R.string.send_success_txid),
                 shorten(txHash),
                 onCopy = { copier(txHash) }
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        /*
-        LES DEUX BOUTONS CÔTE À CÔTE, comme sur la maquette.
-
-        Empilés, « Terminé » se retrouvait tout en bas — souvent sous le
-        pli sur un petit écran, alors que c'est l'action que neuf personnes
-        sur dix veulent. Côte à côte, les deux sont atteignables d'un
-        pouce, et la couleur dit laquelle est la principale.
-        */
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            OutlinedButton(
-                onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) } },
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    stringResource(R.string.send_success_view_on, explorerName),
-                    fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1
-                )
-            }
-            Button(
-                onClick = onDone,
-                modifier = Modifier.weight(1f).height(54.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
-            ) {
-                Text(stringResource(R.string.send_success_done), color = Color.White,
-                    fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-            }
-        }
-        // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
-        if (!confirmed) {
-            Text(
-                stringResource(R.string.send_status_leave_hint),
-                fontSize = 11.sp, color = TextSecondary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
