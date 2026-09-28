@@ -466,6 +466,7 @@
     <string name="send_err_bad_address">Adresse invalide pour le réseau %1$s. Vérifie l\'adresse.</string>
     <string name="send_err_insufficient_balance">Solde insuffisant. Disponible : %1$s.</string>
     <string name="send_err_keep_fee">Montant trop élevé : il faut garder ~%1$s pour les frais de réseau. Appuie sur MAX pour envoyer le maximum possible.</string>
+    <string name="send_recevoir_natif">Recevoir du %1$s</string>
     <string name="send_err_need_gas">Il te faut un peu de %1$s sur ton adresse pour payer les frais de réseau.</string>
     <!-- « Min. » est une abréviation de tableau, pas un mot qu'on lit. -->
     <string name="send_min_hint">Minimum %1$s</string>
@@ -773,6 +774,7 @@
          nettement moins cher que Tron et Ethereum, et l'a été à chaque
          mesure. Le chiffre du jour, l'écran Swap le donne, à la seconde. -->
     <string name="receive_frais_les_plus_bas">Frais les plus bas</string>
+    <string name="receive_jeton_besoin_natif">Garde un peu de %1$s sur cette adresse : les frais de réseau se paient dans la monnaie de la chaîne, jamais dans le jeton. Sans elle, ces fonds ne pourront pas repartir.</string>
     <string name="receive_usdt_reseau_cout">Sur BNB Chain, le minimum pour échanger tes USDT est nettement plus bas qu\'ici.</string>
     <string name="swap_msg_low_gas">Solde %1$s trop faible : %2$s dispo, garde ~%3$s %1$s pour les frais réseau.</string>
     <!-- « Max 1.155527 USDT-ETH : sous le minimum (10.2 USDT-ETH) » disait

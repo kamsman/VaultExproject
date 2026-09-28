@@ -261,6 +261,63 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 l'adresse ne soit partagée. D'où le ton neutre, la taille
                 réduite, et l'absence de rouge ou de triangle.
                 */
+                /*
+                ═══════════════════════════════════════════════════════════
+                RECEVOIR UN JETON SANS MONNAIE DE CHAÎNE, C'EST S'ENFERMER
+                ═══════════════════════════════════════════════════════════
+
+                Les frais d'un transfert se paient TOUJOURS dans la monnaie
+                de la chaîne, jamais dans le jeton envoyé. Un portefeuille
+                qui ne contient que de l'USDT-BEP20 et zéro BNB est donc
+                verrouillé : les fonds sont là, visibles, et rien ne peut en
+                sortir.
+
+                Et il n'existe aucune issue interne. L'échange qui
+                procurerait du BNB commence lui-même par un envoi de jeton,
+                qui demande du BNB — l'application a longtemps proposé ce
+                remède, qui échouait sur ce qu'il devait guérir.
+
+                Le seul moment où cette phrase sert, c'est MAINTENANT :
+                avant que l'adresse ne soit partagée, quand il est encore
+                possible de demander aussi un peu de natif. Après le dépôt,
+                elle ne fait plus qu'expliquer un piège refermé.
+
+                ELLE NE DÉPEND PAS DU SOLDE, VOLONTAIREMENT. Le lire ici
+                imposerait de charger tout le portefeuille sur un écran qui
+                n'affiche qu'une adresse ; et la phrase reste vraie quand il
+                reste du natif, puisque ce natif finira par être consommé.
+
+                TON NEUTRE, comme la note de coût juste au-dessus : recevoir
+                un jeton reste parfaitement valide, rien n'est en danger.
+                C'est une information de préparation, pas un avertissement.
+                */
+                if (!symbol.equals(chainKey, ignoreCase = true)) {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AccentBlue.copy(alpha = 0.06f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info, null,
+                                tint = AccentBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.receive_jeton_besoin_natif, chainKey),
+                                fontSize = 11.sp,
+                                color = TextSecondary.copy(alpha = 0.8f),
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+
                 if (symbol.equals("USDT", ignoreCase = true) && chainKey in listOf("TRX", "ETH")) {
                     Spacer(Modifier.height(6.dp))
                     Surface(

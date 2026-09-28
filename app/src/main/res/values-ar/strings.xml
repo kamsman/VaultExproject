@@ -648,6 +648,7 @@
     <string name="swap_msg_no_funds">لا يوجد رصيد %1$s. استلم بعض %1$s أولاً.</string>
     <string name="swap_msg_funds_other_chain">لا يوجد %1$s على هذه الشبكة. لديك %2$s على %3$s — غيّر الشبكة أعلاه.</string>
     <string name="receive_frais_les_plus_bas">أقل الرسوم</string>
+    <string name="receive_jeton_besoin_natif">احتفظ بقليل من %1$s على هذا العنوان: رسوم الشبكة تُدفع بعملة الشبكة نفسها، لا بالتوكن. بدونها لا يمكن تحريك هذه الأموال.</string>
     <string name="receive_usdt_reseau_cout">على BNB Chain، الحد الأدنى لمبادلة USDT أقل بكثير مما هو عليه هنا.</string>
     <string name="swap_msg_low_gas">رصيد %1$s منخفض جداً: %2$s متاح، احتفظ بـ ~%3$s %1$s لرسوم الشبكة.</string>
     <string name="swap_msg_max_below_min">ينقصك %1$s %2$s للوصول إلى الحد الأدنى %3$s %2$s.</string>
@@ -713,6 +714,7 @@
     <string name="send_err_bad_address">عنوان غير صالح لشبكة %1$s. تحقق من العنوان.</string>
     <string name="send_err_insufficient_balance">رصيد غير كافٍ. المتاح: %1$s.</string>
     <string name="send_err_keep_fee">المبلغ مرتفع جداً: يجب الاحتفاظ بـ ~%1$s لرسوم الشبكة. اضغط MAX لإرسال أكبر مبلغ ممكن.</string>
+    <string name="send_recevoir_natif">استلام %1$s</string>
     <string name="send_err_need_gas">تحتاج القليل من %1$s في عنوانك لدفع رسوم الشبكة.</string>
     <string name="send_min_hint">الحد الأدنى %1$s</string>
     <string name="send_err_fee_reserve">الرصيد لا يكفي لرسوم الشبكة: لديك %1$s، ويجب الاحتفاظ بـ %2$s تقريباً لدفع التحويل.</string>

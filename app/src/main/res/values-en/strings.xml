@@ -648,6 +648,7 @@
     <string name="swap_msg_no_funds">No %1$s balance. Receive some %1$s first.</string>
     <string name="swap_msg_funds_other_chain">No %1$s on this network. You hold %2$s on %3$s — switch network above.</string>
     <string name="receive_frais_les_plus_bas">Lowest fees</string>
+    <string name="receive_jeton_besoin_natif">Keep a little %1$s on this address: network fees are paid in the chain’s own coin, never in the token. Without it, these funds cannot leave.</string>
     <string name="receive_usdt_reseau_cout">On BNB Chain, the minimum to swap your USDT is much lower than here.</string>
     <string name="swap_msg_low_gas">%1$s balance too low: %2$s available, keep ~%3$s %1$s for network fees.</string>
     <string name="swap_msg_max_below_min">You need %1$s %2$s more to reach the %3$s %2$s minimum.</string>
@@ -713,6 +714,7 @@
     <string name="send_err_bad_address">Invalid address for the %1$s network. Check the address.</string>
     <string name="send_err_insufficient_balance">Insufficient balance. Available: %1$s.</string>
     <string name="send_err_keep_fee">Amount too high: you need to keep ~%1$s for network fees. Tap MAX to send the largest possible amount.</string>
+    <string name="send_recevoir_natif">Receive %1$s</string>
     <string name="send_err_need_gas">You need a little %1$s on your address to pay network fees.</string>
     <string name="send_min_hint">Minimum %1$s</string>
     <string name="send_err_fee_reserve">Balance too low for network fees: you have %1$s, and ~%2$s must be kept to pay for the transfer.</string>
