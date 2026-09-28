@@ -977,10 +977,43 @@ class SendViewModel @Inject constructor(
         jobDeblocage = viewModelScope.launch {
             val cible = natifManquant.uppercase()
 
-            // Candidats : tout actif échangeable détenu, sauf la monnaie
-            // manquante elle-même — l'échanger contre elle n'a aucun sens.
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UNE SOURCE QUI EXIGE LA MONNAIE MANQUANTE NE DÉBLOQUE RIEN
+            ═══════════════════════════════════════════════════════════════
+
+            Le seul écart retenu était la monnaie cible elle-même. Un jeton
+            BEP-20 passait donc le filtre alors que son échange commence par
+            l'ENVOYER à l'adresse de dépôt du fournisseur — et qu'un transfert
+            BEP-20 se paie en BNB, c'est-à-dire exactement ce qui manque.
+
+            Constaté sur appareil, et le parcours entier est vicieux : l'écran
+            d'envoi annonce « il te faut un peu de BNB », propose « Obtenir du
+            BNB depuis mes USDT », ouvre le Swap pré-rempli — et l'échange
+            échoue sur le même défaut de BNB. L'application propose donc un
+            remède qui a besoin du remède.
+
+            DEUX CONDITIONS, ET LA SECONDE COMPTE AUTANT. La monnaie qui paie
+            le dépôt ne doit pas être celle qui manque, ET il faut en détenir.
+            Proposer de vendre du DAI quand on n'a pas d'ETH reproduirait le
+            cercle, un cran plus loin.
+
+            Ce qui reste proposable : un actif d'une AUTRE chaîne — de l'USDT
+            sur Tron, du SOL, du BTC. Leur dépôt se paie dans leur propre
+            monnaie, que l'on détient puisqu'on les détient.
+
+            Et quand plus rien ne passe, on se tait : c'est déjà le
+            comportement de cette fonction, et c'est le bon. Une proposition
+            qui échoue coûte plus qu'une absence de proposition — elle fait
+            perdre du temps, et elle fait douter de tout le reste.
+            */
+            fun natifDuDepot(actif: com.vaultex.ui.viewmodel.SwapViewModel.SwapAsset): String =
+                nativeUnit(actif.sendChain)
+
             val candidats = com.vaultex.ui.viewmodel.SwapViewModel.SWAP_ASSETS
                 .filter { !it.key.equals(cible, ignoreCase = true) }
+                .filter { !natifDuDepot(it).equals(cible, ignoreCase = true) }
+                .filter { (soldeExact(natifDuDepot(it)) ?: 0.0) > 0.0 }
                 .mapNotNull { actif ->
                     val solde = soldeExact(actif.key) ?: return@mapNotNull null
                     if (solde <= 0.0) null else actif to solde
