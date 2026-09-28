@@ -86,6 +86,25 @@ Un seul message à la fois, espacé de plusieurs jours. Une notification
 ignorée coûte peu ; une notification de trop fait désactiver toutes les
 suivantes.
 
+## Pi : ce qu'on répond à une demande qu'on ne peut pas servir
+
+`pi-01-guide.txt` renvoie au groupe, où `guide-pi-vers-usdt.md` est publié.
+C'est le seul cas où une annonce n'apporte pas la réponse elle-même — le
+trajet fait six étapes et deux avertissements, ce qui ne tient pas dans une
+bannière et se relit.
+
+POURQUOI PAS D'INTÉGRATION PI. SimpleSwap connaît la monnaie mais n'ouvre
+AUCUNE paire : vérifié le 28 septembre 2026 vers BTC, ETH, les trois USDT,
+BNB, TRX et SOL — sept refus sur sept. Ajouter Pi donnerait une adresse, un
+solde et un bouton « Envoyer » sans aucun moyen de convertir : des fonds
+visibles qui ne bougent pas, ce que cette application s'emploie à éviter
+partout ailleurs.
+
+L'ANNONCE LE DIT, plutôt que de laisser croire à un oubli. « VaultEx ne gère
+pas encore le réseau Pi » est une phrase qu'on préfère écrire soi-même que
+laisser deviner — et « encore » est exact : la dérivation de clés Pi existe
+déjà dans le dépôt, et une paire fermée s'ouvre quand la liquidité arrive.
+
 ## L'annonce Telegram, et son bandeau
 
     ./tools/send-announcement.sh --fichier tools/annonces/communaute-01-telegram.txt "" <URL du bandeau>
