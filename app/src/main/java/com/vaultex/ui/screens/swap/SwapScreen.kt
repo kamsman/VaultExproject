@@ -236,6 +236,9 @@ fun SwapScreen(navController: NavHostController) {
         }
     }
 
+    // stringResource ne s'appelle pas depuis une lambda ordinaire : le
+    // libellé est lu ici, en portée composable, puis capturé.
+    val titreBio = stringResource(com.vaultex.R.string.swap_confirm_cta)
     val confirmAndExecute = {
         vibrer()
         val bio = biometricHelper.checkAvailability()
@@ -243,7 +246,7 @@ fun SwapScreen(navController: NavHostController) {
             biometricHelper.canUseDeviceCredential()
         ) {
             biometricHelper.authenticateStrongOrCredential(
-                title = "Confirmer le swap",
+                title = titreBio,
                 subtitle = "${state.fromAmount} ${swapBaseOf(state.fromToken)} → ${swapBaseOf(state.toToken)}",
                 onSuccess = { viewModel.executeSwap() },
                 onError = { _, _ -> }
@@ -636,15 +639,15 @@ private fun SwapFormScreen(
             lui-même.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
+                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
                 // Titre seul : « Échangez vos cryptos » redisait ce que le mot
                 // « Swap » et l'écran entier disent déjà.
                 Text(
-                    "Swap",
+                    stringResource(com.vaultex.R.string.tab_swap),
                     fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText,
                     modifier = Modifier.align(Alignment.Center)
                 )
-                BoxIconButton(Icons.Default.History, "Historique", Modifier.align(Alignment.CenterEnd)) { navController.navigate(Routes.HISTORY) }
+                BoxIconButton(Icons.Default.History, stringResource(com.vaultex.R.string.tab_history), Modifier.align(Alignment.CenterEnd)) { navController.navigate(Routes.HISTORY) }
             }
         },
         bottomBar = {
@@ -692,7 +695,7 @@ private fun SwapFormScreen(
                 ) {
                     if (state.isLoading)
                         CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                    else Text("Continuer", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    else Text(stringResource(com.vaultex.R.string.continue_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
@@ -723,8 +726,8 @@ private fun SwapFormScreen(
         ) {
             // ─── Vous envoyez ───
             SwapCoinCard(
-                label = "Vous envoyez",
-                rightLabel = "Solde : $balTxt ${swapBaseOf(state.fromToken)}",
+                label = stringResource(com.vaultex.R.string.swap_you_send_label),
+                rightLabel = stringResource(com.vaultex.R.string.swap_balance_label, balTxt, swapBaseOf(state.fromToken)),
                 token = state.fromToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onFromToken,
                 amount = state.fromAmount, editable = true, onAmountChange = onAmount,
                 fiat = fromFiat, onFraction = onFraction, highlight = true,
@@ -745,7 +748,7 @@ private fun SwapFormScreen(
                     border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.SwapVert, "Inverser", tint = SwapPurple,
+                        Icon(Icons.Default.SwapVert, stringResource(com.vaultex.R.string.swap_invert_tokens), tint = SwapPurple,
                             modifier = Modifier.size(22.dp).rotate(spinAngle))
                     }
                 }
@@ -753,7 +756,7 @@ private fun SwapFormScreen(
 
             // ─── Vous recevez ───
             SwapCoinCard(
-                label = "Vous recevez",
+                label = stringResource(com.vaultex.R.string.swap_you_receive_label),
                 rightLabel = null,
                 token = state.toToken, tokens = tokens, balanceInfo = balanceInfo, onTokenSelect = onToToken,
                 /*
@@ -845,7 +848,7 @@ private fun SwapFormScreen(
                         // deux. Le taux est estimé, les frais sont dedans, et
                         // c'est la ligne des frais qui le dit.
                         Text(
-                            "Taux estimé  ·  2 – 5 min",
+                            stringResource(com.vaultex.R.string.swap_rate_estimated_eta),
                             fontSize = 12.sp, color = swapTextDim
                         )
                     }
@@ -916,7 +919,7 @@ private fun SwapFormScreen(
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null, tint = teinte, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text("Frais estimés", fontSize = 13.sp, color = swapTextDim)
+                        Text(stringResource(com.vaultex.R.string.swap_fees_estimated), fontSize = 13.sp, color = swapTextDim)
                         Spacer(Modifier.weight(1f))
                         Text(
                             sommeUsd(cout.usd),
@@ -952,7 +955,7 @@ private fun SwapFormScreen(
                 mention se rétablira d'elle-même, et elle sera vraie.
                 */
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Échange via", fontSize = 13.sp, color = swapTextDim)
+                    Text(stringResource(com.vaultex.R.string.swap_via_label), fontSize = 13.sp, color = swapTextDim)
                     Spacer(Modifier.width(8.dp))
                     // Le nom vient du fournisseur en service : l'écrire en dur
                     // mentirait dès la bascule vers SimpleSwap.
@@ -1012,10 +1015,10 @@ private fun SwapConfirmScreen(
             la première chose qu'on lit pour savoir où l'on est.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, "Retour", Modifier.align(Alignment.CenterStart), onClick = onBack)
+                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart), onClick = onBack)
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Swap", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
-                    Text("Vérifiez et confirmez", fontSize = 12.sp, color = swapTextDim)
+                    Text(stringResource(com.vaultex.R.string.tab_swap), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
+                    Text(stringResource(com.vaultex.R.string.swap_verify_confirm), fontSize = 12.sp, color = swapTextDim)
                 }
             }
         },
@@ -1199,17 +1202,17 @@ private fun SwapConfirmScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Vérifiez les détails", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText,
+            Text(stringResource(com.vaultex.R.string.swap_verify_details), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = swapText,
                 modifier = Modifier.padding(top = 4.dp))
 
             // Carte récap envoi/réception
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    ConfirmAmountRow("Vous envoyez", state.fromToken, "${state.fromAmount} ${swapBaseOf(state.fromToken)}", fromFiat)
+                    ConfirmAmountRow(stringResource(com.vaultex.R.string.swap_you_send_label), state.fromToken, "${state.fromAmount} ${swapBaseOf(state.fromToken)}", fromFiat)
                     Box(Modifier.padding(start = 4.dp, top = 6.dp, bottom = 6.dp)) {
                         Icon(Icons.Default.SwapVert, null, tint = swapTextFaint, modifier = Modifier.size(20.dp))
                     }
-                    ConfirmAmountRow("Vous recevez", state.toToken, "${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", toFiat)
+                    ConfirmAmountRow(stringResource(com.vaultex.R.string.swap_you_receive_label), state.toToken, "${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", toFiat)
                 }
             }
 
@@ -1252,20 +1255,20 @@ private fun SwapConfirmScreen(
 
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 14.dp)) {
-                    ConfirmRow("Taux", rate)
+                    ConfirmRow(stringResource(com.vaultex.R.string.swap_rate), rate)
                     ExpandableDetails(
                         accent = SwapPurple,
                         labelColor = swapTextDim,
-                        summary = "Frais inclus : $feeTxt"
+                        summary = stringResource(com.vaultex.R.string.swap_fees_included_summary, feeTxt)
                     ) {
                         Divider(color = swapBorder)
-                        ConfirmRow("Fournisseur", nomFournisseur, chevron = true)
+                        ConfirmRow(stringResource(com.vaultex.R.string.swap_provider), nomFournisseur, chevron = true)
                         Divider(color = swapBorder)
-                        ConfirmRow("Frais (inclus)", feeTxt)
+                        ConfirmRow(stringResource(com.vaultex.R.string.swap_fee_included), feeTxt)
                         Divider(color = swapBorder)
-                        ConfirmRow("Réseau", "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
+                        ConfirmRow(stringResource(com.vaultex.R.string.send_confirm_network), "${swapNetworkLong(state.fromToken)} → ${swapNetworkLong(state.toToken)}")
                         Divider(color = swapBorder)
-                        ConfirmRow("Délai estimé", "2 - 5 min", valueColor = SwapPurple)
+                        ConfirmRow(stringResource(com.vaultex.R.string.swap_eta), stringResource(com.vaultex.R.string.swap_eta_value), valueColor = SwapPurple)
                     }
                 }
             }
@@ -1341,7 +1344,7 @@ private fun SwapConclusionScreen(
             // système, il doit la poser lui-même (écrans à poinçon).
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Text(
-                    "Swap en cours",
+                    stringResource(com.vaultex.R.string.swap_progress_title),
                     fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -1357,7 +1360,7 @@ private fun SwapConclusionScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SwapPurple, contentColor = Color.White)
-                ) { Text("Nouveau swap", fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                ) { Text(stringResource(com.vaultex.R.string.swap_new), fontWeight = FontWeight.Bold, fontSize = 15.sp) }
             }
         }
     ) { padding ->
@@ -1396,7 +1399,7 @@ private fun SwapConclusionScreen(
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Échange lancé. Suis la suite depuis l'accueil.",
+                    Text(stringResource(com.vaultex.R.string.swap_launched_home),
                         fontSize = 12.sp, color = swapText, lineHeight = 16.sp)
                 }
             }
@@ -1406,9 +1409,9 @@ private fun SwapConclusionScreen(
                 border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    LigneConclusion("Échange enregistré", true)
-                    LigneConclusion("Dépôt diffusé sur $reseau", depotEnvoye)
-                    LigneConclusion("Opération lancée", depotEnvoye)
+                    LigneConclusion(stringResource(com.vaultex.R.string.swap_step_registered), true)
+                    LigneConclusion(stringResource(com.vaultex.R.string.swap_step_deposit_broadcast, reseau), depotEnvoye)
+                    LigneConclusion(stringResource(com.vaultex.R.string.swap_step_started), depotEnvoye)
                 }
             }
         }
@@ -1683,7 +1686,7 @@ private fun SwapTrackingScreen(
         onAccueil()
     }
 
-    val payoutAddr = "votre portefeuille"
+    val payoutAddr = stringResource(com.vaultex.R.string.swap_payout_wallet)
 
     Scaffold(
         containerColor = swapBg,
@@ -1703,9 +1706,13 @@ private fun SwapTrackingScreen(
             la première chose qu'on lit pour savoir où l'on est.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, "Fermer", Modifier.align(Alignment.CenterStart), onClick = onClose)
+                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.close), Modifier.align(Alignment.CenterStart), onClick = onClose)
                 Text(
-                    if (finished) "Swap terminé !" else if (failed) "Swap échoué" else "Swap en cours",
+                    stringResource(
+                        if (finished) com.vaultex.R.string.swap_title_done
+                        else if (failed) com.vaultex.R.string.swap_title_failed
+                        else com.vaultex.R.string.swap_progress_title
+                    ),
                     fontWeight = FontWeight.Bold, fontSize = 18.sp, color = swapText,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -1744,14 +1751,14 @@ private fun SwapTrackingScreen(
                                 // le départ n'attend plus la diffusion. Le
                                 // décompte dit donc toujours un nombre.
                                 when {
-                                    phase == "fini" -> "Échange terminé  ·  retour à l'accueil dans $secondes s"
-                                    depotEnvoye -> "Dépôt envoyé  ·  retour à l'accueil dans $secondes s"
-                                    else -> "Retour à l'accueil dans $secondes s"
+                                    phase == "fini" -> stringResource(com.vaultex.R.string.swap_countdown_done, secondes)
+                                    depotEnvoye -> stringResource(com.vaultex.R.string.swap_countdown_deposit, secondes)
+                                    else -> stringResource(com.vaultex.R.string.swap_countdown_plain, secondes)
                                 },
                                 fontSize = 12.sp, color = swapTextDim, modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "Rester ici",
+                                stringResource(com.vaultex.R.string.swap_stay_here),
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = SwapPurple
                             )
                         }
@@ -1765,14 +1772,14 @@ private fun SwapTrackingScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SwapPurple, contentColor = Color.White)
-                ) { Text("Nouveau swap", fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                ) { Text(stringResource(com.vaultex.R.string.swap_new), fontWeight = FontWeight.Bold, fontSize = 15.sp) }
                 OutlinedButton(
                     onClick = onHistory,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, swapBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = swapText)
-                ) { Text("Voir dans l'historique", fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                ) { Text(stringResource(com.vaultex.R.string.swap_see_history), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
             }
         }
     ) { padding ->
@@ -1883,9 +1890,9 @@ private fun SwapTrackingScreen(
                             // lancé » suppose le dépôt diffusé ; sans son hash, on
                             // ne dit que ce qui est en train de se faire.
                             when {
-                                finished -> "Succès de l'échange. Tous les fonds ont été transférés."
-                                depotEnvoye -> "Échange lancé. Suis la suite depuis l'accueil."
-                                else -> "Envoi du dépôt en cours. Suis la suite depuis l'accueil."
+                                finished -> stringResource(com.vaultex.R.string.swap_success_all_moved)
+                                depotEnvoye -> stringResource(com.vaultex.R.string.swap_launched_home)
+                                else -> stringResource(com.vaultex.R.string.swap_deposit_sending)
                             },
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
@@ -1915,7 +1922,7 @@ private fun SwapTrackingScreen(
                         Icon(Icons.Default.Info, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Envoi du dépôt en cours…",
+                            stringResource(com.vaultex.R.string.swap_deposit_sending_short),
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
@@ -1937,7 +1944,7 @@ private fun SwapTrackingScreen(
                             // Quatre lignes pour dire deux choses : c'est parti,
                             // tu peux fermer. Le reste — la durée, la
                             // notification — tient dans la même phrase.
-                            "Dépôt envoyé ✓ · 2 à 5 min. Tu peux fermer l'app : une notification t'avertira.",
+                            stringResource(com.vaultex.R.string.swap_deposit_sent_notice),
                             fontSize = 12.sp, color = swapText, lineHeight = 16.sp
                         )
                     }
@@ -1948,21 +1955,25 @@ private fun SwapTrackingScreen(
             Surface(shape = RoundedCornerShape(16.dp), color = swapCard, border = BorderStroke(1.dp, swapBorder), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Détails de la transaction", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText, modifier = Modifier.weight(1f))
-                        val statusTxt = if (finished) "Réussie" else if (failed) "Échouée" else "En cours"
+                        Text(stringResource(com.vaultex.R.string.swap_tx_details), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = swapText, modifier = Modifier.weight(1f))
+                        val statusTxt = stringResource(
+                            if (finished) com.vaultex.R.string.swap_status_ok
+                            else if (failed) com.vaultex.R.string.swap_status_ko
+                            else com.vaultex.R.string.swap_status_running
+                        )
                         val statusCol = if (finished) SwapGreen else if (failed) AccentRed else SwapPurple
                         Surface(shape = RoundedCornerShape(6.dp), color = statusCol.copy(alpha = 0.16f)) {
                             Text(statusTxt, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, color = statusCol, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    TimelineStep("Transaction créée", null, done = rank >= 0 || finished, active = false, last = false)
-                    TimelineStep("Confirmations réseau ${swapNetworkBadge(state.fromToken)}", null, done = rank > 2 || finished, active = rank in 1..2 && !finished, last = false)
+                    TimelineStep(stringResource(com.vaultex.R.string.swap_step_tx_created), null, done = rank >= 0 || finished, active = false, last = false)
+                    TimelineStep(stringResource(com.vaultex.R.string.swap_step_confirmations, swapNetworkBadge(state.fromToken)), null, done = rank > 2 || finished, active = rank in 1..2 && !finished, last = false)
                     // « Par ChangeNOW » était écrit en dur : l'écran nommait le
                     // mauvais échangeur dès que SimpleSwap répondait.
-                    TimelineStep("Échange effectué", "Par $nomFournisseur", done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
-                    TimelineStep("Envoi des ${swapBaseOf(state.toToken)}", swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
-                    TimelineStep("Terminé", null, done = finished, active = false, last = true)
+                    TimelineStep(stringResource(com.vaultex.R.string.swap_step_exchanged), stringResource(com.vaultex.R.string.swap_step_by_provider, nomFournisseur), done = rank > 3 || finished, active = rank == 3 && !finished, last = false)
+                    TimelineStep(stringResource(com.vaultex.R.string.swap_step_sending, swapBaseOf(state.toToken)), swapNetworkBadge(state.toToken), done = rank > 4 || finished, active = rank == 4 && !finished, last = false)
+                    TimelineStep(stringResource(com.vaultex.R.string.send_success_done), null, done = finished, active = false, last = true)
 
                     /*
                     L'IDENTIFIANT RESTE, LA CARTE QUI L'ENTOURAIT PART.
@@ -1981,9 +1992,9 @@ private fun SwapTrackingScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth().clickable { copier(id) }
                         ) {
-                            Text("Reçu sur $payoutAddr · ID ${id.take(12)}…",
+                            Text(stringResource(com.vaultex.R.string.swap_receipt_line, payoutAddr, id.take(12)),
                                 fontSize = 11.sp, color = swapTextDim, modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ContentCopy, "Copier", tint = SwapPurple, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.ContentCopy, stringResource(com.vaultex.R.string.copy), tint = SwapPurple, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
