@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -1080,7 +1081,7 @@ private fun SwapConfirmScreen(
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
-                                        stringResource(R.string.send_recevoir_natif, natif),
+                                        stringResource(com.vaultex.R.string.send_recevoir_natif, natif),
                                         fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                                         color = SwapPurple
                                     )
