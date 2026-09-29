@@ -39,12 +39,32 @@ class SendCryptoUseCase @Inject constructor(
     @Named("bnb") private val bnbRpc: EvmRpcApi,
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
-    private val tronApi: TronApi
+    private val tronApi: TronApi,
+    @dagger.hilt.android.qualifiers.ApplicationContext
+    private val appContext: android.content.Context
 ) {
     sealed class Result {
         data class Success(val txHash: String) : Result()
         data class Error(val message: String) : Result()
     }
+
+    /*
+    ─── POURQUOI CES MESSAGES PASSENT PAR LES RESSOURCES ──────────────────
+    Ces refus d'envoi étaient écrits en français DANS le code. La langue de
+    l'application, elle, est un choix explicite de l'utilisateur (fr / en /
+    ar, voir LocaleManager). Résultat observé en anglais : la carte d'erreur
+    du Swap affichait « Deposit failed. » — correctement traduit, celui-là —
+    suivi d'un paragraphe entier en français.
+
+    Le piège est que rien ne signale la faute : le code compile, le message
+    s'affiche, et seul quelqu'un qui a changé de langue le voit. D'où le
+    passage par getString, et par LocaleManager.wrap plutôt que par
+    appContext directement : un worker qui tourne application fermée n'a
+    jamais vu d'Activity, donc jamais vu la langue choisie.
+    ───────────────────────────────────────────────────────────────────────
+     */
+    private fun str(id: Int, vararg args: Any): String =
+        com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
 
     companion object {
         const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -216,18 +236,12 @@ class SendCryptoUseCase @Inject constructor(
     }
 
     /** Réponse sans identifiant exploitable : on ne tranche pas à la place du réseau. */
-    private fun envoiIndetermine() = Result.Error(
-        "Le réseau a répondu sans identifiant de transaction. Impossible de savoir " +
-            "si l'envoi est parti ou non.\n\n" +
-            "Vérifie ton solde et ton historique AVANT de réessayer."
-    )
+    private fun envoiIndetermine() =
+        Result.Error(str(com.vaultex.R.string.tx_err_envoi_indetermine))
 
     /** Message affiché quand la destination est une adresse à perte certaine. */
-    private fun forbiddenDestinationError() = Result.Error(
-        "Cette adresse est celle d'un contrat de jeton ou une adresse de destruction : " +
-            "les fonds envoyés là seraient DÉFINITIVEMENT perdus, personne ne pourrait les " +
-            "récupérer. Vérifiez l'adresse du destinataire."
-    )
+    private fun forbiddenDestinationError() =
+        Result.Error(str(com.vaultex.R.string.tx_err_destination_interdite))
 
     /**
      * Refuse un prix de gas au-dessus de [maxGwei]. [label] nomme le champ
@@ -238,8 +252,7 @@ class SendCryptoUseCase @Inject constructor(
         if (value > max) {
             val gwei = value.divide(BigInteger.valueOf(GWEI))
             throw FeeTooHighException(
-                "Frais réseau anormalement élevés ($label : $gwei gwei, plafond de sécurité " +
-                    "$maxGwei gwei). Envoi bloqué pour protéger vos fonds — réessayez plus tard."
+                str(com.vaultex.R.string.tx_err_gas_aberrant, label, gwei, maxGwei)
             )
         }
         return value
@@ -265,14 +278,14 @@ class SendCryptoUseCase @Inject constructor(
         // serve l'envoi direct ET la file hors-ligne (PendingSendWorker).
         if (chain.startsWith("ERC20:")) {
             val parts = chain.split(":")
-            if (parts.size != 4) return Result.Error("Token personnalisé invalide")
+            if (parts.size != 4) return Result.Error(str(com.vaultex.R.string.tx_err_token_perso_invalide))
             val evm = parts[1]
             val contract = parts[2]
-            val decimals = parts[3].toIntOrNull() ?: return Result.Error("Décimales invalides")
+            val decimals = parts[3].toIntOrNull() ?: return Result.Error(str(com.vaultex.R.string.tx_err_decimales_invalides))
             val chainId = if (evm == "BNB") 56L else 1L
             val amountWei = try {
                 BigDecimal(amount).multiply(BigDecimal.TEN.pow(decimals)).toBigInteger()
-            } catch (_: Exception) { return Result.Error("Montant invalide") }
+            } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
             return sendErc20(toAddress = toAddress, amountWei = amountWei,
                 contractAddress = contract, chainId = chainId)
         }
@@ -281,44 +294,44 @@ class SendCryptoUseCase @Inject constructor(
                 val chainId = if (chain == "ETH") 1L else 56L
                 val amountWei = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000000000000000")).toBigInteger()
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendEvm(toAddress = toAddress, amountWei = amountWei, chainId = chainId)
             }
             "BTC" -> {
                 val amountSatoshi = try {
                     BigDecimal(amount).multiply(BigDecimal("100000000")).toLong()
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 val svcSat = (serviceFeeCrypto * 100_000_000.0).toLong().coerceAtLeast(0L)
                 sendBtc(toAddress = toAddress, amountSatoshi = amountSatoshi, serviceFeeSatoshi = svcSat)
             }
             "TRX" -> {
                 val amountSun = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000")).toLong()
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendTrx(toAddress = toAddress, amountSun = amountSun)
             }
             "SOL" -> {
                 val lamports = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000000")).toLong()
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendSol(toAddress = toAddress, lamports = lamports)
             }
             "USDT" -> sendUsdtTrc20(toAddress = toAddress, amountUsdt = amount)
             "USDT-ETH" -> {
                 val amountWei = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000")).toBigInteger() // 6 décimales
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendErc20(toAddress = toAddress, amountWei = amountWei,
                     contractAddress = USDT_ERC20_CONTRACT, chainId = 1L)
             }
             "USDT-BNB" -> {
                 val amountWei = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000000000000000")).toBigInteger() // 18 décimales
-                } catch (_: Exception) { return Result.Error("Montant invalide") }
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendErc20(toAddress = toAddress, amountWei = amountWei,
                     contractAddress = USDT_BEP20_CONTRACT, chainId = 56L)
             }
-            else -> Result.Error("Chain non supportée")
+            else -> Result.Error(str(com.vaultex.R.string.tx_err_chaine_non_supportee))
         }
     }
 
@@ -330,8 +343,8 @@ class SendCryptoUseCase @Inject constructor(
         chainId: Long,
         coinType: Int = 60
     ): Result {
-        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_evm))
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
@@ -412,7 +425,7 @@ class SendCryptoUseCase @Inject constructor(
                 else envoiIndetermine()
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur transaction EVM")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_evm_generique))
         }
     }
 
@@ -438,8 +451,8 @@ class SendCryptoUseCase @Inject constructor(
         contractAddress: String,
         chainId: Long
     ): Result {
-        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error("Adresse ETH/BNB invalide (0x + 40 hex requis)")
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        if (!AddressValidator.isValidEvm(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_evm))
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
         return try {
             val rpc = if (chainId == 1L) ethRpc else bnbRpc
@@ -565,13 +578,8 @@ class SendCryptoUseCase @Inject constructor(
                         manque.
                          */
                         return Result.Error(
-                            "Les frais réseau d'un envoi de jeton se paient en $unit, " +
-                                "jamais dans le jeton envoyé.\n\n" +
-                                "Réserve exigée par le réseau : ~$need $unit\n" +
-                                "Disponible sur ce wallet : $dispo $unit\n\n" +
-                                "Cette réserve est un plafond : le $unit non consommé " +
-                                "t'est rendu, la dépense réelle sera plus faible. " +
-                                "Le réseau exige quand même de pouvoir la bloquer."
+                            str(com.vaultex.R.string.tx_err_gas_natif_manquant,
+                                unit, need, dispo)
                         )
                     }
                 }
@@ -586,15 +594,15 @@ class SendCryptoUseCase @Inject constructor(
                 else envoiIndetermine()
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur transaction ERC-20")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_erc20_generique))
         }
     }
 
     // ─── BITCOIN ─────────────────────────────────────────────────────
 
     suspend fun sendBtc(toAddress: String, amountSatoshi: Long, serviceFeeSatoshi: Long = 0L): Result {
-        if (!AddressValidator.isValidBtc(toAddress)) return Result.Error("Adresse BTC invalide")
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        if (!AddressValidator.isValidBtc(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_btc))
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
         return try {
             val btcAddress = WalletManager.deriveAddresses(mnemonic, passphrase).btc
@@ -609,9 +617,8 @@ class SendCryptoUseCase @Inject constructor(
             // le portefeuille en frais, sans retour possible.
             if (satPerByte > BTC_MAX_SAT_PER_VBYTE) {
                 return Result.Error(
-                    "Frais réseau Bitcoin anormalement élevés ($satPerByte sat/vB, plafond de " +
-                        "sécurité $BTC_MAX_SAT_PER_VBYTE). Envoi bloqué pour protéger vos fonds — " +
-                        "réessayez plus tard."
+                    str(com.vaultex.R.string.tx_err_btc_frais_aberrants,
+                        satPerByte, BTC_MAX_SAT_PER_VBYTE)
                 )
             }
 
@@ -624,9 +631,9 @@ class SendCryptoUseCase @Inject constructor(
                 // BTC « en cours de confirmation » d'un solde réellement vide.
                 val hasUnconfirmed = utxosDto.any { !it.status.confirmed && it.value > 0 }
                 return if (hasUnconfirmed)
-                    Result.Error("Ton BTC vient d'arriver et attend sa confirmation sur le réseau Bitcoin (souvent 10 à 30 min). Réessaie une fois qu'il est confirmé.")
+                    Result.Error(str(com.vaultex.R.string.tx_err_btc_non_confirme))
                 else
-                    Result.Error("Aucun BTC disponible à envoyer.")
+                    Result.Error(str(com.vaultex.R.string.tx_err_btc_vide))
             }
 
             // Frais = f(nombre d'entrées RÉELLEMENT dépensées). Le signataire choisit
@@ -651,7 +658,7 @@ class SendCryptoUseCase @Inject constructor(
                 if (inputTotal >= amountSatoshi + feeSatoshi + svcFee) break
             }
             if (inputTotal < amountSatoshi + feeSatoshi + svcFee)
-                return Result.Error("Solde insuffisant pour couvrir le montant et les frais réseau")
+                return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
 
             val signed = btcTx.signTransaction(
                 mnemonic, passphrase, toAddress, amountSatoshi, feeSatoshi, confirmedUtxos,
@@ -668,22 +675,22 @@ class SendCryptoUseCase @Inject constructor(
                 // réponse (ex. « min relay fee not met », « bad-txns-… »), pas dans
                 // le statut HTTP. On la fait remonter telle quelle.
                 val body = try { e.response()?.errorBody()?.string()?.trim()?.take(280) } catch (_: Exception) { null }
-                return Result.Error(if (!body.isNullOrBlank()) body else "Diffusion refusée (HTTP ${e.code()})")
+                return Result.Error(if (!body.isNullOrBlank()) body else str(com.vaultex.R.string.tx_err_diffusion_refusee, e.code()))
             }
             // Blockstream renvoie le txid en texte brut. Un corps vide ou un
             // texte inattendu ne doit pas devenir un identifiant.
             if (identifiantValide(txHash, "BTC")) Result.Success(txHash.trim())
             else envoiIndetermine()
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur transaction BTC")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_btc_generique))
         }
     }
 
     // ─── TRON (TRX natif) — flux : Créer → Signer → Broadcast → Hash ──
 
     suspend fun sendTrx(toAddress: String, amountSun: Long): Result {
-        if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        if (!AddressValidator.isValidTron(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_tron))
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
         return try {
             // Étape 1 — Dériver l'adresse owner en hex (format attendu par TronGrid)
@@ -705,16 +712,16 @@ class SendCryptoUseCase @Inject constructor(
             val broadcast = tronApi.broadcast(rawTx)
             val txId = rawTx.get("txID")?.takeIf { !it.isJsonNull }?.asString ?: ""
             if (broadcast.result == true) Result.Success(broadcast.txid ?: txId)
-            else Result.Error(broadcast.message ?: "Broadcast TRX échoué")
+            else Result.Error(broadcast.message ?: str(com.vaultex.R.string.tx_err_broadcast_trx))
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur transaction TRX")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_trx_generique))
         }
     }
 
     // ─── USDT TRC20 — flux : Trigger → Signer → Broadcast → Hash ────
 
     suspend fun sendUsdtTrc20(toAddress: String, amountUsdt: String): Result {
-        if (!AddressValidator.isValidTron(toAddress)) return Result.Error("Adresse TRX invalide (T + 34 caractères + checksum)")
+        if (!AddressValidator.isValidTron(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_tron))
 
         // Montant parsé ICI, avant tout accès au stockage sécurisé et tout appel
         // réseau. Les autres chaînes le font déjà dans sendByChain ; ce chemin
@@ -725,10 +732,10 @@ class SendCryptoUseCase @Inject constructor(
         // Règle : ce qui est vérifiable localement et gratuitement passe en premier.
         val amountMicro = try {
             BigDecimal(amountUsdt.replace(",", ".")).multiply(BigDecimal("1000000")).toLong()
-        } catch (_: Exception) { return Result.Error("Montant invalide") }
-        if (amountMicro <= 0L) return Result.Error("Montant invalide")
+        } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
+        if (amountMicro <= 0L) return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide))
 
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
 
         /*
@@ -778,13 +785,11 @@ class SendCryptoUseCase @Inject constructor(
             val myTrx = (myAccount.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
             if (myTrx < trxRequis) {
                 val precision = if (destinataireNeuf)
-                    "\n\nCe destinataire n'a encore jamais reçu d'USDT : la première " +
-                        "écriture coûte environ deux fois plus d'énergie que les suivantes."
+                    "\n\n" + str(com.vaultex.R.string.tx_err_trc20_destinataire_neuf)
                 else ""
                 return Result.Error(
-                    "Un envoi USDT (TRC20) consomme environ ${trxRequis.toInt()} TRX de frais " +
-                        "réseau — tu as ${"%.2f".format(java.util.Locale.US, myTrx)} TRX. " +
-                        "Recharge d'abord ton TRX.$precision"
+                    str(com.vaultex.R.string.tx_err_trc20_trx_manquant,
+                        trxRequis.toInt(), "%.2f".format(java.util.Locale.US, myTrx)) + precision
                 )
             }
         } catch (_: Exception) {
@@ -815,13 +820,13 @@ class SendCryptoUseCase @Inject constructor(
             )
             val triggerResult = triggerRes.getAsJsonObject("result")
             if (triggerResult == null || triggerResult.get("result")?.asBoolean != true)
-                return Result.Error("Création TRC20 échouée")
+                return Result.Error(str(com.vaultex.R.string.tx_err_trc20_creation))
 
             // Étape 3 — Signer le SHA-256 du raw_data de la transaction
             val txObj      = triggerRes.getAsJsonObject("transaction")
-                ?: return Result.Error("Transaction TRC20 vide")
+                ?: return Result.Error(str(com.vaultex.R.string.tx_err_trc20_vide))
             val rawDataHex = txObj.get("raw_data_hex")?.takeIf { !it.isJsonNull }?.asString
-                ?: return Result.Error("raw_data_hex absent")
+                ?: return Result.Error(str(com.vaultex.R.string.tx_err_trc20_raw_absent))
             val signature  = tronTx.signRawTransaction(mnemonic, passphrase, rawDataHex)
 
             // Étape 4 — Rediffuser la transaction COMPLÈTE (avec sa signature)
@@ -829,17 +834,17 @@ class SendCryptoUseCase @Inject constructor(
             val broadcast = tronApi.broadcast(txObj)
             val txId = txObj.get("txID")?.takeIf { !it.isJsonNull }?.asString ?: ""
             if (broadcast.result == true) Result.Success(broadcast.txid ?: txId)
-            else Result.Error(broadcast.message ?: "Broadcast USDT échoué")
+            else Result.Error(broadcast.message ?: str(com.vaultex.R.string.tx_err_broadcast_usdt))
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur USDT TRC20")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_usdt_trc20_generique))
         }
     }
 
     // ─── SOLANA ──────────────────────────────────────────────────────
 
     suspend fun sendSol(toAddress: String, lamports: Long): Result {
-        if (!AddressValidator.isValidSolana(toAddress)) return Result.Error("Adresse SOL invalide")
-        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error("Wallet non trouvé")
+        if (!AddressValidator.isValidSolana(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_solana))
+        val mnemonic = secureStorage.getMnemonic() ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val passphrase = secureStorage.getPassphrase()
         return try {
             val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).sol
@@ -861,13 +866,12 @@ class SendCryptoUseCase @Inject constructor(
             if (balanceLamports != null) {
                 val remainder = balanceLamports - lamports - feeLamports
                 if (remainder < 0L)
-                    return Result.Error("Solde insuffisant pour couvrir le montant et les frais réseau")
+                    return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
                 if (remainder in 1L until rentMin) {
                     val maxAll = java.math.BigDecimal.valueOf(balanceLamports - feeLamports)
                         .movePointLeft(9).stripTrailingZeros().toPlainString()
                     return Result.Error(
-                        "Solana n'autorise pas à laisser moins de 0.0009 SOL sur ton compte. " +
-                            "Envoie tout ($maxAll SOL) ou réduis le montant pour garder au moins 0.0009 SOL."
+                        str(com.vaultex.R.string.tx_err_solana_rent, maxAll)
                     )
                 }
             }
@@ -880,7 +884,7 @@ class SendCryptoUseCase @Inject constructor(
                 ).result as? Map<String, Any>)
                 if (toInfo != null && toInfo["value"] == null)
                     return Result.Error(
-                        "Cette adresse est un compte Solana tout neuf : le premier envoi doit être d'au moins 0.0009 SOL."
+                        str(com.vaultex.R.string.tx_err_solana_compte_neuf)
                     )
             }
 
@@ -890,7 +894,7 @@ class SendCryptoUseCase @Inject constructor(
             @Suppress("UNCHECKED_CAST")
             val bhValue = (bhRes.result as? Map<String, Any>)?.get("value") as? Map<String, Any>
             val blockhashB58 = bhValue?.get("blockhash") as? String
-                ?: return Result.Error("Blockhash Solana introuvable")
+                ?: return Result.Error(str(com.vaultex.R.string.tx_err_blockhash_solana))
             val recentBlockhash = Base58.decode(blockhashB58)
 
             val message = buildSolTransferMessage(fromPubKey, toPubKey, recentBlockhash, lamports)
@@ -912,7 +916,7 @@ class SendCryptoUseCase @Inject constructor(
                 else envoiIndetermine()
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Erreur transaction SOL")
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_sol_generique))
         }
     }
 

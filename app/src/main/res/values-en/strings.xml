@@ -980,4 +980,41 @@
     <string name="coin_held_on">on %1$s</string>
     <string name="coin_my_wallet">My wallet</string>
     <string name="coin_value_in">Value (%1$s)</string>
+
+    <!-- Send refusals (SendCryptoUseCase) -->
+    <string name="tx_err_envoi_indetermine">The network replied without a transaction ID. There is no way to tell whether the send went through.\n\nCheck your balance and your history BEFORE trying again.</string>
+    <string name="tx_err_destination_interdite">This address belongs to a token contract or is a burn address: funds sent there would be PERMANENTLY lost, and nobody could recover them. Check the recipient address.</string>
+    <string name="tx_err_gas_aberrant">Abnormally high network fees (%1$s: %2$d gwei, safety cap %3$d gwei). Send blocked to protect your funds — try again later.</string>
+    <string name="tx_err_gas_natif_manquant">The network fee on a token transfer is paid in %1$s, never in the token being sent.\n\nReserve required by the network: ~%2$s %1$s\nAvailable in this wallet: %3$s %1$s\n\nThis reserve is a ceiling: any %1$s left unspent is returned to you, so the real cost will be lower. The network still requires you to be able to lock it up.</string>
+    <string name="tx_err_token_perso_invalide">Invalid custom token</string>
+    <string name="tx_err_decimales_invalides">Invalid decimals</string>
+    <string name="tx_err_montant_invalide">Invalid amount</string>
+    <string name="tx_err_chaine_non_supportee">Unsupported chain</string>
+    <string name="tx_err_adresse_evm">Invalid ETH/BNB address (0x + 40 hex characters required)</string>
+    <string name="tx_err_adresse_btc">Invalid BTC address</string>
+    <string name="tx_err_adresse_tron">Invalid TRX address (T + 34 characters + checksum)</string>
+    <string name="tx_err_adresse_solana">Invalid SOL address</string>
+    <string name="tx_err_wallet_absent">Wallet not found</string>
+    <string name="tx_err_solde_insuffisant">Balance too low to cover the amount and the network fee</string>
+    <string name="tx_err_diffusion_refusee">Broadcast refused (HTTP %1$d)</string>
+    <string name="tx_err_btc_non_confirme">Your BTC has just arrived and is waiting for confirmation on the Bitcoin network (often 10 to 30 min). Try again once it is confirmed.</string>
+    <string name="tx_err_btc_vide">No BTC available to send.</string>
+    <string name="tx_err_btc_frais_aberrants">Abnormally high Bitcoin network fees (%1$d sat/vB, safety cap %2$d). Send blocked to protect your funds — try again later.</string>
+    <string name="tx_err_btc_generique">BTC transaction error</string>
+    <string name="tx_err_evm_generique">EVM transaction error</string>
+    <string name="tx_err_erc20_generique">ERC-20 transaction error</string>
+    <string name="tx_err_trx_generique">TRX transaction error</string>
+    <string name="tx_err_sol_generique">SOL transaction error</string>
+    <string name="tx_err_usdt_trc20_generique">USDT TRC20 error</string>
+    <string name="tx_err_broadcast_trx">TRX broadcast failed</string>
+    <string name="tx_err_broadcast_usdt">USDT broadcast failed</string>
+    <string name="tx_err_trc20_creation">TRC20 creation failed</string>
+    <string name="tx_err_trc20_vide">Empty TRC20 transaction</string>
+    <string name="tx_err_trc20_raw_absent">raw_data_hex missing</string>
+    <string name="tx_err_trc20_trx_manquant">A USDT (TRC20) transfer burns about %1$d TRX in network fees — you have %2$s TRX. Top up your TRX first.</string>
+    <string name="tx_err_trc20_destinataire_neuf">This recipient has never received USDT before: the first write costs about twice as much energy as the following ones.</string>
+    <string name="tx_err_solana_rent">Solana does not allow leaving less than 0.0009 SOL in your account. Send everything (%1$s SOL) or lower the amount so at least 0.0009 SOL is left.</string>
+    <string name="tx_err_solana_compte_neuf">This address is a brand-new Solana account: the first transfer must be at least 0.0009 SOL.</string>
+    <string name="tx_err_blockhash_solana">Solana blockhash not found</string>
+    <string name="tx_err_envoi_generique">Send error</string>
 </resources>

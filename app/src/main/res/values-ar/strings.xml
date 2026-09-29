@@ -980,4 +980,41 @@
     <string name="coin_held_on">على %1$s</string>
     <string name="coin_my_wallet">محفظتي</string>
     <string name="coin_value_in">القيمة (%1$s)</string>
+
+    <!-- رفض الإرسال (SendCryptoUseCase) -->
+    <string name="tx_err_envoi_indetermine">استجابت الشبكة دون معرّف للمعاملة. لا يمكن معرفة ما إذا كان الإرسال قد تم أم لا.\n\nتحقق من رصيدك وسجلك قبل إعادة المحاولة.</string>
+    <string name="tx_err_destination_interdite">هذا العنوان يخص عقد عملة أو هو عنوان إتلاف: الأموال المرسلة إليه ستُفقد نهائيًا ولن يتمكن أحد من استردادها. تحقق من عنوان المستلم.</string>
+    <string name="tx_err_gas_aberrant">رسوم شبكة مرتفعة بشكل غير طبيعي (%1$s: %2$d gwei، الحد الأمني %3$d gwei). تم حظر الإرسال لحماية أموالك — أعد المحاولة لاحقًا.</string>
+    <string name="tx_err_gas_natif_manquant">تُدفع رسوم الشبكة عند إرسال عملة رمزية بعملة %1$s، وليس أبدًا بالعملة المُرسَلة.\n\nالاحتياطي الذي تطلبه الشبكة: ~%2$s %1$s\nالمتوفر في هذه المحفظة: %3$s %1$s\n\nهذا الاحتياطي حدّ أقصى: يُعاد إليك ما لم يُستهلك من %1$s، والتكلفة الفعلية ستكون أقل. ومع ذلك تشترط الشبكة القدرة على حجزه.</string>
+    <string name="tx_err_token_perso_invalide">عملة مخصصة غير صالحة</string>
+    <string name="tx_err_decimales_invalides">خانات عشرية غير صالحة</string>
+    <string name="tx_err_montant_invalide">مبلغ غير صالح</string>
+    <string name="tx_err_chaine_non_supportee">سلسلة غير مدعومة</string>
+    <string name="tx_err_adresse_evm">عنوان ETH/BNB غير صالح (مطلوب 0x + 40 خانة ست عشرية)</string>
+    <string name="tx_err_adresse_btc">عنوان BTC غير صالح</string>
+    <string name="tx_err_adresse_tron">عنوان TRX غير صالح (T + 34 حرفًا + مجموع تحقق)</string>
+    <string name="tx_err_adresse_solana">عنوان SOL غير صالح</string>
+    <string name="tx_err_wallet_absent">لم يتم العثور على المحفظة</string>
+    <string name="tx_err_solde_insuffisant">الرصيد لا يكفي لتغطية المبلغ ورسوم الشبكة</string>
+    <string name="tx_err_diffusion_refusee">تم رفض البث (HTTP %1$d)</string>
+    <string name="tx_err_btc_non_confirme">وصل BTC للتو وينتظر تأكيده على شبكة بيتكوين (غالبًا من 10 إلى 30 دقيقة). أعد المحاولة بعد تأكيده.</string>
+    <string name="tx_err_btc_vide">لا يوجد BTC متاح للإرسال.</string>
+    <string name="tx_err_btc_frais_aberrants">رسوم شبكة بيتكوين مرتفعة بشكل غير طبيعي (%1$d sat/vB، الحد الأمني %2$d). تم حظر الإرسال لحماية أموالك — أعد المحاولة لاحقًا.</string>
+    <string name="tx_err_btc_generique">خطأ في معاملة BTC</string>
+    <string name="tx_err_evm_generique">خطأ في معاملة EVM</string>
+    <string name="tx_err_erc20_generique">خطأ في معاملة ERC-20</string>
+    <string name="tx_err_trx_generique">خطأ في معاملة TRX</string>
+    <string name="tx_err_sol_generique">خطأ في معاملة SOL</string>
+    <string name="tx_err_usdt_trc20_generique">خطأ في USDT TRC20</string>
+    <string name="tx_err_broadcast_trx">فشل بث TRX</string>
+    <string name="tx_err_broadcast_usdt">فشل بث USDT</string>
+    <string name="tx_err_trc20_creation">فشل إنشاء معاملة TRC20</string>
+    <string name="tx_err_trc20_vide">معاملة TRC20 فارغة</string>
+    <string name="tx_err_trc20_raw_absent">raw_data_hex مفقود</string>
+    <string name="tx_err_trc20_trx_manquant">يستهلك إرسال USDT (TRC20) نحو %1$d TRX كرسوم شبكة — لديك %2$s TRX. اشحن رصيد TRX أولًا.</string>
+    <string name="tx_err_trc20_destinataire_neuf">لم يستلم هذا المستلم USDT من قبل: الكتابة الأولى تكلّف نحو ضعف طاقة ما يليها.</string>
+    <string name="tx_err_solana_rent">لا تسمح سولانا بترك أقل من 0.0009 SOL في حسابك. أرسل كل الرصيد (%1$s SOL) أو قلّل المبلغ للإبقاء على 0.0009 SOL على الأقل.</string>
+    <string name="tx_err_solana_compte_neuf">هذا العنوان حساب سولانا جديد تمامًا: يجب ألا يقل الإرسال الأول عن 0.0009 SOL.</string>
+    <string name="tx_err_blockhash_solana">تعذر العثور على blockhash سولانا</string>
+    <string name="tx_err_envoi_generique">خطأ في الإرسال</string>
 </resources>

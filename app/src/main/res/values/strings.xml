@@ -1006,4 +1006,44 @@
     <string name="coin_held_on">sur %1$s</string>
     <string name="coin_my_wallet">Mon portefeuille</string>
     <string name="coin_value_in">Valeur (%1$s)</string>
+
+    <!-- ── Refus d'envoi (SendCryptoUseCase) ──────────────────────────────
+         Ces messages étaient écrits en dur dans le code : en anglais ou en
+         arabe, la carte d'erreur affichait un paragraphe français au milieu
+         d'une interface traduite. -->
+    <string name="tx_err_envoi_indetermine">Le réseau a répondu sans identifiant de transaction. Impossible de savoir si l\'envoi est parti ou non.\n\nVérifie ton solde et ton historique AVANT de réessayer.</string>
+    <string name="tx_err_destination_interdite">Cette adresse est celle d\'un contrat de jeton ou une adresse de destruction : les fonds envoyés là seraient DÉFINITIVEMENT perdus, personne ne pourrait les récupérer. Vérifiez l\'adresse du destinataire.</string>
+    <string name="tx_err_gas_aberrant">Frais réseau anormalement élevés (%1$s : %2$d gwei, plafond de sécurité %3$d gwei). Envoi bloqué pour protéger vos fonds — réessayez plus tard.</string>
+    <string name="tx_err_gas_natif_manquant">Les frais réseau d\'un envoi de jeton se paient en %1$s, jamais dans le jeton envoyé.\n\nRéserve exigée par le réseau : ~%2$s %1$s\nDisponible sur ce wallet : %3$s %1$s\n\nCette réserve est un plafond : le %1$s non consommé t\'est rendu, la dépense réelle sera plus faible. Le réseau exige quand même de pouvoir la bloquer.</string>
+    <string name="tx_err_token_perso_invalide">Token personnalisé invalide</string>
+    <string name="tx_err_decimales_invalides">Décimales invalides</string>
+    <string name="tx_err_montant_invalide">Montant invalide</string>
+    <string name="tx_err_chaine_non_supportee">Chaîne non supportée</string>
+    <string name="tx_err_adresse_evm">Adresse ETH/BNB invalide (0x + 40 caractères hexadécimaux requis)</string>
+    <string name="tx_err_adresse_btc">Adresse BTC invalide</string>
+    <string name="tx_err_adresse_tron">Adresse TRX invalide (T + 34 caractères + somme de contrôle)</string>
+    <string name="tx_err_adresse_solana">Adresse SOL invalide</string>
+    <string name="tx_err_wallet_absent">Wallet non trouvé</string>
+    <string name="tx_err_solde_insuffisant">Solde insuffisant pour couvrir le montant et les frais réseau</string>
+    <string name="tx_err_diffusion_refusee">Diffusion refusée (HTTP %1$d)</string>
+    <string name="tx_err_btc_non_confirme">Ton BTC vient d\'arriver et attend sa confirmation sur le réseau Bitcoin (souvent 10 à 30 min). Réessaie une fois qu\'il est confirmé.</string>
+    <string name="tx_err_btc_vide">Aucun BTC disponible à envoyer.</string>
+    <string name="tx_err_btc_frais_aberrants">Frais réseau Bitcoin anormalement élevés (%1$d sat/vB, plafond de sécurité %2$d). Envoi bloqué pour protéger vos fonds — réessayez plus tard.</string>
+    <string name="tx_err_btc_generique">Erreur transaction BTC</string>
+    <string name="tx_err_evm_generique">Erreur transaction EVM</string>
+    <string name="tx_err_erc20_generique">Erreur transaction ERC-20</string>
+    <string name="tx_err_trx_generique">Erreur transaction TRX</string>
+    <string name="tx_err_sol_generique">Erreur transaction SOL</string>
+    <string name="tx_err_usdt_trc20_generique">Erreur USDT TRC20</string>
+    <string name="tx_err_broadcast_trx">Diffusion TRX échouée</string>
+    <string name="tx_err_broadcast_usdt">Diffusion USDT échouée</string>
+    <string name="tx_err_trc20_creation">Création TRC20 échouée</string>
+    <string name="tx_err_trc20_vide">Transaction TRC20 vide</string>
+    <string name="tx_err_trc20_raw_absent">raw_data_hex absent</string>
+    <string name="tx_err_trc20_trx_manquant">Un envoi USDT (TRC20) consomme environ %1$d TRX de frais réseau — tu as %2$s TRX. Recharge d\'abord ton TRX.</string>
+    <string name="tx_err_trc20_destinataire_neuf">Ce destinataire n\'a encore jamais reçu d\'USDT : la première écriture coûte environ deux fois plus d\'énergie que les suivantes.</string>
+    <string name="tx_err_solana_rent">Solana n\'autorise pas à laisser moins de 0.0009 SOL sur ton compte. Envoie tout (%1$s SOL) ou réduis le montant pour garder au moins 0.0009 SOL.</string>
+    <string name="tx_err_solana_compte_neuf">Cette adresse est un compte Solana tout neuf : le premier envoi doit être d\'au moins 0.0009 SOL.</string>
+    <string name="tx_err_blockhash_solana">Blockhash Solana introuvable</string>
+    <string name="tx_err_envoi_generique">Erreur d\'envoi</string>
 </resources>

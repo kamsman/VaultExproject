@@ -1,11 +1,16 @@
 package com.vaultex.domain.usecase
 
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -30,6 +35,7 @@ class SendCryptoUseCaseTest {
     // stockage sécurisé et avant le réseau.
     private val secureStorageMock: com.vaultex.core.security.SecureStorage = mockk(relaxed = true)
     private val tronApiMock: com.vaultex.data.remote.api.TronApi = mockk(relaxed = true)
+    private val contextMock: android.content.Context = mockk(relaxed = true)
 
     private val useCase = SendCryptoUseCase(
         secureStorage = secureStorageMock,
@@ -41,8 +47,52 @@ class SendCryptoUseCaseTest {
         bnbRpc = mockk(relaxed = true),
         bitcoinApi = mockk(relaxed = true),
         solanaRpc = mockk(relaxed = true),
-        tronApi = tronApiMock
+        tronApi = tronApiMock,
+        appContext = contextMock
     )
+
+    /*
+    ─── POURQUOI CES TESTS NE COMPARENT PLUS DES PHRASES ──────────────────
+    Les refus d'envoi sont passés dans les ressources (values/, values-en/,
+    values-ar/) : les comparer au mot près reviendrait à figer la rédaction
+    française et à faire échouer ces tests à la première reformulation, alors
+    que ce qu'ils vérifient n'est pas le texte — c'est QUELLE garde tombe, et
+    dans quel ordre.
+
+    Le Context factice résout donc chaque identifiant de ressource en sa CLÉ
+    (« @tx_err_montant_invalide »). La vérification reste exacte, et devient
+    indépendante de la langue comme de la formulation.
+
+    LocaleManager.wrap() est court-circuité parce qu'il touche Configuration
+    et createConfigurationContext : des stubs d'android.jar, qui lèvent une
+    exception dans un test JVM.
+    ───────────────────────────────────────────────────────────────────────
+     */
+    private val clesParId: Map<Int, String> = mapOf(
+        com.vaultex.R.string.tx_err_montant_invalide to "tx_err_montant_invalide",
+        com.vaultex.R.string.tx_err_chaine_non_supportee to "tx_err_chaine_non_supportee",
+        com.vaultex.R.string.tx_err_adresse_evm to "tx_err_adresse_evm",
+        com.vaultex.R.string.tx_err_adresse_btc to "tx_err_adresse_btc",
+        com.vaultex.R.string.tx_err_adresse_tron to "tx_err_adresse_tron",
+        com.vaultex.R.string.tx_err_adresse_solana to "tx_err_adresse_solana",
+        com.vaultex.R.string.tx_err_destination_interdite to "tx_err_destination_interdite",
+        com.vaultex.R.string.tx_err_wallet_absent to "tx_err_wallet_absent",
+        com.vaultex.R.string.tx_err_token_perso_invalide to "tx_err_token_perso_invalide",
+        com.vaultex.R.string.tx_err_decimales_invalides to "tx_err_decimales_invalides"
+    )
+
+    private fun cle(id: Int): String = "@" + (clesParId[id] ?: "id_inconnu_$id")
+
+    @Before fun ressourcesFactices() {
+        mockkObject(com.vaultex.core.session.LocaleManager)
+        every { com.vaultex.core.session.LocaleManager.wrap(any()) } returns contextMock
+        every { contextMock.getString(any()) } answers { cle(firstArg<Int>()) }
+        every { contextMock.getString(any(), *anyVararg()) } answers { cle(firstArg<Int>()) }
+    }
+
+    @After fun rendreLocaleManager() {
+        unmockkObject(com.vaultex.core.session.LocaleManager)
+    }
 
     private val validEvm = "0x9858EfFD232B4033E47d90003D41EC34EcaEda94"
 
@@ -66,70 +116,70 @@ class SendCryptoUseCaseTest {
     // ─── Montant invalide (par chaîne) ───────────────────────────────
 
     @Test fun `eth montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("ETH", validEvm, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("ETH", validEvm, "abc")))
     }
 
     @Test fun `bnb montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("BNB", validEvm, "")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("BNB", validEvm, "")))
     }
 
     @Test fun `btc montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("BTC", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", "x")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("BTC", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", "x")))
     }
 
     @Test fun `trx montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("TRX", validTrx, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("TRX", validTrx, "abc")))
     }
 
     @Test fun `sol montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("SOL", "11111111111111111111111111111111", "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("SOL", "11111111111111111111111111111111", "abc")))
     }
 
     @Test fun `usdt montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT", validTrx, "abc")))
     }
 
     @Test fun `usdt-eth montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT-ETH", validEvm, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT-ETH", validEvm, "abc")))
     }
 
     @Test fun `usdt-bnb montant invalide`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT-BNB", validEvm, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT-BNB", validEvm, "abc")))
     }
 
     // ─── Chaîne non supportée ────────────────────────────────────────
 
     @Test fun `chaine inconnue rejetee`() = runBlocking {
-        assertEquals("Chain non supportée", message(useCase.sendByChain("DOGE", validEvm, "1.0")))
+        assertEquals("@tx_err_chaine_non_supportee", message(useCase.sendByChain("DOGE", validEvm, "1.0")))
     }
 
     // ─── Adresse invalide (montant valide, court-circuit avant SecureStorage) ──
 
     @Test fun `eth adresse invalide`() = runBlocking {
         assertEquals(
-            "Adresse ETH/BNB invalide (0x + 40 hex requis)",
+            "@tx_err_adresse_evm",
             message(useCase.sendByChain("ETH", invalidAddr, "1.0"))
         )
     }
 
     @Test fun `btc adresse invalide`() = runBlocking {
-        assertEquals("Adresse BTC invalide", message(useCase.sendByChain("BTC", invalidAddr, "0.01")))
+        assertEquals("@tx_err_adresse_btc", message(useCase.sendByChain("BTC", invalidAddr, "0.01")))
     }
 
     @Test fun `trx adresse invalide`() = runBlocking {
         assertEquals(
-            "Adresse TRX invalide (T + 34 caractères + checksum)",
+            "@tx_err_adresse_tron",
             message(useCase.sendByChain("TRX", invalidAddr, "1.0"))
         )
     }
 
     @Test fun `sol adresse invalide`() = runBlocking {
-        assertEquals("Adresse SOL invalide", message(useCase.sendByChain("SOL", invalidAddr, "1.0")))
+        assertEquals("@tx_err_adresse_solana", message(useCase.sendByChain("SOL", invalidAddr, "1.0")))
     }
 
     @Test fun `usdt trc20 adresse invalide`() = runBlocking {
         assertEquals(
-            "Adresse TRX invalide (T + 34 caractères + checksum)",
+            "@tx_err_adresse_tron",
             message(useCase.sendByChain("USDT", invalidAddr, "1.0"))
         )
     }
@@ -155,7 +205,7 @@ class SendCryptoUseCaseTest {
             val msg = message(useCase.sendByChain(chain, addr, "1.0"))
             assertTrue(
                 "$nom ($addr) aurait dû être refusée, message obtenu : $msg",
-                msg.contains("DÉFINITIVEMENT perdus")
+                msg == "@tx_err_destination_interdite"
             )
         }
     }
@@ -163,19 +213,19 @@ class SendCryptoUseCaseTest {
     /** Le garde doit être insensible à la casse : le hex EVM s'écrit des deux façons. */
     @Test fun `destination interdite detectee quelle que soit la casse`() = runBlocking {
         val msg = message(useCase.sendByChain("USDT-ETH", "0xDAC17F958D2EE523A2206206994597C13D831EC7", "1.0"))
-        assertTrue("la casse ne doit pas contourner le garde", msg.contains("DÉFINITIVEMENT perdus"))
+        assertEquals("la casse ne doit pas contourner le garde", "@tx_err_destination_interdite", msg)
     }
 
     /** Le garde s'applique aussi aux tokens personnalisés (chemin "ERC20:"). */
     @Test fun `token personnalise vers adresse interdite refuse`() = runBlocking {
         val msg = message(useCase.sendByChain("ERC20:ETH:0xabc:18", "0x000000000000000000000000000000000000dEaD", "1.0"))
-        assertTrue("le chemin ERC20: doit passer par le même garde", msg.contains("DÉFINITIVEMENT perdus"))
+        assertEquals("le chemin ERC20: doit passer par le même garde", "@tx_err_destination_interdite", msg)
     }
 
     /** Une adresse ordinaire ne doit évidemment PAS être bloquée par le garde. */
     @Test fun `adresse ordinaire non bloquee par le garde`() = runBlocking {
         val msg = message(useCase.sendByChain("TRX", validTrx, "abc"))
-        assertEquals("Montant invalide", msg)
+        assertEquals("@tx_err_montant_invalide", msg)
     }
 
     // ─── Montants nuls ou négatifs ───────────────────────────────────
@@ -184,11 +234,11 @@ class SendCryptoUseCaseTest {
     // transférer. Le garde doit tomber avant tout appel réseau.
 
     @Test fun `usdt montant zero refuse`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "0")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT", validTrx, "0")))
     }
 
     @Test fun `usdt montant negatif refuse`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "-5")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT", validTrx, "-5")))
     }
 
     /**
@@ -201,7 +251,7 @@ class SendCryptoUseCaseTest {
      * avec l'erreur réelle de l'utilisateur.
      */
     @Test fun `usdt montant invalide ne declenche aucun appel reseau`() = runBlocking {
-        assertEquals("Montant invalide", message(useCase.sendByChain("USDT", validTrx, "abc")))
+        assertEquals("@tx_err_montant_invalide", message(useCase.sendByChain("USDT", validTrx, "abc")))
         coVerify(exactly = 0) { tronApiMock.getAccount(any()) }
         verify(exactly = 0) { secureStorageMock.getMnemonic() }
     }
