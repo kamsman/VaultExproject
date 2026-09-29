@@ -377,3 +377,30 @@ aux portefeuilles vides que le canal d'administration signale semaine
 après semaine. Si un seul des deux doit partir, c'est le 02 : il parle à
 la population la plus nombreuse, et il ouvre une porte franchissable
 plutôt qu'une porte à admirer.
+
+## `swap-09` et `swap-10`
+
+    ./tools/send-announcement.sh --fichier tools/annonces/swap-09-sans-liquide.txt
+    ./tools/send-announcement.sh --fichier tools/annonces/swap-10-fond-de-gaz.txt BNB
+
+**Le 09 répond à une idée fausse, pas à une fonctionnalité.** Beaucoup
+croient qu'il faut vendre en FCFA, retirer, puis racheter pour changer de
+monnaie — trois opérations, trois frais, de l'attente à chaque étape. Les
+annonces 01 à 08 disent toutes CE QUE l'échange fait ; celle-ci dit ce
+qu'il permet d'éviter, et c'est la seule qui parle à quelqu'un qui ne
+savait pas que l'échange direct existait.
+
+**Le 10 est le plus utile des dix, et le seul qui ne vend rien.** Le canal
+d'administration signale semaine après semaine des portefeuilles pleins
+qui ne bougent pas depuis huit ou vingt jours. La cause est presque
+toujours la même : de l'USDT sur BNB Chain, zéro BNB, et donc aucune
+opération possible — pas même l'échange qui procurerait le BNB, puisqu'il
+commence lui-même par un envoi qui en réclame. C'est un cul-de-sac
+parfait, et la seule sortie est d'en RECEVOIR de l'extérieur.
+
+L'application le dit maintenant sur l'écran d'envoi, sur celui du swap et
+sur celui de réception. Cette annonce le dit avant, à ceux qui ne sont pas
+encore coincés. Elle part avec le logo BNB — elle ne parle que de lui.
+
+Si un seul des deux doit partir, c'est le **10**. Le 09 gagne des
+échanges ; le 10 débloque des gens.
