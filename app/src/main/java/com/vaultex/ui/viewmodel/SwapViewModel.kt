@@ -41,6 +41,12 @@ data class SwapState(
      * dit que ce qui manque laisse démuni : il faut mener là où on l'obtient.
      */
     val natifRequis: String? = null,
+    /**
+     * Monnaie native absente du portefeuille, alors que le dépôt de l'échange
+     * en cours de saisie la réclamera. Connue AVANT toute tentative, à la
+     * différence de [natifRequis] qui constate un échec.
+     */
+    val natifDepotManquant: String? = null,
     val isCrossChain: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -312,6 +318,7 @@ class SwapViewModel @Inject constructor(
                 fromToken = depart,
                 toToken = arrivee,
                 fromBalance = balanceOf(depart),
+                natifDepotManquant = natifManquantAvantTentative(depart),
                 fromPriceUsd = priceUsdOf(depart),
                 toPriceUsd = priceUsdOf(arrivee)
             )
@@ -441,6 +448,47 @@ class SwapViewModel @Inject constructor(
 
     /** Solde de [token] lu dans l'instantané portefeuille (aucun appel réseau). */
     private fun balanceOf(token: String): Double = snapTok(token)?.amountRaw ?: 0.0
+
+    /*
+    ─── LA MONNAIE QUI PAIERA LE DÉPÔT, ET QUI MANQUE ─────────────────────
+
+    Un échange commence TOUJOURS par un envoi : le dépôt chez l'échangeur.
+    Cet envoi se paie dans la monnaie de la chaîne — du BNB pour un USDT
+    BEP-20 — jamais dans le jeton envoyé. Sans elle, le dépôt est refusé par
+    le réseau et l'échange n'existe jamais.
+
+    Cette règle était écrite deux fois : ici, et dans le rattrapage qui suit
+    un dépôt refusé. Deux copies d'une même règle finissent toujours par
+    diverger — c'est la raison d'être de ReserveFrais. Elle n'est plus
+    écrite qu'une fois, et les deux moments l'appellent.
+
+    Le cas où le natif EST la monnaie envoyée ne regarde pas cette fonction :
+    il s'agit alors d'un simple manque de solde, que MAX et la comparaison
+    montant/solde traitent déjà, avec des chiffres.
+    */
+    private fun natifManquantPour(token: String): String? {
+        val natif = com.vaultex.core.tx.ReserveFrais.natifDe(swapSendChainOf(token))
+        if (natif.equals(token, ignoreCase = true)) return null
+        return if (balanceOf(natif) <= 0.0) natif else null
+    }
+
+    /*
+    Version PRUDENTE, pour l'avertissement affiché AVANT toute tentative.
+
+    L'instantané portefeuille est un cache local. À la première ouverture,
+    juste après un import, ou tant que la synchronisation n'a pas eu lieu, il
+    est vide — et « pas de BNB » y est indiscernable de « je ne sais pas ».
+
+    Bloquer un échange légitime sur une ignorance serait pire que le défaut
+    qu'on corrige. On exige donc une preuve que l'instantané est peuplé : un
+    solde non nul sur la monnaie de départ, lu dans le MÊME instantané. S'il
+    est nul, on se tait — et de toute façon il n'y a rien à échanger.
+
+    Le rattrapage après échec, lui, n'a pas besoin de cette prudence : le
+    refus du réseau lui sert de preuve.
+    */
+    private fun natifManquantAvantTentative(token: String): String? =
+        if (balanceOf(token) > 0.0) natifManquantPour(token) else null
 
     /** Prix USD de [token] (instantané portefeuille). */
     /*
@@ -707,6 +755,7 @@ class SwapViewModel @Inject constructor(
                 toToken = destination,
                 toPriceUsd = priceUsdOf(destination),
                 fromBalance = balanceOf(token),
+                natifDepotManquant = natifManquantAvantTentative(token),
                 fromPriceUsd = priceUsdOf(token),
                 error = null
             )
@@ -726,6 +775,7 @@ class SwapViewModel @Inject constructor(
                 toPriceUsd = priceUsdOf(token),
                 fromToken = depart,
                 fromBalance = balanceOf(depart),
+                natifDepotManquant = natifManquantAvantTentative(depart),
                 fromPriceUsd = priceUsdOf(depart),
                 error = null
             )
@@ -750,6 +800,7 @@ class SwapViewModel @Inject constructor(
                 fromToken = it.toToken, toToken = it.fromToken,
                 fromAmount = it.toAmount, toAmount = it.fromAmount,
                 fromBalance = balanceOf(it.toToken),
+                natifDepotManquant = natifManquantAvantTentative(it.toToken),
                 fromPriceUsd = priceUsdOf(it.toToken), toPriceUsd = priceUsdOf(it.fromToken),
                 error = null
             )
@@ -1058,12 +1109,8 @@ class SwapViewModel @Inject constructor(
                         recevoir — la seule issue quand le portefeuille ne
                         contient que le jeton.
                         */
-                        val natifDepot = com.vaultex.core.tx.ReserveFrais
-                            .natifDe(swapSendChainOf(s.fromToken))
-                        val natifVide = !natifDepot.equals(s.fromToken, ignoreCase = true) &&
-                            balanceOf(natifDepot) <= 0.0
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
-                            natifRequis = if (natifVide) natifDepot else null,
+                            natifRequis = natifManquantPour(s.fromToken),
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
                         /*
                         ═══════════════════════════════════════════════════
