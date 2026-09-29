@@ -13,15 +13,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,11 +51,36 @@ private val EXPORT_CHAINS = listOf("BTC", "ETH", "BNB", "SOL", "TRX")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(navController: NavController) {
+    // Cet écran montre — ou fait saisir — la phrase de récupération. La
+    // protection contre les captures y est posée quel que soit le réglage
+    // général, et rendue telle qu'elle était en sortant. Voir ProtectionEcran.
+    com.vaultex.core.security.ProtectionEcran.EcranSecret()
+
     val viewModel: BackupViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
-    val clipboard = LocalClipboardManager.current
-    val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
-    val clipScope = rememberCoroutineScope()
+
+    /*
+    La phrase révélée disparaît dès que l'application quitte l'écran.
+
+    ON_STOP, et non ON_PAUSE : la demande d'empreinte est une surcouche de la
+    même activité, elle ne déclenche que ON_PAUSE. Effacer là refermerait la
+    phrase à l'instant même où l'authentification vient de l'ouvrir.
+    */
+    // androidx.compose.ui.platform, et non androidx.lifecycle.compose :
+    // celui-ci n'existe qu'à partir de lifecycle 2.8, le projet est en 2.7.
+    // C'est aussi ce qu'emploient l'accueil et le scanner.
+    val proprietaireCycle = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(proprietaireCycle) {
+        val observateur = androidx.lifecycle.LifecycleEventObserver { _, evenement ->
+            if (evenement == androidx.lifecycle.Lifecycle.Event.ON_STOP) viewModel.oublierSecrets()
+        }
+        proprietaireCycle.lifecycle.addObserver(observateur)
+        onDispose {
+            proprietaireCycle.lifecycle.removeObserver(observateur)
+            viewModel.oublierSecrets()
+        }
+    }
+    val copierSecret = com.vaultex.ui.components.rememberCopieSecrete()
     val ctx = LocalContext.current
 
     /*
@@ -83,11 +105,14 @@ fun BackupScreen(navController: NavController) {
     l'effacement automatique restent exactement ce qu'ils étaient.
     */
     fun copySecret(value: String) {
-        copier(value)
-        android.widget.Toast.makeText(ctx, ctx.getString(R.string.backup_copied_autoclear), android.widget.Toast.LENGTH_LONG).show()
-        clipScope.launch {
-            kotlinx.coroutines.delay(60_000)
-            runCatching { clipboard.setText(AnnotatedString("")) }
+        // On n'annonce l'effacement automatique que si la copie a eu lieu :
+        // le message est une promesse, et la tenir suppose qu'il y ait
+        // quelque chose au presse-papier.
+        if (copierSecret(value)) {
+            android.widget.Toast.makeText(
+                ctx, ctx.getString(R.string.backup_copied_autoclear),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 

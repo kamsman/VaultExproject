@@ -129,4 +129,29 @@ class BackupViewModel @Inject constructor(
     fun hide() = _state.update { it.copy(mnemonic = null, isRevealed = false) }
 
     fun hideKey() = _state.update { it.copy(exportedKey = null) }
+
+    /*
+    ─── UN SECRET AFFICHÉ NE DOIT PAS SURVIVRE À L'ÉCRAN ──────────────────
+
+    La phrase et la clé privée vivent dans cet état tant que « Masquer » n'a
+    pas été touché. Or rien n'oblige à le toucher : on regarde ses mots, on
+    revient en arrière, et ils restent en mémoire aussi longtemps que ce
+    ViewModel — c'est-à-dire jusqu'à ce que l'écran soit retiré de la pile.
+
+    Deux conséquences. La moins grave : un texte en clair reste dans le tas,
+    et une `String` Java ne s'efface pas — elle attend le ramasse-miettes, et
+    se lit dans un vidage mémoire. La plus concrète : revenir sur l'écran de
+    sauvegarde rouvrait la phrase DÉJÀ RÉVÉLÉE, sans redemander le code.
+
+    On les oublie donc dès que l'écran disparaît, et l'écran appelle aussi
+    `oublierSecrets` quand l'application passe en arrière-plan — le moment
+    exact où un téléphone change de mains.
+    */
+    fun oublierSecrets() =
+        _state.update { it.copy(mnemonic = null, exportedKey = null, isRevealed = false) }
+
+    override fun onCleared() {
+        oublierSecrets()
+        super.onCleared()
+    }
 }

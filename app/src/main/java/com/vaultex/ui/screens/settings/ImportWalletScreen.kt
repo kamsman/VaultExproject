@@ -31,6 +31,11 @@ import com.vaultex.ui.theme.TextSecondary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportWalletScreen(navController: NavHostController) {
+    // Cet écran montre — ou fait saisir — la phrase de récupération. La
+    // protection contre les captures y est posée quel que soit le réglage
+    // général, et rendue telle qu'elle était en sortant. Voir ProtectionEcran.
+    com.vaultex.core.security.ProtectionEcran.EcranSecret()
+
     var mnemonic by remember { mutableStateOf("") }
     val wordCount = mnemonic.trim().split(Regex("\\s+")).count { it.isNotBlank() }
 
