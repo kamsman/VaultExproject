@@ -5,11 +5,26 @@
 #
 #   ./tools/pi-disponible.sh
 #
-# Repond a UNE question, celle qui decide de tout : un echangeur ouvre-t-il
-# enfin une paire depuis le PI ? Tant que la reponse est non, integrer le
-# reseau Pi dans VaultEx donnerait une adresse, un solde affiche et un bouton
+# Repond a UNE question, celle qui decide de tout : peut-on transformer du PI
+# en USDT sans depositaire ? Tant que la reponse est non, integrer le reseau
+# Pi dans VaultEx donnerait une adresse, un solde affiche et un bouton
 # « Envoyer » sans aucun moyen de convertir — des fonds visibles qui ne
 # bougent pas.
+#
+# Elle se teste desormais par DEUX chemins, et il suffit qu'un seul reponde :
+#
+#   1. Un courtier instantane ouvre-t-il une paire depuis le PI ? C'est le
+#      modele que VaultEx utilise deja pour tout le reste.
+#
+#   2. La chaine Pi elle-meme permet-elle l'echange ? Son protocole 27, actif
+#      depuis le 15 septembre 2026, a apporte un carnet d'ordres, un AMM et
+#      un RPC public. Cette voie n'existait pas quand ce script a ete ecrit.
+#
+# Ce qui ne repond PAS a la question, et qu'on ne teste donc pas ici : les
+# rampes fiat verifiees par Pi (TransFi, Onramper, Onramp Money, Banxa).
+# Elles vendent le Pi contre de la monnaie locale, pas contre de l'USDT ;
+# elles exigent une identite, que VaultEx n'a jamais demandee ; et aucune ne
+# regle en XOF. Deux sauts, deux commissions, deux KYC, et pas un franc CFA.
 #
 # --------------------------------------------------------------------------
 # POURQUOI UN SCRIPT PLUTOT QU'UNE REPONSE ECRITE QUELQUE PART
@@ -110,13 +125,84 @@ for entree in \
   nom="${entree%%|*}"
   url="${entree#*|}"
   rep=$(curl -s --max-time 25 "$url" 2>/dev/null)
-  if printf '%s' "$rep" | grep -qoiE '"(code|ticker|symbol)":"pi"'; then
+  # Un catalogue injoignable renvoyait une chaine vide, donc « absent » :
+  # exactement la reponse rassurante. Une panne de reseau se lisait comme
+  # une confirmation que Pi n'est toujours pas la. On les separe.
+  if [ -z "$rep" ]; then
+    printf "    %-12s SANS REPONSE — rien conclu, relancer\n" "$nom"
+  elif printf '%s' "$rep" | grep -qoiE '"(code|ticker|symbol)":"pi"'; then
     printf "    %-12s PRESENT — verifier si une paire est ouverte\n" "$nom"
     trouve=1
   else
     printf "    %-12s absent\n" "$nom"
   fi
 done
+
+# --------------------------------------------------------------------------
+# LA CHAINE PI ELLE-MEME — DEPUIS PROTOCOLE 27
+# --------------------------------------------------------------------------
+#
+# Le 15 septembre 2026, Pi a active son protocole 27 : carnet d'ordres, AMM,
+# et surtout un RPC public. La chaine est un derive de Stellar, donc son API
+# est une Horizon : les memes chemins, les memes reponses.
+#
+# Cela ouvre une troisieme voie, qui n'existait pas quand ce script a ete
+# ecrit. Jusqu'ici la seule question etait « un courtier accepte-t-il le
+# PI ? ». Desormais il y en a une autre : « peut-on echanger SUR Pi ? »
+#
+# Elle se decompose en deux, et les deux doivent etre vraies :
+#
+#   1. Un USDT existe-t-il sur le mainnet Pi ? Sans actif en face, un carnet
+#      d'ordres ne sert a rien. On le demande a /assets.
+#
+#   2. Ce carnet a-t-il de la liquidite ? Une paire ouverte sans profondeur
+#      affiche un prix et ne remplit aucun ordre. On le demande a /order_book.
+#
+# ATTENTION AU FAUX ESPOIR. Meme si les deux repondent oui, l'USDT obtenu
+# serait un USDT EMIS SUR PI — enferme dans Pi, inutilisable sur BNB Chain,
+# et sans rapport avec celui que VaultEx detient. Il faudrait encore un pont
+# pour en sortir. Ce test dit si la premiere marche existe, pas si l'escalier
+# est complet.
+PI_API="https://api.mainnet.minepi.com"
+echo
+echo "  LA CHAINE PI PERMET-ELLE D'ECHANGER SUR PLACE ?"
+
+racine=$(curl -s --max-time 20 "$PI_API/" 2>/dev/null)
+if [ -z "$racine" ]; then
+  printf "    %-12s SANS REPONSE — rien conclu, relancer\n" "rpc"
+else
+  printf "    %-12s repond\n" "rpc"
+
+  # Les actifs non natifs. Un reseau sans aucun actif emis n'a pas de
+  # marche possible, quelle que soit la qualite de son carnet d'ordres.
+  actifs=$(curl -s --max-time 20 "$PI_API/assets?limit=200" 2>/dev/null)
+  nb=$(printf '%s' "$actifs" | grep -oE '"asset_code"' | wc -l | tr -d ' ')
+  printf "    %-12s %s actif(s) emis sur la chaine\n" "actifs" "${nb:-0}"
+
+  # Un USDT, nomme comme tel. On imprime l'emetteur : sur un derive de
+  # Stellar, n'importe qui peut emettre un actif appele USDT, et seul
+  # l'emetteur distingue le vrai du faux.
+  usdt=$(curl -s --max-time 20 "$PI_API/assets?asset_code=USDT" 2>/dev/null)
+  emetteurs=$(printf '%s' "$usdt" | grep -oE '"asset_issuer":"[A-Z0-9]+"' | cut -d'"' -f4 | sort -u)
+  if [ -n "$emetteurs" ]; then
+    for e in $emetteurs; do
+      printf "    %-12s USDT emis par %s\n" "usdt" "$e"
+      # Profondeur du carnet PI / cet USDT. Sans ordre d'achat, personne
+      # n'achete le Pi : le marche existe sur le papier seulement.
+      carnet=$(curl -s --max-time 20 \
+        "$PI_API/order_book?selling_asset_type=native&buying_asset_type=credit_alphanum4&buying_asset_code=USDT&buying_asset_issuer=$e" 2>/dev/null)
+      offres=$(printf '%s' "$carnet" | grep -oE '"amount"' | wc -l | tr -d ' ')
+      if [ "${offres:-0}" -gt 0 ]; then
+        printf "    %-12s carnet PI/USDT : %s ordre(s)\n" "" "$offres"
+        trouve=1
+      else
+        printf "    %-12s carnet PI/USDT vide\n" ""
+      fi
+    done
+  else
+    printf "    %-12s aucun USDT sur la chaine Pi\n" "usdt"
+  fi
+fi
 
 echo
 if [ "$trouve" = "1" ]; then
@@ -125,9 +211,14 @@ if [ "$trouve" = "1" ]; then
   echo "      verifiees : voir PiWallet.kt. Restent le solde (API Horizon)"
   echo "      et la signature de transactions (XDR)."
 else
-  echo "  >>> Toujours aucune paire. Ne rien integrer."
-  echo "      La reponse a donner aux utilisateurs reste le chemin"
-  echo "      Pi Wallet -> OKX -> USDT-BEP20 -> VaultEx :"
+  echo "  >>> Toujours aucune paire, et rien a echanger sur la chaine Pi."
+  echo "      Ne rien integrer. La reponse a donner aux utilisateurs reste"
+  echo "      le chemin Pi Wallet -> OKX -> USDT-BEP20 -> VaultEx :"
   echo "      voir tools/annonces/guide-pi-vers-usdt.md"
+  echo
+  echo "      Les rampes fiat (TransFi, Onramper, Onramp Money) sont"
+  echo "      verifiees par Pi mais ne repondent pas a la question : elles"
+  echo "      vendent le Pi contre de la MONNAIE LOCALE, pas contre de"
+  echo "      l'USDT, exigent une identite, et aucune ne regle en XOF."
 fi
 echo
