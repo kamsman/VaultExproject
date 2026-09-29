@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
+import kotlinx.coroutines.launch
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
@@ -101,6 +102,93 @@ Même chemin que la copie néanmoins : le vibreur plutôt que le retour de vue,
 pour la raison expliquée plus haut — le système ignore le second quand
 « Vibration au toucher » est désactivé, ce qui est courant.
 */
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+COPIER UN SECRET N'EST PAS COPIER UNE ADRESSE
+═══════════════════════════════════════════════════════════════════════════
+
+Une adresse est publique : on la donne pour recevoir. Une phrase de
+récupération et une clé privée ne se donnent à personne — et le chemin
+ordinaire les trahit deux fois.
+
+1. DEPUIS ANDROID 13, LE SYSTÈME MONTRE CE QU'ON COPIE. Une vignette
+   s'affiche en bas de l'écran avec un aperçu du contenu. Pour une adresse
+   c'est utile ; pour vingt-quatre mots, c'est les afficher à qui regarde
+   par-dessus l'épaule, et les livrer à tout enregistrement d'écran en
+   cours. Android prévoit exactement ce cas : le drapeau IS_SENSITIVE
+   remplace l'aperçu par des points. Il faut passer par le presse-papier
+   de la plateforme pour le poser — celui de Compose ne l'expose pas.
+
+2. L'EFFACEMENT AUTOMATIQUE NE SURVIVAIT PAS AU DÉPART DE L'ÉCRAN. Il
+   vivait dans un `rememberCoroutineScope`, donc dans la composition : le
+   délai de soixante secondes était ANNULÉ dès qu'on quittait l'écran.
+
+   Or c'est exactement ce qu'on fait après avoir copié sa phrase : on sort
+   pour la coller ailleurs. L'effacement ne tournait donc que dans le cas
+   où il ne servait à rien — rester sur place — et jamais dans celui où il
+   protège. Le secret restait au presse-papier indéfiniment, lisible par
+   toute application au premier plan.
+
+   La portée ci-dessous appartient au processus, pas à l'écran.
+
+On efface par `clearPrimaryClip` plutôt qu'en collant une chaîne vide :
+écrire au presse-papier déclenche à nouveau la vignette du système, et
+annoncer « copié » alors qu'on efface serait au mieux déroutant.
+*/
+private val porteeEffacement =
+    kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main
+    )
+
+/** Délai au bout duquel un secret quitte le presse-papier. */
+private const val EFFACEMENT_MS = 60_000L
+
+/**
+ * Copie un SECRET : marqué sensible pour le système, effacé après une
+ * minute même si l'écran a été quitté entre-temps.
+ *
+ * Renvoie `false` si le presse-papier est indisponible — l'appelant doit
+ * alors s'abstenir d'annoncer une copie qui n'a pas eu lieu.
+ */
+@Composable
+fun rememberCopieSecrete(): (String) -> Boolean {
+    val secours = LocalHapticFeedback.current
+    val contexte = LocalContext.current
+    val application = contexte.applicationContext
+    return remember(secours, contexte, application) {
+        { valeur: String ->
+            val presse = application
+                .getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            if (valeur.isBlank() || presse == null) false
+            else {
+                val extrait = android.content.ClipData.newPlainText("", valeur)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    extrait.description.extras = android.os.PersistableBundle().apply {
+                        putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+                    }
+                }
+                presse.setPrimaryClip(extrait)
+                vibrerCourt(contexte, secours)
+                porteeEffacement.launch {
+                    kotlinx.coroutines.delay(EFFACEMENT_MS)
+                    runCatching {
+                        // Ne rien effacer si l'utilisateur a copié autre chose
+                        // depuis : ce serait lui retirer sa sélection en cours.
+                        val actuel = presse.primaryClip
+                            ?.takeIf { it.itemCount > 0 }
+                            ?.getItemAt(0)?.text?.toString()
+                        if (actuel == valeur) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) presse.clearPrimaryClip()
+                            else presse.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+                        }
+                    }
+                }
+                true
+            }
+        }
+    }
+}
 
 /** Une tape nette, sans autre effet. Pour un geste qui mérite d'être senti. */
 @Composable

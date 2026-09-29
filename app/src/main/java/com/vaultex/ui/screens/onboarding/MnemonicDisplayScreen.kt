@@ -33,6 +33,11 @@ fun MnemonicDisplayScreen(
     navController: NavHostController,
     viewModel: OnboardingViewModel
 ) {
+    // Cet écran montre — ou fait saisir — la phrase de récupération. La
+    // protection contre les captures y est posée quel que soit le réglage
+    // général, et rendue telle qu'elle était en sortant. Voir ProtectionEcran.
+    com.vaultex.core.security.ProtectionEcran.EcranSecret()
+
     // La génération se fait dans le ViewModel (thread-safe, hors Compose tree)
     LaunchedEffect(Unit) {
         viewModel.generateMnemonic()
