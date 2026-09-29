@@ -1017,4 +1017,5 @@
     <string name="tx_err_solana_compte_neuf">هذا العنوان حساب سولانا جديد تمامًا: يجب ألا يقل الإرسال الأول عن 0.0009 SOL.</string>
     <string name="tx_err_blockhash_solana">تعذر العثور على blockhash سولانا</string>
     <string name="tx_err_envoi_generique">خطأ في الإرسال</string>
+    <string name="swap_confirm_sans_devis">لا يوجد عرض سعر حاليًا: لا يمكن معرفة ما سيعيده هذا التبادل. عد إلى الخلف وأعد المحاولة.</string>
 </resources>

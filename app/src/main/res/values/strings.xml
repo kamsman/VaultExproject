@@ -1046,4 +1046,5 @@
     <string name="tx_err_solana_compte_neuf">Cette adresse est un compte Solana tout neuf : le premier envoi doit être d\'au moins 0.0009 SOL.</string>
     <string name="tx_err_blockhash_solana">Blockhash Solana introuvable</string>
     <string name="tx_err_envoi_generique">Erreur d\'envoi</string>
+    <string name="swap_confirm_sans_devis">Aucun devis pour le moment : impossible de dire ce que cet échange rendrait. Revenez en arrière et réessayez.</string>
 </resources>

@@ -1090,18 +1090,90 @@ private fun SwapConfirmScreen(
                         }
                     }
                 }
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    enabled = !state.isLoading && devisValide,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SwapPurple, contentColor = Color.White,
-                        disabledContainerColor = SwapPurple.copy(alpha = 0.35f)
-                    )
-                ) {
-                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                    else Text("Confirmer le swap", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                /*
+                UNE LIGNE AU-DESSUS DU BOUTON, ET ELLE DÉPEND DE L'ÉTAT.
+
+                Sans devis, le bouton était gris et MUET : rien ne disait
+                pourquoi il ne répondait pas. Un bouton mort sans explication
+                se lit comme une panne de l'application, et on le touche
+                jusqu'à abandonner.
+
+                Quand le devis est là, cette même ligne sert à autre chose :
+                dire que le dépôt part tout seul et qu'on ne revient pas en
+                arrière. C'est l'écran d'envoi qui montre la voie — il porte
+                sa mention de sécurité juste sous ses boutons, parce qu'une
+                phrase qui qualifie une action n'a aucun sens séparée d'elle
+                par un défilement.
+
+                Les deux cas s'excluent : si l'échange ne peut pas partir,
+                prévenir qu'il serait irréversible ne sert à rien.
+                */
+                if (state.error == null) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            Icons.Default.Info, null,
+                            tint = if (devisValide) swapTextDim else AccentRed,
+                            modifier = Modifier.padding(top = 2.dp).size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(
+                                if (devisValide) com.vaultex.R.string.swap_confirm_hint
+                                else com.vaultex.R.string.swap_confirm_sans_devis
+                            ),
+                            fontSize = 11.sp,
+                            color = if (devisValide) swapTextDim else AccentRed
+                        )
+                    }
+                }
+                /*
+                ANNULER À CÔTÉ DE CONFIRMER, COMME À L'ENVOI.
+
+                Cet écran n'offrait que la flèche du haut pour renoncer. Les
+                deux écrans où l'on engage des fonds ne se comportaient donc
+                pas pareil, et c'est celui du swap — dont les fonds partent
+                chez un tiers et ne reviennent pas — qui était le plus avare
+                en sorties.
+
+                Le libellé vient des ressources : « Confirmer l'échange »
+                existait déjà, traduit en anglais et en arabe, et n'était
+                utilisé nulle part. Le bouton écrivait « Confirmer le swap »
+                en dur — donc en français quelle que soit la langue choisie,
+                et avec un mot que le reste de l'application n'emploie pas
+                (l'accueil dit « Échange en cours »).
+                */
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, swapBorder)
+                    ) {
+                        Text(
+                            stringResource(com.vaultex.R.string.cancel),
+                            color = swapText, fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp, maxLines = 1
+                        )
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(2f).height(54.dp),
+                        enabled = !state.isLoading && devisValide,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SwapPurple, contentColor = Color.White,
+                            disabledContainerColor = SwapPurple.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        else Text(
+                            stringResource(com.vaultex.R.string.swap_confirm_cta),
+                            fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1
+                        )
+                    }
                 }
                 /*
                 LE FAUX COMPTE À REBOURS EST RETIRÉ.

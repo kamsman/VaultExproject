@@ -1017,4 +1017,5 @@
     <string name="tx_err_solana_compte_neuf">This address is a brand-new Solana account: the first transfer must be at least 0.0009 SOL.</string>
     <string name="tx_err_blockhash_solana">Solana blockhash not found</string>
     <string name="tx_err_envoi_generique">Send error</string>
+    <string name="swap_confirm_sans_devis">No quote right now: there is no telling what this swap would return. Go back and try again.</string>
 </resources>
