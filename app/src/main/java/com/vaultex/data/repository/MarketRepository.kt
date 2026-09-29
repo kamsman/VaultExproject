@@ -145,9 +145,39 @@ class MarketRepository @Inject constructor(
                 // précédente, et une liste vieille d'une heure passait pour
                 // fraîche parce que le dernier appel, lui, avait réussi.
                 lastFromCache = true
+                // Muet aussi, et plus trompeur qu'une erreur : le service a
+                // répondu, il n'a simplement rien donné. Aucune exception ne
+                // sera levée, donc rien ne serait remonté sans cette ligne.
+                com.vaultex.core.monitoring.signalerEtatAnormal(
+                    "liste du marché", "réponse vide sans erreur"
+                )
                 cache
             }
         } catch (e: Exception) {
+            /*
+            ═══════════════════════════════════════════════════════════════
+            CET ÉCHEC ÉTAIT MUET, ET C'EST CE QUI COÛTAIT LE PLUS CHER
+            ═══════════════════════════════════════════════════════════════
+
+            Le repli sur le cache est la bonne réaction : l'écran Marché ne
+            doit jamais être vide. Mais il ne disait rien à personne.
+
+            Constaté sur appareil : le bandeau « hors ligne » affiché sur un
+            téléphone connecté, avec des cours IDENTIQUES à vingt-cinq
+            minutes d'intervalle — donc un rafraîchissement qui échouait à
+            chaque tentative, en silence, depuis un temps inconnu.
+
+            Impossible de trancher entre les trois causes, qui appellent
+            trois réponses opposées : le relais est tombé (le redéployer),
+            le quota CoinGecko est épuisé (allonger les TTL du relais), ou
+            c'est bien l'appareil qui n'a pas de réseau (ne rien faire).
+
+            reportUnlessCancelled écarte précisément ce troisième cas : il
+            reconnaît l'absence de réseau et se tait. Ce qui remonte est
+            donc une vraie panne — et son message nomme laquelle.
+            ═══════════════════════════════════════════════════════════════
+            */
+            com.vaultex.core.monitoring.reportUnlessCancelled("liste du marché", e)
             // Échec (hors ligne / rate-limit) : mémoire, puis DISQUE (survit au
             // redémarrage) — l'écran Marché n'est plus jamais vide hors ligne.
             lastFromCache = true
