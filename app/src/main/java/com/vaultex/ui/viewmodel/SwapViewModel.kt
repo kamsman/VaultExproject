@@ -33,6 +33,14 @@ data class SwapState(
      * alors sur son repli. Zéro est une valeur valide, pas une absence.
      */
     val fraisDepot: Double? = null,
+    /**
+     * Monnaie native absente qui a fait échouer le dépôt — « BNB » pour un
+     * jeton BEP-20, « ETH » pour un ERC-20.
+     *
+     * L'écran s'en sert pour proposer une SORTIE. Un message d'échec qui ne
+     * dit que ce qui manque laisse démuni : il faut mener là où on l'obtient.
+     */
+    val natifRequis: String? = null,
     val isCrossChain: Boolean = true,
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -1040,7 +1048,22 @@ class SwapViewModel @Inject constructor(
                         withContext(Dispatchers.IO) {
                             runCatching { swapUseCase.markDepositFailed(txRes.id) }
                         }
+                        /*
+                        UN ÉCHEC DE DÉPÔT EST PRESQUE TOUJOURS UN MANQUE DE
+                        GAZ, et c'est la seule cause qui se répare.
+
+                        On ne le devine pas au message du réseau, qui varie
+                        d'une chaîne à l'autre : on REGARDE le solde natif.
+                        S'il est vide, l'écran pourra mener à l'adresse où en
+                        recevoir — la seule issue quand le portefeuille ne
+                        contient que le jeton.
+                        */
+                        val natifDepot = com.vaultex.core.tx.ReserveFrais
+                            .natifDe(swapSendChainOf(s.fromToken))
+                        val natifVide = !natifDepot.equals(s.fromToken, ignoreCase = true) &&
+                            balanceOf(natifDepot) <= 0.0
                         _state.update { it.copy(isLoading = false, swapInProgress = false, swapStatus = null,
+                            natifRequis = if (natifVide) natifDepot else null,
                             error = str(com.vaultex.R.string.swap_msg_deposit_failed, dep.message)) }
                         /*
                         ═══════════════════════════════════════════════════

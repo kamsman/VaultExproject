@@ -330,8 +330,29 @@ fun SwapScreen(navController: NavHostController) {
     */
     var conclusion by remember { mutableStateOf(false) }
     LaunchedEffect(state.swapInProgress, state.swapId) {
-        if (!state.swapInProgress || suiviDemande || viewModel.sortieAccueilFaite)
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN ÉCHEC DOIT POUVOIR REFERMER CETTE CONCLUSION
+        ═══════════════════════════════════════════════════════════════════
+
+        Quand le dépôt échoue — pas assez de natif pour le gaz, réseau qui
+        refuse — swapInProgress retombe à faux et l'erreur est posée dans
+        l'état. Mais `conclusion` restait vrai, et le `when` l'affiche AVANT
+        tout le reste : l'écran demeurait sur « Échange enregistré », avec ses
+        deux étapes grises, sans message, sans départ, sans issue.
+
+        Constaté sur appareil : une conclusion qui n'a rien conclu, et dont on
+        ne peut plus sortir que par le bouton retour.
+
+        On la referme donc dès que l'échange cesse d'être en cours. Le `when`
+        retombe alors sur l'écran de confirmation, qui affiche `state.error` —
+        c'est là que le message existe déjà, et c'est là qu'on peut réessayer.
+        */
+        if (!state.swapInProgress) {
+            conclusion = false
             return@LaunchedEffect
+        }
+        if (suiviDemande || viewModel.sortieAccueilFaite) return@LaunchedEffect
 
         val debut = System.currentTimeMillis()
         conclusion = true
@@ -496,7 +517,11 @@ fun SwapScreen(navController: NavHostController) {
             onBack = { screen = "form" },
             onConfirm = confirmAndExecute,
             commissionPourcent = viewModel.commissionPourcent,
-            nomFournisseur = viewModel.nomFournisseur
+            nomFournisseur = viewModel.nomFournisseur,
+            onRecevoirNatif = { natif ->
+                vibrer()
+                navController.navigate(Routes.receiveAsset(natif, natif))
+            }
         )
         else -> SwapFormScreen(
             navController = navController,
@@ -954,7 +979,14 @@ private fun SwapConfirmScreen(
     /** Commission réellement appliquée par le fournisseur en service. */
     commissionPourcent: Double,
     /** Nom de l'échangeur — ChangeNOW ou SimpleSwap. */
-    nomFournisseur: String
+    nomFournisseur: String,
+    /**
+     * Mène à l'adresse où recevoir la monnaie native manquante.
+     *
+     * Un rappel plutôt que le navController : cet écran n'a aucune autre
+     * raison de connaître la navigation.
+     */
+    onRecevoirNatif: (String) -> Unit
 ) {
     val fromAmt = state.fromAmount.toDoubleOrNull() ?: 0.0
     val toAmt = state.toAmount.toDoubleOrNull() ?: 0.0
@@ -1023,11 +1055,38 @@ private fun SwapConfirmScreen(
                         color = swapErrBg,
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     ) {
-                        Text(
-                            state.error!!,
-                            fontSize = 13.sp, color = AccentRed,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                        )
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                            Text(state.error!!, fontSize = 13.sp, color = AccentRed)
+                            /*
+                            LE MESSAGE DIT CE QUI MANQUE ; CETTE LIGNE DIT OÙ
+                            LE PRENDRE.
+
+                            Un échange dont le dépôt échoue faute de gaz laisse
+                            sans issue : l'échange qui procurerait ce gaz
+                            commence lui-même par un envoi qui le demande. La
+                            seule sortie est d'en recevoir de l'extérieur, et
+                            autant y mener directement.
+                            */
+                            state.natifRequis?.let { natif ->
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    Modifier.fillMaxWidth().clickable { onRecevoirNatif(natif) },
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowDownward, null,
+                                        tint = SwapPurple, modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(R.string.send_recevoir_natif, natif),
+                                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                        color = SwapPurple
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 Button(
