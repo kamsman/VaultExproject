@@ -143,6 +143,35 @@ class SwapTrackingWorker @AssistedInject constructor(
                 // « Finished » avec une majuscule ne doit pas passer pour un
                 // échange encore en cours.
                 val etat = status.statut.trim().lowercase()
+
+                /*
+                ═══════════════════════════════════════════════════════════
+                UNE RÉFÉRENCE QUE LE FOURNISSEUR NE CONNAÎT PAS
+                ═══════════════════════════════════════════════════════════
+
+                Le fournisseur rend « not_found » quand l'identifiant ne lui
+                dit rien — voir FournisseurSimpleSwap, qui explique pourquoi
+                c'est une réponse et non une panne. Le poursuivre sept jours
+                laissait « Échange en cours » tourner sur l'accueil pour une
+                opération que personne ne peut plus suivre.
+
+                UN DÉLAI DE GRÂCE, PARCE QU'UN 404 PEUT ÊTRE PRÉCOCE. Un
+                échange tout juste créé n'est pas toujours interrogeable dans
+                la seconde. Conclure trop vite marquerait « échoué » une
+                opération bien vivante — et sur un écran d'argent, c'est la
+                pire des erreurs. Passé ce délai, un 404 ne s'explique plus
+                par un retard d'indexation.
+
+                On marque alors la ligne échouée : elle sort des échanges en
+                attente, l'accueil cesse de l'annoncer, et l'utilisateur est
+                prévenu une fois — plutôt que de voir tourner indéfiniment
+                quelque chose qui n'avance plus.
+                */
+                if (etat == com.vaultex.domain.swap.FournisseurSimpleSwap.STATUT_INCONNU) {
+                    if (age < GRACE_INTROUVABLE_MS) continue
+                    runCatching { swapUseCase.markDepositFailed(swap.hash) }
+                }
+
                 if (etat !in TERMINAL) continue
 
                 // Échange conclu : il sort de getPendingSwaps(), sa mémoire de
@@ -231,7 +260,20 @@ class SwapTrackingWorker @AssistedInject constructor(
         private const val PLAFOND_SUIVI_MS = 7L * 24 * 60 * 60 * 1000
 
         /** Terminaux côté ChangeNOW : plus rien ne bougera après. */
-        private val TERMINAL = setOf("finished", "failed", "refunded", "expired")
+        private val TERMINAL = setOf(
+            "finished", "failed", "refunded", "expired",
+            com.vaultex.domain.swap.FournisseurSimpleSwap.STATUT_INCONNU
+        )
+
+        /**
+         * Au bout de combien de temps un « inconnu » cesse d'être un retard
+         * d'indexation.
+         *
+         * Trente minutes : bien au-delà des quelques secondes que met un
+         * fournisseur à rendre un échange interrogeable, et bien en deçà des
+         * sept jours qu'il fallait auparavant pour abandonner.
+         */
+        private const val GRACE_INTROUVABLE_MS = 30L * 60 * 1000
 
         /**
          * Fin du suivi RAPPROCHÉ, et fenêtre de l'accueil.
