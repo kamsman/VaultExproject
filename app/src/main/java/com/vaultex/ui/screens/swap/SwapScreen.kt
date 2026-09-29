@@ -616,10 +616,35 @@ private fun SwapFormScreen(
     voulu dire trois traductions de plus pour la même phrase.
     */
     val soldeInsuffisant = fromAmt > 0.0 && fromAmt > state.fromBalance
+    /*
+    ─── LE GAZ DU DÉPÔT SE VÉRIFIE ICI, PAS APRÈS L'EMPREINTE ─────────────
+
+    Un échange commence par un envoi, et cet envoi se paie dans la monnaie de
+    la chaîne — du BNB pour un USDT BEP-20. Rien ne le vérifiait avant la
+    tentative. Constaté sur appareil : 1 USDT, 0 BNB, « Continuer » actif. On
+    allait donc jusqu'à poser son doigt sur le capteur pour apprendre ce qui
+    était connu depuis l'ouverture de l'écran.
+
+    Ce n'est pas un manque de solde et ça ne se lit pas comme tel : le solde
+    affiché, lui, est suffisant. C'est une monnaie ABSENTE, dans une autre
+    unité, qu'on ne voit nulle part sur cet écran — d'où un message distinct,
+    et la ligne « Recevoir du … » juste en dessous. Le message dit ce qui
+    manque, la ligne dit où le prendre.
+
+    Il passe APRÈS le solde insuffisant : quand les deux sont vrais, le
+    montant tapé est le problème le plus proche de ce que la personne vient
+    de faire.
+    */
+    // Copie locale : le transtypage intelligent ne s'applique pas toujours a
+    // la propriete d'une autre classe, et cette branche en depend.
+    val natifAbsent = state.natifDepotManquant
     val messageBloquant = when {
         soldeInsuffisant -> stringResource(
             com.vaultex.R.string.send_err_insufficient_balance,
             "$balTxt ${swapBaseOf(state.fromToken)}"
+        )
+        natifAbsent != null -> stringResource(
+            com.vaultex.R.string.swap_err_natif_absent, natifAbsent
         )
         else -> state.error
     }
@@ -689,18 +714,54 @@ private fun SwapFormScreen(
                         color = swapErrBg,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     ) {
-                        Text(
-                            messageBloquant,
-                            fontSize = 13.sp, color = AccentRed,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text(messageBloquant, fontSize = 13.sp, color = AccentRed)
+                            /*
+                            LE MESSAGE DIT CE QUI MANQUE ; CETTE LIGNE DIT OÙ
+                            LE PRENDRE.
+
+                            La même que sur l'écran de confirmation, et pour la
+                            même raison : la monnaie native ne s'obtient pas en
+                            échangeant, puisque l'échange qui la procurerait
+                            commence lui-même par un envoi qui la réclame. La
+                            seule issue est d'en recevoir de l'extérieur.
+
+                            Elle n'apparaît que pour CE refus-là. Les autres —
+                            solde insuffisant, devis indisponible — se règlent
+                            sur cet écran, pas ailleurs.
+                            */
+                            if (!soldeInsuffisant) natifAbsent?.let { natif ->
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        navController.navigate(Routes.receiveAsset(natif, natif))
+                                    },
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowDownward, null,
+                                        tint = SwapPurple, modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(com.vaultex.R.string.send_recevoir_natif, natif),
+                                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                        color = SwapPurple
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 Button(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).height(54.dp),
+                    // Le gaz du dépôt manque : rien ne partira, autant ne pas
+                    // laisser aller jusqu'à l'empreinte pour l'apprendre.
                     enabled = state.fromAmount.isNotEmpty() && state.toAmount.isNotEmpty() &&
-                        state.fromToken != state.toToken && !state.isLoading && !soldeInsuffisant,
+                        state.fromToken != state.toToken && !state.isLoading && !soldeInsuffisant &&
+                        natifAbsent == null,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SwapPurple,
