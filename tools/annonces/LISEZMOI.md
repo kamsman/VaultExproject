@@ -335,3 +335,45 @@ Le "" garde le logo VaultEx comme petite icone ; le 4e argument ajoute la
 banniere, visible quand l'utilisateur DEROULE la notification. Repliee,
 celle-ci n'affiche que le titre et le texte - l'annonce doit donc se tenir
 sans l'image.
+
+## Les deux annonces `esprit-*`
+
+Elles ne présentent aucune fonctionnalité. Elles disent ce qu'est
+l'application, ce qui est la seule chose qu'aucun concurrent ne peut
+copier sans changer de métier.
+
+    ./tools/send-announcement.sh --fichier tools/annonces/esprit-01-a-toi.txt
+    ./tools/send-announcement.sh --fichier tools/annonces/esprit-02-commencer.txt
+
+Logo VaultEx pour les deux : elles parlent de l'application, pas d'une
+monnaie.
+
+**Trois formules ont été écartées, et il faut savoir pourquoi** — la
+tentation reviendra à chaque réécriture.
+
+« Personne ne peut geler tes fonds. » C'est faux pour l'USDT, que la
+plupart des utilisateurs détiennent : Tether peut geler une adresse, et
+l'a déjà fait. Une promesse démentie par un seul cas réel emporte tout le
+reste du message. `esprit-01` dit « pas de compte à fermer, personne à qui
+demander la permission », qui est vrai en toutes circonstances.
+
+« Prends ton indépendance financière. » Ce registre attire précisément
+ceux qu'on ne veut pas — celui qui cherche un rendement — et laisse
+entendre une promesse que l'application ne tient pas : elle ne fait pas
+gagner d'argent, elle en garde.
+
+Un montant de départ chiffré. Il dépend du réseau choisi et des frais du
+moment. `esprit-02` dit « commence avec ce que tu peux », qui ne vieillit
+pas.
+
+**Le dernier mot d'`esprit-01` est le plus important.** Un message qui
+n'énonce que la liberté, sans la responsabilité qui vient avec, prépare
+le reproche du jour où quelqu'un perdra sa phrase. Le dire dans l'annonce
+la rend crédible ; le taire la rend commerciale.
+
+**Deux publics, encore.** `esprit-01` s'adresse à qui détient déjà
+quelque chose ; `esprit-02` à qui n'a jamais rien déposé — c'est-à-dire
+aux portefeuilles vides que le canal d'administration signale semaine
+après semaine. Si un seul des deux doit partir, c'est le 02 : il parle à
+la population la plus nombreuse, et il ouvre une porte franchissable
+plutôt qu'une porte à admirer.
