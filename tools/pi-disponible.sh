@@ -175,9 +175,23 @@ else
 
   # Les actifs non natifs. Un reseau sans aucun actif emis n'a pas de
   # marche possible, quelle que soit la qualite de son carnet d'ordres.
+  #
+  # ON VERIFIE D'ABORD QUE LA QUESTION A ETE POSEE. Compter les occurrences
+  # de "asset_code" donne zero dans DEUX cas opposes : la chaine ne porte
+  # aucun actif, ou le chemin /assets n'est pas servi du tout. Le second
+  # imprimerait « 0 actif » a chaque relance, pour toujours, sans jamais
+  # rien mesurer — la reponse rassurante obtenue sans rien verifier, encore.
+  #
+  # Une Horizon qui repond a /assets renvoie une collection : _embedded et
+  # records, vides ou non. Leur presence separe les deux cas.
   actifs=$(curl -s --max-time 20 "$PI_API/assets?limit=200" 2>/dev/null)
-  nb=$(printf '%s' "$actifs" | grep -oE '"asset_code"' | wc -l | tr -d ' ')
-  printf "    %-12s %s actif(s) emis sur la chaine\n" "actifs" "${nb:-0}"
+  if ! printf '%s' "$actifs" | grep -q '"records"'; then
+    printf "    %-12s /assets non servi — rien conclu sur les actifs\n" "actifs"
+    nb=""
+  else
+    nb=$(printf '%s' "$actifs" | grep -oE '"asset_code"' | wc -l | tr -d ' ')
+    printf "    %-12s %s actif(s) emis sur la chaine\n" "actifs" "${nb:-0}"
+  fi
 
   # Un USDT, nomme comme tel. On imprime l'emetteur : sur un derive de
   # Stellar, n'importe qui peut emettre un actif appele USDT, et seul

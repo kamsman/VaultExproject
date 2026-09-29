@@ -1418,4 +1418,31 @@ class SwapViewModel @Inject constructor(
         sortieAccueilFaite = false
         _state.update { SwapState() }
     }
+
+    /*
+    ─── RENONCER À UNE CONFIRMATION EFFACE SON ÉCHEC ──────────────────────
+
+    L'erreur d'un dépôt refusé vivait dans l'état, et l'état survit au retour
+    au formulaire. Constaté sur appareil : « Dépôt échoué. Les frais réseau
+    d'un envoi de jeton se paient en BNB… » restait épinglé au-dessus de
+    « Continuer », sur un formulaire où plus rien n'avait été tenté.
+
+    Deux choses la rendaient pire qu'inutile là.
+
+    Elle était AMPUTÉE. Sur l'écran de confirmation, ce message porte la ligne
+    « Recevoir du BNB » qui mène à l'adresse où en obtenir — la seule issue.
+    Le formulaire, lui, n'affiche que le texte : on lisait le problème sans le
+    remède, et sur l'écran qui sert précisément à repartir.
+
+    Elle était PÉRIMÉE. Elle parlait d'un envoi qui n'aurait plus lieu, et
+    elle survivait au changement de monnaie : on pouvait choisir une autre
+    paire, un autre montant, et lire toujours le refus de la précédente.
+
+    On l'efface donc en quittant la confirmation. Les erreurs du formulaire —
+    devis indisponible, montant sous le minimum — sont reposées par le devis
+    qui suit la moindre frappe ; aucune information n'est perdue.
+    */
+    fun oublierEchecDepot() {
+        _state.update { it.copy(error = null, natifRequis = null) }
+    }
 }
