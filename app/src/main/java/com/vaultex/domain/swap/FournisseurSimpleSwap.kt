@@ -24,6 +24,17 @@ class FournisseurSimpleSwap @Inject constructor(
 
     override val nom = "SimpleSwap"
 
+    companion object {
+        /**
+         * Statut rendu quand le fournisseur ne connaît pas l'identifiant.
+         *
+         * Ce n'est pas un état de l'échange chez lui : c'est notre façon de
+         * dire « cette référence ne mène nulle part ». Le suivi s'en sert pour
+         * arrêter de la poursuivre — voir SwapTrackingWorker.
+         */
+        const val STATUT_INCONNU = "not_found"
+    }
+
     override val commissionPourcent: Double = ApiKeys.SIMPLESWAP_COMMISSION
 
     override suspend fun devis(de: String, vers: String, montant: Double): DevisSwap {
@@ -135,6 +146,39 @@ class FournisseurSimpleSwap @Inject constructor(
             hashSortie = r.txTo,
             montantRecu = r.amountTo
         )
+    } catch (e: retrofit2.HttpException) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN 404 N'EST PAS UNE PANNE, C'EST UNE RÉPONSE
+        ═══════════════════════════════════════════════════════════════════
+
+        « Not Found » sur get_exchange signifie que le fournisseur ne connaît
+        pas cet identifiant. Ce n'est ni un service indisponible, ni une
+        situation qui s'arrangera : réinterroger la même référence donnera le
+        même résultat, indéfiniment.
+
+        Le suivi repassant toutes les quinze minutes pendant sept jours, une
+        seule référence perdue produisait environ six cent soixante alertes
+        « Service indisponible : statut SimpleSwap — HTTP 404 ». Constaté sur
+        le canal d'administration, où elles noyaient tout le reste. Une alerte
+        qui crie au loup finit par faire ignorer les vraies.
+
+        LA CAUSE LA PLUS PROBABLE EST UN CHANGEMENT DE FOURNISSEUR. Les
+        identifiants de ChangeNOW et de SimpleSwap ne se ressemblent pas et ne
+        sont pas interchangeables : basculer `swap.provider` laisse les
+        échanges en cours de l'ancien service, que le nouveau ne connaîtra
+        jamais. Viennent ensuite un échange purgé après des semaines, ou une
+        création qui a échoué après avoir été enregistrée ici.
+
+        On rend donc un statut NOMMÉ plutôt que null. L'appelant peut alors
+        cesser de poursuivre une référence morte, au lieu de confondre « je
+        n'ai pas pu demander » avec « la réponse est : inconnu ».
+        */
+        if (e.code() == 404) StatutSwap(id = id, statut = STATUT_INCONNU)
+        else {
+            com.vaultex.core.monitoring.reportUnlessCancelled("statut SimpleSwap", e)
+            null
+        }
     } catch (e: Exception) {
         com.vaultex.core.monitoring.reportUnlessCancelled("statut SimpleSwap", e)
         null

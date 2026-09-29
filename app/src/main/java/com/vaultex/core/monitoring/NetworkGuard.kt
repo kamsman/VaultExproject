@@ -48,7 +48,7 @@ suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend (
         // Un appareil sans reseau n'est pas un service en panne : voir
         // estHorsLigne(). L'appel echoue quand meme et rend null — seule
         // l'alerte d'administration est tue.
-        if (report && !estHorsLigne(e)) AdminBot.serviceFailed(source, e.message)
+        if (report && !estHorsLigne(e)) signalerUneFois(source, e.message)
         null
     }
 
@@ -67,7 +67,51 @@ suspend fun <T> guarded(source: String, report: Boolean = true, block: suspend (
  */
 fun reportUnlessCancelled(source: String, e: Throwable) {
     if (estAnnulation(e) || estHorsLigne(e)) return
-    AdminBot.serviceFailed(source, e.message)
+    signalerUneFois(source, e.message)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MÊME PANNE NE SE SIGNALE PAS TOUTES LES QUINZE MINUTES
+═══════════════════════════════════════════════════════════════════════════
+
+Les travaux de fond repassent en boucle : suivi des échanges, alertes de
+prix, détection de dépôts. Une cause durable — un quota épuisé, une référence
+que le fournisseur ne connaît pas, un forfait insuffisant — produisait donc
+une alerte par passage, indéfiniment.
+
+Relevé sur le canal d'administration : la même ligne « statut SimpleSwap —
+HTTP 404 » sept fois de suite, entrecoupée de « alertes de prix — HTTP 429 »
+identiques. Entre elles, un vrai swap échoué et un portefeuille vide depuis
+huit jours — les deux seules lignes qui appelaient une décision, noyées.
+
+RÉPÉTER N'APPREND RIEN. La première alerte dit tout : ce qui est cassé, et
+depuis quand. Les suivantes ne font que déplacer vers le haut ce qu'on n'a pas
+encore lu.
+
+On garde donc une trace de ce qui vient d'être signalé, et on se tait une
+demi-heure sur la même cause. Une panne qui dure ressort ainsi deux fois par
+heure au lieu de quatre par heure et par worker — assez pour qu'on la voie,
+assez peu pour que le reste reste lisible.
+
+EN MÉMOIRE SEULEMENT, et c'est volontaire. Le processus redémarre, le frein
+s'oublie : une panne qui survit à un redémarrage mérite d'être redite. Écrire
+sur disque pour économiser une alerte serait payer cher un silence.
+*/
+private val derniersSignalements = java.util.concurrent.ConcurrentHashMap<String, Long>()
+private const val SILENCE_MS = 30L * 60 * 1000
+
+private fun signalerUneFois(source: String, message: String?) {
+    val cle = source + "|" + (message ?: "")
+    val maintenant = System.currentTimeMillis()
+    val precedent = derniersSignalements[cle]
+    if (precedent != null && maintenant - precedent < SILENCE_MS) return
+    derniersSignalements[cle] = maintenant
+    // Borne de sûreté : un message qui contiendrait un identifiant variable
+    // ferait grossir cette table sans fin. Au-delà, on repart de zéro plutôt
+    // que de garder une mémoire qu'on ne relira jamais.
+    if (derniersSignalements.size > 200) derniersSignalements.clear()
+    AdminBot.serviceFailed(source, message)
 }
 
 /**
