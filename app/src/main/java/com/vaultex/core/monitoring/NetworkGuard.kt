@@ -101,6 +101,16 @@ sur disque pour économiser une alerte serait payer cher un silence.
 private val derniersSignalements = java.util.concurrent.ConcurrentHashMap<String, Long>()
 private const val SILENCE_MS = 30L * 60 * 1000
 
+/**
+ * Signale une anomalie qui n'est PAS une exception — un état constaté qu'on
+ * ne sait pas encore expliquer.
+ *
+ * Même frein de trente minutes que le reste : un défaut qui se reproduit à
+ * chaque geste noierait le canal, et c'est justement un défaut qu'on répète
+ * qu'on veut pouvoir lire.
+ */
+fun signalerEtatAnormal(source: String, message: String) = signalerUneFois(source, message)
+
 private fun signalerUneFois(source: String, message: String?) {
     val cle = source + "|" + (message ?: "")
     val maintenant = System.currentTimeMillis()

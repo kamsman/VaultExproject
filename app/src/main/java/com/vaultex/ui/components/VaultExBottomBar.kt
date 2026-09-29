@@ -17,7 +17,11 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,12 +96,59 @@ private val FloatGap = 14.dp
 fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modifier) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « ACCUEIL » OUVRAIT L'ÉCHANGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil, depuis le Marché : toucher Accueil menait au Swap.
+    La cause n'apparaît pas à la lecture — les cinq onglets appellent la même
+    fonction, les zones tactiles ne se recouvrent pas (le bouton central fait
+    52 dp au milieu d'une barre à cinq parts), et rien sur l'accueil ne
+    redirige vers l'échange.
+
+    On applique donc ce qui avait résolu la sortie de l'écran de swap, et
+    pour la même raison : ON CESSE DE DEVINER, ON REGARDE.
+
+    Deux mesures.
+
+    1. L'ACCUEIL SE REJOINT PAR UN RETOUR, PAS PAR UN ALLER. Il est toujours
+       SOUS la pile — tout part de lui. `popBackStack` y revient de façon
+       déterministe, là où `navigate` peut être ignoré EN SILENCE quand la
+       destination courante n'est pas au premier plan : pas d'exception, pas
+       de journal, l'appel disparaît. C'est exactement ce qui avait été
+       constaté sur l'écran de swap, et `popBackStack` est ce qui l'avait
+       réparé. S'il ne trouve rien à dépiler, on retombe sur `navigate`.
+
+    2. ON VÉRIFIE OÙ L'ON EST ARRIVÉ. Si la destination atteinte n'est pas
+       celle demandée, le canal d'administration le dit — avec les deux
+       routes. Une seule fois par demi-heure, sinon un défaut qui se répète à
+       chaque geste noierait le reste.
+    */
+    var demandeEnCours by remember { mutableStateOf<String?>(null) }
+
     fun go(route: String) {
+        demandeEnCours = route
+        if (route == Routes.DASHBOARD && navController.popBackStack(Routes.DASHBOARD, false)) return
         navController.navigate(route) {
             popUpTo(Routes.DASHBOARD) { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
+    }
+
+    LaunchedEffect(currentRoute, demandeEnCours) {
+        val voulu = demandeEnCours ?: return@LaunchedEffect
+        // Le temps que la transition se termine : comparer trop tôt
+        // signalerait une anomalie à chaque navigation réussie.
+        kotlinx.coroutines.delay(700)
+        val atteint = navController.currentDestination?.route
+        if (atteint != null && atteint != voulu) {
+            com.vaultex.core.monitoring.signalerEtatAnormal(
+                "barre du bas", "$voulu demande, $atteint atteint"
+            )
+        }
+        demandeEnCours = null
     }
 
     Box(
