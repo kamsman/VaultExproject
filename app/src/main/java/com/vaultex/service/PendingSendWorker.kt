@@ -92,7 +92,10 @@ class PendingSendWorker @AssistedInject constructor(
             val res = try {
                 sendCryptoUseCase.sendByChain(item.chain, item.toAddress, item.amount)
             } catch (e: Exception) {
-                SendCryptoUseCase.Result.Error(e.message ?: "Erreur d'envoi")
+                SendCryptoUseCase.Result.Error(
+                    e.message ?: com.vaultex.core.session.LocaleManager.wrap(applicationContext)
+                        .getString(com.vaultex.R.string.tx_err_envoi_generique)
+                )
             }
 
             when (res) {
