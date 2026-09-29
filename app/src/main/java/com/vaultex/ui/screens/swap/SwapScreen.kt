@@ -206,6 +206,17 @@ fun SwapScreen(navController: NavHostController) {
             détail-là.
             */
             screen = "form"
+            /*
+            Même raison qu'au bouton « Annuler » : on rouvre sur le
+            formulaire, et le refus d'un dépôt n'y a pas sa place — il y
+            paraîtrait sans la ligne « Recevoir du … » qui en donne la sortie.
+            C'est le chemin qu'emprunte le bouton RETOUR DU TÉLÉPHONE, qui ne
+            passe pas par « Annuler ».
+
+            On n'appelle PAS resetSwap ici : il effacerait aussi les montants
+            et les monnaies choisis, alors qu'on ne fait que rouvrir l'écran.
+            */
+            viewModel.oublierEchecDepot()
         }
     }
 
@@ -518,7 +529,12 @@ fun SwapScreen(navController: NavHostController) {
         )
         screen == "confirm" -> SwapConfirmScreen(
             state = state,
-            onBack = { screen = "form" },
+            // « Annuler » comme la flèche : on renonce à CETTE tentative, donc
+            // à son échec. Sans cet oubli, le refus du dépôt précédent reste
+            // épinglé au-dessus de « Continuer », sur un formulaire où plus
+            // rien n'a été tenté — et amputé de la ligne « Recevoir du … »
+            // qui, sur l'écran de confirmation, en donnait la sortie.
+            onBack = { viewModel.oublierEchecDepot(); screen = "form" },
             onConfirm = confirmAndExecute,
             commissionPourcent = viewModel.commissionPourcent,
             nomFournisseur = viewModel.nomFournisseur,
