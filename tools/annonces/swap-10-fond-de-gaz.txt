@@ -1,0 +1,2 @@
+⛽ Garde toujours un petit fond de BNB
+Les frais de réseau se paient dans la monnaie de la chaîne — du BNB pour l'USDT-BEP20, jamais dans le jeton envoyé. Sans elle, les fonds s'affichent et ne peuvent plus repartir : même un échange devient impossible, puisqu'il commence par un envoi. Quelques centaines de francs de BNB suffisent pour longtemps. Onglet Recevoir, puis BNB.
