@@ -16,6 +16,18 @@ class MarketRepository @Inject constructor(
     private val gson = com.google.gson.Gson()
 
     /** true si le dernier getMarkets() a servi des données de cache (hors ligne). */
+    /*
+    Fraîcheur de la LISTE DU MARCHÉ, et d'elle seule.
+
+    Ce drapeau était aussi écrit par la requête d'UNE monnaie, qui sert
+    l'écran de détail. Les deux ne parlent pourtant pas de la même donnée :
+    ouvrir une fiche pendant une coupure marquait « hors ligne » une liste
+    de marché parfaitement à jour, et personne ne pouvait faire le
+    rapprochement.
+
+    Un seul appelant le lit — le bandeau de l'écran Marché. Un seul le pose
+    désormais : getMarkets, pour la liste générale.
+    */
     @Volatile var lastFromCache: Boolean = false
         private set
 
@@ -83,9 +95,35 @@ class MarketRepository @Inject constructor(
             return list
         }
         val now = System.currentTimeMillis()
-        // Sert le cache si récent → bien moins d'appels CoinGecko (donc moins de
-        // rate-limit) et le cache reste rempli pour l'écran détail.
-        if (cache.isNotEmpty() && now - cacheTime < cacheTtlMs) return cache
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE BANDEAU « HORS LIGNE » NE PARTAIT PLUS
+        ═══════════════════════════════════════════════════════════════════
+
+        Constaté sur appareil : « Offline — last known data » affiché avec
+        des cours à jour, sur un téléphone connecté.
+
+        Ce raccourci-ci sert le cache quand il a moins de 90 secondes — et
+        il ne touchait PAS `lastFromCache`. Or ce drapeau est un champ de
+        singleton : une fois posé à vrai par un échec, rien ne le remettait
+        à faux. Une seule coupure passagère — un tunnel, un basculement
+        Wi-Fi, un quota CoinGecko d'une minute — et le bandeau restait
+        jusqu'à la fin du processus, sur des données pourtant fraîches.
+
+        Le détail se lit dans la branche du dessus : le chemin par
+        catégorie, lui, remet bien le drapeau à faux avant de rendre son
+        cache. La règle était connue, elle avait juste été oubliée ici.
+
+        Servir un cache de moins de 90 secondes n'est pas être hors ligne :
+        c'est le fonctionnement NORMAL, celui qui économise le quota. Le
+        bandeau ne doit dire qu'une chose — la dernière tentative a échoué,
+        ce que vous lisez peut être vieux.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (cache.isNotEmpty() && now - cacheTime < cacheTtlMs) {
+            lastFromCache = false
+            return cache
+        }
         return try {
             val list = try {
                 api.getMarkets(vsCurrency = "usd")
@@ -99,8 +137,16 @@ class MarketRepository @Inject constructor(
                 cacheTime = now
                 lastFromCache = false
                 saveToDisk(list)
+                list
+            } else {
+                // Réponse VIDE sans exception — quota, filtre trop étroit, ou
+                // panne côté service. On rend le cache, donc de l'ancien : le
+                // drapeau doit le dire. Sans cette ligne il gardait sa valeur
+                // précédente, et une liste vieille d'une heure passait pour
+                // fraîche parce que le dernier appel, lui, avait réussi.
+                lastFromCache = true
+                cache
             }
-            if (list.isNotEmpty()) list else cache
         } catch (e: Exception) {
             // Échec (hors ligne / rate-limit) : mémoire, puis DISQUE (survit au
             // redémarrage) — l'écran Marché n'est plus jamais vide hors ligne.
@@ -308,7 +354,6 @@ class MarketRepository @Inject constructor(
             }
             if (list.isNotEmpty()) {
                 cache = (cache + list).distinctBy { it.id }
-                lastFromCache = false
                 list
             } else diskFallback(coinId)
         } catch (e: Exception) {
@@ -316,7 +361,6 @@ class MarketRepository @Inject constructor(
             // Sans remontee, on ne peut pas distinguer « pas de reseau chez
             // l'utilisateur » de « notre quota est sature pour tout le monde ».
             com.vaultex.core.monitoring.reportUnlessCancelled("CoinGecko", e)
-            lastFromCache = true
             diskFallback(coinId)
         }
     }
