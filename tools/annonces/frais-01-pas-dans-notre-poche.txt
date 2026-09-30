@@ -1,2 +1,2 @@
 💸 Les frais que tu paies ne vont pas dans notre poche
-Recevoir est gratuit, sur toutes les monnaies, toujours. Et sur tes envois VaultEx ne prend aucune commission — le Bitcoin excepté, 0,5 % plafonnée à 0,50 $. Ce que tu vois sous « Frais estimés » revient au réseau qui inscrit ta transaction, jamais à nous. Personne ne peut le supprimer, nous non plus.
+Envoyer et recevoir est gratuit : VaultEx ne prend aucune commission. Ce que tu vois sous « Frais estimés » revient au réseau qui inscrit ta transaction, jamais à nous. Personne ne peut le supprimer, nous non plus.

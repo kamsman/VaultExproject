@@ -405,67 +405,37 @@ encore coincés. Elle part avec le logo BNB — elle ne parle que de lui.
 Si un seul des deux doit partir, c'est le **10**. Le 09 gagne des
 échanges ; le 10 débloque des gens.
 
-## `frais-01` — et pourquoi elle ne dit pas « gratuit »
-
-    ./tools/send-announcement.sh --fichier tools/annonces/frais-01-pas-dans-notre-poche.txt
-
-Logo VaultEx : elle parle de l'application.
-
-**Le texte demandé était « envoi et retrait gratuits ». Il est faux deux
-fois**, et l'application le démontre à l'écran suivant.
-
-D'abord les frais de RÉSEAU. Ils sont toujours payés, sur toutes les
-chaînes, et ils ne reviennent pas à VaultEx — c'est la chaîne qui les
-prend pour inscrire la transaction. L'écran d'envoi les affiche sous
-« Frais estimés » avant toute validation. Promettre la gratuité puis
-montrer un chiffre, c'est se démentir en trente secondes.
-
-Ensuite le BITCOIN. `SendViewModel.serviceFeeCrypto` prélève 0,5 %
-plafonnée à 0,50 $ sur les envois BTC, et rien ailleurs. Une annonce qui
-l'oublie ment à ceux qui envoient du BTC, c'est-à-dire à ceux qui
-déplacent les montants les plus gros.
-
-**Ce qui reste est plus fort que « gratuit ».** La plupart des
-portefeuilles prélèvent une marge sur les envois, discrètement, dans le
-taux ou dans les frais annoncés. Dire « ce que tu paies revient au
-réseau, pas à nous » est vérifiable, distinctif, et transforme la ligne
-« Frais estimés » d'objection en preuve. La dernière phrase — « personne
-ne peut le supprimer, nous non plus » — répond à la question qui vient
-juste après, au lieu de la laisser en suspens.
-
-**À revérifier avant tout renvoi.** Les trois nombres viennent de
-`VAULTEX_SEND_FEE_PERCENT`, `VAULTEX_SEND_FEE_CAP_USD` et de la condition
-de chaîne dans `serviceFeeCrypto`. Le jour où cette commission s'étend à
-une autre monnaie, cette annonce devient fausse — et une annonce fausse
-sur les frais est celle qu'on ne rattrape pas.
-
-À noter : le commentaire de `build.gradle.kts` annonce « BTC + SOL »,
-alors que `serviceFeeCrypto` refuse tout ce qui n'est pas BTC. Le code
-fait foi, le commentaire a vieilli — mais c'est exactement le genre
-d'écart qui ferait écrire une annonce fausse en toute bonne foi.
-
-## `frais-02` — la version courte
+## Les deux annonces `frais-*`
 
     ./tools/send-announcement.sh --fichier tools/annonces/frais-02-sans-commission.txt
+    ./tools/send-announcement.sh --fichier tools/annonces/frais-01-pas-dans-notre-poche.txt
 
-Deux lignes, pour une notification qu'on lit repliée. `frais-01` dit la
-même chose en développant le pourquoi ; celle-ci va au fait. Une seule
-part.
+Logo VaultEx : elles parlent de l'application. La 02 tient en deux lignes,
+pour une notification qu'on lit repliée ; la 01 développe le pourquoi et
+sert de réponse quand quelqu'un pose la question.
 
-**« Sans commission » et non « gratuit ».** Le mot est plus court d'une
-syllabe et il est exact sur l'essentiel : ce qui est nul, c'est la part de
-VaultEx. Les frais de réseau, eux, existent toujours et l'écran d'envoi
-les affiche avant validation.
+**Le mot « gratuit » est exact, et il l'est depuis peu.** Les envois
+Bitcoin portaient 0,5 % plafonnés à 0,50 $ — la seule commission d'envoi
+de l'application. Tant qu'elle existait, aucune de ces deux annonces
+n'était vraie sans une incise que personne ne lit dans une notification.
+Elle a été retirée : voir `SendViewModel.serviceFeeCrypto`, qui rend
+désormais zéro.
 
-**Une réserve assumée, à connaître avant de renvoyer ce message.** Les
-envois BITCOIN portent encore 0,5 %, plafonnés à 0,50 $ — voir
-`SendViewModel.serviceFeeCrypto`. L'annonce ne le mentionne pas : la
-mention a été retirée à la demande, pour tenir en deux lignes lisibles
-repliées.
+**Ce qui reste payant, et ce que les deux textes disent.** Les frais de
+RÉSEAU existent toujours, sur toutes les chaînes, et l'écran d'envoi les
+affiche sous « Frais estimés » avant validation. « Tu ne paies que les
+frais du réseau » est donc la deuxième phrase de la 02, et elle n'est pas
+décorative : sans elle, quelqu'un qui lit « gratuit » puis voit un
+chiffre se sent trompé.
 
-Ce n'est donc pas exact pour qui envoie du BTC, et c'est un choix, pas un
-oubli. Retirer la ligne `if (chain != "BTC" …)` rendrait la phrase vraie
-sans rien changer d'autre : la plomberie du zéro est déjà celle de toutes
-les autres chaînes. Tant que ce n'est pas fait, `frais-01` reste la
-version complète, et c'est celle à envoyer en cas de question sur les
-frais.
+**Pourquoi c'est un meilleur argument que « gratuit » tout court.** La
+plupart des portefeuilles prennent une marge sur les envois,
+discrètement, glissée dans le taux ou dans les frais annoncés. Dire « ce
+que tu paies revient au réseau, pas à nous » est vérifiable avec un
+explorateur de blocs, et transforme la ligne « Frais estimés »
+d'objection en preuve.
+
+**À revérifier avant tout renvoi.** Ces annonces deviennent fausses le
+jour où une commission d'envoi réapparaît. Le seul endroit à regarder est
+`serviceFeeCrypto` — la commission d'ÉCHANGE, elle, est portée par la clé
+du fournisseur et n'a rien à voir avec ces textes.

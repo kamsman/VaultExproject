@@ -749,18 +749,40 @@ class SendViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Frais de service VaultEx (BTC uniquement pour l'instant — sortie ajoutée
-     * dans la même tx, coût nul). 0.5% plafonné à 0.50 USD ; nul sous la poussière.
-     */
-    private fun serviceFeeCrypto(chain: String, amount: Double): Double {
-        if (chain != "BTC" || amount <= 0.0) return 0.0
-        val byPct = amount * (com.vaultex.BuildConfig.VAULTEX_SEND_FEE_PERCENT / 100.0)
-        val priceUsd = priceFor(chain, "USD")
-        val cap = if (priceUsd > 0.0) com.vaultex.BuildConfig.VAULTEX_SEND_FEE_CAP_USD / priceUsd else byPct
-        val fee = minOf(byPct, cap)
-        return if (fee >= 0.00000546) fee else 0.0   // < poussière BTC → pas de frais
-    }
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    PLUS AUCUNE COMMISSION SUR LES ENVOIS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le Bitcoin portait 0,5 %, plafonnés à 0,50 $ — une sortie de plus dans la
+    même transaction, donc un coût technique quasi nul. C'était la SEULE
+    commission d'envoi de l'application : rien n'a jamais été prélevé sur
+    l'ETH, le BNB, le SOL, le TRX ni l'USDT.
+
+    Elle tombe pour une raison qui n'est pas comptable. Tant qu'elle existait,
+    aucune phrase simple n'était vraie. « Envoi gratuit » devenait faux
+    précisément pour ceux qui déplacent les plus gros montants, et chaque
+    annonce devait traîner une incise — « hors Bitcoin, 0,5 % plafonnée à
+    0,50 $ » — que personne ne lit dans une notification repliée.
+
+    Sur des envois plafonnés à un demi-dollar, cette recette ne valait pas le
+    prix d'une promesse qu'on ne peut pas tenir en un mot. La vraie recette
+    est la commission d'échange, portée par la clé du fournisseur.
+
+    LA PLOMBERIE RESTE EN PLACE, et c'est délibéré. `serviceFeeAmount`
+    traverse toujours l'état, `sendBtc` accepte toujours son paramètre, et le
+    signataire sait toujours ajouter la sortie. Simplement, la valeur est
+    désormais nulle — c'est-à-dire le chemin que suivent déjà toutes les
+    autres chaînes et tous les montants sous la poussière. Rien de neuf n'est
+    exercé dans la signature Bitcoin, le code le plus délicat du dépôt.
+
+    RÉTABLIR LA COMMISSION se ferait en rendant son corps à cette fonction :
+    pourcentage, plafond converti au cours du jour, et zéro sous 546 satoshis
+    parce qu'une sortie plus petite que la poussière fait rejeter la
+    transaction entière par le réseau.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun serviceFeeCrypto(chain: String, amount: Double): Double = 0.0
 
     /** Décimal lisible pour l'utilisateur : 0.0001 — jamais la notation
      *  scientifique « 1.0E-4 » produite par Double.toString(). */
