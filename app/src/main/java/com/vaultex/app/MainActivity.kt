@@ -126,6 +126,46 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /**
+     * Alerte de prix touchée : elle porte la monnaie et le sens.
+     *
+     * Les extras sont le SEUL transport possible. Le worker qui déclenche
+     * l'alerte tourne application fermée, et la notification peut être
+     * touchée des heures plus tard, une fois le processus tué — un tampon
+     * posé au moment de notifier serait vide. Android, lui, conserve les
+     * extras dans le PendingIntent.
+     *
+     * Appelé depuis onCreate ET onNewIntent, comme le deep link : le premier
+     * couvre l'application fermée, le second l'application déjà en mémoire.
+     * N'en câbler qu'un laisse la moitié des cas sans effet, et c'est
+     * exactement le genre de moitié qu'on ne teste jamais.
+     *
+     * L'écran d'accueil fait ensuite la navigation, à la manière du deep
+     * link — l'Activity n'a pas de NavController sous la main ici.
+     */
+    private fun capterEchangeSuggere(intent: android.content.Intent?) {
+        val extras = intent?.extras ?: return
+        val symbole = extras.getString(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
+            ?: return
+        com.vaultex.core.session.AlerteSwapBuffer.offer(
+            symbole,
+            extras.getBoolean(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE, false)
+        )
+        /*
+        ON RETIRE LES EXTRAS APRÈS LECTURE.
+
+        L'intention de lancement SURVIT à l'Activity : un retour depuis la
+        liste des applications récentes, ou une reconstruction après que le
+        système a tué le processus, la rejoue telle quelle. Sans cet
+        effacement, l'écran d'échange se rouvrirait tout seul sur une alerte
+        traitée depuis longtemps — et l'utilisateur, qui ouvrait
+        l'application pour tout autre chose, se retrouverait devant un
+        formulaire qu'il n'a pas demandé.
+        */
+        intent.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
+        intent.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE)
+    }
+
     // Demande de permission notifications (Android 13+). Sans elle, AUCUNE
     // notification (alertes prix, push) n'apparaît — elle est refusée par défaut.
     private val notifPermissionLauncher =
@@ -174,6 +214,7 @@ class MainActivity : FragmentActivity() {
         com.vaultex.core.session.DeepLinkBuffer.offer(intent.dataString)
         // Notification touchée alors que l'app était déjà en mémoire.
         captureTappedNotification(intent)
+        capterEchangeSuggere(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -186,6 +227,7 @@ class MainActivity : FragmentActivity() {
         // Notification touchée alors que l'app était fermée : son contenu
         // arrive dans les extras de l'intention de lancement.
         captureTappedNotification(intent)
+        capterEchangeSuggere(intent)
 
         /*
         =========================

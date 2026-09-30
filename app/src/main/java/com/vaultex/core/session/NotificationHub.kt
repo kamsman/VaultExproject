@@ -122,7 +122,18 @@ class NotificationHub @Inject constructor(
         key: String, title: String, body: String, symbol: String?, channelId: String,
         imageUrl: String? = null,
         /** Déjà passée par LienAnnonce.valide : null signifie « ouvrir l'app ». */
-        lien: String? = null
+        lien: String? = null,
+        /**
+         * Échange à proposer au toucher : symbole visé et sens.
+         *
+         * Posés en EXTRAS de l'intention, et non dans un tampon mémoire. Le
+         * worker qui déclenche une alerte tourne application fermée, et la
+         * notification peut être touchée des heures plus tard, après que le
+         * processus a été tué — un tampon serait vide. Les extras, eux,
+         * voyagent dans le PendingIntent. Voir AlerteSwapBuffer.
+         */
+        swapSymbole: String? = null,
+        swapVente: Boolean = false
     ) {
         try {
             /*
@@ -144,7 +155,26 @@ class NotificationHub @Inject constructor(
             }
             val intent = versLien ?: Intent(context, com.vaultex.app.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                // Rien n'est ajouté quand il n'y a pas d'échange à proposer :
+                // l'intention reste exactement celle de toujours.
+                if (!swapSymbole.isNullOrBlank()) {
+                    putExtra(AlerteSwapBuffer.EXTRA_SYMBOLE, swapSymbole)
+                    putExtra(AlerteSwapBuffer.EXTRA_VENTE, swapVente)
+                }
             }
+            /*
+            FLAG_UPDATE_CURRENT est indispensable ICI en particulier.
+
+            Deux PendingIntent de même code de requête sont considérés
+            identiques par Android si leur intention l'est « au sens de
+            filterEquals » — ce qui IGNORE les extras. Sans ce drapeau, une
+            seconde alerte réutiliserait les extras de la première et
+            ouvrirait l'échange sur la mauvaise monnaie.
+
+            Le code de requête dérive déjà de la clé, qui porte le symbole et
+            la cible : deux alertes distinctes ne se marchent donc pas dessus.
+            Le drapeau couvre le cas où elles se ressemblent quand même.
+            */
             val pending = PendingIntent.getActivity(
                 context, key.hashCode(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
