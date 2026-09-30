@@ -233,13 +233,50 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
+        /*
+        Adresses de perception. SEULE celle du Bitcoin est utilisée à ce jour
+        — SendCryptoUseCase est le seul appelant, et il ne lit que BTC. Les
+        trois autres sont déclarées et lues nulle part.
+
+        On les garde : ce sont des adresses de perception, qu'on ne remplace
+        pas à la légère, et le jour où la commission d'envoi s'étend elles
+        devront être exactes. Mais on l'écrit, faute de quoi leur présence
+        laisse croire qu'une commission est déjà prélevée sur ces chaînes —
+        c'est déjà arrivé, deux commentaires plus bas.
+        */
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_EVM","\"0xe97c1d479648106fdeab414a298bf89d97563f48\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_TRX","\"TLMb88tu3HWTdQCtV4uSbgKJcpEBsR2mUj\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_BTC","\"bc1qjjt4wq46z6kftzantvckhfn03svyu6rwswwqq0\"")
         buildConfigField("String", "VAULTEX_FEE_RECIPIENT_SOL","\"7wXTW4DH9PMtmY4zvwNxKa58xxhBUy1tG4BpfZveC3PD\"")
+        /*
+        Commission d'ÉCHANGE annoncée. Attention : ce n'est PAS elle qui
+        s'applique — la commission réellement pratiquée appartient au
+        fournisseur en service (FournisseurSwap.commissionPourcent : 0,4 %
+        chez ChangeNOW, réglable chez SimpleSwap), et c'est celle-là que
+        l'écran de confirmation affiche.
+
+        Deux nombres pour une même commission avaient déjà divergé :
+        l'historique enregistrait ce 1,5 % pendant que l'écran en annonçait
+        un autre pour le même échange. Corrigé dans SwapUseCase.recordSwap,
+        qui lit désormais le fournisseur.
+        */
         buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
-        // Frais de service DIRECT sur les envois (BTC + SOL uniquement : sortie/
-        // instruction dans la même tx → coût quasi nul). 0.5% plafonné à 0.50 USD.
+        /*
+        Frais de service DIRECT sur les envois : 0,5 % plafonné à 0,50 USD,
+        et nul en dessous de la poussière Bitcoin (546 satoshis).
+
+        BITCOIN UNIQUEMENT. Le commentaire annonçait « BTC + SOL » ; le code
+        n'a jamais prélevé que sur BTC — voir la première ligne de
+        SendViewModel.serviceFeeCrypto, qui rend zéro pour toute autre
+        chaîne. Le Solana avait été envisagé pour la même raison (une
+        instruction de plus dans la même transaction, donc un coût quasi
+        nul), puis non fait.
+
+        Un commentaire faux sur des FRAIS n'est pas une coquille : c'est
+        l'endroit d'où partent les annonces et les réponses au support. Il a
+        failli faire écrire « envoi gratuit sauf BTC et SOL » à quelqu'un de
+        parfaitement honnête.
+        */
         buildConfigField("double", "VAULTEX_SEND_FEE_PERCENT","0.5")
         buildConfigField("double", "VAULTEX_SEND_FEE_CAP_USD","0.5")
         // Certificate pinning (P1) — activer en release UNE FOIS les empreintes
