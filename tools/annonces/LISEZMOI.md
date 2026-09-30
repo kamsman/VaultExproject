@@ -443,3 +443,22 @@ sur les frais est celle qu'on ne rattrape pas.
 alors que `serviceFeeCrypto` refuse tout ce qui n'est pas BTC. Le code
 fait foi, le commentaire a vieilli — mais c'est exactement le genre
 d'écart qui ferait écrire une annonce fausse en toute bonne foi.
+
+## `frais-02` — la version courte
+
+    ./tools/send-announcement.sh --fichier tools/annonces/frais-02-sans-commission.txt
+
+Deux lignes, pour une notification qu'on lit repliée. `frais-01` dit la
+même chose en développant le pourquoi ; celle-ci va au fait. Une seule
+part.
+
+**« Sans commission » et non « gratuit ».** Le mot est plus court d'une
+syllabe et il est exact : ce qui est nul, c'est la part de VaultEx. Les
+frais de réseau, eux, existent toujours et l'écran d'envoi les affiche
+avant validation. « Gratuit » serait démenti par l'application elle-même.
+
+**Le jour où la commission Bitcoin disparaîtra**, l'incise saute et le
+titre suffit. C'est le seul obstacle entre cette annonce et la formule la
+plus simple qui soit — et 0,5 % plafonnée à 0,50 $ sur les seuls envois
+BTC ne pèse pas lourd face à une phrase que personne n'a besoin de
+relire.
