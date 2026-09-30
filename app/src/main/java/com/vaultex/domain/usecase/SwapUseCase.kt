@@ -109,7 +109,21 @@ class SwapUseCase @Inject constructor(
                 toAddress = payoutAddress,
                 amount = amount,
                 tokenSymbol = "${fromToken.uppercase()}→${toToken.uppercase()}",
-                fee = "%.2f%%".format(VAULTEX_FEE_PERCENT),
+                /*
+                LA COMMISSION ENREGISTRÉE EST CELLE QUI A ÉTÉ PRISE.
+
+                Cette ligne écrivait VAULTEX_FEE_PERCENT, soit 1,50 % en dur.
+                Or ce n'est pas la commission appliquée : celle-là appartient
+                au fournisseur en service — 0,4 % chez ChangeNOW, réglable
+                chez SimpleSwap — et c'est elle que l'écran de confirmation
+                affiche avant qu'on valide.
+
+                Le même échange portait donc deux chiffres : l'un à l'écran,
+                l'autre dans l'historique, consulté plus tard et précisément
+                quand on cherche à comprendre ce qu'une opération a coûté.
+                C'est le pire moment pour trouver une contradiction.
+                */
+                fee = "%.2f%%".format(commissionPourcent),
                 status = "pending",
                 timestamp = System.currentTimeMillis(),
                 confirmations = 0,
@@ -143,6 +157,19 @@ class SwapUseCase @Inject constructor(
     }
 
     companion object {
+        /*
+        CE CHIFFRE NE S'APPLIQUE À RIEN, ET C'EST VOULU.
+
+        La commission réellement pratiquée est celle du fournisseur en
+        service — voir la propriété `commissionPourcent` plus haut. Celle-ci
+        n'est plus lue que par `applyFee`, elle-même appelée par son seul
+        test : rien en production ne la traverse.
+
+        Elle reste parce que l'affichage et l'historique ont chacun cru, à un
+        moment, qu'elle était la vérité. Le rappeler ici coûte trois lignes ;
+        la retrouver une troisième fois par un utilisateur qui compare deux
+        écrans coûte beaucoup plus.
+        */
         const val VAULTEX_FEE_PERCENT = 1.5
 
         /**
