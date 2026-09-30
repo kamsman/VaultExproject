@@ -124,6 +124,61 @@ val versionCodeCalcule: Int = run {
     )
 }
 
+/*
+══════════════════════════════════════════════════════════════════════════
+LE NUMÉRO DE VERSION NE DISAIT PAS QUEL CODE TOURNE
+══════════════════════════════════════════════════════════════════════════
+
+`version.code` dans local.properties prend le pas sur le calcul git, et
+c'est nécessaire — sans lui, un numéro trop bas ferait refuser la mise à
+jour par Android. Mais dès qu'il est épinglé à la main, le numéro cesse
+d'avoir le moindre rapport avec le code embarqué : on peut compiler
+trois commits différents sous « 1.0.653 ».
+
+Ce n'est pas théorique. La question « est-ce que ce build contient le
+correctif ? » est revenue à chaque séance, et ni le testeur ni personne
+ne pouvait y répondre : « v1.0.596 », « v1.0.598 », « v1.0.603 » ne
+prouvaient rien. Plusieurs allers-retours ont été dépensés à comparer des
+captures d'écran pour deviner ce qu'un identifiant de sept caractères
+aurait dit tout de suite.
+
+LE SUFFIXE VOYAGE TOUT SEUL. AdminBot joint déjà VERSION_NAME à chaque
+alerte et à chaque crash, et CrashReporter l'enregistre comme clé. Rien
+d'autre n'est à modifier : toutes les remontées nomment désormais le
+commit exact.
+
+    💥 Crash VaultEx v1.0.653+f663fca
+
+LE POINT D'EXCLAMATION COMPTE AUTANT QUE LE HACHAGE. Un APK compilé avec
+des modifications non validées ne correspond à AUCUN commit — le relire
+plus tard est impossible, et c'est précisément le build qu'on distribue
+par erreur en fin de séance. « 1.0.653+f663fca! » le dit.
+
+On ne regarde que les fichiers SUIVIS : les fichiers non suivis sont du
+brouillon (sorties de build, notes), et les faire compter mettrait le
+point d'exclamation en permanence, donc le rendrait invisible.
+
+REPLI. Sans git utilisable, le suffixe est simplement absent — on ne
+casse pas une compilation pour un confort de diagnostic, et un numéro
+sans suffixe se reconnaît au premier coup d'œil.
+══════════════════════════════════════════════════════════════════════════
+*/
+val suffixeCommit: String = run {
+    fun git(vararg args: String): String? = try {
+        val p = ProcessBuilder(listOf("git") + args)
+            .directory(rootProject.projectDir)
+            .redirectErrorStream(true)
+            .start()
+        val sortie = p.inputStream.bufferedReader().readText().trim()
+        if (p.waitFor() == 0) sortie else null
+    } catch (_: Exception) { null }
+
+    val court = git("rev-parse", "--short=7", "HEAD")?.takeIf { it.isNotBlank() }
+        ?: return@run ""
+    val modifie = !git("status", "--porcelain", "--untracked-files=no").isNullOrBlank()
+    "+$court" + if (modifie) "!" else ""
+}
+
 android {
     namespace = "com.vaultex"
 
@@ -169,7 +224,11 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = versionCodeCalcule
-        versionName = "1.0.$versionCodeCalcule"
+        // Le suffixe est vide quand git n'est pas disponible : « 1.0.653 »,
+        // exactement comme avant.
+        versionName = "1.0.$versionCodeCalcule$suffixeCommit"
+        // Aussi seul, pour qui a besoin du hachage sans le numéro.
+        buildConfigField("String", "GIT_COMMIT", "\"${suffixeCommit.removePrefix("+")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
