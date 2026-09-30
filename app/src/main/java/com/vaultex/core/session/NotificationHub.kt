@@ -68,7 +68,18 @@ class NotificationHub @Inject constructor(
          * la notification ouvre l'application, comme avant. Voir le
          * commentaire de ce fichier-là, la raison n'est pas décorative.
          */
-        lien: String? = null
+        lien: String? = null,
+        /**
+         * Échange à proposer au toucher : symbole visé et sens.
+         *
+         * Posés en EXTRAS de l'intention, et non dans un tampon mémoire. Le
+         * worker qui déclenche une alerte tourne application fermée, et la
+         * notification peut être touchée des heures plus tard, une fois le
+         * processus tué — un tampon serait vide. Les extras, eux, voyagent
+         * dans le PendingIntent. Voir AlerteSwapBuffer.
+         */
+        swapSymbole: String? = null,
+        swapVente: Boolean = false
     ): Boolean {
         if (isDuplicate(key)) return false
         remember(key)
@@ -111,9 +122,15 @@ class NotificationHub @Inject constructor(
         ═══════════════════════════════════════════════════════════════════
          */
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            Thread { showSystemNotification(key, title, body, symbol, channelId, imageUrl, lienSur) }.start()
+            Thread {
+                showSystemNotification(
+                    key, title, body, symbol, channelId, imageUrl, lienSur, swapSymbole, swapVente
+                )
+            }.start()
         } else {
-            showSystemNotification(key, title, body, symbol, channelId, imageUrl, lienSur)
+            showSystemNotification(
+                key, title, body, symbol, channelId, imageUrl, lienSur, swapSymbole, swapVente
+            )
         }
         return true
     }

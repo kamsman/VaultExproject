@@ -144,7 +144,10 @@ class MainActivity : FragmentActivity() {
      * link — l'Activity n'a pas de NavController sous la main ici.
      */
     private fun capterEchangeSuggere(intent: android.content.Intent?) {
-        val extras = intent?.extras ?: return
+        // Intention déballée en premier, et non `intent?.extras` : la suite
+        // doit ENLEVER des extras, donc tenir l'intention elle-même.
+        val intention = intent ?: return
+        val extras = intention.extras ?: return
         val symbole = extras.getString(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
             ?: return
         com.vaultex.core.session.AlerteSwapBuffer.offer(
@@ -162,8 +165,8 @@ class MainActivity : FragmentActivity() {
         l'application pour tout autre chose, se retrouverait devant un
         formulaire qu'il n'a pas demandé.
         */
-        intent.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
-        intent.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE)
+        intention.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
+        intention.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE)
     }
 
     // Demande de permission notifications (Android 13+). Sans elle, AUCUNE
