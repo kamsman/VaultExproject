@@ -262,20 +262,21 @@ android {
         */
         buildConfigField("double", "VAULTEX_FEE_PERCENT","1.5")
         /*
-        Frais de service DIRECT sur les envois : 0,5 % plafonné à 0,50 USD,
-        et nul en dessous de la poussière Bitcoin (546 satoshis).
+        PLUS AUCUNE COMMISSION D'ENVOI N'EST PRÉLEVÉE. Ces deux valeurs ne
+        sont plus lues : SendViewModel.serviceFeeCrypto rend zéro pour toute
+        chaîne et tout montant.
 
-        BITCOIN UNIQUEMENT. Le commentaire annonçait « BTC + SOL » ; le code
-        n'a jamais prélevé que sur BTC — voir la première ligne de
-        SendViewModel.serviceFeeCrypto, qui rend zéro pour toute autre
-        chaîne. Le Solana avait été envisagé pour la même raison (une
-        instruction de plus dans la même transaction, donc un coût quasi
-        nul), puis non fait.
+        Elles décrivaient la commission Bitcoin — 0,5 % plafonnés à 0,50 $,
+        la seule que l'application ait jamais prise sur un envoi. Elle est
+        retirée parce qu'aucune phrase simple n'était vraie tant qu'elle
+        existait : « envoi gratuit » devenait faux pour ceux qui déplacent
+        les plus gros montants.
 
-        Un commentaire faux sur des FRAIS n'est pas une coquille : c'est
-        l'endroit d'où partent les annonces et les réponses au support. Il a
-        failli faire écrire « envoi gratuit sauf BTC et SOL » à quelqu'un de
-        parfaitement honnête.
+        On les garde pour que le rétablissement soit un choix, pas une
+        réécriture. Le commentaire qui les accompagnait annonçait « BTC +
+        SOL » alors que le code n'a jamais prélevé que sur BTC — un
+        commentaire faux sur des FRAIS n'est pas une coquille, c'est
+        l'endroit d'où partent les annonces et les réponses au support.
         */
         buildConfigField("double", "VAULTEX_SEND_FEE_PERCENT","0.5")
         buildConfigField("double", "VAULTEX_SEND_FEE_CAP_USD","0.5")
