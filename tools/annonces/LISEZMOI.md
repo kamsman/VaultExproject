@@ -453,12 +453,19 @@ même chose en développant le pourquoi ; celle-ci va au fait. Une seule
 part.
 
 **« Sans commission » et non « gratuit ».** Le mot est plus court d'une
-syllabe et il est exact : ce qui est nul, c'est la part de VaultEx. Les
-frais de réseau, eux, existent toujours et l'écran d'envoi les affiche
-avant validation. « Gratuit » serait démenti par l'application elle-même.
+syllabe et il est exact sur l'essentiel : ce qui est nul, c'est la part de
+VaultEx. Les frais de réseau, eux, existent toujours et l'écran d'envoi
+les affiche avant validation.
 
-**Le jour où la commission Bitcoin disparaîtra**, l'incise saute et le
-titre suffit. C'est le seul obstacle entre cette annonce et la formule la
-plus simple qui soit — et 0,5 % plafonnée à 0,50 $ sur les seuls envois
-BTC ne pèse pas lourd face à une phrase que personne n'a besoin de
-relire.
+**Une réserve assumée, à connaître avant de renvoyer ce message.** Les
+envois BITCOIN portent encore 0,5 %, plafonnés à 0,50 $ — voir
+`SendViewModel.serviceFeeCrypto`. L'annonce ne le mentionne pas : la
+mention a été retirée à la demande, pour tenir en deux lignes lisibles
+repliées.
+
+Ce n'est donc pas exact pour qui envoie du BTC, et c'est un choix, pas un
+oubli. Retirer la ligne `if (chain != "BTC" …)` rendrait la phrase vraie
+sans rien changer d'autre : la plomberie du zéro est déjà celle de toutes
+les autres chaînes. Tant que ce n'est pas fait, `frais-01` reste la
+version complète, et c'est celle à envoyer en cas de question sur les
+frais.
