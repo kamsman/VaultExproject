@@ -245,6 +245,35 @@ fun SwapScreen(navController: NavHostController) {
                 viewModel.setFromAmount(p.montant)
             }
         }
+        /*
+        ─── ALERTE DE PRIX TOUCHÉE ───────────────────────────────────────
+
+        On ne pose qu'UN côté de la paire, et on laisse le ViewModel choisir
+        l'autre. C'est volontaire : setFromToken et setToToken savent déjà
+        éviter une paire identique, et l'écran s'ouvre sur l'actif le mieux
+        pourvu. Écrire « BTC → USDT » en dur choisirait à la place de
+        l'utilisateur une variante d'USDT — TRC20, ERC20 ou BEP20 — qu'il ne
+        détient peut-être pas, et le formulaire s'ouvrirait sur un solde vide.
+
+        Le sens vient de la condition de l'alerte, et ce n'est qu'une
+        supposition : passé au-dessus, on suppose qu'on voulait vendre ;
+        passé en dessous, acheter. Elle se retourne d'un doigt sur le bouton
+        d'inversion, juste au-dessus.
+
+        AUCUN MONTANT n'est saisi. Le taux affiché est celui de MAINTENANT,
+        pas celui de la notification — le cours a peut-être déjà rebroussé
+        chemin, et c'est l'écran qui dit la vérité, pas l'alerte.
+        */
+        com.vaultex.core.session.AlerteSwapBuffer.consume()?.let { sug ->
+            if (tokens.any { it.equals(sug.symbole, ignoreCase = true) }) {
+                when (sug.sens) {
+                    com.vaultex.core.session.SensEchange.VENTE ->
+                        viewModel.preselectFromToken(sug.symbole)
+                    com.vaultex.core.session.SensEchange.ACHAT ->
+                        viewModel.setToToken(sug.symbole)
+                }
+            }
+        }
     }
 
     // stringResource ne s'appelle pas depuis une lambda ordinaire : le

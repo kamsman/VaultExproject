@@ -73,6 +73,21 @@ fun DashboardScreen(navController: NavHostController) {
         if (com.vaultex.core.session.DeepLinkBuffer.hasPending()) {
             navController.navigate(Routes.SEND)
         }
+        /*
+        Alerte de prix touchée : on ouvre l'échange, pré-positionné.
+
+        Ici et non dans MainActivity, pour la même raison que le deep link :
+        c'est l'accueil qui dispose du NavController. Le tampon n'est PAS
+        consommé — l'écran d'échange le fera, et le consommer ici perdrait la
+        suggestion en route.
+        */
+        if (com.vaultex.core.session.AlerteSwapBuffer.hasPending()) {
+            navController.navigate(Routes.SWAP) {
+                popUpTo(Routes.DASHBOARD) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
     /*

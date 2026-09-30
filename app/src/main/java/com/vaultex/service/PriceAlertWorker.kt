@@ -131,7 +131,10 @@ class PriceAlertWorker @AssistedInject constructor(
             val isAbove = alert.condition.contains("dessus", ignoreCase = true)
             val triggered = (isAbove && current >= target) || (!isAbove && current <= target)
             if (triggered) {
-                notify(alert.tokenSymbol, alert.condition, target, current)
+                // `isAbove` est celui qui vient de DÉCLENCHER : la notification
+                // proposera donc le sens de la condition remplie, jamais une
+                // relecture approximative du libellé côté notification.
+                notify(alert.tokenSymbol, alert.condition, target, current, isAbove)
                 priceAlertDao.setActive(alert.id, false)
             }
         }
@@ -215,7 +218,9 @@ class PriceAlertWorker @AssistedInject constructor(
         )
     }
 
-    private fun notify(symbol: String, condition: String, target: Double, current: Double) {
+    private fun notify(
+        symbol: String, condition: String, target: Double, current: Double, isAbove: Boolean
+    ) {
         val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
         val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
@@ -231,12 +236,32 @@ class PriceAlertWorker @AssistedInject constructor(
         )
         // Une cible ne se déclenche qu'une fois (l'alerte est désactivée juste
         // après) : la clé porte la cible elle-même.
+        /*
+        ─── LA TOUCHER OUVRE L'ÉCHANGE ───────────────────────────────────
+
+        Elle ouvrait l'accueil. Il fallait ensuite trouver le Swap, rechoisir
+        la monnaie et le sens — et le temps de tout refaire, le cours a bougé.
+        Une alerte qu'on ne peut pas suivre d'un doigt ne sert à rien.
+
+        Le sens est celui de la condition qui vient d'être remplie : au-dessus
+        de la cible, on suppose qu'on voulait vendre ; en dessous, acheter.
+        C'est une supposition, elle se retourne d'un doigt sur l'écran, et
+        aucun montant n'est saisi à la place de l'utilisateur.
+
+        SEULES LES ALERTES À CIBLE mènent à l'échange. Les alertes
+        automatiques de forte hausse ou de forte baisse (voir notifyMove)
+        n'ont pas été demandées par l'utilisateur : les faire déboucher sur
+        un formulaire d'échange serait pousser à réagir à une secousse, ce
+        qui est exactement le contraire d'un outil qui garde de l'argent.
+        */
         hub.post(
             key = "target:$symbol:$condition:$target",
             title = title,
             body = body,
             symbol = symbol,
-            channelId = CHANNEL_ID
+            channelId = CHANNEL_ID,
+            swapSymbole = symbol,
+            swapVente = isAbove
         )
     }
 
