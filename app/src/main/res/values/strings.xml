@@ -1087,4 +1087,6 @@
     <string name="alerts_action_sell">Vendre</string>
     <string name="alerts_action_buy">Acheter</string>
     <string name="alerts_action_none">Juste me prévenir</string>
+    <string name="alerts_check_now">Vérifier maintenant</string>
+    <string name="alerts_checking">Vérification des alertes en cours…</string>
 </resources>

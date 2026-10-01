@@ -22,8 +22,42 @@ class AlertsViewModel @Inject constructor(
     private val priceAlertUseCase: PriceAlertUseCase,
     private val coinGeckoApi: CoinGeckoApi,
     private val priceFallback: com.vaultex.data.repository.PriceFallbackSource,
-    private val moveSettings: PriceMoveSettings
+    private val moveSettings: PriceMoveSettings,
+    @dagger.hilt.android.qualifiers.ApplicationContext
+    private val appContext: android.content.Context
 ) : ViewModel() {
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    VÉRIFIER MAINTENANT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le worker des alertes tourne UNE FOIS PAR HEURE. C'est le bon rythme
+    pour une surveillance de fond — la mesure porte sur 24 h, et réveiller
+    le téléphone plus souvent coûte de la batterie et du quota.
+
+    Mais ce rythme rend la fonction invérifiable. Quelqu'un qui vient de
+    poser une alerte déjà atteinte attend jusqu'à soixante minutes sans
+    savoir si elle marche, et conclut qu'elle ne marche pas. C'est aussi ce
+    qui rendait la mise au point pénible : une heure entre deux essais.
+
+    Une demande explicite lance donc une passe immédiate. Même code, même
+    worker : ce qui est vérifié ici est exactement ce qui tournera tout
+    seul, et non un chemin parallèle qui pourrait diverger.
+
+    REPLACE et non KEEP : si une passe est déjà en attente, c'est celle-ci
+    qu'on veut. Deux appuis de suite ne lancent pas deux vérifications.
+    */
+    fun verifierMaintenant() {
+        runCatching {
+            androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
+                "price_alerts_maintenant",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                androidx.work.OneTimeWorkRequestBuilder<com.vaultex.service.PriceAlertWorker>()
+                    .build()
+            )
+        }
+    }
 
     /* ─── Alertes automatiques de variation (actives par défaut) ───────────
        Réglages exposés à l'écran. Le worker relit les mêmes préférences à
