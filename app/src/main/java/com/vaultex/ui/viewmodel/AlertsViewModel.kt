@@ -97,8 +97,10 @@ class AlertsViewModel @Inject constructor(
         }
     }
 
-    fun createAlert(symbol: String, condition: String, targetPrice: String) {
-        viewModelScope.launch { priceAlertUseCase.createAlert(symbol, condition, targetPrice) }
+    fun createAlert(symbol: String, condition: String, targetPrice: String, intention: String) {
+        viewModelScope.launch {
+            priceAlertUseCase.createAlert(symbol, condition, targetPrice, intention)
+        }
     }
 
     fun toggleAlert(id: String, active: Boolean) {

@@ -131,10 +131,25 @@ class PriceAlertWorker @AssistedInject constructor(
             val isAbove = alert.condition.contains("dessus", ignoreCase = true)
             val triggered = (isAbove && current >= target) || (!isAbove && current <= target)
             if (triggered) {
-                // `isAbove` est celui qui vient de DÉCLENCHER : la notification
-                // proposera donc le sens de la condition remplie, jamais une
-                // relecture approximative du libellé côté notification.
-                notify(alert.tokenSymbol, alert.condition, target, current, isAbove)
+                /*
+                CE QUE L'UTILISATEUR A DEMANDÉ PRIME SUR CE QU'ON DEVINE.
+
+                `intention` est son choix à la création : vendre, acheter, ou
+                seulement être prévenu. Vide, c'est une alerte créée avant que
+                ce choix existe — on retombe alors sur la déduction d'avant :
+                au-dessus de la cible, on suppose vendre ; en dessous, acheter.
+
+                « RIEN » n'est pas un oubli à combler : quelqu'un qui surveille
+                un cours sans intention d'agir ne doit pas se retrouver devant
+                un formulaire d'échange parce qu'il a touché une notification.
+                */
+                val vendre = when (alert.intention.uppercase()) {
+                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE -> true
+                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_ACHAT -> false
+                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_RIEN -> null
+                    else -> isAbove
+                }
+                notify(alert.tokenSymbol, alert.condition, target, current, vendre)
                 priceAlertDao.setActive(alert.id, false)
             }
         }
@@ -218,8 +233,9 @@ class PriceAlertWorker @AssistedInject constructor(
         )
     }
 
+    /** [vendre] : vrai = vendre, faux = acheter, null = ne proposer aucun échange. */
     private fun notify(
-        symbol: String, condition: String, target: Double, current: Double, isAbove: Boolean
+        symbol: String, condition: String, target: Double, current: Double, vendre: Boolean?
     ) {
         val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
         val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
@@ -260,8 +276,10 @@ class PriceAlertWorker @AssistedInject constructor(
             body = body,
             symbol = symbol,
             channelId = CHANNEL_ID,
-            swapSymbole = symbol,
-            swapVente = isAbove
+            // null → aucun extra posé, la notification ouvre l'application
+            // comme avant. C'est le sens de « juste me prévenir ».
+            swapSymbole = if (vendre != null) symbol else null,
+            swapVente = vendre == true
         )
     }
 

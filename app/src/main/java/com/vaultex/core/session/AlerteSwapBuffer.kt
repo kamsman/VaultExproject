@@ -91,4 +91,21 @@ object AlerteSwapBuffer {
     /** Clés des extras. Posées par NotificationHub, lues par MainActivity. */
     const val EXTRA_SYMBOLE = "vaultex_swap_symbole"
     const val EXTRA_VENTE = "vaultex_swap_vente"
+
+    /*
+    ─── CE QUE L'ALERTE DOIT FAIRE, CHOISI À SA CRÉATION ──────────────────
+
+    Écrit tel quel dans la colonne `intention` de price_alerts. Des chaînes
+    et non un enum : Room les stocke sans convertisseur, et une valeur
+    inconnue — base d'une version future, écriture manuelle — retombe sur la
+    déduction au lieu de faire échouer la lecture.
+
+    LA CHAÎNE VIDE A UN SENS, et c'est le plus important ici : une alerte
+    créée avant que ce choix existe. On déduit alors de la condition, ce qui
+    est exactement le comportement précédent. Aucune alerte en base ne
+    devient inerte.
+    */
+    const val INTENTION_VENTE = "VENTE"
+    const val INTENTION_ACHAT = "ACHAT"
+    const val INTENTION_RIEN = "RIEN"
 }

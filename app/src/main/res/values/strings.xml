@@ -1083,4 +1083,8 @@
     <string name="swap_receipt_line">Reçu sur %1$s · ID %2$s…</string>
     <string name="swap_payout_wallet">votre portefeuille</string>
     <string name="swap_err_natif_absent">Cet échange commence par un envoi, et ses frais réseau se paient en %1$s. Ce portefeuille n\'en contient pas — reçois-en d\'abord, quelques centimes suffisent.</string>
+    <string name="alerts_step_action">4. À l\'atteinte</string>
+    <string name="alerts_action_sell">Vendre</string>
+    <string name="alerts_action_buy">Acheter</string>
+    <string name="alerts_action_none">Juste me prévenir</string>
 </resources>

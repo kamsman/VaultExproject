@@ -64,7 +64,17 @@ data class PriceAlertEntity(
     val tokenSymbol: String,
     val condition: String,
     val targetPrice: String,
-    val isActive: Boolean
+    val isActive: Boolean,
+    /**
+     * Ce que l'utilisateur veut faire quand la cible est atteinte :
+     * « VENTE », « ACHAT », ou « RIEN » pour une simple information.
+     *
+     * CHAÎNE VIDE = alerte créée avant que ce choix existe. Le sens est alors
+     * déduit de la condition — au-dessus, on suppose vendre ; en dessous,
+     * acheter — ce qui est exactement le comportement d'avant. Aucune alerte
+     * existante ne devient inerte du fait de cette colonne.
+     */
+    val intention: String = ""
 )
 
 /**
