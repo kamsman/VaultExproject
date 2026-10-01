@@ -561,8 +561,44 @@ class MarketViewModel @Inject constructor(
             _chartLoading.value = true
             try {
                 val dto = withContext(Dispatchers.IO) { repository.getMarketChart(coinId, days) }
-                _chart.value = dto.prices.mapNotNull { it.getOrNull(1)?.toFloat() }
+                val points = dto.prices.mapNotNull { it.getOrNull(1)?.toFloat() }
+                _chart.value = points
+                /*
+                RÉPONDU, MAIS VIDE. Aucune exception n'est levée, et l'écran
+                affiche « Graphique indisponible » exactement comme sur une
+                panne. Les deux cas n'appellent pourtant pas la même réponse :
+                celui-ci vient du service, pas du réseau.
+                */
+                if (points.isEmpty()) {
+                    com.vaultex.core.monitoring.signalerEtatAnormal(
+                        "courbe $days j", "réponse vide pour $coinId"
+                    )
+                }
             } catch (e: Exception) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                CET ÉCHEC ÉTAIT MUET, ET IL L'EST DEPUIS TOUJOURS
+                ═══════════════════════════════════════════════════════════
+
+                Constaté sur appareil : sur l'écran d'une monnaie, 24h, 1M et
+                1A affichent tous « Graphique indisponible ». Seul 7j
+                répond — et c'est l'indice, pas la consolation : le 7j ne
+                passe PAS par ici. Il arrive avec la liste de marché, en
+                sparkline, donc depuis le cache. Les trois autres appellent
+                market_chart en direct, et cet appel échoue.
+
+                L'exception était avalée sans un mot. L'utilisateur voyait
+                trois graphiques absents, et personne ne pouvait dire si
+                c'était le relais, le quota CoinGecko, une restriction du
+                plan Demo sur l'historique, ou l'appareil sans réseau.
+
+                La période fait partie de la source : si seul « 1825 j »
+                remonte, c'est la limite d'historique du plan ; si les quatre
+                remontent, c'est le service. Deux diagnostics opposés que le
+                silence rendait indiscernables.
+                ═══════════════════════════════════════════════════════════
+                */
+                com.vaultex.core.monitoring.reportUnlessCancelled("courbe $days j", e)
                 _chart.value = emptyList()
             } finally {
                 _chartLoading.value = false
