@@ -213,7 +213,9 @@ class PriceAlertWorker @AssistedInject constructor(
         }
         val title = ctx.getString(titreRes, symbol)
         val body = if (priceXof > 0) {
-            fmt.maximumFractionDigits = if (priceXof < 100) 2 else 0
+            // La precision n'est plus reglee ici : prixFcfa la choisit selon
+            // l'ordre de grandeur, et des deux endroits l'un finissait par
+            // contredire l'autre.
             ctx.getString(R.string.price_move_body, percent, prixFcfa(priceXof))
         } else {
             ctx.getString(R.string.price_move_body_no_price, percent)
