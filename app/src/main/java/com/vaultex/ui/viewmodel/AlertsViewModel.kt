@@ -53,7 +53,11 @@ class AlertsViewModel @Inject constructor(
             androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
                 "price_alerts_maintenant",
                 androidx.work.ExistingWorkPolicy.REPLACE,
-                androidx.work.OneTimeWorkRequestBuilder<com.vaultex.service.PriceAlertWorker>()
+                // API Java plutôt que le constructeur ktx réifié : une
+                // classe passée explicitement se lit, se cherche, et ne
+                // dépend d'aucune extension inline.
+                androidx.work.OneTimeWorkRequest
+                    .Builder(com.vaultex.service.PriceAlertWorker::class.java)
                     .build()
             )
         }

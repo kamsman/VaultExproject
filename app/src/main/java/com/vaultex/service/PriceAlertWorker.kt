@@ -143,10 +143,11 @@ class PriceAlertWorker @AssistedInject constructor(
                 un cours sans intention d'agir ne doit pas se retrouver devant
                 un formulaire d'échange parce qu'il a touché une notification.
                 */
-                val vendre = when (alert.intention.uppercase()) {
-                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE -> true
-                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_ACHAT -> false
-                    com.vaultex.core.session.AlerteSwapBuffer.INTENTION_RIEN -> null
+                val choix = alert.intention.uppercase()
+                val vendre: Boolean? = when {
+                    choix == com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE -> true
+                    choix == com.vaultex.core.session.AlerteSwapBuffer.INTENTION_ACHAT -> false
+                    choix == com.vaultex.core.session.AlerteSwapBuffer.INTENTION_RIEN -> null
                     else -> isAbove
                 }
                 notify(alert.tokenSymbol, alert.condition, target, current, vendre)
