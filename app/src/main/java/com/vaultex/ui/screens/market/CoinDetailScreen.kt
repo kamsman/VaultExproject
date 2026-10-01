@@ -49,9 +49,34 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
     val chart by viewModel.chart.collectAsState()
     val chartLoading by viewModel.chartLoading.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
-    // Libellés de la maquette. « Tout » remplace « 3M » : entre un mois et un
-    // an, trois mois n'apportait rien qu'on ne lise déjà sur la courbe.
-    val periods = listOf("24h", "7j", "1M", "1A", "Tout")
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « TOUT » EST RETIRÉ, PARCE QU'IL NE POUVAIT PAS FONCTIONNER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il demandait 1825 jours. Or la documentation CoinGecko est explicite :
+    sur le plan Demo — celui de l'application — l'historique est limité aux
+    365 DERNIERS JOURS. L'appel était donc refusé à chaque fois, et l'écran
+    affichait « Graphique indisponible » pour cette seule période.
+
+    Constaté sur appareil, et c'est exactement ce que la remontée ajoutée au
+    chargement des courbes devait permettre de distinguer : si les quatre
+    périodes échouaient, c'était le service ; si seule la plus longue
+    échouait, c'était le plafond du plan. Seule la plus longue échouait.
+
+    AUCUN CODE NE CONTOURNE CE PLAFOND. Et avec un historique borné à un an,
+    « Tout » afficherait de toute façon la même courbe que « 1A » : deux
+    boutons pour un seul résultat, dont un qui ne marche jamais.
+
+    Un bouton qui échoue toujours est pire que son absence : il apprend à
+    l'utilisateur que l'application est en panne, et il le lui apprend sur
+    l'écran où il regardait un cours.
+
+    Le jour où un plan payant sera pris, la ligne à rétablir est ici, et
+    daysForPeriod juste en dessous.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val periods = listOf("24h", "7j", "1M", "1A")
     var selectedPeriod by remember { mutableStateOf("7j") }
 
     LaunchedEffect(coinId, selectedPeriod, coin) {
@@ -695,8 +720,7 @@ private fun daysForPeriod(period: String): Int = when (period) {
     "24h" -> 1
     "7j" -> 7
     "1M" -> 30
-    "1A" -> 365
-    "Tout" -> 1825   // cinq ans : au-delà, CoinGecko renvoie l'historique complet
+    "1A" -> 365      // le maximum du plan Demo : au-delà, CoinGecko refuse
     else -> 7
 }
 
@@ -705,8 +729,7 @@ private fun titrePeriode(period: String): String = when (period) {
     "24h" -> "Évolution 24 heures"
     "7j" -> "Évolution 7 jours"
     "1M" -> "Évolution 1 mois"
-    "1A" -> "Évolution 1 an"
-    else -> "Évolution complète"
+    else -> "Évolution 1 an"
 }
 
 
