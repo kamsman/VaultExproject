@@ -1054,4 +1054,8 @@
     <string name="swap_receipt_line">استُلمت في %1$s · المعرّف %2$s…</string>
     <string name="swap_payout_wallet">محفظتك</string>
     <string name="swap_err_natif_absent">يبدأ هذا التبادل بعملية إرسال، وتُدفع رسوم شبكتها بعملة %1$s. لا تملك أيًا منها في هذه المحفظة — استلم القليل أولًا، وبضعة سنتات تكفي.</string>
+    <string name="alerts_step_action">4. عند بلوغ السعر</string>
+    <string name="alerts_action_sell">بيع</string>
+    <string name="alerts_action_buy">شراء</string>
+    <string name="alerts_action_none">أخبرني فقط</string>
 </resources>

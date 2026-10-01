@@ -1054,4 +1054,8 @@
     <string name="swap_receipt_line">Received in %1$s · ID %2$s…</string>
     <string name="swap_payout_wallet">your wallet</string>
     <string name="swap_err_natif_absent">This swap starts with a transfer, and its network fee is paid in %1$s. This wallet holds none — receive some first; a few cents are enough.</string>
+    <string name="alerts_step_action">4. When reached</string>
+    <string name="alerts_action_sell">Sell</string>
+    <string name="alerts_action_buy">Buy</string>
+    <string name="alerts_action_none">Just notify me</string>
 </resources>

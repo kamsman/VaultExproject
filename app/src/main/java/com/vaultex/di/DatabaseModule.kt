@@ -32,6 +32,9 @@ object DatabaseModule {
         val factory = SupportFactory(secureStorage.getOrCreateDatabaseKey())
         return Room.databaseBuilder(context, VaultExDatabase::class.java, VaultExDatabase.DATABASE_NAME)
             .openHelperFactory(factory)
+            // Déclarée AVANT le repli : tant qu'une migration couvre le saut
+            // de version, la base n'est pas détruite. Voir VaultExDatabase.
+            .addMigrations(VaultExDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

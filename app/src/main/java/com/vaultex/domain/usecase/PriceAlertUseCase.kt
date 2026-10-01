@@ -13,13 +13,20 @@ class PriceAlertUseCase @Inject constructor(
 
     fun observeActiveAlerts(): Flow<List<PriceAlertEntity>> = priceAlertDao.observeActive()
 
-    suspend fun createAlert(symbol: String, condition: String, targetPrice: String) {
+    /**
+     * @param intention « VENTE », « ACHAT » ou « RIEN ». Vide = déduire de la
+     *   condition, comportement des alertes créées avant ce choix.
+     */
+    suspend fun createAlert(
+        symbol: String, condition: String, targetPrice: String, intention: String = ""
+    ) {
         priceAlertDao.insert(PriceAlertEntity(
             id = UUID.randomUUID().toString(),
             tokenSymbol = symbol,
             condition = condition,
             targetPrice = targetPrice,
-            isActive = true
+            isActive = true,
+            intention = intention
         ))
     }
 

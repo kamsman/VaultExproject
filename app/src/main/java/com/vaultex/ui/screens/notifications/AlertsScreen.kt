@@ -95,8 +95,8 @@ fun AlertsScreen(navController: NavController) {
     if (showAddDialog) {
         AddAlertDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { token, condition, target ->
-                viewModel.createAlert(token, condition, target)
+            onConfirm = { token, condition, target, intention ->
+                viewModel.createAlert(token, condition, target, intention)
                 showAddDialog = false
             }
         )
@@ -308,10 +308,20 @@ private fun AlertCard(
 
 /** Formulaire « Nouvelle alerte » pleine page (maquette : token, condition, cible, résumé). */
 @Composable
-private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, String) -> Unit) {
+private fun AddAlertDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, String) -> Unit
+) {
     var token by remember { mutableStateOf("BTC") }
     var condition by remember { mutableStateOf("au-dessus de") }
     var target by remember { mutableStateOf("") }
+    /*
+    Ce que l'alerte doit faire une fois atteinte. Le défaut SUIT la condition
+    — au-dessus, on propose de vendre ; en dessous, d'acheter — parce que
+    c'est le cas courant et qu'une étape de plus ne doit pas ralentir celui
+    qui veut juste poser une alerte. Il reste modifiable d'un doigt.
+    */
+    var intention by remember { mutableStateOf(com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE) }
     /*
      * Liste lue dans CoinIds, plus écrite en dur ici.
      *
@@ -390,13 +400,13 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                         title = stringResource(R.string.alerts_above),
                         desc = stringResource(R.string.alerts_above_desc),
                         up = true, modifier = Modifier.weight(1f)
-                    ) { condition = "au-dessus de" }
+                    ) { condition = "au-dessus de"; intention = com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE }
                     ConditionCard(
                         selected = !isAbove,
                         title = stringResource(R.string.alerts_below),
                         desc = stringResource(R.string.alerts_below_desc),
                         up = false, modifier = Modifier.weight(1f)
-                    ) { condition = "en-dessous de" }
+                    ) { condition = "en-dessous de"; intention = com.vaultex.core.session.AlerteSwapBuffer.INTENTION_ACHAT }
                 }
 
                 // 3. Prix cible (FCFA)
@@ -414,6 +424,55 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                 )
                 target.toDoubleOrNull()?.let {
                     Text("≈ ${fmt.format(it.toLong())} FCFA", fontSize = 12.sp, color = VaultExColors.TextSecondary)
+                }
+
+                /*
+                4. À L'ATTEINTE — ce qui remplace une devinette.
+
+                Sans ce choix, la notification déduisait le sens de la
+                condition : au-dessus on supposait vendre, en dessous
+                acheter. C'est juste la plupart du temps, et faux quand
+                quelqu'un attend une baisse pour alléger, ou une hausse pour
+                renforcer.
+
+                « Juste me prévenir » n'est pas une option de politesse :
+                quelqu'un qui surveille un cours sans intention d'agir ne
+                doit pas se retrouver devant un formulaire d'échange parce
+                qu'il a touché une notification.
+                */
+                Text(
+                    stringResource(R.string.alerts_step_action),
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VaultExColors.TextPrimary
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        com.vaultex.core.session.AlerteSwapBuffer.INTENTION_VENTE to R.string.alerts_action_sell,
+                        com.vaultex.core.session.AlerteSwapBuffer.INTENTION_ACHAT to R.string.alerts_action_buy,
+                        com.vaultex.core.session.AlerteSwapBuffer.INTENTION_RIEN to R.string.alerts_action_none
+                    ).forEach { (valeur, libelle) ->
+                        val choisi = intention == valeur
+                        Surface(
+                            onClick = { intention = valeur },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (choisi) VaultExColors.BluePrimary.copy(alpha = 0.14f)
+                            else VaultExColors.CardBackground,
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (choisi) 1.4.dp else 1.dp,
+                                if (choisi) VaultExColors.BluePrimary else VaultExColors.CardBackground
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                stringResource(libelle),
+                                fontSize = 12.sp,
+                                fontWeight = if (choisi) FontWeight.Bold else FontWeight.Normal,
+                                color = if (choisi) VaultExColors.BluePrimary else VaultExColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                                    .fillMaxWidth()
+                            )
+                        }
+                    }
                 }
 
                 // 5. Résumé
@@ -452,7 +511,7 @@ private fun AddAlertDialog(onDismiss: () -> Unit, onConfirm: (String, String, St
                         border = androidx.compose.foundation.BorderStroke(1.dp, VaultExColors.BluePrimary)
                     ) { Text(stringResource(R.string.cancel), color = VaultExColors.BluePrimary, fontWeight = FontWeight.SemiBold) }
                     Button(
-                        onClick = { onConfirm(token, condition, target) },
+                        onClick = { onConfirm(token, condition, target, intention) },
                         enabled = target.toDoubleOrNull() != null,
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
