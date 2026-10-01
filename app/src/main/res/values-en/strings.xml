@@ -1058,4 +1058,6 @@
     <string name="alerts_action_sell">Sell</string>
     <string name="alerts_action_buy">Buy</string>
     <string name="alerts_action_none">Just notify me</string>
+    <string name="alerts_check_now">Check now</string>
+    <string name="alerts_checking">Checking your alerts…</string>
 </resources>

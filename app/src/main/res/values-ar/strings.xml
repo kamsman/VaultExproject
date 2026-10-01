@@ -1058,4 +1058,6 @@
     <string name="alerts_action_sell">بيع</string>
     <string name="alerts_action_buy">شراء</string>
     <string name="alerts_action_none">أخبرني فقط</string>
+    <string name="alerts_check_now">تحقّق الآن</string>
+    <string name="alerts_checking">جارٍ التحقق من تنبيهاتك…</string>
 </resources>

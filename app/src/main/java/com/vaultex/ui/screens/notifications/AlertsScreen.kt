@@ -38,6 +38,7 @@ fun AlertsScreen(navController: NavController) {
     val moveThreshold by viewModel.moveThreshold.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
         topBar = {
@@ -49,6 +50,20 @@ fun AlertsScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    // Lance une passe du worker tout de suite, au lieu
+                    // d'attendre son réveil horaire. Même code, même worker.
+                    IconButton(onClick = {
+                        viewModel.verifierMaintenant()
+                        android.widget.Toast.makeText(
+                            ctx, ctx.getString(R.string.alerts_checking), android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.alerts_check_now),
+                            tint = VaultExColors.TextSecondary
+                        )
+                    }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.alerts_add), tint = VaultExColors.BluePrimary)
                     }
