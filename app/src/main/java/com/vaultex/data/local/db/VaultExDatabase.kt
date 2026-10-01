@@ -61,9 +61,7 @@ abstract class VaultExDatabase : RoomDatabase() {
                 )
             }
         }
-    }
 
-    companion object {
         const val DATABASE_NAME = "vaultex.db"
     }
 }
