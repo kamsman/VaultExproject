@@ -58,6 +58,18 @@ import com.vaultex.ui.viewmodel.SettingsViewModel
  * corbeille au bout de trente jours, et le lien meurt dans tous les APK
  * déjà distribués.
  *
+ * ET C'EST ARRIVÉ UNE SECONDE FOIS, le 1er octobre 2026. Drive répondait
+ * « Document look-up failed. It's possible that the document was deleted »
+ * à tout utilisateur touchant « Livre blanc ». L'identifiant précédent,
+ * 1mvfcJ2PpN8xCRCGVYO0jvbvH4nxBDWia, ne désignait plus rien : le PDF avait
+ * été re-téléversé en fichier NEUF au lieu d'être versionné, et la
+ * corbeille avait fini par être vidée.
+ *
+ * Le fichier en service s'appelle VaultExLivreBlanc.pdf, partagé en lecture
+ * à tout détenteur du lien. Chaque APK déjà distribué conserve pourtant
+ * l'ancien lien mort : seules les mises à jour récupèrent celui-ci. C'est
+ * précisément le coût que la manœuvre ci-dessous évite.
+ *
  * LA BONNE MANŒUVRE, à chaque révision : sur ORDINATEUR (l'application
  * mobile Drive n'a pas cette fonction), clic droit sur le fichier →
  * Informations sur le fichier → Gérer les versions → Importer une nouvelle
@@ -72,7 +84,7 @@ import com.vaultex.ui.viewmodel.SettingsViewModel
  * ═══════════════════════════════════════════════════════════════════════
  */
 private const val WHITEPAPER_URL =
-    "https://drive.google.com/uc?export=download&id=1mvfcJ2PpN8xCRCGVYO0jvbvH4nxBDWia"
+    "https://drive.google.com/uc?export=download&id=1vW-rLpkl6Ws0GisCw_2tu3gq-6BZI5ZG"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
