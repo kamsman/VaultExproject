@@ -439,3 +439,20 @@ d'objection en preuve.
 jour où une commission d'envoi réapparaît. Le seul endroit à regarder est
 `serviceFeeCrypto` — la commission d'ÉCHANGE, elle, est portée par la clé
 du fournisseur et n'a rien à voir avec ces textes.
+
+### `frais-03` — la variante « envoi »
+
+    ./tools/send-announcement.sh --fichier tools/annonces/frais-03-envoi-gratuit.txt
+
+Même fait que `frais-02`, autre angle. La 02 annonce la gratuité ; celle-ci
+la compare implicitement à ce que les gens connaissent — un transfert
+d'argent qui prend un pourcentage, par paliers, avec un plafond. « Que tu
+envoies 1 000 ou 1 000 000 FCFA » dit en une ligne ce qui change vraiment.
+
+Elle cite « quelques centimes sur BNB Chain », et c'est vérifié : le gaz
+d'un transfert BEP-20 tourne autour de 0,00003 BNB. Le chiffre n'est pas
+donné en francs exprès — il bougerait avec le cours du BNB, et une annonce
+qui vieillit sur des frais est celle qu'on ne rattrape pas.
+
+Aucune autre chaîne n'est citée : sur Ethereum, le même envoi peut coûter
+des dollars. Nommer la moins chère est un conseil, pas une moyenne.

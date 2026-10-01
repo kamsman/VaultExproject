@@ -181,7 +181,6 @@ class PriceAlertWorker @AssistedInject constructor(
                 NotificationManager.IMPORTANCE_HIGH
             )
         )
-        val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         val percent = String.format(com.vaultex.core.session.LocaleManager.appLocale(), "%+.1f %%", changePercent)
 
         /*
@@ -214,7 +213,7 @@ class PriceAlertWorker @AssistedInject constructor(
         val title = ctx.getString(titreRes, symbol)
         val body = if (priceXof > 0) {
             fmt.maximumFractionDigits = if (priceXof < 100) 2 else 0
-            ctx.getString(R.string.price_move_body, percent, fmt.format(priceXof))
+            ctx.getString(R.string.price_move_body, percent, prixFcfa(priceXof))
         } else {
             ctx.getString(R.string.price_move_body_no_price, percent)
         }
@@ -234,11 +233,43 @@ class PriceAlertWorker @AssistedInject constructor(
     }
 
     /** [vendre] : vrai = vendre, faux = acheter, null = ne proposer aucun échange. */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN PRIX EN FCFA NE S'ÉCRIT PAS AVEC TROIS DÉCIMALES
+    ═══════════════════════════════════════════════════════════════════════
+
+    Constaté sur appareil : « SOL est au-dessus de 100 FCFA (prix actuel :
+    69 046,569 FCFA) ». Le franc CFA n'a pas de subdivision en circulation —
+    ces trois chiffres après la virgule n'informent de rien, et ils arrivent
+    là où l'on a le moins de place et le moins de temps : une bannière de
+    notification, lue d'un coup d'œil.
+
+    NumberFormat par défaut écrit jusqu'à trois décimales. C'est juste pour
+    une quantité, faux pour une monnaie sans centimes.
+
+    MAIS ON NE PEUT PAS ARRONDIR À L'ENTIER PARTOUT. SHIB et PEPE valent une
+    fraction de franc : « 0 FCFA » serait pire que trois décimales de trop.
+    La précision suit donc l'ordre de grandeur — c'est ce que fait n'importe
+    quel tableau de cours, et ce que l'œil attend.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun prixFcfa(valeur: Double): String {
+        val decimales = when {
+            valeur >= 100.0 -> 0      // 1 576 381 FCFA
+            valeur >= 1.0 -> 2        // 583,96 FCFA
+            valeur >= 0.01 -> 4
+            else -> 8                 // les jetons à fraction de franc
+        }
+        val f = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
+        f.maximumFractionDigits = decimales
+        f.minimumFractionDigits = 0   // « 600 », jamais « 600,00 »
+        return f.format(valeur)
+    }
+
     private fun notify(
         symbol: String, condition: String, target: Double, current: Double, vendre: Boolean?
     ) {
         val ctx = com.vaultex.core.session.LocaleManager.wrap(applicationContext)
-        val fmt = NumberFormat.getNumberInstance(com.vaultex.core.session.LocaleManager.appLocale())
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
@@ -248,7 +279,7 @@ class PriceAlertWorker @AssistedInject constructor(
         )
         val title = ctx.getString(R.string.alert_triggered_title, symbol)
         val body = ctx.getString(
-            R.string.alert_triggered_body, symbol, condition, fmt.format(target), fmt.format(current)
+            R.string.alert_triggered_body, symbol, condition, prixFcfa(target), prixFcfa(current)
         )
         // Une cible ne se déclenche qu'une fois (l'alerte est désactivée juste
         // après) : la clé porte la cible elle-même.
