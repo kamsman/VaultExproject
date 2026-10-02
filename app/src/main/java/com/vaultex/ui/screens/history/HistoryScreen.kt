@@ -120,9 +120,24 @@ fun HistoryScreen(navController: NavController) {
 
 @Composable
 private fun TxCard(tx: TxDisplay, onClick: () -> Unit) {
-    val iconColor = if (tx.isIncoming) VaultExColors.Success else VaultExColors.Error
-    val bgColor = if (tx.isIncoming) VaultExColors.Success.copy(alpha = 0.1f) else VaultExColors.Error.copy(alpha = 0.1f)
-    val icon = if (tx.isIncoming) Icons.Default.CallReceived else Icons.Default.CallMade
+    /*
+    Trois apparences pour trois types. Le vert et le rouge disent une entrée
+    ou une sortie d'argent ; un échange n'est ni l'un ni l'autre, et le violet
+    est celui que l'accueil lui donne déjà. Deux écrans qui colorent la même
+    opération de deux façons se lisent comme deux opérations.
+    */
+    val violetEchange = Color(0xFF7C5CFC)
+    val iconColor = when {
+        tx.estEchange -> violetEchange
+        tx.isIncoming -> VaultExColors.Success
+        else -> VaultExColors.Error
+    }
+    val bgColor = iconColor.copy(alpha = 0.1f)
+    val icon = when {
+        tx.estEchange -> Icons.Default.SwapHoriz
+        tx.isIncoming -> Icons.Default.CallReceived
+        else -> Icons.Default.CallMade
+    }
     val chainColor = chainColor(tx.chain)
 
     Card(
@@ -156,7 +171,7 @@ private fun TxCard(tx: TxDisplay, onClick: () -> Unit) {
                 tx.amount,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
-                color = if (tx.isIncoming) VaultExColors.Success else VaultExColors.Error
+                color = iconColor
             )
         }
     }

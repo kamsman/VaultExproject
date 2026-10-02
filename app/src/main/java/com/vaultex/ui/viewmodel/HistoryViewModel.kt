@@ -24,7 +24,15 @@ data class TxDisplay(
     val chain: String,
     val amount: String,
     val date: String,
-    val isIncoming: Boolean
+    val isIncoming: Boolean,
+    /**
+     * Échange, et donc ni une entrée ni une sortie.
+     *
+     * [isIncoming] seul ne suffisait pas : un booléen ne sait dire que deux
+     * choses, et il y en a trois. Tout ce qui n'était pas « reçu » tombait
+     * dans « envoyé », flèche rouge et signe moins compris.
+     */
+    val estEchange: Boolean = false
 )
 
 @HiltViewModel
@@ -107,16 +115,58 @@ class HistoryViewModel @Inject constructor(
         val timeSdf  = SimpleDateFormat("HH:mm", Locale.getDefault())
         val today = todaySdf.format(Date())
         val txDay = todaySdf.format(Date(timestamp))
-        val dateFormatted = if (txDay == today) "Auj. ${timeSdf.format(Date(timestamp))}"
-                            else fullSdf.format(Date(timestamp))
-        val sign = if (type == "received") "+" else "-"
+        val ctx = com.vaultex.core.session.LocaleManager.wrap(context)
+        val dateFormatted =
+            if (txDay == today) ctx.getString(com.vaultex.R.string.history_today) + " " + timeSdf.format(Date(timestamp))
+            else fullSdf.format(Date(timestamp))
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        TROIS TYPES, ET IL N'Y EN AVAIT QUE DEUX
+        ═══════════════════════════════════════════════════════════════════
+
+        « received » d'un côté, TOUT LE RESTE de l'autre. Un échange tombait
+        donc dans « Envoyé », avec sa flèche rouge et son signe moins.
+
+        Constaté sur appareil : l'utilisateur croyait ses échanges absents de
+        l'historique. Ils y étaient — déguisés en envois, et impossibles à
+        distinguer d'un vrai envoi.
+
+        Un échange n'est ni une entrée ni une sortie : les fonds quittent une
+        monnaie et reviennent dans une autre. Lui coller un signe moins
+        affirme une perte qui n'a pas eu lieu. Il n'en porte donc aucun.
+
+        Le symbole est tronqué avant la flèche, comme sur l'accueil :
+        recordSwap écrit « USDT→BTC » dans tokenSymbol, et « -0.5 USDT→BTC »
+        ne veut rien dire.
+
+        Les trois libellés viennent des ressources. Ils étaient écrits en
+        français dans le code, donc affichés en français en anglais comme en
+        arabe — et « Auj. » avec eux.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val echange = type == "swap"
+        val entrant = type == "received"
+        val signe = when {
+            echange -> ""
+            entrant -> "+"
+            else -> "-"
+        }
+        val symbole = if (echange) tokenSymbol.substringBefore("→") else tokenSymbol
+        val libelle = ctx.getString(
+            when {
+                echange -> com.vaultex.R.string.swapped
+                entrant -> com.vaultex.R.string.received
+                else -> com.vaultex.R.string.sent
+            }
+        )
         return TxDisplay(
             hash = hash,
-            type = if (type == "received") "Reçu" else "Envoyé",
+            type = libelle,
             chain = blockchain,
-            amount = "$sign$amount $tokenSymbol",
+            amount = "$signe$amount $symbole",
             date = dateFormatted,
-            isIncoming = type == "received"
+            isIncoming = entrant,
+            estEchange = echange
         )
     }
 }
