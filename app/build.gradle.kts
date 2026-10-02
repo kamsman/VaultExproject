@@ -41,7 +41,8 @@ run {
         "etherscan.key"        to "historique ETH/BNB vide",
         "telegram.admin.token" to "aucun diagnostic a distance",
         "coingecko.key"        to "ecran Marche limite en debit",
-        "trongrid.key"         to "soldes TRX/USDT-TRC20 souvent illisibles"
+        "trongrid.key"         to "soldes TRX/USDT-TRC20 souvent illisibles",
+        "oneinch.key"          to "pas de devis d'echange sur place"
     )
     val missing = expected.filter { (key, _) -> localProps.getProperty(key).isNullOrBlank() }
     if (missing.isNotEmpty()) {
@@ -320,6 +321,13 @@ android {
         quand rien n'etait pris.
         */
         buildConfigField("String", "SIMPLESWAP_KEY",  "\"${secret("simpleswap.key")}\"")
+        /*
+        1inch — devis d'echange SUR PLACE (meme chaine), etape 1.
+        Sans cle, le devis est simplement absent et le courtier garde la
+        main : c'est le comportement d'aujourd'hui, inchange.
+        Cle gratuite sur https://portal.1inch.dev
+        */
+        buildConfigField("String", "ONEINCH_KEY",     "\"${secret("oneinch.key")}\"")
         buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
         buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
         /*

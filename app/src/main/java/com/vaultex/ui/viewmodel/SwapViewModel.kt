@@ -26,6 +26,15 @@ data class SwapState(
     /** Un devis est en vol : le montant reçu n'est ni connu ni refusé. */
     val devisEnCours: Boolean = false,
     /**
+     * Ce que rendrait un échange SUR PLACE, quand les deux monnaies vivent
+     * sur la même chaîne. Null : la paire ne s'y prête pas, ou le service
+     * n'a rien dit — le devis du courtier reste seul, comme avant.
+     *
+     * ÉTAPE 1 : cette valeur ne sert qu'à COMPARER. Rien ne la signe.
+     */
+    val devisSurPlace: String? = null,
+    val sourceSurPlace: String? = null,
+    /**
      * Plafond de frais du DÉPÔT — ce que coûtera l'envoi vers l'adresse du
      * fournisseur, dans la monnaie native de la chaîne source.
      *
@@ -73,6 +82,7 @@ class SwapViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
+    private val surPlace: com.vaultex.domain.swap.FournisseurSurPlace,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     /** Cours des monnaies que l'utilisateur ne détient pas encore. */
     private val priceRepository: com.vaultex.data.repository.PriceRepository,
@@ -818,12 +828,51 @@ class SwapViewModel @Inject constructor(
         return s.fromAmount != montant || s.fromToken != de || s.toToken != vers
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE DEVIS SUR PLACE — ÉTAPE 1, ON REGARDE SANS TOUCHER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Quand les deux monnaies vivent sur la même chaîne, l'échange peut se
+    faire sans courtier : les fonds vont de l'adresse de l'utilisateur à une
+    réserve de liquidité et en reviennent, en une transaction.
+
+    Ici on ne fait que DEMANDER LE PRIX. Aucune transaction n'est construite,
+    aucune clé touchée, aucune autorisation donnée. Ce chemin ne peut coûter
+    un franc à personne, et c'est voulu : on mesure l'écart réel sur les
+    montants que les gens échangent vraiment AVANT d'écrire la moindre ligne
+    qui engage de l'argent.
+
+    DANS SA PROPRE COROUTINE. Le devis du courtier est celui qui marche
+    aujourd'hui ; un agrégateur lent, saturé ou muet ne doit pas le retarder
+    ni le faire échouer. Les deux ne se croisent jamais.
+
+    Le même garde d'obsolescence : changer de monnaie pendant qu'un devis est
+    en vol ne doit pas écrire une comparaison qui ne décrit plus l'écran.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun chargerDevisSurPlace(amount: String, de: String, vers: String, input: Double) {
+        viewModelScope.launch {
+            val devis = withContext(Dispatchers.IO) {
+                try { surPlace.devis(de, vers, input) } catch (_: Exception) { null }
+            }
+            if (obsolete(amount, de, vers)) return@launch
+            _state.update {
+                it.copy(
+                    devisSurPlace = devis?.let { d -> trimNum(d.montantEstime) },
+                    sourceSurPlace = devis?.source
+                )
+            }
+        }
+    }
+
     private fun estimateOutput(amount: String) {
         viewModelScope.launch {
             val input = amount.toDoubleOrNull() ?: return@launch
             if (input <= 0.0) {
                 // « 0 » ou saisie incomplète : on vide le résultat sans appeler l'API.
-                _state.update { it.copy(toAmount = "", devisEnCours = false) }
+                _state.update { it.copy(toAmount = "", devisEnCours = false,
+                    devisSurPlace = null, sourceSurPlace = null) }
                 return@launch
             }
             // On échange le montant COMPLET. La commission VaultEx vient de
@@ -836,10 +885,14 @@ class SwapViewModel @Inject constructor(
             // vers elle-même. Le fournisseur répondrait « Not Found », ce qui
             // se lit comme une panne de son côté.
             if (de.equals(vers, ignoreCase = true)) {
-                _state.update { it.copy(toAmount = "", devisEnCours = false) }
+                _state.update { it.copy(toAmount = "", devisEnCours = false,
+                    devisSurPlace = null, sourceSurPlace = null) }
                 return@launch
             }
             _state.update { it.copy(devisEnCours = true) }
+            // Lancé À CÔTÉ, jamais devant : un service lent ou muet ne doit
+            // pas retarder d'une seconde le devis qui fonctionne aujourd'hui.
+            chargerDevisSurPlace(amount, de, vers, input)
             try {
                 // Réseau lent : on retente UNE fois automatiquement sur timeout /
                 // coupure avant d'afficher une erreur à l'utilisateur.

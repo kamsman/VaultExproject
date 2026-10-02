@@ -957,6 +957,36 @@ private fun SwapFormScreen(
                             stringResource(com.vaultex.R.string.swap_rate_estimated_eta),
                             fontSize = 12.sp, color = swapTextDim
                         )
+                        /*
+                        ─── COMPARAISON, ÉTAPE 1 ─────────────────────────
+
+                        Ce que rendrait un échange SUR PLACE, quand les deux
+                        monnaies vivent sur la même chaîne. Rien n'est signé
+                        par ce chemin : la ligne existe pour MESURER l'écart
+                        réel, sur les montants que les gens échangent
+                        vraiment, avant d'écrire la moindre ligne qui engage
+                        de l'argent.
+
+                        Elle n'apparaît que lorsqu'il y a deux chiffres à
+                        comparer. Une étiquette « indisponible » de plus
+                        n'apprendrait rien et encombrerait l'écran de
+                        quelqu'un dont la paire ne s'y prête pas.
+
+                        Elle disparaîtra quand l'étape 3 choisira
+                        automatiquement le moins cher : l'utilisateur ne doit
+                        pas avoir à arbitrer entre deux chemins dont un seul
+                        le concerne.
+                        */
+                        if (state.devisSurPlace != null && state.sourceSurPlace != null) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "${state.sourceSurPlace} : ${state.devisSurPlace} " +
+                                    swapBaseOf(state.toToken),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SwapGreen
+                            )
+                        }
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))
                 }

@@ -52,4 +52,16 @@ object SwapModule {
         // configuration ne doit jamais désactiver les échanges.
         else -> changeNow
     }
+
+    /**
+     * Fournisseur de devis SUR PLACE — même chaîne, sans courtier.
+     *
+     * Un seul aujourd'hui, et il ne remplace personne : il s'ajoute. Tant
+     * que l'étape qui signe n'existe pas, son devis ne sert qu'à comparer.
+     */
+    @Provides
+    @Singleton
+    fun fournisseurSurPlace(
+        oneInch: com.vaultex.domain.swap.FournisseurOneInch
+    ): com.vaultex.domain.swap.FournisseurSurPlace = oneInch
 }

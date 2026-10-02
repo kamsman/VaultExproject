@@ -30,6 +30,14 @@ changenow.key=
 # https://simpleswap.io → Web Tools → API
 simpleswap.key=
 
+# ── ÉCHANGE SUR PLACE (même chaîne, sans courtier) ─────────────────────
+# Devis d'un agrégateur de réserves de liquidité, affiché à côté de celui du
+# courtier. Clé gratuite : https://portal.1inch.dev
+#
+# SANS CETTE CLÉ l'application fonctionne exactement comme avant : le devis
+# sur place est simplement absent, le courtier garde la main.
+oneinch.key=
+
 # QUEL ÉCHANGEUR RÉPOND. Deux valeurs : « changenow » ou « simpleswap ».
 #
 # ABSENT = changenow. C'est voulu : aucune version distribuée ne change de
