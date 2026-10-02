@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,9 +76,41 @@ fun TransactionDetailScreen(navController: NavHostController, hash: String) {
 @Composable
 private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier = Modifier) {
     val uriHandler = LocalUriHandler.current
-    val incoming = tx.type.equals("receive", true) || tx.type.contains("reçu", true) || tx.type.contains("received", true)
-    val accent = if (incoming) AccentGreen else AccentRed
-    val sign = if (incoming) "+" else "-"
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    TROIS TYPES, DEUX COULEURS, ET DEUX CONDITIONS MORTES
+    ═══════════════════════════════════════════════════════════════════════
+
+    La ligne d'origine cherchait « receive », « reçu » et « received ». Les
+    deux premières ne pouvaient JAMAIS correspondre : la base stocke
+    « received », et « reçu » est un libellé d'affichage qui n'y entre
+    jamais. Seule la troisième travaillait, et elle masquait les deux
+    autres.
+
+    Surtout, l'échange n'était pas prévu. Un swap n'étant pas « received »,
+    il devenait sortant : cercle rouge, flèche montante, signe moins. Le
+    même défaut que l'historique, un écran plus loin — et c'est ici qu'on
+    arrive en touchant la ligne, donc quand on cherche à comprendre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val estEchange = tx.type.equals("swap", true)
+    val incoming = tx.type.equals("received", true)
+    val violetEchange = androidx.compose.ui.graphics.Color(0xFF7C5CFC)
+    val accent = when {
+        estEchange -> violetEchange
+        incoming -> AccentGreen
+        else -> AccentRed
+    }
+    // Un échange ne gagne ni ne perd : les fonds changent de monnaie.
+    val sign = when {
+        estEchange -> ""
+        incoming -> "+"
+        else -> "-"
+    }
+    // recordSwap écrit « USDT→BTC » dans tokenSymbol : on garde la monnaie
+    // de départ, celle dont le montant est exprimé.
+    val symboleMontant =
+        if (estEchange) tx.tokenSymbol.substringBefore("→") else tx.tokenSymbol
 
     val statusLabel = when (tx.status.lowercase()) {
         "confirmed" -> stringResource(R.string.tx_confirmed)
@@ -105,7 +138,11 @@ private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier =
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (incoming) Icons.Default.CallReceived else Icons.Default.CallMade,
+                when {
+                    estEchange -> Icons.Default.SwapHoriz
+                    incoming -> Icons.Default.CallReceived
+                    else -> Icons.Default.CallMade
+                },
                 contentDescription = null,
                 tint = accent,
                 modifier = Modifier.size(32.dp)
@@ -113,7 +150,7 @@ private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier =
         }
         Spacer(Modifier.height(14.dp))
         Text(
-            "$sign ${tx.amount} ${tx.tokenSymbol}",
+            "$sign ${tx.amount} $symboleMontant",
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
             color = TextPrimary
@@ -165,7 +202,29 @@ private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier =
                     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(tx.timestamp))
                 )
                 FieldDivider()
-                DetailField(stringResource(R.string.label_fee), "${tx.fee} ${tx.tokenSymbol}")
+                /*
+                LES FRAIS NE SE PAIENT PAS DANS LE JETON ENVOYÉ.
+
+                Cette ligne collait `tokenSymbol` au montant des frais. Pour
+                un envoi d'USDT sur BNB Chain, elle affichait donc
+                « 0.00003 USDT » — alors que ces frais sont payés en BNB, et
+                que c'est exactement la confusion que l'écran d'envoi, celui
+                du swap et celui de réception s'emploient à dissiper. Le
+                détail d'une transaction la réinstallait, au seul endroit où
+                l'on vient vérifier ce qu'on a payé.
+
+                ReserveFrais.natifDe donne la monnaie de la chaîne, et c'est
+                la même table que celle qui calcule la réserve.
+
+                Pour un échange, `fee` est un POURCENTAGE — la commission du
+                fournisseur, écrite par recordSwap. Lui accoler une monnaie
+                donnerait « 0,40 % USDT ».
+                */
+                DetailField(
+                    stringResource(R.string.label_fee),
+                    if (estEchange) tx.fee
+                    else "${tx.fee} " + com.vaultex.core.tx.ReserveFrais.natifDe(tx.blockchain)
+                )
                 tx.blockNumber?.let {
                     FieldDivider()
                     DetailField(stringResource(R.string.tx_detail_block), "#$it")

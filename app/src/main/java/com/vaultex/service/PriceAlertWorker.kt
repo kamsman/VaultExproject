@@ -312,8 +312,13 @@ class PriceAlertWorker @AssistedInject constructor(
             channelId = CHANNEL_ID,
             // null → aucun extra posé, la notification ouvre l'application
             // comme avant. C'est le sens de « juste me prévenir ».
-            swapSymbole = if (vendre != null) symbol else null,
-            swapVente = vendre == true
+            // Rien n'est depose quand il n'y a pas d'echange a proposer :
+            // pas de jeton, pas d'extra, et la notification ouvre
+            // l'application comme n'importe quelle autre.
+            swapJeton = if (vendre != null)
+                com.vaultex.core.session.AlerteSwapBuffer
+                    .deposer(applicationContext, symbol, vendre)
+            else null
         )
     }
 

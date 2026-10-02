@@ -88,9 +88,89 @@ object AlerteSwapBuffer {
         return e
     }
 
-    /** Clés des extras. Posées par NotificationHub, lues par MainActivity. */
-    const val EXTRA_SYMBOLE = "vaultex_swap_symbole"
-    const val EXTRA_VENTE = "vaultex_swap_vente"
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'INTENTION NE PORTE PLUS LA SUGGESTION, SEULEMENT UN JETON
+    ═══════════════════════════════════════════════════════════════════════
+
+    MainActivity est EXPORTÉE — elle doit l'être, c'est le point d'entrée du
+    lanceur. N'importe quelle application installée peut donc la démarrer
+    avec les extras de son choix.
+
+    La première version posait le symbole et le sens directement dans
+    l'intention. Une autre application pouvait alors ouvrir VaultEx sur le
+    formulaire d'échange, positionné sur la monnaie de son choix. Elle ne
+    pouvait ni saisir de montant, ni confirmer — l'empreinte garde cette
+    porte — mais faire surgir le vrai écran d'échange au bon moment donne
+    du crédit à une mise en scène, et c'est précisément ce qu'on refuse à
+    un lien `vaultex://`. Le refuser au lien pour l'accepter par les extras
+    n'aurait eu aucun sens.
+
+    L'intention ne porte donc plus qu'un JETON ALÉATOIRE. La suggestion
+    elle-même est déposée ici, par le worker, au moment de notifier. Un
+    jeton inventé ne correspond à rien, et la lecture l'efface : il ne sert
+    qu'une fois.
+
+    POURQUOI SUR DISQUE. Le worker tourne application fermée, et la
+    notification peut être touchée des heures plus tard, le processus tué
+    entre-temps. La mémoire ne suffit donc pas — c'est la raison même pour
+    laquelle les extras avaient été choisis au départ.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+
+    /** Clé de l'extra. Posée par NotificationHub, lue par MainActivity. */
+    const val EXTRA_JETON = "vaultex_swap_jeton"
+
+    private const val PREFS = "vaultex_alerte_swap"
+    /** Au-delà, une suggestion ne vaut plus rien : le cours a changé. */
+    private const val VALIDITE_MS = 7L * 24 * 60 * 60 * 1000
+
+    private fun prefs(context: android.content.Context) =
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+
+    /**
+     * Dépose une suggestion et renvoie le jeton qui permettra de la relire.
+     * Renvoie null si le symbole est vide : pas de jeton, pas d'extra, et la
+     * notification ouvre l'application comme n'importe quelle autre.
+     */
+    fun deposer(context: android.content.Context, symbole: String?, vente: Boolean): String? {
+        val s = symbole?.trim()?.uppercase().orEmpty()
+        if (s.isEmpty()) return null
+        val jeton = java.util.UUID.randomUUID().toString()
+        val p = prefs(context)
+        /*
+        On balaie les entrees perimees a chaque depot. Sans cela, une
+        suggestion dont la notification a ete balayee sans etre touchee
+        resterait indefiniment : le fichier grossirait d'une ligne par alerte
+        declenchee, pour des donnees que personne ne relira jamais.
+        */
+        val maintenant = System.currentTimeMillis()
+        val e = p.edit()
+        p.all.keys.toList().forEach { cle ->
+            val horodatage = cle.substringAfterLast('|').toLongOrNull()
+            if (horodatage == null || maintenant - horodatage > VALIDITE_MS) e.remove(cle)
+        }
+        e.putString("$jeton|$maintenant", "$s|$vente").apply()
+        return jeton
+    }
+
+    /** Relit et EFFACE la suggestion portée par [jeton]. Null si inconnu ou périmé. */
+    fun retirer(context: android.content.Context, jeton: String?): EchangeSuggere? {
+        if (jeton.isNullOrBlank()) return null
+        val p = prefs(context)
+        val cle = p.all.keys.firstOrNull { it.substringBefore('|') == jeton } ?: return null
+        val valeur = p.getString(cle, null)
+        p.edit().remove(cle).apply()   // un jeton ne sert qu'une fois
+        val horodatage = cle.substringAfterLast('|').toLongOrNull() ?: return null
+        if (System.currentTimeMillis() - horodatage > VALIDITE_MS) return null
+        val parts = valeur?.split('|') ?: return null
+        val symbole = parts.getOrNull(0).orEmpty()
+        if (symbole.isEmpty()) return null
+        return EchangeSuggere(
+            symbole,
+            if (parts.getOrNull(1) == "true") SensEchange.VENTE else SensEchange.ACHAT
+        )
+    }
 
     /*
     ─── CE QUE L'ALERTE DOIT FAIRE, CHOISI À SA CRÉATION ──────────────────
