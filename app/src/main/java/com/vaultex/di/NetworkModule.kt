@@ -354,6 +354,18 @@ object NetworkModule {
     fun provideBinanceApi(client: OkHttpClient): BinanceApi =
         retrofit("https://api.binance.com/", client).create(BinanceApi::class.java)
 
+    /**
+     * 1inch — devis d'échange sur place.
+     *
+     * Aucune bascule de secours : si 1inch ne répond pas, le devis est
+     * absent et le courtier garde la main. Un repli vers un autre agrégateur
+     * donnerait un prix qu'on ne saurait pas honorer à l'étape qui signe.
+     */
+    @Provides @Singleton
+    fun provideOneInchApi(client: OkHttpClient): com.vaultex.data.remote.api.OneInchApi =
+        retrofit("https://api.1inch.dev/", client)
+            .create(com.vaultex.data.remote.api.OneInchApi::class.java)
+
     // ─── User-configurable RPC / explorer APIs ────────────────────────
 
     @Provides @Singleton @Named("eth")

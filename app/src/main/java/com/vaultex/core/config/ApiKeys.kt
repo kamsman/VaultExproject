@@ -14,6 +14,7 @@ import com.vaultex.BuildConfig
  *   simpleswap.commission=1.5  → le taux porté par la clé, pour l'affichage
  *   flutterwave.key=YOUR_KEY   → Flutterwave dashboard → API → Secret key
  *   trongrid.key=YOUR_KEY      → https://www.trongrid.io (optionnel, anti rate-limit)
+ *   oneinch.key=YOUR_KEY       → https://portal.1inch.dev (devis d'échange sur place)
  *   coingecko.key=YOUR_KEY     → https://www.coingecko.com/en/developers/dashboard (Demo gratuit, anti rate-limit)
  *
  * Keys default to empty string (APIs still work, may rate-limit without a key).
@@ -22,6 +23,14 @@ object ApiKeys {
     val ETHERSCAN:   String = BuildConfig.ETHERSCAN_KEY
     val BSCSCAN:     String = BuildConfig.BSCSCAN_KEY
     val CHANGENOW:   String = BuildConfig.CHANGENOW_KEY
+
+    /**
+     * 1inch — devis d'échange sur place (même chaîne).
+     *
+     * Vide : le devis est absent et le courtier garde la main, c'est-à-dire
+     * le comportement d'avant. Aucune compilation ne casse faute de clé.
+     */
+    val ONEINCH:     String = BuildConfig.ONEINCH_KEY
 
     /*
     ─── SIMPLESWAP ────────────────────────────────────────────────────────
