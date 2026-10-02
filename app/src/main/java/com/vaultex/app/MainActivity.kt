@@ -148,11 +148,15 @@ class MainActivity : FragmentActivity() {
         // doit ENLEVER des extras, donc tenir l'intention elle-même.
         val intention = intent ?: return
         val extras = intention.extras ?: return
-        val symbole = extras.getString(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
+        val jeton = extras.getString(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_JETON)
             ?: return
+        // Un jeton inconnu ou perime ne rend rien : cette activite est
+        // exportee, et toute application peut la demarrer avec les extras
+        // de son choix.
+        val suggestion = com.vaultex.core.session.AlerteSwapBuffer.retirer(this, jeton) ?: return
         com.vaultex.core.session.AlerteSwapBuffer.offer(
-            symbole,
-            extras.getBoolean(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE, false)
+            suggestion.symbole,
+            suggestion.sens == com.vaultex.core.session.SensEchange.VENTE
         )
         /*
         ON RETIRE LES EXTRAS APRÈS LECTURE.
@@ -165,8 +169,7 @@ class MainActivity : FragmentActivity() {
         l'application pour tout autre chose, se retrouverait devant un
         formulaire qu'il n'a pas demandé.
         */
-        intention.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_SYMBOLE)
-        intention.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_VENTE)
+        intention.removeExtra(com.vaultex.core.session.AlerteSwapBuffer.EXTRA_JETON)
     }
 
     // Demande de permission notifications (Android 13+). Sans elle, AUCUNE

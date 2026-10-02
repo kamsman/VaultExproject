@@ -70,16 +70,15 @@ class NotificationHub @Inject constructor(
          */
         lien: String? = null,
         /**
-         * Échange à proposer au toucher : symbole visé et sens.
+         * Jeton de l'échange à proposer au toucher, obtenu de
+         * AlerteSwapBuffer.deposer.
          *
-         * Posés en EXTRAS de l'intention, et non dans un tampon mémoire. Le
-         * worker qui déclenche une alerte tourne application fermée, et la
-         * notification peut être touchée des heures plus tard, une fois le
-         * processus tué — un tampon serait vide. Les extras, eux, voyagent
-         * dans le PendingIntent. Voir AlerteSwapBuffer.
+         * Un JETON et non la suggestion elle-même : MainActivity est
+         * exportée, donc n'importe quelle application peut la démarrer avec
+         * les extras de son choix. Un jeton inventé ne correspond à rien.
+         * Voir AlerteSwapBuffer, la raison y est écrite en entier.
          */
-        swapSymbole: String? = null,
-        swapVente: Boolean = false
+        swapJeton: String? = null
     ): Boolean {
         if (isDuplicate(key)) return false
         remember(key)
@@ -124,12 +123,12 @@ class NotificationHub @Inject constructor(
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
             Thread {
                 showSystemNotification(
-                    key, title, body, symbol, channelId, imageUrl, lienSur, swapSymbole, swapVente
+                    key, title, body, symbol, channelId, imageUrl, lienSur, swapJeton
                 )
             }.start()
         } else {
             showSystemNotification(
-                key, title, body, symbol, channelId, imageUrl, lienSur, swapSymbole, swapVente
+                key, title, body, symbol, channelId, imageUrl, lienSur, swapJeton
             )
         }
         return true
@@ -141,16 +140,15 @@ class NotificationHub @Inject constructor(
         /** Déjà passée par LienAnnonce.valide : null signifie « ouvrir l'app ». */
         lien: String? = null,
         /**
-         * Échange à proposer au toucher : symbole visé et sens.
+         * Jeton de l'échange à proposer au toucher, obtenu de
+         * AlerteSwapBuffer.deposer.
          *
-         * Posés en EXTRAS de l'intention, et non dans un tampon mémoire. Le
-         * worker qui déclenche une alerte tourne application fermée, et la
-         * notification peut être touchée des heures plus tard, après que le
-         * processus a été tué — un tampon serait vide. Les extras, eux,
-         * voyagent dans le PendingIntent. Voir AlerteSwapBuffer.
+         * Un JETON et non la suggestion elle-même : MainActivity est
+         * exportée, donc n'importe quelle application peut la démarrer avec
+         * les extras de son choix. Un jeton inventé ne correspond à rien.
+         * Voir AlerteSwapBuffer, la raison y est écrite en entier.
          */
-        swapSymbole: String? = null,
-        swapVente: Boolean = false
+        swapJeton: String? = null
     ) {
         try {
             /*
@@ -174,9 +172,8 @@ class NotificationHub @Inject constructor(
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 // Rien n'est ajouté quand il n'y a pas d'échange à proposer :
                 // l'intention reste exactement celle de toujours.
-                if (!swapSymbole.isNullOrBlank()) {
-                    putExtra(AlerteSwapBuffer.EXTRA_SYMBOLE, swapSymbole)
-                    putExtra(AlerteSwapBuffer.EXTRA_VENTE, swapVente)
+                if (!swapJeton.isNullOrBlank()) {
+                    putExtra(AlerteSwapBuffer.EXTRA_JETON, swapJeton)
                 }
             }
             /*
