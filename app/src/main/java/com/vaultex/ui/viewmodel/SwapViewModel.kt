@@ -924,6 +924,21 @@ class SwapViewModel @Inject constructor(
             } catch (e: Exception) {
                 if (obsolete(amount, de, vers)) return@launch
                 /*
+                ON NE DEPEND PLUS DE L'ECRAN POUR SAVOIR POURQUOI.
+
+                Le refus s'affiche dans `error` — sauf qu'un manque de solde
+                passe AVANT lui dans messageBloquant. Constate sur appareil :
+                solde vide, montant saisi, « Vous recevez » reste a zero, et
+                l'ecran ne montre que « Solde insuffisant ». La raison du
+                devis manquant n'etait visible nulle part.
+
+                C'est exactement le cas ou l'on teste : on tape un montant
+                sans detenir la monnaie, pour comparer deux prix. Le canal
+                d'administration la nomme desormais — et le filtre ecarte deja
+                l'appareil simplement hors ligne.
+                */
+                com.vaultex.core.monitoring.reportUnlessCancelled("devis courtier", e)
+                /*
                 « UNPROCESSABLE ENTITY » N'EST PAS UN MESSAGE.
 
                 Constaté sur appareil : solde 1,1555 USDT, minimum affiché
