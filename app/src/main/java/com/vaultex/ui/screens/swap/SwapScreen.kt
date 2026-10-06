@@ -2435,7 +2435,26 @@ private fun SwapCoinCard(
                             decorationBox = { inner -> Box(contentAlignment = Alignment.CenterEnd) { if (amount.isEmpty()) Text("0", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapTextFaint); inner() } }
                         )
                     } else {
-                        Text(amount.ifEmpty { "0" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapText)
+                        /*
+                        « 0 » AFFIRMAIT CE QU'ON NE SAVAIT PAS.
+
+                        Le champ non modifiable — « Vous recevez » — montrait
+                        zero tant qu'aucun devis n'etait revenu. Or zero est
+                        une REPONSE : « cet echange ne rendrait rien ». Un
+                        devis absent, lui, ne dit rien du tout.
+
+                        Constate sur appareil : devis en panne, ecran
+                        affichant « Vous recevez : 0 », et rien pour
+                        distinguer la panne d'un taux reellement nul.
+
+                        Le tiret ne ment pas. Le champ de SAISIE garde son
+                        zero — c'est la branche du dessus, et la c'est bien ce
+                        qu'on a tape.
+                        */
+                        Text(
+                            amount.ifEmpty { "—" },
+                            fontSize = 26.sp, fontWeight = FontWeight.Bold, color = swapText
+                        )
                     }
                     fiat?.let { Text(it, fontSize = 12.sp, color = swapTextDim) }
                     /*
