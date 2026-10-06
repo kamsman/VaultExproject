@@ -30,6 +30,42 @@ interface OneInchApi {
         @Header("Authorization") authorization: String
     ): OneInchSpenderDto
 
+    /**
+     * Transaction D'AUTORISATION toute faite, pour un montant DONNÉ.
+     *
+     * `amount` est obligatoire ici alors que 1inch l'accepte absent — et
+     * son absence signifie « illimité ». L'autorisation illimitée est le
+     * défaut de l'industrie et c'est une erreur : elle laisse un contrat
+     * ponctionner le solde entier, pour toujours, longtemps après l'échange.
+     * On passe donc toujours le montant exact.
+     */
+    @GET("swap/v6.0/{chainId}/approve/transaction")
+    suspend fun transactionAutorisation(
+        @Path("chainId") chainId: Long,
+        @Query("tokenAddress") tokenAddress: String,
+        @Query("amount") amount: String,
+        @Header("Authorization") authorization: String
+    ): OneInchTxDto
+
+    /**
+     * Transaction D'ÉCHANGE toute faite.
+     *
+     * `slippage` borne la perte acceptable entre le devis et l'exécution :
+     * c'est lui qui devient le montant minimum de sortie inscrit DANS la
+     * transaction. Sans borne, n'importe qui pourrait se servir au passage.
+     */
+    @GET("swap/v6.0/{chainId}/swap")
+    suspend fun echange(
+        @Path("chainId") chainId: Long,
+        @Query("src") src: String,
+        @Query("dst") dst: String,
+        @Query("amount") amount: String,
+        @Query("from") from: String,
+        @Query("origin") origin: String,
+        @Query("slippage") slippage: Double,
+        @Header("Authorization") authorization: String
+    ): OneInchSwapDto
+
     @GET("swap/v6.0/{chainId}/quote")
     suspend fun quote(
         @Path("chainId") chainId: Long,
@@ -49,6 +85,26 @@ interface OneInchApi {
  * absent, sans aucune erreur — panne indiscernable de « paire non
  * supportée », et qu'on mettrait une semaine à voir.
  */
+/** Transaction prête à signer, telle que 1inch la rend. */
+data class OneInchTxDto(
+    val to: String? = null,
+    val data: String? = null,
+    val value: String? = null,
+    val gasPrice: String? = null,
+    val gas: Long? = null
+)
+
+/**
+ * Réponse de `swap` : la transaction, et le montant que 1inch s'engage à
+ * rendre. On relit `dstAmount` plutôt que de faire confiance au devis
+ * affiché : entre les deux appels, le prix a pu bouger.
+ */
+data class OneInchSwapDto(
+    val dstAmount: String? = null,
+    val toTokenAmount: String? = null,
+    val tx: OneInchTxDto? = null
+)
+
 /** Réponse de `approve/spender`. */
 data class OneInchSpenderDto(
     val address: String? = null

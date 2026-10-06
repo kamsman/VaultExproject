@@ -328,6 +328,22 @@ android {
         Cle gratuite sur https://portal.1inch.dev
         */
         buildConfigField("String", "ONEINCH_KEY",     "\"${secret("oneinch.key")}\"")
+        /*
+        PLAFOND D'ESSAI DE L'ECHANGE SUR PLACE, en unites de la monnaie
+        envoyee (2 = 2 USDT).
+
+        Ce chemin SIGNE et DEPENSE, et un appel de contrat rate ne se
+        rembourse pas — la ou un depot mal parti chez un courtier se
+        rattrape. Tant qu'il n'a pas tourne des dizaines de fois en
+        production, une erreur doit couter le prix d'un pain.
+
+        On le leve quand on a des raisons de le lever, pas quand on est
+        presse : echange.surplace.max dans local.properties.
+        */
+        buildConfigField(
+            "double", "ECHANGE_SUR_PLACE_MAX_USD",
+            localProps.getProperty("echange.surplace.max", "2.0")
+        )
         buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
         buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
         /*

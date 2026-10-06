@@ -1095,4 +1095,6 @@
     <string name="pi_solde_inconnu">Solde non lu : le réseau Pi n\'a pas répondu.</string>
     <string name="pi_adresse_neuve">Cette adresse est NEUVE et appartient à ton portefeuille VaultEx. Les Pi que tu as minés vivent sous la phrase de ton Pi Wallet : ils n\'apparaîtront ici qu\'une fois envoyés à cette adresse.</string>
     <string name="pi_pas_d_echange">Pi ne peut pas encore être échangé dans VaultEx : aucun échangeur n\'ouvre de paire.</string>
+    <string name="swap_sur_place_cta">Échanger sur place (essai)</string>
+    <string name="swap_sur_place_reussi">Échange diffusé · %1$s…</string>
 </resources>
