@@ -1378,6 +1378,9 @@ private fun networkLabel(symbol: String): String = when (symbol) {
     "BNB" -> "BNB Chain"
     "SOL" -> "Solana"
     "TRX" -> "Tron"
+    // Sans cette ligne, le repli ci-dessous rendait « PI » — soit le même
+    // mot que le symbole juste à gauche, écrit deux fois sur la même ligne.
+    "PI" -> "Pi Network"
     else -> symbol.substringBefore("-")
 }
 

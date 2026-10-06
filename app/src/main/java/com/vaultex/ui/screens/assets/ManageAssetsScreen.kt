@@ -223,5 +223,6 @@ private fun networkLabel(symbol: String): String = when (symbol) {
     "BNB" -> "BNB Chain"
     "SOL" -> "Solana"
     "TRX" -> "Tron"
+    "PI" -> "Pi Network"
     else -> symbol
 }

@@ -29,6 +29,6 @@ class AssetVisibilityController @Inject constructor(
 
     companion object {
         /** Toutes les monnaies supportées par l'app (ordre d'affichage). */
-        val SUPPORTED = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB")
+        val SUPPORTED = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB", "PI")
     }
 }

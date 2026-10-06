@@ -126,6 +126,7 @@ fun NetworkBadge(blockchain: Blockchain, modifier: Modifier = Modifier) {
         Blockchain.BNB_CHAIN -> NetworkBnb
         Blockchain.SOLANA -> NetworkSol
         Blockchain.TRON -> NetworkTrx
+        Blockchain.PI -> NetworkPi
     }
     Box(
         modifier = modifier
@@ -154,6 +155,7 @@ fun TokenIcon(
         Blockchain.BNB_CHAIN -> NetworkBnb
         Blockchain.SOLANA -> NetworkSol
         Blockchain.TRON -> NetworkTrx
+        Blockchain.PI -> NetworkPi
     }
     Box(
         modifier = Modifier

@@ -89,6 +89,7 @@ val NetworkEth = Color(0xFF627EEA)
 val NetworkBnb = Color(0xFFF0B90B)
 val NetworkSol = Color(0xFF9945FF)
 val NetworkTrx = Color(0xFFFF060A)
+val NetworkPi  = Color(0xFF7D4698)
 
 // ─── Schémas Material 3 dérivés des palettes ──────────────────
 internal val LightColorScheme = lightColorScheme(

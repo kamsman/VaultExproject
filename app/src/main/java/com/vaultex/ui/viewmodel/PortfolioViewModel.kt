@@ -101,6 +101,7 @@ class PortfolioViewModel @Inject constructor(
     private val pendingTxManager: com.vaultex.core.tx.PendingTxManager,
     private val pushRegistrar: com.vaultex.service.PushRegistrar,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
+    private val piCompte: com.vaultex.domain.pi.PiCompteService,
     private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
@@ -238,7 +239,12 @@ class PortfolioViewModel @Inject constructor(
          */
         private const val DELAI_RESCAN = 3 * 60 * 1000L
 
-        private val COIN_IDS = listOf("bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether")
+        private val COIN_IDS = listOf(
+            "bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether",
+            // Le Pi est listé à l'accueil comme les autres : il lui faut donc
+            // un cours dans le MÊME appel, pas un appel de plus.
+            "pi-network"
+        )
 
         /*
         ═══════════════════════════════════════════════════════════════════
@@ -514,10 +520,12 @@ class PortfolioViewModel @Inject constructor(
                     val usdtTrcD = async(Dispatchers.IO) { fetchUsdtTrc20Balance(addresses.trx) }
                     val usdtEthD = async(Dispatchers.IO) { fetchErc20Balance(ethRpc, USDT_ETH_CONTRACT, addresses.eth, 6) }
                     val usdtBnbD = async(Dispatchers.IO) { fetchErc20Balance(bnbRpc, USDT_BNB_CONTRACT, addresses.bnb, 18) }
+                    val piD      = async(Dispatchers.IO) { fetchPiBalance(addresses.pi) }
                     val btc = btcD.await(); val eth = ethD.await()
                     val bnb = bnbD.await(); val sol = solD.await()
                     val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
                     val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
+                    val pi = piD.await()
 
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun eur(id: String) = prices[id]?.eur ?: 0.0
@@ -602,6 +610,23 @@ class PortfolioViewModel @Inject constructor(
                         build("USDT",     "Tether TRC20", usdtTrc, 2, "USDT", "tether",      "#26A17B", Blockchain.TRON),
                         build("USDT-ETH", "Tether ERC20", usdtEth, 2, "USDT", "tether",      "#26A17B", Blockchain.ETHEREUM),
                         build("USDT-BNB", "Tether BEP20", usdtBnb, 2, "USDT", "tether",      "#26A17B", Blockchain.BNB_CHAIN),
+                        /*
+                        LE PI, EXACTEMENT COMME LES AUTRES — ET PAS DANS L'ÉCHANGE.
+
+                        Il passe par le même `build` que les huit autres : même
+                        cours, même contrevaleur en francs, même variation sur
+                        24 h, même prix collant quand la cotation échoue. C'est
+                        voulu : une monnaie listée à l'accueil doit s'y lire
+                        comme ses voisines, pas dans un format à part.
+
+                        L'échange reste fermé, et il le reste SANS aucune
+                        exception à écrire ici : le sélecteur d'échange lit son
+                        propre registre (SWAP_ASSETS), où le Pi ne figure pas.
+                        Les deux listes sont séparées depuis le début, et c'est
+                        précisément ce qui permet d'ajouter cette ligne sans
+                        ouvrir une route de signature qui n'existe pas encore.
+                        */
+                        build("PI",       "Pi Network",   pi,      4, "PI",   "pi-network",  "#7D4698", Blockchain.PI),
                     )
                 }
 
@@ -1099,6 +1124,38 @@ class PortfolioViewModel @Inject constructor(
         val account = tronApi.getAccount(address)
         (account.data.firstOrNull()?.balance ?: 0L) / 1_000_000.0
     } catch (_: Exception) { null }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SOLDE PI — ET POURQUOI « JAMAIS CRÉDITÉ » VAUT ZÉRO, PAS INCONNU
+    ═══════════════════════════════════════════════════════════════════════
+
+    PiCompteService distingue trois états, et cette distinction est la seule
+    raison pour laquelle on peut afficher cette ligne sans mentir :
+
+      Connu          → le montant réel.
+      JamaisCrédité  → ZÉRO. Sur un réseau de la famille Stellar, une
+                       adresse n'existe qu'à partir de son premier
+                       versement : Horizon répond 404, et c'est l'état
+                       normal d'une adresse neuve, pas une panne. Le solde
+                       est donc parfaitement connu — il vaut zéro.
+      Inconnu        → NULL. Horizon est injoignable. La convention du
+                       reste de ce fichier s'applique telle quelle : la
+                       ligne affiche « — », le dernier solde connu est
+                       réutilisé, et jamais un zéro inventé.
+
+    Les confondre coûterait cher dans les deux sens. Rendre null sur un 404
+    afficherait « — » en permanence à tous ceux qui n'ont pas encore reçu de
+    Pi — l'immense majorité. Rendre zéro sur une panne annoncerait un solde
+    vide à quelqu'un qui en a.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private suspend fun fetchPiBalance(address: String): Double? =
+        when (val solde = piCompte.solde(address)) {
+            is com.vaultex.domain.pi.SoldePi.Connu -> solde.montant
+            com.vaultex.domain.pi.SoldePi.JamaisCredite -> 0.0
+            com.vaultex.domain.pi.SoldePi.Inconnu -> null
+        }
 
     private suspend fun fetchUsdtTrc20Balance(address: String): Double? {
         return try {

@@ -61,6 +61,12 @@ les y aura pas envoyés. Taire ce point produirait exactement la plainte
 qu'on veut éviter — « VaultEx ne voit pas mes Pi ».
 ═══════════════════════════════════════════════════════════════════════════
 */
+/** Montant en francs, sans décimale : le franc CFA n'en a pas. */
+private fun fcfa(v: Double): String =
+    java.text.NumberFormat.getNumberInstance(
+        com.vaultex.core.session.LocaleManager.appLocale()
+    ).apply { maximumFractionDigits = 0 }.format(v)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PiScreen(navController: NavController) {
@@ -109,6 +115,29 @@ fun PiScreen(navController: NavController) {
                     },
                     fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                 )
+                /*
+                LA CONTREVALEUR, ET CE QU'ELLE N'EST PAS.
+
+                Le Pi s'échange à des prix sensiblement différents selon la
+                place — OKX, Gate et MEXC n'affichent pas le même. Ce chiffre
+                est une MOYENNE de marché : l'écrire sans le dire laisserait
+                croire qu'on obtiendra exactement cela en vendant, et la
+                déception serait pour le jour de la vente.
+
+                Le prix unitaire s'affiche même à solde nul : savoir ce que
+                vaut un Pi est utile avant d'en recevoir.
+                */
+                state.prixXof?.let { prix ->
+                    val montant = (state.solde as? SoldePi.Connu)?.montant ?: 0.0
+                    Text(
+                        stringResource(
+                            R.string.pi_contrevaleur,
+                            fcfa(montant * prix),
+                            fcfa(prix)
+                        ),
+                        fontSize = 12.sp, color = TextSecondary, textAlign = TextAlign.Center
+                    )
+                }
                 if (state.solde == SoldePi.Inconnu) {
                     Text(
                         stringResource(R.string.pi_solde_inconnu),

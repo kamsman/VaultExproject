@@ -267,6 +267,7 @@ internal fun chainKeyOf(b: Blockchain): String = when (b) {
     Blockchain.BNB_CHAIN -> "BNB"
     Blockchain.SOLANA -> "SOL"
     Blockchain.TRON -> "TRX"
+    Blockchain.PI -> "PI"
 }
 
 internal fun receiveCoinTitle(symbol: String, isCustom: Boolean, b: Blockchain): String = when {

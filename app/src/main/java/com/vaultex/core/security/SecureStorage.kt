@@ -324,8 +324,42 @@ class SecureStorage @Inject constructor(
     /** Monnaies activées (visibles) dans « Mes actifs ». Défaut : les principales. */
     fun getVisibleAssets(): Set<String> {
         val csv = prefs.getString(KEY_VISIBLE_ASSETS, null)
-        return if (csv == null) DEFAULT_VISIBLE_ASSETS
-        else csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        val enregistrees = if (csv == null) DEFAULT_VISIBLE_ASSETS
+            else csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        return avecNouveautes(enregistrees)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE MONNAIE AJOUTÉE À L'APPLICATION DOIT APPARAÎTRE CHEZ LES ANCIENS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le défaut ci-dessous ne sert QU'AUX INSTALLATIONS NEUVES : dès que
+    quelqu'un a touché une seule fois à la liste des actifs, la liste
+    enregistrée fait foi, et une monnaie ajoutée plus tard par une mise à
+    jour n'y figure pas. Elle resterait donc invisible exactement chez les
+    utilisateurs existants — ceux à qui on annonce la nouveauté.
+
+    On ne réécrit pas pour autant le choix de l'utilisateur. On ajoute la
+    monnaie UNE FOIS, on note qu'on l'a fait, et s'il la désactive, elle
+    reste désactivée : le drapeau empêche de la lui réimposer au
+    rafraîchissement suivant.
+    */
+    private fun avecNouveautes(enregistrees: Set<String>): Set<String> {
+        var courant = enregistrees
+        for (symbole in ACTIFS_INTRODUITS_APRES_COUP) {
+            val cle = "asset_introduced_$symbole"
+            if (prefs.getBoolean(cle, false)) continue
+            // La liste D'ABORD, le drapeau ENSUITE. Dans l'autre ordre, une
+            // application tuée entre les deux écritures laisserait le drapeau
+            // posé sans la monnaie : elle n'apparaîtrait plus jamais.
+            if (symbole !in courant) {
+                courant = courant + symbole
+                setVisibleAssets(courant)
+            }
+            prefs.edit().putBoolean(cle, true).apply()
+        }
+        return courant
     }
 
     fun setVisibleAssets(assets: Set<String>) {
@@ -526,6 +560,12 @@ class SecureStorage @Inject constructor(
         private const val KEY_ANTIPHISHING = "anti_phishing_code"
         private const val KEY_CURRENCY = "display_currency"
         private const val KEY_VISIBLE_ASSETS = "visible_assets"
-        val DEFAULT_VISIBLE_ASSETS = setOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT")
+        val DEFAULT_VISIBLE_ASSETS = setOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "PI")
+
+        /**
+         * Monnaies arrivées APRÈS la première version — à activer une fois
+         * chez les installations existantes. Voir [avecNouveautes].
+         */
+        private val ACTIFS_INTRODUITS_APRES_COUP = listOf("PI")
     }
 }

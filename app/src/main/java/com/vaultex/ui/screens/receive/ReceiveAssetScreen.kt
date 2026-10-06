@@ -318,6 +318,51 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                     }
                 }
 
+                /*
+                ═══════════════════════════════════════════════════════════
+                LA CONFUSION QUI COÛTERAIT LE PLUS CHER SUR LE PI
+                ═══════════════════════════════════════════════════════════
+
+                Quelqu'un qui mine du Pi depuis des années ouvre cet écran
+                et y voit une adresse Pi commençant par G, exactement comme
+                celle de son Pi Wallet. Rien ne distingue les deux à l'œil.
+
+                Or ce ne sont pas les mêmes : celle-ci est dérivée de la
+                phrase VaultEx, celle-là de la phrase du Pi Wallet. Ses Pi
+                minés n'apparaîtront JAMAIS ici tant qu'il ne les y aura pas
+                envoyés — et il peut passer des mois à rafraîchir un solde à
+                zéro en croyant l'application en panne.
+
+                C'est l'unique endroit où cette phrase arrive au bon moment :
+                sur l'écran qu'on regarde avant de faire venir ses fonds.
+                */
+                if (symbol.equals("PI", ignoreCase = true)) {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AccentBlue.copy(alpha = 0.06f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info, null,
+                                tint = AccentBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.pi_adresse_neuve),
+                                fontSize = 11.sp,
+                                color = TextSecondary.copy(alpha = 0.8f),
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+
                 if (symbol.equals("USDT", ignoreCase = true) && chainKey in listOf("TRX", "ETH")) {
                     Spacer(Modifier.height(6.dp))
                     Surface(
@@ -416,6 +461,7 @@ private fun receiveNetworkLong(symbol: String, chainKey: String): String = when 
     symbol == "BNB" -> "BNB Chain"
     symbol == "SOL" -> "Solana"
     symbol == "TRX" -> "Tron"
+    symbol == "PI" -> "Pi Network"
     chainKey == "BNB" -> "BNB Chain · BEP20"
     chainKey == "ETH" -> "Ethereum · ERC20"
     else -> chainKey

@@ -213,6 +213,30 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     }
                 }
 
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE PI SE REÇOIT ET SE LIT ; IL NE S'ENVOIE NI NE S'ÉCHANGE
+                ═══════════════════════════════════════════════════════════
+
+                Deux boutons sur quatre sont éteints sur cette fiche, pour
+                deux raisons qui n'ont rien à voir l'une avec l'autre :
+
+                ENVOYER, parce que signer une transaction Pi n'est pas
+                encore écrit. C'est une limite de VaultEx, et elle tombera.
+
+                ÉCHANGER, parce qu'aucun échangeur n'ouvre de paire sur le
+                Pi — seize paires fermées, et zéro actif émis sur la chaîne
+                Pi. Celle-là ne dépend pas de nous.
+
+                ON LES LAISSE VISIBLES, ÉTEINTS, AVEC LA RAISON ÉCRITE
+                juste en dessous. Les faire disparaître laisserait croire à
+                un écran inachevé, et un bouton qu'on peut presser pour
+                atterrir sur un refus est encore pire : il fait perdre
+                trois écrans avant de dire non.
+                ═══════════════════════════════════════════════════════════
+                */
+                val estPi = symbol.uppercase() == "PI"
+
                 // Action buttons row 1
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -223,6 +247,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                             com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
                             navController.navigate(Routes.SEND)
                         },
+                        enabled = !estPi,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
@@ -255,6 +280,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                             com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
                             navController.navigate(Routes.SWAP)
                         },
+                        enabled = !estPi,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -271,6 +297,30 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.history_title))
                     }
+                }
+
+                if (estPi) {
+                    /*
+                    LE COURS AFFICHÉ EN HAUT DE CETTE FICHE EST UNE MOYENNE,
+                    et il faut le dire ici.
+
+                    Pour BTC ou ETH, l'écart entre plateformes se compte en
+                    fractions de pour cent : la moyenne EST le prix, et
+                    personne n'a besoin qu'on le précise. Le Pi, non — il se
+                    négocie à des prix sensiblement différents sur OKX, Gate
+                    et MEXC.
+
+                    Quelqu'un qui lit ce chiffre et croit obtenir exactement
+                    cela en vendant se trompera, et il s'en apercevra au
+                    moment le plus coûteux. Une ligne de texte évite cela.
+                    */
+                    Text(
+                        stringResource(R.string.pi_prix_moyenne) + "\n" +
+                            stringResource(R.string.pi_fiche_limites),
+                        fontSize = 12.sp,
+                        color = VaultExColors.TextSecondary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))

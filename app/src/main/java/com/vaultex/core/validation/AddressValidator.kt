@@ -10,6 +10,22 @@ object AddressValidator {
         "BTC"        -> isValidBtc(address)
         "TRX", "USDT" -> isValidTron(address)
         "SOL"        -> isValidSolana(address)
+        /*
+        Le Pi a sa propre somme de contrôle, et il faut la lui appliquer.
+
+        Sans cette branche, « PI » tombait sur la règle par défaut
+        ci-dessous — longueur supérieure à 26 — qui accepte à peu près
+        n'importe quoi, y compris une adresse Pi dont un caractère a été
+        mal recopié. PiWallet.adresseValide vérifie, elle, le préfixe, la
+        longueur exacte et le CRC16 : c'est le seul contrôle capable de
+        refuser une faute de frappe.
+
+        Rien ne s'envoie encore en Pi, donc ce code n'est pas sur un chemin
+        d'argent aujourd'hui. Il y sera à l'étape suivante, et il valait
+        mieux l'écrire maintenant qu'au moment où une transaction en
+        dépendra.
+        */
+        "PI"         -> com.vaultex.core.crypto.PiWallet.adresseValide(address)
         else         -> address.length >= 26
     }
 

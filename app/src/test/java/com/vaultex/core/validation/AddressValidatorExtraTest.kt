@@ -72,4 +72,29 @@ class AddressValidatorExtraTest {
         assertTrue(AddressValidator.isValid("a".repeat(26), "UNKNOWN"))
         assertFalse(AddressValidator.isValid("court", "UNKNOWN"))
     }
+
+    /*
+    ─── LE PI NE DOIT PAS TOMBER SUR LE REPLI DE LONGUEUR ─────────────────
+
+    C'est précisément ce que faisait le test juste au-dessus pour « PI » :
+    il acceptait toute chaîne de 26 caractères ou plus, donc aussi une
+    adresse Pi dont un caractère a été mal recopié. Ces deux tests
+    verrouillent la différence.
+    */
+    @Test
+    fun `isValid route PI vers la somme de controle Pi`() {
+        val adresse = com.vaultex.core.crypto.PiWallet.deriveAddress(ByteArray(64) { it.toByte() })
+        assertTrue(AddressValidator.isValid(adresse, "PI"))
+    }
+
+    @Test
+    fun `isValid PI refuse une adresse falsifiee que le repli accepterait`() {
+        val adresse = com.vaultex.core.crypto.PiWallet.deriveAddress(ByteArray(64) { it.toByte() })
+        val remplacant = if (adresse[20] == 'A') 'B' else 'A'
+        val falsifiee = adresse.substring(0, 20) + remplacant + adresse.substring(21)
+
+        // Le repli de longueur l'accepterait : elle fait toujours 56 caractères.
+        assertTrue(falsifiee.length >= 26)
+        assertFalse(AddressValidator.isValid(falsifiee, "PI"))
+    }
 }
