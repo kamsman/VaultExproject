@@ -221,9 +221,10 @@ fi
 echo
 if [ "$trouve" = "1" ]; then
   echo "  >>> UNE PAIRE EST OUVERTE. L'integration Pi redevient utile."
-  echo "      La derivation de cles et l'adresse sont deja ecrites et"
-  echo "      verifiees : voir PiWallet.kt. Restent le solde (API Horizon)"
-  echo "      et la signature de transactions (XDR)."
+  echo "      RIEN n'est ecrit cote Pi dans l'application : ni derivation"
+  echo "      de cles, ni adresse, ni solde. Compter une dizaine de jours"
+  echo "      — derivation Ed25519, adresse StrKey, solde via Horizon, et"
+  echo "      la signature de transactions en XDR."
 else
   echo "  >>> Toujours aucune paire, et rien a echanger sur la chaine Pi."
   echo "      Ne rien integrer. La reponse a donner aux utilisateurs reste"

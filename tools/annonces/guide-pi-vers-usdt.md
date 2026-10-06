@@ -95,7 +95,9 @@ Pi Wallet. Cela ne dépend ni de VaultEx ni d'OKX.
 raison — VaultEx affiche le coût réel de chaque opération avant qu'on valide,
 et c'est ce chiffre-là qui fait foi.
 
-**Le jour où une paire PI s'ouvrira chez SimpleSwap**, l'échange direct
+**Le jour où une paire PI s'ouvrira chez un échangeur**, l'échange direct
 deviendra possible dans VaultEx et ce guide n'aura plus lieu d'être. La
-vérification tient en une commande, et la dérivation de clés Pi est déjà
-écrite dans le dépôt — voir `PiWallet.kt`.
+vérification tient en une commande : `./tools/pi-disponible.sh`.
+
+Rien n'est écrit côté Pi dans l'application — ni dérivation de clés, ni
+adresse, ni solde. Tout reste à faire le jour où ça vaudra la peine.

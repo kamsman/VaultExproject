@@ -1061,4 +1061,9 @@
     <string name="alerts_check_now">تحقّق الآن</string>
     <string name="alerts_checking">جارٍ التحقق من تنبيهاتك…</string>
     <string name="swap_autorisation_requise">سيُطلب تفويض لمرة واحدة قبل أول تبادل لهذه العملة.</string>
+    <string name="pi_title">Pi Network</string>
+    <string name="pi_adresse_indisponible">عنوان Pi غير متاح. أعد فتح التطبيق وحاول مجددًا.</string>
+    <string name="pi_solde_inconnu">تعذّرت قراءة الرصيد: لم تستجب شبكة Pi.</string>
+    <string name="pi_adresse_neuve">هذا العنوان جديد ويخص محفظة VaultEx الخاصة بك. أما Pi التي عدّنتها فتوجد تحت عبارة محفظة Pi: لن تظهر هنا إلا بعد إرسالها إلى هذا العنوان.</string>
+    <string name="pi_pas_d_echange">لا يمكن تبادل Pi في VaultEx بعد: لا يوجد وسيط يفتح أي زوج.</string>
 </resources>
