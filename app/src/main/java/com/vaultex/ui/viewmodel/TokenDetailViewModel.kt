@@ -84,7 +84,8 @@ class TokenDetailViewModel @Inject constructor(
         "USDT" to "Tether TRC20", "USDT-ETH" to "Tether ERC20", "USDT-BNB" to "Tether BEP20",
         "USDC" to "USD Coin", "DAI" to "Dai", "LINK" to "Chainlink",
         "SHIB" to "Shiba Inu", "PEPE" to "Pepe", "UNI" to "Uniswap",
-        "AAVE" to "Aave", "WBTC" to "Wrapped Bitcoin", "CAKE" to "PancakeSwap"
+        "AAVE" to "Aave", "WBTC" to "Wrapped Bitcoin", "CAKE" to "PancakeSwap",
+        "PI" to "Pi Network"
     )
 
     init {
@@ -147,6 +148,29 @@ class TokenDetailViewModel @Inject constructor(
                         "BNB", "USDT-BNB" -> a.bnb
                         "SOL" -> a.sol
                         "TRX", "USDT" -> a.trx
+                        /*
+                        ═══════════════════════════════════════════════════
+                        SANS CETTE LIGNE, LA FICHE PI AFFICHAIT UNE ADRESSE
+                        ETHEREUM
+                        ═══════════════════════════════════════════════════
+
+                        Le `else` ci-dessous rend l'adresse EVM, et c'est un
+                        choix raisonnable pour un jeton importé — ils vivent
+                        tous sur une chaîne EVM. Le Pi, non.
+
+                        « PI » y serait donc tombé, et l'écran aurait écrit
+                        « Adresse PI » au-dessus d'un 0x… parfaitement
+                        valide — pour une autre chaîne. Quelqu'un le copie,
+                        y envoie ses Pi depuis OKX, et les perd : il n'y a
+                        aucune façon de récupérer des Pi envoyés à une
+                        adresse Ethereum.
+
+                        Un `else` qui devine est sûr tant que toutes les
+                        chaînes se ressemblent. Le jour où l'une d'elles ne
+                        ressemble pas aux autres, il devient un piège.
+                        ═══════════════════════════════════════════════════
+                        */
+                        "PI" -> a.pi
                         else -> a.eth
                     }
                 }

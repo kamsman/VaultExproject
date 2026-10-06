@@ -1069,4 +1069,6 @@
     <string name="swap_sur_place_cta">Swap on-chain (trial)</string>
     <string name="swap_sur_place_reussi">Swap broadcast · %1$s…</string>
     <string name="pi_contrevaleur">≈ %1$s FCFA · 1 Pi ≈ %2$s FCFA (market average, varies by platform)</string>
+    <string name="pi_fiche_limites">For now, Pi can only be received. Sending is coming soon. Swapping stays closed: no exchanger opens a Pi pair.</string>
+    <string name="pi_prix_moyenne">Market average price. Pi trades at different prices depending on the platform.</string>
 </resources>

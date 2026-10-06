@@ -61,7 +61,17 @@ object CoinIds {
         "UNI" to "uniswap",
         "AAVE" to "aave",
         "WBTC" to "wrapped-bitcoin",
-        "CAKE" to "pancakeswap-token"
+        "CAKE" to "pancakeswap-token",
+        /*
+        Le Pi. Vérifié sur l'écran Pi avant d'arriver ici : c'est cet
+        identifiant qui en affiche la contrevaleur en francs.
+
+        Volontairement ABSENT d'[ALERTABLE] : une alerte de prix n'a de sens
+        que si l'on peut agir dessus, et le Pi ne s'échange pas encore dans
+        l'application. Prévenir d'une hausse sans offrir le moindre moyen
+        d'en profiter serait une notification pour rien.
+        */
+        "PI" to "pi-network"
     )
 
     /**

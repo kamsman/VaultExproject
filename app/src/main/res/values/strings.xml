@@ -1098,4 +1098,6 @@
     <string name="swap_sur_place_cta">Échanger sur place (essai)</string>
     <string name="swap_sur_place_reussi">Échange diffusé · %1$s…</string>
     <string name="pi_contrevaleur">≈ %1$s FCFA · 1 Pi ≈ %2$s FCFA (moyenne de marché, variable selon la plateforme)</string>
+    <string name="pi_fiche_limites">Pour le moment, le Pi se reçoit seulement. L\'envoi arrive bientôt. L\'échange reste fermé : aucun échangeur n\'ouvre de paire sur le Pi.</string>
+    <string name="pi_prix_moyenne">Prix moyen du marché. Le Pi se négocie à des prix différents selon la plateforme.</string>
 </resources>

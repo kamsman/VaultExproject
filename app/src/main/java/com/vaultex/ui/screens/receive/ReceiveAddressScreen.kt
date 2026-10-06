@@ -68,6 +68,7 @@ fun ReceiveAddressScreen(
         "BNB" -> "BNB Chain"
         "TRX" -> "Tron"
         "SOL" -> "Solana"
+        "PI" -> "Pi Network"
         else -> blockchain
     }
     val networkColor = when (chainKey) {
@@ -76,6 +77,7 @@ fun ReceiveAddressScreen(
         "BNB" -> NetworkBnb
         "TRX" -> NetworkTrx
         "SOL" -> NetworkSol
+        "PI" -> com.vaultex.ui.theme.NetworkPi
         else -> AccentBlue
     }
 

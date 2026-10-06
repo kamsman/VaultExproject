@@ -81,7 +81,24 @@ fun SendSelectScreen(navController: NavController) {
     )
 
     val assets = remember(state.tokens, currency) {
-        state.tokens.map { t ->
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE PI N'EST PAS PROPOSÉ À L'ENVOI, ET C'EST UN REFUS ASSUMÉ
+        ═══════════════════════════════════════════════════════════════════
+
+        Il est listé à l'accueil, il se reçoit, son cours s'affiche. Mais
+        l'envoyer demande de SIGNER une transaction Pi, et ce code n'existe
+        pas encore : PiWallet sait dériver une adresse, rien de plus.
+
+        Le laisser dans cette liste serait le pire des deux mondes.
+        SendCryptoUseCase retombe bien sur « chaîne non supportée » — rien
+        ne partirait dans le vide — mais l'utilisateur aurait choisi sa
+        monnaie, saisi une adresse, tapé un montant, et découvert le refus
+        au dernier écran. Un geste proposé doit aboutir ; celui-ci ne peut
+        pas, donc on ne le propose pas.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        state.tokens.filter { it.blockchain != Blockchain.PI }.map { t ->
             val value = when (currency) { "EUR" -> t.valueEur; "XOF" -> t.valueXof; else -> t.valueUsd }
             SendAsset(
                 symbol = t.symbol,
@@ -265,6 +282,7 @@ private fun sendChainKey(b: Blockchain): String = when (b) {
     Blockchain.BNB_CHAIN -> "BNB"
     Blockchain.SOLANA -> "SOL"
     Blockchain.TRON -> "TRX"
+    Blockchain.PI -> "PI"
 }
 
 private fun networkTicker(key: String): String = when (key) {

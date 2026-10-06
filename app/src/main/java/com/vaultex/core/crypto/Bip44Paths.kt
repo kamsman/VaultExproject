@@ -38,7 +38,32 @@ enum class Blockchain(
     ETHEREUM("Ethereum", "ETH", 60, 18, "https://etherscan.io/tx/"),
     BNB_CHAIN("BNB Smart Chain", "BNB", 60, 18, "https://bscscan.com/tx/"),
     SOLANA("Solana", "SOL", 501, 9, "https://solscan.io/tx/"),
-    TRON("Tron", "TRX", 195, 6, "https://tronscan.org/#/transaction/");
+    TRON("Tron", "TRX", 195, 6, "https://tronscan.org/#/transaction/"),
+
+    /*
+    ─── LE PI SE LIT, IL NE S'ENVOIE PAS ENCORE ───────────────────────────
+
+    Cette entrée existe pour que le Pi puisse PORTER un solde et un cours à
+    l'accueil, comme les autres monnaies. Elle n'ouvre aucun chemin de
+    signature : PiWallet ne sait dériver qu'une adresse, et c'est tout ce
+    dont une réception a besoin.
+
+    L'ajouter ici a un effet voulu : le compilateur réclame maintenant une
+    branche « PI » dans chaque `when (blockchain)` exhaustif de
+    l'application. C'est exactement la garantie qu'on cherche — aucun écran
+    ne peut traiter le Pi par défaut sans qu'on l'ait décidé.
+
+    SEPT DÉCIMALES, pas dix-huit : le Pi est un réseau de la famille
+    Stellar, et c'est la précision de cette famille. La prendre pour celle
+    d'une chaîne EVM décalerait tout montant d'un facteur de onze chiffres.
+
+    L'ADRESSE D'EXPLORATEUR N'EST PAS ENCORE VÉRIFIÉE, et rien ne la lit :
+    aucun code de ce dépôt ne consulte `explorerUrl` aujourd'hui. Elle ne
+    servira qu'au moment où une transaction Pi figurera dans l'historique —
+    donc à l'étape de l'envoi. À confirmer sur appareil à ce moment-là,
+    plutôt que de laisser croire qu'elle l'a déjà été.
+    */
+    PI("Pi Network", "PI", 314159, 7, "https://blockexplorer.minepi.com/mainnet/transactions/");
 
     fun isEvm(): Boolean = this == ETHEREUM || this == BNB_CHAIN
 }

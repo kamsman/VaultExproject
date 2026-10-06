@@ -34,7 +34,19 @@ class ReceiveViewModel @Inject constructor(
                     "ETH" to derived.eth,
                     "BNB" to derived.bnb,
                     "SOL" to derived.sol,
-                    "TRX" to derived.trx
+                    "TRX" to derived.trx,
+                    /*
+                    Le Pi est ici alors qu'il n'est PAS dans l'écran Envoyer,
+                    et ce déséquilibre est volontaire : recevoir ne demande
+                    qu'une adresse, envoyer demande une signature. PiWallet
+                    sait faire la première, pas encore la seconde.
+
+                    Proposer la réception avant l'envoi n'est donc pas une
+                    demi-mesure — c'est tout ce qu'une adresse permet, et
+                    c'est déjà ce dont quelqu'un a besoin pour faire venir
+                    ses Pi dans VaultEx.
+                    */
+                    "PI" to derived.pi
                 )
             }
             _state.update { it.copy(addresses = addresses, isLoading = false) }
