@@ -2,116 +2,107 @@ package com.vaultex.core.crypto
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
-PI NETWORK — DÉRIVATION DE CLÉS ET ADRESSE
+PI NETWORK — L'ADRESSE, ÉTAPE A
 ═══════════════════════════════════════════════════════════════════════════
 
-Pi Network est un dérivé de Stellar : mêmes clés Ed25519, même format
-d'adresse (StrKey, « G… »), même famille de transactions. Tout ce qui suit
-vaut donc aussi pour Stellar, au numéro de chaîne près.
+Pi est un dérivé de Stellar : mêmes clés Ed25519, même format d'adresse —
+une chaîne base32 de 56 caractères commençant par G.
 
-CE QUE CE FICHIER FAIT, ET CE QU'IL NE FAIT PAS. Il dérive une adresse et sa
-clé privée, rien d'autre. Lire un solde, construire et signer une
-transaction viendront après — et séparément, parce qu'une erreur ici rendrait
-tout le reste faux sans qu'on le voie : une adresse mal calculée reçoit
-parfaitement des fonds, et personne ne peut plus jamais les en sortir.
+L'adresse est dérivée de la phrase VaultEx EXISTANTE. L'utilisateur n'a
+aucune seconde phrase à saisir, et l'application ne détient aucun secret de
+plus. En contrepartie, cette adresse démarre VIDE : les Pi déjà minés vivent
+sous la phrase du Pi Wallet, qui est une autre phrase. Pour s'en servir, il
+faut s'y envoyer ses Pi depuis le Pi Wallet.
 
-C'EST POURQUOI IL N'EST ENCORE BRANCHÉ NULLE PART. Tant que l'adresse
-produite n'a pas été comparée à celle qu'affiche le portefeuille Pi officiel
-pour la même phrase, cette fonction ne doit apparaître sur aucun écran. Voir
-la section « VÉRIFIER AVANT DE BRANCHER » en bas.
+─── TROIS CHOSES QUI NE PARDONNENT PAS ──────────────────────────────────
 
-───────────────────────────────────────────────────────────────────────────
-L'ADRESSE DÉRIVÉE ICI EST UN PORTEFEUILLE PI NEUF, ET VIDE
-───────────────────────────────────────────────────────────────────────────
+LE TYPE DE PIÈCE EST 314159, et le chemin n'a que TROIS niveaux, tous
+durcis : m/44'/314159'/0'. Pas de /0/0 à la fin comme pour Ethereum, pas de
+quatrième niveau comme pour Solana. Un chemin faux ne lève aucune erreur —
+il produit une adresse parfaitement valide, simplement différente. Des fonds
+envoyés dessus seraient inatteignables depuis le Pi Wallet, et personne ne
+comprendrait pourquoi.
 
-Elle vient des douze mots de VaultEx. Le Pi qu'un utilisateur a miné vit
-dans SON portefeuille Pi, protégé par vingt-quatre mots qui ne sont pas
-ceux-là — et qu'on ne lui demandera jamais.
+LA SOMME DE CONTRÔLE EST UN CRC16-XMODEM, ÉCRIT EN PETIT-BOUTISME. Deux
+octets, inversés par rapport à l'ordre naturel. Les inverser donne une
+adresse que tous les logiciels refuseront — ce qui est le bon échec, visible
+tout de suite.
 
-VaultEx n'est donc pas « là où est son Pi » mais « là où il l'envoie pour
-l'échanger ». C'est une différence qu'il faudra écrire à l'écran : quelqu'un
-qui ouvre l'onglet Pi en s'attendant à voir son solde de minage verrait zéro,
-et en conclurait que l'application a perdu ses fonds.
+LE BASE32 EST CELUI DE LA RFC 4648, SANS REMPLISSAGE. Pas de base64, pas de
+base58 comme Solana — la même famille, un alphabet différent.
+
+─── CE QUE CE FICHIER NE FAIT PAS ───────────────────────────────────────
+
+Il ne signe rien. Il dérive une clé, en tire une adresse, et sait dire si une
+adresse est valide. La signature de transactions appartient à l'étape B.
+═══════════════════════════════════════════════════════════════════════════
 */
 object PiWallet {
 
-    /*
-    LE NUMÉRO DE CHAÎNE EST 314159, ET CE N'EST PAS UNE COQUETTERIE.
+    /** Type de pièce Pi Network, enregistré au SLIP-0044. */
+    private const val COIN_TYPE = 314159
 
-    C'est ce que Pi a enregistré comme coin type SLIP-0044 — les six
-    premières décimales de π. Stellar, lui, utilise 148.
-
-    Se tromper de numéro ne lève AUCUNE erreur : on obtient simplement une
-    autre adresse, parfaitement valide, dont personne ne détient la clé chez
-    Pi. Les fonds envoyés dessus seraient perdus sans le moindre message.
-    */
-    private const val COIN_TYPE_PI = 314159
-
-    /** Version StrKey d'une clé publique de compte : 6 << 3, ce qui donne « G ». */
+    /** Octet de version d'une adresse de compte : 6 << 3, qui donne « G ». */
     private const val VERSION_COMPTE: Byte = 0x30
 
+    private const val ALPHABET_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
     /**
-     * Chemin SEP-0005 : m/44'/314159'/0'
+     * Adresse Pi dérivée de [seed], la même graine BIP-39 que le reste du
+     * portefeuille.
      *
-     * Trois niveaux, tous durcis — c'est la convention Stellar, et elle
-     * diffère de Solana (quatre niveaux) comme d'Ethereum (cinq, dont deux
-     * non durcis). Reprendre le chemin d'une autre chaîne produirait là
-     * encore une adresse valide et inaccessible.
+     * Chemin m/44'/314159'/0' — trois niveaux, tous durcis.
      */
-    private fun chemin(compte: Int = 0) = intArrayOf(
-        44 or Int.MIN_VALUE,
-        COIN_TYPE_PI or Int.MIN_VALUE,
-        compte or Int.MIN_VALUE
-    )
-
-    /** Clé privée Ed25519 (32 octets) du compte Pi [compte] de cette graine. */
-    fun clePrivee(seed: ByteArray, compte: Int = 0): ByteArray =
-        Slip10.deriveEd25519Key(seed, chemin(compte)).privateKey
-
-    /** Adresse Pi publique, au format StrKey — 56 caractères commençant par G. */
-    fun adresse(seed: ByteArray, compte: Int = 0): String =
-        adresseDepuisClePublique(Ed25519Utils.publicKeyFromPrivate(clePrivee(seed, compte)))
-
-    /** Encode une clé publique Ed25519 de 32 octets en adresse « G… ». */
-    fun adresseDepuisClePublique(clePublique: ByteArray): String {
-        require(clePublique.size == 32) { "Clé publique Ed25519 attendue : 32 octets" }
-        val charge = ByteArray(1 + 32) { i -> if (i == 0) VERSION_COMPTE else clePublique[i - 1] }
-        val somme = crc16XModem(charge)
-        // La somme de contrôle est écrite en petit-boutiste : c'est ce que
-        // spécifie Stellar, et l'inverser produirait une adresse que tous les
-        // portefeuilles refuseraient — défaut au moins visible, contrairement
-        // aux précédents.
-        val complet = charge + byteArrayOf((somme and 0xFF).toByte(), ((somme shr 8) and 0xFF).toByte())
-        return base32(complet)
+    fun deriveAddress(seed: ByteArray): String {
+        val chemin = intArrayOf(
+            44 or Int.MIN_VALUE,
+            COIN_TYPE or Int.MIN_VALUE,
+            0 or Int.MIN_VALUE
+        )
+        val derivee = Slip10.deriveEd25519Key(seed, chemin)
+        return encoderStrKey(Ed25519Utils.publicKeyFromPrivate(derivee.privateKey))
     }
 
     /**
-     * Vrai si [adresse] a la forme d'une adresse Pi/Stellar valide.
+     * Vrai si [adresse] est une adresse de compte Pi syntaxiquement valide,
+     * somme de contrôle comprise.
      *
-     * Contrôle la longueur, l'alphabet, le préfixe ET la somme de contrôle.
-     * Cette dernière est l'essentiel : elle attrape la faute de frappe et le
-     * caractère manquant, qui sinon enverraient les fonds dans le vide.
+     * Vérifier la somme de contrôle et pas seulement la forme : une adresse
+     * copiée avec un caractère en moins passerait le contrôle de longueur et
+     * de préfixe, et les fonds partiraient dans le vide.
      */
     fun adresseValide(adresse: String): Boolean {
-        val a = adresse.trim().uppercase()
-        if (a.length != 56 || !a.startsWith("G")) return false
-        val octets = base32Decode(a) ?: return false
-        if (octets.size != 35 || octets[0] != VERSION_COMPTE) return false
-        val attendue = crc16XModem(octets.copyOfRange(0, 33))
-        val lue = (octets[33].toInt() and 0xFF) or ((octets[34].toInt() and 0xFF) shl 8)
-        return attendue == lue
+        val brut = try { decoderBase32(adresse.trim()) } catch (_: Exception) { return false }
+        if (brut.size != 35) return false                 // 1 version + 32 clé + 2 contrôle
+        if (brut[0] != VERSION_COMPTE) return false
+        val charge = brut.copyOfRange(0, 33)
+        val attendu = crc16XModem(charge)
+        // Petit-boutisme : l'octet de poids faible en premier.
+        val lu = ((brut[34].toInt() and 0xFF) shl 8) or (brut[33].toInt() and 0xFF)
+        return lu == attendu
+    }
+
+    private fun encoderStrKey(clePublique: ByteArray): String {
+        require(clePublique.size == 32) { "clé Ed25519 attendue sur 32 octets" }
+        val charge = ByteArray(33)
+        charge[0] = VERSION_COMPTE
+        System.arraycopy(clePublique, 0, charge, 1, 32)
+        val somme = crc16XModem(charge)
+        val complet = ByteArray(35)
+        System.arraycopy(charge, 0, complet, 0, 33)
+        complet[33] = (somme and 0xFF).toByte()          // faible d'abord
+        complet[34] = ((somme shr 8) and 0xFF).toByte()
+        return encoderBase32(complet)
     }
 
     /*
-    ───────────────────────────────────────────────────────────────────────
-    CRC-16/XMODEM — la somme de contrôle des adresses Stellar
-    ───────────────────────────────────────────────────────────────────────
-    Polynôme 0x1021, registre initial 0, sans réflexion ni XOR final. C'est
-    la variante exacte retenue par Stellar ; les autres CRC-16 (MODBUS, CCITT
-    « FALSE », ARC) donnent des résultats différents sur les mêmes octets.
+    CRC16-XMODEM : polynôme 0x1021, registre initial à zéro, sans inversion
+    finale. C'est la variante exacte de Stellar — une autre variante de CRC16
+    produirait une adresse refusée partout, ce qui est préférable à une
+    adresse acceptée et fausse.
     */
     private fun crc16XModem(donnees: ByteArray): Int {
-        var crc = 0
+        var crc = 0x0000
         for (octet in donnees) {
             crc = crc xor ((octet.toInt() and 0xFF) shl 8)
             repeat(8) {
@@ -122,43 +113,34 @@ object PiWallet {
         return crc
     }
 
-    /*
-    ───────────────────────────────────────────────────────────────────────
-    BASE32 (RFC 4648) — sans remplissage
-    ───────────────────────────────────────────────────────────────────────
-    Android n'en fournit pas : android.util.Base64 est du base64, et aucune
-    dépendance du projet ne l'expose. Trente lignes valent mieux qu'une
-    bibliothèque de plus dans un APK qu'on veut petit.
-
-    Trente-cinq octets donnent exactement 56 caractères, sans reste : aucun
-    « = » de remplissage n'apparaît jamais sur une adresse.
-    */
-    private const val ALPHABET32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-
-    private fun base32(donnees: ByteArray): String {
-        val sb = StringBuilder()
+    /** Base32 RFC 4648, sans caractère de remplissage. */
+    private fun encoderBase32(donnees: ByteArray): String {
+        val sortie = StringBuilder()
         var tampon = 0
         var bits = 0
         for (octet in donnees) {
             tampon = (tampon shl 8) or (octet.toInt() and 0xFF)
             bits += 8
             while (bits >= 5) {
-                sb.append(ALPHABET32[(tampon shr (bits - 5)) and 0x1F])
+                sortie.append(ALPHABET_BASE32[(tampon shr (bits - 5)) and 0x1F])
                 bits -= 5
             }
         }
-        if (bits > 0) sb.append(ALPHABET32[(tampon shl (5 - bits)) and 0x1F])
-        return sb.toString()
+        // Les bits restants sont complétés par des zéros à droite : 35 octets
+        // font 280 bits, exactement 56 caractères, donc ce cas ne survient pas
+        // ici — il est traité pour que la fonction reste correcte seule.
+        if (bits > 0) sortie.append(ALPHABET_BASE32[(tampon shl (5 - bits)) and 0x1F])
+        return sortie.toString()
     }
 
-    private fun base32Decode(texte: String): ByteArray? {
+    private fun decoderBase32(texte: String): ByteArray {
         val sortie = java.io.ByteArrayOutputStream()
         var tampon = 0
         var bits = 0
         for (c in texte) {
-            val v = ALPHABET32.indexOf(c)
-            if (v < 0) return null
-            tampon = (tampon shl 5) or v
+            val valeur = ALPHABET_BASE32.indexOf(c)
+            if (valeur < 0) throw IllegalArgumentException("caractère hors alphabet base32")
+            tampon = (tampon shl 5) or valeur
             bits += 5
             if (bits >= 8) {
                 sortie.write((tampon shr (bits - 8)) and 0xFF)
@@ -167,30 +149,4 @@ object PiWallet {
         }
         return sortie.toByteArray()
     }
-
-    /*
-    ═══════════════════════════════════════════════════════════════════════
-    VÉRIFIER AVANT DE BRANCHER
-    ═══════════════════════════════════════════════════════════════════════
-
-    Une adresse fausse ne se voit pas : elle a la bonne forme, elle passe
-    tous les contrôles, elle reçoit des fonds — et personne ne peut plus les
-    en sortir. Aucun écran ne doit donc afficher cette adresse avant le
-    contrôle ci-dessous.
-
-    LE CONTRÔLE. Prendre une phrase de récupération Pi CONNUE — une phrase de
-    test, jamais celle d'un portefeuille qui contient quelque chose — la
-    passer à BIP-39 pour obtenir une graine, appeler `adresse(graine)`, et
-    comparer au « G… » qu'affiche le portefeuille Pi officiel pour cette même
-    phrase.
-
-    Identiques : la dérivation, le chemin, l'encodage et la somme de contrôle
-    sont tous justes d'un coup. Différents : ne rien brancher, et chercher
-    lequel des quatre est en cause — le chemin et le numéro de chaîne sont
-    les suspects habituels.
-
-    CE CONTRÔLE VAUT AUSSI POUR STELLAR, à ceci près qu'il faut y remplacer
-    314159 par 148. Un portefeuille Stellar est plus facile à créer pour un
-    test, et valide tout sauf le numéro de chaîne.
-    */
 }
