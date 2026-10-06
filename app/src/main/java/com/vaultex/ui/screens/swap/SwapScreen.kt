@@ -986,6 +986,30 @@ private fun SwapFormScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = SwapGreen
                             )
+                            /*
+                            ─── ÉTAPE 2a : CE QU'IL FAUDRAIT AUTORISER ────
+
+                            Un jeton ne se dépense pas tout seul : le routeur
+                            doit d'abord être autorisé à en prélever, par une
+                            transaction DISTINCTE de l'échange.
+
+                            La ligne est informative, et c'est tout ce
+                            qu'elle sait faire aujourd'hui : rien ne signe.
+                            Elle existe pour qu'on vérifie, avant d'écrire la
+                            signature, que l'adresse du routeur et la lecture
+                            de l'allocation sont justes.
+
+                            Elle se taira d'elle-même quand l'autorisation
+                            sera en place — une seule fois par jeton, jamais
+                            redemandée ensuite.
+                            */
+                            if (state.autorisationRequise == true) {
+                                Text(
+                                    stringResource(com.vaultex.R.string.swap_autorisation_requise),
+                                    fontSize = 11.sp,
+                                    color = swapTextDim
+                                )
+                            }
                         }
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = swapTextFaint, modifier = Modifier.size(18.dp))

@@ -1060,4 +1060,5 @@
     <string name="alerts_action_none">أخبرني فقط</string>
     <string name="alerts_check_now">تحقّق الآن</string>
     <string name="alerts_checking">جارٍ التحقق من تنبيهاتك…</string>
+    <string name="swap_autorisation_requise">سيُطلب تفويض لمرة واحدة قبل أول تبادل لهذه العملة.</string>
 </resources>
