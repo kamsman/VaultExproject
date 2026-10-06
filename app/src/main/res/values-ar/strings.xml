@@ -1068,4 +1068,5 @@
     <string name="pi_pas_d_echange">لا يمكن تبادل Pi في VaultEx بعد: لا يوجد وسيط يفتح أي زوج.</string>
     <string name="swap_sur_place_cta">تبادل مباشر (تجريبي)</string>
     <string name="swap_sur_place_reussi">تم بث التبادل · %1$s…</string>
+    <string name="pi_contrevaleur">≈ %1$s فرنك · 1 Pi ≈ %2$s فرنك (متوسط السوق، يختلف حسب المنصة)</string>
 </resources>
