@@ -22,7 +22,15 @@ object WalletManager {
         val eth: String,
         val bnb: String,
         val sol: String,
-        val trx: String
+        val trx: String,
+        /**
+         * Adresse Pi Network, dérivée de la MÊME graine que les autres.
+         *
+         * Elle démarre vide, et c'est normal : les Pi déjà minés vivent sous
+         * la phrase du Pi Wallet, qui est une autre phrase. Celle-ci est une
+         * adresse Pi de plus, qui appartient au portefeuille VaultEx.
+         */
+        val pi: String
     )
 
     /** Génère 12 mots BIP39 (128 bits d'entropie via SecureRandom). */
@@ -51,7 +59,8 @@ object WalletManager {
             eth = deriveEvmAddress(seed, coinType = 60),
             bnb = deriveEvmAddress(seed, coinType = 60), // BSC partage le coin_type EVM
             sol = deriveSolanaAddress(seed),
-            trx = deriveTronAddress(seed)
+            trx = deriveTronAddress(seed),
+            pi = PiWallet.deriveAddress(seed)
         )
     }
 

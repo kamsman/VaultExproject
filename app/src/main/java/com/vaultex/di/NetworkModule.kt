@@ -355,6 +355,18 @@ object NetworkModule {
         retrofit("https://api.binance.com/", client).create(BinanceApi::class.java)
 
     /**
+     * Pi Network — API Horizon, en lecture seule.
+     *
+     * Adresse confirmée vivante par tools/pi-disponible.sh : le protocole 27
+     * a ouvert un RPC public. Aucune bascule de secours — il n'existe pas de
+     * second Horizon pour ce réseau.
+     */
+    @Provides @Singleton
+    fun providePiHorizonApi(client: OkHttpClient): com.vaultex.data.remote.api.PiHorizonApi =
+        retrofit("https://api.mainnet.minepi.com/", client)
+            .create(com.vaultex.data.remote.api.PiHorizonApi::class.java)
+
+    /**
      * 1inch — devis d'échange sur place.
      *
      * Aucune bascule de secours : si 1inch ne répond pas, le devis est

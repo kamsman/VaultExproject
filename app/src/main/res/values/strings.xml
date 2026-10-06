@@ -1090,4 +1090,9 @@
     <string name="alerts_check_now">Vérifier maintenant</string>
     <string name="alerts_checking">Vérification des alertes en cours…</string>
     <string name="swap_autorisation_requise">Une autorisation unique sera demandée avant le premier échange de cette monnaie.</string>
+    <string name="pi_title">Pi Network</string>
+    <string name="pi_adresse_indisponible">Adresse Pi indisponible. Rouvre l\'application et réessaie.</string>
+    <string name="pi_solde_inconnu">Solde non lu : le réseau Pi n\'a pas répondu.</string>
+    <string name="pi_adresse_neuve">Cette adresse est NEUVE et appartient à ton portefeuille VaultEx. Les Pi que tu as minés vivent sous la phrase de ton Pi Wallet : ils n\'apparaîtront ici qu\'une fois envoyés à cette adresse.</string>
+    <string name="pi_pas_d_echange">Pi ne peut pas encore être échangé dans VaultEx : aucun échangeur n\'ouvre de paire.</string>
 </resources>

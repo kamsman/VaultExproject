@@ -65,6 +65,9 @@ object Routes {
 
     const val NOTIFICATIONS = "notifications"
 
+    /** Pi Network — adresse et solde, en lecture seule. */
+    const val PI = "pi"
+
     // Centre de notifications in-app (dépôts, alertes, annonces) + compteur non-lus.
     const val NOTIFICATION_CENTER = "notificationCenter"
 
