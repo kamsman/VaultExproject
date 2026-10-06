@@ -51,6 +51,48 @@ class EvmTransactionService @Inject constructor() {
         return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, credentials))
     }
 
+    /**
+     * Signe un APPEL DE CONTRAT quelconque : l'appelant fournit la
+     * destination et les données déjà encodées.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * CETTE FONCTION NE SAIT PAS CE QU'ELLE SIGNE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Les autres signataires de ce fichier construisent eux-mêmes leurs
+     * données : un virement, un transfert de jeton, rien d'autre. Leur
+     * portée est bornée par leur propre code.
+     *
+     * Celui-ci signe ce qu'on lui donne. Les octets viennent d'un service
+     * distant, et ils peuvent demander n'importe quoi au contrat visé —
+     * y compris de vider une allocation. La vérification n'est donc pas ici
+     * et ne peut pas y être : elle appartient à l'appelant, qui doit borner
+     * le montant, le destinataire et la perte acceptable AVANT d'arriver
+     * jusqu'ici.
+     *
+     * Voir EchangeSurPlaceUseCase, qui est le seul appelant et qui porte
+     * ces garde-fous.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun signContractCall(
+        mnemonic: String,
+        passphrase: String,
+        toAddress: String,
+        data: String,
+        valueWei: BigInteger,
+        gasPrice: BigInteger,
+        gasLimit: BigInteger,
+        nonce: BigInteger,
+        chainId: Long,
+        coinType: Int = 60
+    ): String {
+        val credentials = Credentials.create(deriveKeyPair(mnemonic, passphrase, coinType))
+        val tx = RawTransaction.createTransaction(
+            nonce, gasPrice, gasLimit, toAddress, valueWei, data
+        )
+        return Numeric.toHexString(TransactionEncoder.signMessage(tx, chainId, credentials))
+    }
+
     // ─── EIP-1559 (type-2) — Ethereum mainnet ────────────────────────
     // Uses Credentials.signMessage(tx, credentials) which correctly encodes type-2
     // transactions (v = 0 or 1, no EIP-155 modification, chainId embedded in tx).

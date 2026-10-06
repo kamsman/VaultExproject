@@ -279,6 +279,30 @@ fun SwapScreen(navController: NavHostController) {
     // stringResource ne s'appelle pas depuis une lambda ordinaire : le
     // libellé est lu ici, en portée composable, puis capturé.
     val titreBio = stringResource(com.vaultex.R.string.swap_confirm_cta)
+    /*
+    ÉCHANGE SUR PLACE — MÊME PORTE QUE L'AUTRE.
+
+    Il signe et il dépense : il passe donc par l'empreinte, exactement comme
+    l'échange par courtier. Un chemin qui engage des fonds sans cette porte
+    serait le plus court chemin vers des fonds partis pendant qu'un téléphone
+    traînait déverrouillé sur une table.
+    */
+    val titreBioSurPlace = stringResource(com.vaultex.R.string.swap_sur_place_cta)
+    val confirmerSurPlace = {
+        vibrer()
+        val bio = biometricHelper.checkAvailability()
+        if (bio == com.vaultex.core.security.BiometricHelper.BiometricStatus.AVAILABLE ||
+            biometricHelper.canUseDeviceCredential()
+        ) {
+            biometricHelper.authenticateStrongOrCredential(
+                title = titreBioSurPlace,
+                subtitle = "${state.fromAmount} ${swapBaseOf(state.fromToken)} → ${swapBaseOf(state.toToken)}",
+                onSuccess = { viewModel.echangerSurPlace() },
+                onError = { _, _ -> }
+            )
+        } else viewModel.echangerSurPlace()
+    }
+
     val confirmAndExecute = {
         vibrer()
         val bio = biometricHelper.checkAvailability()
@@ -586,6 +610,7 @@ fun SwapScreen(navController: NavHostController) {
                 vibrer()
                 screen = "confirm"
             },
+            onEchangerSurPlace = confirmerSurPlace,
             minimumPaire = viewModel.minimumLisible(),
             commissionPourcent = viewModel.commissionPourcent,
             nomFournisseur = viewModel.nomFournisseur
@@ -607,6 +632,14 @@ private fun SwapFormScreen(
     onFraction: (Double) -> Unit,
     onInvert: () -> Unit,
     onContinue: () -> Unit,
+    /**
+     * Échange sur place, déjà protégé par l'empreinte chez l'appelant.
+     *
+     * Passé en paramètre et non appelé directement : le formulaire ne
+     * connaît ni le ViewModel ni la biométrie, et ce n'est pas à lui de
+     * décider qu'une dépense peut se faire sans porte.
+     */
+    onEchangerSurPlace: () -> Unit,
     /** Minimum de la paire, mis en forme par le ViewModel. */
     minimumPaire: String?,
     /** Commission réellement appliquée par le fournisseur en service. */
@@ -1009,6 +1042,49 @@ private fun SwapFormScreen(
                                     fontSize = 11.sp,
                                     color = swapTextDim
                                 )
+                            }
+                            /*
+                            ─── CHEMIN D'ESSAI, ET ASSUMÉ COMME TEL ───────
+
+                            Il signe et il dépense. Tant qu'il n'a pas tourné
+                            des dizaines de fois, il reste un bouton à part
+                            plutôt qu'une bascule silencieuse du bouton
+                            principal : si quelque chose cloche, personne ne
+                            l'emprunte sans l'avoir voulu.
+
+                            Le plafond vit dans EchangeSurPlaceUseCase, pas
+                            ici — l'écran ne doit pas pouvoir le contredire.
+                            */
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = onEchangerSurPlace,
+                                enabled = !state.surPlaceEnCours,
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SwapGreen, contentColor = Color.White
+                                )
+                            ) {
+                                if (state.surPlaceEnCours)
+                                    CircularProgressIndicator(
+                                        Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp
+                                    )
+                                else Text(
+                                    stringResource(com.vaultex.R.string.swap_sur_place_cta),
+                                    fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1
+                                )
+                            }
+                            state.surPlaceHash?.let {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    stringResource(com.vaultex.R.string.swap_sur_place_reussi,
+                                        it.take(12)),
+                                    fontSize = 11.sp, color = SwapGreen
+                                )
+                            }
+                            state.surPlaceErreur?.let {
+                                Spacer(Modifier.height(4.dp))
+                                Text(it, fontSize = 11.sp, color = AccentRed)
                             }
                         }
                     }

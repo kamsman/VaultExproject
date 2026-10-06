@@ -42,6 +42,11 @@ data class SwapState(
      * ÉTAPE 2a : cette valeur ne sert qu'à INFORMER. Rien ne l'autorise.
      */
     val autorisationRequise: Boolean? = null,
+    /** Un échange sur place est en cours de signature/diffusion. */
+    val surPlaceEnCours: Boolean = false,
+    /** Hash de l'échange sur place réussi, ou raison de son échec. */
+    val surPlaceHash: String? = null,
+    val surPlaceErreur: String? = null,
     /**
      * Plafond de frais du DÉPÔT — ce que coûtera l'envoi vers l'adresse du
      * fournisseur, dans la monnaie native de la chaîne source.
@@ -92,6 +97,7 @@ class SwapViewModel @Inject constructor(
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val surPlace: com.vaultex.domain.swap.FournisseurSurPlace,
     private val autorisation: com.vaultex.domain.swap.AutorisationSurPlace,
+    private val echangeSurPlace: com.vaultex.domain.swap.EchangeSurPlaceUseCase,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     /** Cours des monnaies que l'utilisateur ne détient pas encore. */
     private val priceRepository: com.vaultex.data.repository.PriceRepository,
@@ -894,6 +900,45 @@ class SwapViewModel @Inject constructor(
             }
             if (obsolete(amount, de, vers)) return@launch
             _state.update { it.copy(autorisationRequise = etat?.insuffisante) }
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ÉCHANGER SUR PLACE — LE CHEMIN QUI SIGNE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Tout ce qui précède dans ce fichier lisait des prix. Celui-ci dépense.
+
+    Les garde-fous ne sont pas ici mais dans EchangeSurPlaceUseCase, au plus
+    près de la signature : plafond de montant, montant minimum de sortie,
+    vérification que le chiffre signé est celui qui a été montré, et plafond
+    sur le prix du gaz. Les répéter ici les ferait diverger.
+
+    CE QUI EST ICI, et qui ne peut pas être ailleurs : le devis affiché.
+    C'est lui qu'on passe en « attendu », et c'est contre lui que l'usage
+    vérifiera qu'on ne signe pas autre chose. Le relire depuis le service
+    annulerait tout l'intérêt du contrôle.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun echangerSurPlace() {
+        val s = _state.value
+        val attendu = s.devisSurPlace?.toDoubleOrNull() ?: return
+        val montant = s.fromAmount.toDoubleOrNull() ?: return
+        if (montant <= 0.0 || s.surPlaceEnCours) return
+        viewModelScope.launch {
+            _state.update { it.copy(surPlaceEnCours = true, surPlaceErreur = null, surPlaceHash = null) }
+            val res = withContext(Dispatchers.IO) {
+                echangeSurPlace.echanger(s.fromToken, s.toToken, montant, attendu)
+            }
+            _state.update {
+                when (res) {
+                    is com.vaultex.domain.swap.ResultatEchangeSurPlace.Reussi ->
+                        it.copy(surPlaceEnCours = false, surPlaceHash = res.hash)
+                    is com.vaultex.domain.swap.ResultatEchangeSurPlace.Echec ->
+                        it.copy(surPlaceEnCours = false, surPlaceErreur = res.raison)
+                }
+            }
         }
     }
 

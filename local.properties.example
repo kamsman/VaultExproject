@@ -38,6 +38,13 @@ simpleswap.key=
 # sur place est simplement absent, le courtier garde la main.
 oneinch.key=
 
+# PLAFOND D'ESSAI de l'échange sur place, en unités de la monnaie envoyée.
+# Ce chemin SIGNE et DÉPENSE : un appel de contrat raté ne se rembourse pas,
+# là où un dépôt mal parti chez un courtier se rattrape. Tant qu'il n'a pas
+# tourné des dizaines de fois, une erreur doit coûter le prix d'un pain.
+# Défaut : 2.0
+echange.surplace.max=
+
 # QUEL ÉCHANGEUR RÉPOND. Deux valeurs : « changenow » ou « simpleswap ».
 #
 # ABSENT = changenow. C'est voulu : aucune version distribuée ne change de
