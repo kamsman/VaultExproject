@@ -1060,4 +1060,5 @@
     <string name="alerts_action_none">Just notify me</string>
     <string name="alerts_check_now">Check now</string>
     <string name="alerts_checking">Checking your alerts…</string>
+    <string name="swap_autorisation_requise">A one-time approval will be requested before the first swap of this coin.</string>
 </resources>

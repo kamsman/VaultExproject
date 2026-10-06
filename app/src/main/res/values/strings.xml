@@ -1089,4 +1089,5 @@
     <string name="alerts_action_none">Juste me prévenir</string>
     <string name="alerts_check_now">Vérifier maintenant</string>
     <string name="alerts_checking">Vérification des alertes en cours…</string>
+    <string name="swap_autorisation_requise">Une autorisation unique sera demandée avant le premier échange de cette monnaie.</string>
 </resources>

@@ -35,6 +35,14 @@ data class SwapState(
     val devisSurPlace: String? = null,
     val sourceSurPlace: String? = null,
     /**
+     * Le routeur doit-il encore être autorisé à prélever la monnaie de
+     * départ ? Null : la question ne se pose pas — monnaie native, paire
+     * hors périmètre, ou lecture impossible.
+     *
+     * ÉTAPE 2a : cette valeur ne sert qu'à INFORMER. Rien ne l'autorise.
+     */
+    val autorisationRequise: Boolean? = null,
+    /**
      * Plafond de frais du DÉPÔT — ce que coûtera l'envoi vers l'adresse du
      * fournisseur, dans la monnaie native de la chaîne source.
      *
@@ -83,6 +91,7 @@ class SwapViewModel @Inject constructor(
     private val swapUseCase: SwapUseCase,
     private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase,
     private val surPlace: com.vaultex.domain.swap.FournisseurSurPlace,
+    private val autorisation: com.vaultex.domain.swap.AutorisationSurPlace,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     /** Cours des monnaies que l'utilisateur ne détient pas encore. */
     private val priceRepository: com.vaultex.data.repository.PriceRepository,
@@ -863,6 +872,28 @@ class SwapViewModel @Inject constructor(
                     sourceSurPlace = devis?.source
                 )
             }
+            /*
+            L'AUTORISATION NE SE LIT QUE S'IL Y A UN DEVIS.
+
+            Sans devis, la paire ne se traite pas sur place et l'autorisation
+            ne concerne personne : l'interroger coûterait un appel réseau et
+            une ligne de quota pour une réponse dont on ne ferait rien.
+            */
+            if (devis == null) {
+                _state.update { it.copy(autorisationRequise = null) }
+                return@launch
+            }
+            val adresse = withContext(Dispatchers.IO) {
+                val m = secureStorage.getMnemonic() ?: return@withContext null
+                runCatching {
+                    WalletManager.deriveAddresses(m, secureStorage.getPassphrase()).eth
+                }.getOrNull()
+            } ?: return@launch
+            val etat = withContext(Dispatchers.IO) {
+                runCatching { autorisation.etat(de, adresse, input) }.getOrNull()
+            }
+            if (obsolete(amount, de, vers)) return@launch
+            _state.update { it.copy(autorisationRequise = etat?.insuffisante) }
         }
     }
 
