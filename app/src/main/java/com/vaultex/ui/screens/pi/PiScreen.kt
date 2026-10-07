@@ -194,6 +194,35 @@ fun PiScreen(navController: NavController) {
                 }
 
                 /*
+                LE COMPTE N'EXISTE PAS ENCORE SUR LA CHAÎNE.
+
+                Cet écran sait déjà le dire — SoldePi.JamaisCredite n'est pas
+                la même chose qu'un solde nul — mais il n'en tirait aucune
+                conséquence pratique.
+
+                Or elle est lourde : mesuré sur OKX, la plateforme refuse
+                cette adresse à la saisie avec « Adresse incorrecte », alors
+                que sa propre adresse de dépôt passe dans le même champ. La
+                seule différence entre les deux est l'existence du compte.
+
+                Quelqu'un qui ne le sait pas conclut que VaultEx est cassé —
+                c'est la seule conclusion disponible quand un courtier vous
+                dit que votre adresse est incorrecte.
+                */
+                if (state.solde == SoldePi.JamaisCredite) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = AccentOrange.copy(alpha = 0.12f)) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                            Icon(Icons.Default.Info, null, tint = AccentOrange, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                stringResource(R.string.pi_compte_a_creer, "1"),
+                                fontSize = 12.sp, color = TextPrimary, lineHeight = 17.sp
+                            )
+                        }
+                    }
+                }
+
+                /*
                 DE QUOI REPARTIR : CET ÉCRAN NE DOIT PAS ÊTRE UN CUL-DE-SAC.
 
                 Il montre une adresse et un solde. Quelqu'un qui vient d'y
