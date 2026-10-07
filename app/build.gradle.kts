@@ -311,10 +311,23 @@ android {
         DANS l'echange, sans seconde transaction — la seule facon d'atteindre
         1,5 % sans payer des frais reseau superieurs a ce qu'on encaisse.
 
-        `swap.provider` choisit le fournisseur. Il vaut « changenow » tant que
-        rien n'est ecrit dans local.properties : basculer se fait d'une ligne,
-        et revenir en arriere aussi. Aucune version distribuee ne change de
-        comportement sans decision explicite.
+        `swap.provider` choisit le fournisseur. Il vaut desormais
+        « simpleswap », et c'est une decision prise, pas un defaut hérité :
+        SimpleSwap permet de REGLER la commission entre 0,4 et 5 % depuis
+        l'espace partenaire, ce que ChangeNOW ne permet pas. ChangeNOW reste
+        en place, entier, et redevient actif d'une ligne : swap.provider=changenow.
+
+        LE DEFAUT VIT ICI, PAS DANS UN FICHIER NON VERSIONNE. Tant qu'il
+        valait « changenow », la decision d'utiliser SimpleSwap n'existait
+        que dans le local.properties d'une seule machine : une compilation
+        ailleurs, ou ce fichier perdu, et l'application repartait en silence
+        chez l'autre echangeur, avec une autre commission. Ecrite ici, elle
+        survit au poste de travail.
+
+        SANS CLE SIMPLESWAP, ON RETOMBE SUR CHANGENOW. Voir SwapModule : une
+        machine sans local.properties n'a pas de cle, et SimpleSwap sans cle
+        refuse tout. Mieux vaut un echangeur moins avantageux qu'un ecran
+        d'echange mort.
 
         `simpleswap.commission` ne PRELEVE rien — la cle s'en charge. Il ne
         sert qu'a AFFICHER le bon chiffre, la ou l'ecran annoncait 1,5 %
@@ -348,7 +361,7 @@ android {
             "double", "ECHANGE_SUR_PLACE_MAX_USD",
             localProps.getProperty("echange.surplace.max", "2.0")
         )
-        buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
+        buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "simpleswap")}\"")
         buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
         /*
         ─── TAUX FIXE OU FLOTTANT ──────────────────────────────────────────

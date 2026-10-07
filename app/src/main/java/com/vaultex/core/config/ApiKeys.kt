@@ -10,8 +10,9 @@ import com.vaultex.BuildConfig
  *   bscscan.key=YOUR_KEY       → https://bscscan.com/myapikey
  *   changenow.key=YOUR_KEY     → https://changenow.io/api-keys
  *   simpleswap.key=YOUR_KEY    → https://simpleswap.io/affiliate-program (Web Tools → API)
- *   swap.provider=simpleswap   → bascule l'échangeur (défaut : changenow)
+ *   swap.provider=changenow    → revient à l'ancien échangeur (défaut : simpleswap)
  *   simpleswap.commission=1.5  → le taux porté par la clé, pour l'affichage
+ *   simpleswap.taux.fixe=false → repasse en taux flottant (défaut : fixe)
  *   flutterwave.key=YOUR_KEY   → Flutterwave dashboard → API → Secret key
  *   trongrid.key=YOUR_KEY      → https://www.trongrid.io (optionnel, anti rate-limit)
  *   oneinch.key=YOUR_KEY       → https://portal.1inch.dev (devis d'échange sur place)

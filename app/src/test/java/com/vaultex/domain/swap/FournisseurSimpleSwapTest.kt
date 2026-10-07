@@ -121,4 +121,27 @@ class FournisseurSimpleSwapTest {
             com.vaultex.core.config.ApiKeys.SIMPLESWAP_TAUX_FIXE
         )
     }
+
+    /**
+     * SIMPLESWAP EST BIEN L'ÉCHANGEUR EN SERVICE.
+     *
+     * Le choix de l'échangeur décide de la commission encaissée sur chaque
+     * échange : SimpleSwap la laisse régler entre 0,4 et 5 %, ChangeNOW
+     * non. Un retour silencieux à ChangeNOW ne casserait rien de visible —
+     * les échanges continueraient de fonctionner — et changerait
+     * discrètement les revenus. C'est précisément ce qui ne se remarque
+     * pas.
+     *
+     * Le test échoue aussi si quelqu'un écrit swap.provider=changenow dans
+     * son local.properties, ce qui est légitime pour comparer les deux.
+     * Dans ce cas, le test dit ce qu'il doit dire : ce n'est pas la
+     * configuration de référence.
+     */
+    @Test fun `simpleswap est l'echangeur configure`() {
+        assertEquals(
+            "swap.provider ne vaut pas simpleswap",
+            "simpleswap",
+            com.vaultex.core.config.ApiKeys.SWAP_PROVIDER.lowercase().trim()
+        )
+    }
 }
