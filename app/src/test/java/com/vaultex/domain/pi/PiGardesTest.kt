@@ -25,9 +25,22 @@ import org.junit.Test
 class PiGardesTest {
 
     private companion object {
-        /** Un Pi en stroops : la réserve de base de la famille Stellar. */
-        const val RESERVE = 10_000_000L
-        const val FRAIS = 200L
+        /*
+        LES VALEURS RÉELLES DU RÉSEAU PI, RELEVÉES LE 7 OCTOBRE 2026 sur
+        api.mainnet.minepi.com/ledgers :
+
+          base_reserve_in_stroops = 4 900 000   (0,49 Pi)
+          base_fee_in_stroops     =   100 000   (0,01 Pi)
+
+        Ces tests portent sur la FORMULE, pas sur les valeurs — elles
+        viennent du réseau à l'exécution. Mais les écrire telles qu'elles
+        sont relevées rend les chiffres de ces tests lisibles : 0,98 Pi de
+        réserve sur un compte simple, c'est ce que l'utilisateur verra.
+
+        L'enchère vaut le double des frais de base : 200 000 stroops.
+        */
+        const val RESERVE = 4_900_000L
+        const val FRAIS = 200_000L
         const val DIX_PI = 100_000_000L
     }
 

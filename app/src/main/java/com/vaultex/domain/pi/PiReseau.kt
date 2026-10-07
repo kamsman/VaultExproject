@@ -135,10 +135,38 @@ class PiReseau @Inject constructor(
         /** Ce que le réseau principal du Pi annonçait à l'écriture de ce code. */
         const val PHRASE_ATTENDUE = "Pi Network"
 
-        /** Cent stroops, la valeur de la famille Stellar. */
-        const val FRAIS_DE_BASE_DEFAUT = 100L
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        CE REPLI ÉTAIT MILLE FOIS TROP BAS
+        ═══════════════════════════════════════════════════════════════════
 
-        /** Un Pi : la plus haute des valeurs historiques. Voir l'en-tête. */
+        Il valait 100 stroops, la valeur de Stellar, parce que Pi en est un
+        fork et que c'était l'hypothèse raisonnable. Elle est fausse :
+        relevé sur api.mainnet.minepi.com le 7 octobre 2026,
+        `base_fee_in_stroops` vaut 100 000 — soit 0,01 Pi par opération,
+        mille fois Stellar.
+
+        Tant qu'Horizon répond, la valeur lue écrase ce repli et rien ne se
+        voit. Mais le jour où /ledgers ne répond pas, l'application
+        enchérissait 200 stroops sur un minimum de 100 000, et TOUS les
+        envois étaient refusés pour frais insuffisants — une panne totale
+        déclenchée par un simple hoquet sur un appel accessoire.
+
+        C'est le genre d'erreur qu'aucun test ne trouve : le chemin fautif
+        ne s'emprunte que quand un autre appel échoue.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        const val FRAIS_DE_BASE_DEFAUT = 100_000L
+
+        /*
+        LA RÉSERVE SE REPLIE VERS LE HAUT, ET RESTE AU-DESSUS DU RELEVÉ.
+
+        Mesurée à 4 900 000 stroops (0,49 Pi) sur le réseau principal. On
+        garde 10 000 000 en repli, soit le double : voir l'en-tête de ce
+        fichier. Se tromper par excès limite un peu le montant maximum
+        envoyable ; se tromper par défaut produit une transaction refusée
+        dont les frais sont brûlés.
+        */
         const val RESERVE_DE_BASE_DEFAUT = 10_000_000L
 
         /*

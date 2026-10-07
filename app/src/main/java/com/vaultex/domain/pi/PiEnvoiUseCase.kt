@@ -600,7 +600,23 @@ class PiEnvoiUseCase @Inject constructor(
         /** On enchérit au double du minimum. Voir enchere. */
         const val MULTIPLICATEUR_FRAIS = 2L
 
-        /** Un dixième de Pi, quoi qu'il arrive. */
-        const val PLAFOND_FRAIS_TOTAL = 1_000_000L
+        /*
+        PLAFOND ABSOLU DES FRAIS — RELEVÉ APRÈS MESURE.
+
+        Il valait 1 000 000 de stroops (0,1 Pi), choisi quand on croyait
+        les frais de base à 100 stroops : la marge paraissait énorme.
+
+        Les frais de base réels sont 100 000 stroops, et l'enchère vaut le
+        double, soit 200 000. La marge n'était donc plus que de cinq fois,
+        et une hausse des frais votée par les validateurs aurait fait
+        rogner l'enchère par ce plafond — silencieusement, pour produire
+        un `tx_insufficient_fee` incompréhensible.
+
+        Un plafond est là pour empêcher une valeur aberrante de vider un
+        compte, pas pour brider le fonctionnement normal. Un Pi reste une
+        barrière largement suffisante contre l'aberration, et laisse la
+        place à cinq multiplications des frais du réseau.
+        */
+        const val PLAFOND_FRAIS_TOTAL = 10_000_000L
     }
 }
