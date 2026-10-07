@@ -27,9 +27,6 @@ object NotifLogo {
      *  attend de voir sa transaction. */
     private val cache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
 
-    /** Préfixe des logos embarqués dans les assets. Voir [forSymbol]. */
-    private const val PREFIXE_ASSET = "file:///android_asset/"
-
     /**
      * À N'APPELER QUE depuis un thread de fond : effectue un appel réseau.
      *
@@ -40,39 +37,8 @@ object NotifLogo {
     fun forSymbol(context: Context, symbol: String?): Bitmap? {
         if (symbol.isNullOrBlank()) return logoApplication(context)
         cache[symbol]?.let { return it }
-        val adresse = CryptoIcon.url(symbol)
-        /*
-        ═══════════════════════════════════════════════════════════════════
-        UN LOGO EMBARQUÉ N'EST PAS UNE ADRESSE RÉSEAU
-        ═══════════════════════════════════════════════════════════════════
-
-        CryptoIcon rend désormais une URI « file:///android_asset/… » pour
-        les monnaies absentes du dépôt communautaire — le Pi aujourd'hui.
-        Cette fonction, elle, passe par OkHttp, qui REFUSE tout ce qui n'est
-        pas http(s) : `Request.Builder().url(…)` lève une exception.
-
-        Le try/catch plus bas l'aurait avalée et serait retombé sur le logo
-        de l'application. Rien n'aurait planté, et c'est précisément le
-        problème : une notification « Pi reçus » aurait porté le logo
-        VaultEx au lieu du π, sans que rien ne le signale.
-
-        On lit donc les ressources embarquées là où elles sont — dans les
-        assets — avant de songer au réseau.
-        ═══════════════════════════════════════════════════════════════════
-        */
-        if (adresse.startsWith(PREFIXE_ASSET)) {
-            return try {
-                context.assets.open(adresse.removePrefix(PREFIXE_ASSET)).use { flux ->
-                    BitmapFactory.decodeStream(flux)
-                        ?.also { cache[symbol] = it }
-                        ?: logoApplication(context)
-                }
-            } catch (_: Exception) {
-                logoApplication(context)
-            }
-        }
         return try {
-            val req = Request.Builder().url(adresse).build()
+            val req = Request.Builder().url(CryptoIcon.url(symbol)).build()
             client.newCall(req).execute().use { resp ->
                 val bytes = resp.body?.bytes()
                 if (resp.isSuccessful && bytes != null) {
