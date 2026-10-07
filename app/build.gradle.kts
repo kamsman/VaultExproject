@@ -329,8 +329,12 @@ android {
         */
         buildConfigField("String", "ONEINCH_KEY",     "\"${secret("oneinch.key")}\"")
         /*
-        PLAFOND D'ESSAI DE L'ECHANGE SUR PLACE, en unites de la monnaie
-        envoyee (2 = 2 USDT).
+        PLAFOND D'ESSAI DE L'ECHANGE SUR PLACE, EN DOLLARS (2 = 2 $).
+
+        Il etait compare a un NOMBRE DE JETONS, ce qui coincidait pour
+        l'USDT et valait plus de mille dollars pour le BNB. Voir
+        EchangeSurPlaceUseCase : la valeur en dollars se lit desormais du
+        cote dollar de la paire, qui existe toujours.
 
         Ce chemin SIGNE et DEPENSE, et un appel de contrat rate ne se
         rembourse pas — la ou un depot mal parti chez un courtier se
@@ -346,6 +350,36 @@ android {
         )
         buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "changenow")}\"")
         buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
+        /*
+        ─── TAUX FIXE OU FLOTTANT ──────────────────────────────────────────
+
+        FLOTTANT (false) : meilleur taux, mais le montant recu peut bouger
+        entre le devis et l'execution. Si le marche tourne pendant que le
+        depot voyage, l'utilisateur recoit plus — ou moins — que le chiffre
+        qu'on lui a montre.
+
+        FIXE (true) : SimpleSwap bloque le taux quelques minutes et se paie
+        cette garantie. Le montant affiche est celui qui arrive.
+
+        ON PREND LE FIXE PAR DEFAUT, et c'est une decision de produit, pas
+        une optimisation. Sur un reseau lent, face a des gens qui decouvrent
+        la crypto, « tu recois exactement ce qui est ecrit » vaut plus que
+        quelques dixiemes de pour cent. Un montant qui change apres coup ne
+        se lit pas « le marche a bouge » : il se lit « on m'a pris quelque
+        chose ».
+
+        REVENIR EN ARRIERE EST D'UNE LIGNE : simpleswap.taux.fixe=false.
+
+        CE REGLAGE DOIT ETRE LE MEME POUR LES TROIS APPELS — devis, bornes,
+        creation. Devisier en fixe et creer en flottant afficherait un
+        montant et en livrerait un autre ; et les minimums ne sont pas les
+        memes dans les deux modes. FournisseurSimpleSwap n'en garde donc
+        qu'une seule copie.
+        */
+        buildConfigField(
+            "boolean", "SIMPLESWAP_TAUX_FIXE",
+            localProps.getProperty("simpleswap.taux.fixe", "true")
+        )
         /*
         ─── INTERRUPTEUR DE TEST : MANQUE DE FRAIS ─────────────────────────
         Simule l'absence de monnaie native pour payer le gaz, afin de pouvoir

@@ -37,12 +37,36 @@ class FournisseurSimpleSwap @Inject constructor(
 
     override val commissionPourcent: Double = ApiKeys.SIMPLESWAP_COMMISSION
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE SEULE COPIE DU MODE, LUE PAR LES TROIS APPELS
+    ═══════════════════════════════════════════════════════════════════════
+
+    `fixed` apparaît dans get_estimated, get_ranges ET create_exchange. Les
+    trois DOIVENT dire la même chose, et rien dans l'API ne le vérifie.
+
+    Deviser en fixe et créer en flottant afficherait un montant et en
+    livrerait un autre — sans aucune erreur nulle part, puisque chaque appel
+    pris isolément serait valide. C'est exactement la classe de défaut qu'on
+    ne voit qu'en comptant ce qu'on a reçu.
+
+    Et les BORNES diffèrent entre les deux modes : un minimum lu en
+    flottant, affiché, puis un échange créé en fixe qui le refuse, c'est un
+    utilisateur qui saisit le montant qu'on lui a dit et qu'on rejette.
+
+    D'où cette seule ligne, que les trois lisent. Il n'y a pas d'endroit où
+    se tromper.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private val tauxFixe: Boolean = ApiKeys.SIMPLESWAP_TAUX_FIXE
+
     override suspend fun devis(de: String, vers: String, montant: Double): DevisSwap {
         val brut = api.getEstimated(
             apiKey = ApiKeys.SIMPLESWAP,
             from = ticker(de),
             to = ticker(vers),
-            amount = montantApi(montant)
+            amount = montantApi(montant),
+            fixed = tauxFixe
         )
         /*
         get_estimated rend un NOMBRE NU — « "0.0123" » — et non un objet.
@@ -68,7 +92,8 @@ class FournisseurSimpleSwap @Inject constructor(
         api.getRanges(
             apiKey = ApiKeys.SIMPLESWAP,
             from = ticker(de),
-            to = ticker(vers)
+            to = ticker(vers),
+            fixed = tauxFixe
         ).min?.toDoubleOrNull()
     } catch (_: Exception) {
         null
@@ -84,6 +109,7 @@ class FournisseurSimpleSwap @Inject constructor(
         val r = api.createExchange(
             apiKey = ApiKeys.SIMPLESWAP,
             body = SimpleSwapCreateBody(
+                fixed = tauxFixe,
                 currency_from = ticker(de),
                 currency_to = ticker(vers),
                 amount = montantApi(montant),

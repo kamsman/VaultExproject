@@ -49,6 +49,21 @@ object ApiKeys {
     val SIMPLESWAP_COMMISSION: Double = BuildConfig.SIMPLESWAP_COMMISSION
 
     /**
+     * Taux fixe plutôt que flottant.
+     *
+     * En flottant, le montant reçu peut différer de celui affiché : le
+     * marché bouge pendant que le dépôt voyage. En fixe, SimpleSwap bloque
+     * le taux quelques minutes et se paie cette garantie.
+     *
+     * Vrai par défaut. Sur un réseau lent, face à des gens qui découvrent
+     * la crypto, « tu reçois exactement ce qui est écrit » vaut plus que
+     * quelques dixièmes de pour cent — un montant qui change après coup ne
+     * se lit pas « le marché a bougé », il se lit « on m'a pris quelque
+     * chose ». Voir simpleswap.taux.fixe dans local.properties.
+     */
+    val SIMPLESWAP_TAUX_FIXE: Boolean = BuildConfig.SIMPLESWAP_TAUX_FIXE
+
+    /**
      * Échangeur en service : « changenow » ou « simpleswap ».
      *
      * Défaut « changenow » : sans décision explicite dans local.properties,
