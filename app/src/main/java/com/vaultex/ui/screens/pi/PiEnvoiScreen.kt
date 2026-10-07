@@ -66,6 +66,41 @@ fun PiEnvoiScreen(navController: NavController) {
     val vm: PiEnvoiViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE RÉSULTAT DU SCAN, QU'IL FAUT ALLER CHERCHER
+    ═══════════════════════════════════════════════════════════════════════
+
+    QrScannerScreen ne rend pas l'adresse : il l'ÉCRIT dans l'état sauvé de
+    l'écran précédent, puis se referme. Sans ces lignes, le bouton de scan
+    ouvre la caméra, lit le code, revient — et le champ reste vide. Un
+    bouton qui ne fait rien.
+
+    Sur une adresse Pi, ce n'est pas un détail d'ergonomie. Cinquante-six
+    caractères recopiés à la main, c'est une faute de frappe garantie, et
+    une adresse Pi mal recopiée est refusée par la somme de contrôle dans
+    le meilleur cas — ou valide et appartenant à personne dans le pire.
+    Le scan est le moyen SÛR de saisir une destination ; il doit marcher.
+
+    ON CONSOMME LA VALEUR après l'avoir lue. Sans cela, elle resterait dans
+    l'état sauvé et viendrait écraser la destination à chaque
+    recomposition, y compris après une correction à la main.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val entreePile = navController.currentBackStackEntry
+    val adresseScannee by (
+        entreePile?.savedStateHandle
+            ?.getStateFlow<String?>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, null)
+            ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }
+        ).collectAsState()
+
+    LaunchedEffect(adresseScannee) {
+        val scanne = adresseScannee?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        vm.onDestination(scanne.trim())
+        entreePile?.savedStateHandle
+            ?.set(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, null)
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
