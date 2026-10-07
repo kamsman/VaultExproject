@@ -66,6 +66,10 @@ fun DashboardScreen(navController: NavHostController) {
     val recentTxs by viewModel.recentTxs.collectAsState()
     val echangesEnCours by viewModel.echangesEnCours.collectAsState()
     val courbes by viewModel.courbes.collectAsState()
+    // Adresses de logos donnees par CoinGecko. Vide tant que l'appel de
+    // marche n'a pas repondu : les lignes retombent alors sur CryptoIcon,
+    // c'est-a-dire le comportement d'avant.
+    val logos by viewModel.logos.collectAsState()
 
 
     // P5 : un deep link de paiement valide redirige vers l'écran d'envoi
@@ -694,7 +698,11 @@ fun DashboardScreen(navController: NavHostController) {
                     // la ligne et l'espacement séparent déjà les lignes. Un
                     // filet en plus alourdit une liste qui n'en a pas besoin.
                     visibleTokens.forEach { token ->
-                        AssetRow(token, balanceHidden, currency, token.symbol in pendingSymbols) {
+                        AssetRow(
+                            token, balanceHidden, currency,
+                            token.symbol in pendingSymbols,
+                            logos[token.symbol]
+                        ) {
                             navController.navigate(Routes.tokenDetail(token.symbol))
                         }
                     }
@@ -1217,7 +1225,22 @@ private fun SectionCard(
 }
 
 @Composable
-private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isPending: Boolean = false, onClick: () -> Unit) {
+private fun AssetRow(
+    token: TokenBalance,
+    hidden: Boolean,
+    currency: String,
+    isPending: Boolean = false,
+    /**
+     * Adresse du logo donnée par CoinGecko, quand on l'a.
+     *
+     * Nulle, on retombe sur CryptoIcon, qui DEVINE un chemin à partir
+     * du symbole. Cette devinette marche pour les monnaies majeures et
+     * échoue pour les autres — le Pi affichait ses initiales là où le
+     * Marché montrait son vrai logo, parce que lui ne devine pas.
+     */
+    logoUrl: String? = null,
+    onClick: () -> Unit
+) {
     val valueAmount = when (currency) {
         "EUR" -> token.valueEur
         "XOF" -> token.valueXof
@@ -1250,7 +1273,9 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
                 fontSize = 13.sp
             )
             coil.compose.AsyncImage(
-                model = com.vaultex.ui.components.CryptoIcon.urlFor(token.symbol, token.contractAddress, token.blockchain.ticker),
+                model = logoUrl ?: com.vaultex.ui.components.CryptoIcon.urlFor(
+                    token.symbol, token.contractAddress, token.blockchain.ticker
+                ),
                 contentDescription = token.symbol,
                 modifier = Modifier.size(40.dp).clip(CircleShape)
             )
