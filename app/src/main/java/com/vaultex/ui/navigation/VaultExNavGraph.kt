@@ -219,6 +219,9 @@ fun VaultExNavGraph(navController: NavHostController) {
         composable(Routes.PI) {
             com.vaultex.ui.screens.pi.PiScreen(navController)
         }
+        composable(Routes.PI_ENVOI) {
+            com.vaultex.ui.screens.pi.PiEnvoiScreen(navController)
+        }
 
         composable(Routes.NOTIFICATION_CENTER) {
             com.vaultex.ui.screens.notifications.NotificationCenterScreen(navController)

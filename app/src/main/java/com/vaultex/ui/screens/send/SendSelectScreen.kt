@@ -82,23 +82,17 @@ fun SendSelectScreen(navController: NavController) {
 
     val assets = remember(state.tokens, currency) {
         /*
-        ═══════════════════════════════════════════════════════════════════
-        LE PI N'EST PAS PROPOSÉ À L'ENVOI, ET C'EST UN REFUS ASSUMÉ
-        ═══════════════════════════════════════════════════════════════════
+        TOUTES LES MONNAIES DU PORTEFEUILLE, LE PI COMPRIS.
 
-        Il est listé à l'accueil, il se reçoit, son cours s'affiche. Mais
-        l'envoyer demande de SIGNER une transaction Pi, et ce code n'existe
-        pas encore : PiWallet sait dériver une adresse, rien de plus.
+        Le Pi avait été retiré de cette liste tant que signer une
+        transaction Pi n'était pas écrit : proposer un geste qui ne peut
+        pas aboutir fait perdre trois écrans avant de dire non.
 
-        Le laisser dans cette liste serait le pire des deux mondes.
-        SendCryptoUseCase retombe bien sur « chaîne non supportée » — rien
-        ne partirait dans le vide — mais l'utilisateur aurait choisi sa
-        monnaie, saisi une adresse, tapé un montant, et découvert le refus
-        au dernier écran. Un geste proposé doit aboutir ; celui-ci ne peut
-        pas, donc on ne le propose pas.
-        ═══════════════════════════════════════════════════════════════════
+        Ce code existe maintenant, et il est vérifié contre les vecteurs du
+        SDK Stellar officiel. Le Pi revient donc ici, et part vers son
+        propre formulaire — voir le choix de route plus bas.
         */
-        state.tokens.filter { it.blockchain != Blockchain.PI }.map { t ->
+        state.tokens.map { t ->
             val value = when (currency) { "EUR" -> t.valueEur; "XOF" -> t.valueXof; else -> t.valueUsd }
             SendAsset(
                 symbol = t.symbol,
@@ -186,7 +180,23 @@ fun SendSelectScreen(navController: NavController) {
                 items(filtered) { a ->
                     SendAssetRow(a) {
                         com.vaultex.core.session.TokenSelectionBuffer.set(a.symbol)
-                        navController.navigate(Routes.SEND)
+                        /*
+                        LE PI A SON PROPRE ÉCRAN, et il doit rester dans
+                        CETTE liste.
+
+                        Il en avait été retiré tant que l'envoi n'existait
+                        pas. Le laisser dehors maintenant serait pire :
+                        quelqu'un qui veut envoyer des Pi ouvre « Envoyer »
+                        — c'est le seul endroit où il pense à regarder — et
+                        ne les y trouverait pas. Il conclurait que VaultEx
+                        ne sait pas le faire.
+
+                        Voir Routes.PI_ENVOI pour les trois règles du Pi
+                        qui justifient un formulaire distinct.
+                        */
+                        navController.navigate(
+                            if (a.symbol == "PI") Routes.PI_ENVOI else Routes.SEND
+                        )
                     }
                     HorizontalDivider(color = SurfaceColor, thickness = 1.dp)
                 }

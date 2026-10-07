@@ -215,24 +215,24 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
 
                 /*
                 ═══════════════════════════════════════════════════════════
-                LE PI SE REÇOIT ET SE LIT ; IL NE S'ENVOIE NI NE S'ÉCHANGE
+                SUR LE PI, TROIS BOUTONS SUR QUATRE, ET C'EST TOUT
                 ═══════════════════════════════════════════════════════════
 
-                Deux boutons sur quatre sont éteints sur cette fiche, pour
-                deux raisons qui n'ont rien à voir l'une avec l'autre :
+                Envoyer, recevoir et l'historique fonctionnent. Seul
+                ÉCHANGER reste éteint, et pour une raison qui ne dépend pas
+                de VaultEx : aucun échangeur n'ouvre de paire sur le Pi —
+                seize paires fermées, et zéro actif émis sur la chaîne Pi.
 
-                ENVOYER, parce que signer une transaction Pi n'est pas
-                encore écrit. C'est une limite de VaultEx, et elle tombera.
-
-                ÉCHANGER, parce qu'aucun échangeur n'ouvre de paire sur le
-                Pi — seize paires fermées, et zéro actif émis sur la chaîne
-                Pi. Celle-là ne dépend pas de nous.
-
-                ON LES LAISSE VISIBLES, ÉTEINTS, AVEC LA RAISON ÉCRITE
-                juste en dessous. Les faire disparaître laisserait croire à
-                un écran inachevé, et un bouton qu'on peut presser pour
+                ON LE LAISSE VISIBLE, ÉTEINT, AVEC LA RAISON ÉCRITE juste
+                en dessous. Le faire disparaître laisserait croire à un
+                écran inachevé, et un bouton qu'on peut presser pour
                 atterrir sur un refus est encore pire : il fait perdre
                 trois écrans avant de dire non.
+
+                ENVOYER mène à un formulaire à part, parce que le Pi a
+                trois règles sans équivalent ailleurs — la réserve de
+                réseau, le mémo, la création du compte destinataire. Voir
+                Routes.PI_ENVOI.
                 ═══════════════════════════════════════════════════════════
                 */
                 val estPi = symbol.uppercase() == "PI"
@@ -245,9 +245,15 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                     Button(
                         onClick = {
                             com.vaultex.core.session.TokenSelectionBuffer.set(symbol)
-                            navController.navigate(Routes.SEND)
+                            /*
+                            Le Pi a son propre formulaire : réserve de
+                            réseau, mémo, création du compte destinataire.
+                            Voir Routes.PI_ENVOI.
+                            */
+                            navController.navigate(
+                                if (estPi) Routes.PI_ENVOI else Routes.SEND
+                            )
                         },
-                        enabled = !estPi,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = VaultExColors.BluePrimary)
