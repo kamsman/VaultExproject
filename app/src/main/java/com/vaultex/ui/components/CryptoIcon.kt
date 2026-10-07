@@ -18,34 +18,46 @@ object CryptoIcon {
     Le jeu d'icônes spothq couvre les monnaies majeures et s'arrête là. Pour
     le Pi, l'URL répond 404 — vérifié : `btc.png` rend 200, `pi.png` rend
     404. L'application tentait donc une requête vouée à l'échec à CHAQUE
-    affichage d'une ligne Pi, et retombait sur les initiales. Le Pi était la
-    seule monnaie de l'accueil sans logo, au milieu de huit qui en ont.
+    affichage d'une ligne Pi, et retombait sur les initiales.
 
-    ON SERT DONC UN FICHIER EMBARQUÉ. Coil sait lire une URI
-    `file:///android_asset/…`, et cette forme ne dépend pas du nom du
-    paquet — ce qui compte ici, car la variante de débogage porte le suffixe
-    « .debug » et une URI `android.resource://com.vaultex/…` y serait
-    introuvable.
+    ─── POURQUOI PAS UNE IMAGE DESSINÉE PAR NOUS ───────────────────────
+
+    Un premier correctif embarquait un fichier : la lettre grecque pi, en
+    blanc sur le violet de la charte Pi. Il s'affichait correctement, et il
+    était quand même mauvais — parce qu'il ne RESSEMBLAIT à rien d'autre.
+
+    Toutes les autres lignes de l'accueil portent la vraie marque de leur
+    monnaie. Une pastille dessinée à la main au milieu d'elles ne se lit pas
+    « logo de remplacement » : elle se lit « cette monnaie-là est bricolée ».
+    Et l'écran Marché, lui, affichait déjà le vrai logo du Pi — fourni par
+    CoinGecko avec le reste des données de marché. Deux logos différents
+    pour la même monnaie dans la même application.
+
+    ─── ON PREND LA MÊME SOURCE QUE L'ÉCRAN MARCHÉ ─────────────────────
+
+    CoinGecko héberge le logo officiel de chaque monnaie, et l'écran Marché
+    s'en sert déjà pour les dix-neuf mille qu'il liste. Pointer ici la même
+    image aligne tous les écrans sur une seule et même source : ce n'est pas
+    une dépendance de plus, c'est celle qui existait déjà.
+
+    L'adresse est fixe et ne contient aucune clé. Si elle venait à ne plus
+    répondre, le comportement est celui d'avant ce correctif — les initiales
+    en repli, dessinées par les appelants.
 
     UN SEUL ENDROIT POUR TRENTE-ET-UN APPELS. C'est la raison d'être de
     cette classe, rappelée par son en-tête : corriger ici corrige l'accueil,
     le Marché, l'envoi, la réception, les notifications et les toasts d'un
     coup. Aller modifier les appelants aurait produit trente-et-une
     occasions d'en oublier un.
-
-    CE N'EST PAS LE LOGO DE PI NETWORK, et il ne faut pas le présenter comme
-    tel : c'est la lettre grecque pi sur le violet de leur charte. Un
-    symbole mathématique, pas une marque. Généré par tools/pi-logo.py, à
-    remplacer si Pi Network publie un jeu d'icônes réutilisable.
     ═══════════════════════════════════════════════════════════════════════
     */
-    private val EMBARQUES = mapOf(
-        "PI" to "file:///android_asset/crypto/pi.png"
+    private val LOGOS_PARTICULIERS = mapOf(
+        "PI" to "https://coin-images.coingecko.com/coins/images/54342/large/pi_network.jpg"
     )
 
     fun url(symbol: String): String {
         val ticker = symbol.substringBefore("-").trim()
-        EMBARQUES[ticker.uppercase()]?.let { return it }
+        LOGOS_PARTICULIERS[ticker.uppercase()]?.let { return it }
         return "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/" +
             "master/128/color/${ticker.lowercase()}.png"
     }
