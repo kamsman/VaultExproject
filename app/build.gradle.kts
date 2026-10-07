@@ -332,6 +332,17 @@ android {
         `simpleswap.commission` ne PRELEVE rien — la cle s'en charge. Il ne
         sert qu'a AFFICHER le bon chiffre, la ou l'ecran annoncait 1,5 %
         quand rien n'etait pris.
+
+        IL DOIT SUIVRE LA CLE EN SERVICE, ET RIEN NE LE VERIFIE. L'espace
+        partenaire porte plusieurs cles a des taux differents — une a 0,4 %
+        pour les essais, une a 1,5 % en production. Changer de cle sans
+        changer ce nombre fait annoncer a l'utilisateur une commission qui
+        n'est pas celle qu'on prend : l'ecran d'echange l'affiche en toutes
+        lettres, « Frais : 0,015 USDT (1,50 %) ».
+
+        Deux endroits detiennent la meme verite et aucun ne confronte
+        l'autre. C'est le genre d'ecart qu'on ne decouvre que le jour ou
+        quelqu'un compte.
         */
         buildConfigField("String", "SIMPLESWAP_KEY",  "\"${secret("simpleswap.key")}\"")
         /*

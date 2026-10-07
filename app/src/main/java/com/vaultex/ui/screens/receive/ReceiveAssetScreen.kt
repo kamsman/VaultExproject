@@ -394,6 +394,58 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                     }
                 }
 
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE MÉMO QUE LES PLATEFORMES IMPOSENT SANS QU'IL SERVE
+                ═══════════════════════════════════════════════════════════
+
+                Constaté sur Gate.io : le formulaire de retrait Pi REFUSE de
+                continuer sans mémo. C'est logique de leur point de vue —
+                presque toutes les destinations Pi qu'elles voient sont
+                d'autres plateformes, qui en exigent un pour savoir quel
+                client créditer sur une adresse partagée par des milliers de
+                personnes.
+
+                Une adresse VaultEx n'appartient qu'à une personne. Il n'y a
+                rien à départager, et le réseau transporte le mémo sans s'en
+                servir : les fonds arrivent à l'adresse, point.
+
+                SANS CETTE PHRASE, L'UTILISATEUR EST BLOQUÉ DEVANT UN CHAMP
+                OBLIGATOIRE DONT PERSONNE NE LUI A DONNÉ LA VALEUR. Il
+                cherchera un mémo que VaultEx n'affiche pas — parce qu'il
+                n'existe pas — et conclura qu'il manque quelque chose.
+
+                On lui dit donc d'en mettre un quelconque, et pourquoi c'est
+                sans conséquence. La raison compte autant que la consigne :
+                « mets n'importe quoi » sur un écran d'argent, sans
+                explication, ne rassure personne.
+                ═══════════════════════════════════════════════════════════
+                */
+                if (symbol.equals("PI", ignoreCase = true)) {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AccentBlue.copy(alpha = 0.06f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Default.Info, null,
+                                tint = AccentBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                stringResource(R.string.pi_memo_quelconque, "0"),
+                                fontSize = 11.sp, color = TextSecondary, lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+
                 if (symbol.equals("PI", ignoreCase = true)) {
                     Spacer(Modifier.height(6.dp))
                     Surface(
