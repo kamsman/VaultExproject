@@ -54,8 +54,17 @@ class AutorisationSurPlace @Inject constructor(
     suspend fun etat(token: String, proprietaire: String, montant: Double): EtatAutorisation? {
         if (com.vaultex.core.config.ApiKeys.ONEINCH.isBlank()) return null
         val actif = ActifsBnbChain.de(token) ?: return null
-        // Monnaie native : rien à autoriser, et c'est une réponse, pas un échec.
-        if (!actif.adresse.startsWith("0x") || actif.adresse.length != 42) {
+        /*
+        Monnaie native : rien à autoriser, et c'est une réponse, pas un échec.
+
+        Le test portait sur la FORME de l'adresse — pas de « 0x », ou pas
+        quarante-deux caractères. Il ne s'est jamais déclenché : le marqueur
+        de 1inch a exactement cette forme-là. Un échange partant du BNB
+        interrogeait donc `allowance()` sur une adresse qui n'est le contrat
+        de personne, et échouait plus loin sur un message qui accusait le
+        service. Voir ActifsBnbChain.estNatif.
+        */
+        if (ActifsBnbChain.estNatif(actif.adresse)) {
             return EtatAutorisation(autorise = Double.MAX_VALUE, insuffisante = false, routeur = null)
         }
 

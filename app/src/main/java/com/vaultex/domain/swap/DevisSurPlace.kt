@@ -94,4 +94,39 @@ internal object ActifsBnbChain {
     )
 
     fun de(cle: String): ActifSurPlace? = table[cle.uppercase()]
+
+    /**
+     * Vrai si [adresse] désigne la monnaie NATIVE de la chaîne.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * POURQUOI CE TEST EXISTE, PLUTÔT QU'UN CONTRÔLE DE FORME
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * AutorisationSurPlace reconnaissait le natif en vérifiant que son
+     * adresse n'avait PAS la forme d'une adresse — pas de « 0x », ou pas
+     * quarante-deux caractères. C'est un raisonnement juste pour un
+     * marqueur quelconque, et faux pour celui de 1inch : [NATIF] commence
+     * par « 0x » et fait exactement quarante-deux caractères.
+     *
+     * Le test ne se déclenchait donc JAMAIS. La monnaie native était
+     * traitée comme un jeton ordinaire : on interrogeait `allowance()` sur
+     * une adresse qui n'est le contrat de personne, puis on demandait une
+     * transaction d'autorisation pour elle. Un échange partant du BNB ne
+     * pouvait pas aboutir, et échouait sur un message qui parlait du
+     * service alors que la faute était ici.
+     *
+     * On compare donc au marqueur lui-même. Il n'y a rien à deviner : la
+     * seule adresse native est celle que ce fichier déclare.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun estNatif(adresse: String): Boolean = adresse.equals(NATIF, ignoreCase = true)
+
+    /**
+     * Vrai si [cle] désigne un dollar stable.
+     *
+     * Sert à borner le plafond d'essai : pour un dollar stable, le montant
+     * EST la valeur en dollars, sans avoir à demander un cours à qui que
+     * ce soit. Voir EchangeSurPlaceUseCase.
+     */
+    fun estDollar(cle: String): Boolean = cle.uppercase().startsWith("USDT")
 }
