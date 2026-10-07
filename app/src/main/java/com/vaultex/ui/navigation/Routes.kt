@@ -68,6 +68,31 @@ object Routes {
     /** Pi Network — adresse et solde, en lecture seule. */
     const val PI = "pi"
 
+    /*
+    ENVOI DE PI — UN ÉCRAN À PART, ET POUR DE BONNES RAISONS
+
+    L'écran d'envoi générique sait traiter cinq chaînes avec les mêmes
+    champs : destination, montant, frais. Le Pi en demande trois de plus,
+    et chacun existe parce que son absence coûte de l'argent.
+
+    LA RÉSERVE. Le réseau Pi oblige à laisser un minimum sur le compte. Le
+    « Max » générique proposerait le solde entier, et chaque appui
+    produirait une transaction refusée dont les frais sont brûlés.
+
+    LE MÉMO. Un dépôt en bourse sans mémo est perdu. Aucune autre chaîne de
+    l'application n'a cette notion, et l'ajouter au formulaire commun
+    afficherait un champ incompréhensible sur six écrans pour en servir un.
+
+    LA CRÉATION DE COMPTE. Une adresse Pi jamais créditée ne peut pas être
+    « payée », elle doit être créée, avec un montant plancher. C'est une
+    règle sans équivalent ailleurs, et elle change le montant minimum.
+
+    Plier le formulaire commun à ces trois règles l'aurait alourdi pour
+    toutes les monnaies. Un écran dédié dit exactement ce que le Pi exige,
+    et rien de plus.
+    */
+    const val PI_ENVOI = "piEnvoi"
+
     // Centre de notifications in-app (dépôts, alertes, annonces) + compteur non-lus.
     const val NOTIFICATION_CENTER = "notificationCenter"
 

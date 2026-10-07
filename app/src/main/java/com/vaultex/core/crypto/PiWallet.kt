@@ -33,8 +33,21 @@ base58 comme Solana — la même famille, un alphabet différent.
 
 ─── CE QUE CE FICHIER NE FAIT PAS ───────────────────────────────────────
 
-Il ne signe rien. Il dérive une clé, en tire une adresse, et sait dire si une
-adresse est valide. La signature de transactions appartient à l'étape B.
+Il ne signe rien, et il ne parle à personne. Il dérive des clés, en tire une
+adresse, et sait lire une adresse. Le format d'une transaction et sa
+signature vivent dans PiXdr ; l'orchestration d'un envoi dans
+PiEnvoiUseCase. Les trois sont séparés pour que chacun se relise seul.
+
+─── CE QUI EST PROUVÉ, ET CE QUI NE L'EST PAS ───────────────────────────
+
+PROUVÉ : toute la mécanique de dérivation. PiWalletSep5Test fait passer les
+vecteurs officiels du SEP-0005 par le code ci-dessous, et les dix adresses
+de référence tombent juste. SLIP-0010, StrKey, CRC16, base32 : vérifiés
+contre la spécification, pas contre une relecture.
+
+PAS PROUVÉ : le nombre 314159. Aucun vecteur public ne l'atteste. Il se
+vérifie d'une seule façon — envoyer un Pi depuis le Pi Wallet vers l'adresse
+produite ici, et le voir arriver.
 ═══════════════════════════════════════════════════════════════════════════
 */
 object PiWallet {
@@ -53,14 +66,70 @@ object PiWallet {
      *
      * Chemin m/44'/314159'/0' — trois niveaux, tous durcis.
      */
-    fun deriveAddress(seed: ByteArray): String {
+    fun deriveAddress(seed: ByteArray): String = derivePaire(seed).adresse
+
+    /**
+     * Clés et adresse Pi dérivées de [seed].
+     *
+     * La clé privée ne sert QU'À SIGNER, et l'appelant doit la traiter comme
+     * telle : jamais journalisée, jamais conservée au-delà de l'opération.
+     */
+    data class PaireCles(
+        val clePrivee: ByteArray,
+        val clePublique: ByteArray,
+        val adresse: String
+    )
+
+    fun derivePaire(seed: ByteArray, compte: Int = 0): PaireCles =
+        derivePaireAvecTypePiece(seed, COIN_TYPE, compte)
+
+    /**
+     * Même dérivation, pour un type de pièce quelconque.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * CE QUI REND CE CHEMIN DE CODE VÉRIFIABLE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Le Pi n'a pas de vecteurs de test publiés. Stellar, si : le SEP-0005
+     * en publie dix adresses par phrase de référence, et Pi partage avec
+     * Stellar la TOTALITÉ de cette mécanique — SLIP-0010 sur Ed25519, le
+     * format StrKey, le CRC16, le base32. Seul le numéro de type de pièce
+     * diffère : 314159 au lieu de 148.
+     *
+     * Exposer ce paramètre permet à PiWalletSep5Test de faire passer les
+     * vecteurs officiels par EXACTEMENT le code qui dérive les adresses Pi,
+     * et pas par une copie écrite pour le test. Le seul élément qui reste
+     * hors de portée d'un test est donc le nombre 314159 lui-même.
+     *
+     * N'est appelée ailleurs qu'avec [COIN_TYPE].
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    internal fun derivePaireAvecTypePiece(
+        seed: ByteArray,
+        typePiece: Int,
+        compte: Int = 0
+    ): PaireCles {
         val chemin = intArrayOf(
             44 or Int.MIN_VALUE,
-            COIN_TYPE or Int.MIN_VALUE,
-            0 or Int.MIN_VALUE
+            typePiece or Int.MIN_VALUE,
+            compte or Int.MIN_VALUE
         )
         val derivee = Slip10.deriveEd25519Key(seed, chemin)
-        return encoderStrKey(Ed25519Utils.publicKeyFromPrivate(derivee.privateKey))
+        val publique = Ed25519Utils.publicKeyFromPrivate(derivee.privateKey)
+        return PaireCles(derivee.privateKey, publique, encoderStrKey(publique))
+    }
+
+    /**
+     * Clé publique de 32 octets contenue dans une adresse G….
+     *
+     * Exige une adresse VALIDE : sans ce contrôle, une adresse mal recopiée
+     * rendrait trente-deux octets quelconques, qui deviendraient une
+     * destination de paiement parfaitement bien formée et inexistante.
+     */
+    fun clePubliqueDeLAdresse(adresse: String): ByteArray {
+        val propre = adresse.trim()
+        require(adresseValide(propre)) { "adresse Pi invalide" }
+        return decoderBase32(propre).copyOfRange(1, 33)
     }
 
     /**

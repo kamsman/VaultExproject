@@ -397,6 +397,35 @@ class SecureStorage @Inject constructor(
 
     fun getPortfolioSnapshot(): String? = prefs.getString(KEY_PORTFOLIO_SNAPSHOT, null)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ENVOI PI DONT ON NE CONNAÎT PAS ENCORE LE SORT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Une transaction Pi est diffusée par un appel HTTP. Sur un réseau
+    mobile, cet appel peut partir et sa réponse ne jamais revenir : la
+    transaction a peut-être été appliquée, peut-être pas, et on n'a aucun
+    moyen de le savoir sur le moment.
+
+    Rien dans l'état en mémoire ne survivrait à une application fermée au
+    mauvais instant. On écrit donc l'empreinte sur le disque AVANT de
+    diffuser. Au prochain lancement, PiEnvoiUseCase la retrouve, demande au
+    réseau ce qu'elle est devenue, et répond — au lieu de laisser
+    l'utilisateur renvoyer à l'aveugle.
+
+    Trois champs suffisent : l'empreinte pour interroger le réseau, la date
+    limite pour savoir à partir de quand l'absence devient définitive, et
+    le montant pour pouvoir le rappeler à l'écran. Aucun secret.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun savePiEnvoiEnCours(json: String?) {
+        prefs.edit().apply {
+            if (json == null) remove(KEY_PI_ENVOI_EN_COURS) else putString(KEY_PI_ENVOI_EN_COURS, json)
+        }.apply()
+    }
+
+    fun getPiEnvoiEnCours(): String? = prefs.getString(KEY_PI_ENVOI_EN_COURS, null)
+
     /** Transactions sortantes en attente de confirmation (JSON). */
     fun savePendingTxs(json: String) {
         prefs.edit().putString(KEY_PENDING_TXS, json).apply()
@@ -554,6 +583,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_DB_KEY = "db_encryption_key"
         private const val KEY_PORTFOLIO_SNAPSHOT = "portfolio_snapshot"
         private const val KEY_PENDING_TXS = "pending_txs"
+        private const val KEY_PI_ENVOI_EN_COURS = "pi_envoi_en_cours"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"

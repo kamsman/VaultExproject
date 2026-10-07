@@ -193,6 +193,23 @@ fun PiScreen(navController: NavController) {
                     }
                 }
 
+                /*
+                DE QUOI REPARTIR : CET ÉCRAN NE DOIT PAS ÊTRE UN CUL-DE-SAC.
+
+                Il montre une adresse et un solde. Quelqu'un qui vient d'y
+                recevoir ses premiers Pi veut ensuite les envoyer, et il est
+                ICI — pas dans la liste « Envoyer ». Sans ce bouton, il
+                faudrait ressortir, trouver l'accueil, toucher la ligne PI,
+                puis Envoyer. Quatre gestes pour une suite évidente.
+                */
+                Button(
+                    onClick = { navController.navigate(com.vaultex.ui.navigation.Routes.PI_ENVOI) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.pi_envoi_bouton), fontWeight = FontWeight.Bold)
+                }
+
                 Text(
                     stringResource(R.string.pi_pas_d_echange),
                     fontSize = 11.sp, color = TextSecondary, textAlign = TextAlign.Center
