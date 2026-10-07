@@ -33,33 +33,42 @@ object CryptoIcon {
     CoinGecko avec le reste des données de marché. Deux logos différents
     pour la même monnaie dans la même application.
 
-    ─── ON PREND LA MÊME SOURCE QUE L'ÉCRAN MARCHÉ ─────────────────────
+    ─── DEUX TENTATIVES DE CORRECTION, ET CE QU'ELLES ONT APPRIS ───────
 
-    CoinGecko héberge le logo officiel de chaque monnaie, et l'écran Marché
-    s'en sert déjà pour les dix-neuf mille qu'il liste. Pointer ici la même
-    image aligne tous les écrans sur une seule et même source : ce n'est pas
-    une dépendance de plus, c'est celle qui existait déjà.
+    D'ABORD UNE IMAGE EMBARQUÉE : la lettre grecque pi sur le violet de la
+    charte Pi. Elle s'affichait parfaitement, et elle était mauvaise — elle
+    ne ressemblait à aucun des autres logos, tous de vraies marques. Au
+    milieu d'eux, une pastille dessinée à la main se lit « cette monnaie-là
+    est bricolée ».
 
-    L'adresse est fixe et ne contient aucune clé. Si elle venait à ne plus
-    répondre, le comportement est celui d'avant ce correctif — les initiales
-    en repli, dessinées par les appelants.
+    PUIS UNE ADRESSE COINGECKO ÉCRITE EN DUR, relevée dans une réponse de
+    leur moteur de recherche. Elle ne répond pas depuis l'application.
 
-    UN SEUL ENDROIT POUR TRENTE-ET-UN APPELS. C'est la raison d'être de
-    cette classe, rappelée par son en-tête : corriger ici corrige l'accueil,
-    le Marché, l'envoi, la réception, les notifications et les toasts d'un
-    coup. Aller modifier les appelants aurait produit trente-et-une
-    occasions d'en oublier un.
+    Le point commun des deux : ELLES DEVINENT. Et c'est tout ce que cette
+    fonction sait faire — fabriquer un chemin à partir d'un symbole. Ça
+    marche pour les monnaies majeures du dépôt spothq, et pour rien d'autre.
+
+    ─── D'OÙ VIENNENT LES LOGOS MAINTENANT ─────────────────────────────
+
+    L'écran Marché, lui, n'a jamais rien deviné : CoinGecko lui DONNE
+    l'adresse de l'image avec les données de marché. C'est pourquoi il
+    affiche le bon logo du Pi depuis le premier jour, pendant que l'accueil
+    montrait des initiales.
+
+    PortfolioViewModel.logos lit désormais la même donnée, dans l'appel de
+    marché qui existait déjà pour les courbes, et les lignes d'actif s'en
+    servent en priorité. Cette fonction reste le repli pour tout ce qui n'a
+    pas d'identifiant de cotation — un jeton importé par contrat, par
+    exemple. Elle ne devine plus que là où il n'y a rien d'autre.
+
+    NE PAS Y REMETTRE D'ADRESSE EN DUR. Deux essais, deux échecs, et la
+    source qui marche est ailleurs.
     ═══════════════════════════════════════════════════════════════════════
     */
-    private val LOGOS_PARTICULIERS = mapOf(
-        "PI" to "https://coin-images.coingecko.com/coins/images/54342/large/pi_network.jpg"
-    )
-
     fun url(symbol: String): String {
-        val ticker = symbol.substringBefore("-").trim()
-        LOGOS_PARTICULIERS[ticker.uppercase()]?.let { return it }
+        val ticker = symbol.substringBefore("-").trim().lowercase()
         return "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/" +
-            "master/128/color/${ticker.lowercase()}.png"
+            "master/128/color/$ticker.png"
     }
 
     /**

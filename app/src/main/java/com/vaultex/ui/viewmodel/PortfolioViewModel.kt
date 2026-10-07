@@ -329,10 +329,41 @@ class PortfolioViewModel @Inject constructor(
     private val _courbes = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
     val courbes: StateFlow<Map<String, List<Double>>> = _courbes.asStateFlow()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES LOGOS, PRIS LÀ OÙ L'ÉCRAN MARCHÉ LES PREND
+    ═══════════════════════════════════════════════════════════════════════
+
+    CryptoIcon DEVINE l'adresse d'un logo à partir du symbole : un chemin
+    figé dans un dépôt communautaire. Ça marche pour les monnaies majeures
+    et s'arrête là. Pour le Pi, ce dépôt n'a rien, et l'adresse que j'ai
+    écrite en dur à la place ne répond pas davantage — l'accueil affichait
+    les initiales pendant que le Marché montrait le vrai logo.
+
+    Les deux écrans ne devinaient pas la même chose, et c'est bien le
+    problème : le Marché, lui, NE DEVINE RIEN. CoinGecko lui donne
+    l'adresse de l'image avec les données de marché, et c'est pour ça
+    qu'elle est juste depuis toujours.
+
+    On lit donc la même. Cet appel existait déjà pour les courbes des
+    quatre cartes ; il porte maintenant tous les identifiants du
+    portefeuille et en retient l'image. Pas de requête de plus, pas de
+    chemin à maintenir, et une adresse qui suit CoinGecko si elle change.
+
+    CEUX QU'ON NE TROUVE PAS GARDENT L'ANCIEN CHEMIN. Un jeton importé par
+    contrat n'est dans aucun identifiant connu : CryptoIcon continue de le
+    servir comme avant. Rien ne régresse, des cas s'ajoutent.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private val _logos = MutableStateFlow<Map<String, String>>(emptyMap())
+    val logos: StateFlow<Map<String, String>> = _logos.asStateFlow()
+
     private fun chargerCourbes() {
         viewModelScope.launch {
             val symboles = listOf("BTC", "ETH", "SOL", "BNB")
-            val ids = symboles.mapNotNull { com.vaultex.core.market.CoinIds.BY_SYMBOL[it] }
+            // Toutes les monnaies du portefeuille, et non les quatre cartes :
+            // c'est l'occasion de récupérer leurs logos dans le même appel.
+            val ids = COIN_IDS
             if (ids.isEmpty()) return@launch
             val dtos = try {
                 withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -342,6 +373,18 @@ class PortfolioViewModel @Inject constructor(
                 return@launch   // tracé décoratif conservé
             }
             val parId = dtos.associateBy { it.id }
+
+            /*
+            Indexé par SYMBOLE, parce que c'est ce dont disposent les lignes
+            d'actif. On part de notre propre table d'identifiants plutôt que
+            du symbole rendu par CoinGecko : des milliers de monnaies
+            partagent un symbole, et prendre celui de la réponse ferait
+            afficher un jour le logo d'un homonyme.
+            */
+            _logos.value = com.vaultex.core.market.CoinIds.BY_SYMBOL
+                .mapNotNull { (symbole, id) ->
+                    parId[id]?.image?.takeIf { it.isNotBlank() }?.let { symbole to it }
+                }.toMap()
             _courbes.value = symboles.mapNotNull { sym ->
                 val prix = com.vaultex.core.market.CoinIds.BY_SYMBOL[sym]
                     ?.let { parId[it] }
