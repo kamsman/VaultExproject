@@ -149,14 +149,14 @@ fun PiEnvoiScreen(navController: NavController) {
                         Text(
                             stringResource(
                                 R.string.pi_envoi_solde,
-                                PiXdr.texteDepuisStroops(cap.soldeStroops)
+                                afficherPi(cap.soldeStroops)
                             ),
                             fontSize = 13.sp, color = TextSecondary
                         )
                         Text(
                             stringResource(
                                 R.string.pi_envoi_disponible,
-                                PiXdr.texteDepuisStroops(cap.disponibleStroops)
+                                afficherPi(cap.disponibleStroops)
                             ),
                             fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                         )
@@ -171,8 +171,8 @@ fun PiEnvoiScreen(navController: NavController) {
                         Text(
                             stringResource(
                                 R.string.pi_envoi_reserve,
-                                PiXdr.texteDepuisStroops(cap.reserveStroops),
-                                PiXdr.texteDepuisStroops(cap.fraisStroops)
+                                afficherPi(cap.reserveStroops),
+                                afficherPi(cap.fraisStroops)
                             ),
                             fontSize = 11.sp, color = TextSecondary, lineHeight = 15.sp
                         )
@@ -398,4 +398,33 @@ private fun Resultat(resultat: ResultatEnvoiPi, onFermer: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * Un montant en Pi, écrit selon la langue de l'appareil.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI PAS PiXdr.texteDepuisStroops DIRECTEMENT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Celui-là rend toujours un point décimal, parce qu'il sert aussi à
+ * REMPLIR le champ de saisie — et que c'est ensuite relu par
+ * stroopsDepuisTexte, qui doit pouvoir faire l'aller-retour sans dépendre
+ * de la langue du téléphone.
+ *
+ * Mais « 0.01 Pi de frais » affiché à côté de « 9 000 F CFA » est écrit
+ * dans deux conventions différentes sur le même écran, en français. Le
+ * séparateur décimal est une virgule, et le voir changer d'une ligne à
+ * l'autre donne l'impression d'un écran bricolé — sur un écran qui parle
+ * d'argent, ça compte.
+ *
+ * Sept décimales au maximum, aucune au minimum : « 2 » reste « 2 », il ne
+ * devient pas « 2,0000000 ».
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+private fun afficherPi(stroops: Long): String {
+    val f = java.text.NumberFormat.getNumberInstance(java.util.Locale.getDefault())
+    f.maximumFractionDigits = PiXdr.DECIMALES
+    f.minimumFractionDigits = 0
+    return f.format(PiXdr.piDepuisStroops(stroops))
 }

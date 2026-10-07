@@ -1336,8 +1336,36 @@ private fun AssetRow(token: TokenBalance, hidden: Boolean, currency: String, isP
             ═══════════════════════════════════════════════════════════════
              */
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                « PRIX : $0 » EST UN CHIFFRE INVENTÉ
+                ═══════════════════════════════════════════════════════════
+
+                Un cours absent valait zéro, et zéro s'affichait comme un
+                prix : « Prix : $0 ». Or aucune monnaie du Marché ne vaut
+                zéro — c'est la cotation qui manque, pas la valeur.
+
+                Le défaut passait inaperçu parce que les huit monnaies
+                historiques sont toujours cotées. Le Pi l'a révélé en
+                affichant « Prix : $0 » à l'accueil pendant que le Marché
+                affichait 0,0827 $ sur la même seconde, dans la même
+                application.
+
+                La ligne juste en dessous masquait DÉJÀ la variation dans ce
+                cas, avec le bon raisonnement écrit à côté : « +0,0 % sur un
+                prix absent est une information inventée ». Elle valait pour
+                le prix aussi ; elle n'y avait simplement pas été appliquée.
+
+                On écrit donc un tiret, qui se lit « on ne sait pas » —
+                exactement comme la colonne des montants le fait déjà pour
+                un solde illisible.
+                ═══════════════════════════════════════════════════════════
+                */
                 Text(
-                    stringResource(R.string.asset_price_fmt, com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)),
+                    if (unitPrice > 0.0) stringResource(
+                        R.string.asset_price_fmt,
+                        com.vaultex.core.util.CurrencyFormat.formatPrice(unitPrice, currency)
+                    ) else stringResource(R.string.asset_price_fmt, "—"),
                     fontSize = 11.sp, color = TextSecondary
                 )
                 // Variation masquée quand aucun cours n'est connu : « +0,0 % »
