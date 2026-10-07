@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 6
+const VERSION = 7
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -261,12 +261,48 @@ async function coursSimples(url, env) {
   } catch (_) {
     corps = null
   }
+  corps = corps || {}
 
-  // Binance muet (panne, ou aucun identifiant reconnu) : on retombe sur
-  // CoinGecko. Un cours venu d'une source coûteuse vaut mieux qu'un « 0,00 »
-  // affiché sur un portefeuille, qui ne se lit pas « prix indisponible »
-  // mais « mon argent a disparu ».
-  if (!corps || Object.keys(corps).length === 0) {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE RÉPONSE PARTIELLE N'EST PAS UNE RÉPONSE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le repli sur CoinGecko ne se déclenchait que si Binance ne rendait RIEN.
+  Une réponse partielle — six monnaies sur sept — passait donc pour
+  complète, et la septième ressortait sans cours.
+
+  C'est exactement ce qui est arrivé au Pi. Il n'est listé sur aucune
+  place que Binance sert, donc il manquait de `sortie`. Les six autres
+  étant là, `corps` n'était pas vide, le repli ne partait pas, et
+  l'accueil affichait « Prix : $0 » pendant que l'écran Marché — qui passe
+  par /coins/markets, une autre route — affichait 0,0827 $. Deux écrans de
+  la même application en désaccord, à la même seconde.
+
+  Le défaut n'a rien de propre au Pi : TOUTE monnaie absente de Binance
+  perdait son cours, en silence, dès qu'une seule autre était présente. Le
+  Pi est simplement la première de l'application dans ce cas.
+
+  ON COMPLÈTE, ON NE REMPLACE PAS. Binance reste la source principale —
+  c'est elle qui rend ce chemin gratuit, et c'est le chemin le plus
+  emprunté de l'application. CoinGecko n'est interrogé que pour les
+  identifiants qui manquent, et la réponse fusionnée est mise en cache
+  comme avant : le surcoût de quota est donc au plus un appel par tranche
+  de TTL_COURS, partagé par tous les téléphones.
+
+  Le format est le même des deux côtés — usd, eur, xof, usd_24h_change —
+  puisque `ligne()` a été écrite pour imiter celui de CoinGecko.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const manquants = ids.filter((id) => !corps[id])
+  if (manquants.length > 0) {
+    Object.assign(corps, await complementCoinGecko(manquants, url, env))
+  }
+
+  // Les deux sources muettes : on relaie la demande d'origine telle quelle,
+  // plutôt que de rendre un « 0,00 » sur un portefeuille — qui ne se lit pas
+  // « prix indisponible » mais « mon argent a disparu ».
+  if (Object.keys(corps).length === 0) {
     return await relaisCoinGecko(url, env, TTL_COURS)
   }
 
@@ -275,6 +311,38 @@ async function coursSimples(url, env) {
   // la réponse est déjà construite.
   await cache.put(cle, reponse.clone())
   return reponse
+}
+
+/**
+ * Cours des identifiants que Binance ne cote pas, demandés à CoinGecko.
+ *
+ * Rend un objet, pas une Response : l'appelant le FUSIONNE avec ce que
+ * Binance a déjà rendu. C'est toute la différence avec [relaisCoinGecko],
+ * qui relaie la demande entière et remplace donc tout.
+ *
+ * On réutilise [relaisCoinGecko] plutôt que d'appeler CoinGecko à la main :
+ * il porte la bascule clé / sans clé quand le quota mensuel est épuisé, et
+ * sa règle de ne mettre en cache QUE ce qui a abouti. La réécrire ici, ce
+ * serait la voir diverger.
+ *
+ * Ne lève jamais : un complément absent laisse la ligne sans cours, ce qui
+ * est l'état d'avant. Il ne doit en aucun cas faire échouer les cours que
+ * Binance a correctement rendus.
+ */
+async function complementCoinGecko(ids, urlOrigine, env) {
+  try {
+    const cible = new URL(urlOrigine.toString())
+    cible.searchParams.set('ids', ids.join(','))
+    const reponse = await relaisCoinGecko(cible, env, TTL_COURS)
+    if (!reponse.ok) return {}
+    const objet = await reponse.json()
+    // CoinGecko signale ses refus par un objet { status: { error_code… } } :
+    // le fusionner poserait une clé « status » au milieu des monnaies.
+    if (!objet || typeof objet !== 'object' || objet.status) return {}
+    return objet
+  } catch (_) {
+    return {}
+  }
 }
 
 /** Interroge Binance et rend le format attendu par l'application. */

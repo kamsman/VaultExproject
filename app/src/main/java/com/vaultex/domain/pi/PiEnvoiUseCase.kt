@@ -137,9 +137,36 @@ class PiEnvoiUseCase @Inject constructor(
             )
         }.getOrNull() ?: return null
         val params = reseau.parametres() ?: return null
-        val compte = (comptes.etat(paire.adresse) as? EtatComptePi.Existe)?.compte
-            ?: return CapaciteEnvoiPi(paire.adresse, 0L, 0L, params.fraisDeBaseStroops, 0L)
         val frais = enchere(params.fraisDeBaseStroops, 1)
+        val compte = (comptes.etat(paire.adresse) as? EtatComptePi.Existe)?.compte
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN COMPTE QUI N'EXISTE PAS ENCORE N'A PAS UNE RÉSERVE DE ZÉRO
+        ═══════════════════════════════════════════════════════════════════
+
+        Ce chemin rendait des zéros partout, et l'écran écrivait alors :
+        « Le réseau Pi oblige à laisser 0 Pi sur le compte ». Une phrase qui
+        ne veut rien dire, affichée à quelqu'un qui découvre l'écran — donc
+        exactement au moment où il essaie de comprendre la règle.
+
+        La réserve existe pourtant déjà : c'est celle qui s'appliquera dès
+        le premier versement reçu, deux parts pour un compte simple. On
+        l'annonce, et le chiffre devient une information utile avant même
+        d'avoir un Pi — on sait ce qu'il faudra laisser.
+
+        Les frais, eux, étaient pris au MINIMUM du réseau alors que le
+        chemin normal annonce l'enchère, qui en vaut le double. Deux
+        chiffres différents pour la même chose selon qu'on a déjà des Pi ou
+        non : on prend l'enchère dans les deux cas.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (compte == null) return CapaciteEnvoiPi(
+            adresse = paire.adresse,
+            soldeStroops = 0L,
+            reserveStroops = params.reserveDeBaseStroops * 2,
+            fraisStroops = frais,
+            disponibleStroops = 0L
+        )
         return CapaciteEnvoiPi(
             adresse = paire.adresse,
             soldeStroops = compte.soldeStroops,
