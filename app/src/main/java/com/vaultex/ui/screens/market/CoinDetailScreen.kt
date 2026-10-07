@@ -571,18 +571,44 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             }
 
             /* ─────────── QUATRE ACTIONS, EN GRILLE 2×2 ─────────── */
-            // 3 niveaux réels de support, inchangés :
+            // 4 niveaux réels de support :
             //  🟢 Échangeable (registre swap)             → Envoyer + Recevoir + Swap
+            //  🟣 Pi : chaîne propre, hors registre swap  → Envoyer + Recevoir seuls
             //  🔵 Existe sur Ethereum/BSC (hors registre) → Envoyer + Recevoir seuls
             //  ⚪ Ni l'un ni l'autre                       → consultation seule
             val supported = com.vaultex.ui.viewmodel.SwapViewModel.assetForSymbol(symbol)
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE PI TOMBAIT DANS « CONSULTATION SEULE », ET C'EST FAUX
+            ═══════════════════════════════════════════════════════════════
+
+            Les trois niveaux ci-dessus supposaient qu'une monnaie
+            transférable est soit dans le registre d'échange, soit un jeton
+            EVM trouvable par son contrat. Le Pi n'est ni l'un ni l'autre :
+            il a sa propre chaîne, et il n'est dans aucun échangeur.
+
+            La fiche Marché annonçait donc « consultation seulement » et
+            éteignait Envoyer et Recevoir — alors que les deux fonctionnent
+            et sont actifs partout ailleurs dans l'application. Deux écrans
+            de la même application en désaccord sur la même monnaie : c'est
+            celui qui dit non qu'on croit.
+
+            L'ÉCHANGE, lui, reste bien éteint, et sans rien écrire : le
+            bouton se fie à `supported`, qui est nul pour le Pi puisqu'il
+            n'est pas dans SWAP_ASSETS. La séparation entre le registre
+            d'échange et la liste des actifs fait le travail toute seule.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val estPi = symbol.equals("PI", ignoreCase = true) || coinId == "pi-network"
             val receivable by viewModel.receivableToken.collectAsState()
             val receivableChecking by viewModel.receivableChecking.collectAsState()
             LaunchedEffect(coinId, supported) {
-                if (supported == null) viewModel.checkReceivable(coinId)
+                // Inutile de chercher un contrat EVM au Pi : il n'en a pas,
+                // et cet appel ne pourrait que coûter une requête pour rien.
+                if (supported == null && !estPi) viewModel.checkReceivable(coinId)
             }
             val receiveOnlyKey = receivable?.symbol
-            val transferable = supported != null || receiveOnlyKey != null
+            val transferable = estPi || supported != null || receiveOnlyKey != null
             /*
             LA VARIANTE DÉTENUE PASSE DEVANT CELLE DU REGISTRE.
 
@@ -597,6 +623,11 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             perdre les fonds. Une adresse Tron n'existe pas sur Ethereum.
             */
             val bufferKey = viewModel.cleDetenue(symbol) ?: supported?.key ?: receiveOnlyKey
+                // Le Pi n'est dans aucun des trois : ni cle detenue au sens du
+                // registre, ni actif d'echange, ni jeton EVM trouvable. Sans
+                // cette ligne, les ecrans Envoyer et Recevoir s'ouvriraient
+                // sans monnaie preselectionnee.
+                ?: "PI".takeIf { estPi }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -607,15 +638,19 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                         // C'EST ICI que le jeton entre dans le portefeuille, et
                         // nulle part avant : consulter une fiche ne doit rien y
                         // ajouter.
-                        if (supported == null) viewModel.enregistrerPourUsage()
+                        // Le Pi est deja un actif du portefeuille : rien a
+                        // enregistrer, contrairement a un jeton consulte.
+                        if (supported == null && !estPi) viewModel.enregistrerPourUsage()
                         bufferKey?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
-                        navController.navigate(Routes.SEND)
+                        // Reserve, memo, creation du compte destinataire :
+                        // voir Routes.PI_ENVOI.
+                        navController.navigate(if (estPi) Routes.PI_ENVOI else Routes.SEND)
                     }
                     ActionFiche(
                         Icons.Default.ArrowDownward, stringResource(R.string.action_receive),
                         plein = false, actif = transferable, modifier = Modifier.weight(1f)
                     ) {
-                        if (supported == null) viewModel.enregistrerPourUsage()
+                        if (supported == null && !estPi) viewModel.enregistrerPourUsage()
                         bufferKey?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
                         navController.navigate(Routes.RECEIVE)
                     }
@@ -642,6 +677,23 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             // Pourquoi certaines actions sont grisées — dit une fois, en petit.
             when {
                 supported != null -> {}
+                /*
+                LE PI PASSE AVANT TOUT LE RESTE DE CE `when`.
+
+                Sans cette branche, il retombait sur `coin_view_only` —
+                « consultation seulement » — juste sous deux boutons Envoyer
+                et Recevoir désormais actifs. La phrase contredisait les
+                boutons sur le même écran, et c'est elle qu'on aurait crue.
+
+                Elle est remplacée par la seule chose vraie du Pi ici :
+                l'envoi et la réception marchent, l'échange non, et ce
+                dernier ne dépend pas de VaultEx.
+                */
+                estPi -> Text(
+                    stringResource(R.string.pi_fiche_limites),
+                    fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
+                    lineHeight = 15.sp
+                )
                 receivableChecking -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(color = AccentBlue, strokeWidth = 2.dp, modifier = Modifier.size(12.dp))
