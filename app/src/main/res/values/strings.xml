@@ -1121,4 +1121,5 @@
     <string name="pi_envoi_memo">Mémo</string>
     <string name="pi_envoi_reussi">Pi envoyés. La transaction est inscrite sur le réseau Pi.</string>
     <string name="pi_envoi_reussi_compte_cree">Pi envoyés, et le compte du destinataire a été créé. La transaction est inscrite sur le réseau Pi.</string>
+    <string name="pi_compte_a_creer">Cette adresse doit encore être CRÉÉE sur la chaîne Pi. Tant que ce n\'est pas fait, certaines plateformes (OKX…) la refuseront en disant « adresse incorrecte » — l\'adresse est pourtant bonne. Il faut un premier versement d\'au moins %1$s Pi envoyé depuis une application Pi Wallet, qui sait créer un compte. Après ça, tout fonctionne normalement.</string>
 </resources>

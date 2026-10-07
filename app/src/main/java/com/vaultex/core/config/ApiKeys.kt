@@ -10,8 +10,9 @@ import com.vaultex.BuildConfig
  *   bscscan.key=YOUR_KEY       → https://bscscan.com/myapikey
  *   changenow.key=YOUR_KEY     → https://changenow.io/api-keys
  *   simpleswap.key=YOUR_KEY    → https://simpleswap.io/affiliate-program (Web Tools → API)
- *   swap.provider=simpleswap   → bascule l'échangeur (défaut : changenow)
+ *   swap.provider=changenow    → revient à l'ancien échangeur (défaut : simpleswap)
  *   simpleswap.commission=1.5  → le taux porté par la clé, pour l'affichage
+ *   simpleswap.taux.fixe=false → repasse en taux flottant (défaut : fixe)
  *   flutterwave.key=YOUR_KEY   → Flutterwave dashboard → API → Secret key
  *   trongrid.key=YOUR_KEY      → https://www.trongrid.io (optionnel, anti rate-limit)
  *   oneinch.key=YOUR_KEY       → https://portal.1inch.dev (devis d'échange sur place)
@@ -47,6 +48,21 @@ object ApiKeys {
 
     /** Commission de la clé en service — pour l'AFFICHAGE seulement. */
     val SIMPLESWAP_COMMISSION: Double = BuildConfig.SIMPLESWAP_COMMISSION
+
+    /**
+     * Taux fixe plutôt que flottant.
+     *
+     * En flottant, le montant reçu peut différer de celui affiché : le
+     * marché bouge pendant que le dépôt voyage. En fixe, SimpleSwap bloque
+     * le taux quelques minutes et se paie cette garantie.
+     *
+     * Vrai par défaut. Sur un réseau lent, face à des gens qui découvrent
+     * la crypto, « tu reçois exactement ce qui est écrit » vaut plus que
+     * quelques dixièmes de pour cent — un montant qui change après coup ne
+     * se lit pas « le marché a bougé », il se lit « on m'a pris quelque
+     * chose ». Voir simpleswap.taux.fixe dans local.properties.
+     */
+    val SIMPLESWAP_TAUX_FIXE: Boolean = BuildConfig.SIMPLESWAP_TAUX_FIXE
 
     /**
      * Échangeur en service : « changenow » ou « simpleswap ».

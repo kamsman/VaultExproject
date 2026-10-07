@@ -1092,4 +1092,5 @@
     <string name="pi_envoi_memo">Memo</string>
     <string name="pi_envoi_reussi">Pi sent. The transaction is recorded on the Pi network.</string>
     <string name="pi_envoi_reussi_compte_cree">Pi sent, and the recipient\'s account was created. The transaction is recorded on the Pi network.</string>
+    <string name="pi_compte_a_creer">This address still has to be CREATED on the Pi chain. Until then, some exchanges (OKX…) will reject it as an \"invalid address\" — the address is fine. It needs a first transfer of at least %1$s Pi sent from a Pi Wallet app, which can create an account. After that, everything works normally.</string>
 </resources>

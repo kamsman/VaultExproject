@@ -78,10 +78,37 @@ class EchangeSurPlaceUseCase @Inject constructor(
         if (com.vaultex.core.config.ApiKeys.ONEINCH.isBlank())
             return ResultatEchangeSurPlace.Echec("1inch non configure")
 
-        // ── Garde-fou 1 : le plafond ──────────────────────────────────
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        GARDE-FOU 1 : LE PLAFOND — ET IL COMPARAIT DES CHOUX À DES CAROTTES
+        ═══════════════════════════════════════════════════════════════════
+
+        La constante s'appelle ECHANGE_SUR_PLACE_MAX_USD et vaut 2. Elle
+        était comparée à `montant`, qui est un NOMBRE DE JETONS.
+
+        Pour l'USDT, les deux coïncident : deux USDT valent deux dollars, et
+        le plafond faisait ce qu'on croyait. Pour le BNB, non — deux BNB
+        valent plus de mille dollars. Le garde-fou censé limiter une
+        première erreur au prix d'un pain était six cents fois trop large,
+        exactement sur le chemin le plus récent et le moins éprouvé.
+
+        LE MONTANT EN DOLLARS SE LIT SANS DEMANDER DE COURS À PERSONNE.
+        Le registre ne contient que deux monnaies, BNB et USDT-BNB : toute
+        paire valide a donc exactement un côté en dollars. Quand c'est le
+        côté DÉPART, son montant est la valeur, exactement, et le contrôle
+        se fait ici. Quand c'est le côté ARRIVÉE, la valeur n'est connue
+        qu'après le devis — le contrôle est alors refait plus bas, AVANT
+        toute diffusion.
+
+        On ne se sert PAS de `attendu` pour cela. Il vient de l'écran, et un
+        devis affiché trop bas laisserait passer un montant trop grand :
+        la borne deviendrait fonction de ce qu'on affiche, ce qui n'est pas
+        une borne.
+        ═══════════════════════════════════════════════════════════════════
+        */
         val plafond = com.vaultex.BuildConfig.ECHANGE_SUR_PLACE_MAX_USD
-        if (montant > plafond)
-            return ResultatEchangeSurPlace.Echec("plafond d'essai : $plafond maximum")
+        if (ActifsBnbChain.estDollar(de) && montant > plafond)
+            return ResultatEchangeSurPlace.Echec("plafond d'essai : $plafond $ maximum")
 
         val source = ActifsBnbChain.de(de)
             ?: return ResultatEchangeSurPlace.Echec("monnaie hors perimetre")
@@ -148,6 +175,25 @@ class EchangeSurPlaceUseCase @Inject constructor(
             ?: return ResultatEchangeSurPlace.Echec("montant de sortie absent")
         val recu = java.math.BigDecimal(sortieBrute)
             .divide(java.math.BigDecimal.TEN.pow(cible.decimales)).toDouble()
+
+        /*
+        ── GARDE-FOU 1, SECONDE MOITIÉ : LE PLAFOND QUAND LE DOLLAR EST À
+           L'ARRIVÉE ──────────────────────────────────────────────────────
+
+        Quand la monnaie de départ n'est pas un dollar stable — un échange
+        qui part du BNB — sa valeur n'était pas connue au début de cette
+        fonction. Elle l'est maintenant : c'est `recu`, le montant d'USDT
+        que 1inch annonce, et il vient du service, pas de l'écran.
+
+        LE CONTRÔLE ARRIVE AVANT TOUTE DIFFUSION, et ce n'est pas un hasard.
+        Une monnaie native n'a aucune autorisation à donner — voir
+        ActifsBnbChain.estNatif — donc rien n'a encore été dépensé à ce
+        point. Refuser ici ne coûte rien du tout.
+        */
+        if (!ActifsBnbChain.estDollar(de) && recu > plafond)
+            return ResultatEchangeSurPlace.Echec(
+                "plafond d'essai : $plafond $ maximum (cet echange en vaut ${"%.2f".format(recu)})"
+            )
 
         // ── Garde-fou 3 : ce qu'on signe est ce qu'on a montré ────────
         if (attendu > 0.0 && recu < attendu * (1.0 - DERIVE_TOLEREE))

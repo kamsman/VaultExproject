@@ -40,6 +40,7 @@ import androidx.navigation.NavController
 import com.vaultex.R
 import com.vaultex.ui.components.CryptoIcon
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.BgTertiary
 import com.vaultex.ui.theme.BorderColor
@@ -336,6 +337,63 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
                 C'est l'unique endroit où cette phrase arrive au bon moment :
                 sur l'écran qu'on regarde avant de faire venir ses fonds.
                 */
+                /*
+                ═══════════════════════════════════════════════════════════
+                « ADRESSE INCORRECTE » CHEZ LE COURTIER, ALORS QU'ELLE EST
+                PARFAITE
+                ═══════════════════════════════════════════════════════════
+
+                Mesuré sur OKX : l'adresse VaultEx est refusée à la saisie,
+                tandis que l'adresse de dépôt d'OKX elle-même passe dans le
+                MÊME champ. La seule différence est que la nôtre n'a jamais
+                rien reçu — le compte n'existe pas encore sur la chaîne, et
+                la plateforme le vérifie.
+
+                Sans cet avertissement, l'utilisateur est dans une impasse
+                muette : il voit une adresse, on lui dit qu'elle est
+                incorrecte, et la seule conclusion disponible est que
+                VaultEx est cassé. Il manque pourtant une seule chose, et
+                elle est simple à obtenir.
+
+                C'EST ICI QUE ÇA SE DIT, et pas ailleurs : c'est l'écran où
+                l'on copie l'adresse pour la coller chez le courtier. Trente
+                secondes avant de se heurter au mur.
+                ═══════════════════════════════════════════════════════════
+                */
+                val activation by viewModel.activationPi.collectAsState()
+                LaunchedEffect(symbol, address) {
+                    if (symbol.equals("PI", ignoreCase = true) && address.isNotEmpty()) {
+                        viewModel.verifierComptePi()
+                    }
+                }
+                if (symbol.equals("PI", ignoreCase = true) && activation?.requise == true) {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AccentOrange.copy(alpha = 0.10f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Default.Warning, null,
+                                tint = AccentOrange,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                stringResource(
+                                    R.string.pi_compte_a_creer,
+                                    activation?.minimumPi ?: "1"
+                                ),
+                                fontSize = 11.sp, color = TextPrimary, lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+
                 if (symbol.equals("PI", ignoreCase = true)) {
                     Spacer(Modifier.height(6.dp))
                     Surface(
