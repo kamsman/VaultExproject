@@ -1133,4 +1133,5 @@
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
+    <string name="change_tu_envoies">You send</string>
 </resources>

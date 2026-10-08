@@ -111,10 +111,34 @@ object TauxFcfa {
         */
         if (proportion > MARGE_MAX_PROPORTION) return null
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE PRIX AFFICHÉ DOIT ÊTRE CELUI QU'ON APPLIQUE
+        ═══════════════════════════════════════════════════════════════════
+
+        Sans cet arrondi, l'écran annonçait « Prix d'un USDT : 560 FCFA »
+        puis « Tu reçois : 5 599 FCFA » pour dix unités. Les deux chiffres
+        étaient justes — 559,93 arrondi à 560, et dix fois 559,93 font
+        5 599 — et leur rapprochement était faux.
+
+        Quelqu'un qui vérifie de tête fait 560 × 10 = 5 600, trouve 5 599,
+        et ne conclut pas « arrondi » : il conclut qu'on lui prend un franc
+        quelque part. Sur un écran de change, ce soupçon coûte plus cher
+        que le franc.
+
+        On arrondit donc le prix unitaire AU FRANC, et tout se calcule à
+        partir de ce prix-là. Le total redevient vérifiable à la main, ce
+        qui est exactement ce qu'un utilisateur fait quand il hésite.
+
+        Le franc n'a pas de subdivision en circulation : arrondir à l'unité
+        n'est pas une approximation, c'est la précision réelle de la
+        monnaie.
+        ═══════════════════════════════════════════════════════════════════
+        */
         return PrixFcfa(
             baseFcfa = coursFcfa,
-            achatFcfa = coursFcfa * (1.0 + proportion),
-            venteFcfa = coursFcfa * (1.0 - proportion)
+            achatFcfa = kotlin.math.round(coursFcfa * (1.0 + proportion)),
+            venteFcfa = kotlin.math.round(coursFcfa * (1.0 - proportion))
         )
     }
 
