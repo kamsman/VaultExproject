@@ -249,6 +249,39 @@ object NetworkModule {
         .addInterceptor(RpcFallbackInterceptor(backupHosts))
         .build()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CHANGE FCFA — LA RACINE DU RELAIS, PAS SON CHEMIN COINGECKO
+    ═══════════════════════════════════════════════════════════════════════
+
+    PRICE_RELAY se termine par « /api/v3/ », parce qu'il imite les chemins de
+    CoinGecko. Les points d'entrée du change, eux, vivent à la RACINE du
+    Worker : /change/parametres et /change/ordre. On retire donc ce suffixe.
+
+    Sans cela, l'application demanderait /api/v3/change/parametres, le
+    Worker ne reconnaîtrait pas ce chemin et le relaierait à CoinGecko, qui
+    répondrait une erreur. Le change paraîtrait indisponible sans qu'aucune
+    trace ne dise pourquoi.
+
+    RELAIS NON CONFIGURÉ : une adresse en « .invalid », un domaine réservé
+    qui ne résout jamais. Les appels échouent immédiatement, ChangeService
+    rend null, et l'écran ne propose rien — ce qui est le comportement
+    voulu. On ne peut pas construire Retrofit sans adresse de base, et
+    donner une vraie adresse enverrait des demandes de change à un service
+    qui n'a rien demandé.
+    ═══════════════════════════════════════════════════════════════════════
+     */
+    @Provides @Singleton
+    fun provideChangeApi(client: OkHttpClient): com.vaultex.data.remote.api.ChangeApi {
+        val relais = ApiKeys.PRICE_RELAY.trim()
+        val base = if (relais.isBlank()) "https://relais-non-configure.invalid/"
+        else {
+            val avecBarre = if (relais.endsWith("/")) relais else "$relais/"
+            avecBarre.removeSuffix("api/v3/")
+        }
+        return retrofit(base, client).create(com.vaultex.data.remote.api.ChangeApi::class.java)
+    }
+
     private fun retrofit(baseUrl: String, client: OkHttpClient): Retrofit =
         Retrofit.Builder().baseUrl(baseUrl).client(client)
             .addConverterFactory(GsonConverterFactory.create()).build()

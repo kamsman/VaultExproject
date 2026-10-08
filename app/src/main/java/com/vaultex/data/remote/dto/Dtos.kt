@@ -444,3 +444,54 @@ data class GeckoTerminalData(val attributes: GeckoTerminalAttributs? = null)
 data class GeckoTerminalAttributs(
     @SerializedName("token_prices") val tokenPrices: Map<String, String> = emptyMap()
 )
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CHANGE FCFA
+═══════════════════════════════════════════════════════════════════════════
+
+TOUS LES CHAMPS SONT NULLABLES, comme partout ailleurs dans ce fichier. Un
+reglage absent doit remonter comme absent — ChangeService refuse alors de
+calculer un prix — jamais devenir un zero silencieux. Une marge lue a zero
+ferait changer au prix du marche, sans marge ; un plafond lu a zero
+interdirait tout.
+*/
+data class ParametresChangeDto(
+    val actif: Boolean? = null,
+    val margeFcfaParDollar: Double? = null,
+    val minimumFcfa: Double? = null,
+    val plafondFcfa: Double? = null,
+    val numeroMobileMoney: String? = null,
+    val nomChangeur: String? = null,
+    val operateur: String? = null,
+    val delaiMinutes: Int? = null
+)
+
+/**
+ * Une demande de change, telle qu'elle part vers le relais.
+ *
+ * Du TEXTE DEJA MIS EN FORME, et pas des nombres : le message Telegram est
+ * lu par un humain qui doit decider vite. Il ne doit avoir ni calcul a
+ * faire ni unite a deviner, et la mise en forme a lieu la ou les chiffres
+ * sont connus.
+ */
+data class OrdreChangeBody(
+    val reference: String,
+    val sens: String,
+    val monnaie: String,
+    val montantFcfa: String,
+    val montantCrypto: String,
+    val taux: String,
+    val marge: String,
+    val adresse: String = "",
+    val telephone: String = "",
+    val referencePaiement: String = ""
+)
+
+data class ReponseOrdreDto(
+    val ok: Boolean? = null,
+    val reference: String? = null,
+    val raison: String? = null,
+    /** Vrai si cette reference avait deja ete transmise : pas un doublon. */
+    val deja: Boolean? = null
+)

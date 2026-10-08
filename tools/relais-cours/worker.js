@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 7
+const VERSION = 8
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -141,6 +141,15 @@ sur ces cartes n'en dépend — le prix et la variation viennent de
 /simple/price. Voir le commentaire du routage.
 */
 const TTL_COURBES = 3600
+/*
+REGLAGES DU CHANGE : UNE MINUTE.
+
+Assez court pour qu'une fermeture du service, ou une marge corrigee, soit
+prise en compte presque tout de suite — c'est l'interet d'un reglage
+distant. Assez long pour qu'un ecran rafraichi n'interroge pas le Worker a
+chaque frappe.
+*/
+const TTL_PARAMETRES_CHANGE = 60
 const TTL_CATALOGUE = 86400
 
 /*
@@ -195,6 +204,44 @@ export default {
 
     if (url.pathname === '/diag') {
       return await diagnostic(env)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CHANGE FCFA — LES DEUX POINTS D'ENTRÉE, ET POURQUOI ILS SONT ICI
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un utilisateur achète ou vend de la crypto contre des francs, auprès
+    d'un changeur joignable par Telegram. VaultEx affiche, calcule et trace ;
+    l'argent va d'Orange Money à Orange Money, la crypto d'un portefeuille à
+    l'autre. Rien ne transite par nous.
+
+    POURQUOI LE RELAIS ET NON L'APPLICATION. Le jeton du bot Telegram est
+    aujourd'hui compilé dans l'APK. Quiconque décompile l'application le
+    récupère — dix minutes avec des outils gratuits. Tant qu'il ne sert
+    qu'à des alertes d'administration, c'est une nuisance. Pour des ORDRES
+    sur lesquels un changeur agit, ce serait un vol : on forge un résumé
+    crédible, le changeur envoie la crypto, personne n'a jamais payé.
+
+    Le jeton vit donc ici, dans les secrets du Worker, et le téléphone ne
+    l'a jamais. Forger un ordre redevient « casser ce serveur » au lieu de
+    « décompiler une application ».
+
+    CE QUE CELA NE PROTÈGE PAS, ET IL FAUT LE DIRE. Cette adresse est
+    publique : n'importe qui peut y poster un faux ordre. C'est inévitable
+    — l'application est distribuée, aucun secret qu'elle porterait ne
+    resterait secret. La vraie protection n'est pas technique, elle est
+    dans la règle du changeur : IL N'ENVOIE QU'APRÈS AVOIR VU LES FONDS SUR
+    SON PROPRE COMPTE. Un faux ordre ne coûte alors que du bruit, et c'est
+    pour borner ce bruit qu'il y a une limite de débit.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/change/parametres') {
+      return parametresChange(env)
+    }
+
+    if (url.pathname === '/change/ordre' && requete.method === 'POST') {
+      return await ordreChange(requete, env)
     }
 
     if (url.pathname === '/api/v3/simple/price') {
@@ -770,11 +817,160 @@ function nombre(v) {
   return Number.isFinite(n) ? n : 0
 }
 
-function json(objet, ttl) {
+function json(objet, ttl, statut) {
   return new Response(JSON.stringify(objet), {
+    // Un refus doit se lire comme un refus. Rendu en 200, il arriverait
+    // dans l'application comme une reponse valide, et un corps { ok: false }
+    // finirait par etre ignore quelque part.
+    status: statut || 200,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': ttl ? `public, max-age=${ttl}` : 'no-store',
     },
   })
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════
+// CHANGE FCFA
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Réglages du change, lus par l'application avant chaque affichage.
+ *
+ * TOUT EST MODIFIABLE SANS REPUBLIER L'APPLICATION, et c'est l'intérêt
+ * entier de les servir d'ici : la marge suit le marché, le plafond suit la
+ * confiance, et `actif` ferme le service en une seconde le jour où le
+ * changeur n'est pas joignable. Une application distribuée ne se corrige
+ * pas en une seconde ; un réglage, si.
+ *
+ * Les valeurs vivent dans les variables du Worker (tableau de bord
+ * Cloudflare → Settings → Variables). Celles par défaut ci-dessous valent
+ * pour un Worker fraîchement déployé, et tournent autour de 25 FCFA par
+ * dollar — la moitié de ce que prend FasoChange.
+ */
+function parametresChange(env) {
+  const nombre = (v, defaut) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n >= 0 ? n : defaut
+  }
+  return json(
+    {
+      // Interrupteur d'arrêt. Mettre CHANGE_ACTIF=0 suffit à retirer le
+      // bouton de l'application, sans rien republier.
+      actif: String(env?.CHANGE_ACTIF ?? '1') !== '0',
+      // Marge en FRANCS PAR DOLLAR : la langue du marché local.
+      margeFcfaParDollar: nombre(env?.CHANGE_MARGE, 25),
+      // Bornes par opération. Le plafond est bas tant que la confiance se
+      // construit : c'est l'utilisateur qui envoie en premier.
+      minimumFcfa: nombre(env?.CHANGE_MIN, 5000),
+      plafondFcfa: nombre(env?.CHANGE_MAX, 50000),
+      // Le changeur, tel qu'il s'affiche à l'écran. Pas un secret : c'est
+      // un numéro qu'on donne pour recevoir de l'argent.
+      numeroMobileMoney: String(env?.CHANGE_NUMERO ?? ''),
+      nomChangeur: String(env?.CHANGE_NOM ?? ''),
+      operateur: String(env?.CHANGE_OPERATEUR ?? 'Orange Money'),
+      // Délai annoncé à l'utilisateur, en minutes. Une promesse tenue vaut
+      // mieux qu'une promesse courte.
+      delaiMinutes: nombre(env?.CHANGE_DELAI, 30),
+    },
+    TTL_PARAMETRES_CHANGE
+  )
+}
+
+/**
+ * Reçoit un ordre et le résume sur Telegram.
+ *
+ * NE DÉCIDE RIEN, N'AUTORISE RIEN. Il met en forme et transmet. C'est le
+ * changeur qui décide, après avoir vu l'argent sur son compte.
+ *
+ * Le message porte une MISE EN GARDE EXPLICITE, à chaque fois. Elle
+ * paraîtra répétitive au bout de cent ordres, et c'est exactement pour le
+ * centième qu'elle est là : celui où l'on est pressé, où la capture d'écran
+ * a l'air vraie, et où l'on envoie sans vérifier.
+ */
+async function ordreChange(requete, env) {
+  const token = env?.TG_CHANGE_TOKEN || env?.TG_ADMIN_TOKEN
+  const chat = env?.TG_CHANGE_CHAT || env?.TG_ADMIN_CHAT
+  if (!token || !chat) {
+    return json({ ok: false, raison: 'canal non configure' }, 0, 503)
+  }
+
+  let corps = null
+  try {
+    corps = await requete.json()
+  } catch (_) {
+    return json({ ok: false, raison: 'corps illisible' }, 0, 400)
+  }
+
+  const champ = (v, max) => String(v ?? '').trim().slice(0, max)
+  const ordre = {
+    reference: champ(corps.reference, 24),
+    sens: champ(corps.sens, 8),
+    monnaie: champ(corps.monnaie, 12),
+    montantFcfa: champ(corps.montantFcfa, 20),
+    montantCrypto: champ(corps.montantCrypto, 32),
+    taux: champ(corps.taux, 32),
+    marge: champ(corps.marge, 32),
+    adresse: champ(corps.adresse, 128),
+    telephone: champ(corps.telephone, 24),
+    referencePaiement: champ(corps.referencePaiement, 48),
+  }
+  if (!ordre.reference || !ordre.sens || !ordre.monnaie || !ordre.montantFcfa) {
+    return json({ ok: false, raison: 'ordre incomplet' }, 0, 400)
+  }
+
+  /*
+  LIMITE DE DÉBIT, PAR RÉFÉRENCE.
+
+  Cette adresse est publique, donc n'importe qui peut y poster. On ne peut
+  pas l'empêcher — l'application est distribuée, et aucun secret qu'elle
+  porterait ne resterait secret. Ce qu'on peut faire, c'est empêcher
+  d'inonder le canal au point que le changeur n'y travaille plus.
+
+  La même référence ne passe qu'une fois par heure : un renvoi après une
+  coupure réseau ne crée pas un doublon, et une boucle ne crée pas mille
+  messages.
+  */
+  const cache = caches.default
+  const cle = new Request(`https://relais.vaultex/ordre/${encodeURIComponent(ordre.reference)}`)
+  if (await cache.match(cle)) {
+    return json({ ok: true, deja: true, reference: ordre.reference })
+  }
+
+  const fleche = ordre.sens === 'achat' ? 'FCFA -> crypto' : 'crypto -> FCFA'
+  const lignes = [
+    `\u{1F4B1} DEMANDE DE CHANGE · ${ordre.reference}`,
+    `${fleche} · ${ordre.monnaie}`,
+    '',
+    `Montant   : ${ordre.montantFcfa} FCFA`,
+    `Crypto    : ${ordre.montantCrypto} ${ordre.monnaie}`,
+    `Taux      : ${ordre.taux}`,
+    `Marge     : ${ordre.marge}`,
+    ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
+    ordre.telephone ? `Telephone : ${ordre.telephone}` : null,
+    ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
+    '',
+    '⚠️ N ENVOIE RIEN AVANT D AVOIR VU L ARGENT SUR TON PROPRE',
+    'COMPTE. Une capture d ecran se fabrique en cinq minutes ; une',
+    'reference se recopie. Seul ton releve fait foi.',
+  ].filter(Boolean)
+
+  try {
+    const corpsTg = new URLSearchParams({ chat_id: chat, text: lignes.join('\n') })
+    const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: corpsTg.toString(),
+    })
+    if (!envoi.ok) {
+      return json({ ok: false, raison: 'telegram a refuse' }, 0, 502)
+    }
+  } catch (_) {
+    return json({ ok: false, raison: 'telegram injoignable' }, 0, 502)
+  }
+
+  // Mémorisé APRÈS l'envoi : un échec doit pouvoir être réessayé.
+  await cache.put(cle, new Response('1', { headers: { 'cache-control': 'max-age=3600' } }))
+  return json({ ok: true, reference: ordre.reference })
 }
