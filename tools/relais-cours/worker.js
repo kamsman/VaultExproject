@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 11
+const VERSION = 12
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -486,6 +486,65 @@ async function ajouteTickers(cible, bases) {
  */
 async function diagnostic(env) {
   const sondes = { version: VERSION }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE CANAL DU CHANGEUR, VERIFIE POUR DE VRAI
+  ═══════════════════════════════════════════════════════════════════════
+
+  `canalConfigure`, dans /change/parametres, ne dit qu'une chose : les deux
+  reglages EXISTENT. C'est utile et c'est insuffisant — un jeton tronque au
+  collage existe, et echoue quand meme.
+
+  Ca s'est paye une heure : les reglages repondaient, l'ecran s'affichait,
+  et l'echec n'arrivait qu'au bout de la chaine, resume en trois mots.
+
+  Ici on DEMANDE a Telegram. getMe valide le jeton, getChat valide le
+  groupe, et chacun rend sa propre raison. Deux appels sur un point
+  d'entree qu'on consulte quand quelque chose ne va pas — jamais sur le
+  chemin normal.
+
+  Le nom du bot et le titre du groupe sont rendus : ils confirment d'un
+  coup d'oeil qu'on parle du bon bot et du bon groupe, ce qu'un simple
+  « true » ne dit pas.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const jeton = env?.TG_CHANGE_TOKEN || env?.TG_ADMIN_TOKEN
+  const groupe = env?.TG_CHANGE_CHAT || env?.TG_ADMIN_CHAT
+  const canal = { jetonPose: Boolean(jeton), groupePose: Boolean(groupe) }
+
+  if (jeton) {
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${jeton}/getMe`)
+      const o = await r.json()
+      canal.jetonValide = Boolean(o?.ok)
+      if (o?.ok) canal.bot = String(o.result?.username ?? '')
+      else canal.jetonRaison = String(o?.description ?? `HTTP ${r.status}`)
+    } catch (e) {
+      canal.jetonValide = false
+      canal.jetonRaison = 'injoignable'
+    }
+  }
+
+  if (jeton && groupe) {
+    try {
+      const r = await fetch(
+        `https://api.telegram.org/bot${jeton}/getChat?chat_id=${encodeURIComponent(groupe)}`
+      )
+      const o = await r.json()
+      canal.groupeJoignable = Boolean(o?.ok)
+      if (o?.ok) {
+        canal.groupe = String(o.result?.title ?? '')
+        canal.groupeType = String(o.result?.type ?? '')
+      } else {
+        canal.groupeRaison = String(o?.description ?? `HTTP ${r.status}`)
+      }
+    } catch (e) {
+      canal.groupeJoignable = false
+      canal.groupeRaison = 'injoignable'
+    }
+  }
+  sondes.canalChange = canal
 
   /*
   Mesuré, pas supposé : api.binance.com répond 403 depuis un Worker, avec
