@@ -56,7 +56,11 @@ data class ParametresChange(
     val numeroMobileMoney: String,
     val nomChangeur: String,
     val operateur: String,
-    val delaiMinutes: Int
+    val delaiMinutes: Int,
+    /** Monnaies acceptees a l'achat. */
+    val monnaies: List<String> = emptyList(),
+    /** Adresses du changeur pour les ventes, par monnaie. */
+    val adresses: Map<String, String> = emptyMap()
 ) {
     /**
      * Un service annoncé actif mais sans numéro n'est pas utilisable.
@@ -65,7 +69,19 @@ data class ParametresChange(
      * personne à payer. On préfère ne rien proposer.
      */
     val utilisable: Boolean
-        get() = actif && numeroMobileMoney.isNotBlank() && plafondFcfa > minimumFcfa
+        get() = actif && numeroMobileMoney.isNotBlank() &&
+            plafondFcfa > minimumFcfa && monnaies.isNotEmpty()
+
+    /**
+     * Vrai si cette monnaie peut etre VENDUE.
+     *
+     * Acheter ne demande qu'un numero Mobile Money ; vendre demande une
+     * adresse ou envoyer la crypto. Sans elle, l'ecran ouvrirait une vente
+     * vers personne — et les fonds partiraient sans retour. Les deux sens
+     * se decident donc separement.
+     */
+    fun rachetable(monnaie: String): Boolean =
+        adresses[monnaie.uppercase()]?.isNotBlank() == true
 }
 
 /** Ce qu'il advient d'une demande transmise. */
@@ -107,7 +123,9 @@ class ChangeService @Inject constructor(
                 numeroMobileMoney = dto.numeroMobileMoney.orEmpty(),
                 nomChangeur = dto.nomChangeur.orEmpty(),
                 operateur = dto.operateur ?: "Mobile Money",
-                delaiMinutes = dto.delaiMinutes ?: 30
+                delaiMinutes = dto.delaiMinutes ?: 30,
+                monnaies = dto.monnaies?.map { m -> m.uppercase() }.orEmpty(),
+                adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty()
             )
             cache = p
             horodatage = maintenant
