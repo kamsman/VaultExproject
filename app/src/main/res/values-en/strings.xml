@@ -1108,7 +1108,7 @@
     <string name="change_recevra">You receive</string>
     <string name="change_delai">Stated delay</string>
     <string name="change_continuer">Continue</string>
-    <string name="change_avertissement">The exchange happens between you and %1$s, not with VaultEx. VaultEx never holds your money or your crypto: it computes the price, gives you the reference and forwards your request.</string>
+    <string name="change_avertissement">The exchange happens between you and %1$s, not with VaultEx. Your money never passes through the app.</string>
     <string name="change_pas_de_rachat">This currency is not bought back right now. Pick another one, or buy instead of selling.</string>
     <string name="change_sans_cours">Price unavailable: no honest quote can be computed. Open the home screen to refresh, then come back.</string>
     <string name="change_sous_minimum">Minimum: %1$s FCFA.</string>

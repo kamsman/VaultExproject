@@ -1137,7 +1137,7 @@
     <string name="change_recevra">Tu reçois</string>
     <string name="change_delai">Délai annoncé</string>
     <string name="change_continuer">Continuer</string>
-    <string name="change_avertissement">L\'échange a lieu entre toi et %1$s, pas avec VaultEx. VaultEx ne détient à aucun moment ton argent ni ta crypto : elle calcule le prix, te donne la référence et transmet ta demande.</string>
+    <string name="change_avertissement">L\'échange a lieu entre toi et %1$s, pas avec VaultEx. Ton argent ne passe jamais par l\'application.</string>
     <string name="change_pas_de_rachat">Cette monnaie n\'est pas rachetée pour le moment. Choisis-en une autre, ou achète plutôt que vendre.</string>
     <string name="change_sans_cours">Cours indisponible : impossible de calculer un prix honnête. Ouvre l\'accueil pour rafraîchir, puis reviens.</string>
     <string name="change_sous_minimum">Minimum : %1$s FCFA.</string>
