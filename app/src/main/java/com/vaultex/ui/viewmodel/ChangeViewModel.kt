@@ -92,6 +92,71 @@ class ChangeViewModel @Inject constructor(
 
     init { charger() }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CE QU'ON RETROUVE AU RETOUR D'ORANGE MONEY
+    ═══════════════════════════════════════════════════════════════════════
+
+    Entre la confirmation d'un prix et la declaration du paiement,
+    l'utilisateur QUITTE l'application. Sur un telephone peu puissant,
+    Android la ferme pendant ce temps — c'est le fonctionnement normal du
+    systeme, pas un incident.
+
+    Sans cette reprise, il reviendrait sur un ecran de calcul vierge apres
+    avoir envoye de l'argent en portant une reference que l'application ne
+    connait plus. Il n'aurait plus aucun moyen de rattacher son paiement a
+    sa demande, et nous non plus.
+
+    On le ramene donc exactement ou il etait : a l'etape du paiement, avec
+    SA reference et LES MONTANTS QU'IL A LUS. Rien n'est recalcule — le
+    prix a pu bouger entre-temps, et c'est celui qu'on lui a montre qui
+    engage.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private data class ChangeEnCours(
+        val reference: String = "",
+        val sens: String = "",
+        val monnaie: String = "",
+        val saisie: String = "",
+        val baseFcfa: Double = 0.0,
+        val achatFcfa: Double = 0.0,
+        val venteFcfa: Double = 0.0,
+        val fcfaParDollar: Double = 0.0,
+        val horodatage: Long = 0L
+    )
+
+    private fun reprendre() {
+        val json = secureStorage.getChangeEnCours() ?: return
+        val trace = try {
+            gson.fromJson(json, ChangeEnCours::class.java)
+        } catch (_: Exception) { null }
+
+        /*
+        Une trace illisible, sans reference, ou VIEILLE DE PLUS D'UN JOUR
+        est effacee. Les deux premieres ne menent nulle part ; la troisieme
+        est pire : ramener quelqu'un sur un prix d'hier l'enverrait payer un
+        montant qui n'a plus cours, et le changeur recevrait une somme qui
+        ne correspond a rien.
+        */
+        if (trace == null || trace.reference.isBlank() ||
+            System.currentTimeMillis() - trace.horodatage > VALIDITE_TRACE
+        ) {
+            secureStorage.saveChangeEnCours(null)
+            return
+        }
+        _state.update {
+            it.copy(
+                etape = EtapeChange.PAIEMENT,
+                reference = trace.reference,
+                sens = if (trace.sens == "vente") SensChange.VENTE else SensChange.ACHAT,
+                monnaie = trace.monnaie.ifBlank { it.monnaie },
+                saisie = trace.saisie,
+                prix = PrixFcfa(trace.baseFcfa, trace.achatFcfa, trace.venteFcfa),
+                fcfaParDollar = trace.fcfaParDollar
+            )
+        }
+    }
+
     fun charger() {
         viewModelScope.launch {
             _state.update { it.copy(chargement = true, erreur = null) }
@@ -104,6 +169,9 @@ class ChangeViewModel @Inject constructor(
                 )
             }
             recalculer()
+            // APRES recalculer : la reprise ecrase le prix frais par celui
+            // qui a ete montre a l'utilisateur, et c'est l'ordre voulu.
+            reprendre()
         }
     }
 
@@ -183,13 +251,31 @@ class ChangeViewModel @Inject constructor(
     fun confirmer() {
         val s = _state.value
         if (s.blocage() != null) return
-        _state.update {
-            it.copy(etape = EtapeChange.PAIEMENT, reference = OrdreChange.nouvelleReference())
-        }
+        val prix = s.prix ?: return
+        val reference = OrdreChange.nouvelleReference()
+        // ECRITE AVANT, jamais apres : le moment dangereux est precisement
+        // celui ou l'utilisateur quitte l'application pour aller payer.
+        secureStorage.saveChangeEnCours(
+            gson.toJson(
+                ChangeEnCours(
+                    reference = reference,
+                    sens = if (s.sens == SensChange.ACHAT) "achat" else "vente",
+                    monnaie = s.monnaie,
+                    saisie = s.saisie,
+                    baseFcfa = prix.baseFcfa,
+                    achatFcfa = prix.achatFcfa,
+                    venteFcfa = prix.venteFcfa,
+                    fcfaParDollar = s.fcfaParDollar ?: 0.0,
+                    horodatage = System.currentTimeMillis()
+                )
+            )
+        )
+        _state.update { it.copy(etape = EtapeChange.PAIEMENT, reference = reference) }
     }
 
-    fun retourAuCalcul() = _state.update {
-        it.copy(etape = EtapeChange.CALCUL, reference = "", erreur = null)
+    fun retourAuCalcul() {
+        secureStorage.saveChangeEnCours(null)
+        _state.update { it.copy(etape = EtapeChange.CALCUL, reference = "", erreur = null) }
     }
 
     /**
@@ -230,9 +316,12 @@ class ChangeViewModel @Inject constructor(
             val res = withContext(Dispatchers.IO) { service.transmettre(ordre) }
             _state.update {
                 when (res) {
-                    is ResultatOrdre.Transmis -> it.copy(
-                        envoiEnCours = false, etape = EtapeChange.TRANSMIS
-                    )
+                    is ResultatOrdre.Transmis -> {
+                        // La demande est chez le changeur : la trace a fait
+                        // son travail et ne doit plus ramener personne ici.
+                        secureStorage.saveChangeEnCours(null)
+                        it.copy(envoiEnCours = false, etape = EtapeChange.TRANSMIS)
+                    }
                     is ResultatOrdre.Echec -> it.copy(
                         envoiEnCours = false, erreur = res.raison
                     )
@@ -249,6 +338,7 @@ class ChangeViewModel @Inject constructor(
      * quelque chose s'est bloqué.
      */
     fun recommencer() {
+        secureStorage.saveChangeEnCours(null)
         _state.update {
             ChangeState(parametres = it.parametres, chargement = false, monnaie = it.monnaie)
         }
@@ -281,6 +371,15 @@ class ChangeViewModel @Inject constructor(
             maximumFractionDigits = 8
             minimumFractionDigits = 0
         }.format(v)
+
+    private companion object {
+        /**
+         * Un jour. Au-dela, une trace ramenerait quelqu'un sur un prix
+         * d'hier : il paierait un montant qui n'a plus cours, et le
+         * changeur recevrait une somme ne correspondant a rien.
+         */
+        const val VALIDITE_TRACE = 24 * 60 * 60 * 1000L
+    }
 
     private data class SnapLiteChange(val tokens: List<TokenLiteChange>?)
     private data class TokenLiteChange(

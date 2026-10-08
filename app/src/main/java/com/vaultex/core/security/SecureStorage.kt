@@ -426,6 +426,35 @@ class SecureStorage @Inject constructor(
 
     fun getPiEnvoiEnCours(): String? = prefs.getString(KEY_PI_ENVOI_EN_COURS, null)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA DEMANDE DE CHANGE QU'ON EST EN TRAIN DE PAYER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Entre le moment où l'utilisateur confirme un prix et celui où il déclare
+    avoir payé, IL QUITTE L'APPLICATION — il va dans Orange Money. Sur un
+    téléphone peu puissant, Android ferme VaultEx pendant ce temps : c'est
+    le comportement normal du système, pas un incident.
+
+    Au retour, tout l'état en mémoire a disparu. La référence VX- avec lui.
+    L'utilisateur se retrouverait devant un écran de calcul vierge, après
+    avoir envoyé de l'argent en portant une référence que l'application ne
+    connaît plus — donc sans aucun moyen de rattacher son paiement à sa
+    demande.
+
+    On l'écrit donc sur le disque AVANT qu'il ne parte payer. Trois champs
+    et un horodatage, aucun secret : la référence, les montants figés, et le
+    prix qui a été montré. C'est exactement ce qui doit survivre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun saveChangeEnCours(json: String?) {
+        prefs.edit().apply {
+            if (json == null) remove(KEY_CHANGE_EN_COURS) else putString(KEY_CHANGE_EN_COURS, json)
+        }.apply()
+    }
+
+    fun getChangeEnCours(): String? = prefs.getString(KEY_CHANGE_EN_COURS, null)
+
     /** Transactions sortantes en attente de confirmation (JSON). */
     fun savePendingTxs(json: String) {
         prefs.edit().putString(KEY_PENDING_TXS, json).apply()
@@ -584,6 +613,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PORTFOLIO_SNAPSHOT = "portfolio_snapshot"
         private const val KEY_PENDING_TXS = "pending_txs"
         private const val KEY_PI_ENVOI_EN_COURS = "pi_envoi_en_cours"
+        private const val KEY_CHANGE_EN_COURS = "change_en_cours"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"

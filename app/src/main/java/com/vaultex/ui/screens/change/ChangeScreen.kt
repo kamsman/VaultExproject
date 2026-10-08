@@ -250,8 +250,15 @@ private fun ColumnScope.EtapePaiement(
                 ),
                 fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
             )
+            /*
+            L'OPERATEUR EST DANS LE LIBELLE, et ce n'est pas decoratif : il
+            dit QUELLE application ouvrir. « Numero a crediter » seul laisse
+            quelqu'un chercher entre Orange Money, Moov et Wave — et payer
+            depuis la mauvaise ne marche pas toujours entre operateurs.
+            */
             Ligne(
-                stringResource(if (achat) R.string.change_numero else R.string.change_adresse),
+                if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
+                else stringResource(R.string.change_adresse),
                 aCopier, fort = true
             )
             if (achat && p.nomChangeur.isNotBlank()) {
