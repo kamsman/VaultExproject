@@ -1122,7 +1122,6 @@
     <string name="change_montant_exact">Exact amount</string>
     <string name="change_reference">Your reference</string>
     <string name="change_motif">Put %1$s as the payment reason. That is what links your transfer to your request — without it, the exchanger sees money arrive without knowing from whom.</string>
-    <string name="change_envoie_en_premier">YOU SEND FIRST. The exchanger will release nothing until the funds show on their own account — a screenshot is not enough, and that protects them as much as you. Allow about %1$d minutes.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
     <string name="change_ref_paiement_aide">The transaction number your operator texted you.</string>
@@ -1134,4 +1133,5 @@
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
     <string name="change_tu_envoies">You send</string>
+    <string name="change_telephone_aide">The number that made the payment (8 digits, no spaces).</string>
 </resources>

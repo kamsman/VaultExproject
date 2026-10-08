@@ -329,6 +329,21 @@ private fun ColumnScope.EtapePaiement(
             porter en motif.
             */
             Ligne(stringResource(R.string.change_reference), state.reference, fort = true)
+            /*
+            LE DELAI RESTE, LE PAVE ORANGE PART.
+
+            Un encadre « tu envoies en premier » disait trois choses dont
+            deux etaient deja dites par l'ecran lui-meme : l'ordre des
+            sections — le paiement, PUIS « une fois le paiement envoye » —
+            l'annonce sans un mot.
+
+            La troisieme, en revanche, ne se devine nulle part : combien de
+            temps attendre. Sans elle, quelqu'un paie, ne voit rien arriver
+            au bout de trois minutes, et appelle. Vingt utilisateurs, et
+            c'est une soiree. Elle devient une ligne parmi les montants, la
+            ou on la lit sans effort.
+            */
+            Ligne(stringResource(R.string.change_delai), "~ ${p.delaiMinutes} min")
             OutlinedButton(
                 onClick = { copier(aCopier) },
                 modifier = Modifier.fillMaxWidth()
@@ -342,16 +357,6 @@ private fun ColumnScope.EtapePaiement(
 
     Note(stringResource(R.string.change_motif, state.reference), AccentBlue)
 
-    /*
-    LA PHRASE LA PLUS IMPORTANTE DE L'ÉCRAN.
-
-    L'utilisateur envoie en premier. Il doit le savoir avant de payer, pas
-    après — et savoir aussi que le changeur ne débloquera rien tant qu'il
-    n'aura pas vu l'argent sur son propre compte, ce qui prend le temps que
-    ça prend.
-    */
-    Note(stringResource(R.string.change_envoie_en_premier, p.delaiMinutes), AccentOrange)
-
     Text(
         stringResource(R.string.change_declarer_titre),
         fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
@@ -361,6 +366,13 @@ private fun ColumnScope.EtapePaiement(
         value = state.referencePaiement,
         onValueChange = vm::onReferencePaiement,
         label = { Text(stringResource(R.string.change_ref_paiement)) },
+        /*
+        UN EXEMPLE PLUTOT QU'UNE DESCRIPTION. « Le numero de transaction
+        que ton operateur t'a envoye par SMS » demande de comprendre une
+        phrase ; « MP251008123456 » se reconnait d'un coup d'oeil dans le
+        SMS qu'on a sous les yeux.
+        */
+        placeholder = { Text("Ex. MP251008123456", color = TextSecondary) },
         supportingText = { Text(stringResource(R.string.change_ref_paiement_aide), fontSize = 11.sp) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth()
@@ -370,6 +382,8 @@ private fun ColumnScope.EtapePaiement(
         value = state.telephone,
         onValueChange = vm::onTelephone,
         label = { Text(stringResource(R.string.change_telephone)) },
+        placeholder = { Text("Ex. 70 12 34 56", color = TextSecondary) },
+        supportingText = { Text(stringResource(R.string.change_telephone_aide), fontSize = 11.sp) },
         singleLine = true,
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone

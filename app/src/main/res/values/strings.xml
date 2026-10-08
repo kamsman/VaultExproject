@@ -1151,7 +1151,6 @@
     <string name="change_montant_exact">Montant exact</string>
     <string name="change_reference">Ta référence</string>
     <string name="change_motif">Mets %1$s en motif du paiement. C\'est ce qui permet de rattacher ton envoi à ta demande — sans lui, le changeur voit de l\'argent arriver sans savoir de qui.</string>
-    <string name="change_envoie_en_premier">TU ENVOIES EN PREMIER. Le changeur ne débloquera rien tant qu\'il n\'aura pas vu les fonds sur son propre compte — une capture d\'écran ne suffit pas, et c\'est ce qui le protège comme toi. Compte environ %1$d minutes.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
     <string name="change_ref_paiement_aide">Le numéro de transaction que ton opérateur t\'a envoyé par SMS.</string>
@@ -1163,4 +1162,5 @@
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="action_acheter">Acheter</string>
     <string name="change_tu_envoies">Tu envoies</string>
+    <string name="change_telephone_aide">Le numéro qui a fait le paiement (8 chiffres, sans espace).</string>
 </resources>

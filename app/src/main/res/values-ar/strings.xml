@@ -1122,7 +1122,6 @@
     <string name="change_montant_exact">المبلغ بالضبط</string>
     <string name="change_reference">مرجعك</string>
     <string name="change_motif">ضع %1$s في خانة سبب الدفع. هذا ما يربط تحويلك بطلبك — بدونه يرى الصرّاف مالًا يصل دون أن يعرف من أرسله.</string>
-    <string name="change_envoie_en_premier">أنت تُرسل أولًا. لن يُفرج الصرّاف عن شيء قبل أن يرى المبلغ في حسابه — لقطة الشاشة لا تكفي، وهذا يحميه ويحميك. احسب نحو %1$d دقيقة.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>
     <string name="change_ref_paiement_aide">رقم العملية الذي أرسله لك المشغّل برسالة نصية.</string>
@@ -1134,4 +1133,5 @@
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="action_acheter">شراء</string>
     <string name="change_tu_envoies">ترسل</string>
+    <string name="change_telephone_aide">الرقم الذي نفّذ الدفع (8 أرقام، بدون مسافات).</string>
 </resources>
