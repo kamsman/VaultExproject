@@ -189,11 +189,40 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val unitaire = if (state.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa
                 Ligne(stringResource(R.string.change_taux, state.monnaie), "${fcfa(unitaire)} FCFA")
+                /*
+                ═══════════════════════════════════════════════════════════
+                « 25 FCFA/$ » EST UNE UNITE, PAS UN MONTANT
+                ═══════════════════════════════════════════════════════════
+
+                Cette ligne annoncait « Frais : 25 FCFA/$ ». Sur cent USDT,
+                les frais reels sont deux mille cinq cents francs.
+
+                Quelqu'un qui lit « 25 FCFA » et ne refait pas la
+                multiplication se trompe d'un facteur cent — et il ne la
+                refait pas, parce qu'une ligne intitulee « Frais » se lit
+                comme un montant, pas comme un taux.
+
+                On affiche donc ce que l'operation coute REELLEMENT, en
+                francs, des qu'un montant est saisi. Le taux reste a cote,
+                entre parentheses, pour qui veut comparer a un echangeur :
+                c'est la seule unite comparable, mais ce n'est pas celle
+                qu'on lit en premier.
+
+                Sans montant saisi, il n'y a pas de frais a annoncer : on
+                montre alors le taux seul, qui est tout ce qu'on sait.
+                ═══════════════════════════════════════════════════════════
+                */
+                val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
+                    ?.let { "%.2f %%".format(it) }
+                val fraisReels = state.montantCrypto?.let { c ->
+                    val applique = if (state.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa
+                    c * kotlin.math.abs(applique - prix.baseFcfa)
+                }
                 Ligne(
                     stringResource(R.string.change_marge),
-                    "${fcfa(p.margeFcfaParDollar)} FCFA/$ " +
-                        (TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
-                            ?.let { "(%.2f %%)".format(it) } ?: "")
+                    if (fraisReels != null && fraisReels >= 1.0)
+                        "${fcfa(fraisReels)} FCFA" + (pourcent?.let { " ($it)" } ?: "")
+                    else "${fcfa(p.margeFcfaParDollar)} FCFA/$" + (pourcent?.let { " ($it)" } ?: "")
                 )
                 /*
                 CE QU'ON DONNE, PUIS CE QU'ON RECOIT — et les deux changent
