@@ -640,15 +640,28 @@ fun DashboardScreen(navController: NavHostController) {
                 item(key = "donut") { PortfolioDonutCard(funded) }
             }
 
-            // ─── 3 tuiles d'action (modèle, sans MoMo) ───
+            /*
+            QUATRE TUILES, ET « ACHETER » EST LA QUATRIEME.
+
+            Le commentaire disait « sans MoMo » : la place etait prevue, elle
+            etait vide. Elle ne l'est plus — acheter de la crypto avec des
+            francs est le premier geste de quelqu'un qui n'en a pas encore,
+            et c'est donc celui qui doit se voir depuis l'accueil.
+
+            Le vert de « Recevoir » lui irait mieux, mais il est pris. On
+            prend l'orange : la tuile se distingue des trois autres, ce qui
+            est juste — c'est la seule qui fasse sortir de l'application.
+            */
             item(key = "actions") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionTile(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
                         AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
                     ActionTile(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
                     ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
+                    ActionTile(stringResource(R.string.action_acheter), Icons.Default.Payments,
+                        AccentOrange, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
                 }
             }
 

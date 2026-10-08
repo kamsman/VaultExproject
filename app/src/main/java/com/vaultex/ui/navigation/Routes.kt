@@ -65,6 +65,16 @@ object Routes {
 
     const val NOTIFICATIONS = "notifications"
 
+    /*
+    ACHETER ET VENDRE EN FRANCS, AUPRES D'UN CHANGEUR
+
+    VaultEx calcule le prix, donne la reference et transmet la demande. Elle
+    ne detient JAMAIS les fonds : l'argent va d'Orange Money a Orange Money,
+    la crypto d'un portefeuille a l'autre. C'est ce qui la tient a l'ecart
+    de l'activite d'intermediation financiere.
+    */
+    const val CHANGE = "change"
+
     /** Pi Network — adresse et solde, en lecture seule. */
     const val PI = "pi"
 

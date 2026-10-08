@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 8
+const VERSION = 9
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -873,9 +873,50 @@ function parametresChange(env) {
       // Délai annoncé à l'utilisateur, en minutes. Une promesse tenue vaut
       // mieux qu'une promesse courte.
       delaiMinutes: nombre(env?.CHANGE_DELAI, 30),
+      /*
+      LES MONNAIES ACCEPTEES, et les adresses ou le changeur les recoit.
+
+      Deux reglages plutot qu'un seul, parce qu'ils ne tombent pas en panne
+      ensemble : on peut ACHETER une monnaie sans que le changeur ait
+      publie d'adresse pour la racheter. L'application n'ouvre la vente que
+      pour celles dont elle a l'adresse — sinon elle enverrait quelqu'un
+      vendre a personne.
+
+      CHANGE_MONNAIES : « USDT,BTC,ETH ». CHANGE_ADRESSES : un objet JSON
+      « {"USDT":"T...","BTC":"bc1..."} ».
+      */
+      monnaies: String(env?.CHANGE_MONNAIES ?? 'USDT')
+        .split(',').map((m) => m.trim().toUpperCase()).filter(Boolean),
+      adresses: adressesChangeur(env),
     },
     TTL_PARAMETRES_CHANGE
   )
+}
+
+/**
+ * Adresses du changeur, par monnaie, pour les ventes.
+ *
+ * Un JSON illisible rend un objet VIDE, et non une lecture partielle : une
+ * adresse à moitié lue est une adresse vers laquelle des fonds partiraient
+ * sans retour. Aucune vente vaut mieux qu'une vente vers nulle part.
+ */
+function adressesChangeur(env) {
+  const brut = env?.CHANGE_ADRESSES
+  if (!brut) return {}
+  try {
+    const o = JSON.parse(String(brut))
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
+    const sortie = {}
+    for (const [cle, valeur] of Object.entries(o)) {
+      const adresse = String(valeur ?? '').trim()
+      // Moins de vingt caractères n'est une adresse sur aucune des chaînes
+      // traitées : c'est un champ à moitié rempli.
+      if (adresse.length >= 20) sortie[String(cle).trim().toUpperCase()] = adresse
+    }
+    return sortie
+  } catch (_) {
+    return {}
+  }
 }
 
 /**

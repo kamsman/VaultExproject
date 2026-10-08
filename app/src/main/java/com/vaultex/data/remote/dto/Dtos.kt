@@ -464,7 +464,16 @@ data class ParametresChangeDto(
     val numeroMobileMoney: String? = null,
     val nomChangeur: String? = null,
     val operateur: String? = null,
-    val delaiMinutes: Int? = null
+    val delaiMinutes: Int? = null,
+    /** Monnaies acceptees a l'achat. */
+    val monnaies: List<String>? = null,
+    /**
+     * Adresses ou le changeur recoit, par monnaie, pour les VENTES.
+     *
+     * Separe de [monnaies] parce que les deux ne tombent pas en panne
+     * ensemble : une monnaie peut etre achetable sans etre rachetable.
+     */
+    val adresses: Map<String, String>? = null
 )
 
 /**
