@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 9
+const VERSION = 10
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -885,6 +885,19 @@ function parametresChange(env) {
       CHANGE_MONNAIES : « USDT,BTC,ETH ». CHANGE_ADRESSES : un objet JSON
       « {"USDT":"T...","BTC":"bc1..."} ».
       */
+      /*
+      LE CANAL EST-IL CONFIGURE ? Un booleen, et rien d'autre.
+
+      Sans cette ligne, un jeton Telegram absent ne se voit NULLE PART :
+      /change/parametres repond normalement, l'ecran s'affiche
+      normalement, et l'echec n'arrive qu'au moment ou quelqu'un a deja
+      paye. On ne revele ni le jeton ni le groupe — seulement s'ils
+      existent, ce qui suffit a diagnostiquer en dix secondes.
+      */
+      canalConfigure: Boolean(
+        (env?.TG_CHANGE_TOKEN || env?.TG_ADMIN_TOKEN) &&
+          (env?.TG_CHANGE_CHAT || env?.TG_ADMIN_CHAT)
+      ),
       monnaies: String(env?.CHANGE_MONNAIES ?? 'USDT')
         .split(',').map((m) => m.trim().toUpperCase()).filter(Boolean),
       adresses: adressesChangeur(env),

@@ -195,15 +195,36 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
                         (TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
                             ?.let { "(%.2f %%)".format(it) } ?: "")
                 )
-                state.montantFcfa?.let { Ligne(stringResource(R.string.change_total_fcfa), "${fcfa(it)} FCFA") }
-                state.montantCrypto?.let {
-                    HorizontalDivider(color = BgPrimary)
+                /*
+                CE QU'ON DONNE, PUIS CE QU'ON RECOIT — et les deux changent
+                d'unite avec le sens.
+
+                La ligne « Tu paies » affichait des FRANCS dans les deux
+                cas. En vente, c'est faux deux fois : l'utilisateur ne paie
+                pas des francs, il en recoit — et le meme montant
+                apparaissait donc juste au-dessus de « Tu recois », avec le
+                meme chiffre et un libelle qui le contredisait.
+
+                Sur un ecran ou l'on s'engage, deux lignes qui se
+                contredisent valent moins qu'une seule.
+                */
+                val achatEnCours = state.sens == SensChange.ACHAT
+                val donne = if (achatEnCours) state.montantFcfa?.let { "${fcfa(it)} FCFA" }
+                    else state.montantCrypto?.let { "${crypto(it)} ${state.monnaie}" }
+                val recoit = if (achatEnCours) state.montantCrypto?.let { "${crypto(it)} ${state.monnaie}" }
+                    else state.montantFcfa?.let { "${fcfa(it)} FCFA" }
+
+                donne?.let {
                     Ligne(
-                        stringResource(R.string.change_recevra),
-                        if (state.sens == SensChange.ACHAT) "${crypto(it)} ${state.monnaie}"
-                        else "${fcfa(state.montantFcfa ?: 0.0)} FCFA",
-                        fort = true
+                        stringResource(
+                            if (achatEnCours) R.string.change_total_fcfa else R.string.change_tu_envoies
+                        ),
+                        it
                     )
+                }
+                recoit?.let {
+                    HorizontalDivider(color = BgPrimary)
+                    Ligne(stringResource(R.string.change_recevra), it, fort = true)
                 }
                 Ligne(stringResource(R.string.change_delai), "${p.delaiMinutes} min")
             }

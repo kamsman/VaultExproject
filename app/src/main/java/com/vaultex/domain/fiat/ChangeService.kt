@@ -152,10 +152,52 @@ class ChangeService @Inject constructor(
     suspend fun transmettre(ordre: OrdreChange): ResultatOrdre = try {
         val rep = api.ordre(ordre.versCorps())
         if (rep.ok == true) ResultatOrdre.Transmis(rep.reference ?: ordre.reference)
-        else ResultatOrdre.Echec(rep.raison ?: "demande refusee")
+        else ResultatOrdre.Echec(rep.raison ?: "Demande refusée, sans raison donnée.")
+    } catch (e: retrofit2.HttpException) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN SEUL MESSAGE POUR TOUTES LES CAUSES NE SERT À PERSONNE
+        ═══════════════════════════════════════════════════════════════════
+
+        Tout échouait sur « Le changeur n'a pas pu être joint ». Or les
+        causes n'ont rien à voir, et surtout : elles n'appellent pas la
+        même action.
+
+          503 « canal non configuré » → le jeton Telegram ou l'identifiant
+          du groupe manque dans le Worker. Réessayer ne servira JAMAIS à
+          rien, il faut poser le réglage.
+
+          400 « ordre incomplet » → un champ vide dans la demande. Un
+          défaut de l'application, à corriger.
+
+          502 « telegram injoignable » → là, oui, réessayer a du sens.
+
+        Dire « réessaie dans un instant » devant un réglage absent, c'est
+        envoyer quelqu'un recommencer indéfiniment une opération qui ne
+        peut pas aboutir. On lit donc la raison que le relais donne, et on
+        la transmet telle quelle.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val corps = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+        val raison = runCatching {
+            com.google.gson.JsonParser.parseString(corps).asJsonObject
+                .get("raison")?.takeIf { j -> !j.isJsonNull }?.asString
+        }.getOrNull()
+        com.vaultex.core.monitoring.reportUnlessCancelled("ordre change", e)
+        ResultatOrdre.Echec(
+            when {
+                raison == "canal non configure" ->
+                    "Le canal du changeur n'est pas configuré côté serveur. " +
+                        "Ce n'est pas un problème de réseau : réessayer n'y changera rien."
+                raison == "ordre incomplet" ->
+                    "La demande est incomplète. Reviens au calcul et recommence."
+                raison != null -> "Demande refusée : $raison"
+                else -> "Le serveur a répondu ${e.code()}. Réessaie dans un instant."
+            }
+        )
     } catch (e: Exception) {
         com.vaultex.core.monitoring.reportUnlessCancelled("ordre change", e)
-        ResultatOrdre.Echec("Le changeur n'a pas pu etre joint. Reessaie dans un instant.")
+        ResultatOrdre.Echec("Le changeur n'a pas pu être joint. Vérifie ta connexion.")
     }
 
     private companion object {

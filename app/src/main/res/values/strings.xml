@@ -1162,4 +1162,5 @@
     <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="action_acheter">Acheter</string>
+    <string name="change_tu_envoies">Tu envoies</string>
 </resources>
