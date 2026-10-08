@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 10
+const VERSION = 11
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1018,7 +1018,35 @@ async function ordreChange(requete, env) {
       body: corpsTg.toString(),
     })
     if (!envoi.ok) {
-      return json({ ok: false, raison: 'telegram a refuse' }, 0, 502)
+      /*
+      ON REND LA RAISON DE TELEGRAM, PAS LA NOTRE.
+
+      « telegram a refuse » ne dit rien, alors que Telegram dit toujours
+      pourquoi : « chat not found », « bot was kicked from the group »,
+      « Unauthorized », « group chat was upgraded to a supergroup chat ».
+      Chacune appelle une correction differente, et aucune ne se devine.
+
+      Le champ `description` est une phrase courte et ne contient jamais le
+      jeton — il est dans l'URL, pas dans la reponse. On peut donc le
+      transmettre sans rien exposer.
+      */
+      let description = ''
+      try {
+        const o = JSON.parse(await envoi.text())
+        description = String(o?.description ?? '')
+      } catch (_) {
+        description = ''
+      }
+      return json(
+        {
+          ok: false,
+          raison: description
+            ? `telegram a refuse : ${description}`
+            : `telegram a refuse (HTTP ${envoi.status})`,
+        },
+        0,
+        502
+      )
     }
   } catch (_) {
     return json({ ok: false, raison: 'telegram injoignable' }, 0, 502)
