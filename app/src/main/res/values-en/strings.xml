@@ -1092,7 +1092,7 @@
     <string name="pi_envoi_memo">Memo</string>
     <string name="pi_envoi_reussi">Pi sent. The transaction is recorded on the Pi network.</string>
     <string name="pi_envoi_reussi_compte_cree">Pi sent, and the recipient\'s account was created. The transaction is recorded on the Pi network.</string>
-    <string name="pi_compte_a_creer">This address still has to be CREATED on the Pi chain. Until then, MOST EXCHANGES will refuse to send to it: MEXC says \"address has not been activated yet\", OKX says \"invalid address\" — the address is fine. It needs a first transfer of at least %1$s Pi from a Pi wallet (the Pi Wallet app, or another VaultEx), which can create an account. Once only: exchanges accept it afterwards.</string>
+    <string name="pi_compte_a_creer">This address still has to be CREATED on the Pi chain, and very few apps can do it. The official Pi Wallet refuses (\"recipient address does not exist\"), MEXC too (\"address has not been activated yet\"), OKX too (\"invalid address\") — the address is fine. It needs a first transfer of at least %1$s Pi from an app that can CREATE an account: another VaultEx can. Once only: everyone accepts it afterwards.</string>
     <string name="pi_memo_quelconque">If the exchange REQUIRES a memo for this transfer, enter any value — %1$s for instance. A memo tells an exchange which customer to credit on a shared address. This one is yours alone: the network carries the memo and ignores it.</string>
     <string name="change_titre">Buy / Sell</string>
     <string name="change_chargement">Reading today\'s terms…</string>
