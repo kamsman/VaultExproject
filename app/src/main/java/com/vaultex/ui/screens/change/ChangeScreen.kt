@@ -5,10 +5,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -143,18 +149,21 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
         )
     }
 
-    if (p.monnaies.size > 1) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            p.monnaies.forEach { m ->
-                FilterChip(
-                    selected = state.monnaie == m,
-                    onClick = { vm.onMonnaie(m) },
-                    label = { Text(m, fontSize = 12.sp) }
-                )
-            }
-        }
-    }
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MONTANT ET LA MONNAIE SUR UNE SEULE LIGNE
+    ═══════════════════════════════════════════════════════════════════════
 
+    Les monnaies etaient une rangee de pastilles. Ca tient a deux, ca
+    deborde a cinq, et ca pousse le champ de saisie vers le bas — alors que
+    c'est lui qu'on vient remplir.
+
+    Une liste deroulante posee DANS le champ ne grandit pas avec le nombre
+    de monnaies, et met cote a cote les deux choses qui vont ensemble :
+    combien, et de quoi.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    var listeOuverte by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = state.saisie,
         onValueChange = vm::onSaisie,
@@ -168,11 +177,49 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
             )
         },
         singleLine = true,
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+        ),
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
         ),
+        trailingIcon = if (state.sens == SensChange.VENTE && p.monnaies.size > 1) {
+            {
+                Box {
+                    TextButton(onClick = { listeOuverte = true }) {
+                        Text(state.monnaie, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(expanded = listeOuverte, onDismissRequest = { listeOuverte = false }) {
+                        p.monnaies.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m) },
+                                onClick = { vm.onMonnaie(m); listeOuverte = false }
+                            )
+                        }
+                    }
+                }
+            }
+        } else null,
         modifier = Modifier.fillMaxWidth()
     )
+
+    /*
+    EN ACHAT, LA MONNAIE NE S'AFFICHE PAS DANS LE CHAMP : on y tape des
+    FRANCS. La mettre la ferait croire qu'on saisit des USDT. Elle reste
+    donc en pastilles, sous le champ, ou elle designe ce qu'on RECOIT.
+    */
+    if (state.sens == SensChange.ACHAT && p.monnaies.size > 1) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            p.monnaies.forEach { m ->
+                FilterChip(
+                    selected = state.monnaie == m,
+                    onClick = { vm.onMonnaie(m) },
+                    label = { Text(m, fontSize = 12.sp) }
+                )
+            }
+        }
+    }
 
     /*
     LE DÉTAIL COMPLET, AVANT LE BOUTON.
@@ -188,7 +235,11 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
         Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val unitaire = if (state.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa
-                Ligne(stringResource(R.string.change_taux, state.monnaie), "${fcfa(unitaire)} FCFA")
+                Ligne(
+                    stringResource(R.string.change_taux, state.monnaie),
+                    "${fcfa(unitaire)} FCFA",
+                    icone = Icons.Default.ShowChart
+                )
                 /*
                 ═══════════════════════════════════════════════════════════
                 « 25 FCFA/$ » EST UNE UNITE, PAS UN MONTANT
@@ -220,7 +271,8 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
                 }
                 Ligne(
                     stringResource(R.string.change_marge),
-                    if (fraisReels != null && fraisReels >= 1.0)
+                    icone = Icons.Default.Payments,
+                    valeur = if (fraisReels != null && fraisReels >= 1.0)
                         "${fcfa(fraisReels)} FCFA" + (pourcent?.let { " ($it)" } ?: "")
                     else "${fcfa(p.margeFcfaParDollar)} FCFA/$" + (pourcent?.let { " ($it)" } ?: "")
                 )
@@ -248,14 +300,28 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
                         stringResource(
                             if (achatEnCours) R.string.change_total_fcfa else R.string.change_tu_envoies
                         ),
-                        it
+                        it,
+                        icone = Icons.Default.NorthEast
                     )
                 }
+                /*
+                LE SEUL CHIFFRE QUI DECIDE, ET IL DOIT SE VOIR COMME TEL.
+
+                Tout le reste de cette carte sert a le justifier. Personne
+                ne compare deux offres sur le taux unitaire : on compare sur
+                ce qu'on recoit. Il passe donc en vert et en dix-huit.
+
+                LE DELAI SORT DE CETTE CARTE. Il n'est pas un prix, et il
+                etait affiche DEUX FOIS — ici et sur l'ecran de paiement.
+                Il ne reste qu'a l'endroit ou l'on attend.
+                */
                 recoit?.let {
                     HorizontalDivider(color = BgPrimary)
-                    Ligne(stringResource(R.string.change_recevra), it, fort = true)
+                    Ligne(
+                        stringResource(R.string.change_recevra), it,
+                        icone = Icons.Default.AccountBalanceWallet, vedette = true
+                    )
                 }
-                Ligne(stringResource(R.string.change_delai), "${p.delaiMinutes} min")
             }
         }
     }
@@ -265,9 +331,19 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
         AccentOrange
     )
 
+    /*
+    UN BLOCAGE EST UN ENCADRE, PAS UNE LIGNE DE TEXTE ROUGE.
+
+    Il explique pourquoi le bouton ne repond pas. Pose en texte nu sous
+    l'avertissement, il se confond avec lui et se lit en dernier — alors
+    que c'est la seule chose qui dise quoi faire pour avancer.
+
+    Meme traitement que les notes du dessus, couleur differente : l'oeil
+    sait deja ou regarder.
+    */
     val blocage = state.blocage()
     blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
-        Text(messageBlocage(it, p), fontSize = 12.sp, color = AccentRed)
+        Note(messageBlocage(it, p), AccentRed)
     }
 
     Button(
@@ -445,15 +521,41 @@ private fun ColumnScope.EtapeTransmis(reference: String, onRecommencer: () -> Un
 
 // ─── Briques ────────────────────────────────────────────────────────
 
+/**
+ * Une ligne de detail, avec son icone.
+ *
+ * L'ICONE N'EST PAS UN ORNEMENT. Ces lignes se ressemblent toutes — un
+ * libelle a gauche, un chiffre a droite — et l'oeil doit retrouver « ce
+ * que je recois » sans relire les quatre. Un pictogramme distinct par
+ * ligne donne ce point d'ancrage.
+ *
+ * [vedette] met la valeur en vert et en grand : c'est reserve au seul
+ * chiffre qui decide, celui qu'on recoit. Deux vedettes sur un ecran n'en
+ * font aucune.
+ */
 @Composable
-private fun Ligne(libelle: String, valeur: String, fort: Boolean = false) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+private fun Ligne(
+    libelle: String,
+    valeur: String,
+    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    fort: Boolean = false,
+    vedette: Boolean = false
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        icone?.let {
+            Icon(
+                it, null,
+                tint = if (vedette) AccentGreen else TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+        }
         Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
         Text(
             valeur,
-            fontSize = if (fort) 14.sp else 12.sp,
-            fontWeight = if (fort) FontWeight.Bold else FontWeight.Medium,
-            color = TextPrimary
+            fontSize = if (vedette) 18.sp else if (fort) 14.sp else 12.sp,
+            fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
+            color = if (vedette) AccentGreen else TextPrimary
         )
     }
 }
@@ -467,7 +569,11 @@ private fun Note(texte: String, couleur: androidx.compose.ui.graphics.Color) {
     ) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.Top) {
             Icon(
-                if (couleur == AccentOrange) Icons.Default.Warning else Icons.Default.Info,
+                when (couleur) {
+                    AccentOrange -> Icons.Default.Warning
+                    AccentRed -> Icons.Default.ErrorOutline
+                    else -> Icons.Default.Info
+                },
                 null, tint = couleur, modifier = Modifier.size(14.dp)
             )
             Spacer(Modifier.width(7.dp))
