@@ -1,0 +1,2 @@
+🛡️ Rien ne part sans que tu l'aies vu
+Avant un envoi, VaultEx vérifie l'adresse et affiche les frais — avant, pas après. Avant un échange, le taux et le montant exact que tu reçois sont à l'écran, et c'est ce chiffre-là qui s'applique. Rien ne quitte ton portefeuille sans ta confirmation, et aucun fonds ne passe par nous : nous ne pourrions ni les garder, ni les bloquer, ni les perdre.
