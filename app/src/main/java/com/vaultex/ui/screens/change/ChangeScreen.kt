@@ -1,5 +1,8 @@
 package com.vaultex.ui.screens.change
 
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -180,6 +183,22 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
         textStyle = androidx.compose.ui.text.TextStyle(
             fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
         ),
+        /*
+        LE LOGO DE LA MONNAIE DANS LE CHAMP.
+
+        Il dit DE QUOI on parle sans ajouter un mot, et il le dit a
+        l'endroit ou le regard se pose deja — sur le montant qu'on tape.
+        Meme source que partout ailleurs dans l'application, donc meme
+        image que sur l'accueil et le Marche.
+        */
+        leadingIcon = {
+            coil.compose.AsyncImage(
+                model = com.vaultex.ui.components.CryptoIcon.url(state.monnaie),
+                contentDescription = state.monnaie,
+                modifier = Modifier.size(28.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+            )
+        },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
         ),
@@ -326,6 +345,33 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
         }
     }
 
+    /*
+    LE DELAI EST DEHORS, ET C'EST SA PLACE.
+
+    Il n'est pas un prix : le mettre dans la carte des montants le ferait
+    lire comme une ligne de calcul. Dehors, discret, il repond a la seule
+    question qui reste quand les chiffres sont lus — combien de temps.
+
+    Il reapparait sur l'ecran de paiement, et ce n'est pas un doublon : on
+    ne voit jamais les deux a la fois, et c'est au moment d'attendre qu'on
+    a le plus besoin de le savoir.
+    */
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Schedule, null, tint = TextSecondary, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.change_delai),
+            fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f)
+        )
+        Text(
+            "${p.delaiMinutes} min",
+            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+        )
+    }
+
     Note(
         stringResource(R.string.change_avertissement, p.nomChangeur.ifBlank { "un changeur" }),
         AccentOrange
@@ -343,7 +389,7 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
     */
     val blocage = state.blocage()
     blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
-        Note(messageBlocage(it, p), AccentRed)
+        NoteEnDeuxTemps(messageBlocage(it, p), AccentRed)
     }
 
     Button(
@@ -382,11 +428,21 @@ private fun ColumnScope.EtapePaiement(
             quelqu'un chercher entre Orange Money, Moov et Wave — et payer
             depuis la mauvaise ne marche pas toujours entre operateurs.
             */
-            Ligne(
-                if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
-                else stringResource(R.string.change_adresse),
-                aCopier, fort = true
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    Ligne(
+                        if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
+                        else stringResource(R.string.change_adresse),
+                        aCopier, fort = true
+                    )
+                }
+                IconButton(onClick = { copier(aCopier) }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.ContentCopy, stringResource(R.string.copy),
+                        tint = AccentBlue, modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             if (achat && p.nomChangeur.isNotBlank()) {
                 Ligne(stringResource(R.string.change_beneficiaire), p.nomChangeur)
             }
@@ -420,13 +476,26 @@ private fun ColumnScope.EtapePaiement(
             ou on la lit sans effort.
             */
             Ligne(stringResource(R.string.change_delai), "~ ${p.delaiMinutes} min")
+            /*
+            COPIER LA REFERENCE, PAS LE NUMERO.
+
+            Le bouton copiait l'adresse ou le numero. Mais le numero se
+            retape sans peine — huit chiffres — alors que la reference,
+            huit caracteres melant lettres et chiffres, est exactement ce
+            qu'on recopie mal. Et c'est elle qui rattache le paiement a la
+            demande : mal recopiee, le changeur voit de l'argent arriver
+            sans savoir de qui.
+
+            Le numero garde son icone de copie, en haut de la carte, a cote
+            de lui.
+            */
             OutlinedButton(
-                onClick = { copier(aCopier) },
+                onClick = { copier(state.reference) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.copy))
+                Text(stringResource(R.string.change_copier_reference))
             }
         }
     }
@@ -543,12 +612,24 @@ private fun Ligne(
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         icone?.let {
-            Icon(
-                it, null,
-                tint = if (vedette) AccentGreen else TextSecondary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(8.dp))
+            /*
+            L'ICONE DANS UNE PASTILLE TEINTEE.
+
+            Posee a nu, elle se confond avec le texte et n'ancre rien. Sur
+            un fond legerement colore elle devient un repere, et c'est tout
+            ce qu'on lui demande : permettre de retrouver « ce que je
+            recois » sans relire les quatre lignes.
+            */
+            val teinte = if (vedette) AccentGreen else AccentBlue
+            Box(
+                Modifier.size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(teinte.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(it, null, tint = teinte, modifier = Modifier.size(15.dp))
+            }
+            Spacer(Modifier.width(10.dp))
         }
         Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
         Text(
@@ -557,6 +638,41 @@ private fun Ligne(
             fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
             color = if (vedette) AccentGreen else TextPrimary
         )
+    }
+}
+
+/**
+ * Un encadre en deux temps : le constat, puis quoi faire.
+ *
+ * LA PREMIERE PHRASE EST LE CONSTAT, le reste est l'action. Un pave de
+ * trois lignes en rouge se lit comme un reproche et se saute ; un constat
+ * en gras suivi d'une consigne se lit en deux coups d'oeil.
+ *
+ * Le decoupage se fait au premier point, ce qui suppose que la premiere
+ * phrase des messages de blocage soit le constat — elles le sont toutes,
+ * et c'est verifiable en les relisant. Sans point, tout reste en titre
+ * plutot que de disparaitre.
+ */
+@Composable
+private fun NoteEnDeuxTemps(texte: String, couleur: androidx.compose.ui.graphics.Color) {
+    val coupe = texte.indexOf('.')
+    val titre = if (coupe > 0) texte.substring(0, coupe + 1) else texte
+    val suite = if (coupe > 0) texte.substring(coupe + 1).trim() else ""
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = couleur.copy(alpha = 0.08f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 9.dp), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Default.ErrorOutline, null, tint = couleur, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(titre, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = couleur, lineHeight = 16.sp)
+                if (suite.isNotBlank()) {
+                    Text(suite, fontSize = 11.sp, color = TextSecondary, lineHeight = 15.sp)
+                }
+            }
+        }
     }
 }
 

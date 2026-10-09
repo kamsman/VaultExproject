@@ -1125,7 +1125,7 @@
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
     <string name="change_ref_paiement_aide">The transaction number your operator texted you.</string>
-    <string name="change_telephone">Your number (the one that paid)</string>
+    <string name="change_telephone">Mobile Money number used for the payment</string>
     <string name="change_jai_paye">I paid — send request</string>
     <string name="change_retour">Back to the quote</string>
     <string name="change_transmis_titre">Request sent</string>
@@ -1134,4 +1134,5 @@
     <string name="action_acheter">Buy</string>
     <string name="change_tu_envoies">You send</string>
     <string name="change_telephone_aide">The number that made the payment (8 digits, no spaces).</string>
+    <string name="change_copier_reference">Copy the reference</string>
 </resources>
