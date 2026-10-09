@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 13
+const VERSION = 14
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -242,6 +242,32 @@ export default {
 
     if (url.pathname === '/change/ordre' && requete.method === 'POST') {
       return await ordreChange(requete, env)
+    }
+
+    /*
+    LA MÊME VÉRIFICATION, EN LECTURE SEULE.
+
+    L'application interroge ce point d'entrée pendant que l'utilisateur
+    attend, et lui dit « transfert trouvé » avant qu'il appuie sur le
+    bouton. C'est le même code que celui qui décidera du marquage de son
+    ordre : s'il répond vert ici, il répondra vert là.
+
+    IL NE MARQUE RIEN COMME SERVI. Un sondage qui consommerait le txid
+    rendrait l'ordre suivant « deja_servi » — l'application se serait
+    volé sa propre preuve. Le marquage n'a lieu qu'au dépôt de l'ordre.
+
+    PAS DE CACHE : on y revient toutes les quinze secondes en attendant
+    qu'un transfert apparaisse, et une réponse de dix secondes d'âge
+    répondrait « pas encore » alors que c'est arrivé.
+    */
+    if (url.pathname === '/change/verifier') {
+      const resultat = await verifierVente({
+        monnaie: url.searchParams.get('monnaie'),
+        montant: url.searchParams.get('montant'),
+        txid: url.searchParams.get('txid'),
+        env,
+      })
+      return json(resultat, 0)
     }
 
     if (url.pathname === '/api/v3/simple/price') {
@@ -609,6 +635,113 @@ async function diagnostic(env) {
     sondes.coingecko = { erreur: String(e).slice(0, 300) }
   }
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES NOEUDS DE CHAINE, SONDES DEPUIS L'ENDROIT QUI COMPTE
+  ═══════════════════════════════════════════════════════════════════════
+
+  La vérification des ventes repose entièrement sur ces hôtes. S'ils ne
+  répondent pas depuis un Worker, la vérification rend `indisponible` à
+  chaque fois — et le changeur revient au contrôle manuel sans que
+  personne ne sache pourquoi.
+
+  Or cette liste de nœuds n'a PAS été mesurée : elle a été choisie sur ce
+  qu'on sait du filtrage des centres de données, qui est précisément le
+  piège où `api.binance.com` est tombé dans ce même fichier. Des hôtes
+  choisis par raisonnement, dans un fichier qui porte déjà la trace d'un
+  raisonnement démenti par la mesure.
+
+  Ces sondes-là tranchent. Elles sont ici et pas dans un test : seul le
+  Worker déployé est au bon endroit du réseau.
+
+  CE QU'IL FAUT LIRE. Un `code: 200` avec un extrait qui contient
+  « result » : le nœud marche. Un 403 : filtrage, l'hôte est inutile et il
+  faut réordonner NOEUDS_EVM. Pour TronGrid, un extrait contenant
+  « data » : l'API publique répond sans clé.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const chaines = {}
+  for (const [reseau, hotes] of Object.entries(NOEUDS_EVM)) {
+    for (const hote of hotes) {
+      const nom = `${reseau}:${hote.replace('https://', '')}`
+      try {
+        const r = await fetchBorne(
+          hote,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+          },
+          6000
+        )
+        chaines[nom] = { code: r.status, extrait: (await r.text()).slice(0, 120) }
+      } catch (e) {
+        chaines[nom] = { erreur: String(e).slice(0, 120) }
+      }
+    }
+  }
+
+  /*
+  TRONGRID EST SONDE SUR L'ADRESSE DU CHANGEUR quand elle est réglée, et
+  non sur une adresse d'exemple. Ça teste la chaîne complète d'un coup :
+  l'hôte répond, la clé passe, ET l'adresse réglée est lisible. Une
+  adresse mal collée — un caractère de trop au copier-coller — se voit
+  ici, et nulle part ailleurs avant une vraie vente.
+  */
+  const adressesPosees = adressesChangeur(env)
+  const pourSonde = adressesPosees.USDT || 'TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9'
+  try {
+    const entetes = { accept: 'application/json', 'user-agent': AGENT }
+    if (env?.TRONGRID_KEY) entetes['TRON-PRO-API-KEY'] = String(env.TRONGRID_KEY)
+    const r = await fetchBorne(
+      `${TRONGRID}/v1/accounts/${encodeURIComponent(pourSonde)}` +
+        '/transactions/trc20?limit=1&only_to=true&only_confirmed=true',
+      { headers: entetes },
+      7000
+    )
+    chaines.trongrid = {
+      code: r.status,
+      // L'adresse sondée est rendue : elle est publique (l'application la
+      // montre à chaque vendeur) et c'est elle qu'on veut confirmer.
+      adresse_sondee: pourSonde,
+      sur_adresse_reglee: Boolean(adressesPosees.USDT),
+      cle_presente: Boolean(env?.TRONGRID_KEY),
+      extrait: (await r.text()).slice(0, 200),
+    }
+  } catch (e) {
+    chaines.trongrid = { erreur: String(e).slice(0, 200) }
+  }
+
+  try {
+    const r = await fetchBorne(
+      `${BLOCKSTREAM}/blocks/tip/height`,
+      { headers: { 'user-agent': AGENT } },
+      7000
+    )
+    chaines.blockstream = { code: r.status, extrait: (await r.text()).slice(0, 60) }
+  } catch (e) {
+    chaines.blockstream = { erreur: String(e).slice(0, 120) }
+  }
+
+  sondes.chainesVente = chaines
+  /*
+  QUELLES MONNAIES SONT VRAIMENT VERIFIABLES, croisement de deux réglages.
+
+  Une monnaie est vérifiable si elle figure dans CHAINES_VENTE (on sait
+  lire sa chaîne) ET si CHANGE_ADRESSES porte son adresse (on sait quoi
+  regarder). Les deux se règlent séparément et on les oublie séparément :
+  afficher le croisement évite de chercher pourquoi « USDT-BNB » reste
+  éternellement non vérifié alors que le nœud BSC répond.
+  */
+  sondes.venteVerifiable = Object.keys(CHAINES_VENTE).reduce((acc, m) => {
+    acc[m] = {
+      chaine_connue: true,
+      adresse_reglee: Boolean(adressesPosees[m]),
+      verifiable: Boolean(adressesPosees[m]),
+    }
+    return acc
+  }, {})
+
   return json(sondes)
 }
 
@@ -876,6 +1009,42 @@ function nombre(v) {
   return Number.isFinite(n) ? n : 0
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+RELIRE UN NOMBRE MIS EN FORME EN FRANÇAIS
+═══════════════════════════════════════════════════════════════════════════
+
+L'application envoie du texte déjà présentable — « 5 000 » et « 8,33 » —
+parce que le message Telegram est lu par un humain. Pour vérifier, il faut
+le relire en nombre, et c'est là que ça se gâte.
+
+`parseFloat('5 000')` rend 5. Pas une erreur, pas un NaN : CINQ. Une vente
+de 5 000 francs se chercherait donc comme une vente de 5, aucun versement
+ne correspondrait, et la vérification dirait « introuvable » sur une
+opération parfaitement honnête. Le défaut serait passé pour une panne de
+TronGrid.
+
+TROIS ESPACES, ET PAS UNE.
+
+`NumberFormat` français sépare les milliers par U+202F (espace fine
+insécable) sur les ICU récents, par U+00A0 sur les plus anciens, et par une
+espace ordinaire ailleurs. Laquelle arrive dépend de la version d'Android
+du téléphone. On les écarte donc toutes les trois — tester avec la seule
+espace ordinaire aurait marché sur l'émulateur et échoué sur l'appareil.
+
+La virgule devient un point, et c'est tout : ce qui reste doit être un
+nombre, sinon on rend zéro, et zéro ne vérifie rien.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function nombreFrancais(v) {
+  const nu = String(v ?? '')
+    .replace(/[\s\u00a0\u202f\u2009]/g, '')
+    .replace(',', '.')
+  if (!/^[0-9]*\.?[0-9]+$/.test(nu)) return 0
+  const n = parseFloat(nu)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
 function json(objet, ttl, statut) {
   return new Response(JSON.stringify(objet), {
     // Un refus doit se lire comme un refus. Rendu en 200, il arriverait
@@ -1028,6 +1197,15 @@ async function ordreChange(requete, env) {
     adresse: champ(corps.adresse, 128),
     telephone: champ(corps.telephone, 24),
     referencePaiement: champ(corps.referencePaiement, 48),
+    /*
+    LE TXID N'EST QU'UN POINTEUR, et c'est pour ça qu'on peut l'accepter
+    d'un téléphone. Il dit QUELLE transaction regarder ; il ne dit pas ce
+    qu'elle contient. Le montant, le destinataire et le contrat du jeton
+    sont lus sur la chaîne, par le Worker. Désigner la transaction de
+    quelqu'un d'autre ne sert donc à rien d'autre qu'à la faire marquer
+    comme servie.
+    */
+    txid: champ(corps.txid, 96),
   }
   if (!ordre.reference || !ordre.sens || !ordre.monnaie || !ordre.montantFcfa) {
     return json({ ok: false, raison: 'ordre incomplet' }, 0, 400)
@@ -1069,29 +1247,43 @@ async function ordreChange(requete, env) {
   ═══════════════════════════════════════════════════════════════════════
   */
   const achat = ordre.sens === 'achat'
-  const aFaire = achat
-    ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
-    : `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
 
-  const lignes = [
-    `\u{1F4B1} DEMANDE DE CHANGE \u00b7 ${ordre.reference}`,
-    achat ? 'Le client paie en FCFA, tu envoies la crypto'
-          : 'Le client envoie la crypto, tu paies en FCFA',
-    '',
-    `\u27A1\uFE0F A FAIRE : ${aFaire}`,
-    '',
-    `Montant   : ${ordre.montantFcfa} FCFA`,
-    `Crypto    : ${ordre.montantCrypto} ${ordre.monnaie}`,
-    `Taux      : ${ordre.taux}`,
-    `Marge     : ${ordre.marge}`,
-    ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
-    ordre.telephone ? `Telephone : ${ordre.telephone}` : null,
-    ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
-    '',
-    '\u26A0\uFE0F N\u2019ENVOIE RIEN AVANT D\u2019AVOIR VU L\u2019ARGENT SUR TON',
-    'PROPRE COMPTE. Une capture d\u2019\u00e9cran se fabrique en cinq minutes ;',
-    'une r\u00e9f\u00e9rence se recopie. Seul ton relev\u00e9 fait foi.',
-  ].filter((l) => l !== null)
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE VENTE SE VÉRIFIE, UN ACHAT NON
+  ═══════════════════════════════════════════════════════════════════════
+
+  Dans une vente, l'utilisateur envoie de la crypto : ça se lit sur une
+  chaîne publique, et le Worker le lit lui-même.
+
+  Dans un achat, il envoie des francs par Orange Money. Aucune chaîne
+  publique ne porte ça, et VaultEx n'a pas accès aux relevés de l'opérateur
+  — c'est le changeur qui regarde son propre téléphone. Vérifier l'un et
+  pas l'autre n'est donc pas une asymétrie de soin, c'est la nature des
+  deux réseaux.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  let verif = null
+  let coherence = null
+  if (!achat) {
+    verif = await verifierVente({
+      monnaie: ordre.monnaie,
+      // Le montant vient du téléphone, et il SERT DE CRITÈRE DE RECHERCHE,
+      // pas de preuve : on cherche un versement qui lui ressemble, et c'est
+      // le montant LU SUR LA CHAÎNE qui est ensuite affiché au changeur.
+      montant: nombreFrancais(ordre.montantCrypto),
+      txid: ordre.txid,
+      env,
+    })
+    coherence = await coherenceFcfa(
+      ordre.monnaie,
+      nombreFrancais(ordre.montantCrypto),
+      nombreFrancais(ordre.montantFcfa),
+      env
+    )
+  }
+
+  const lignes = messageOrdre(ordre, verif, coherence)
 
   try {
     const corpsTg = new URLSearchParams({ chat_id: chat, text: lignes.join('\n') })
@@ -1137,5 +1329,1097 @@ async function ordreChange(requete, env) {
 
   // Mémorisé APRÈS l'envoi : un échec doit pouvoir être réessayé.
   await cache.put(cle, new Response('1', { headers: { 'cache-control': 'max-age=3600' } }))
-  return json({ ok: true, reference: ordre.reference })
+
+  /*
+  LE TXID EST MARQUÉ ICI, ET PAS PLUS TÔT.
+
+  Plus tôt — au moment de la vérification — un échec Telegram aurait brûlé
+  la preuve de l'utilisateur : son ordre n'est pas parti, et son transfert
+  est désormais « déjà servi ». Il n'aurait plus aucun moyen de redéposer
+  sa demande.
+
+  Ici, le changeur a le message. Le transfert a effectivement payé quelque
+  chose, et peut cesser de pouvoir payer autre chose.
+  */
+  if (verif && verif.etat === 'confirme' && verif.txid) {
+    await marquerTxidServi(verif.txid)
+  }
+
+  return json({
+    ok: true,
+    reference: ordre.reference,
+    // Rendu à l'application pour qu'elle dise à l'utilisateur ce que le
+    // changeur voit : « ta demande est partie, et elle est partie vérifiée ».
+    verification: verif ? verif.etat : null,
+    txid: verif && verif.etat === 'confirme' ? verif.txid : '',
+  })
+}
+
+/**
+ * Le message complet, tel qu'il arrive dans le canal du changeur.
+ *
+ * SORTIE DE ordreChange POUR ÊTRE AFFICHABLE. Le rendu de ce message s'est
+ * déjà payé deux fois : une ligne « Frais : 25 FCFA/$ » lue comme un
+ * montant, et un `filter(Boolean)` qui avalait les lignes vides et rendait
+ * un pavé compact. Les deux se voyaient en une seconde en REGARDANT le
+ * message, et pas du tout en relisant le code.
+ *
+ * tools/relais-cours/rendu-message.mjs l'imprime pour les quatre états.
+ */
+function messageOrdre(ordre, verif, coherence) {
+  const achat = ordre.sens === 'achat'
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA CONSIGNE CHANGE AVEC LA VÉRIFICATION, ET C'EST LE COEUR DE L'APPORT
+  ═══════════════════════════════════════════════════════════════════════
+
+  « ENVOYER 5 000 FCFA » sur une vente dont le transfert est introuvable
+  serait une consigne dangereuse, lue vite un soir de forte activité. Elle
+  ne doit apparaître que quand la chaîne a confirmé — sinon la ligne la
+  plus visible du message dit d'envoyer de l'argent que rien ne justifie.
+
+  ─── IL FAUT LES DEUX FEUX VERTS, ET JE L'AI VU EN REGARDANT ──────────
+
+  Ma première version ne regardait que la vérification on-chain. Sur un
+  ordre « 8 USDT reçus, paie 500 000 FCFA » — transfert parfaitement réel,
+  montant cent fois trop élevé — elle écrivait donc en haut du message, à
+  l'endroit le plus visible : « A FAIRE : ENVOYER 500 000 FCFA ». L'alarme
+  d'écart de prix était bien là, trois lignes plus bas.
+
+  Ça ne se voyait pas en relisant le code. Ça sautait aux yeux en
+  imprimant le message, ce qui est exactement la raison d'être de
+  rendu-message.mjs.
+
+  La consigne d'envoyer exige maintenant que la chaîne confirme ET que le
+  prix tienne debout. Un seul des deux qui manque, et le message dit
+  d'attendre.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const prixDouteux = Boolean(coherence && coherence.etat === 'ecart')
+  const verseVraiment = Boolean(verif && verif.etat === 'confirme') && !prixDouteux
+  const aFaire = achat
+    ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
+    : verseVraiment
+      ? `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
+      : `NE RIEN ENVOYER POUR L'INSTANT - lis les lignes du bas`
+
+  const lignes = [
+    `\u{1F4B1} DEMANDE DE CHANGE \u00b7 ${ordre.reference}`,
+    achat ? 'Le client paie en FCFA, tu envoies la crypto'
+          : 'Le client envoie la crypto, tu paies en FCFA',
+    '',
+    `\u27A1\uFE0F A FAIRE : ${aFaire}`,
+    '',
+    `Montant   : ${ordre.montantFcfa} FCFA`,
+    `Crypto    : ${ordre.montantCrypto} ${ordre.monnaie}`,
+    `Taux      : ${ordre.taux}`,
+    `Marge     : ${ordre.marge}`,
+    ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
+    ordre.telephone ? `Telephone : ${ordre.telephone}` : null,
+    ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
+    ...lignesVerification(verif, coherence, ordre),
+    '',
+    '\u26A0\uFE0F N\u2019ENVOIE RIEN AVANT D\u2019AVOIR VU L\u2019ARGENT SUR TON',
+    'PROPRE COMPTE. Une capture d\u2019\u00e9cran se fabrique en cinq minutes ;',
+    'une r\u00e9f\u00e9rence se recopie. Seul ton relev\u00e9 fait foi.',
+  ].filter((l) => l !== null)
+
+  return lignes
+
+}
+
+/**
+ * Le bloc de vérification, tel que le changeur le lit.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * UN SYMBOLE, PUIS CE QU'IL FAUT FAIRE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * À la cinquantième demande, un soir, on ne lit pas un paragraphe : on
+ * lit la couleur. Chaque état commence donc par un symbole différent —
+ * ✅ ❌ 🚨 ⚠️ — et la ligne suivante dit l'action, pas le diagnostic.
+ *
+ * LE MONTANT RENDU EST CELUI DE LA CHAÎNE, et le message le précise. Si le
+ * téléphone avait annoncé 8 USDT et que la chaîne en montre 0,8, c'est
+ * 0,8 qui s'affiche — avec la mention « lu sur la chaine ». Sans cette
+ * précision, le changeur croirait relire le chiffre du client.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+function lignesVerification(verif, coherence, ordre) {
+  const lignes = []
+
+  /*
+  L'ÉCART DE PRIX PASSE AVANT TOUT LE RESTE.
+
+  Un transfert peut être parfaitement réel et l'ordre absurde : « 8 USDT
+  reçus, paie 500 000 FCFA ». La vérification on-chain dirait ✅, et le
+  changeur paierait cent fois trop. Cette ligne vient donc en premier,
+  avant même le résultat de la chaîne.
+  */
+  if (coherence && coherence.etat === 'ecart') {
+    lignes.push('')
+    lignes.push('\u{1F6A8} ECART DE PRIX - NE PAIE PAS SANS RECALCULER')
+    lignes.push(`Annonce : ${ordre.montantFcfa} FCFA`)
+    lignes.push(
+      `Marche  : ~${groupeMilliers(coherence.attendu)} FCFA  ` +
+        `(ecart ${coherence.ecartPourcent} %)`
+    )
+  }
+
+  if (!verif) return lignes
+
+  if (verif.etat === 'confirme') {
+    lignes.push('')
+    lignes.push('\u2705 VERSEMENT VERIFIE SUR LA CHAINE PAR LE RELAIS')
+    lignes.push(`Recu      : ${formatMontant(verif.montant)} ${ordre.monnaie}  (lu sur la chaine)`)
+    if (verif.quand) lignes.push(`Horodate  : ${dateCourteUtc(verif.quand)}`)
+    if (verif.confirme === false) {
+      lignes.push('Bloc      : PAS ENCORE MINE - attends une confirmation')
+    }
+    if (verif.txid) lignes.push(`Txid      : ${verif.txid}`)
+    if (verif.explorateur) lignes.push(`Voir      : ${verif.explorateur}`)
+    /*
+    LE MONTANT LU CONTRE LE MONTANT ANNONCÉ.
+
+    La tolérance de recherche est d'un pour cent : un versement de 7,95
+    passe pour une demande de 8. L'écart est minuscule et il est réel, et
+    c'est le changeur qui paie la différence. On le lui dit.
+    */
+    const annonce = nombreFrancais(ordre.montantCrypto)
+    if (annonce > 0 && verif.montant > 0 && verif.montant < annonce * 0.999) {
+      lignes.push(
+        `\u26A0\uFE0F Recu MOINS qu'annonce (${formatMontant(verif.montant)} au lieu de ` +
+          `${ordre.montantCrypto}) - paie au prorata`
+      )
+    }
+    return lignes
+  }
+
+  if (verif.etat === 'deja_servi') {
+    lignes.push('')
+    lignes.push('\u{1F6A8} CE TRANSFERT A DEJA SERVI UNE AUTRE DEMANDE')
+    lignes.push(`Txid : ${verif.txid || 'inconnu'}`)
+    lignes.push('N\u2019ENVOIE RIEN. Cherche ce txid dans les demandes recentes :')
+    lignes.push('soit c\u2019est un doublon, soit quelqu\u2019un reutilise un vrai')
+    lignes.push('versement pour se faire payer deux fois.')
+    return lignes
+  }
+
+  if (verif.etat === 'absent') {
+    lignes.push('')
+    lignes.push('\u274C AUCUN VERSEMENT TROUVE SUR LA CHAINE')
+    lignes.push(`Le relais a regarde ton adresse ${ordre.monnaie} : ${verif.raison}.`)
+    lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Deux causes possibles, et une')
+    lignes.push('seule demande d\u2019agir : le retrait du client est encore en')
+    lignes.push('file chez son exchange (ca arrive, regarde dans 15 min), ou')
+    lignes.push('il n\u2019a rien envoye.')
+    return lignes
+  }
+
+  // indisponible / inconnue : on n'a pas regardé, et on le dit sans
+  // l'habiller. Le changeur revient à la vérification manuelle, qui est
+  // ce qu'il faisait avant — mais il sait qu'il doit la faire.
+  lignes.push('')
+  lignes.push('\u26A0\uFE0F VERIFICATION AUTOMATIQUE IMPOSSIBLE')
+  lignes.push(`Raison : ${verif.raison || 'inconnue'}.`)
+  lignes.push('Rien n\u2019est prouve ici. Verifie ton portefeuille comme avant.')
+  return lignes
+}
+
+/**
+ * « 500000 » devient « 500 000 ».
+ *
+ * À LA MAIN, ET NON PAR Intl. Tous les autres montants du message
+ * arrivent déjà groupés — l'application les met en forme avant d'envoyer.
+ * Celui-ci est le seul que le Worker calcule, et il se retrouvait nu au
+ * milieu des autres : « 5000 » à côté de « 5 000 », dans la ligne même qui
+ * sert à comparer les deux. Difficile de comparer deux nombres écrits
+ * différemment.
+ */
+function groupeMilliers(v) {
+  const n = Math.round(Number(v))
+  if (!Number.isFinite(n)) return '0'
+  return String(Math.abs(n))
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    .replace(/^/, n < 0 ? '-' : '')
+}
+
+/** Un montant lisible : assez de décimales pour être exact, pas plus. */
+function formatMontant(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  /*
+  Huit décimales suffisent pour toutes les chaînes traitées, et
+  `parseFloat` retire les zéros de fin — « 8.00000000 » redevient « 8 ».
+  Sans ça, un versement rond s'afficherait avec une traîne de zéros qui
+  fait hésiter sur l'unité.
+  */
+  return String(parseFloat(n.toFixed(8)))
+}
+
+/**
+ * « 09/10 18:52 ».
+ *
+ * EN UTC, ET C'EST L'HEURE LOCALE. Le Burkina Faso est à UTC+0 toute
+ * l'année : pas de décalage à appliquer, pas d'heure d'été. Un Worker n'a
+ * de toute façon pas de fuseau local — `toLocaleString` y rend de l'UTC
+ * en se faisant passer pour autre chose.
+ */
+function dateCourteUtc(ms) {
+  const d = new Date(Number(ms))
+  if (Number.isNaN(d.getTime())) return ''
+  const deux = (n) => String(n).padStart(2, '0')
+  return (
+    `${deux(d.getUTCDate())}/${deux(d.getUTCMonth() + 1)} ` +
+    `${deux(d.getUTCHours())}:${deux(d.getUTCMinutes())}`
+  )
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA VÉRIFICATION ON-CHAIN DES VENTES
+═══════════════════════════════════════════════════════════════════════════
+
+Jusqu'ici, une vente reposait sur une phrase : « j'ai envoyé ». Le changeur
+devait ouvrir son propre portefeuille et chercher. Pour l'utilisateur,
+c'était pire : il avait envoyé de la crypto — irréversible — et n'avait
+qu'une référence recopiée à la main pour le prouver.
+
+Or une vente, contrairement à un achat, est VÉRIFIABLE PAR N'IMPORTE QUI.
+Les fonds vont sur une chaîne publique. Personne n'a besoin de croire :
+il suffit de regarder.
+
+─── POURQUOI CE CODE EST ICI ET PAS DANS L'APPLICATION ──────────────────
+
+Parce qu'une vérification faite par le téléphone ne prouve rien. L'APK se
+décompile ; on remplace « le transfert existe » par « oui » et le changeur
+reçoit un ordre vérifié qui ne l'est pas. Une preuve calculée par la partie
+qu'elle doit convaincre n'est pas une preuve.
+
+Le Worker, lui, le téléphone ne le contrôle pas. Il interroge la chaîne
+lui-même, et lit LE MONTANT ET LE DESTINATAIRE SUR LA CHAÎNE — jamais dans
+la requête. Le téléphone ne fournit au mieux qu'un txid, c'est-à-dire un
+pointeur : il peut désigner la mauvaise transaction, il ne peut pas en
+inventer le contenu.
+
+─── L'ADRESSE DU CHANGEUR NE VIENT JAMAIS DU TÉLÉPHONE ──────────────────
+
+Elle vient de CHANGE_ADRESSES, un réglage du Worker. Si l'application
+pouvait dire « vérifie les versements vers cette adresse », il suffirait de
+donner la sienne et tout serait « vérifié ».
+
+─── QUATRE RÉPONSES, ET IL FAUT LES QUATRE ──────────────────────────────
+
+  confirme      — la chaîne montre le transfert. On dit ce qu'on a lu.
+  absent        — on a regardé, il n'y est pas.
+  deja_servi    — le transfert existe, mais il a déjà payé une demande.
+  indisponible  — on n'a pas pu regarder : nœud muet, monnaie non traitée,
+                  adresse non réglée.
+
+La différence entre `absent` et `indisponible` est tout ce module. Les
+confondre, c'est soit soupçonner des ventes honnêtes chaque fois qu'un nœud
+public tousse, soit annoncer « vérifié » quand on n'a rien vérifié. La
+deuxième est la pire : elle déplace le risque sur le changeur en lui
+faisant croire le contraire.
+
+─── AUCUN ÉTAT NE BLOQUE L'ORDRE, ET C'EST RÉFLÉCHI ─────────────────────
+
+Refuser de transmettre une vente non vérifiée était tentant : le canal du
+changeur resterait propre. C'est le mauvais choix, pour une raison de
+chronologie.
+
+Quand l'utilisateur arrive ici, SES FONDS SONT DÉJÀ PARTIS. C'est
+irréversible. Lui refuser le dépôt de sa demande parce que sa plateforme
+d'échange a mis quarante minutes à exécuter son retrait, c'est le laisser
+avec de la crypto envoyée et rien de déposé chez le changeur — exactement
+la situation qu'on cherche à supprimer.
+
+L'ordre passe donc toujours, et il porte son état en toutes lettres : ✅
+vérifié, ❌ introuvable, ⚠️ non vérifiable. Le changeur y gagne quand même
+l'essentiel : aujourd'hui il doit tout contrôler, demain il ne contrôle
+vraiment que ce qui n'est pas vert.
+
+L'écran, lui, pousse à attendre avant de transmettre quand c'est ❌. Freiner
+dans l'application se corrige en revenant dix minutes plus tard ; bloquer
+dans le relais ne se corrige pas.
+
+─── CE QUE ÇA NE FAIT PAS ───────────────────────────────────────────────
+
+Ça ne dispense pas le changeur de regarder son portefeuille. La règle reste
+écrite dans chaque message. Ce que ça change : elle passe de « seule
+protection » à « deuxième protection ».
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+LES MONNAIES VÉRIFIABLES, ET CE QU'IL FAUT POUR CHACUNE.
+
+UNE MONNAIE ABSENTE DE CETTE TABLE N'EST PAS BLOQUÉE : elle rend
+`indisponible`, et la vente passe en étant marquée non vérifiée. C'est le
+choix inverse de celui qui consisterait à n'accepter que le vérifiable —
+lequel ferait disparaître des monnaies que le changeur accepte.
+
+LE CONTRAT EST VÉRIFIÉ, ET C'EST LE POINT LE PLUS IMPORTANT DE CETTE TABLE.
+N'importe qui déploie en dix minutes un jeton appelé « USDT » avec six
+décimales. Sans comparer l'adresse du contrat, « 5 000 USDT reçus » peut
+être cinq mille jetons sans valeur, et la vérification sert alors à voler le
+changeur en lui donnant confiance. Le symbole ne prouve RIEN ; le contrat,
+tout.
+*/
+const CHAINES_VENTE = {
+  USDT: {
+    chaine: 'tron',
+    contrat: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+    decimales: 6,
+    explorateur: 'https://tronscan.org/#/transaction/',
+  },
+  'USDT-TRX': {
+    chaine: 'tron',
+    contrat: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+    decimales: 6,
+    explorateur: 'https://tronscan.org/#/transaction/',
+  },
+  'USDT-BNB': {
+    chaine: 'evm',
+    reseau: 'bnb',
+    contrat: '0x55d398326f99059fF775485246999027B3197955',
+    // DIX-HUIT, pas six. L'USDT de BNB Chain n'a pas les décimales de
+    // l'USDT d'Ethereum, et l'erreur se voit mal : un facteur mille
+    // milliards passe pour un montant « bizarre », pas pour un défaut.
+    decimales: 18,
+    explorateur: 'https://bscscan.com/tx/',
+  },
+  BNB: {
+    chaine: 'evm',
+    reseau: 'bnb',
+    natif: true,
+    decimales: 18,
+    explorateur: 'https://bscscan.com/tx/',
+  },
+  'USDT-ETH': {
+    chaine: 'evm',
+    reseau: 'eth',
+    contrat: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+    decimales: 6,
+    explorateur: 'https://etherscan.io/tx/',
+  },
+  ETH: {
+    chaine: 'evm',
+    reseau: 'eth',
+    natif: true,
+    decimales: 18,
+    explorateur: 'https://etherscan.io/tx/',
+  },
+  BTC: {
+    chaine: 'btc',
+    decimales: 8,
+    explorateur: 'https://blockstream.info/tx/',
+  },
+}
+
+/*
+NŒUDS PUBLICS, PAR ORDRE DE PRÉFÉRENCE.
+
+Le premier qui répond gagne, exactement comme HOTES_BINANCE — et pour la
+même raison, apprise dans ce fichier : Binance refuse les requêtes venant
+d'un centre de données, et Cloudflare en est un. `bsc-dataseed.binance.org`
+est donc volontairement ABSENT de cette liste, bien qu'il soit le nœud BSC
+le plus cité.
+
+CES HÔTES N'ONT PAS ÉTÉ MESURÉS DEPUIS LE WORKER DÉPLOYÉ. /diag les sonde
+tous et dit lesquels répondent : c'est la mesure qui tranche, pas cette
+liste. Le jour où l'un se ferme, la sonde le montre et l'ordre se corrige
+sans toucher au reste.
+*/
+const NOEUDS_EVM = {
+  bnb: [
+    'https://bsc-rpc.publicnode.com',
+    'https://bsc.drpc.org',
+    'https://binance.llamarpc.com',
+  ],
+  eth: [
+    'https://ethereum-rpc.publicnode.com',
+    'https://eth.drpc.org',
+    'https://eth.llamarpc.com',
+  ],
+}
+
+const TRONGRID = 'https://api.trongrid.io'
+const BLOCKSTREAM = 'https://blockstream.info/api'
+
+/*
+TROIS HEURES.
+
+Un transfert plus ancien ne peut pas servir de preuve pour une demande
+qu'on dépose maintenant — sinon un vrai versement d'hier justifierait
+dix demandes aujourd'hui.
+
+Trois heures et non trente minutes : quelqu'un envoie depuis une plateforme
+d'échange, le retrait est mis en file, et il revient dans l'application une
+heure plus tard. Lui refuser sa preuve parce que son exchange a été lent
+serait lui faire perdre ses fonds.
+*/
+const FENETRE_VENTE_MS = 3 * 60 * 60 * 1000
+
+/*
+UN POUR CENT.
+
+Les trois chaînes traitées ne prélèvent pas les frais SUR le montant
+transféré : ce qui part est ce qui arrive. Un écart devrait donc être nul.
+
+La tolérance n'est pas là pour les frais, elle est là pour l'arrondi
+d'affichage — quelqu'un à qui on montre « 8,33 USDT » envoie 8,33, pas
+8,333333. Au-delà d'un pour cent, ce n'est plus un arrondi, et le montant
+réellement lu sur la chaîne est de toute façon affiché au changeur.
+*/
+const TOLERANCE_MONTANT = 0.01
+
+/** Vrai si deux montants se valent, à [TOLERANCE_MONTANT] près. */
+function montantProche(lu, attendu) {
+  if (!(lu > 0) || !(attendu > 0)) return false
+  return Math.abs(lu - attendu) <= attendu * TOLERANCE_MONTANT
+}
+
+/**
+ * Un entier décimal depuis une chaîne hexadécimale de la chaîne.
+ *
+ * ZÉRO PLUTÔT QU'UNE EXCEPTION. `BigInt('0x')` lève — et un nœud qui rend
+ * `data: '0x'` sur un journal mal formé ferait alors échouer la boucle
+ * ENTIÈRE, donc perdre le bon journal qui venait après. Une valeur
+ * illisible doit écarter sa ligne, pas la vérification.
+ */
+function entierDepuisHex(h) {
+  const t = String(h ?? '').trim()
+  if (!/^0x[0-9a-fA-F]+$/.test(t)) return '0'
+  try {
+    return BigInt(t).toString()
+  } catch (_) {
+    return '0'
+  }
+}
+
+/** Un entier en base 10 depuis une chaîne d'unités brutes, divisé par 10^d. */
+function depuisUnites(brut, decimales) {
+  /*
+  BigInt, et non Number.
+
+  18 décimales font des entiers de vingt chiffres. `Number` en garde
+  quinze : 1 000 000 000 000 000 001 et 1 000 000 000 000 000 000 y sont
+  le MÊME nombre. On divise donc en entier, et on ne passe en flottant
+  qu'après — sur une valeur qui tient.
+  */
+  try {
+    const n = BigInt(String(brut).trim())
+    if (n < 0n) return 0
+    const d = BigInt(10) ** BigInt(decimales)
+    const entier = n / d
+    const reste = n % d
+    return Number(entier) + Number(reste) / Number(d)
+  } catch (_) {
+    return 0
+  }
+}
+
+/*
+───────────────────────────────────────────────────────────────────────────
+LE TRI, SÉPARÉ DE L'APPEL RÉSEAU
+───────────────────────────────────────────────────────────────────────────
+
+Les trois fonctions qui suivent ne touchent pas au réseau : on leur donne
+ce que la chaîne a répondu, elles disent quel transfert correspond — ou
+aucun. C'est délibéré, et c'est ce qui rend la partie dangereuse testable.
+
+Car le danger n'est pas dans le `fetch`. Il est dans une comparaison
+d'adresses faite sans tenir compte de la casse sur une chaîne où elle
+compte, dans des décimales devinées, dans un contrat qu'on oublie de
+vérifier. Aucune de ces trois fautes ne lève d'erreur : elles rendent
+simplement « vérifié » quelque chose qui ne l'est pas.
+
+Voir tools/relais-cours/test-verification.mjs, qui les exécute sur des
+réponses forgées — y compris celles d'un attaquant.
+───────────────────────────────────────────────────────────────────────────
+*/
+
+/**
+ * Le transfert TRC-20 qui correspond, parmi ceux qu'a rendus TronGrid.
+ *
+ * LA CASSE COMPTE SUR TRON. Une adresse base58 « TR7NH… » n'est pas la
+ * même chaîne que « tr7nh… », et la comparer sans casse ouvre la porte à
+ * une adresse voisine qui ne diffère que par là. On compare donc à
+ * l'identique, après trim.
+ */
+function choisirTransfertTron(liste, critere) {
+  const { adresse, contrat, montant, txid, maintenant } = critere
+  if (!Array.isArray(liste)) return null
+
+  for (const t of liste) {
+    const ident = String(t?.transaction_id ?? '').trim()
+    if (!ident) continue
+    if (txid && ident.toLowerCase() !== String(txid).trim().toLowerCase()) continue
+
+    // Le destinataire : l'adresse du changeur, telle qu'elle est réglée
+    // dans le Worker. Jamais celle que la requête aurait fournie.
+    if (String(t?.to ?? '').trim() !== String(adresse).trim()) continue
+
+    /*
+    LE CONTRAT. Sans cette ligne, un jeton nommé « USDT » déployé le matin
+    passerait pour de l'USDT. `token_info.address` est le seul champ qui
+    identifie vraiment le jeton.
+
+    S'IL MANQUE, ON REFUSE au lieu de se rabattre sur le symbole : une
+    vérification qu'on ne peut pas faire doit se dire `indisponible`, pas
+    s'arranger.
+    */
+    const info = t?.token_info || {}
+    const contratLu = String(info?.address ?? '').trim()
+    if (!contratLu || contratLu !== String(contrat).trim()) continue
+
+    /*
+    LES DÉCIMALES VIENNENT DE LA CHAÎNE, et on les compare aux nôtres.
+    Les prendre sans vérifier laisserait un faux jeton à 18 décimales se
+    faire lire avec 6 — soit mille milliards de fois trop.
+    */
+    const decimales = Number(info?.decimals)
+    if (!Number.isInteger(decimales) || decimales !== critere.decimales) continue
+
+    const quand = Number(t?.block_timestamp)
+    if (!Number.isFinite(quand) || quand <= 0) continue
+    if (maintenant - quand > FENETRE_VENTE_MS) continue
+    // Une horodate dans le futur n'existe pas sur une chaîne : cinq
+    // minutes d'avance tolérées pour la dérive d'horloge, pas plus.
+    if (quand - maintenant > 5 * 60 * 1000) continue
+
+    const lu = depuisUnites(t?.value, decimales)
+    if (!montantProche(lu, montant)) continue
+
+    return { txid: ident, montant: lu, quand, de: String(t?.from ?? '').trim() }
+  }
+  return null
+}
+
+/** Le topic du journal `Transfer(address,address,uint256)`, identique partout. */
+const TOPIC_TRANSFER =
+  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+
+/** Une adresse EVM telle qu'elle apparaît dans un topic : 32 octets. */
+function topicDepuisAdresse(adresse) {
+  const nue = String(adresse).trim().toLowerCase().replace(/^0x/, '')
+  return '0x' + nue.padStart(64, '0')
+}
+
+/**
+ * Le transfert ERC-20 lu dans les journaux d'un reçu de transaction.
+ *
+ * ON LIT LE JOURNAL, PAS LES DONNÉES D'APPEL. Un appel à `transfer` qui
+ * échoue laisse quand même ses données dans la transaction ; seul le
+ * journal est émis par le contrat lui-même, et seulement si le transfert a
+ * réellement eu lieu. Les lire, c'est la différence entre « quelqu'un a
+ * demandé un virement » et « le virement a eu lieu ».
+ */
+function choisirJournalErc20(recu, critere) {
+  const { adresse, contrat, montant } = critere
+  // Un reçu dont le statut n'est pas 1 est une transaction qui a ÉCHOUÉ.
+  // Elle existe, elle a coûté des frais, et elle n'a rien transféré.
+  if (String(recu?.status ?? '').toLowerCase() !== '0x1') return null
+  const journaux = Array.isArray(recu?.logs) ? recu.logs : []
+  const attenduTo = topicDepuisAdresse(adresse)
+  const contratBas = String(contrat).trim().toLowerCase()
+
+  for (const j of journaux) {
+    if (String(j?.address ?? '').toLowerCase() !== contratBas) continue
+    const topics = Array.isArray(j?.topics) ? j.topics : []
+    if (topics.length < 3) continue
+    if (String(topics[0]).toLowerCase() !== TOPIC_TRANSFER) continue
+    if (String(topics[2]).toLowerCase() !== attenduTo) continue
+
+    const lu = depuisUnites(entierDepuisHex(j?.data), critere.decimales)
+    if (!montantProche(lu, montant)) continue
+    return { montant: lu, de: '0x' + String(topics[1]).slice(-40) }
+  }
+  return null
+}
+
+/**
+ * Le versement natif (BNB, ETH) d'une transaction, si c'est bien le bon.
+ *
+ * `status` vient du reçu et non de la transaction : une transaction
+ * existe même quand elle a échoué, et une transaction échouée n'a rien
+ * déplacé.
+ */
+function choisirNatifEvm(tx, recu, critere) {
+  if (String(recu?.status ?? '').toLowerCase() !== '0x1') return null
+  if (String(tx?.to ?? '').toLowerCase() !== String(critere.adresse).trim().toLowerCase()) {
+    return null
+  }
+  const lu = depuisUnites(entierDepuisHex(tx?.value), critere.decimales)
+  if (!montantProche(lu, critere.montant)) return null
+  return { montant: lu, de: String(tx?.from ?? '').toLowerCase() }
+}
+
+/**
+ * La sortie d'une transaction Bitcoin qui paie l'adresse attendue.
+ *
+ * ON ADDITIONNE LES SORTIES vers cette adresse au lieu d'en prendre une.
+ * Un portefeuille peut découper un paiement en deux sorties vers le même
+ * destinataire ; n'en lire qu'une annoncerait la moitié du montant reçu,
+ * et le changeur paierait la moitié de ce qu'il devait.
+ */
+function choisirSortieBtc(tx, critere) {
+  const sorties = Array.isArray(tx?.vout) ? tx.vout : []
+  const attendue = String(critere.adresse).trim()
+  let satoshis = 0n
+  for (const s of sorties) {
+    if (String(s?.scriptpubkey_address ?? '').trim() !== attendue) continue
+    try { satoshis += BigInt(String(s?.value ?? '0')) } catch (_) { /* sortie illisible */ }
+  }
+  if (satoshis <= 0n) return null
+  const lu = depuisUnites(satoshis.toString(), critere.decimales)
+  if (!montantProche(lu, critere.montant)) return null
+  return { montant: lu, confirme: Boolean(tx?.status?.confirmed) }
+}
+
+/*
+───────────────────────────────────────────────────────────────────────────
+LES APPELS AUX CHAÎNES
+───────────────────────────────────────────────────────────────────────────
+
+Chacun rend soit un transfert, soit null (« regardé, pas trouvé »), soit
+lève (« pas pu regarder »). Cette distinction remonte jusqu'à la réponse
+faite au changeur : `absent` refuse l'ordre, `indisponible` le laisse
+passer en le marquant. Les confondre serait soit bloquer des ventes
+honnêtes quand un nœud tombe, soit annoncer vérifié sans l'avoir fait.
+───────────────────────────────────────────────────────────────────────────
+*/
+
+/** Un délai borné : un nœud lent ne doit pas faire expirer la requête. */
+async function fetchBorne(url, options, millisecondes) {
+  const stop = new AbortController()
+  const minuteur = setTimeout(() => stop.abort(), millisecondes || 6000)
+  try {
+    return await fetch(url, { ...(options || {}), signal: stop.signal })
+  } finally {
+    clearTimeout(minuteur)
+  }
+}
+
+/** Un appel JSON-RPC sur le premier nœud qui répond. */
+async function appelEvm(reseau, methode, params) {
+  const noeuds = NOEUDS_EVM[reseau] || []
+  let derniere = null
+  for (const hote of noeuds) {
+    try {
+      const r = await fetchBorne(
+        hote,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: methode, params: params || [] }),
+        },
+        6000
+      )
+      if (!r.ok) { derniere = new Error(`HTTP ${r.status}`); continue }
+      const o = await r.json()
+      if (o?.error) { derniere = new Error(String(o.error?.message ?? 'rpc')); continue }
+      // `result: null` est une RÉPONSE VALIDE : « cette transaction est
+      // inconnue de ce nœud ». On la rend telle quelle, sans basculer sur
+      // le nœud suivant — une transaction inexistante l'est partout.
+      return o?.result ?? null
+    } catch (e) {
+      derniere = e
+    }
+  }
+  throw derniere || new Error('aucun noeud')
+}
+
+/** Vérifie un transfert TRC-20 vers l'adresse du changeur. */
+async function verifierTron(cfg, critere) {
+  /*
+  ON INTERROGE L'ADRESSE DU CHANGEUR, et non celle de l'expéditeur.
+
+  Le résultat porte alors une affirmation directement utile : « ce
+  versement est arrivé chez toi ». Interroger l'expéditeur dirait « il a
+  envoyé quelque part », ce qui n'est pas la même phrase.
+
+  `only_to=true` écarte ses propres versements sortants, qui sont le gros
+  de l'activité d'un changeur.
+  */
+  const url =
+    `${TRONGRID}/v1/accounts/${encodeURIComponent(critere.adresse)}` +
+    `/transactions/trc20?limit=50&only_to=true&only_confirmed=true`
+  const entetes = { accept: 'application/json', 'user-agent': AGENT }
+  // Une clé TronGrid relève les limites de débit. Facultative : sans elle
+  // l'API publique répond, simplement avec un quota plus bas.
+  if (critere.cleTron) entetes['TRON-PRO-API-KEY'] = critere.cleTron
+  const r = await fetchBorne(url, { headers: entetes }, 7000)
+  if (!r.ok) throw new Error(`trongrid HTTP ${r.status}`)
+  const o = await r.json()
+  return choisirTransfertTron(o?.data, {
+    adresse: critere.adresse,
+    contrat: cfg.contrat,
+    decimales: cfg.decimales,
+    montant: critere.montant,
+    txid: critere.txid,
+    maintenant: critere.maintenant,
+  })
+}
+
+/**
+ * Vérifie un transfert EVM.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LE NATIF EXIGE UN TXID, LE JETON NON — ET CE N'EST PAS UN CHOIX
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Un transfert de jeton émet un journal, et `eth_getLogs` retrouve tous
+ * les journaux adressés à quelqu'un : on peut donc CHERCHER.
+ *
+ * Un transfert natif n'émet rien. Le retrouver sans txid demanderait de
+ * relire tous les blocs de la fenêtre un par un — des milliers d'appels
+ * pour une vérification. Il faut donc que le txid soit fourni.
+ *
+ * Ce n'est pas une faiblesse : le txid ne sert qu'à DÉSIGNER. Le montant,
+ * le destinataire et le succès sont lus sur la chaîne. Un téléphone
+ * malveillant peut désigner la transaction de quelqu'un d'autre — d'où le
+ * marquage des txid déjà servis.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+async function verifierEvm(cfg, critere) {
+  if (critere.txid) {
+    const tx = await appelEvm(cfg.reseau, 'eth_getTransactionByHash', [critere.txid])
+    if (!tx) return null
+    const recu = await appelEvm(cfg.reseau, 'eth_getTransactionReceipt', [critere.txid])
+    if (!recu) return null
+    const trouve = cfg.natif
+      ? choisirNatifEvm(tx, recu, {
+          adresse: critere.adresse,
+          montant: critere.montant,
+          decimales: cfg.decimales,
+        })
+      : choisirJournalErc20(recu, {
+          adresse: critere.adresse,
+          contrat: cfg.contrat,
+          montant: critere.montant,
+          decimales: cfg.decimales,
+        })
+    if (!trouve) return null
+    return { txid: String(critere.txid).toLowerCase(), montant: trouve.montant, de: trouve.de }
+  }
+
+  if (cfg.natif) {
+    // Sans txid et sans journal, il n'y a rien à interroger. On le dit,
+    // plutôt que de rendre « absent » — ce qui refuserait une vente
+    // honnête en laissant croire qu'on a cherché.
+    throw new Error('natif sans txid')
+  }
+
+  /*
+  LA FENÊTRE EST EN BLOCS, et les nœuds publics la bornent — souvent à
+  quelques milliers. On reste large sous la limite : deux mille blocs font
+  une heure et demie sur BNB Chain, près de sept heures sur Ethereum.
+  */
+  const hauteur = await appelEvm(cfg.reseau, 'eth_blockNumber', [])
+  const dernier = Number(BigInt(entierDepuisHex(hauteur)))
+  if (!Number.isFinite(dernier) || dernier <= 0) throw new Error('hauteur illisible')
+  const depuis = Math.max(0, dernier - 2000)
+  const journaux = await appelEvm(cfg.reseau, 'eth_getLogs', [
+    {
+      address: cfg.contrat,
+      topics: [TOPIC_TRANSFER, null, topicDepuisAdresse(critere.adresse)],
+      fromBlock: '0x' + depuis.toString(16),
+      toBlock: 'latest',
+    },
+  ])
+  if (!Array.isArray(journaux)) throw new Error('journaux illisibles')
+  // Du plus récent au plus ancien : entre deux versements du même montant,
+  // c'est le dernier qui correspond à la demande qu'on dépose maintenant.
+  for (const j of journaux.slice().reverse()) {
+    const trouve = choisirJournalErc20(
+      { status: '0x1', logs: [j] },
+      {
+        adresse: critere.adresse,
+        contrat: cfg.contrat,
+        montant: critere.montant,
+        decimales: cfg.decimales,
+      }
+    )
+    if (trouve) {
+      return {
+        txid: String(j?.transactionHash ?? '').toLowerCase(),
+        montant: trouve.montant,
+        de: trouve.de,
+      }
+    }
+  }
+  return null
+}
+
+/** Vérifie un versement Bitcoin vers l'adresse du changeur. */
+async function verifierBtc(cfg, critere) {
+  const base = critere.txid
+    ? `${BLOCKSTREAM}/tx/${encodeURIComponent(critere.txid)}`
+    : `${BLOCKSTREAM}/address/${encodeURIComponent(critere.adresse)}/txs`
+  const r = await fetchBorne(base, { headers: { 'user-agent': AGENT } }, 7000)
+  // 404 sur un txid, c'est une RÉPONSE : cette transaction n'existe pas.
+  if (r.status === 404) return null
+  if (!r.ok) throw new Error(`blockstream HTTP ${r.status}`)
+  const o = await r.json()
+  const liste = Array.isArray(o) ? o : [o]
+  for (const tx of liste) {
+    const quand = Number(tx?.status?.block_time) * 1000
+    // Une transaction non confirmée n'a pas d'heure de bloc. On l'accepte
+    // ici — `confirme: false` remonte au changeur, qui voit « 0
+    // confirmation » et décide. La refuser ferait attendre dix minutes à
+    // quelqu'un dont le versement est déjà public et visible.
+    if (Number.isFinite(quand) && quand > 0 && critere.maintenant - quand > FENETRE_VENTE_MS) {
+      continue
+    }
+    const trouve = choisirSortieBtc(tx, {
+      adresse: critere.adresse,
+      montant: critere.montant,
+      decimales: cfg.decimales,
+    })
+    if (trouve) {
+      return {
+        txid: String(tx?.txid ?? critere.txid ?? '').toLowerCase(),
+        montant: trouve.montant,
+        confirme: trouve.confirme,
+      }
+    }
+  }
+  return null
+}
+
+/*
+───────────────────────────────────────────────────────────────────────────
+UN TRANSFERT NE PEUT SERVIR QU'UNE FOIS
+───────────────────────────────────────────────────────────────────────────
+
+Sans ça, la vérification se retourne : un VRAI versement de 8 USDT, fait
+hier, justifierait dix demandes aujourd'hui. Chacune serait « vérifiée »,
+et chacune le serait honnêtement — c'est le même transfert dix fois.
+
+On marque donc le txid dès qu'il a servi. La fenêtre de trois heures
+limitait déjà les dégâts ; ceci les ferme.
+
+CE CACHE EST PAR CENTRE DE DONNÉES, et c'est sa limite — un Worker est
+servi depuis le point le plus proche de l'appelant, et un attaquant qui
+change de pays trouve un cache vierge. Le txid est donc AUSSI écrit dans
+le message Telegram : le changeur qui voit deux fois le même hash le
+reconnaît, et la fenêtre de trois heures borne ce qu'il faut regarder.
+
+Un stockage durable (KV, D1) fermerait complètement le cas. C'est le
+prochain pas, et il demande un réglage de plus côté Cloudflare — noté ici
+pour ne pas croire le problème résolu.
+───────────────────────────────────────────────────────────────────────────
+*/
+async function txidDejaServi(txid) {
+  try {
+    const cle = new Request(`https://relais.vaultex/txid/${encodeURIComponent(txid)}`)
+    return Boolean(await caches.default.match(cle))
+  } catch (_) {
+    // Cache indisponible : on ne bloque pas une vente honnête pour ça. Le
+    // txid reste écrit dans le message, et le changeur garde l'oeil.
+    return false
+  }
+}
+
+async function marquerTxidServi(txid) {
+  try {
+    const cle = new Request(`https://relais.vaultex/txid/${encodeURIComponent(txid)}`)
+    await caches.default.put(
+      cle,
+      new Response('1', { headers: { 'cache-control': 'max-age=86400' } })
+    )
+  } catch (_) { /* sans effet sur l'ordre en cours */ }
+}
+
+/**
+ * Vérifie une vente sur la chaîne.
+ *
+ * @returns { etat, txid, montant, quand, confirme, raison, explorateur }
+ *   etat ∈ confirme | absent | deja_servi | indisponible | inconnue
+ */
+async function verifierVente(options) {
+  const monnaie = String(options?.monnaie ?? '').trim().toUpperCase()
+  const montant = Number(options?.montant)
+  const txid = String(options?.txid ?? '').trim()
+  const env = options?.env
+
+  const cfg = CHAINES_VENTE[monnaie]
+  if (!cfg) return { etat: 'inconnue', raison: `${monnaie} n'est pas verifiable ici` }
+  if (!(montant > 0)) return { etat: 'indisponible', raison: 'montant illisible' }
+
+  /*
+  L'ADRESSE VIENT DU WORKER, JAMAIS DE LA REQUÊTE.
+
+  Si l'appelant pouvait dire quelle adresse surveiller, il donnerait la
+  sienne, s'enverrait huit USDT à lui-même, et tout serait « vérifié ».
+  */
+  const adresse = adressesChangeur(env)[monnaie]
+  if (!adresse) {
+    return { etat: 'indisponible', raison: `aucune adresse reglee pour ${monnaie}` }
+  }
+
+  const critere = {
+    adresse,
+    montant,
+    txid,
+    maintenant: Date.now(),
+    cleTron: env?.TRONGRID_KEY ? String(env.TRONGRID_KEY) : '',
+  }
+
+  let trouve = null
+  try {
+    if (cfg.chaine === 'tron') trouve = await verifierTron(cfg, critere)
+    else if (cfg.chaine === 'evm') trouve = await verifierEvm(cfg, critere)
+    else if (cfg.chaine === 'btc') trouve = await verifierBtc(cfg, critere)
+    else return { etat: 'inconnue', raison: `chaine ${cfg.chaine} non traitee` }
+  } catch (e) {
+    /*
+    ON N'A PAS PU REGARDER. C'est différent de « il n'y est pas », et la
+    confusion coûterait des ventes honnêtes chaque fois qu'un nœud public
+    tousse. La raison est rendue telle quelle : elle finit dans le message
+    du changeur, qui saura que la vérification n'a pas eu lieu.
+    */
+    return {
+      etat: 'indisponible',
+      raison: String(e?.message ?? 'chaine injoignable').slice(0, 80),
+    }
+  }
+
+  if (!trouve) {
+    return {
+      etat: 'absent',
+      raison: txid
+        ? "ce txid ne correspond a aucun versement attendu"
+        : 'aucun versement correspondant sur les 3 dernieres heures',
+    }
+  }
+
+  if (trouve.txid && (await txidDejaServi(trouve.txid))) {
+    return { etat: 'deja_servi', txid: trouve.txid, raison: 'ce transfert a deja servi' }
+  }
+
+  return {
+    etat: 'confirme',
+    txid: trouve.txid || '',
+    montant: trouve.montant,
+    quand: trouve.quand || 0,
+    // Bitcoin seul peut rendre un transfert vu mais pas encore miné.
+    confirme: trouve.confirme !== false,
+    explorateur: trouve.txid ? `${cfg.explorateur}${trouve.txid}` : '',
+  }
+}
+
+/**
+ * Le montant en francs annoncé est-il cohérent avec le marché ?
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * UNE DEUXIÈME SERRURE, SUR UNE AUTRE PORTE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * La vérification on-chain prouve qu'un transfert a eu lieu. Elle ne dit
+ * rien du PRIX : un téléphone modifié peut envoyer « 8 USDT reçus, paie
+ * 500 000 FCFA ». Le transfert serait vrai et l'ordre absurde.
+ *
+ * On recalcule donc ici, avec NOTRE cours et NOTRE marge. On ne remplace
+ * pas le chiffre annoncé — celui qui a été montré à l'utilisateur est
+ * celui qui engage, et un cours qui bouge entre l'affichage et le paiement
+ * ne doit pas lui coûter. On SIGNALE l'écart quand il dépasse ce qu'un
+ * marché explique.
+ *
+ * TROIS POUR CENT. L'USDT est stable et le franc est arrimé à l'euro :
+ * sur dix minutes, seul l'euro-dollar bouge, de bien moins que ça. Un
+ * écart au-delà n'est pas un marché qui a bougé.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+async function coherenceFcfa(monnaie, montantCrypto, fcfaAnnonce, env) {
+  const m = Number(montantCrypto)
+  const annonce = Number(fcfaAnnonce)
+  if (!(m > 0) || !(annonce > 0)) return { etat: 'indisponible' }
+
+  const prixUsd = await prixUsdDeMonnaie(monnaie)
+  const eurUsd = await tauxEuroDollar()
+  if (!(prixUsd > 0) || !(eurUsd > 0)) return { etat: 'indisponible' }
+
+  const tauxXof = XOF_PAR_EURO / eurUsd
+  const marge = Number(env?.CHANGE_MARGE)
+  const margeFcfa = Number.isFinite(marge) && marge >= 0 ? marge : 25
+  // Même formule que TauxFcfa.prix cote application, y compris l'arrondi
+  // au franc du prix unitaire : c'est ce qui rend les deux comparables.
+  const unitaire = Math.round(prixUsd * tauxXof - margeFcfa * prixUsd)
+  const attendu = m * unitaire
+  if (!(attendu > 0)) return { etat: 'indisponible' }
+
+  const ecart = Math.abs(annonce - attendu) / attendu
+  return {
+    etat: ecart <= 0.03 ? 'coherent' : 'ecart',
+    attendu: Math.round(attendu),
+    ecartPourcent: Math.round(ecart * 1000) / 10,
+  }
+}
+
+/**
+ * Le cours en dollars d'une monnaie, chez Binance.
+ *
+ * L'USDT vaut un dollar par définition, et la paire USDTUSDT n'existe pas
+ * — demandée telle quelle, elle fait rejeter l'appel entier. C'est le même
+ * piège que dans depuisBinance, et pour la même raison.
+ */
+async function prixUsdDeMonnaie(monnaie) {
+  const base = String(monnaie ?? '').trim().toUpperCase().split('-')[0]
+  if (!base) return 0
+  if (base === 'USDT' || base === 'USDC') return 1
+  for (const hote of HOTES_BINANCE) {
+    try {
+      const r = await fetchBorne(
+        `${hote}/api/v3/ticker/price?symbol=${encodeURIComponent(base + 'USDT')}`,
+        { headers: { 'user-agent': AGENT, accept: 'application/json' } },
+        6000
+      )
+      if (!r.ok) continue
+      const o = await r.json()
+      const v = parseFloat(o?.price)
+      if (Number.isFinite(v) && v > 0) return v
+    } catch (_) { /* hote suivant */ }
+  }
+  return 0
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+EXPORTS DE TEST
+═══════════════════════════════════════════════════════════════════════════
+
+Cloudflare ne lit que `export default` : ces noms-là lui sont invisibles et
+ne changent rien au Worker déployé.
+
+Ils existent pour que test-verification.mjs exécute la partie dangereuse —
+le tri des transferts — sur de vraies formes de réponses, dont celles qu'un
+attaquant enverrait. Ce sont les seules fonctions où une faute ne lève
+aucune erreur : elle rend « vérifié » quelque chose qui ne l'est pas.
+
+Le reste du module touche au réseau et ne se teste pas ici. Pour ça, il y a
+/diag, qui sonde les nœuds depuis le Worker DÉPLOYÉ — l'endroit où la
+mesure compte.
+═══════════════════════════════════════════════════════════════════════════
+*/
+export {
+  choisirTransfertTron,
+  choisirJournalErc20,
+  choisirNatifEvm,
+  choisirSortieBtc,
+  montantProche,
+  depuisUnites,
+  entierDepuisHex,
+  nombreFrancais,
+  topicDepuisAdresse,
+  lignesVerification,
+  messageOrdre,
+  groupeMilliers,
+  dateCourteUtc,
+  formatMontant,
+  CHAINES_VENTE,
+  FENETRE_VENTE_MS,
+  TOPIC_TRANSFER,
 }
