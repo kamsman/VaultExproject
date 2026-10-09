@@ -62,8 +62,49 @@ DÉPLOIEMENT
   Clé Demo CoinGecko (facultatif, relève les limites de débit) :
   Settings → Variables and Secrets → ajouter le secret COINGECKO_KEY.
 
-Aucune donnée personnelle ne transite ici : ni adresse de portefeuille, ni
-identifiant, ni clé. Uniquement des cours publics.
+═══════════════════════════════════════════════════════════════════════════
+LES RÉGLAGES DU CHANGE, ET LEQUEL PORTE LA PREUVE
+═══════════════════════════════════════════════════════════════════════════
+
+Settings → Variables and Secrets. Aucun n'est obligatoire : sans eux,
+l'écran de change ne propose rien, ce qui est le comportement voulu.
+
+  CHANGE_ACTIF      0 ferme le service en une seconde, sans republier.
+  CHANGE_MARGE      Marge en FRANCS PAR DOLLAR (défaut 25).
+  CHANGE_MIN        Minimum par opération, en francs (défaut 5000).
+  CHANGE_MAX        Plafond par opération, en francs (défaut 50000).
+  CHANGE_NUMERO     Numéro Mobile Money du changeur, pour les ACHATS.
+  CHANGE_NOM        Son nom, tel qu'il s'affiche.
+  CHANGE_OPERATEUR  « Orange Money », « Moov »…
+  CHANGE_DELAI      Délai annoncé, en minutes (défaut 30).
+  CHANGE_MONNAIES   « USDT,BTC,ETH » — ce qu'il accepte à l'achat.
+  TG_CHANGE_TOKEN   Jeton du bot Telegram. SECRET, jamais dans l'APK.
+  TG_CHANGE_CHAT    Identifiant du groupe du changeur.
+  TRONGRID_KEY      Facultatif : relève le quota de l'API TronGrid.
+
+  CHANGE_ADRESSES   ⚠️ CELUI-LÀ PORTE LA PREUVE DES VENTES.
+
+                    Un objet JSON : {"USDT":"T...","BTC":"bc1..."}.
+
+                    Ce sont les adresses où le changeur reçoit. Deux rôles,
+                    et le second est le plus important : l'application les
+                    affiche pour que le vendeur sache où envoyer, ET le
+                    Worker s'en sert pour CHERCHER le versement sur la
+                    chaîne.
+
+                    C'est pourquoi l'adresse ne peut pas venir du
+                    téléphone. Si l'application pouvait dire quelle adresse
+                    surveiller, n'importe qui donnerait la sienne,
+                    s'enverrait huit USDT à lui-même, et tout serait
+                    « vérifié ». Elle vient d'ici, et d'ici seulement.
+
+                    Une adresse mal collée se voit sur /diag, qui sonde
+                    TronGrid SUR CETTE ADRESSE — et nulle part ailleurs
+                    avant une vraie vente.
+
+Aucune donnée personnelle ne transite ici : ni mnémonique, ni identifiant
+d'utilisateur. Les adresses du changeur sont publiques — l'application les
+montre à chaque vendeur — et les cours le sont aussi.
 ═══════════════════════════════════════════════════════════════════════════
 */
 

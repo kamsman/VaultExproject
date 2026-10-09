@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -118,7 +119,7 @@ fun ChangeScreen(navController: NavController) {
                 !p.utilisable ->
                     Note(stringResource(R.string.change_ferme), AccentOrange)
 
-                state.etape == EtapeChange.TRANSMIS -> EtapeTransmis(state.reference) {
+                state.etape == EtapeChange.TRANSMIS -> EtapeTransmis(state) {
                     vm.recommencer()
                 }
 
@@ -636,46 +637,144 @@ private fun ColumnScope.EtapePaiement(
             Le numero garde son icone de copie, en haut de la carte, a cote
             de lui.
             */
+            /*
+            ═══════════════════════════════════════════════════════════
+            CE QU'ON COPIE N'EST PAS LA MEME CHOSE DANS LES DEUX SENS
+            ═══════════════════════════════════════════════════════════
+
+            A L'ACHAT, c'est la référence. Le numéro du changeur se retape
+            sans peine — huit chiffres — alors que « VX-UK4GWGQH », huit
+            caractères mêlant lettres et chiffres, est exactement ce qu'on
+            recopie mal. Et c'est elle qui rattache le paiement à la
+            demande.
+
+            A LA VENTE, c'est l'ADRESSE. Trente-quatre caractères qu'on ne
+            retape pas : une erreur, et les fonds partent chez quelqu'un
+            d'autre, définitivement. Le bouton le plus visible proposait
+            quand même la référence — qui, sur un transfert TRON ou EVM, ne
+            sert à rien puisqu'il n'y a aucun champ pour la mettre.
+            ═══════════════════════════════════════════════════════════
+            */
             OutlinedButton(
-                onClick = { copier(state.reference) },
+                onClick = { copier(if (achat) state.reference else aCopier) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.change_copier_reference))
+                Text(
+                    stringResource(
+                        if (achat) R.string.change_copier_reference
+                        else R.string.change_copier_adresse
+                    )
+                )
             }
         }
     }
 
-    Note(stringResource(R.string.change_motif, state.reference), AccentBlue)
+    /*
+    LE MOTIF N'EXISTE QUE SUR MOBILE MONEY.
+
+    Cette note disait « mets VX-… en motif du paiement — sans lui, le
+    changeur voit de l'argent arriver sans savoir de qui ». Sur une vente,
+    elle est fausse deux fois : un transfert TRON ou EVM n'a aucun champ
+    pour y mettre quoi que ce soit, et depuis que le relais lit la chaîne,
+    c'est le transfert lui-même qui identifie l'envoi.
+
+    Elle demandait donc quelque chose d'impossible, en annonçant une
+    conséquence qui n'existe plus.
+    */
+    if (achat) {
+        Note(stringResource(R.string.change_motif, state.reference), AccentBlue)
+    }
+
+    /*
+    LA VERIFICATION VIENT AVANT LES CHAMPS, ET C'EST L'ORDRE DU REGARD.
+
+    Sur une vente, la question de l'utilisateur a cet instant n'est pas
+    « que dois-je saisir » : c'est « est-ce que mon argent est bien
+    parti ». Il vient d'envoyer de la crypto, c'est irreversible, et il
+    attend. La reponse doit etre la premiere chose qu'il lit.
+    */
+    if (!achat) CarteVerification(vm, state)
 
     Text(
-        stringResource(R.string.change_declarer_titre),
+        stringResource(
+            if (achat) R.string.change_declarer_titre else R.string.change_vente_coordonnees
+        ),
         fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
     )
 
-    OutlinedTextField(
-        value = state.referencePaiement,
-        onValueChange = vm::onReferencePaiement,
-        label = { Text(stringResource(R.string.change_ref_paiement)) },
-        /*
-        UN EXEMPLE PLUTOT QU'UNE DESCRIPTION. « Le numero de transaction
-        que ton operateur t'a envoye par SMS » demande de comprendre une
-        phrase ; « MP251008123456 » se reconnait d'un coup d'oeil dans le
-        SMS qu'on a sous les yeux.
-        */
-        placeholder = { Text("Ex. MP251008123456", color = TextSecondary) },
-        supportingText = { Text(stringResource(R.string.change_ref_paiement_aide), fontSize = 11.sp) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
+    /*
+    LA REFERENCE MOBILE MONEY N'A DE SENS QUE SUR UN ACHAT.
 
+    Sur une vente, il n'y a eu aucun paiement Mobile Money : c'est le
+    changeur qui va en faire un. Demander « la reference du paiement » a
+    quelqu'un qui n'a rien paye le laisse chercher dans ses SMS une chose
+    qui n'existe pas — et le bouton restait eteint tant qu'il n'avait pas
+    invente quelque chose.
+    */
+    if (achat) {
+        OutlinedTextField(
+            value = state.referencePaiement,
+            onValueChange = vm::onReferencePaiement,
+            label = { Text(stringResource(R.string.change_ref_paiement)) },
+            /*
+            UN EXEMPLE PLUTOT QU'UNE DESCRIPTION. « Le numero de
+            transaction que ton operateur t'a envoye par SMS » demande de
+            comprendre une phrase ; « MP251008123456 » se reconnait d'un
+            coup d'oeil dans le SMS qu'on a sous les yeux.
+            */
+            placeholder = { Text("Ex. MP251008123456", color = TextSecondary) },
+            supportingText = {
+                Text(stringResource(R.string.change_ref_paiement_aide), fontSize = 11.sp)
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MEME CHAMP, DEUX QUESTIONS OPPOSEES
+    ═══════════════════════════════════════════════════════════════════════
+
+    A l'achat, c'est le numero qui A PAYE : il sert au changeur a
+    retrouver l'operation dans son releve.
+
+    A la vente, c'est le numero qui VA RECEVOIR. Sans lui, le changeur lit
+    « ENVOYER 5 000 FCFA au numero du client » — sans numero. Il n'a aucun
+    moyen de payer, et l'utilisateur a deja envoye sa crypto.
+
+    Un seul libelle pour les deux faisait que ce champ passait pour
+    accessoire dans le sens ou il est indispensable.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     OutlinedTextField(
         value = state.telephone,
         onValueChange = vm::onTelephone,
-        label = { Text(stringResource(R.string.change_telephone)) },
+        label = {
+            Text(
+                stringResource(
+                    if (achat) R.string.change_telephone else R.string.change_telephone_vente
+                )
+            )
+        },
         placeholder = { Text("Ex. 70 12 34 56", color = TextSecondary) },
-        supportingText = { Text(stringResource(R.string.change_telephone_aide), fontSize = 11.sp) },
+        supportingText = {
+            Text(
+                stringResource(
+                    if (achat) R.string.change_telephone_aide
+                    else R.string.change_telephone_vente_aide
+                ),
+                fontSize = 11.sp,
+                // Sur une vente, un numero incomplet eteint le bouton : la
+                // raison doit se voir a l'endroit ou on la corrige.
+                color = if (!achat && state.telephone.isNotBlank() && !state.telephoneValide) {
+                    AccentRed
+                } else TextSecondary
+            )
+        },
+        isError = !achat && state.telephone.isNotBlank() && !state.telephoneValide,
         singleLine = true,
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
@@ -687,7 +786,7 @@ private fun ColumnScope.EtapePaiement(
 
     Button(
         onClick = vm::transmettre,
-        enabled = !state.envoiEnCours && state.referencePaiement.isNotBlank(),
+        enabled = state.peutTransmettre(),
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth().height(52.dp)
     ) {
@@ -698,7 +797,22 @@ private fun ColumnScope.EtapePaiement(
             )
             Spacer(Modifier.width(10.dp))
         }
-        Text(stringResource(R.string.change_jai_paye), fontWeight = FontWeight.Bold)
+        /*
+        LE BOUTON DIT CE QU'IL ENVOIE. « J'ai paye » est juste pour un
+        achat ; sur une vente verifiee, « Transmettre — versement verifie »
+        dit a l'utilisateur ce que le changeur va lire, et c'est la
+        derniere chose a lui apprendre avant qu'il appuie.
+        */
+        Text(
+            stringResource(
+                when {
+                    achat -> R.string.change_jai_paye
+                    state.verification?.estVert == true -> R.string.change_transmettre_verifie
+                    else -> R.string.change_transmettre
+                }
+            ),
+            fontWeight = FontWeight.Bold
+        )
     }
 
     TextButton(onClick = vm::retourAuCalcul, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -706,10 +820,293 @@ private fun ColumnScope.EtapePaiement(
     }
 }
 
+// ─── La vérification on-chain ───────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+« EST-CE QUE MON ARGENT EST BIEN PARTI ? »
+═══════════════════════════════════════════════════════════════════════════
+
+C'est la seule question de l'utilisateur à cet instant. Il vient d'envoyer
+de la crypto à l'adresse d'une personne qu'il ne connaît pas. C'est
+IRRÉVERSIBLE, et jusqu'ici l'application ne savait rien lui répondre : elle
+lui demandait de recopier une référence et de faire confiance.
+
+Maintenant le relais regarde la chaîne, et cette carte dit ce qu'il y voit.
+
+─── CE N'EST PAS LE TÉLÉPHONE QUI VÉRIFIE ───────────────────────────────
+
+Et ça change tout. Une vérification faite ici n'aurait aucune valeur pour
+le changeur : l'APK se décompile, et un écran vert se forge en changeant
+une ligne. Ce qui s'affiche est le VERDICT DU RELAIS — la même réponse qui
+partira dans son message Telegram.
+
+C'est pourquoi le vert est honnête : il ne dit pas « l'application pense
+que », il dit « le relais a lu, et le changeur lira la même chose ».
+
+─── QUATRE ÉTATS, QUATRE CHOSES À FAIRE ─────────────────────────────────
+
+  Recherche    Attendre. On dit depuis combien de temps, pour que
+               l'attente ne ressemble pas à un blocage.
+  Vert         Transmettre. Le montant affiché est celui de la chaîne.
+  Introuvable  Attendre encore, ou coller le hash. Et pouvoir passer
+               outre, parce que les fonds sont déjà partis.
+  Impossible   Transmettre quand même : le changeur vérifiera à la main,
+               comme avant. On ne fait pas semblant d'avoir vérifié.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun ColumnScope.CarteVerification(
+    vm: ChangeViewModel,
+    state: com.vaultex.ui.viewmodel.ChangeState
+) {
+    val affichage = affichageVerification(state)
+    val v = state.verification
+    val vert = affichage == AffichageVerif.VERT
+
+    val couleur = when (affichage) {
+        AffichageVerif.VERT -> AccentGreen
+        AffichageVerif.DEJA_SERVI -> AccentRed
+        AffichageVerif.RECHERCHE -> AccentBlue
+        else -> AccentOrange
+    }
+
+    Surface(shape = RoundedCornerShape(14.dp), color = couleur.copy(alpha = 0.10f)) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                /*
+                UN INDICATEUR QUI TOURNE PENDANT LA RECHERCHE.
+
+                Une icône fixe sur un écran qui attend se lit comme un
+                écran bloqué — et quelqu'un qui vient d'envoyer de l'argent
+                ferme une application qui a l'air bloquée.
+                */
+                if (affichage == AffichageVerif.RECHERCHE) {
+                    CircularProgressIndicator(
+                        Modifier.size(18.dp), strokeWidth = 2.dp, color = couleur
+                    )
+                } else {
+                    Icon(
+                        if (vert) Icons.Default.CheckCircle else Icons.Default.Search,
+                        null, tint = couleur, modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(titreVerification(affichage)),
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary
+                )
+            }
+
+            Text(
+                detailVerification(state, affichage),
+                fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+            )
+
+            if (vert && v != null) {
+                HorizontalDivider(color = BgPrimary)
+                /*
+                LE MONTANT DE LA CHAINE, ET IL EST DIT COMME TEL.
+
+                Si le téléphone attendait 8 USDT et que la chaîne en montre
+                7,9, c'est 7,9 qui s'affiche. Sans la mention « lu sur la
+                chaîne », l'utilisateur croirait relire sa propre saisie et
+                ne verrait pas l'écart.
+                */
+                v.montant?.let { m ->
+                    Ligne(
+                        stringResource(R.string.change_verif_recu),
+                        "${crypto(m)} ${state.monnaie}",
+                        icone = Icons.Default.AccountBalanceWallet,
+                        vedette = true
+                    )
+                }
+                if (v.quand > 0L) {
+                    Ligne(stringResource(R.string.change_verif_quand), dateCourte(v.quand))
+                }
+                if (!v.confirme) {
+                    Note(stringResource(R.string.change_verif_pas_mine), AccentOrange)
+                }
+                if (v.txid.isNotBlank()) {
+                    Text(
+                        v.txid,
+                        fontSize = 10.sp,
+                        color = TextSecondary,
+                        lineHeight = 14.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+
+            /*
+            ═══════════════════════════════════════════════════════════════
+            DEUX SORTIES, ET LES DEUX DOIVENT EXISTER
+            ═══════════════════════════════════════════════════════════════
+
+            REESSAYER : le cas du retrait encore en file chez une
+            plateforme d'échange. Les dix minutes de sondage automatique
+            s'arrêtent ; lui peut vouloir attendre plus.
+
+            TRANSMETTRE QUAND MEME : le cas où rien n'arrivera. Ses fonds
+            sont partis — c'est irréversible. L'empêcher de déposer sa
+            demande le laisserait avec de la crypto envoyée et rien chez le
+            changeur, ce qui est la situation même qu'on cherche à
+            supprimer. On freine, on n'interdit pas.
+
+            Sauf sur DEJA_SERVI : là, passer outre n'aboutirait à rien. Le
+            relais refera la vérification au dépôt et le message partira
+            marqué « déjà servi ». Mieux vaut lui dire de regarder son
+            historique.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val avecSorties = affichage == AffichageVerif.ABSENT ||
+                affichage == AffichageVerif.IMPOSSIBLE
+            if (avecSorties) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Un nœud muet ou une monnaie illisible ne deviendra
+                    // pas lisible en réessayant : on ne propose pas un
+                    // geste qui ne peut rien changer.
+                    if (v == null || !v.sansEspoir) {
+                        OutlinedButton(
+                            onClick = vm::demarrerVerification,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.change_verif_reessayer), fontSize = 12.sp)
+                        }
+                    }
+                    if (!state.forcer) {
+                        TextButton(
+                            onClick = vm::forcerTransmission,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                stringResource(R.string.change_verif_quand_meme),
+                                fontSize = 12.sp, color = TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            /*
+            LE CHAMP DU HASH N'APPARAIT PAS TOUT DE SUITE.
+
+            Tant que la recherche n'a pas échoué, il ne sert à rien : sur
+            l'USDT de Tron — la quasi-totalité des ventes ici — le relais
+            trouve sans. Le montrer d'emblée demanderait à tout le monde de
+            recopier soixante-quatre caractères hexadécimaux pour rien, ce
+            qu'on rate une fois sur deux.
+
+            Il n'arrive donc qu'une fois qu'on en a besoin.
+            */
+            if (avecSorties) {
+                OutlinedTextField(
+                    value = state.txidSaisi,
+                    onValueChange = vm::onTxid,
+                    label = { Text(stringResource(R.string.change_verif_txid)) },
+                    supportingText = {
+                        Text(stringResource(R.string.change_verif_txid_aide), fontSize = 11.sp)
+                    },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 12.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CINQ ETATS A L'ECRAN, ET L'UN N'EXISTE PAS DANS LE RELAIS
+═══════════════════════════════════════════════════════════════════════════
+
+Le relais rend quatre verdicts. L'écran en affiche cinq, parce qu'il a un
+cas de plus à traiter : CELUI OU LA BOUCLE N'A JAMAIS TOURNE.
+
+Ça arrive si `montantCrypto` est illisible au moment d'entrer dans l'étape
+— rare, mais possible. Sans ce cinquième état, la carte restait sur
+« Recherche de ton versement… », indéfiniment, SANS aucune sortie : pas de
+bouton « réessayer », pas de « transmettre quand même », et le bouton
+principal éteint. L'utilisateur avait envoyé sa crypto et se retrouvait
+devant un écran dont on ne peut plus rien faire.
+
+On le traite donc comme IMPOSSIBLE, ce qui est la vérité : rien n'a été
+vérifié. Les deux sorties apparaissent, et il peut avancer.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private enum class AffichageVerif { RECHERCHE, VERT, ABSENT, DEJA_SERVI, IMPOSSIBLE }
+
+private fun affichageVerification(
+    state: com.vaultex.ui.viewmodel.ChangeState
+): AffichageVerif {
+    val v = state.verification
+    if (state.rechercheEnCours) return AffichageVerif.RECHERCHE
+    if (v == null) {
+        // Aucune réponse et aucun sondage en vol : soit la boucle n'a
+        // jamais démarré, soit elle est morte. Dans les deux cas rien n'a
+        // été vérifié, et il faut une sortie.
+        return AffichageVerif.IMPOSSIBLE
+    }
+    return when (v.etat) {
+        com.vaultex.domain.fiat.EtatVerification.CONFIRME -> AffichageVerif.VERT
+        com.vaultex.domain.fiat.EtatVerification.ABSENT -> AffichageVerif.ABSENT
+        com.vaultex.domain.fiat.EtatVerification.DEJA_SERVI -> AffichageVerif.DEJA_SERVI
+        else -> AffichageVerif.IMPOSSIBLE
+    }
+}
+
+private fun titreVerification(affichage: AffichageVerif): Int = when (affichage) {
+    AffichageVerif.RECHERCHE -> R.string.change_verif_recherche
+    AffichageVerif.VERT -> R.string.change_verif_trouve
+    AffichageVerif.ABSENT -> R.string.change_verif_absent
+    AffichageVerif.DEJA_SERVI -> R.string.change_verif_deja_servi
+    AffichageVerif.IMPOSSIBLE -> R.string.change_verif_impossible
+}
+
+@Composable
+private fun detailVerification(
+    state: com.vaultex.ui.viewmodel.ChangeState,
+    affichage: AffichageVerif
+): String = when (affichage) {
+    AffichageVerif.RECHERCHE ->
+        stringResource(R.string.change_verif_recherche_detail, state.monnaie)
+    AffichageVerif.VERT -> stringResource(R.string.change_verif_trouve_detail)
+    AffichageVerif.ABSENT ->
+        stringResource(R.string.change_verif_absent_detail, state.essais)
+    AffichageVerif.DEJA_SERVI -> stringResource(R.string.change_verif_deja_servi_detail)
+    /*
+    LA RAISON DU RELAIS EST TRANSMISE TELLE QUELLE quand il en donne une.
+    « Le nœud n'a pas répondu » et « aucune adresse réglée pour BTC »
+    appellent deux actions différentes — la première se réessaie, la
+    seconde est un réglage à poser côté serveur. Les fondre dans
+    « vérification impossible » enverrait quelqu'un réessayer indéfiniment
+    une opération qui ne peut pas aboutir.
+    */
+    AffichageVerif.IMPOSSIBLE -> {
+        val raison = state.verification?.raison.orEmpty()
+        if (raison.isNotBlank()) {
+            stringResource(R.string.change_verif_impossible_detail_raison, raison)
+        } else {
+            stringResource(R.string.change_verif_impossible_detail)
+        }
+    }
+}
+
 // ─── Temps 3 : transmis ─────────────────────────────────────────────
 
 @Composable
-private fun ColumnScope.EtapeTransmis(reference: String, onRecommencer: () -> Unit) {
+private fun ColumnScope.EtapeTransmis(
+    state: com.vaultex.ui.viewmodel.ChangeState,
+    onRecommencer: () -> Unit
+) {
     Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -721,9 +1118,58 @@ private fun ColumnScope.EtapeTransmis(reference: String, onRecommencer: () -> Un
                 )
             }
             Text(
-                stringResource(R.string.change_transmis_detail, reference),
+                stringResource(R.string.change_transmis_detail, state.reference),
                 fontSize = 13.sp, color = TextPrimary, lineHeight = 18.sp
             )
+            /*
+            ═══════════════════════════════════════════════════════════════
+            DIRE DANS QUEL ETAT LA DEMANDE EST PARTIE
+            ═══════════════════════════════════════════════════════════════
+
+            « Ta demande est partie » et « ta demande est partie, et le
+            changeur a lu que la chaîne confirme ton versement » ne sont
+            pas la même phrase. La seconde est celle qui permet d'attendre
+            sans rappeler toutes les cinq minutes.
+
+            L'INVERSE COMPTE AUTANT. Si la demande est partie sans
+            vérification, le lui cacher serait le laisser croire qu'il n'a
+            plus rien à faire alors que le changeur a reçu un message
+            marqué « introuvable » — et qu'il ne paiera pas avant d'avoir
+            regardé lui-même.
+
+            C'est l'état RENDU PAR LE DEPOT qu'on affiche, pas celui du
+            dernier sondage : c'est lui qui est parti dans le message.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val v = state.verification
+            if (state.sens == SensChange.VENTE && v != null) {
+                HorizontalDivider(color = BgPrimary)
+                if (v.estVert) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            Icons.Default.CheckCircle, null,
+                            tint = AccentGreen, modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.change_transmis_verifie),
+                            fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+                        )
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            Icons.Default.Warning, null,
+                            tint = AccentOrange, modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.change_transmis_non_verifie),
+                            fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+                        )
+                    }
+                }
+            }
         }
     }
     Button(

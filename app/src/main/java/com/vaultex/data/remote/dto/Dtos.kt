@@ -494,7 +494,19 @@ data class OrdreChangeBody(
     val marge: String,
     val adresse: String = "",
     val telephone: String = "",
-    val referencePaiement: String = ""
+    val referencePaiement: String = "",
+    /**
+     * Hash de la transaction, pour une VENTE.
+     *
+     * UN POINTEUR, PAS UNE PREUVE. Il dit au relais quelle transaction
+     * regarder ; il ne dit pas ce qu'elle contient. Le montant, le
+     * destinataire et le contrat du jeton sont lus sur la chaine, par le
+     * relais. C'est ce qui permet de l'accepter d'un telephone.
+     *
+     * Facultatif : sur les chaines ou les versements s'enumerent (TRC-20,
+     * Bitcoin, jetons ERC-20), le relais cherche sans lui.
+     */
+    val txid: String = ""
 )
 
 data class ReponseOrdreDto(
@@ -502,5 +514,46 @@ data class ReponseOrdreDto(
     val reference: String? = null,
     val raison: String? = null,
     /** Vrai si cette reference avait deja ete transmise : pas un doublon. */
-    val deja: Boolean? = null
+    val deja: Boolean? = null,
+    /**
+     * Etat de la verification on-chain, pour une vente.
+     *
+     * Rendu pour que l'application puisse dire a l'utilisateur CE QUE LE
+     * CHANGEUR VOIT : « ta demande est partie, et elle est partie
+     * verifiee » n'est pas la meme phrase que « ta demande est partie ».
+     */
+    val verification: String? = null,
+    val txid: String? = null
+)
+
+/**
+ * Ce que le relais a lu sur la chaine.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LES MONTANTS ARRIVENT EN NOMBRES, ET C'EST VOULU
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Partout ailleurs dans ce fichier, un prix arrive en CHAINE pour
+ * preserver la precision. Ici non, et pour une raison precise : ce
+ * montant a ete calcule par le relais en divisant un entier par une
+ * puissance de dix. Il ne porte pas plus de precision qu'un double n'en
+ * garde — huit decimales au maximum sur les chaines traitees, loin des
+ * quinze chiffres significatifs d'un double.
+ *
+ * Le transformer en chaine donnerait l'illusion d'une exactitude qu'il n'a
+ * pas, et obligerait a le reparser ici.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+data class VerificationDto(
+    /** confirme | absent | deja_servi | indisponible | inconnue */
+    val etat: String? = null,
+    val txid: String? = null,
+    /** Montant LU SUR LA CHAINE, jamais celui qui a ete annonce. */
+    val montant: Double? = null,
+    /** Horodate du bloc, en millisecondes. */
+    val quand: Long? = null,
+    /** Faux seulement sur Bitcoin : vu, pas encore mine. */
+    val confirme: Boolean? = null,
+    val raison: String? = null,
+    val explorateur: String? = null
 )
