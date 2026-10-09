@@ -1164,4 +1164,8 @@
     <string name="change_tu_envoies">Tu envoies</string>
     <string name="change_telephone_aide">Le numéro qui a fait le paiement (8 chiffres, sans espace).</string>
     <string name="change_copier_reference">Copier la référence</string>
+    <string name="change_historique_titre">Mes dernières demandes</string>
+    <string name="change_historique_note">Cette liste est celle de tes demandes, enregistrée sur ton téléphone. Elle ne prouve pas un paiement — elle te permet de citer une référence exacte si tu dois réclamer.</string>
+    <string name="change_historique_tout">Tout voir (%1$d)</string>
+    <string name="change_historique_moins">Réduire</string>
 </resources>

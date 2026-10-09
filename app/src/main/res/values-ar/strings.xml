@@ -1135,4 +1135,8 @@
     <string name="change_tu_envoies">ترسل</string>
     <string name="change_telephone_aide">الرقم الذي نفّذ الدفع (8 أرقام، بدون مسافات).</string>
     <string name="change_copier_reference">نسخ المرجع</string>
+    <string name="change_historique_titre">طلباتي الأخيرة</string>
+    <string name="change_historique_note">هذه قائمة طلباتك، محفوظة على هاتفك. هي لا تُثبت الدفع — لكنها تتيح لك ذكر مرجع دقيق إذا احتجت إلى المطالبة.</string>
+    <string name="change_historique_tout">عرض الكل (%1$d)</string>
+    <string name="change_historique_moins">تصغير</string>
 </resources>

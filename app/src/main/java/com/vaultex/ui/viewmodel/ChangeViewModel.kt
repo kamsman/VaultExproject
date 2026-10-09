@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.domain.fiat.ChangeService
+import com.vaultex.domain.fiat.DemandeChange
+import com.vaultex.domain.fiat.HistoriqueChange
 import com.vaultex.domain.fiat.OrdreChange
 import com.vaultex.domain.fiat.ParametresChange
 import com.vaultex.domain.fiat.PrixFcfa
@@ -39,7 +41,9 @@ data class ChangeState(
     val referencePaiement: String = "",
     val telephone: String = "",
     val envoiEnCours: Boolean = false,
-    val erreur: String? = null
+    val erreur: String? = null,
+    /** Les demandes deja transmises, de la plus recente a la plus ancienne. */
+    val historique: List<DemandeChange> = emptyList()
 ) {
     /** Montant en francs de l'opération, quel que soit le sens de la saisie. */
     val montantFcfa: Double?
@@ -82,7 +86,8 @@ data class ChangeState(
 @HiltViewModel
 class ChangeViewModel @Inject constructor(
     private val service: ChangeService,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val historique: HistoriqueChange
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChangeState())
@@ -90,7 +95,17 @@ class ChangeViewModel @Inject constructor(
 
     private val gson = com.google.gson.Gson()
 
-    init { charger() }
+    init {
+        /*
+        L'historique est POSE AVANT tout appel reseau, et sans attendre.
+        C'est une lecture de preferences : elle coute moins qu'une frame.
+        Quelqu'un qui ouvre l'ecran pour retrouver une reference — parce
+        qu'il attend sa crypto depuis vingt minutes — la voit tout de suite,
+        meme si le relais ne repond pas.
+        */
+        _state.update { it.copy(historique = historique.lire()) }
+        charger()
+    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -314,17 +329,72 @@ class ChangeViewModel @Inject constructor(
                 referencePaiement = s.referencePaiement.trim()
             )
             val res = withContext(Dispatchers.IO) { service.transmettre(ordre) }
-            _state.update {
-                when (res) {
-                    is ResultatOrdre.Transmis -> {
-                        // La demande est chez le changeur : la trace a fait
-                        // son travail et ne doit plus ramener personne ici.
-                        secureStorage.saveChangeEnCours(null)
-                        it.copy(envoiEnCours = false, etape = EtapeChange.TRANSMIS)
-                    }
-                    is ResultatOrdre.Echec -> it.copy(
-                        envoiEnCours = false, erreur = res.raison
+            when (res) {
+                is ResultatOrdre.Transmis -> {
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LES ÉCRITURES SONT DEHORS, PAS DANS `update`
+                    ═══════════════════════════════════════════════════════
+
+                    `MutableStateFlow.update` boucle sur un
+                    compare-and-set : son bloc PEUT ÊTRE REJOUÉ si l'état
+                    change entre la lecture et l'écriture. Tout effet de
+                    bord qu'on y place s'exécute alors deux fois.
+
+                    Ici elles sont idempotentes — effacer une trace déjà
+                    effacée ne fait rien, et `ajouter` dédoublonne sur la
+                    référence — donc rien ne casserait. Mais compter sur
+                    cette chance à chaque ajout futur est exactement le
+                    genre de pari qu'on perd une fois.
+                    ═══════════════════════════════════════════════════════
+                    */
+                    // La demande est chez le changeur : la trace a fait son
+                    // travail et ne doit plus ramener personne ici.
+                    secureStorage.saveChangeEnCours(null)
+                    /*
+                    ON N'INSCRIT QUE CE QUI EST PARTI. Une demande refusée
+                    par le relais n'existe pour personne : le changeur ne
+                    l'a jamais vue, et la faire figurer dans l'historique
+                    donnerait à l'utilisateur une référence à réclamer qui
+                    ne correspond à rien.
+
+                    On reprend les champs de l'ordre tel qu'il a été
+                    transmis, et non l'état de l'écran : ce sont ces
+                    chaînes-là, mises en forme, que le changeur a lues.
+                    */
+                    val demande = DemandeChange(
+                        reference = res.reference,
+                        sens = ordre.sens,
+                        monnaie = ordre.monnaie,
+                        montantFcfa = ordre.montantFcfa,
+                        montantCrypto = ordre.montantCrypto,
+                        taux = ordre.taux,
+                        horodatage = System.currentTimeMillis()
                     )
+                    /*
+                    ON RELIT LE DISQUE plutôt que de recalculer en mémoire.
+
+                    `ajouter` écrit, puis l'écran affiche. S'il affichait
+                    une liste construite à côté, l'utilisateur pourrait voir
+                    une demande qui n'a pas été enregistrée — le cas d'un
+                    stockage plein, que `ajouter` avale volontairement pour
+                    ne pas faire échouer une opération réussie. Ce qui est
+                    montré est donc ce qui a été gardé.
+                    */
+                    val liste = withContext(Dispatchers.IO) {
+                        historique.ajouter(demande)
+                        historique.lire()
+                    }
+                    _state.update {
+                        it.copy(
+                            envoiEnCours = false,
+                            etape = EtapeChange.TRANSMIS,
+                            historique = liste
+                        )
+                    }
+                }
+                is ResultatOrdre.Echec -> _state.update {
+                    it.copy(envoiEnCours = false, erreur = res.raison)
                 }
             }
         }
@@ -340,7 +410,14 @@ class ChangeViewModel @Inject constructor(
     fun recommencer() {
         secureStorage.saveChangeEnCours(null)
         _state.update {
-            ChangeState(parametres = it.parametres, chargement = false, monnaie = it.monnaie)
+            ChangeState(
+                parametres = it.parametres,
+                chargement = false,
+                monnaie = it.monnaie,
+                // L'historique n'appartient pas a l'operation qu'on vient de
+                // finir : c'est justement maintenant qu'il sert.
+                historique = it.historique
+            )
         }
         recalculer()
     }
