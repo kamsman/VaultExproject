@@ -1,0 +1,2 @@
+🔒 Le montant affiché est celui que tu reçois
+Le marché ne s'arrête pas pendant qu'une transaction voyage : le montant pouvait bouger un peu en chemin. VaultEx bloque désormais le taux au moment où tu confirmes — le chiffre que tu lis est celui qui arrive. Envoie ton dépôt sans tarder, le taux tient quelques minutes. USDT, BTC, ETH, BNB, SOL, TRX. Onglet Swap.
