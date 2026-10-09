@@ -1135,4 +1135,8 @@
     <string name="change_tu_envoies">You send</string>
     <string name="change_telephone_aide">The number that made the payment (8 digits, no spaces).</string>
     <string name="change_copier_reference">Copy the reference</string>
+    <string name="change_historique_titre">My recent requests</string>
+    <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
+    <string name="change_historique_tout">See all (%1$d)</string>
+    <string name="change_historique_moins">Collapse</string>
 </resources>

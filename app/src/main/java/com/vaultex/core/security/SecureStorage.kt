@@ -455,6 +455,41 @@ class SecureStorage @Inject constructor(
 
     fun getChangeEnCours(): String? = prefs.getString(KEY_CHANGE_EN_COURS, null)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES DEMANDES DE CHANGE DÉJÀ TRANSMISES
+    ═══════════════════════════════════════════════════════════════════════
+
+    [saveChangeEnCours] garde UNE demande, celle qu'on est en train de
+    payer, et l'efface dès qu'elle part. C'est voulu : cet emplacement sert
+    à reprendre une opération interrompue, pas à se souvenir.
+
+    Or au moment où elle part, l'utilisateur perd tout. Il vient d'envoyer
+    de l'argent par Orange Money à quelqu'un qu'il ne connaît pas, et il
+    n'a plus sous les yeux ni la référence, ni le montant, ni l'heure. S'il
+    doit réclamer, il n'a rien à citer.
+
+    On garde donc la liste à côté, et elle ne s'efface pas. Voir
+    HistoriqueChange pour ce qu'elle contient — et pour ce qu'elle ne
+    prouve pas.
+
+    ─── ELLE SURVIT AU CHANGEMENT DE PORTEFEUILLE ───────────────────────
+
+    Volontairement absente de [clearWalletCaches]. Un solde appartient à un
+    portefeuille ; une demande de change appartient à la PERSONNE, qui a
+    payé depuis son propre numéro Mobile Money. Elle reste due même si
+    l'utilisateur change de portefeuille entre-temps.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun saveHistoriqueChange(json: String?) {
+        prefs.edit().apply {
+            if (json == null) remove(KEY_HISTORIQUE_CHANGE)
+            else putString(KEY_HISTORIQUE_CHANGE, json)
+        }.apply()
+    }
+
+    fun getHistoriqueChange(): String? = prefs.getString(KEY_HISTORIQUE_CHANGE, null)
+
     /** Transactions sortantes en attente de confirmation (JSON). */
     fun savePendingTxs(json: String) {
         prefs.edit().putString(KEY_PENDING_TXS, json).apply()
@@ -614,6 +649,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PENDING_TXS = "pending_txs"
         private const val KEY_PI_ENVOI_EN_COURS = "pi_envoi_en_cours"
         private const val KEY_CHANGE_EN_COURS = "change_en_cours"
+        private const val KEY_HISTORIQUE_CHANGE = "historique_change"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"
         private const val KEY_WALLET_NAME = "wallet_display_name"

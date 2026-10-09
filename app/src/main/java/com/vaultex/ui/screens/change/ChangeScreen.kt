@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
@@ -123,7 +124,7 @@ fun ChangeScreen(navController: NavController) {
 
                 state.etape == EtapeChange.PAIEMENT -> EtapePaiement(vm, state, copier)
 
-                else -> EtapeCalcul(vm, state)
+                else -> EtapeCalcul(vm, state, copier)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -134,7 +135,11 @@ fun ChangeScreen(navController: NavController) {
 // ─── Temps 1 : le calcul ────────────────────────────────────────────
 
 @Composable
-private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.viewmodel.ChangeState) {
+private fun ColumnScope.EtapeCalcul(
+    vm: ChangeViewModel,
+    state: com.vaultex.ui.viewmodel.ChangeState,
+    copier: (String) -> Unit
+) {
     val p = state.parametres ?: return
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -400,7 +405,149 @@ private fun ColumnScope.EtapeCalcul(vm: ChangeViewModel, state: com.vaultex.ui.v
     ) {
         Text(stringResource(R.string.change_continuer), fontWeight = FontWeight.Bold)
     }
+
+    /*
+    L'HISTORIQUE EST SOUS LE BOUTON, ET PAS AU-DESSUS.
+
+    Quelqu'un qui ouvre cet ecran veut, neuf fois sur dix, faire une
+    nouvelle operation : le champ de saisie et le prix doivent rester les
+    premieres choses qu'il voit. La dixieme fois, il vient chercher une
+    reference — et il defile, ce qui est exactement le geste qu'on fait
+    quand on cherche quelque chose qu'on sait etre la.
+    */
+    HistoriqueDemandes(state.historique, copier)
 }
+
+// ─── L'historique ───────────────────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE QUE L'UTILISATEUR PEUT CITER
+═══════════════════════════════════════════════════════════════════════════
+
+Jusqu'ici, la reference disparaissait avec l'ecran. Quelqu'un qui venait
+d'envoyer de l'argent par Orange Money a une personne qu'il ne connait pas
+n'avait plus rien a citer si rien n'arrivait.
+
+─── TROIS, PUIS LE RESTE ────────────────────────────────────────────────
+
+Une reclamation porte sur aujourd'hui, ou sur hier. Trois lignes couvrent
+ce cas et ne poussent pas le bouton hors de l'ecran ; le reste est a un
+appui, pour les rares fois ou l'on remonte plus loin.
+
+─── ON NE PRESENTE JAMAIS CA COMME UNE PREUVE ───────────────────────────
+
+C'est l'utilisateur qui l'a ecrit, depuis son telephone. La note le dit en
+clair, et elle ne doit pas etre retiree pour gagner trois lignes : laisser
+croire a quelqu'un qu'il detient une preuve, alors qu'il n'a qu'un
+pense-bete, serait pire que ne rien afficher.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun ColumnScope.HistoriqueDemandes(
+    demandes: List<com.vaultex.domain.fiat.DemandeChange>,
+    copier: (String) -> Unit
+) {
+    if (demandes.isEmpty()) return
+    var tout by remember { mutableStateOf(false) }
+    val visibles = if (tout) demandes else demandes.take(APERCU_HISTORIQUE)
+
+    Spacer(Modifier.height(6.dp))
+    HorizontalDivider(color = SurfaceColor)
+
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.History, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.change_historique_titre),
+            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+        )
+    }
+
+    visibles.forEach { d -> LigneHistorique(d, copier) }
+
+    if (demandes.size > APERCU_HISTORIQUE) {
+        TextButton(onClick = { tout = !tout }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text(
+                if (tout) stringResource(R.string.change_historique_moins)
+                else stringResource(R.string.change_historique_tout, demandes.size),
+                fontSize = 12.sp, color = AccentBlue
+            )
+        }
+    }
+
+    Note(stringResource(R.string.change_historique_note), AccentBlue)
+}
+
+@Composable
+private fun LigneHistorique(
+    demande: com.vaultex.domain.fiat.DemandeChange,
+    copier: (String) -> Unit
+) {
+    val fcfaTexte = "${demande.montantFcfa} FCFA"
+    val cryptoTexte = "${demande.montantCrypto} ${demande.monnaie}"
+    /*
+    LA FLECHE DIT LE SENS SANS ETIQUETTE.
+
+    « Achat » et « Vente » se confondent d'un coup d'oeil, et surtout : la
+    question n'est jamais « etait-ce un achat », mais « qu'est-ce que j'ai
+    donne et qu'est-ce que je devais recevoir ». La fleche y repond
+    directement, dans l'ordre ou ca s'est passe.
+    */
+    val ligne = if (demande.estAchat) "$fcfaTexte → $cryptoTexte" else "$cryptoTexte → $fcfaTexte"
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceColor,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        demande.reference,
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(dateCourte(demande.horodatage), fontSize = 11.sp, color = TextSecondary)
+                }
+                Text(ligne, fontSize = 12.sp, color = TextSecondary)
+            }
+            /*
+            COPIER LA REFERENCE, pour la coller dans un message au changeur.
+            C'est le seul geste utile sur cette ligne : huit caracteres
+            melant lettres et chiffres sont exactement ce qu'on recopie mal.
+            */
+            IconButton(onClick = { copier(demande.reference) }, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.ContentCopy, stringResource(R.string.copy),
+                    tint = AccentBlue, modifier = Modifier.size(15.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * « 9 oct. a 18 h 52 ».
+ *
+ * PAS D'ANNEE, et pas de secondes. Une reclamation se fait dans les heures
+ * qui suivent : ce qu'on cherche, c'est de distinguer deux demandes du meme
+ * jour. Le reste est du bruit sur une ligne qui en a peu de place.
+ */
+private fun dateCourte(horodatage: Long): String =
+    if (horodatage <= 0L) ""
+    else java.text.SimpleDateFormat("d MMM · HH'h'mm", java.util.Locale.FRANCE)
+        .format(java.util.Date(horodatage))
+
+/** Trois lignes avant d'avoir a deplier. Voir [HistoriqueDemandes]. */
+private const val APERCU_HISTORIQUE = 3
 
 // ─── Temps 2 : le paiement ──────────────────────────────────────────
 
