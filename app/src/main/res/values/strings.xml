@@ -1154,7 +1154,7 @@
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
     <string name="change_ref_paiement_aide">Le numéro de transaction que ton opérateur t\'a envoyé par SMS.</string>
-    <string name="change_telephone">Ton numéro (celui qui a payé)</string>
+    <string name="change_telephone">Numéro Mobile Money utilisé pour le paiement</string>
     <string name="change_jai_paye">J\'ai payé — transmettre</string>
     <string name="change_retour">Revenir au calcul</string>
     <string name="change_transmis_titre">Demande transmise</string>
@@ -1163,4 +1163,5 @@
     <string name="action_acheter">Acheter</string>
     <string name="change_tu_envoies">Tu envoies</string>
     <string name="change_telephone_aide">Le numéro qui a fait le paiement (8 chiffres, sans espace).</string>
+    <string name="change_copier_reference">Copier la référence</string>
 </resources>

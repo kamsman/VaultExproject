@@ -1125,7 +1125,7 @@
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>
     <string name="change_ref_paiement_aide">رقم العملية الذي أرسله لك المشغّل برسالة نصية.</string>
-    <string name="change_telephone">رقمك (الذي دفع)</string>
+    <string name="change_telephone">رقم Mobile Money المستخدم في الدفع</string>
     <string name="change_jai_paye">دفعتُ — إرسال الطلب</string>
     <string name="change_retour">العودة إلى الحساب</string>
     <string name="change_transmis_titre">تم إرسال الطلب</string>
@@ -1134,4 +1134,5 @@
     <string name="action_acheter">شراء</string>
     <string name="change_tu_envoies">ترسل</string>
     <string name="change_telephone_aide">الرقم الذي نفّذ الدفع (8 أرقام، بدون مسافات).</string>
+    <string name="change_copier_reference">نسخ المرجع</string>
 </resources>
