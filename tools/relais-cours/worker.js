@@ -68,7 +68,7 @@ identifiant, ni clé. Uniquement des cours publics.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 12
+const VERSION = 13
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1051,10 +1051,34 @@ async function ordreChange(requete, env) {
     return json({ ok: true, deja: true, reference: ordre.reference })
   }
 
-  const fleche = ordre.sens === 'achat' ? 'FCFA -> crypto' : 'crypto -> FCFA'
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  CE QUE LE CHANGEUR DOIT LIRE POUR AGIR, DANS L'ORDRE OU IL LE LIT
+  ═══════════════════════════════════════════════════════════════════════
+
+  UNE CONSIGNE, PAS SEULEMENT DES DONNEES. Le message donnait les chiffres
+  et laissait deduire quoi en faire. A la cinquantieme demande, un soir, on
+  ne deduit plus : on confond un achat et une vente, et on envoie des
+  francs a quelqu'un qui attendait de l'USDT. La ligne « A FAIRE » dit
+  l'action, en toutes lettres, et elle est la premiere apres la reference.
+
+  LES LIGNES VIDES SURVIVENT. Elles separaient les trois blocs — identite,
+  chiffres, consigne — et `filter(Boolean)` les supprimait toutes : une
+  chaine vide est falsy. Le message arrivait en pave compact. On ne filtre
+  donc que le nul, pas le vide.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const achat = ordre.sens === 'achat'
+  const aFaire = achat
+    ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
+    : `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
+
   const lignes = [
-    `\u{1F4B1} DEMANDE DE CHANGE · ${ordre.reference}`,
-    `${fleche} · ${ordre.monnaie}`,
+    `\u{1F4B1} DEMANDE DE CHANGE \u00b7 ${ordre.reference}`,
+    achat ? 'Le client paie en FCFA, tu envoies la crypto'
+          : 'Le client envoie la crypto, tu paies en FCFA',
+    '',
+    `\u27A1\uFE0F A FAIRE : ${aFaire}`,
     '',
     `Montant   : ${ordre.montantFcfa} FCFA`,
     `Crypto    : ${ordre.montantCrypto} ${ordre.monnaie}`,
@@ -1064,10 +1088,10 @@ async function ordreChange(requete, env) {
     ordre.telephone ? `Telephone : ${ordre.telephone}` : null,
     ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
     '',
-    '⚠️ N ENVOIE RIEN AVANT D AVOIR VU L ARGENT SUR TON PROPRE',
-    'COMPTE. Une capture d ecran se fabrique en cinq minutes ; une',
-    'reference se recopie. Seul ton releve fait foi.',
-  ].filter(Boolean)
+    '\u26A0\uFE0F N\u2019ENVOIE RIEN AVANT D\u2019AVOIR VU L\u2019ARGENT SUR TON',
+    'PROPRE COMPTE. Une capture d\u2019\u00e9cran se fabrique en cinq minutes ;',
+    'une r\u00e9f\u00e9rence se recopie. Seul ton relev\u00e9 fait foi.',
+  ].filter((l) => l !== null)
 
   try {
     const corpsTg = new URLSearchParams({ chat_id: chat, text: lignes.join('\n') })
