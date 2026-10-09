@@ -86,8 +86,102 @@ data class ParametresChange(
 
 /** Ce qu'il advient d'une demande transmise. */
 sealed class ResultatOrdre {
-    data class Transmis(val reference: String) : ResultatOrdre()
+    data class Transmis(
+        val reference: String,
+        /** Etat de la verification on-chain, tel que le changeur l'a lu. */
+        val verification: EtatVerification = EtatVerification.INCONNUE,
+        val txid: String = ""
+    ) : ResultatOrdre()
     data class Echec(val raison: String) : ResultatOrdre()
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA VERIFICATION ON-CHAIN D'UNE VENTE
+═══════════════════════════════════════════════════════════════════════════
+
+Dans une vente, l'utilisateur envoie de la crypto a l'adresse du changeur.
+Ca va sur une chaine publique : personne n'a besoin de le croire, il suffit
+de regarder. Le relais regarde.
+
+─── CE QUE CET ETAT N'EST PAS ───────────────────────────────────────────
+
+Ce n'est pas une verification faite par le telephone. Elle n'aurait aucune
+valeur : l'APK se decompile, on remplace « le transfert existe » par
+« oui », et le changeur recoit un ordre verifie qui ne l'est pas. Une preuve
+calculee par la partie qu'elle doit convaincre n'est pas une preuve.
+
+Ce qui arrive ici est le VERDICT DU RELAIS, que le telephone ne controle
+pas. L'application l'affiche ; elle ne le produit pas, et elle ne peut pas
+le changer.
+
+─── POURQUOI L'AFFICHER, ALORS ──────────────────────────────────────────
+
+Parce que l'utilisateur attend, apres avoir envoye des fonds de facon
+irreversible. « Le relais voit ton versement : 8 USDT, arrives a 18 h 52 »
+est la seule phrase qui reponde a ce moment-la. Et c'est le MEME code qui
+decidera du marquage de son ordre : si c'est vert ici, ce sera vert la.
+═══════════════════════════════════════════════════════════════════════════
+*/
+enum class EtatVerification {
+    /** La chaine montre le versement. */
+    CONFIRME,
+
+    /** On a regarde : il n'y est pas. Pas la meme chose que [INDISPONIBLE]. */
+    ABSENT,
+
+    /** Le versement existe, mais il a deja paye une autre demande. */
+    DEJA_SERVI,
+
+    /**
+     * On n'a PAS pu regarder : noeud muet, adresse non reglee, monnaie dont
+     * on ne sait pas lire la chaine.
+     *
+     * LA DISTINCTION AVEC [ABSENT] EST TOUT L'INTERET DE CET ENUM. Les
+     * confondre, c'est soit soupconner des ventes honnetes chaque fois
+     * qu'un noeud public tousse, soit annoncer « verifie » sans avoir rien
+     * verifie. La deuxieme est la pire.
+     */
+    INDISPONIBLE,
+
+    /** Rien n'a encore ete demande, ou la reponse est illisible. */
+    INCONNUE;
+
+    companion object {
+        fun depuisTexte(v: String?): EtatVerification = when (v?.trim()?.lowercase()) {
+            "confirme" -> CONFIRME
+            "absent" -> ABSENT
+            "deja_servi" -> DEJA_SERVI
+            "indisponible", "inconnue" -> INDISPONIBLE
+            else -> INCONNUE
+        }
+    }
+}
+
+/** Ce que le relais a lu sur la chaine, tel que l'ecran l'affiche. */
+data class Verification(
+    val etat: EtatVerification,
+    val txid: String = "",
+    /** Montant LU SUR LA CHAINE, jamais celui qui a ete annonce. */
+    val montant: Double? = null,
+    val quand: Long = 0L,
+    /** Faux seulement sur Bitcoin : vu, pas encore mine. */
+    val confirme: Boolean = true,
+    val raison: String = "",
+    val explorateur: String = ""
+) {
+    val estVert: Boolean get() = etat == EtatVerification.CONFIRME
+
+    /**
+     * Vrai quand il n'y a rien a attendre : insister ne changera rien.
+     *
+     * Un noeud muet ou une monnaie dont on ne lit pas la chaine ne
+     * deviendra pas lisible en reessayant quinze secondes plus tard. Un
+     * versement absent, si — c'est le cas d'un retrait encore en file chez
+     * une plateforme d'echange.
+     */
+    val sansEspoir: Boolean
+        get() = etat == EtatVerification.INDISPONIBLE || etat == EtatVerification.DEJA_SERVI
 }
 
 @Singleton
@@ -151,7 +245,11 @@ class ChangeService @Inject constructor(
      */
     suspend fun transmettre(ordre: OrdreChange): ResultatOrdre = try {
         val rep = api.ordre(ordre.versCorps())
-        if (rep.ok == true) ResultatOrdre.Transmis(rep.reference ?: ordre.reference)
+        if (rep.ok == true) ResultatOrdre.Transmis(
+            reference = rep.reference ?: ordre.reference,
+            verification = EtatVerification.depuisTexte(rep.verification),
+            txid = rep.txid.orEmpty()
+        )
         else ResultatOrdre.Echec(rep.raison ?: "Demande refusée, sans raison donnée.")
     } catch (e: retrofit2.HttpException) {
         /*
@@ -200,6 +298,47 @@ class ChangeService @Inject constructor(
         ResultatOrdre.Echec("Le changeur n'a pas pu être joint. Vérifie ta connexion.")
     }
 
+    /**
+     * Demande au relais s'il voit le versement sur la chaine.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * AUCUN CACHE ICI, CONTRAIREMENT AUX REGLAGES
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * On appelle cette methode toutes les quinze secondes pendant que
+     * l'utilisateur attend qu'un versement apparaisse. Une reponse gardee
+     * une minute repondrait « pas encore » pendant une minute apres
+     * l'arrivee des fonds — soit precisement le contraire de ce qu'on
+     * cherche.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UN ECHEC RESEAU N'EST PAS UNE ABSENCE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Il rend INDISPONIBLE, et surtout pas ABSENT. Dire « aucun versement
+     * trouve » a quelqu'un dont le telephone a juste perdu la 3G, apres
+     * qu'il a envoye des fonds de facon irreversible, serait lui annoncer
+     * une perte qui n'a pas eu lieu.
+     */
+    suspend fun verifier(monnaie: String, montant: String, txid: String = ""): Verification = try {
+        val dto = api.verifier(monnaie.uppercase(), montant, txid.trim())
+        Verification(
+            etat = EtatVerification.depuisTexte(dto.etat),
+            txid = dto.txid.orEmpty(),
+            montant = dto.montant?.takeIf { it > 0.0 },
+            quand = dto.quand ?: 0L,
+            confirme = dto.confirme ?: true,
+            raison = dto.raison.orEmpty(),
+            explorateur = dto.explorateur.orEmpty()
+        )
+    } catch (e: Exception) {
+        com.vaultex.core.monitoring.reportUnlessCancelled("verifier vente", e)
+        Verification(
+            etat = EtatVerification.INDISPONIBLE,
+            raison = "le relais n'a pas répondu"
+        )
+    }
+
     private companion object {
         /**
          * Une minute, comme le cache du relais.
@@ -241,7 +380,20 @@ data class OrdreChange(
      * changeur à RETROUVER la ligne dans son relevé. C'est son relevé qui
      * fait foi, et lui seul.
      */
-    val referencePaiement: String = ""
+    val referencePaiement: String = "",
+    /**
+     * Hash de la transaction, pour une vente.
+     *
+     * Facultatif, et c'est important : sur les chaines ou les versements
+     * s'enumerent — TRC-20, Bitcoin, jetons ERC-20 — le relais trouve sans
+     * lui. On ne demande donc pas a quelqu'un de recopier soixante-quatre
+     * caracteres hexadecimaux, ce qu'il rate une fois sur deux.
+     *
+     * Il reste utile dans deux cas : les versements natifs (BNB, ETH)
+     * n'emettent aucun journal et ne s'enumerent pas, et un hash fourni
+     * rend la recherche immediate au lieu d'attendre le prochain sondage.
+     */
+    val txid: String = ""
 ) {
     fun versCorps() = com.vaultex.data.remote.dto.OrdreChangeBody(
         reference = reference,
@@ -253,7 +405,8 @@ data class OrdreChange(
         marge = marge,
         adresse = adresse,
         telephone = telephone,
-        referencePaiement = referencePaiement
+        referencePaiement = referencePaiement,
+        txid = txid
     )
 
     companion object {

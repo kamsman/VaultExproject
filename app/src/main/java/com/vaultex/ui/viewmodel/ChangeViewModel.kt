@@ -5,12 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.vaultex.core.security.SecureStorage
 import com.vaultex.domain.fiat.ChangeService
 import com.vaultex.domain.fiat.DemandeChange
+import com.vaultex.domain.fiat.EtatVerification
 import com.vaultex.domain.fiat.HistoriqueChange
 import com.vaultex.domain.fiat.OrdreChange
 import com.vaultex.domain.fiat.ParametresChange
 import com.vaultex.domain.fiat.PrixFcfa
 import com.vaultex.domain.fiat.ResultatOrdre
 import com.vaultex.domain.fiat.TauxFcfa
+import com.vaultex.domain.fiat.Verification
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +45,40 @@ data class ChangeState(
     val envoiEnCours: Boolean = false,
     val erreur: String? = null,
     /** Les demandes deja transmises, de la plus recente a la plus ancienne. */
-    val historique: List<DemandeChange> = emptyList()
+    val historique: List<DemandeChange> = emptyList(),
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA VERIFICATION ON-CHAIN, POUR UNE VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Ce que le RELAIS a lu sur la chaine, pas ce que le telephone a calcule.
+    L'application affiche ce verdict ; elle ne le produit pas et ne peut pas
+    le changer — c'est ce qui en fait une preuve pour le changeur.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val verification: Verification? = null,
+    /** Un sondage est en vol. */
+    val rechercheEnCours: Boolean = false,
+    /** Combien de fois on a demande : affiche pour que l'attente soit lisible. */
+    val essais: Int = 0,
+    /**
+     * Hash de la transaction, si l'utilisateur l'a sous la main.
+     *
+     * FACULTATIF, et l'ecran le dit. Sur les chaines ou les versements
+     * s'enumerent, le relais trouve sans. On ne demande a personne de
+     * recopier soixante-quatre caracteres hexadecimaux.
+     */
+    val txidSaisi: String = "",
+    /**
+     * L'utilisateur a choisi de transmettre sans attendre la confirmation.
+     *
+     * CE CHOIX DOIT EXISTER. Ses fonds sont deja partis — c'est
+     * irreversible. Si son retrait traine chez une plateforme d'echange, ou
+     * si le relais n'arrive pas a lire la chaine, l'empecher de deposer sa
+     * demande le laisserait avec de la crypto envoyee et rien chez le
+     * changeur. On freine, on n'interdit pas.
+     */
+    val forcer: Boolean = false
 ) {
     /** Montant en francs de l'opération, quel que soit le sens de la saisie. */
     val montantFcfa: Double?
@@ -71,6 +106,56 @@ data class ChangeState(
      * écran où l'on vient pour envoyer de l'argent, cette hésitation suffit
      * à faire fermer l'application.
      */
+    /**
+     * Vrai si la demande peut partir depuis l'etape du paiement.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UNE VENTE N'ATTEND PLUS UNE REFERENCE RECOPIEE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Elle attend la CHAINE. La reference Mobile Money n'a aucun sens
+     * ici : il n'y a pas eu de paiement Mobile Money, c'est le changeur
+     * qui va en faire un.
+     *
+     * Un achat, lui, garde son exigence : rien d'automatique ne peut lire
+     * un relevé Orange Money, donc la reference que l'utilisateur recopie
+     * reste le seul fil entre son paiement et sa demande.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun peutTransmettre(): Boolean = when {
+        envoiEnCours -> false
+        reference.isBlank() -> false
+        sens == SensChange.ACHAT -> referencePaiement.isNotBlank()
+        /*
+        ═══════════════════════════════════════════════════════════════
+        SUR UNE VENTE, LE NUMERO EST CE QUI PERMET D'ETRE PAYE
+        ═══════════════════════════════════════════════════════════════
+
+        Il n'etait pas exige. Une vente pouvait donc partir sans numero,
+        et le message disait au changeur « ENVOYER 5 000 FCFA au numero
+        du client » — sans numero. Il n'avait aucun moyen de payer, et
+        l'utilisateur avait deja envoye sa crypto.
+
+        Ce n'est pas la verification qui a introduit ce defaut : il etait
+        la. Il s'est vu en relisant la ligne « A FAIRE » du message, qui
+        est justement ce que la verification a rendu lisible.
+        ═══════════════════════════════════════════════════════════════
+        */
+        !telephoneValide -> false
+        verification?.estVert == true -> true
+        else -> forcer
+    }
+
+    /**
+     * Huit chiffres, la longueur d'un numero au Burkina Faso.
+     *
+     * On compte les CHIFFRES et non les caracteres : « 70 12 34 56 »
+     * s'ecrit naturellement avec des espaces, et refuser cette forme
+     * ferait buter quelqu'un sur un champ qu'il a correctement rempli.
+     */
+    val telephoneValide: Boolean
+        get() = telephone.count { it.isDigit() } == 8
+
     fun blocage(): String? {
         val p = parametres ?: return "indisponible"
         if (!p.utilisable) return "ferme"
@@ -170,6 +255,15 @@ class ChangeViewModel @Inject constructor(
                 fcfaParDollar = trace.fcfaParDollar
             )
         }
+        /*
+        LA RECHERCHE REPREND, et c'est le cas qui en a le plus besoin.
+
+        Si l'application a ete fermee par Android pendant que l'utilisateur
+        envoyait sa crypto depuis une autre application, il revient ici
+        sans rien. C'est exactement le moment ou le versement a eu le temps
+        d'arriver sur la chaine : on redemande.
+        */
+        if (_state.value.sens == SensChange.VENTE) demarrerVerification()
     }
 
     fun charger() {
@@ -285,12 +379,158 @@ class ChangeViewModel @Inject constructor(
                 )
             )
         )
-        _state.update { it.copy(etape = EtapeChange.PAIEMENT, reference = reference) }
+        _state.update {
+            it.copy(
+                etape = EtapeChange.PAIEMENT,
+                reference = reference,
+                // Une nouvelle operation ne garde rien de la precedente :
+                // ni son verdict, ni son hash, ni la permission de passer
+                // outre. Reconduire « forcer » ferait sauter le garde-fou
+                // sans que personne ne le redemande.
+                verification = null,
+                essais = 0,
+                txidSaisi = "",
+                forcer = false
+            )
+        }
+        if (s.sens == SensChange.VENTE) demarrerVerification()
     }
 
     fun retourAuCalcul() {
         secureStorage.saveChangeEnCours(null)
-        _state.update { it.copy(etape = EtapeChange.CALCUL, reference = "", erreur = null) }
+        arreterVerification()
+        _state.update {
+            it.copy(
+                etape = EtapeChange.CALCUL,
+                reference = "",
+                erreur = null,
+                verification = null,
+                rechercheEnCours = false,
+                essais = 0,
+                forcer = false
+            )
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA RECHERCHE DU VERSEMENT SUR LA CHAINE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'utilisateur vient d'envoyer de la crypto a une adresse. C'est
+    irreversible, et il attend sans rien savoir. Cette boucle demande au
+    relais, toutes les quinze secondes, s'il voit le versement.
+
+    ─── QUINZE SECONDES, ET DIX MINUTES EN TOUT ─────────────────────────
+
+    Un bloc Tron sort toutes les trois secondes, un bloc BNB Chain toutes
+    les trois aussi, un bloc Bitcoin toutes les dix minutes. Quinze
+    secondes ne manquent donc rien, et c'est assez lent pour ne pas
+    maltraiter TronGrid depuis des centaines de telephones.
+
+    Dix minutes d'insistance, puis on s'arrete. Au-dela, ce n'est plus un
+    retard de reseau : soit le retrait est en file chez une plateforme
+    d'echange — ca peut prendre une heure, et aucun sondage n'y changera
+    rien — soit rien n'a ete envoye. Dans les deux cas, continuer a
+    interroger ne ferait que vider la batterie en affichant la meme chose.
+
+    ─── ON NE RECOMMENCE PAS CE QUI EST FINI ────────────────────────────
+
+    La boucle s'arrete des que c'est CONFIRME : le verdict ne changera
+    plus. Elle s'arrete aussi sur INDISPONIBLE et DEJA_SERVI, qui ne
+    deviendront pas verts en insistant. Seul ABSENT merite d'etre
+    reessaye — c'est le cas du versement qui n'est pas encore arrive.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private var rechercheJob: kotlinx.coroutines.Job? = null
+
+    private fun arreterVerification() {
+        rechercheJob?.cancel()
+        rechercheJob = null
+    }
+
+    fun demarrerVerification() {
+        arreterVerification()
+        rechercheJob = viewModelScope.launch {
+            try {
+                boucleVerification()
+            } finally {
+                /*
+                L'INDICATEUR S'ETEINT MEME SI LA BOUCLE EST ANNULEE.
+
+                Sans ce `finally`, une annulation en plein sondage —
+                l'utilisateur revient au calcul, ou transmet — laissait
+                `rechercheEnCours` a vrai pour toujours. L'ecran gardait un
+                indicateur qui tourne devant une boucle morte, et un ecran
+                qui tourne sans fin se lit comme un ecran bloque.
+
+                `update` n'est pas une fonction suspendue : elle marche dans
+                un contexte deja annule, ce qui est exactement le cas ici.
+                */
+                _state.update { it.copy(rechercheEnCours = false) }
+            }
+        }
+    }
+
+    private suspend fun boucleVerification() {
+        repeat(ESSAIS_MAX) { tour ->
+            val s = _state.value
+            /*
+            ON RELIT L'ETAT A CHAQUE TOUR, et pas une seule fois au
+            depart. Entre deux sondages, l'utilisateur a pu coller un
+            hash, revenir au calcul, ou changer de monnaie. Travailler
+            sur une copie figee interrogerait la chaine pour une
+            operation qui n'existe plus.
+            */
+            if (s.etape != EtapeChange.PAIEMENT || s.sens != SensChange.VENTE) return
+            val montant = s.montantCrypto ?: return
+
+            _state.update { it.copy(rechercheEnCours = true, essais = tour + 1) }
+            val v = withContext(Dispatchers.IO) {
+                service.verifier(s.monnaie, montantTexte(montant), s.txidSaisi.trim())
+            }
+            _state.update { it.copy(verification = v, rechercheEnCours = false) }
+
+            if (v.estVert || v.sansEspoir) return
+            kotlinx.coroutines.delay(INTERVALLE_VERIFICATION)
+        }
+    }
+
+    /** L'utilisateur colle un hash : la recherche redemarre aussitot. */
+    fun onTxid(valeur: String) {
+        _state.update { it.copy(txidSaisi = valeur, erreur = null) }
+        /*
+        UN HASH COMPLET RELANCE TOUT DE SUITE. Sans ca, quelqu'un qui colle
+        son hash attendrait jusqu'a quinze secondes devant un ecran qui dit
+        toujours « introuvable » — et conclurait que le collage n'a servi a
+        rien.
+
+        Soixante-quatre caracteres : la longueur d'un hash sur les trois
+        chaines traitees, avec ou sans le « 0x » des chaines EVM. En dessous,
+        c'est une saisie en cours, et relancer a chaque frappe enverrait
+        soixante requetes.
+        */
+        val nu = valeur.trim().removePrefix("0x").removePrefix("0X")
+        if (nu.length == 64 && nu.all { c -> c.isDigit() || c in 'a'..'f' || c in 'A'..'F' }) {
+            demarrerVerification()
+        }
+    }
+
+    /**
+     * Transmettre sans attendre la chaine.
+     *
+     * C'EST UN CHOIX, PAS UN CONTOURNEMENT. Ses fonds sont partis. Si son
+     * retrait traine chez une plateforme d'echange, ou si le relais
+     * n'arrive pas a lire la chaine, l'empecher de deposer sa demande le
+     * laisserait avec de la crypto envoyee et rien chez le changeur.
+     *
+     * Le relais refera la verification de son cote, et le message portera
+     * son resultat reel. Forcer ici ne rend donc rien « verifie » — ca
+     * permet seulement de deposer.
+     */
+    fun forcerTransmission() {
+        arreterVerification()
+        _state.update { it.copy(forcer = true, rechercheEnCours = false) }
     }
 
     /**
@@ -312,6 +552,9 @@ class ChangeViewModel @Inject constructor(
         val taux = s.fcfaParDollar ?: return
 
         _state.update { it.copy(envoiEnCours = true, erreur = null) }
+        // La demande part : plus rien a chercher, et un sondage qui
+        // continuerait ecraserait le verdict rendu par le depot lui-meme.
+        arreterVerification()
         viewModelScope.launch {
             val adresse = if (s.sens == SensChange.ACHAT) adresseDeReception(s.monnaie) else ""
             val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
@@ -326,7 +569,19 @@ class ChangeViewModel @Inject constructor(
                     (pourcent?.let { "(%.2f %%)".format(it) } ?: ""),
                 adresse = adresse,
                 telephone = s.telephone.trim(),
-                referencePaiement = s.referencePaiement.trim()
+                referencePaiement = s.referencePaiement.trim(),
+                /*
+                LE HASH TROUVE PAR LE RELAIS PASSE DEVANT CELUI QU'ON A
+                SAISI, et c'est l'ordre qui compte.
+
+                Si la recherche a abouti, le relais a deja identifie LA
+                transaction : la renvoyer lui evite de chercher a nouveau,
+                et surtout elle est forcement juste. Le hash tape a la main
+                ne sert que quand la recherche n'a rien trouve — un
+                versement natif, ou un sondage trop tot.
+                */
+                txid = s.verification?.txid?.takeIf { t -> t.isNotBlank() }
+                    ?: s.txidSaisi.trim()
             )
             val res = withContext(Dispatchers.IO) { service.transmettre(ordre) }
             when (res) {
@@ -389,7 +644,28 @@ class ChangeViewModel @Inject constructor(
                         it.copy(
                             envoiEnCours = false,
                             etape = EtapeChange.TRANSMIS,
-                            historique = liste
+                            historique = liste,
+                            /*
+                            LE VERDICT DU DEPOT REMPLACE CELUI DU SONDAGE.
+
+                            Ce sont deux verifications distinctes, faites a
+                            deux instants, et c'est la SECONDE qui est
+                            partie dans le message du changeur. Garder
+                            l'ancienne pourrait annoncer « verifie » a
+                            l'utilisateur alors que le changeur a recu un
+                            message marque « deja servi » — par exemple si
+                            quelqu'un a depose le meme transfert entre les
+                            deux.
+
+                            On n'ecrase que si le depot a dit quelque
+                            chose : un vieux relais qui ne renvoie pas ce
+                            champ laisserait sinon l'ecran sans verdict.
+                            */
+                            verification = if (res.verification == EtatVerification.INCONNUE) {
+                                it.verification
+                            } else {
+                                Verification(etat = res.verification, txid = res.txid)
+                            }
                         )
                     }
                 }
@@ -409,6 +685,7 @@ class ChangeViewModel @Inject constructor(
      */
     fun recommencer() {
         secureStorage.saveChangeEnCours(null)
+        arreterVerification()
         _state.update {
             ChangeState(
                 parametres = it.parametres,
@@ -456,7 +733,41 @@ class ChangeViewModel @Inject constructor(
          * changeur recevrait une somme ne correspondant a rien.
          */
         const val VALIDITE_TRACE = 24 * 60 * 60 * 1000L
+
+        /**
+         * Quinze secondes entre deux sondages.
+         *
+         * Un bloc sort toutes les trois secondes sur Tron comme sur BNB
+         * Chain : quinze secondes ne manquent rien. Et c'est assez lent
+         * pour que des centaines de telephones n'epuisent pas le quota
+         * public de TronGrid.
+         */
+        const val INTERVALLE_VERIFICATION = 15_000L
+
+        /**
+         * Quarante essais, soit dix minutes.
+         *
+         * Au-dela, ce n'est plus un retard de reseau : soit le retrait est
+         * en file chez une plateforme d'echange — ca prend parfois une
+         * heure, et aucun sondage n'y changera rien — soit rien n'a ete
+         * envoye. Continuer ne ferait que vider la batterie en affichant la
+         * meme chose.
+         */
+        const val ESSAIS_MAX = 40
     }
+
+    /**
+     * Le montant pour la requete : des chiffres et un point, rien d'autre.
+     *
+     * PAS LE FORMAT FRANCAIS, et c'est volontaire. Les montants du message
+     * Telegram sont mis en forme pour un humain — « 8,33 » — mais celui-ci
+     * part dans une URL et sera relu par une machine. Une virgule et une
+     * espace insecable dans un parametre de requete sont deux occasions de
+     * se tromper pour rien.
+     */
+    private fun montantTexte(v: Double): String =
+        java.math.BigDecimal(v).setScale(8, java.math.RoundingMode.DOWN)
+            .stripTrailingZeros().toPlainString()
 
     private data class SnapLiteChange(val tokens: List<TokenLiteChange>?)
     private data class TokenLiteChange(
