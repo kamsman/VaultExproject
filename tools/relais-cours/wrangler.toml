@@ -47,6 +47,35 @@
 name = "vaultex-prix"
 main = "worker.js"
 
+# ==========================================================================
+# NE PAS EFFACER LES VARIABLES DU TABLEAU DE BORD
+# ==========================================================================
+#
+# Sans cette ligne, `wrangler deploy` considère que ce fichier est la vérité
+# sur les variables du Worker. Comme il n'en déclare aucune, il SUPPRIME
+# celles qui sont réglées dans le tableau de bord.
+#
+# Ça s'est produit : un déploiement a proposé d'effacer CHANGE_MIN, et il
+# aurait emporté le reste. Les conséquences ne se voient pas tout de suite —
+# le Worker répond, les prix s'affichent — mais CHANGE_ADRESSES disparu, les
+# ventes se ferment ; CHANGE_NUMERO disparu, l'écran d'achat n'a plus
+# personne à payer. On chercherait du côté du code, qui n'aurait pas bougé.
+#
+# TOUS LES RÉGLAGES DU CHANGE VIVENT DANS LE TABLEAU DE BORD, et c'est
+# délibéré : la marge suit le marché, le plafond suit la confiance, et
+# CHANGE_ACTIF ferme le service en une seconde — sans republier quoi que ce
+# soit. Les mettre ici, dans un fichier versionné, rendrait chaque
+# ajustement dépendant d'un déploiement.
+#
+# Un secret (TG_CHANGE_TOKEN, CHANGE_SMS_TOKEN) n'est jamais touché par un
+# déploiement, avec ou sans cette ligne. Elle ne concerne que les variables
+# en clair.
+#
+# Si une version de Wrangler refusait cette clé, l'équivalent en ligne de
+# commande est `--keep-vars`.
+# ==========================================================================
+keep_vars = true
+
 # Fige le comportement de la plateforme à une date connue : une mise à jour
 # de Cloudflare ne peut donc pas changer le fonctionnement du relais sans
 # qu'on l'ait décidé en modifiant cette ligne.
