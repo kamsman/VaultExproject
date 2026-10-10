@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -638,6 +639,92 @@ private fun ColumnScope.EtapePaiement(
                     )
                 )
             }
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    PAYER SANS RECOPIER LE NUMÉRO
+    ═══════════════════════════════════════════════════════════════════════
+
+    Pour payer, l'utilisateur tape « *144*2*1*70123456*10000# » sur son
+    téléphone. Il recopie donc à la main huit chiffres de numéro et le
+    montant — et c'est là que se perdent les paiements : un chiffre de
+    travers, et l'argent part chez un inconnu, définitivement.
+
+    Ce bouton écrit la chaîne à sa place et ouvre le composeur. Il n'appelle
+    pas : l'utilisateur voit le code, appuie lui-même, et termine par son
+    code secret sur son clavier — qui n'entre jamais dans cette chaîne, ni
+    dans cette application.
+
+    ─── IL N'APPARAÎT QUE SI LE MODÈLE EST SÛR ──────────────────────────
+
+    Pas de modèle réglé, ou un modèle douteux, et il n'y a PAS de bouton :
+    l'écran garde le numéro à copier, ce qui marche depuis le premier jour.
+    Un bouton absent est une gêne ; un bouton construit sur un modèle mal
+    réglé enverrait quelqu'un valider un transfert vers un numéro tronqué.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (achat) {
+        val code = com.vaultex.domain.fiat.CodeUssd.composer(
+            p.ussdModele, p.numeroMobileMoney, state.montantFcfa ?: 0.0
+        )
+        if (code != null) {
+            val contexte = androidx.compose.ui.platform.LocalContext.current
+            Button(
+                onClick = {
+                    /*
+                    ACTION_DIAL, ET JAMAIS ACTION_CALL.
+
+                    ACTION_CALL lancerait l'appel tout seul — il demande la
+                    permission téléphone, et surtout il ferait partir une
+                    opération d'argent sans que l'utilisateur ait vu le
+                    code. Il doit le lire avant d'appuyer : c'est sa
+                    dernière occasion de voir que le montant est le bon.
+
+                    ACTION_DIAL n'exige aucune permission, et n'a besoin
+                    d'aucune vérification de disponibilité : tout téléphone
+                    a un composeur. Le `runCatching` ne couvre que le cas
+                    d'un appareil sans module téléphonique — une tablette.
+                    */
+                    runCatching {
+                        contexte.startActivity(
+                            android.content.Intent(
+                                android.content.Intent.ACTION_DIAL,
+                                android.net.Uri.parse(
+                                    "tel:" + com.vaultex.domain.fiat.CodeUssd.pourUriTel(code)
+                                )
+                            )
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Icon(Icons.Default.Dialpad, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.change_ussd_bouton, p.operateur),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            /*
+            LE CODE EST AFFICHÉ EN CLAIR SOUS LE BOUTON.
+
+            Deux raisons. Il reste composable à la main si le composeur
+            s'ouvre vide — ce qui arrive sur certaines surcouches
+            constructeur. Et surtout : l'utilisateur voit ce qu'il va
+            valider AVANT de l'envoyer, ce qui est la seule vérification
+            qui compte sur une opération irréversible.
+            */
+            Text(
+                code,
+                fontSize = 13.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                color = TextSecondary,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Note(stringResource(R.string.change_ussd_note), AccentBlue)
         }
     }
 

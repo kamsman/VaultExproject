@@ -60,7 +60,15 @@ data class ParametresChange(
     /** Monnaies acceptees a l'achat. */
     val monnaies: List<String> = emptyList(),
     /** Adresses du changeur pour les ventes, par monnaie. */
-    val adresses: Map<String, String> = emptyMap()
+    val adresses: Map<String, String> = emptyMap(),
+    /**
+     * Modele de code USSD a pre-remplir sur un achat, ou chaine vide.
+     *
+     * Regle a distance plutot que compile dans l'application : une syntaxe
+     * USSD change sans preavis, et corriger une variable Cloudflare prend
+     * dix secondes la ou republier un APK prend une semaine.
+     */
+    val ussdModele: String = ""
 ) {
     /**
      * Un service annoncé actif mais sans numéro n'est pas utilisable.
@@ -221,7 +229,8 @@ class ChangeService @Inject constructor(
                 operateur = dto.operateur ?: "Mobile Money",
                 delaiMinutes = dto.delaiMinutes ?: 30,
                 monnaies = dto.monnaies?.map { m -> m.uppercase() }.orEmpty(),
-                adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty()
+                adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty(),
+                ussdModele = dto.ussdModele.orEmpty()
             )
             cache = p
             horodatage = maintenant

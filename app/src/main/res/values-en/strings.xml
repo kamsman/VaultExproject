@@ -1162,4 +1162,6 @@
     <string name="change_copier_adresse">Copy the exchanger\'s address</string>
     <string name="change_tu_donnes">You give</string>
     <string name="change_tu_recois">You receive</string>
+    <string name="change_ussd_bouton">Pay with %1$s</string>
+    <string name="change_ussd_note">Your phone will open the dialler with the code already filled in. Check the amount, press Call, and finish with your PIN — VaultEx never sees it.</string>
 </resources>

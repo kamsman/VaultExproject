@@ -135,6 +135,20 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
                          Non réglé, tout le mécanisme est éteint et les
                          achats repartent comme avant la v16.
 
+  CHANGE_USSD            Modèle de code USSD pré-rempli sur l'écran de
+                         paiement d'un ACHAT, par exemple
+                         « *144*2*1*{numero}*{montant}# ». Vide par
+                         défaut : la syntaxe réelle d'Orange Money Burkina
+                         n'a pas été mesurée, et un modèle deviné
+                         enverrait quelqu'un valider un transfert vers un
+                         numéro tronqué.
+                         ⚠️ JAMAIS LE CODE SECRET dedans : une chaîne USSD
+                         s'affiche en clair et reste dans le journal
+                         d'appels. Deux emplacements admis, {numero} et
+                         {montant} ; tout autre fait refuser le modèle.
+                         Ce n'est PAS une intégration Orange : on ouvre le
+                         composeur, l'utilisateur appuie, Orange exécute.
+
   CHANGE_SMS_EXPEDITEURS « OrangeMoney,MoovMoney ». Les SMS venant d'un
                          autre expéditeur sont écartés sans bruit : le
                          robot transmet ce qu'il voit, et ce qu'il voit
@@ -173,7 +187,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 16
+const VERSION = 17
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1312,6 +1326,36 @@ function parametresChange(env) {
       monnaies: String(env?.CHANGE_MONNAIES ?? 'USDT')
         .split(',').map((m) => m.trim().toUpperCase()).filter(Boolean),
       adresses: adressesChangeur(env),
+      /*
+      ═══════════════════════════════════════════════════════════════════
+      LE MODÈLE DE CODE USSD — RÉGLÉ ICI, ET VIDE PAR DÉFAUT
+      ═══════════════════════════════════════════════════════════════════
+
+      CHANGE_USSD = « *144*2*1*{numero}*{montant}# ».
+
+      Deux emplacements, et deux seulement : {numero} et {montant}.
+      L'application refuse tout modèle qui en porte un autre, et n'affiche
+      alors aucun bouton — voir CodeUssd.modeleValide.
+
+      ⚠️ LE CODE SECRET N'ENTRE JAMAIS DANS CE MODÈLE. Certaines syntaxes
+      l'acceptent en dernier paramètre ; il ne faut pas s'en servir. Une
+      chaîne USSD s'affiche en clair pendant la frappe et reste dans le
+      journal d'appels du téléphone. L'utilisateur termine sur son
+      clavier, là où son code ne quitte rien.
+
+      VIDE PAR DÉFAUT, et c'est important : je n'ai pas mesuré la syntaxe
+      de transfert Orange Money Burkina, et un modèle deviné enverrait des
+      gens valider un transfert vers un numéro tronqué. Sans réglage,
+      l'écran garde le numéro à copier — ce qui marche depuis le premier
+      jour. À mesurer sur un vrai téléphone avant de poser cette variable.
+
+      C'est un réglage du relais et non une constante de l'application
+      pour la même raison que le format des SMS : une syntaxe USSD change
+      sans préavis, et corriger une variable Cloudflare prend dix secondes
+      là où republier un APK prend une semaine.
+      ═══════════════════════════════════════════════════════════════════
+      */
+      ussdModele: String(env?.CHANGE_USSD ?? ''),
     },
     TTL_PARAMETRES_CHANGE
   )

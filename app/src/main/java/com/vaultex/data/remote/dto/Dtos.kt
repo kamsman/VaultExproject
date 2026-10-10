@@ -473,7 +473,15 @@ data class ParametresChangeDto(
      * Separe de [monnaies] parce que les deux ne tombent pas en panne
      * ensemble : une monnaie peut etre achetable sans etre rachetable.
      */
-    val adresses: Map<String, String>? = null
+    val adresses: Map<String, String>? = null,
+    /**
+     * Modele de code USSD a pre-remplir, ou null.
+     *
+     * « *144*2*1*{numero}*{montant}# ». Deux emplacements admis, et
+     * l'application refuse tout modele qui en porte un autre — voir
+     * CodeUssd.modeleValide. Le code secret n'y entre JAMAIS.
+     */
+    val ussdModele: String? = null
 )
 
 /**

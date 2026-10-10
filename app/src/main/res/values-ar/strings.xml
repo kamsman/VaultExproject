@@ -1162,4 +1162,6 @@
     <string name="change_copier_adresse">نسخ عنوان الصرّاف</string>
     <string name="change_tu_donnes">تُعطي</string>
     <string name="change_tu_recois">تستلم</string>
+    <string name="change_ussd_bouton">الدفع عبر %1$s</string>
+    <string name="change_ussd_note">سيفتح هاتفك لوحة الاتصال والرمز مكتوب مسبقًا. تحقّق من المبلغ، اضغط اتصال، وأكمل برمزك السري — VaultEx لا يراه أبدًا.</string>
 </resources>

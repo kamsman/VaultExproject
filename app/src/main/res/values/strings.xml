@@ -1191,4 +1191,6 @@
     <string name="change_copier_adresse">Copier l\'adresse du changeur</string>
     <string name="change_tu_donnes">Tu donnes</string>
     <string name="change_tu_recois">Tu reçois</string>
+    <string name="change_ussd_bouton">Payer avec %1$s</string>
+    <string name="change_ussd_note">Ton téléphone va ouvrir le composeur avec le code déjà écrit. Vérifie le montant, appuie sur Appeler, et termine avec ton code secret — VaultEx ne le voit jamais.</string>
 </resources>
