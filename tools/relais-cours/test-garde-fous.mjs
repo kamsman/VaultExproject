@@ -594,6 +594,104 @@ async function posterSms(texte, env, cache, expediteur, jeton) {
   verifie('SANS ROBOT : marque indisponible', r.corps.verification === 'indisponible', r.corps)
 }
 
+// ─── Les adresses du changeur ───────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UNE ADRESSE DE LA MAUVAISE CHAINE COUTE LES FONDS D'UN CLIENT
+═══════════════════════════════════════════════════════════════════════════
+
+CHANGE_ADRESSES est affichee a chaque vendeur. Si « USDT » porte une
+adresse Ethereum, quelqu'un y envoie de l'USDT TRC-20 et les fonds sont
+perdus definitivement — on ne recupere pas des jetons TRON envoyes a une
+adresse 0x.
+
+Pour une seule touche de travers dans un tableau de bord, un soir, sur une
+variable qu'on regle une fois et qu'on ne relit plus jamais.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+import { trierAdresses, formeAttendue } from './worker.js'
+
+const TRON_OK = 'TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM'
+const EVM_OK = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+const BTC_OK = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'
+
+{
+  const t = trierAdresses(JSON.stringify({ USDT: TRON_OK }))
+  verifie('ADRESSES : une adresse TRON sous USDT est gardee', t.bonnes.USDT === TRON_OK, t)
+  verifie('ADRESSES : rien de refuse', t.refusees.length === 0, t.refusees)
+}
+
+{
+  /*
+  LE CAS QUI JUSTIFIE TOUT CE BLOC. La premiere version n'exigeait qu'une
+  longueur de vingt caracteres : cette adresse passait.
+  */
+  const t = trierAdresses(JSON.stringify({ USDT: EVM_OK }))
+  verifie('ATTAQUE : une adresse EVM sous USDT est refusee', t.bonnes.USDT === undefined, t.bonnes)
+  verifie('ATTAQUE : et la raison est rendue', t.refusees[0]?.attendu === 'tron', t.refusees)
+}
+
+{
+  const t = trierAdresses(JSON.stringify({ 'USDT-BNB': TRON_OK, BNB: EVM_OK }))
+  verifie('ADRESSES : TRON sous USDT-BNB refusee', t.bonnes['USDT-BNB'] === undefined, t.bonnes)
+  verifie('ADRESSES : EVM sous BNB gardee', t.bonnes.BNB === EVM_OK, t.bonnes)
+}
+
+{
+  const t = trierAdresses(JSON.stringify({ BTC: BTC_OK, USDT: TRON_OK }))
+  verifie('ADRESSES : bech32 sous BTC gardee', t.bonnes.BTC === BTC_OK, t.bonnes)
+  verifie('ADRESSES : les deux cohabitent', Object.keys(t.bonnes).length === 2, t.bonnes)
+}
+
+{
+  // Tronquee : la faute de copier-coller la plus banale.
+  const t = trierAdresses(JSON.stringify({ USDT: TRON_OK.slice(0, 30) }))
+  verifie('ADRESSES : une adresse tronquee est refusee', t.bonnes.USDT === undefined, t.bonnes)
+}
+
+{
+  /*
+  L'ALPHABET BASE58 EXCLUT 0, O, I ET l — precisement les caracteres qui
+  se confondent a l'oeil. Leur presence signale un copier-coller abime, ou
+  une adresse recopiee a la main.
+  */
+  const t = trierAdresses(JSON.stringify({ USDT: 'T0n9Y2khDD95J42FQtQTdwVVRZqjGBCvpM' }))
+  verifie('ADRESSES : un zero dans du base58 est refuse', t.bonnes.USDT === undefined, t.bonnes)
+}
+
+{
+  // JSON invalide : AUCUNE lecture partielle. Une adresse a moitie lue est
+  // une adresse vers laquelle des fonds partiraient sans retour.
+  const t = trierAdresses('{"USDT": "T...",}')
+  verifie('ADRESSES : un JSON invalide ne rend rien', Object.keys(t.bonnes).length === 0, t.bonnes)
+  verifie('ADRESSES : et le signale', t.lisible === false, t)
+}
+
+{
+  const t = trierAdresses(undefined)
+  verifie('ADRESSES : non reglee rend vide et lisible', t.lisible === true && t.refusees.length === 0, t)
+}
+
+{
+  // La cle est normalisee : « usdt » et « USDT » sont la meme monnaie.
+  const t = trierAdresses(JSON.stringify({ ' usdt ': TRON_OK }))
+  verifie('ADRESSES : la cle est normalisee', t.bonnes.USDT === TRON_OK, t.bonnes)
+}
+
+{
+  // Monnaie inconnue : on retombe sur la longueur. Refuser tout ce qu'on
+  // ne sait pas verifier fermerait le service a chaque nouveaute.
+  const t = trierAdresses(JSON.stringify({ SOL: 'So11111111111111111111111111111111111111112' }))
+  verifie('ADRESSES : une monnaie inconnue passe sur la longueur', t.bonnes.SOL !== undefined, t.bonnes)
+}
+
+verifie('FORME : USDT attend du tron', formeAttendue('USDT') === 'tron')
+verifie('FORME : BNB attend de l evm', formeAttendue('BNB') === 'evm')
+verifie('FORME : PI attend du stellar', formeAttendue('PI') === 'stellar')
+verifie('FORME : une inconnue n attend rien', formeAttendue('DOGE') === null)
+
 // ─── Verdict ────────────────────────────────────────────────────────
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
