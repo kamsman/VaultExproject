@@ -228,7 +228,7 @@ private fun ColumnScope.EtapeCalcul(
         Afficher zéro ferait croire à un taux nul sur un écran où l'on
         s'engage.
         */
-        montant = (if (donneFcfa) state.montantCrypto?.let { crypto(it) }
+        montant = (if (donneFcfa) state.montantCrypto?.let { crypto(it, state.monnaie) }
                    else state.montantFcfa?.let { fcfa(it) }).orEmpty(),
         unite = if (donneFcfa) state.monnaie else "FCFA",
         avecLogo = donneFcfa,
@@ -568,7 +568,7 @@ private fun ColumnScope.EtapePaiement(
             Ligne(
                 stringResource(R.string.change_montant_exact),
                 if (achat) "${fcfa(state.montantFcfa ?: 0.0)} FCFA"
-                else "${crypto(state.montantCrypto ?: 0.0)} ${state.monnaie}",
+                else "${crypto(state.montantCrypto ?: 0.0, state.monnaie)} ${state.monnaie}",
                 fort = true
             )
             /*
@@ -976,7 +976,7 @@ private fun ColumnScope.CarteVerification(
                 v.montant?.let { m ->
                     Ligne(
                         stringResource(R.string.change_verif_recu),
-                        "${crypto(m)} ${state.monnaie}",
+                        "${crypto(m, state.monnaie)} ${state.monnaie}",
                         icone = Icons.Default.AccountBalanceWallet,
                         vedette = true
                     )
@@ -1539,8 +1539,15 @@ private fun messageBlocage(code: String, p: com.vaultex.domain.fiat.ParametresCh
 private fun fcfa(v: Double): String =
     java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE).format(v)
 
-private fun crypto(v: Double): String =
+/**
+ * Un montant de crypto, avec les décimales que la monnaie possède vraiment.
+ *
+ * Huit pour tout le monde annonçait « 8,19672131 USDT » — deux chiffres
+ * qui n'existent pas sur un jeton à six décimales, et que personne ne peut
+ * donc recevoir. Voir TauxFcfa.decimalesAffichage.
+ */
+private fun crypto(v: Double, monnaie: String): String =
     java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
-        maximumFractionDigits = 8
+        maximumFractionDigits = TauxFcfa.decimalesAffichage(monnaie)
         minimumFractionDigits = 0
     }.format(v)
