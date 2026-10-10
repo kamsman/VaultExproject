@@ -21,3 +21,7 @@ google-services.json
 # Utilisee par tools/send-announcement.sh pour diffuser les annonces.
 firebase-service-account.json
 *-service-account.json
+
+# Le robot SMS du changeur a son propre build, hors du projet principal.
+tools/changeur-sms/build/
+tools/changeur-sms/.gradle/
