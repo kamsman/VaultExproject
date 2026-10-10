@@ -374,6 +374,226 @@ verifie('NUMERO : trop court reste tel quel', numeroComparable('7012') === '7012
 verifie('NUMERO : vide', numeroComparable('') === '')
 verifie('NUMERO : null', numeroComparable(null) === '')
 
+// ─── Le robot SMS, de bout en bout ──────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA CHAÎNE ENTIÈRE : UN SMS ENTRE, UN ACHAT SE VÉRIFIE
+═══════════════════════════════════════════════════════════════════════════
+
+test-sms.mjs prouve que le TEXTE est bien lu. Ici on prouve que ce qui en
+est lu rejoint la demande du client — ce qui est une autre affaire, et
+celle où les deux moitiés peuvent ne pas se parler : une clé de
+rapprochement écrite d'un côté avec le numéro normalisé et de l'autre sans,
+et plus rien ne se retrouve. Sans erreur, sans trace.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+import { recevoirSms } from './worker.js'
+
+const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
+
+async function posterSms(texte, env, cache, expediteur, jeton) {
+  installer(cache)
+  const requete = new Request('https://relais.vaultex/change/sms', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-vaultex-sms': jeton === undefined ? 'jeton-du-robot' : jeton,
+    },
+    body: JSON.stringify({ expediteur: expediteur ?? 'OrangeMoney', texte }),
+  })
+  const rep = await recevoirSms(requete, { ...ENV, ...ENV_SMS, ...(env || {}) })
+  return { statut: rep.status, corps: await rep.json() }
+}
+
+{
+  /*
+  LE CONTRÔLE LE PLUS IMPORTANT DE CE FICHIER.
+
+  Sans jeton, ce point d'entrée serait pire que l'absence de
+  vérification : n'importe qui déclarerait ses propres encaissements et
+  les achats passeraient en ✅ VÉRIFIÉ. On aurait transformé une
+  incertitude en fausse certitude.
+  */
+  const r = await posterSms('Vous avez recu 10000 FCFA de 70123456', {}, faireCache(), 'OrangeMoney', '')
+  verifie('SMS : sans jeton, refuse', r.statut === 401, r)
+
+  const r2 = await posterSms('Vous avez recu 10000 FCFA de 70123456', {}, faireCache(), 'OrangeMoney', 'mauvais')
+  verifie('SMS : mauvais jeton, refuse', r2.statut === 401, r2)
+}
+
+{
+  // Sans CHANGE_SMS_TOKEN réglé, le mécanisme n'existe pas — et le dit,
+  // au lieu de laisser le robot poster dans le vide.
+  installer(faireCache())
+  const requete = new Request('https://relais.vaultex/change/sms', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-vaultex-sms': 'x' },
+    body: JSON.stringify({ expediteur: 'OrangeMoney', texte: 'recu 1000 FCFA de 70123456' }),
+  })
+  const rep = await recevoirSms(requete, ENV)
+  verifie('SMS : non configure, le dit', rep.status === 503, rep.status)
+}
+
+{
+  const r = await posterSms(
+    'Vous avez recu 10000 FCFA de 70123456',
+    {},
+    faireCache(),
+    'Pub-Promo'
+  )
+  verifie('SMS : un expediteur inconnu est ecarte', r.statut === 400, r)
+}
+
+{
+  const r = await posterSms('Votre solde est de 125000 FCFA', {}, faireCache())
+  verifie('SMS : un format non reconnu est rendu tel quel', r.statut === 422, r)
+  verifie('SMS : et le texte revient pour diagnostic', String(r.corps.texte).includes('solde'), r.corps)
+}
+
+{
+  /*
+  LE RAPPROCHEMENT PAR MONTANT ET NUMÉRO — le cas du client qui ne
+  recopie rien.
+  */
+  const cache = faireCache()
+  const sms = await posterSms('Vous avez recu 10000 FCFA de 70123456', {}, cache)
+  verifie('CHAINE : le SMS est accepte', sms.statut === 200, sms)
+
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: '' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('CHAINE : l achat est transmis', r.statut === 200, r)
+  verifie('CHAINE : et marque verifie', r.corps.verification === 'confirme', r.corps)
+}
+
+{
+  // Et par référence, quand le client la recopie.
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456 Ref: MP251010999', {}, cache)
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: 'MP251010999' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('CHAINE : rapprochement par reference', r.corps.verification === 'confirme', r.corps)
+}
+
+{
+  /*
+  LA RÉFÉRENCE COÏNCIDE, LE MONTANT NON.
+
+  Un client recopie la référence d'un vrai paiement de mille francs et
+  dépose une demande de quarante mille. Sans recomparer le montant LU DANS
+  LE SMS, le relais répondrait ✅ sur la seule coïncidence de référence.
+  */
+  const cache = faireCache()
+  await posterSms('Vous avez recu 1000 FCFA de 70123456 Ref: MP777', {}, cache)
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '40 000', referencePaiement: 'MP777' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('CHAINE : un montant qui ne correspond pas n est pas verifie',
+    r.corps.verification === 'absent', r.corps)
+  verifie('CHAINE : mais la demande part quand meme', r.statut === 200, r)
+}
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════
+  UN ENCAISSEMENT NE SERT QU'UNE FOIS — ET DEUX BARRIÈRES LE DISENT
+  ═══════════════════════════════════════════════════════════════════
+
+  Sinon un seul vrai paiement de dix mille francs justifie dix demandes
+  de dix mille : le SMS existe, il est authentique, et il répond ✅ à
+  chacune.
+
+  MON PREMIER TEST ICI ATTENDAIT LA MAUVAISE BARRIÈRE. Il renvoyait la
+  même référence de paiement, et c'est le dédoublonnage des références
+  (409, rien n'est posté) qui l'arrêtait — plus tôt dans la chaîne, et
+  c'est mieux ainsi. Le `deja_servi` de verifierAchat ne se voit donc que
+  quand le client ne recopie AUCUNE référence : le rapprochement se fait
+  alors sur montant et numéro, et c'est cet encaissement-là qui doit être
+  marqué comme consommé.
+
+  Les deux cas sont vérifiés, parce qu'ils passent par deux codes
+  différents.
+  ═══════════════════════════════════════════════════════════════════
+  */
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456 Ref: MP888', {}, cache)
+  const r1 = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: 'MP888' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('REJEU : la premiere est verifiee', r1.corps.verification === 'confirme', r1.corps)
+
+  // Même référence : arrêtée plus tôt, par le dédoublonnage des
+  // références de paiement. Rien ne repart sur Telegram.
+  const r2 = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: 'MP888' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('REJEU : meme reference, refusee des l entree', r2.statut === 409, r2)
+  verifie('REJEU : et rien ne repart', envois.length === 0, envois.length)
+}
+
+{
+  // Sans référence recopiée : le rapprochement se fait sur montant et
+  // numéro, et c'est verifierAchat qui doit refuser le second passage.
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456', {}, cache)
+  const r1 = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: '' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('REJEU SANS REF : la premiere est verifiee', r1.corps.verification === 'confirme', r1.corps)
+
+  const r2 = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: '' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('REJEU SANS REF : la seconde est deja_servi', r2.corps.verification === 'deja_servi', r2.corps)
+  verifie('REJEU SANS REF : la demande part quand meme, marquee', r2.statut === 200, r2)
+}
+
+{
+  // Aucun SMS : l'achat part, marqué non vérifié. Il ne doit JAMAIS être
+  // bloqué — le client a déjà payé.
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000' }),
+    ENV_SMS,
+    faireCache()
+  )
+  verifie('SANS SMS : l achat part quand meme', r.statut === 200, r)
+  verifie('SANS SMS : marque absent', r.corps.verification === 'absent', r.corps)
+}
+
+{
+  /*
+  LE ROBOT NON INSTALLÉ NE DOIT RIEN CHANGER.
+
+  C'est la condition pour que la v16 ne casse pas le service d'un changeur
+  qui n'a pas installé le robot : « on n'a pas regardé » n'est pas « il
+  n'y a rien », et la consigne doit rester celle d'avant.
+  */
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000' }),
+    {},
+    faireCache()
+  )
+  verifie('SANS ROBOT : l achat part', r.statut === 200, r)
+  verifie('SANS ROBOT : marque indisponible', r.corps.verification === 'indisponible', r.corps)
+}
+
 // ─── Verdict ────────────────────────────────────────────────────────
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)

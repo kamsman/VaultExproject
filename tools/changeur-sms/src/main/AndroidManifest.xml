@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+═══════════════════════════════════════════════════════════════════════════
+UNE SEULE PERMISSION, ET PAS CELLE QU'ON ATTENDAIT
+═══════════════════════════════════════════════════════════════════════════
+
+RECEIVE_SMS suffit, et READ_SMS est volontairement ABSENT.
+
+La différence compte. READ_SMS donne accès à toute la boîte de réception —
+l'historique entier, les messages des proches, les codes de connexion des
+autres services. RECEIVE_SMS ne donne que les messages QUI ARRIVENT,
+pendant qu'ils arrivent, et c'est tout ce dont ce robot a besoin : le
+corps du SMS est dans l'intention elle-même.
+
+Ma première intention était de demander les deux, par habitude. Il n'y a
+aucune raison : rien ici ne relit un ancien message.
+
+═══════════════════════════════════════════════════════════════════════════
+LE RECEVEUR EXIGE BROADCAST_SMS, ET CE N'EST PAS DÉCORATIF
+═══════════════════════════════════════════════════════════════════════════
+
+`android:permission="android.permission.BROADCAST_SMS"` impose que
+l'émetteur de la diffusion détienne cette permission — que seul le système
+possède.
+
+Sans cette ligne, N'IMPORTE QUELLE APPLICATION installée sur le téléphone
+pourrait émettre un faux SMS_RECEIVED, et le robot transmettrait un faux
+encaissement au relais, signé par son jeton. Toute la chaîne de preuve
+reposerait alors sur la supposition qu'aucune autre application du
+téléphone n'est hostile.
+
+C'est le genre de ligne dont l'absence ne se voit jamais en testant.
+═══════════════════════════════════════════════════════════════════════════
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="VaultEx Changeur"
+        android:allowBackup="false"
+        android:supportsRtl="true"
+        android:icon="@android:drawable/ic_dialog_email">
+
+        <activity
+            android:name=".EcranPrincipal"
+            android:exported="true"
+            android:label="VaultEx Changeur">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".RecepteurSms"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>
