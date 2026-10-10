@@ -328,8 +328,38 @@ class ChangeViewModel @Inject constructor(
         it.copy(sens = sens, saisie = "", erreur = null)
     }
 
+    /**
+     * Change la monnaie traitee.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LA SAISIE NE S'EFFACE QUE SI SON UNITE CHANGE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * A LA VENTE, elle doit s'effacer : on y tape des unites de crypto, et
+     * huit USDT ne sont pas huit bitcoins. Garder le chiffre reviendrait a
+     * proposer une vente de huit bitcoins a quelqu'un qui en voulait huit
+     * dollars — soit six cents mille fois trop.
+     *
+     * A L'ACHAT, non. On y tape des FRANCS, et cinq mille francs restent
+     * cinq mille francs qu'on achete de l'USDT ou du bitcoin. Les effacer
+     * obligeait a tout retaper pour comparer deux monnaies, ce qui est
+     * exactement le geste que le selecteur existe pour permettre.
+     *
+     * Ca ne se voyait pas tant que la monnaie vivait DANS le champ de
+     * saisie. Depuis que « tu donnes » et « tu recois » sont deux cartes,
+     * le selecteur de l'achat est sur l'autre carte que le montant — et
+     * voir disparaitre un chiffre en touchant une carte voisine n'a plus
+     * aucun sens.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     fun onMonnaie(monnaie: String) {
-        _state.update { it.copy(monnaie = monnaie, saisie = "", erreur = null) }
+        _state.update {
+            it.copy(
+                monnaie = monnaie,
+                saisie = if (it.sens == SensChange.VENTE) "" else it.saisie,
+                erreur = null
+            )
+        }
         recalculer()
     }
 

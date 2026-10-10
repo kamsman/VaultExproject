@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.change
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
@@ -16,7 +17,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShowChart
@@ -160,106 +160,101 @@ private fun ColumnScope.EtapeCalcul(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    LE MONTANT ET LA MONNAIE SUR UNE SEULE LIGNE
+    DEUX CARTES, « TU DONNES » ET « TU REÇOIS » — COMME SUR LE SWAP
     ═══════════════════════════════════════════════════════════════════════
 
-    Les monnaies etaient une rangee de pastilles. Ca tient a deux, ca
-    deborde a cinq, et ca pousse le champ de saisie vers le bas — alors que
-    c'est lui qu'on vient remplir.
+    Avant, il y avait UN champ de saisie, puis une carte de détails où « ce
+    que tu reçois » était la quatrième ligne. Il fallait donc lire un
+    montant, descendre, retrouver la bonne ligne, et faire le lien
+    soi-même — pour la seule question qui compte : je donne combien, je
+    reçois combien.
 
-    Une liste deroulante posee DANS le champ ne grandit pas avec le nombre
-    de monnaies, et met cote a cote les deux choses qui vont ensemble :
-    combien, et de quoi.
+    Le Swap pose la question dans sa forme : deux cartes, l'une au-dessus
+    de l'autre, on remplit celle du haut et on lit celle du bas. Les mêmes
+    utilisateurs passent d'un écran à l'autre ; la même question doit avoir
+    la même forme.
+
+    ─── LA MONNAIE VIT SUR LA CARTE CRYPTO, QUEL QUE SOIT LE SENS ───────
+
+    À l'achat, elle est en bas (ce qu'on reçoit) ; à la vente, en haut (ce
+    qu'on donne). La carte en francs, elle, n'a jamais de sélecteur : il
+    n'y a qu'une monnaie locale.
+
+    C'est cet invariant qui remplace trois réglages séparés — la liste
+    déroulante dans le champ pour la vente, la rangée de pastilles pour
+    l'achat, et le logo collé devant un montant en francs qui laissait
+    croire qu'on saisissait des USDT.
+
+    ─── CE QU'ON NE MET PAS : UN BOUTON D'INVERSION ──────────────────────
+
+    Le Swap en a un, et il y est juste : échanger A contre B ou B contre A
+    sont la même opération. Ici non. « Acheter » et « Vendre » sont deux
+    engagements distincts — l'un envoie des francs, l'autre envoie de la
+    crypto de façon irréversible — et ils portent des noms que les gens
+    emploient. Deux commandes pour un seul état se contrediraient ; on
+    garde celle qui est écrite en mots.
     ═══════════════════════════════════════════════════════════════════════
     */
-    var listeOuverte by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = state.saisie,
-        onValueChange = vm::onSaisie,
-        label = {
-            Text(
-                stringResource(
-                    if (state.sens == SensChange.ACHAT) R.string.change_montant_fcfa
-                    else R.string.change_montant_crypto,
-                    state.monnaie
-                )
-            )
-        },
-        singleLine = true,
-        textStyle = androidx.compose.ui.text.TextStyle(
-            fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary
-        ),
-        /*
-        LE LOGO DE LA MONNAIE DANS LE CHAMP.
+    // Acheter, c'est donner des francs ; vendre, c'est en recevoir. Tout
+    // le reste de cet ecran ne depend que de ce booleen.
+    val donneFcfa = state.sens == SensChange.ACHAT
 
-        Il dit DE QUOI on parle sans ajouter un mot, et il le dit a
-        l'endroit ou le regard se pose deja — sur le montant qu'on tape.
-        Meme source que partout ailleurs dans l'application, donc meme
-        image que sur l'accueil et le Marche.
+    CarteMontantChange(
+        libelle = stringResource(R.string.change_tu_donnes),
+        /*
+        LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
+
+        On ne le remet pas en forme pendant la frappe : quelqu'un qui écrit
+        « 5000 » et voit apparaître « 5 000 » perd la place de son curseur,
+        et la virgule décimale devient impossible à poser.
         */
-        leadingIcon = {
-            coil.compose.AsyncImage(
-                model = com.vaultex.ui.components.CryptoIcon.url(state.monnaie),
-                contentDescription = state.monnaie,
-                modifier = Modifier.size(28.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-            )
-        },
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-        ),
-        trailingIcon = if (state.sens == SensChange.VENTE && p.monnaies.size > 1) {
-            {
-                Box {
-                    TextButton(onClick = { listeOuverte = true }) {
-                        Text(state.monnaie, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(18.dp))
-                    }
-                    DropdownMenu(expanded = listeOuverte, onDismissRequest = { listeOuverte = false }) {
-                        p.monnaies.forEach { m ->
-                            DropdownMenuItem(
-                                text = { Text(m) },
-                                onClick = { vm.onMonnaie(m); listeOuverte = false }
-                            )
-                        }
-                    }
-                }
-            }
-        } else null,
-        modifier = Modifier.fillMaxWidth()
+        montant = state.saisie,
+        unite = if (donneFcfa) "FCFA" else state.monnaie,
+        avecLogo = !donneFcfa,
+        monnaies = if (donneFcfa) emptyList() else p.monnaies,
+        onMonnaie = vm::onMonnaie,
+        onMontant = vm::onSaisie,
+        vedette = true
+    )
+
+    CarteMontantChange(
+        libelle = stringResource(R.string.change_tu_recois),
+        /*
+        « — » PLUTÔT QUE « 0 », et c'est la même leçon que sur le Swap.
+
+        Zéro est une RÉPONSE : « cet échange ne rendrait rien ». Un cours
+        absent, ou un montant pas encore saisi, ne dit rien du tout.
+        Afficher zéro ferait croire à un taux nul sur un écran où l'on
+        s'engage.
+        */
+        montant = (if (donneFcfa) state.montantCrypto?.let { crypto(it) }
+                   else state.montantFcfa?.let { fcfa(it) }).orEmpty(),
+        unite = if (donneFcfa) state.monnaie else "FCFA",
+        avecLogo = donneFcfa,
+        monnaies = if (donneFcfa) p.monnaies else emptyList(),
+        onMonnaie = vm::onMonnaie,
+        onMontant = null,
+        vedette = false
     )
 
     /*
-    EN ACHAT, LA MONNAIE NE S'AFFICHE PAS DANS LE CHAMP : on y tape des
-    FRANCS. La mettre la ferait croire qu'on saisit des USDT. Elle reste
-    donc en pastilles, sous le champ, ou elle designe ce qu'on RECOIT.
-    */
-    if (state.sens == SensChange.ACHAT && p.monnaies.size > 1) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            p.monnaies.forEach { m ->
-                FilterChip(
-                    selected = state.monnaie == m,
-                    onClick = { vm.onMonnaie(m) },
-                    label = { Text(m, fontSize = 12.sp) }
-                )
-            }
-        }
-    }
+    CE QUI JUSTIFIE LES DEUX CHIFFRES DU DESSUS.
 
-    /*
-    LE DÉTAIL COMPLET, AVANT LE BOUTON.
+    Les deux montants sont maintenant dans les cartes ; cette carte-ci ne
+    garde que de quoi les vérifier — le taux appliqué, et ce que
+    l'opération coûte réellement.
 
-    C'est l'exigence de départ : rien ne doit se découvrir après. La marge
-    est donnée dans les DEUX unités — en francs par dollar parce que c'est
-    la langue du marché local, en pourcentage parce que c'est la seule qui
-    se compare à un échangeur en ligne.
+    L'exigence de départ ne change pas : rien ne doit se découvrir après.
+    La marge est donnée dans les DEUX unités — en francs par dollar parce
+    que c'est la langue du marché local, en pourcentage parce que c'est la
+    seule qui se compare à un échangeur en ligne.
     */
     val prix = state.prix
     val taux = state.fcfaParDollar
     if (prix != null && taux != null) {
         Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val unitaire = if (state.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa
+                val unitaire = if (donneFcfa) prix.achatFcfa else prix.venteFcfa
                 Ligne(
                     stringResource(R.string.change_taux, state.monnaie),
                     "${fcfa(unitaire)} FCFA",
@@ -291,7 +286,7 @@ private fun ColumnScope.EtapeCalcul(
                 val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
                     ?.let { "%.2f %%".format(it) }
                 val fraisReels = state.montantCrypto?.let { c ->
-                    val applique = if (state.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa
+                    val applique = if (donneFcfa) prix.achatFcfa else prix.venteFcfa
                     c * kotlin.math.abs(applique - prix.baseFcfa)
                 }
                 Ligne(
@@ -302,51 +297,26 @@ private fun ColumnScope.EtapeCalcul(
                     else "${fcfa(p.margeFcfaParDollar)} FCFA/$" + (pourcent?.let { " ($it)" } ?: "")
                 )
                 /*
-                CE QU'ON DONNE, PUIS CE QU'ON RECOIT — et les deux changent
-                d'unite avec le sens.
+                ═══════════════════════════════════════════════════════════
+                CE QU'ON DONNE ET CE QU'ON RECOIT ONT QUITTE CETTE CARTE
+                ═══════════════════════════════════════════════════════════
 
-                La ligne « Tu paies » affichait des FRANCS dans les deux
-                cas. En vente, c'est faux deux fois : l'utilisateur ne paie
-                pas des francs, il en recoit — et le meme montant
-                apparaissait donc juste au-dessus de « Tu recois », avec le
-                meme chiffre et un libelle qui le contredisait.
+                Les deux montants etaient ici, en troisieme et quatrieme
+                ligne, derriere le taux et les frais. Ils sont desormais les
+                deux cartes du haut — la question qu'on vient poser merite
+                la premiere place, pas la quatrieme ligne d'un detail.
 
-                Sur un ecran ou l'on s'engage, deux lignes qui se
-                contredisent valent moins qu'une seule.
+                Il ne reste donc que ce qui JUSTIFIE ces deux chiffres : le
+                taux unitaire et ce que l'operation coute. Deux lignes, et
+                la carte se lit d'un coup d'oeil au lieu de demander un
+                rapprochement.
+
+                Les repeter ici serait pire que redondant : deux endroits
+                qui affichent le meme montant finissent par ne plus
+                l'afficher pareil — le mois dernier, « Tu paies 5 599 » et
+                « Tu recois 5 599 » cohabitaient sur cet ecran.
+                ═══════════════════════════════════════════════════════════
                 */
-                val achatEnCours = state.sens == SensChange.ACHAT
-                val donne = if (achatEnCours) state.montantFcfa?.let { "${fcfa(it)} FCFA" }
-                    else state.montantCrypto?.let { "${crypto(it)} ${state.monnaie}" }
-                val recoit = if (achatEnCours) state.montantCrypto?.let { "${crypto(it)} ${state.monnaie}" }
-                    else state.montantFcfa?.let { "${fcfa(it)} FCFA" }
-
-                donne?.let {
-                    Ligne(
-                        stringResource(
-                            if (achatEnCours) R.string.change_total_fcfa else R.string.change_tu_envoies
-                        ),
-                        it,
-                        icone = Icons.Default.NorthEast
-                    )
-                }
-                /*
-                LE SEUL CHIFFRE QUI DECIDE, ET IL DOIT SE VOIR COMME TEL.
-
-                Tout le reste de cette carte sert a le justifier. Personne
-                ne compare deux offres sur le taux unitaire : on compare sur
-                ce qu'on recoit. Il passe donc en vert et en dix-huit.
-
-                LE DELAI SORT DE CETTE CARTE. Il n'est pas un prix, et il
-                etait affiche DEUX FOIS — ici et sur l'ecran de paiement.
-                Il ne reste qu'a l'endroit ou l'on attend.
-                */
-                recoit?.let {
-                    HorizontalDivider(color = BgPrimary)
-                    Ligne(
-                        stringResource(R.string.change_recevra), it,
-                        icone = Icons.Default.AccountBalanceWallet, vedette = true
-                    )
-                }
             }
         }
     }
@@ -1178,6 +1148,184 @@ private fun ColumnScope.EtapeTransmis(
         modifier = Modifier.fillMaxWidth().height(48.dp)
     ) {
         Text(stringResource(R.string.change_nouvelle), fontWeight = FontWeight.Bold)
+    }
+}
+
+// ─── Les deux cartes de montant ─────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UNE CARTE DE MONTANT, DANS LA GRAMMAIRE DU SWAP
+═══════════════════════════════════════════════════════════════════════════
+
+Le libellé en haut, l'unité à gauche, le montant à droite en gros. C'est
+exactement la disposition du Swap, et ce n'est pas de l'imitation : les
+mêmes utilisateurs passent d'un écran à l'autre, et la même question — je
+donne combien, je reçois combien — doit se lire au même endroit.
+
+─── POURQUOI PAS SwapCoinCard DIRECTEMENT ───────────────────────────────
+
+Parce qu'elle porte un solde, trois pastilles de part (25 %, 50 %, MAX) et
+une feuille de sélection de jetons avec les soldes de chaque chaîne. Rien
+de tout ça n'a de sens pour des francs CFA, qu'on ne détient pas dans
+l'application. L'adapter aurait demandé de rendre la moitié de ses
+paramètres facultatifs — donc une carte qui fait deux choses à moitié.
+
+─── LE CONTOUR PORTE SEUL LA DISTINCTION ────────────────────────────────
+
+Plus épais et bleu sur celle qu'on remplit, fin et discret sur celle qu'on
+lit. Pas de fond coloré : deux surfaces pleines côte à côte se disputent
+le regard, et c'est le montant qui doit l'emporter, pas la carte.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun CarteMontantChange(
+    libelle: String,
+    montant: String,
+    unite: String,
+    /** Le logo de la monnaie : sur la carte crypto, jamais sur celle en francs. */
+    avecLogo: Boolean,
+    /**
+     * Les monnaies entre lesquelles choisir, ou vide si le choix n'existe pas.
+     *
+     * Vide sur la carte en francs — il n'y a qu'une monnaie locale — et vide
+     * aussi quand le changeur n'en accepte qu'une : une liste déroulante à un
+     * seul élément invite à un geste qui ne change rien.
+     */
+    monnaies: List<String>,
+    onMonnaie: (String) -> Unit,
+    /** Null sur la carte qu'on lit : c'est ce qui la rend non modifiable. */
+    onMontant: ((String) -> Unit)?,
+    vedette: Boolean
+) {
+    var listeOuverte by remember { mutableStateOf(false) }
+    val choix = monnaies.size > 1
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(
+            if (vedette) 1.5.dp else 1.dp,
+            if (vedette) AccentBlue else SurfaceColor
+        ),
+        // Hauteur plancher COMMUNE : sans elle, la carte qui porte un
+        // sélecteur dépasse l'autre, et deux cartes voisines de hauteurs
+        // différentes se lisent comme un défaut d'alignement.
+        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
+    ) {
+        Column(
+            Modifier.fillMaxHeight().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
+        ) {
+            Text(libelle, fontSize = 12.sp, color = TextSecondary)
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = SurfaceColor,
+                        modifier = if (choix) {
+                            Modifier.clickable { listeOuverte = true }
+                        } else Modifier
+                    ) {
+                        Row(
+                            Modifier.padding(
+                                start = if (avecLogo) 5.dp else 12.dp,
+                                end = if (choix) 6.dp else 12.dp,
+                                top = 6.dp, bottom = 6.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            /*
+                            MÊME SOURCE DE LOGO QUE PARTOUT AILLEURS, donc
+                            même image que sur l'accueil et le Marché. Un
+                            logo propre à cet écran finirait par être le seul
+                            à ne pas suivre, comme ça s'est produit pour Pi.
+                            */
+                            if (avecLogo) {
+                                coil.compose.AsyncImage(
+                                    model = com.vaultex.ui.components.CryptoIcon.url(unite),
+                                    contentDescription = unite,
+                                    modifier = Modifier.size(26.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                )
+                            }
+                            Text(
+                                unite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = TextPrimary
+                            )
+                            if (choix) {
+                                Icon(
+                                    Icons.Default.ArrowDropDown, null,
+                                    tint = TextSecondary, modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = listeOuverte,
+                        onDismissRequest = { listeOuverte = false }
+                    ) {
+                        monnaies.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m) },
+                                onClick = { onMonnaie(m); listeOuverte = false }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                if (onMontant != null) {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = montant,
+                        onValueChange = onMontant,
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                        ),
+                        modifier = Modifier.widthIn(min = 60.dp),
+                        decorationBox = { interieur ->
+                            Box(contentAlignment = Alignment.CenterEnd) {
+                                // Un « 0 » en gris pâle montre où taper sans
+                                // prétendre être une valeur saisie.
+                                if (montant.isEmpty()) {
+                                    Text(
+                                        "0",
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextSecondary.copy(alpha = 0.4f)
+                                    )
+                                }
+                                interieur()
+                            }
+                        }
+                    )
+                } else {
+                    Text(
+                        montant.ifEmpty { "—" },
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        // Le montant reçu en vert : c'est le seul chiffre qui
+                        // décide, et il garde la couleur qu'il avait quand il
+                        // était la ligne vedette de la carte de détails.
+                        color = if (montant.isEmpty()) TextSecondary else AccentGreen,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

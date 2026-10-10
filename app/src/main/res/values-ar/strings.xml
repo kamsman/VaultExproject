@@ -1100,12 +1100,8 @@
     <string name="change_ferme">الصرف مغلق حاليًا. عد لاحقًا.</string>
     <string name="change_acheter">شراء</string>
     <string name="change_vendre">بيع</string>
-    <string name="change_montant_fcfa">المبلغ بالفرنك</string>
-    <string name="change_montant_crypto">المبلغ بـ %1$s</string>
     <string name="change_taux">سعر وحدة %1$s</string>
     <string name="change_marge">رسوم الصرف</string>
-    <string name="change_total_fcfa">تدفع</string>
-    <string name="change_recevra">تستلم</string>
     <string name="change_delai">المدة المعلنة</string>
     <string name="change_continuer">متابعة</string>
     <string name="change_avertissement">تتم العملية بينك وبين %1$s، لا مع VaultEx. أموالك لا تمر عبر التطبيق أبدًا.</string>
@@ -1132,7 +1128,6 @@
     <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="action_acheter">شراء</string>
-    <string name="change_tu_envoies">ترسل</string>
     <string name="change_telephone_aide">الرقم الذي نفّذ الدفع (8 أرقام، بدون مسافات).</string>
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
@@ -1165,4 +1160,6 @@
     <string name="change_transmis_verifie">استلم الصرّاف طلبك مع تأكيد السلسلة. ولا شيء آخر يطلبه منك.</string>
     <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق الصرّاف من محفظته قبل الدفع: احتفظ بمرجعك.</string>
     <string name="change_copier_adresse">نسخ عنوان الصرّاف</string>
+    <string name="change_tu_donnes">تُعطي</string>
+    <string name="change_tu_recois">تستلم</string>
 </resources>
