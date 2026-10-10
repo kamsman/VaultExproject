@@ -547,21 +547,12 @@ private fun ColumnScope.EtapePaiement(
             quelqu'un chercher entre Orange Money, Moov et Wave — et payer
             depuis la mauvaise ne marche pas toujours entre operateurs.
             */
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) {
-                    Ligne(
-                        if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
-                        else stringResource(R.string.change_adresse),
-                        aCopier, fort = true
-                    )
-                }
-                IconButton(onClick = { copier(aCopier) }, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.ContentCopy, stringResource(R.string.copy),
-                        tint = AccentBlue, modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            LigneACopier(
+                libelle = if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
+                else stringResource(R.string.change_adresse),
+                valeur = aCopier,
+                onCopier = { copier(aCopier) }
+            )
             if (achat && p.nomChangeur.isNotBlank()) {
                 Ligne(stringResource(R.string.change_beneficiaire), p.nomChangeur)
             }
@@ -1021,29 +1012,40 @@ private fun ColumnScope.CarteVerification(
             */
             val avecSorties = affichage == AffichageVerif.ABSENT ||
                 affichage == AffichageVerif.IMPOSSIBLE
+            /*
+            LES DEUX SORTIES SONT L'UNE SOUS L'AUTRE, ET NON CÔTE À CÔTE.
+
+            Mises en colonnes de moitié, « Transmettre quand même » se
+            coupait en deux lignes et débordait de l'alignement du bouton
+            voisin. Vu sur un téléphone, pas en relisant le code.
+
+            Empilées, chacune a toute la largeur. Et ça sépare deux gestes
+            qui n'ont pas le même poids : réessayer ne coûte rien, passer
+            outre est une décision. Les poser côte à côte, de même taille,
+            les faisait se ressembler.
+            */
             if (avecSorties) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Un nœud muet ou une monnaie illisible ne deviendra
-                    // pas lisible en réessayant : on ne propose pas un
-                    // geste qui ne peut rien changer.
-                    if (v == null || !v.sansEspoir) {
-                        OutlinedButton(
-                            onClick = vm::demarrerVerification,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(stringResource(R.string.change_verif_reessayer), fontSize = 12.sp)
-                        }
+                // Un nœud muet ou une monnaie illisible ne deviendra pas
+                // lisible en réessayant : on ne propose pas un geste qui
+                // ne peut rien changer.
+                if (v == null || !v.sansEspoir) {
+                    OutlinedButton(
+                        onClick = vm::demarrerVerification,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.change_verif_reessayer), fontSize = 13.sp)
                     }
-                    if (!state.forcer) {
-                        TextButton(
-                            onClick = vm::forcerTransmission,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                stringResource(R.string.change_verif_quand_meme),
-                                fontSize = 12.sp, color = TextSecondary
-                            )
-                        }
+                }
+                if (!state.forcer) {
+                    TextButton(
+                        onClick = vm::forcerTransmission,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(R.string.change_verif_quand_meme),
+                            fontSize = 12.sp, color = TextSecondary, maxLines = 1
+                        )
                     }
                 }
             }
@@ -1415,6 +1417,93 @@ private fun CarteMontantChange(
         }
     }
 }
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UNE VALEUR LONGUE PASSE À LA LIGNE SUIVANTE, PAS À CÔTÉ
+═══════════════════════════════════════════════════════════════════════════
+
+Ce bloc existe à cause d'un défaut vu sur un téléphone, et qui n'avait
+jamais pu se montrer avant : le premier écran de VENTE affiché.
+
+[Ligne] met le libellé à gauche avec `weight(1f)` et la valeur à droite
+sans contrainte. Sur « Téléphone : 64088910 », tout va bien. Sur une
+adresse TRON de trente-quatre caractères, la valeur prend toute la largeur
+et écrase le libellé — qui s'affiche alors UNE LETTRE PAR LIGNE :
+
+    Ad
+    re
+    ss
+    e
+    ...
+
+`weight` ne réserve pas de place, il PARTAGE CE QUI RESTE. Quand l'autre
+élément ne cède rien, il ne reste rien à partager. C'est le genre de
+défaut qui n'apparaît qu'avec une vraie donnée, et une adresse de
+changeur n'existait pas dans ce projet avant ce soir.
+
+─── POURQUOI LA PILE PLUTÔT QU'UN RÉTRÉCISSEMENT ───────────────────────
+
+On pourrait contraindre la valeur et la laisser se couper en deux lignes à
+droite. Ce serait pire : une adresse coupée au milieu, alignée à droite,
+se relit mal — et c'est précisément la chaîne qu'on vérifie caractère par
+caractère avant d'envoyer des fonds.
+
+Libellé au-dessus, valeur en dessous sur toute la largeur, en chasse fixe.
+C'est ainsi qu'on lit une adresse partout ailleurs dans l'application.
+
+─── COURTE OU LONGUE, LE COMPOSANT DÉCIDE ──────────────────────────────
+
+Un numéro de huit chiffres n'a pas besoin de deux lignes. Le seuil évite
+d'avoir à choisir au bon endroit — et donc d'oublier de le faire le jour
+où un libellé s'allonge.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun LigneACopier(libelle: String, valeur: String, onCopier: () -> Unit) {
+    if (valeur.length <= VALEUR_COURTE) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { Ligne(libelle, valeur, fort = true) }
+            IconButton(onClick = onCopier, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.ContentCopy, stringResource(R.string.copy),
+                    tint = AccentBlue, modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        return
+    }
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+            IconButton(onClick = onCopier, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.ContentCopy, stringResource(R.string.copy),
+                    tint = AccentBlue, modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        /*
+        EN CHASSE FIXE, comme le txid de la carte de vérification.
+
+        Tous les caractères y ont la même largeur, donc les groupes se
+        comparent à l'oeil — c'est ce qui permet de contrôler le début et
+        la fin d'une adresse sans la lire en entier.
+        */
+        Text(
+            valeur,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            lineHeight = 20.sp,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+    }
+}
+
+/** Au-delà, une valeur ne tient plus à côté de son libellé. Voir [LigneACopier]. */
+private const val VALEUR_COURTE = 20
 
 // ─── Briques ────────────────────────────────────────────────────────
 
