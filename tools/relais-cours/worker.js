@@ -176,9 +176,16 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
                     s'enverrait huit USDT à lui-même, et tout serait
                     « vérifié ». Elle vient d'ici, et d'ici seulement.
 
-                    Une adresse mal collée se voit sur /diag, qui sonde
-                    TronGrid SUR CETTE ADRESSE — et nulle part ailleurs
-                    avant une vraie vente.
+                    Une adresse mal collée se voit sur /diag : le bloc
+                    `adressesChangeur` rend celles qui ont été REFUSÉES
+                    avec la forme attendue, et TronGrid y est sondé sur
+                    l'adresse réellement réglée.
+
+                    La forme est vérifiée par monnaie : une adresse 0x
+                    sous la clé « USDT » est écartée. Sans ce contrôle,
+                    l'application l'afficherait à chaque vendeur, et des
+                    USDT TRC-20 envoyés à une adresse Ethereum sont perdus
+                    définitivement.
 
 Aucune donnée personnelle ne transite ici : ni mnémonique, ni identifiant
 d'utilisateur. Les adresses du changeur sont publiques — l'application les
@@ -187,7 +194,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 17
+const VERSION = 18
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -819,7 +826,8 @@ async function diagnostic(env) {
   adresse mal collée — un caractère de trop au copier-coller — se voit
   ici, et nulle part ailleurs avant une vraie vente.
   */
-  const adressesPosees = adressesChangeur(env)
+  const triAdresses = trierAdresses(env?.CHANGE_ADRESSES)
+  const adressesPosees = triAdresses.bonnes
   const pourSonde = adressesPosees.USDT || 'TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9'
   try {
     const entetes = { accept: 'application/json', 'user-agent': AGENT }
@@ -928,6 +936,24 @@ async function diagnostic(env) {
       .split(',').map((x) => x.trim()).filter(Boolean),
     expediteursParDefaut: EXPEDITEURS_SMS,
     fenetreMinutes: Math.round(FENETRE_PAIEMENT_MS / 60000),
+  }
+
+  /*
+  LES ADRESSES REFUSÉES, ET POURQUOI.
+
+  Trois pannes se ressemblaient : la variable absente, le JSON invalide, et
+  une adresse de la mauvaise chaîne. Les trois donnaient « adresses: {} »
+  et « aucune adresse reglee » — et on cherchait une variable manquante
+  alors qu'elle était là, fausse.
+
+  `jsonLisible: false` dit que le JSON ne s'analyse pas. Une entrée dans
+  `refusees` dit qu'une adresse ne ressemble pas à sa chaîne. Les deux
+  champs vides avec `adressesReglees: 0` : la variable n'existe pas.
+  */
+  sondes.adressesChangeur = {
+    jsonLisible: triAdresses.lisible,
+    adressesReglees: Object.keys(adressesPosees).length,
+    refusees: triAdresses.refusees,
   }
 
   sondes.venteVerifiable = Object.keys(CHAINES_VENTE).reduce((acc, m) => {
@@ -1369,22 +1395,125 @@ function parametresChange(env) {
  * sans retour. Aucune vente vaut mieux qu'une vente vers nulle part.
  */
 function adressesChangeur(env) {
-  const brut = env?.CHANGE_ADRESSES
-  if (!brut) return {}
-  try {
-    const o = JSON.parse(String(brut))
-    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
-    const sortie = {}
-    for (const [cle, valeur] of Object.entries(o)) {
-      const adresse = String(valeur ?? '').trim()
-      // Moins de vingt caractères n'est une adresse sur aucune des chaînes
-      // traitées : c'est un champ à moitié rempli.
-      if (adresse.length >= 20) sortie[String(cle).trim().toUpperCase()] = adresse
-    }
-    return sortie
-  } catch (_) {
-    return {}
+  return trierAdresses(env?.CHANGE_ADRESSES).bonnes
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ADRESSE EST VÉRIFIÉE CONTRE LA FORME DE SA CHAÎNE
+═══════════════════════════════════════════════════════════════════════════
+
+La première version n'exigeait qu'une longueur de vingt caractères. Elle
+acceptait donc « 0xd8dA6BF2…aA96045 » sous la clé « USDT ».
+
+Ce que ça donne : l'application affiche cette adresse à chaque vendeur,
+quelqu'un y envoie de l'USDT TRC-20, et les fonds sont perdus
+définitivement — on ne récupère pas des jetons TRON envoyés à une adresse
+Ethereum. Pour une seule touche de travers dans un tableau de bord, un
+soir, sur une variable qu'on règle une fois et qu'on ne relit plus jamais.
+
+C'est exactement le genre de faute qu'un réglage distant rend facile et
+invisible : personne ne revoit CHANGE_ADRESSES après l'avoir posé.
+
+─── CE QU'ON VÉRIFIE, ET CE QU'ON NE VÉRIFIE PAS ────────────────────────
+
+La FORME, pas l'appartenance. Qu'une adresse soit syntaxiquement du TRON
+ne dit pas qu'elle appartient au changeur — ça, rien ici ne peut le dire,
+et c'est à lui de la coller juste.
+
+Ce qui est écarté : une chaîne de la mauvaise famille, une adresse
+tronquée, un reste de copier-coller. Trois fautes de doigt, et les trois
+coûtent les fonds de quelqu'un.
+
+─── UNE MONNAIE INCONNUE N'EST PAS BLOQUÉE ──────────────────────────────
+
+Si le changeur ajoute demain une monnaie dont on ne connaît pas la forme,
+on retombe sur la longueur minimale. Refuser tout ce qu'on ne sait pas
+vérifier fermerait le service à chaque nouveauté ; c'est une validation,
+pas une liste d'autorisation.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const FORMES_ADRESSE = {
+  // TRON, base58check : « T » puis 33 caractères. L'alphabet base58 exclut
+  // 0, O, I et l — précisément les caractères qui se confondent à l'oeil,
+  // et dont la présence signale un copier-coller abîmé.
+  tron: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+  // EVM : 0x et quarante chiffres hexadécimaux. La casse mélangée est une
+  // somme de contrôle, qu'on ne vérifie pas ici — elle n'attrape que les
+  // fautes de frappe, et la longueur les attrape déjà.
+  evm: /^0x[0-9a-fA-F]{40}$/,
+  // Bitcoin : bech32 « bc1… », ou base58 « 1… » / « 3… ».
+  btc: /^(bc1[0-9a-z]{20,80}|[13][1-9A-HJ-NP-Za-km-z]{25,39})$/,
+  // Stellar et Pi, StrKey : « G » puis 55 caractères en base32.
+  stellar: /^G[A-Z2-7]{55}$/,
+}
+
+/** Quelle forme attendre pour cette monnaie, ou null si on ne sait pas. */
+function formeAttendue(monnaie) {
+  switch (monnaie) {
+    case 'USDT':
+    case 'USDT-TRX':
+    case 'TRX':
+      return 'tron'
+    case 'USDT-BNB':
+    case 'BNB':
+    case 'USDT-ETH':
+    case 'ETH':
+      return 'evm'
+    case 'BTC':
+      return 'btc'
+    case 'PI':
+      return 'stellar'
+    default:
+      return null
   }
+}
+
+/**
+ * Trie les adresses réglées : celles qu'on garde, celles qu'on refuse.
+ *
+ * LES REFUSÉES SONT RENDUES AVEC LEUR RAISON, et c'est tout l'intérêt.
+ * Écartée en silence, une adresse mal collée se manifeste par une vente
+ * impossible et un « aucune adresse reglee » qui donne l'impression que
+ * la variable n'existe pas — alors qu'elle existe et qu'elle est fausse.
+ * Deux pannes très différentes, une seule apparence. /diag les sépare.
+ */
+function trierAdresses(brut) {
+  const bonnes = {}
+  const refusees = []
+  if (!brut) return { bonnes, refusees, lisible: true }
+
+  let o = null
+  try {
+    o = JSON.parse(String(brut))
+  } catch (_) {
+    // JSON illisible : AUCUNE lecture partielle. Une adresse à moitié lue
+    // est une adresse vers laquelle des fonds partiraient sans retour.
+    return { bonnes, refusees, lisible: false }
+  }
+  if (!o || typeof o !== 'object' || Array.isArray(o)) {
+    return { bonnes, refusees, lisible: false }
+  }
+
+  for (const [cleBrute, valeur] of Object.entries(o)) {
+    const cle = String(cleBrute).trim().toUpperCase()
+    const adresse = String(valeur ?? '').trim()
+    const forme = formeAttendue(cle)
+
+    if (forme) {
+      if (FORMES_ADRESSE[forme].test(adresse)) {
+        bonnes[cle] = adresse
+      } else {
+        refusees.push({ monnaie: cle, attendu: forme, adresse })
+      }
+      continue
+    }
+    // Monnaie inconnue : on retombe sur la longueur minimale. Moins de
+    // vingt caractères n'est une adresse sur aucune chaîne connue.
+    if (adresse.length >= 20) bonnes[cle] = adresse
+    else refusees.push({ monnaie: cle, attendu: 'longueur >= 20', adresse })
+  }
+  return { bonnes, refusees, lisible: true }
 }
 
 /**
@@ -3099,6 +3228,8 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  trierAdresses,
+  formeAttendue,
   lireSmsPaiement,
   sansAccents,
   recevoirSms,
