@@ -107,6 +107,45 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
   /diag dit lesquels sont réellement actifs. Trois d'entre eux ne font
   rien tant qu'on ne les règle pas, et rien ne le signale autrement.
 
+  ─── LA LECTURE DES SMS D'ENCAISSEMENT (v16) ────────────────────────
+
+  Une vente se vérifie sur une chaîne publique. Un achat, non : le client
+  paie par Orange Money. Mais l'OPÉRATEUR envoie un SMS au changeur à
+  chaque encaissement — une affirmation d'Orange, pas du client.
+
+  L'application compagnon (tools/changeur-sms) transmet ces SMS ici, et le
+  relais les rapproche des demandes d'achat.
+
+  CHANGE_SMS_TOKEN       ⚠️ SECRET, ET PAS CELUI DE TELEGRAM.
+
+                         Le point d'entrée /change/sms est le seul du
+                         Worker qui ÉCRIVE une affirmation sur laquelle de
+                         la crypto partira. Ouvert, il serait pire que
+                         l'absence de vérification : n'importe qui
+                         déclarerait ses propres encaissements et les
+                         achats passeraient en « vérifié ». On aurait
+                         transformé une incertitude en fausse certitude.
+
+                         CE JETON NE DOIT JAMAIS ENTRER DANS L'APK PUBLIC
+                         DE VAULTEX. Il vit dans l'application compagnon,
+                         installée à la main sur un seul téléphone et
+                         jamais distribuée — c'est ce qui rend acceptable
+                         qu'un appareil le porte.
+
+                         Non réglé, tout le mécanisme est éteint et les
+                         achats repartent comme avant la v16.
+
+  CHANGE_SMS_EXPEDITEURS « OrangeMoney,MoovMoney ». Les SMS venant d'un
+                         autre expéditeur sont écartés sans bruit : le
+                         robot transmet ce qu'il voit, et ce qu'il voit
+                         comprend les publicités et les messages privés.
+                         Par défaut, la liste EXPEDITEURS_SMS.
+
+  CE QUE ÇA NE PROUVE PAS : un identifiant d'expéditeur de SMS se
+  falsifie. La règle du changeur ne bouge donc pas, et reste écrite dans
+  chaque message — il n'envoie qu'après avoir vu l'argent sur son propre
+  compte. Ce qui change, c'est qu'un faux reçu du client ne suffit plus.
+
   CHANGE_ADRESSES   ⚠️ CELUI-LÀ PORTE LA PREUVE DES VENTES.
 
                     Un objet JSON : {"USDT":"T...","BTC":"bc1..."}.
@@ -134,7 +173,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 15
+const VERSION = 16
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -326,6 +365,18 @@ export default {
     qu'un transfert apparaisse, et une réponse de dix secondes d'âge
     répondrait « pas encore » alors que c'est arrivé.
     */
+    /*
+    LE ROBOT SMS DU CHANGEUR POSTE ICI.
+
+    Le point d'entrée le plus sensible du Worker : tout le reste ne fait
+    que lire, celui-ci écrit une affirmation sur laquelle de la crypto
+    partira. Il exige un jeton — voir recevoirSms, qui explique pourquoi
+    ce jeton ne doit jamais entrer dans l'APK public.
+    */
+    if (url.pathname === '/change/sms' && requete.method === 'POST') {
+      return await recevoirSms(requete, env)
+    }
+
     if (url.pathname === '/change/verifier') {
       const resultat = await verifierVente({
         monnaie: url.searchParams.get('monnaie'),
@@ -843,6 +894,26 @@ async function diagnostic(env) {
     plus fortes qu'elles ne sont.
     */
     memoire: 'cache par centre de donnees, evictable — exact avec Workers KV',
+  }
+
+  /*
+  LA LECTURE DES SMS EST-ELLE INSTALLÉE ?
+
+  Sans jeton, les achats repartent « non vérifiables » et le changeur n'a
+  aucun moyen de savoir si c'est parce qu'il n'a rien réglé ou parce que
+  son robot ne poste pas. Deux causes, une seule apparence.
+
+  On ne rend ni le jeton ni sa longueur — à la différence de la clé
+  CoinGecko, dont la longueur servait à distinguer un collage raté d'une
+  liaison absente. Ici le robot reçoit un 401 explicite dès son premier
+  envoi : il n'y a rien à deviner, donc rien à exposer.
+  */
+  sondes.lectureSms = {
+    configuree: Boolean(env?.CHANGE_SMS_TOKEN),
+    expediteursAcceptes: String(env?.CHANGE_SMS_EXPEDITEURS ?? '')
+      .split(',').map((x) => x.trim()).filter(Boolean),
+    expediteursParDefaut: EXPEDITEURS_SMS,
+    fenetreMinutes: Math.round(FENETRE_PAIEMENT_MS / 60000),
   }
 
   sondes.venteVerifiable = Object.keys(CHAINES_VENTE).reduce((acc, m) => {
@@ -1566,7 +1637,19 @@ async function ordreChange(requete, env) {
   */
   let verif = null
   let coherence = null
-  if (!achat) {
+  if (achat) {
+    /*
+    L'ACHAT SE VÉRIFIE MAINTENANT AUSSI, mais pas sur une chaîne.
+
+    Le client a payé par Orange Money ; l'opérateur l'a dit par SMS au
+    changeur ; le robot a transmis ce SMS. On cherche donc le SMS, pas un
+    bloc.
+
+    Sans robot installé, ça rend « indisponible » et l'achat repart non
+    vérifié — exactement comme avant la v16.
+    */
+    verif = await verifierAchat(ordre, env)
+  } else {
     verif = await verifierVente({
       monnaie: ordre.monnaie,
       // Le montant vient du téléphone, et il SERT DE CRITÈRE DE RECHERCHE,
@@ -1576,6 +1659,21 @@ async function ordreChange(requete, env) {
       txid: ordre.txid,
       env,
     })
+    /*
+    LA COHÉRENCE DU PRIX NE CONCERNE QUE LES VENTES, et c'est asymétrique
+    pour une raison concrète.
+
+    Sur une vente, le relais lit le montant de crypto SUR LA CHAÎNE : il
+    peut donc recalculer les francs dus et comparer. Sur un achat, le
+    montant qu'il lit est en FRANCS, dans le SMS — et c'est justement le
+    chiffre annoncé. Comparer un chiffre à lui-même ne vérifie rien.
+
+    Ce qui protège l'achat est ailleurs : le changeur envoie la crypto que
+    la demande indique, et le SMS confirme que les francs sont arrivés. Un
+    client qui gonflerait la crypto demandée pour un paiement réel de
+    10 000 francs se ferait reprendre par les bornes et par le taux
+    affiché — mais pas par ce calcul-ci, qui ne s'applique pas.
+    */
     coherence = await coherenceFcfa(
       ordre.monnaie,
       nombreFrancais(ordre.montantCrypto),
@@ -1644,6 +1742,21 @@ async function ordreChange(requete, env) {
   */
   if (verif && verif.etat === 'confirme' && verif.txid) {
     await marquerTxidServi(verif.txid)
+  }
+  /*
+  L'ENCAISSEMENT AUSSI NE SERT QU'UNE FOIS.
+
+  Sinon un seul vrai paiement de 10 000 francs justifie dix demandes de
+  10 000 francs : le SMS existe, il est authentique, et il répond ✅ à
+  chacune. C'est la même attaque que la réutilisation d'un txid, et elle
+  se ferme de la même façon.
+
+  L'empreinte est la référence de l'opérateur, ou à défaut le couple
+  montant-numéro — ce qui a servi à le retrouver.
+  */
+  if (achat && verif && verif.etat === 'confirme') {
+    const empreinte = verif.txid || `${verif.montant}-${numero}`
+    await marquer('paiementservi', empreinte, 86400)
   }
 
   /*
@@ -1721,12 +1834,33 @@ function messageOrdre(ordre, verif, coherence) {
   ═══════════════════════════════════════════════════════════════════════
   */
   const prixDouteux = Boolean(coherence && coherence.etat === 'ecart')
-  const verseVraiment = Boolean(verif && verif.etat === 'confirme') && !prixDouteux
-  const aFaire = achat
-    ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
-    : verseVraiment
-      ? `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
-      : `NE RIEN ENVOYER POUR L'INSTANT - lis les lignes du bas`
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  L'ACHAT ENTRE DANS LA MÊME RÈGLE, SAUF QUAND LE ROBOT N'EST PAS LA
+  ═══════════════════════════════════════════════════════════════════════
+
+  Depuis la v16, un achat peut être confirmé par le SMS de l'opérateur.
+  Quand il l'est, la consigne dit d'envoyer. Quand le relais a cherché et
+  n'a rien trouvé — « absent », « deja_servi » — elle dit d'attendre,
+  comme pour une vente.
+
+  MAIS SI LE ROBOT N'EST PAS INSTALLÉ, l'état est « indisponible » et la
+  consigne doit rester celle d'avant : envoyer. Sinon tous les achats d'un
+  changeur qui n'a pas installé le robot afficheraient « NE RIEN ENVOYER »,
+  c'est-à-dire que la v16 casserait son service en prétendant le protéger.
+
+  C'est la même règle que partout dans ce fichier : « on n'a pas regardé »
+  n'est pas « il n'y a rien ».
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const etat = verif ? verif.etat : 'indisponible'
+  const rienVu = etat === 'absent' || etat === 'deja_servi'
+  const verseVraiment = (etat === 'confirme' || (achat && !rienVu)) && !prixDouteux
+  const aFaire = verseVraiment
+    ? achat
+      ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
+      : `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
+    : `NE RIEN ENVOYER POUR L'INSTANT - lis les lignes du bas`
 
   const lignes = [
     `\u{1F4B1} DEMANDE DE CHANGE \u00b7 ${ordre.reference}`,
@@ -1793,10 +1927,37 @@ function lignesVerification(verif, coherence, ordre) {
 
   if (!verif) return lignes
 
+  const achat = ordre.sens === 'achat'
+
   if (verif.etat === 'confirme') {
     lignes.push('')
-    lignes.push('\u2705 VERSEMENT VERIFIE SUR LA CHAINE PAR LE RELAIS')
-    lignes.push(`Recu      : ${formatMontant(verif.montant)} ${ordre.monnaie}  (lu sur la chaine)`)
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA SOURCE DE LA PREUVE EST NOMMÉE, ET ELLE N'EST PAS LA MÊME
+    ═══════════════════════════════════════════════════════════════════
+
+    Sur une vente, c'est une chaîne publique : n'importe qui peut
+    revérifier avec le txid.
+
+    Sur un achat, c'est un SMS d'Orange reçu sur le téléphone du
+    changeur. C'est fort — ça vient de l'opérateur, pas du client — mais
+    ce n'est pas de même nature : un identifiant d'expéditeur se
+    falsifie, là où un bloc ne se falsifie pas.
+
+    Écrire « vérifié » sans dire PAR QUOI mettrait les deux au même
+    niveau. Le changeur doit savoir sur quoi il s'appuie.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    lignes.push(
+      achat
+        ? '\u2705 ENCAISSEMENT CONFIRME PAR LE SMS DE L\u2019OPERATEUR'
+        : '\u2705 VERSEMENT VERIFIE SUR LA CHAINE PAR LE RELAIS'
+    )
+    lignes.push(
+      achat
+        ? `Recu      : ${formatMontant(verif.montant)} FCFA  (lu dans le SMS)`
+        : `Recu      : ${formatMontant(verif.montant)} ${ordre.monnaie}  (lu sur la chaine)`
+    )
     /*
     L'EXPÉDITEUR EST LA SEULE LIGNE QUI PERMETTE DE DIRE « CE N'EST PAS LUI ».
 
@@ -1805,7 +1966,30 @@ function lignesVerification(verif, coherence, ordre) {
     c'est elle qu'on relit quand quelqu'un réclame un paiement qu'il dit
     ne pas avoir reçu.
     */
-    if (verif.de) lignes.push(`Envoye par: ${verif.de}`)
+    /*
+    SUR UN ACHAT, LE NUMÉRO N'EST RÉPÉTÉ QUE S'IL DIFFÈRE.
+
+    Quand il coïncide avec celui que le client a déclaré, c'est déjà deux
+    lignes plus haut. Quand il DIFFÈRE, c'est une information de première
+    importance : quelqu'un dépose une demande en citant un paiement venu
+    d'un autre numéro — ce qui arrive honnêtement (on paie depuis le
+    téléphone de son frère) et malhonnêtement (on cite le paiement de
+    quelqu'un d'autre). Dans les deux cas le changeur doit le voir.
+    */
+    const memeNumero =
+      achat && verif.de && verif.de.includes(numeroComparable(ordre.telephone))
+    if (verif.de && !memeNumero) {
+      lignes.push(`${achat ? 'Paye depuis' : 'Envoye par'}: ${verif.de}`)
+    }
+    if (achat && verif.de && !memeNumero) {
+      lignes.push('\u26A0\uFE0F Ce numero n\u2019est PAS celui declare dans la demande.')
+    }
+    if (achat && verif.rapproche) {
+      // Dire COMMENT le rapprochement a été fait : par référence, c'est
+      // net ; par montant et numéro, deux paiements identiques dans
+      // l'heure pourraient se confondre, et il vaut mieux le savoir.
+      lignes.push(`Rapproche : par ${verif.rapproche}`)
+    }
     if (verif.quand) lignes.push(`Horodate  : ${dateCourteUtc(verif.quand)}`)
     if (verif.confirme === false) {
       lignes.push('Bloc      : PAS ENCORE MINE - attends une confirmation')
@@ -1831,7 +2015,11 @@ function lignesVerification(verif, coherence, ordre) {
 
   if (verif.etat === 'deja_servi') {
     lignes.push('')
-    lignes.push('\u{1F6A8} CE TRANSFERT A DEJA SERVI UNE AUTRE DEMANDE')
+    lignes.push(
+      achat
+        ? '\u{1F6A8} CET ENCAISSEMENT A DEJA SERVI UNE AUTRE DEMANDE'
+        : '\u{1F6A8} CE TRANSFERT A DEJA SERVI UNE AUTRE DEMANDE'
+    )
     lignes.push(`Txid : ${verif.txid || 'inconnu'}`)
     lignes.push('N\u2019ENVOIE RIEN. Cherche ce txid dans les demandes recentes :')
     lignes.push('soit c\u2019est un doublon, soit quelqu\u2019un reutilise un vrai')
@@ -1841,12 +2029,20 @@ function lignesVerification(verif, coherence, ordre) {
 
   if (verif.etat === 'absent') {
     lignes.push('')
-    lignes.push('\u274C AUCUN VERSEMENT TROUVE SUR LA CHAINE')
-    lignes.push(`Le relais a regarde ton adresse ${ordre.monnaie} : ${verif.raison}.`)
-    lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Deux causes possibles, et une')
-    lignes.push('seule demande d\u2019agir : le retrait du client est encore en')
-    lignes.push('file chez son exchange (ca arrive, regarde dans 15 min), ou')
-    lignes.push('il n\u2019a rien envoye.')
+    if (achat) {
+      lignes.push('\u274C AUCUN ENCAISSEMENT CORRESPONDANT')
+      lignes.push(`Le relais a cherche dans tes SMS : ${verif.raison}.`)
+      lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Regarde ton solde Orange')
+      lignes.push('Money toi-meme : soit le SMS tarde, soit le montant ne')
+      lignes.push('correspond pas, soit le client n\u2019a rien paye.')
+    } else {
+      lignes.push('\u274C AUCUN VERSEMENT TROUVE SUR LA CHAINE')
+      lignes.push(`Le relais a regarde ton adresse ${ordre.monnaie} : ${verif.raison}.`)
+      lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Deux causes possibles, et une')
+      lignes.push('seule demande d\u2019agir : le retrait du client est encore en')
+      lignes.push('file chez son exchange (ca arrive, regarde dans 15 min), ou')
+      lignes.push('il n\u2019a rien envoye.')
+    }
     return lignes
   }
 
@@ -2859,6 +3055,10 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  lireSmsPaiement,
+  sansAccents,
+  recevoirSms,
+  verifierAchat,
   numeroComparable,
   dejaVu,
   marquer,
@@ -2882,4 +3082,476 @@ export {
   CHAINES_VENTE,
   FENETRE_VENTE_MS,
   TOPIC_TRANSFER,
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES ACHATS — LIRE LE SMS DE L'OPÉRATEUR
+═══════════════════════════════════════════════════════════════════════════
+
+Une vente se vérifie sur une chaîne publique. Un achat, non : le client
+paie par Orange Money, et aucune chaîne ne porte ça. C'était le seul vrai
+trou du dispositif, et c'est par là que la fraude serait venue — un faux
+reçu, une référence recopiée, et le changeur envoie de la crypto
+irréversible contre un paiement qui n'a jamais eu lieu.
+
+Or l'opérateur ENVOIE UN SMS au changeur à chaque paiement reçu. C'est une
+affirmation d'Orange, pas du client. Il suffit de la lire.
+
+─── QUI DIT QUOI, ET DANS QUEL SENS ─────────────────────────────────────
+
+  Le téléphone du changeur    reçoit le SMS, le transmet tel quel.
+  Le relais                   l'analyse, le garde, et le rapproche
+                              de la demande du client.
+  Le client                   ne touche à rien de tout ça.
+
+C'est l'inverse exact du dispositif qu'on remplace, où la preuve venait de
+celui qui avait intérêt à mentir.
+
+─── LE TÉLÉPHONE TRANSMET LE TEXTE BRUT, ET C'EST DÉLIBÉRÉ ──────────────
+
+Il serait plus élégant qu'il analyse lui-même et n'envoie que trois
+champs. Ce serait une faute pratique : le format d'un SMS d'opérateur
+change sans préavis, et le téléphone du changeur est la chose la plus
+difficile à mettre à jour de tout le dispositif. Analyser ici, c'est
+corriger une ligne dans le Worker au lieu de réinstaller un APK sur le
+téléphone de quelqu'un d'autre.
+
+─── CE QUE CE MÉCANISME NE PROUVE PAS ───────────────────────────────────
+
+L'identifiant d'expéditeur d'un SMS se falsifie. Quelqu'un qui saurait
+envoyer un SMS en se faisant passer pour « OrangeMoney » pourrait fabriquer
+un faux encaissement.
+
+C'est pourquoi la règle du changeur ne bouge pas, et reste écrite dans
+chaque message : IL N'ENVOIE QU'APRÈS AVOIR VU L'ARGENT SUR SON PROPRE
+COMPTE. Ce qui change, c'est qu'un faux reçu du client ne suffit plus, et
+qu'un paiement réel est reconnu tout seul.
+
+─── ÉTEINT PAR DÉFAUT ───────────────────────────────────────────────────
+
+Sans CHANGE_SMS_TOKEN, rien de tout ceci n'existe : les achats repartent
+« non vérifiables », exactement comme avant. Un changeur qui n'installe
+pas le robot ne voit aucune différence.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+LES EXPÉDITEURS ACCEPTÉS.
+
+CHANGE_SMS_EXPEDITEURS, séparés par des virgules, sinon cette liste. La
+comparaison ignore la casse et les espaces.
+
+C'EST UNE BARRIÈRE, PAS UNE PREUVE : un identifiant d'expéditeur se
+falsifie. Elle sert à écarter le bruit — les SMS publicitaires, les
+notifications de solde, et un SMS qu'un client enverrait lui-même au
+changeur en imitant l'opérateur, qui est le cas le plus probable des trois.
+*/
+const EXPEDITEURS_SMS = ['orangemoney', 'orange money', 'moovmoney', 'moov money', 'wave']
+
+/*
+TROIS HEURES, comme pour les ventes.
+
+Un paiement plus ancien ne peut pas justifier une demande déposée
+maintenant. Et trois heures et non trente minutes : quelqu'un paie, puis
+son téléphone n'a plus de réseau, puis il revient dans l'application.
+*/
+const FENETRE_PAIEMENT_MS = 3 * 60 * 60 * 1000
+
+/**
+ * Un texte sans accents ni ponctuation superflue, en minuscules.
+ *
+ * TOUT CE QUI SUIT COMPARE DES MOTS. « reçu », « RECU » et « Reçu » sont
+ * le même mot, et un opérateur peut écrire les trois selon le canal.
+ * Normaliser une fois évite d'écrire chaque motif en six variantes — et
+ * un motif écrit en six variantes finit toujours par en oublier une.
+ */
+function sansAccents(texte) {
+  return String(texte ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+/*
+LES MOTS QUI DISENT « REÇU », ET CEUX QUI DISENT L'INVERSE.
+
+═══════════════════════════════════════════════════════════════════════════
+LA FAUTE À NE PAS COMMETTRE ICI
+═══════════════════════════════════════════════════════════════════════════
+
+Un extracteur générique qui cherche « un montant et un numéro » lirait
+aussi bien « Vous avez RECU 5000 FCFA de 70123456 » que « Vous avez ENVOYE
+5000 FCFA a 70123456 ».
+
+Conséquence : un paiement que le changeur a FAIT serait compté comme un
+paiement qu'il a REÇU. Il enverrait de la crypto contre son propre
+virement sortant. Et ça arriverait sans aucune fraude — simplement parce
+qu'un changeur envoie des francs toute la journée, et que chaque envoi
+produit un SMS.
+
+On exige donc un mot de réception, ET l'absence de tout mot d'émission.
+Les deux conditions, pas une.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const MOTS_RECEPTION = [
+  'avez recu',
+  'a recu',
+  'vous recevez',
+  'recu un transfert',
+  'recu de',
+  'credite de',
+  'received',
+]
+
+/*
+« ENVOYE » TOUT COURT, ET POURQUOI C'ÉTAIT NÉCESSAIRE.
+
+Ma première version listait « avez envoye » et « envoye a ». Le test lui a
+soumis « recu 10000 FCFA puis envoye 5000 FCFA a 70123456 » : aucun des
+deux motifs ne correspond — il y a un montant entre « envoye » et « a » —
+et le texte passait donc pour un encaissement de dix mille francs.
+
+Aucun opérateur n'écrit cette phrase. Ce n'est pas le point : une liste de
+motifs exacts se fait toujours contourner par une formulation qu'on
+n'avait pas prévue, et ici le coût d'une formulation non prévue est que le
+changeur envoie de la crypto contre son propre virement sortant.
+
+On refuse donc sur « envoye » seul, ce qui refuse plus large que
+nécessaire — et c'est le bon sens de l'erreur : un SMS refusé repart
+« non vérifiable » et le changeur regarde son compte, comme avant.
+*/
+const MOTS_EMISSION = [
+  'envoye',
+  'transfere a',
+  'avez transfere',
+  'retrait',
+  'debite',
+  'paiement de',
+  'achat de',
+  'frais de',
+  'sent to',
+]
+
+/**
+ * Ce qu'on lit dans un SMS d'encaissement, ou null.
+ *
+ * FONCTION PURE : on lui donne le texte, elle rend des champs. C'est la
+ * seule partie de ce mécanisme où une faute ne lève aucune erreur — elle
+ * rend simplement « payé » quelque chose qui ne l'est pas — et la seule
+ * qui se teste sans téléphone et sans réseau.
+ *
+ * Voir tools/relais-cours/test-sms.mjs, et surtout `node test-sms.mjs
+ * "<un vrai SMS>"` pour vérifier le format réel plutôt que celui qu'on
+ * suppose.
+ */
+function lireSmsPaiement(texte) {
+  const t = sansAccents(texte)
+  if (!t) return null
+
+  if (!MOTS_RECEPTION.some((m) => t.includes(m))) return null
+  /*
+  « ENVOYÉ PAR » EST UNE FORMULATION DE RÉCEPTION, PAS D'ÉMISSION.
+
+  « Vous avez reçu un transfert de 5000 FCFA envoyé par 70123456 » décrit
+  un encaissement. Refuser sur le mot « envoye » seul l'écarterait, et on
+  perdrait une formulation que les opérateurs emploient réellement.
+
+  On neutralise donc cette locution avant de chercher les mots
+  d'émission, au lieu d'ajouter une exception dans chacun d'eux.
+  */
+  const pourEmission = t.replace(/envoye par/g, 'de la part de')
+  if (MOTS_EMISSION.some((m) => pourEmission.includes(m))) return null
+
+  /*
+  LE MONTANT : des chiffres suivis de l'unité, dans cet ordre.
+
+  Les séparateurs de milliers sautent — « 5.000 », « 5 000 », « 5,000 »
+  désignent cinq mille dans les SMS d'opérateurs d'Afrique de l'Ouest, où
+  le point et la virgule servent tous deux de séparateur de milliers et
+  non de décimale. Le franc CFA n'a pas de centimes : il n'y a donc aucune
+  ambiguïté à lever, et traiter « 5.000 » comme cinq a déjà produit des
+  rapprochements ratés ailleurs.
+  */
+  const montantTrouve = t.match(
+    /(\d[\d .,]*)\s*(?:f\s*cfa|fcfa|xof|francs?|f\b)/
+  )
+  if (!montantTrouve) return null
+  const montant = Number(montantTrouve[1].replace(/[^\d]/g, ''))
+  if (!Number.isFinite(montant) || montant <= 0) return null
+
+  /*
+  LE NUMÉRO DE L'EXPÉDITEUR : huit chiffres, qui ne soient pas le montant.
+
+  On cherche APRÈS le montant quand c'est possible — « recu 5000 FCFA de
+  70123456 » — parce que c'est l'ordre des SMS d'Orange. À défaut, on
+  prend le premier groupe de huit chiffres du texte.
+
+  UN NUMÉRO ABSENT N'EST PAS BLOQUANT : certains SMS ne nomment que le
+  titulaire, pas son numéro. Le rapprochement se fera alors sur la
+  référence, ou sur le montant seul — et c'est dit au changeur.
+  */
+  /*
+  LES NUMÉROS S'ÉCRIVENT « 70 12 34 56 », ET LE TEST ME L'A RAPPELÉ.
+
+  Cherché tel quel, `\d{8}` ne trouvait rien dans « de 70 12 34 56 » : le
+  numéro ressortait vide, et le rapprochement par montant et numéro ne
+  pouvait jamais aboutir. Silencieusement — il restait celui par
+  référence, donc ça « marchait » pour les clients qui en recopient une.
+
+  On recolle donc les chiffres que séparent une espace, un point ou un
+  tiret. Appliqué APRÈS la lecture du montant, sur ce qui reste du texte,
+  pour ne pas transformer le montant lui-même en route.
+  */
+  const recolle = (x) => x.replace(/(\d)[ .\-](?=\d)/g, '$1')
+  const apres = recolle(t.slice(montantTrouve.index + montantTrouve[0].length))
+  const numeroTrouve =
+    apres.match(/(?<!\d)(\d{8})(?!\d)/) || recolle(t).match(/(?<!\d)(\d{8})(?!\d)/)
+  const numero = numeroTrouve ? numeroTrouve[1] : ''
+
+  /*
+  LA RÉFÉRENCE : ce qui suit « ref », quand il y en a une.
+
+  C'est le rapprochement le plus net, parce que le client la recopie
+  depuis SON propre SMS : les deux références doivent coïncider. Quand
+  elle manque, on retombe sur montant + numéro.
+  */
+  const refTrouvee = t.match(/(?:ref(?:erence)?|id|transaction)\s*[:.=n°#]*\s*([a-z0-9.\-]{5,32})/)
+  const reference = refTrouvee ? refTrouvee[1].replace(/[.\-]/g, '').toUpperCase() : ''
+
+  return { montant, numero: numeroComparable(numero), reference }
+}
+
+/**
+ * Reçoit un SMS d'encaissement du téléphone du changeur.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * CE POINT D'ENTRÉE EST LE PLUS DANGEREUX DE TOUT LE WORKER
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Tout le reste du relais ne fait que LIRE : des cours, une chaîne
+ * publique. Celui-ci ÉCRIT une affirmation — « ce paiement est arrivé » —
+ * sur laquelle le changeur enverra de la crypto.
+ *
+ * S'il était ouvert, il serait bien pire que l'absence de vérification :
+ * n'importe qui déclarerait ses propres encaissements, et les achats
+ * passeraient en ✅ VÉRIFIÉ. On aurait transformé une incertitude en
+ * fausse certitude, ce qui est le plus sûr moyen de faire envoyer sans
+ * regarder.
+ *
+ * Il exige donc un jeton, CHANGE_SMS_TOKEN. Et ce jeton :
+ *
+ *   — N'EST PAS CELUI DE TELEGRAM. Deux rôles, deux secrets : celui de
+ *     Telegram ne peut qu'écrire un message, celui-ci peut faire payer.
+ *   — NE DOIT JAMAIS ENTRER DANS L'APK PUBLIC DE VAULTEX. Il vit dans
+ *     l'application compagnon, installée à la main sur un seul téléphone
+ *     et jamais distribuée. C'est ce qui rend acceptable qu'un secret
+ *     soit porté par un appareil.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+async function recevoirSms(requete, env) {
+  const jeton = String(env?.CHANGE_SMS_TOKEN ?? '')
+  if (!jeton) {
+    // Mécanisme non installé. On le dit clairement : un robot qui poste
+    // dans le vide sans jamais recevoir d'erreur chercherait longtemps.
+    return json({ ok: false, raison: 'lecture sms non configuree' }, 0, 503)
+  }
+  const presente = String(requete.headers.get('x-vaultex-sms') ?? '')
+  if (presente !== jeton) {
+    return json({ ok: false, raison: 'jeton refuse' }, 0, 401)
+  }
+
+  let corps = null
+  try {
+    corps = await requete.json()
+  } catch (_) {
+    return json({ ok: false, raison: 'corps illisible' }, 0, 400)
+  }
+
+  const expediteur = sansAccents(corps?.expediteur).replace(/\s+/g, ' ').trim()
+  const texte = String(corps?.texte ?? '').slice(0, 1000)
+  if (!texte) return json({ ok: false, raison: 'texte vide' }, 0, 400)
+
+  const acceptes = String(env?.CHANGE_SMS_EXPEDITEURS ?? '')
+    .split(',').map((x) => sansAccents(x).replace(/\s+/g, ' ').trim()).filter(Boolean)
+  const liste = acceptes.length > 0 ? acceptes : EXPEDITEURS_SMS
+  if (!liste.some((e) => expediteur.includes(e) || e.includes(expediteur))) {
+    /*
+    ON REFUSE SANS BRUIT UN EXPÉDITEUR INCONNU, et c'est le filtre le plus
+    utile du lot : le robot transmet ce qu'il voit, et ce qu'il voit
+    comprend les publicités, les codes de connexion et les messages des
+    proches du changeur. Rien de tout ça n'a à entrer ici.
+    */
+    return json({ ok: false, raison: 'expediteur non reconnu', expediteur }, 0, 400)
+  }
+
+  const lu = lireSmsPaiement(texte)
+  if (!lu) {
+    /*
+    FORMAT NON RECONNU : ON REND LE TEXTE.
+
+    C'est le seul endroit où le texte d'un SMS ressort, et c'est voulu :
+    le changeur a besoin de voir ce que le relais n'a pas su lire pour que
+    le motif soit corrigé. C'est SON propre SMS, rendu à SON propre
+    appareil, derrière le jeton.
+
+    Sans ça, un format qui change se manifesterait par des achats qui
+    cessent d'être vérifiés, sans rien pour dire pourquoi.
+    */
+    return json(
+      { ok: false, raison: 'format non reconnu', texte: texte.slice(0, 200) },
+      0,
+      422
+    )
+  }
+
+  /*
+  DEUX CLÉS POUR LE MÊME PAIEMENT, parce qu'on ne sait pas encore sur quoi
+  le rapprochement se fera.
+
+  Par RÉFÉRENCE quand le client en recopie une : c'est le plus net, les
+  deux côtés citent le même identifiant d'opérateur.
+
+  Par MONTANT + NUMÉRO sinon : « 10000 reçus de 70123456 » suffit à
+  reconnaître une demande de 10 000 francs déposée par le 70123456.
+  */
+  const valeur = JSON.stringify({ ...lu, quand: Date.now() })
+  if (lu.reference) await marquerValeur('paiementref', lu.reference, valeur)
+  if (lu.numero) await marquerValeur('paiement', `${lu.montant}-${lu.numero}`, valeur)
+  if (!lu.reference && !lu.numero) {
+    // Ni référence ni numéro : on ne saurait pas le retrouver. Le dire
+    // plutôt que de l'avaler, pour que le motif soit corrigé.
+    return json({ ok: false, raison: 'ni reference ni numero lisibles', lu }, 0, 422)
+  }
+
+  return json({ ok: true, lu })
+}
+
+/** Garde une valeur, pour la durée de la fenêtre de rapprochement. */
+async function marquerValeur(espace, cle, valeur) {
+  try {
+    const requete = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(cle)}`
+    )
+    await caches.default.put(
+      requete,
+      new Response(valeur, {
+        headers: { 'cache-control': `max-age=${Math.floor(FENETRE_PAIEMENT_MS / 1000)}` },
+      })
+    )
+  } catch (_) { /* sans effet sur l'ordre en cours */ }
+}
+
+/** Relit une valeur gardée, ou null. */
+async function lireValeur(espace, cle) {
+  try {
+    const requete = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(cle)}`
+    )
+    const r = await caches.default.match(requete)
+    if (!r) return null
+    return JSON.parse(await r.text())
+  } catch (_) {
+    return null
+  }
+}
+
+/**
+ * Le paiement Orange Money d'un achat a-t-il été vu ?
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * MÊME FORME QUE verifierVente, ET CE N'EST PAS UNE COQUETTERIE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Elle rend les mêmes états — confirme / absent / deja_servi /
+ * indisponible — parce que `lignesVerification` les met déjà en forme,
+ * que l'application les lit déjà, et que la consigne « A FAIRE » en
+ * dépend déjà.
+ *
+ * Deux vocabulaires pour deux sens auraient doublé chacun de ces
+ * endroits, et c'est exactement là qu'on finit par traiter un cas d'un
+ * côté en oubliant l'autre.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+async function verifierAchat(ordre, env) {
+  if (!String(env?.CHANGE_SMS_TOKEN ?? '')) {
+    /*
+    LE ROBOT N'EST PAS INSTALLÉ, et ce n'est pas une panne.
+
+    « indisponible » et non « absent » : on n'a pas regardé. Rendre
+    « absent » collerait un ❌ ACCUSATEUR sur tous les achats d'un
+    changeur qui n'a simplement pas installé le robot — et le ferait
+    douter de clients honnêtes.
+    */
+    return { etat: 'indisponible', raison: 'lecture des SMS non installee' }
+  }
+
+  const fcfa = Math.round(nombreFrancais(ordre.montantFcfa))
+  const numero = numeroComparable(ordre.telephone)
+  const refClient = String(ordre.referencePaiement ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+
+  /*
+  LA RÉFÉRENCE D'ABORD, LE MONTANT ENSUITE.
+
+  La référence est le rapprochement le plus net : le client la recopie
+  depuis son SMS, l'opérateur l'a écrite dans celui du changeur, et les
+  deux doivent coïncider. Le montant et le numéro ne viennent qu'après,
+  pour le client qui n'a rien recopié.
+  */
+  let paiement = refClient ? await lireValeur('paiementref', refClient) : null
+  let par = 'reference'
+  if (!paiement && numero.length === 8 && fcfa > 0) {
+    paiement = await lireValeur('paiement', `${fcfa}-${numero}`)
+    par = 'montant et numero'
+  }
+
+  if (!paiement) {
+    return {
+      etat: 'absent',
+      raison: refClient
+        ? `aucun SMS d'encaissement ne porte la reference ${refClient}`
+        : `aucun encaissement de ${fcfa} FCFA depuis le ${numero || 'numero du client'}`,
+    }
+  }
+
+  if (Date.now() - Number(paiement.quand || 0) > FENETRE_PAIEMENT_MS) {
+    return { etat: 'absent', raison: 'encaissement trop ancien pour cette demande' }
+  }
+
+  /*
+  LE MONTANT EST RECOMPARÉ MÊME QUAND ON A TROUVÉ PAR LA RÉFÉRENCE.
+
+  Sans ça, un client pourrait recopier la référence d'un vrai paiement de
+  mille francs et demander cinquante mille : la référence coïnciderait, le
+  relais dirait ✅. C'est le montant LU DANS LE SMS DE L'OPÉRATEUR qui
+  tranche, jamais celui que la demande annonce.
+  */
+  const recu = Math.round(Number(paiement.montant) || 0)
+  if (recu !== fcfa) {
+    return {
+      etat: 'absent',
+      raison: `l'encaissement porte ${recu} FCFA, la demande en annonce ${fcfa}`,
+      montant: recu,
+    }
+  }
+
+  const empreinte = paiement.reference || `${recu}-${paiement.numero}`
+  if (await dejaVu('paiementservi', empreinte)) {
+    return { etat: 'deja_servi', txid: empreinte, raison: 'cet encaissement a deja servi' }
+  }
+
+  return {
+    etat: 'confirme',
+    // On réemploie `txid` : c'est le champ « identifiant du versement »
+    // que le message et l'application savent déjà afficher. Ici c'est la
+    // référence de l'opérateur.
+    txid: paiement.reference || '',
+    montant: recu,
+    quand: Number(paiement.quand) || 0,
+    confirme: true,
+    de: paiement.numero ? `tel. ${paiement.numero}` : '',
+    rapproche: par,
+    explorateur: '',
+  }
 }
