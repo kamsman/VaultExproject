@@ -53,13 +53,33 @@ if (!monnaieBrute || !adresse) {
   console.log('\nUsage :')
   console.log('  node tools/relais-cours/verifier-adresse.mjs <MONNAIE> <adresse>\n')
   console.log('Exemples :')
-  console.log('  node tools/relais-cours/verifier-adresse.mjs USDT T9yD14Nj9j7xAB4dbGe...')
-  console.log('  node tools/relais-cours/verifier-adresse.mjs BTC bc1qar0srrr7xfkvy5l6...\n')
+  console.log('  node tools/relais-cours/verifier-adresse.mjs USDT TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM')
+  console.log('  node tools/relais-cours/verifier-adresse.mjs BTC bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')
+  console.log('\nLes adresses ci-dessus sont des EXEMPLES complets, pour montrer la forme.')
+  console.log('Colle celle de ton changeur a la place.\n')
   process.exit(2)
 }
 
 const monnaie = monnaieBrute.trim().toUpperCase()
 const forme = formeAttendue(monnaie)
+
+/*
+L'EXEMPLE COLLÉ TEL QUEL.
+
+C'est arrivé au premier usage : la consigne disait « T… », et « T… » a été
+tapé tel quel. Le programme a répondu « longueur lue : 4 », ce qui est
+exact et n'aide personne — on relit son adresse en se demandant ce qui
+cloche, alors qu'on ne l'a pas encore collée.
+
+Une faute de l'auteur de la consigne, pas de celui qui l'a suivie. On la
+nomme donc, au lieu de laisser deviner.
+*/
+if (/^T?\.{2,}$/.test(adresse.trim()) || adresse.trim() === '<adresse>') {
+  console.log(`\n\u{1F4A1} « ${adresse} » est l'EXEMPLE de la consigne, pas une adresse.`)
+  console.log(`   Remplace-le par celle du changeur : 34 caracteres commencant par T,`)
+  console.log(`   copiee depuis son portefeuille > Recevoir > USDT > reseau TRON.`)
+  process.exit(2)
+}
 
 /*
 LE CONTRAT USDT DE TRON EST UNE ADRESSE TRON PARFAITEMENT VALIDE.
