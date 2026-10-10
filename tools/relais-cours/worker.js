@@ -82,6 +82,31 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
   TG_CHANGE_CHAT    Identifiant du groupe du changeur.
   TRONGRID_KEY      Facultatif : relève le quota de l'API TronGrid.
 
+  ─── LES GARDE-FOUS ANTI-FRAUDE (v15) ───────────────────────────────
+
+  CHANGE_MIN et CHANGE_MAX sont désormais APPLIQUÉS ICI, et pas seulement
+  affichés. Avant la v15 ils n'étaient vérifiés que par l'application :
+  une requête postée à la main sur cette adresse publique passait cinq
+  millions de francs sans rien rencontrer. Un réglage qui n'est appliqué
+  que par le client n'est pas un réglage.
+
+  CHANGE_BLOQUES       « 70123456,64000000 ». Numéros refusés à l'entrée.
+                       Les formes sont normalisées des deux côtés : avec
+                       ou sans indicatif, avec ou sans espaces.
+  CHANGE_MAX_PAR_JOUR  Demandes abouties par numéro et par jour (10).
+                       N'empêche pas une fraude ; empêche d'en tenter
+                       quarante dans la soirée, ce qui noierait le canal.
+  CHANGE_MAX_PREMIER   Plafond de la PREMIÈRE opération d'un numéro
+                       inconnu — par exemple 10000. ÉTEINT par défaut.
+                       C'est le meilleur levier anti-fraude du
+                       pair-à-pair, et il s'appuie sur une mémoire
+                       évictable : un client régulier peut se retrouver
+                       replafonné sans raison visible. Lire le commentaire
+                       dans ordreChange avant de l'activer.
+
+  /diag dit lesquels sont réellement actifs. Trois d'entre eux ne font
+  rien tant qu'on ne les règle pas, et rien ne le signale autrement.
+
   CHANGE_ADRESSES   ⚠️ CELUI-LÀ PORTE LA PREUVE DES VENTES.
 
                     Un objet JSON : {"USDT":"T...","BTC":"bc1..."}.
@@ -109,7 +134,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 14
+const VERSION = 15
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -774,6 +799,52 @@ async function diagnostic(env) {
   afficher le croisement évite de chercher pourquoi « USDT-BNB » reste
   éternellement non vérifié alors que le nœud BSC répond.
   */
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  QUELS GARDE-FOUS SONT RÉELLEMENT ACTIFS
+  ═══════════════════════════════════════════════════════════════════════
+
+  Trois d'entre eux ne font rien tant qu'on ne les règle pas : la liste
+  noire, la limite par jour et le plafond de première opération. Un
+  réglage mal collé — une virgule oubliée, une valeur vide — les laisse
+  éteints SANS AUCUN SIGNE : les demandes passent, exactement comme avant.
+
+  C'est le même piège que `canalConfigure` : croire une protection en
+  place parce qu'on se souvient de l'avoir posée. Ici on la mesure.
+
+  AUCUNE VALEUR SENSIBLE : des bornes en francs, un décompte, et le NOMBRE
+  de numéros bloqués — pas les numéros eux-mêmes, qui n'ont pas à sortir
+  d'ici.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const nb = (v, d) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n >= 0 ? n : d
+  }
+  const plafondDiag = nb(env?.CHANGE_MAX, 50000)
+  const premierDiag = nb(env?.CHANGE_MAX_PREMIER, plafondDiag)
+  sondes.gardeFous = {
+    // Appliquées par le relais depuis la v15. Avant, elles ne vivaient que
+    // dans l'application — donc nulle part, pour qui ne l'utilise pas.
+    bornesAppliquees: { minimum: nb(env?.CHANGE_MIN, 5000), plafond: plafondDiag },
+    numerosBloques: String(env?.CHANGE_BLOQUES ?? '')
+      .split(',').map((x) => numeroComparable(x)).filter((x) => x.length === 8).length,
+    maxParJour: nb(env?.CHANGE_MAX_PAR_JOUR, 10),
+    plafondPremiereOperation: premierDiag < plafondDiag ? premierDiag : 'eteint',
+    /*
+    LA LIMITE DE CES TROIS-LÀ, ÉCRITE DANS LE DIAGNOSTIC LUI-MÊME.
+
+    Elles s'appuient sur `caches.default`, qui est par centre de données et
+    évictable. Pour ce qui se joue en minutes — un renvoi, une rafale —
+    c'est suffisant. Pour ce qui doit tenir des semaines, non : un
+    attaquant qui change de pays trouve des compteurs neufs.
+
+    Qui lit ce diagnostic doit le savoir, sinon il croit ces protections
+    plus fortes qu'elles ne sont.
+    */
+    memoire: 'cache par centre de donnees, evictable — exact avec Workers KV',
+  }
+
   sondes.venteVerifiable = Object.keys(CHAINES_VENTE).reduce((acc, m) => {
     acc[m] = {
       chaine_connue: true,
@@ -1253,6 +1324,124 @@ async function ordreChange(requete, env) {
   }
 
   /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE CONTRÔLE QUE JE CROYAIS FAIT, ET QUI NE L'ÉTAIT PAS
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le minimum et le plafond étaient servis par /change/parametres, et
+  vérifiés PAR L'APPLICATION — dans ChangeState.blocage(), qui éteint le
+  bouton. C'est ce qu'il faut pour l'écran : la raison s'affiche là où on
+  la corrige.
+
+  Mais ce n'était vérifié QUE là. Un APK modifié, ou une requête postée à
+  la main sur cette adresse publique, passait une demande de cinq millions
+  de francs sans que rien ne s'y oppose. Or j'ai écrit hier au propriétaire
+  que « le plafond borne les dégâts d'une fraude » — ce qui était faux
+  tant que le plafond ne vivait que dans le téléphone.
+
+  UN RÉGLAGE QUI N'EST APPLIQUÉ QUE PAR LE CLIENT N'EST PAS UN RÉGLAGE,
+  c'est une suggestion. Il est donc appliqué ici aussi, et c'est ici qu'il
+  compte : le client, on ne le contrôle pas.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const nombreRegle = (v, defaut) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n >= 0 ? n : defaut
+  }
+  const minimum = nombreRegle(env?.CHANGE_MIN, 5000)
+  const plafond = nombreRegle(env?.CHANGE_MAX, 50000)
+  const fcfa = nombreFrancais(ordre.montantFcfa)
+  if (!(fcfa > 0)) {
+    return json({ ok: false, raison: 'montant illisible' }, 0, 400)
+  }
+  if (fcfa < minimum) {
+    return json({ ok: false, raison: `minimum ${minimum} FCFA` }, 0, 400)
+  }
+  if (fcfa > plafond) {
+    return json({ ok: false, raison: `plafond ${plafond} FCFA` }, 0, 400)
+  }
+
+  const numero = numeroComparable(ordre.telephone)
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE PLAFOND DE PREMIÈRE OPÉRATION — ET POURQUOI IL EST ÉTEINT PAR DÉFAUT
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est le meilleur levier anti-fraude du pair-à-pair : la PREMIÈRE
+  opération d'un numéro inconnu est plafonnée bas. Un fraudeur ne connaît
+  jamais le changeur ; sa première tentative est donc aussi sa plus
+  grosse, et c'est celle-là qu'on veut petite.
+
+  CHANGE_MAX_PREMIER = 10000, par exemple. Non réglé, il vaut le plafond
+  ordinaire, donc il ne fait rien.
+
+  ─── POURQUOI ÉTEINT, ALORS QUE C'EST LE MEILLEUR LEVIER ──────────────
+
+  Parce que « ce numéro est connu » est une information qui doit tenir des
+  SEMAINES, et que `caches.default` ne tient pas des semaines : il est par
+  centre de données et évictable.
+
+  La conséquence est bénigne mais réelle : un client régulier dont la
+  marque a été évincée se retrouve plafonné comme un inconnu. Ce n'est pas
+  dangereux — ça échoue dans le sens sûr — c'est agaçant, et ça se traduit
+  en appels au changeur pour un plafond qui a bougé sans raison visible.
+
+  À lui de choisir, donc. L'activer, c'est accepter ce désagrément contre
+  une vraie protection ; une mémoire durable (Workers KV) supprimerait le
+  compromis, et c'est ce qu'il faudra faire quand le volume le justifiera.
+  C'est écrit ici pour que ce réglage ne soit pas activé en croyant qu'il
+  est exact.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const plafondPremier = nombreRegle(env?.CHANGE_MAX_PREMIER, plafond)
+  if (numero.length === 8 && plafondPremier < plafond && fcfa > plafondPremier) {
+    if (!(await dejaVu('connu', numero))) {
+      return json(
+        {
+          ok: false,
+          raison:
+            `premiere operation limitee a ${plafondPremier} FCFA. ` +
+            `Fais un premier echange plus petit, puis reviens.`,
+        },
+        0,
+        400
+      )
+    }
+  }
+
+  /*
+  SUR UNE VENTE, PAS DE NUMÉRO, PAS D'ORDRE.
+
+  Le changeur doit envoyer des francs quelque part. Sans numéro, le message
+  disait « ENVOYER 5 000 FCFA au numero du client » — sans numéro. Il
+  n'avait aucun moyen de payer, et la crypto du client était déjà partie.
+
+  L'écran l'exige déjà depuis hier. On l'exige ici aussi, parce que l'écran
+  est la partie qu'on ne contrôle pas.
+  */
+  if (ordre.sens !== 'achat' && numero.length < 8) {
+    return json({ ok: false, raison: 'numero de telephone manquant' }, 0, 400)
+  }
+
+  /*
+  LA LISTE NOIRE, et pourquoi elle est un réglage et non une base.
+
+  CHANGE_BLOQUES = « 70123456,64000000 ». Le changeur y met un numéro
+  après une tentative de fraude, redéploie, et c'est fini. Pas de table à
+  administrer, pas d'écran à construire : au nombre de numéros concernés —
+  quelques-uns par an — une variable d'environnement est la bonne taille
+  d'outil.
+  */
+  const bloques = String(env?.CHANGE_BLOQUES ?? '')
+    .split(',').map((x) => numeroComparable(x)).filter((x) => x.length === 8)
+  if (numero.length === 8 && bloques.includes(numero)) {
+    // On ne dit pas « tu es bloqué » : ça apprend au fraudeur qu'il doit
+    // changer de numéro. Une indisponibilité ordinaire ne lui apprend rien.
+    return json({ ok: false, raison: 'service indisponible pour cette demande' }, 0, 403)
+  }
+
+  /*
   LIMITE DE DÉBIT, PAR RÉFÉRENCE.
 
   Cette adresse est publique, donc n'importe qui peut y poster. On ne peut
@@ -1268,6 +1457,77 @@ async function ordreChange(requete, env) {
   const cle = new Request(`https://relais.vaultex/ordre/${encodeURIComponent(ordre.reference)}`)
   if (await cache.match(cle)) {
     return json({ ok: true, deja: true, reference: ordre.reference })
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE RÉFÉRENCE DE PAIEMENT NE SERT QU'UNE FOIS
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est le pendant, pour les achats, du marquage des txid. Sur un ACHAT, le
+  client recopie la référence que son opérateur lui a envoyée par SMS —
+  « MP251008123456 ». Elle ne prouve rien (une référence se recopie depuis
+  le SMS de quelqu'un d'autre, et le changeur ne doit jamais payer sur
+  elle seule) mais elle sert à RETROUVER la ligne dans le relevé.
+
+  Et si elle peut servir dix fois, elle sert à se faire payer dix fois sur
+  un seul vrai paiement : le changeur retrouve bien la ligne, chaque fois,
+  et chaque fois elle est authentique. C'est exactement l'attaque que le
+  marquage des txid ferme sur les ventes.
+
+  VINGT-QUATRE HEURES, comme pour les txid, et pour la même raison : une
+  réclamation porte sur aujourd'hui ou sur hier.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  if (ordre.sens === 'achat' && ordre.referencePaiement) {
+    if (await dejaVu('refpay', ordre.referencePaiement)) {
+      return json(
+        {
+          ok: false,
+          raison: 'cette reference de paiement a deja servi une autre demande',
+        },
+        0,
+        409
+      )
+    }
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA LIMITE PAR NUMÉRO — CE QU'ELLE PROTÈGE, ET CE QU'ELLE NE PROTÈGE PAS
+  ═══════════════════════════════════════════════════════════════════════
+
+  Elle n'empêche pas une fraude. Elle empêche d'en TENTER quarante dans la
+  soirée, ce qui est autre chose : un canal Telegram noyé sous les fausses
+  demandes est un canal où le changeur cesse de lire, et c'est là que la
+  vraie fraude passe.
+
+  CHANGE_MAX_PAR_JOUR, dix par défaut. Dix opérations par jour et par
+  numéro est très au-dessus de l'usage réel — personne ne change dix fois
+  dans la journée — et très en dessous d'une rafale.
+
+  ELLE NE COMPTE QUE LES DEMANDES ABOUTIES. Compter les échecs permettrait
+  à un échec de Telegram de consommer le quota de quelqu'un d'honnête.
+  L'inverse — un fraudeur dont les demandes aboutissent toutes — est
+  justement le cas qu'on veut compter.
+
+  Et elle est PAR CENTRE DE DONNÉES : quelqu'un qui change de pays trouve
+  un compteur neuf. Pour une rafale depuis un téléphone, c'est sans effet ;
+  pour un attaquant organisé, ça ne tient pas. C'est le même plafond de
+  verre que le marquage des txid, et la même réponse : un stockage durable
+  le fermerait.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const parJour = nombreRegle(env?.CHANGE_MAX_PAR_JOUR, 10)
+  const jour = new Date().toISOString().slice(0, 10)
+  if (numero.length === 8 && parJour > 0) {
+    if ((await compteur('debit', `${numero}-${jour}`)) >= parJour) {
+      return json(
+        { ok: false, raison: `limite de ${parJour} demandes par jour atteinte` },
+        0,
+        429
+      )
+    }
   }
 
   /*
@@ -1384,6 +1644,30 @@ async function ordreChange(requete, env) {
   */
   if (verif && verif.etat === 'confirme' && verif.txid) {
     await marquerTxidServi(verif.txid)
+  }
+
+  /*
+  LES AUTRES MARQUAGES SUIVENT LA MÊME RÈGLE : APRÈS L'ENVOI.
+
+  Avant, un échec de Telegram aurait brûlé la référence de paiement du
+  client et consommé son quota du jour, pour une demande qui n'est jamais
+  arrivée. Il n'aurait pas pu la redéposer.
+  */
+  if (ordre.sens === 'achat' && ordre.referencePaiement) {
+    await marquer('refpay', ordre.referencePaiement, 86400)
+  }
+  if (numero.length === 8) {
+    await incrementer('debit', `${numero}-${jour}`, 86400)
+    /*
+    TRENTE JOURS. Assez long pour qu'un client régulier reste connu d'un
+    mois sur l'autre, assez court pour qu'un numéro abandonné depuis un an
+    repasse par le petit plafond.
+
+    Posé à CHAQUE demande aboutie, et non seulement à la première : ça
+    repousse l'échéance tant que la personne revient, ce qui est
+    exactement le comportement voulu.
+    */
+    await marquer('connu', numero, 30 * 86400)
   }
 
   return json({
@@ -1513,6 +1797,15 @@ function lignesVerification(verif, coherence, ordre) {
     lignes.push('')
     lignes.push('\u2705 VERSEMENT VERIFIE SUR LA CHAINE PAR LE RELAIS')
     lignes.push(`Recu      : ${formatMontant(verif.montant)} ${ordre.monnaie}  (lu sur la chaine)`)
+    /*
+    L'EXPÉDITEUR EST LA SEULE LIGNE QUI PERMETTE DE DIRE « CE N'EST PAS LUI ».
+
+    Deux clients qui vendent le même montant dans la même heure donnent
+    deux demandes identiques sur tout le reste. Cette ligne les sépare, et
+    c'est elle qu'on relit quand quelqu'un réclame un paiement qu'il dit
+    ne pas avoir reçu.
+    */
+    if (verif.de) lignes.push(`Envoye par: ${verif.de}`)
     if (verif.quand) lignes.push(`Horodate  : ${dateCourteUtc(verif.quand)}`)
     if (verif.confirme === false) {
       lignes.push('Bloc      : PAS ENCORE MINE - attends une confirmation')
@@ -2253,25 +2546,119 @@ prochain pas, et il demande un réglage de plus côté Cloudflare — noté ici
 pour ne pas croire le problème résolu.
 ───────────────────────────────────────────────────────────────────────────
 */
-async function txidDejaServi(txid) {
+/*
+───────────────────────────────────────────────────────────────────────────
+TROIS PRIMITIVES DE MÉMOIRE, ET CE QU'ELLES VALENT
+───────────────────────────────────────────────────────────────────────────
+
+`caches.default` est une mémoire PAR CENTRE DE DONNÉES, et évictable. Un
+Worker est servi depuis le point le plus proche de l'appelant : ce qu'on y
+écrit à Ouagadougou n'existe pas à Paris, et peut disparaître à tout
+moment.
+
+Ça rend ces primitives adaptées à ce qui se joue sur des MINUTES — un
+renvoi après coupure réseau, une rafale de demandes — et inadaptées à ce
+qui s'accumule sur des SEMAINES, comme une réputation.
+
+ON NE CONFOND DONC PAS LES DEUX. Les marquages de référence et de txid, la
+limite de débit : minutes ou heures, le cache suffit. Un plafond
+progressif qui récompenserait dix opérations honnêtes : non, et il n'est
+pas écrit ici pour cette raison. Voir `plafondApplicable`.
+
+CHAQUE PRIMITIVE ÉCHOUE DANS LE SENS SÛR. Cache muet → `dejaVu` rend faux
+(on laisse passer plutôt que de bloquer quelqu'un d'honnête) et `compteur`
+rend zéro. Les protections se relâchent, elles ne se retournent pas contre
+l'utilisateur.
+───────────────────────────────────────────────────────────────────────────
+*/
+
+/** Vrai si cette marque a déjà été posée. */
+async function dejaVu(espace, valeur) {
   try {
-    const cle = new Request(`https://relais.vaultex/txid/${encodeURIComponent(txid)}`)
+    const cle = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
+    )
     return Boolean(await caches.default.match(cle))
   } catch (_) {
-    // Cache indisponible : on ne bloque pas une vente honnête pour ça. Le
-    // txid reste écrit dans le message, et le changeur garde l'oeil.
     return false
   }
 }
 
-async function marquerTxidServi(txid) {
+/** Pose une marque, pour [secondes]. */
+async function marquer(espace, valeur, secondes) {
   try {
-    const cle = new Request(`https://relais.vaultex/txid/${encodeURIComponent(txid)}`)
+    const cle = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
+    )
     await caches.default.put(
       cle,
-      new Response('1', { headers: { 'cache-control': 'max-age=86400' } })
+      new Response('1', { headers: { 'cache-control': `max-age=${secondes}` } })
     )
   } catch (_) { /* sans effet sur l'ordre en cours */ }
+}
+
+/** Lit un compteur. */
+async function compteur(espace, valeur) {
+  try {
+    const cle = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
+    )
+    const r = await caches.default.match(cle)
+    if (!r) return 0
+    const n = Number(await r.text())
+    return Number.isFinite(n) && n >= 0 ? n : 0
+  } catch (_) {
+    return 0
+  }
+}
+
+/**
+ * Incrémente un compteur.
+ *
+ * LIRE PUIS ÉCRIRE N'EST PAS ATOMIQUE : deux demandes simultanées peuvent
+ * lire la même valeur et l'écrire une fois. Pour une limite de débit
+ * destinée à empêcher d'inonder un canal Telegram, perdre un coup sur
+ * deux dans une rafale ne change rien — la rafale reste bornée. Un
+ * décompte exact demanderait un Durable Object, c'est-à-dire un autre
+ * modèle de déploiement pour un gain nul ici.
+ */
+async function incrementer(espace, valeur, secondes) {
+  const n = (await compteur(espace, valeur)) + 1
+  try {
+    const cle = new Request(
+      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
+    )
+    await caches.default.put(
+      cle,
+      new Response(String(n), { headers: { 'cache-control': `max-age=${secondes}` } })
+    )
+  } catch (_) { /* sans effet */ }
+  return n
+}
+
+async function txidDejaServi(txid) {
+  return await dejaVu('txid', txid)
+}
+
+async function marquerTxidServi(txid) {
+  await marquer('txid', txid, 86400)
+}
+
+/**
+ * Un numéro ramené à sa forme comparable : ses huit derniers chiffres.
+ *
+ * ON NE PEUT PAS COMPARER DES NUMÉROS TELS QUE LES GENS LES ÉCRIVENT.
+ * « 70 12 34 56 », « 70123456 » et « +226 70 12 34 56 » sont le même
+ * abonné ; comparés à l'identique, ils seraient trois personnes — et une
+ * liste noire, comme une limite de débit, se contournerait en ajoutant
+ * une espace.
+ *
+ * Huit chiffres parce que c'est la longueur d'un numéro au Burkina Faso,
+ * et qu'on écarte ainsi l'indicatif 226 qui est parfois là, parfois pas.
+ */
+function numeroComparable(brut) {
+  const chiffres = String(brut ?? '').replace(/\D/g, '')
+  return chiffres.length >= 8 ? chiffres.slice(-8) : chiffres
 }
 
 /**
@@ -2348,6 +2735,32 @@ async function verifierVente(options) {
     quand: trouve.quand || 0,
     // Bitcoin seul peut rendre un transfert vu mais pas encore miné.
     confirme: trouve.confirme !== false,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'EXPÉDITEUR, QUE JE JETAIS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les trois lecteurs de chaîne le lisaient déjà ; `verifierVente` ne le
+    rendait pas. C'était un oubli, et il ouvrait un cas précis :
+
+      Alice envoie 8 USDT à l'adresse du changeur, honnêtement, et ne
+      dépose pas tout de suite sa demande. Bob dépose une demande pour
+      8 USDT avec SON numéro de téléphone. Le relais cherche un versement
+      de 8 USDT, trouve celui d'Alice, répond « confirmé ». Bob est payé,
+      Alice ne l'est pas.
+
+    Rendre l'expéditeur ne ferme pas ce cas — il le rend VISIBLE. Le
+    changeur lit « De : TAlice… » et peut trancher ; et si deux demandes
+    citent le même hash, la seconde est déjà refusée par le marquage.
+
+    CE QUI LE FERMERAIT VRAIMENT : faire signer la référence de la demande
+    par la clé de l'adresse qui a envoyé, et vérifier la signature ici
+    contre ce `de`. Bob ne peut pas signer avec la clé d'Alice. Ça demande
+    la vérification secp256k1 dans le Worker, donc une dépendance et un
+    déploiement par wrangler — c'est le pas suivant, pas celui-ci.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    de: trouve.de || '',
     explorateur: trouve.txid ? `${cfg.explorateur}${trouve.txid}` : '',
   }
 }
@@ -2446,6 +2859,12 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  numeroComparable,
+  dejaVu,
+  marquer,
+  compteur,
+  incrementer,
+  ordreChange,
   choisirTransfertTron,
   choisirJournalErc20,
   choisirNatifEvm,
