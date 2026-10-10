@@ -554,6 +554,18 @@ data class VerificationDto(
     val quand: Long? = null,
     /** Faux seulement sur Bitcoin : vu, pas encore mine. */
     val confirme: Boolean? = null,
+    /**
+     * Adresse qui a envoye, LUE SUR LA CHAINE.
+     *
+     * Elle sert d'abord au changeur : c'est la seule ligne de son message
+     * qui permette de dire « ce n'est pas lui » quand deux clients vendent
+     * le meme montant dans la meme heure.
+     *
+     * Portee ici parce qu'un champ qu'on ne declare pas est un champ que
+     * Gson jette en silence : le jour ou l'ecran voudra comparer cette
+     * adresse a celle du portefeuille, elle sera deja la.
+     */
+    val de: String? = null,
     val raison: String? = null,
     val explorateur: String? = null
 )

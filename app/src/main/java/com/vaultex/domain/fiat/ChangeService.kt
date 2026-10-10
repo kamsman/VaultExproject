@@ -167,6 +167,8 @@ data class Verification(
     val quand: Long = 0L,
     /** Faux seulement sur Bitcoin : vu, pas encore mine. */
     val confirme: Boolean = true,
+    /** Adresse qui a envoye, lue sur la chaine. Voir VerificationDto.de. */
+    val de: String = "",
     val raison: String = "",
     val explorateur: String = ""
 ) {
@@ -328,6 +330,7 @@ class ChangeService @Inject constructor(
             montant = dto.montant?.takeIf { it > 0.0 },
             quand = dto.quand ?: 0L,
             confirme = dto.confirme ?: true,
+            de = dto.de.orEmpty(),
             raison = dto.raison.orEmpty(),
             explorateur = dto.explorateur.orEmpty()
         )
