@@ -175,4 +175,40 @@ object TauxFcfa {
      * FasoChange est à 8,3 % — et très en dessous d'une faute de frappe.
      */
     const val MARGE_MAX_PROPORTION = 0.20
+
+    /**
+     * Combien de décimales afficher pour cette monnaie.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * NE PAS PROMETTRE UNE PRÉCISION QUI N'EXISTE PAS
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * L'écran affichait « 8,19672131 USDT » pour un achat de 5 000 francs.
+     * Le calcul est juste ; le nombre, non.
+     *
+     * L'USDT a SIX décimales sur TRON comme sur Ethereum. Les deux
+     * derniers chiffres n'existent pas : ils ne peuvent pas être envoyés,
+     * et le changeur enverra 8,196721. On annonçait donc un montant que
+     * personne ne peut recevoir.
+     *
+     * Ça n'a jamais fait perdre un franc — l'écart est d'un millionième —
+     * mais c'est exactement le genre de petite fausseté qui use la
+     * confiance : quelqu'un qui compare le montant promis à celui reçu
+     * trouve une différence, et il a raison.
+     *
+     * Et c'est illisible. « 8,196721 » se lit déjà mal ; dix chiffres
+     * après la virgule sur la ligne la plus importante de l'écran ne
+     * servent personne.
+     *
+     * SIX PAR DÉFAUT, ce qui couvre l'USDT, le TRX et tout ce qui se
+     * change en francs ici. Le bitcoin garde ses huit : à 50 000 francs
+     * l'opération, on y parle de dix-millièmes.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun decimalesAffichage(monnaie: String): Int = when (monnaie.uppercase()) {
+        "BTC" -> 8
+        // Pi en a sept, comme Stellar dont il est issu.
+        "PI" -> 7
+        else -> 6
+    }
 }

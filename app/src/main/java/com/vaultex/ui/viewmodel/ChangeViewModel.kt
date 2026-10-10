@@ -593,7 +593,7 @@ class ChangeViewModel @Inject constructor(
                 sens = if (s.sens == SensChange.ACHAT) "achat" else "vente",
                 monnaie = s.monnaie,
                 montantFcfa = entier(fcfa),
-                montantCrypto = decimal(crypto),
+                montantCrypto = decimal(crypto, s.monnaie),
                 taux = "${entier(if (s.sens == SensChange.ACHAT) prix.achatFcfa else prix.venteFcfa)} FCFA",
                 marge = "${entier(p.margeFcfaParDollar)} FCFA/$ " +
                     (pourcent?.let { "(%.2f %%)".format(it) } ?: ""),
@@ -750,9 +750,18 @@ class ChangeViewModel @Inject constructor(
     private fun entier(v: Double): String =
         java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE).format(v)
 
-    private fun decimal(v: Double): String =
+    /**
+     * Un montant de crypto pour le message du changeur.
+     *
+     * AVEC LES DECIMALES QUE LA MONNAIE POSSEDE. Huit pour tout le monde
+     * ecrivait « Crypto : 8,19672131 USDT » dans le message Telegram — un
+     * montant que le changeur ne peut PAS envoyer, l'USDT en ayant six. Il
+     * enverrait 8,196721, et l'ecart entre ce qui est ecrit et ce qui est
+     * envoye serait a son nom.
+     */
+    private fun decimal(v: Double, monnaie: String): String =
         java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
-            maximumFractionDigits = 8
+            maximumFractionDigits = TauxFcfa.decimalesAffichage(monnaie)
             minimumFractionDigits = 0
         }.format(v)
 

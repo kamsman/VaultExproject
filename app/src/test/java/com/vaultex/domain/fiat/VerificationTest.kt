@@ -207,6 +207,34 @@ class VerificationTest {
         assertFalse(s.peutTransmettre())
     }
 
+    // ─── Les decimales affichees ────────────────────────────────────
+
+    /**
+     * NE PAS PROMETTRE UNE PRECISION QUI N'EXISTE PAS.
+     *
+     * L'ecran affichait « 8,19672131 USDT » pour un achat de 5 000 francs.
+     * Le calcul etait juste, le nombre non : l'USDT a SIX decimales, et
+     * les deux derniers chiffres ne peuvent pas etre envoyes. On annoncait
+     * un montant que personne ne peut recevoir.
+     *
+     * Jamais un franc de perdu — l'ecart est d'un millionieme — mais c'est
+     * le genre de petite faussete qui use la confiance : qui compare le
+     * montant promis a celui recu trouve une difference, et il a raison.
+     */
+    @Test
+    fun `les decimales affichees sont celles de la monnaie`() {
+        assertEquals(6, TauxFcfa.decimalesAffichage("USDT"))
+        assertEquals(6, TauxFcfa.decimalesAffichage("usdt"))
+        assertEquals(6, TauxFcfa.decimalesAffichage("TRX"))
+        // Le bitcoin garde ses huit : a 50 000 francs l'operation, on y
+        // parle de dix-milliemes.
+        assertEquals(8, TauxFcfa.decimalesAffichage("BTC"))
+        // Pi en a sept, comme Stellar dont il est issu.
+        assertEquals(7, TauxFcfa.decimalesAffichage("PI"))
+        // Une monnaie inconnue retombe sur six, qui ne promet rien de trop.
+        assertEquals(6, TauxFcfa.decimalesAffichage("DOGE"))
+    }
+
     private fun vente(
         telephone: String = "",
         verification: Verification? = null,
