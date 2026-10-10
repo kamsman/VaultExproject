@@ -1100,12 +1100,8 @@
     <string name="change_ferme">Exchange is closed right now. Come back later.</string>
     <string name="change_acheter">Buy</string>
     <string name="change_vendre">Sell</string>
-    <string name="change_montant_fcfa">Amount in FCFA</string>
-    <string name="change_montant_crypto">Amount in %1$s</string>
     <string name="change_taux">Price of one %1$s</string>
     <string name="change_marge">Exchange fee</string>
-    <string name="change_total_fcfa">You pay</string>
-    <string name="change_recevra">You receive</string>
     <string name="change_delai">Stated delay</string>
     <string name="change_continuer">Continue</string>
     <string name="change_avertissement">The exchange happens between you and %1$s, not with VaultEx. Your money never passes through the app.</string>
@@ -1132,7 +1128,6 @@
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
-    <string name="change_tu_envoies">You send</string>
     <string name="change_telephone_aide">The number that made the payment (8 digits, no spaces).</string>
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
@@ -1165,4 +1160,6 @@
     <string name="change_transmis_verifie">The exchanger received your request together with the chain\'s confirmation. He has nothing more to ask you.</string>
     <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. The exchanger will check his wallet before paying: keep your reference.</string>
     <string name="change_copier_adresse">Copy the exchanger\'s address</string>
+    <string name="change_tu_donnes">You give</string>
+    <string name="change_tu_recois">You receive</string>
 </resources>

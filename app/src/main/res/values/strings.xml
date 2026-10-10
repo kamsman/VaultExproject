@@ -1129,12 +1129,8 @@
     <string name="change_ferme">Le change est fermé pour le moment. Reviens plus tard.</string>
     <string name="change_acheter">Acheter</string>
     <string name="change_vendre">Vendre</string>
-    <string name="change_montant_fcfa">Montant en FCFA</string>
-    <string name="change_montant_crypto">Montant en %1$s</string>
     <string name="change_taux">Prix d\'un %1$s</string>
     <string name="change_marge">Frais de change</string>
-    <string name="change_total_fcfa">Tu paies</string>
-    <string name="change_recevra">Tu reçois</string>
     <string name="change_delai">Délai annoncé</string>
     <string name="change_continuer">Continuer</string>
     <string name="change_avertissement">L\'échange a lieu entre toi et %1$s, pas avec VaultEx. Ton argent ne passe jamais par l\'application.</string>
@@ -1161,7 +1157,6 @@
     <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="action_acheter">Acheter</string>
-    <string name="change_tu_envoies">Tu envoies</string>
     <string name="change_telephone_aide">Le numéro qui a fait le paiement (8 chiffres, sans espace).</string>
     <string name="change_copier_reference">Copier la référence</string>
     <string name="change_historique_titre">Mes dernières demandes</string>
@@ -1194,4 +1189,6 @@
     <string name="change_transmis_verifie">Le changeur a reçu ta demande avec la confirmation de la chaîne. Il n\'a rien à te demander de plus.</string>
     <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. Le changeur vérifiera son portefeuille avant de payer : garde ta référence.</string>
     <string name="change_copier_adresse">Copier l\'adresse du changeur</string>
+    <string name="change_tu_donnes">Tu donnes</string>
+    <string name="change_tu_recois">Tu reçois</string>
 </resources>
