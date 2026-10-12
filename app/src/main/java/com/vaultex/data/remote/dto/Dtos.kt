@@ -545,6 +545,38 @@ data class ReponseOrdreDto(
 )
 
 /**
+ * Le montant EXACT a envoyer pour une vente, et l'instant ou la demande
+ * est nee.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI UN MONTANT QUI N'EST PAS ROND
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * L'adresse du changeur est publique — l'application la montre a chaque
+ * vendeur. N'importe qui peut donc la surveiller, voir arriver un
+ * versement de 2 USDT, et deposer aussitot une demande pour 2 USDT avec
+ * SON numero de telephone. Le relais trouverait ce versement et le
+ * paierait au mauvais.
+ *
+ * Le relais impose donc un montant exact, derive de la reference par un
+ * secret que lui seul detient : 2,004731 pour l'une, 2,009182 pour une
+ * autre. Deux demandes ne peuvent plus se confondre.
+ *
+ * L'utilisateur n'y perd rien : il envoie 2,004731 et recoit des francs
+ * pour 2,004731, au meme taux.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+data class ConsigneDto(
+    val ok: Boolean? = null,
+    val reference: String? = null,
+    /** Vrai si le relais marque reellement les montants. */
+    val marque: Boolean? = null,
+    /** Le montant a envoyer, en texte pour ne pas perdre ses decimales. */
+    val montantExact: String? = null,
+    val raison: String? = null
+)
+
+/**
  * Ce que le relais a lu sur la chaine.
  *
  * ═══════════════════════════════════════════════════════════════════════

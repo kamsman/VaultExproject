@@ -3,6 +3,7 @@ package com.vaultex.data.remote.api
 import com.vaultex.data.remote.dto.OrdreChangeBody
 import com.vaultex.data.remote.dto.ParametresChangeDto
 import com.vaultex.data.remote.dto.ReponseOrdreDto
+import com.vaultex.data.remote.dto.ConsigneDto
 import com.vaultex.data.remote.dto.VerificationDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -77,6 +78,33 @@ interface ChangeApi {
     suspend fun verifier(
         @Query("monnaie") monnaie: String,
         @Query("montant") montant: String,
-        @Query("txid") txid: String = ""
+        @Query("txid") txid: String = "",
+        /**
+         * LA REFERENCE, et non plus seulement le montant.
+         *
+         * Quand le relais marque les montants, c'est LUI qui calcule
+         * celui qu'il faut chercher, a partir de cette reference. Le
+         * montant envoye ici ne sert plus que de socle.
+         *
+         * Lui laisser choisir le montant cherche reviendrait a annuler le
+         * marquage : il suffirait d'annoncer celui qu'on convoite.
+         */
+        @Query("reference") reference: String = ""
     ): VerificationDto
+
+    /**
+     * Le montant exact a envoyer, avant que l'utilisateur n'envoie.
+     *
+     * APPELE AU MOMENT DE LA CONFIRMATION, et c'est tout l'interet : le
+     * relais en profite pour noter l'instant ou la demande est nee. Seuls
+     * les versements POSTERIEURS pourront ensuite la satisfaire — ce qui
+     * empeche de deposer une demande apres avoir vu passer le versement
+     * de quelqu'un d'autre.
+     */
+    @GET("change/consigne")
+    suspend fun consigne(
+        @Query("monnaie") monnaie: String,
+        @Query("montant") montant: String,
+        @Query("reference") reference: String
+    ): ConsigneDto
 }

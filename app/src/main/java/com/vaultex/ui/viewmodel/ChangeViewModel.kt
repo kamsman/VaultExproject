@@ -393,7 +393,74 @@ class ChangeViewModel @Inject constructor(
         val s = _state.value
         if (s.blocage() != null) return
         val prix = s.prix ?: return
+        if (s.envoiEnCours) return
         val reference = OrdreChange.nouvelleReference()
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        ON DEMANDE LA CONSIGNE AVANT D'ENVOYER QUELQU'UN TRANSFERER
+        ═══════════════════════════════════════════════════════════════════
+
+        Sur une vente, le relais impose un montant EXACT, derive de cette
+        reference par un secret que lui seul detient : 2,004731 plutot que
+        2. C'est ce qui empeche quelqu'un de surveiller l'adresse publique
+        du changeur, de voir arriver un versement, et de deposer une
+        demande pour le reclamer.
+
+        Il faut donc le connaitre AVANT. Avancer d'abord et corriger le
+        chiffre ensuite serait pire que tout : l'utilisateur aurait le
+        temps de lire « 2 », de partir envoyer 2, et son versement ne
+        serait jamais reconnu — irreversiblement.
+
+        ─── UN ECHEC ARRETE L'OPERATION ─────────────────────────────────
+
+        Si le relais ne repond pas, on NE PASSE PAS a l'etape de paiement.
+        L'alternative serait de laisser partir avec un montant rond que le
+        relais ne reconnaitra pas. Mieux vaut un ecran qui refuse d'avancer
+        qu'un envoi irreversible vers un chiffre faux.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (s.sens != SensChange.VENTE) {
+            poserEtapePaiement(s, prix, reference, s.saisie)
+            return
+        }
+
+        _state.update { it.copy(envoiEnCours = true, erreur = null) }
+        viewModelScope.launch {
+            val exact = withContext(Dispatchers.IO) {
+                service.consigne(s.monnaie, s.saisie, reference)
+            }
+            if (exact == null) {
+                _state.update {
+                    it.copy(
+                        envoiEnCours = false,
+                        erreur = "Le relais n'a pas pu fixer le montant exact à envoyer. " +
+                            "Vérifie ta connexion et réessaie — n'envoie rien avant."
+                    )
+                }
+                return@launch
+            }
+            /*
+            LA SAISIE DEVIENT LE MONTANT EXACT, et tout le reste suit.
+
+            montantFcfa et montantCrypto se calculent depuis `saisie` : en
+            la remplacant, l'utilisateur recoit des francs pour ce qu'il
+            envoie REELLEMENT, y compris la fraction du marquage. Corriger
+            l'un sans l'autre lui ferait cadeau de cette fraction.
+            */
+            _state.update { it.copy(envoiEnCours = false) }
+            poserEtapePaiement(_state.value, prix, reference, exact)
+            demarrerVerification()
+        }
+    }
+
+    /** Fige le prix, ecrit la trace, et passe a l'etape de paiement. */
+    private fun poserEtapePaiement(
+        s: ChangeState,
+        prix: PrixFcfa,
+        reference: String,
+        saisie: String
+    ) {
         // ECRITE AVANT, jamais apres : le moment dangereux est precisement
         // celui ou l'utilisateur quitte l'application pour aller payer.
         secureStorage.saveChangeEnCours(
@@ -402,7 +469,7 @@ class ChangeViewModel @Inject constructor(
                     reference = reference,
                     sens = if (s.sens == SensChange.ACHAT) "achat" else "vente",
                     monnaie = s.monnaie,
-                    saisie = s.saisie,
+                    saisie = saisie,
                     baseFcfa = prix.baseFcfa,
                     achatFcfa = prix.achatFcfa,
                     venteFcfa = prix.venteFcfa,
@@ -415,6 +482,7 @@ class ChangeViewModel @Inject constructor(
             it.copy(
                 etape = EtapeChange.PAIEMENT,
                 reference = reference,
+                saisie = saisie,
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
@@ -425,7 +493,6 @@ class ChangeViewModel @Inject constructor(
                 forcer = false
             )
         }
-        if (s.sens == SensChange.VENTE) demarrerVerification()
     }
 
     fun retourAuCalcul() {
@@ -519,7 +586,15 @@ class ChangeViewModel @Inject constructor(
 
             _state.update { it.copy(rechercheEnCours = true, essais = tour + 1) }
             val v = withContext(Dispatchers.IO) {
-                service.verifier(s.monnaie, montantTexte(montant), s.txidSaisi.trim())
+                service.verifier(
+                    s.monnaie,
+                    montantTexte(montant),
+                    s.txidSaisi.trim(),
+                    // Sans elle, le relais ne saurait pas quel montant
+                    // marqué chercher — et répondrait « absent » sur une
+                    // vente parfaitement valide.
+                    s.reference
+                )
             }
             _state.update { it.copy(verification = v, rechercheEnCours = false) }
 

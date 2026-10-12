@@ -389,7 +389,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -786,6 +786,240 @@ verifie('MINIMUM : un tableau n est pas une table', Object.keys(minimumsChange('
     faireCache()
   )
   verifie('MINIMUM : le meme montant passe sur BNB', r.statut === 200, r)
+}
+
+// ─── Le montant marqué, et l'attaque qu'il ferme ────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+ON EXECUTE L'ATTAQUE, ON NE LA DECRIT PAS
+═══════════════════════════════════════════════════════════════════════════
+
+  Alice envoie 2 USDT a l'adresse du changeur et ne depose pas tout de
+  suite sa demande. Bob surveille cette adresse — elle est publique. Il
+  voit le versement, depose une demande pour 2 USDT avec SON numero.
+
+Sans marquage, Bob est paye : le versement est reel, le contrat est le
+bon, le montant correspond. Tout est vrai sauf l'identite du demandeur.
+
+Les tests ci-dessous font passer Bob dans la chaine complete, avec le
+versement d'Alice bien present sur la fausse chaine.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+import { montantMarque, marquageActif, memeMontant } from './worker.js'
+
+const SECRET = 'un-secret-de-test-assez-long-pour-passer'
+
+verifie('MARQUAGE : eteint sans secret', marquageActif({}) === false)
+verifie('MARQUAGE : eteint si le secret est trop court', marquageActif({ CHANGE_MARQUAGE: 'court' }) === false)
+verifie('MARQUAGE : actif avec un vrai secret', marquageActif({ CHANGE_MARQUAGE: SECRET }) === true)
+
+{
+  const m = await montantMarque(2, 'VX-K7M2PQ4R', { CHANGE_MARQUAGE: SECRET })
+  verifie('MARQUAGE : ajoute moins d un centieme', m > 2 && m < 2.01, m)
+  /*
+  SIX DECIMALES AU PLUS — ET MA PREMIERE VERSION DE CE TEST ETAIT FAUSSE.
+
+  J'avais ecrit `Math.round(m * 1e6) === m * 1e6`. Sur 2,004933, le
+  produit vaut 2004932,9999999998 : les deux cotes different, et le test
+  echouait sur un montant parfaitement correct.
+
+  C'est precisement la raison d'etre de memeMontant, qui arrondit des deux
+  cotes au lieu de comparer des flottants. Mon propre test vient d'en
+  faire la demonstration.
+  */
+  verifie(
+    'MARQUAGE : six decimales au plus',
+    Math.abs(m * 1e6 - Math.round(m * 1e6)) < 1e-6,
+    m
+  )
+
+  // DETERMINISTE : deux appels rendent le meme montant. Sans ca,
+  // l'utilisateur verrait un chiffre a la confirmation et le relais en
+  // chercherait un autre au depot.
+  const m2 = await montantMarque(2, 'VX-K7M2PQ4R', { CHANGE_MARQUAGE: SECRET })
+  verifie('MARQUAGE : deterministe', m === m2, [m, m2])
+
+  // Deux references differentes donnent deux montants differents. C'est
+  // toute la protection.
+  const autre = await montantMarque(2, 'VX-P3QW8NZD', { CHANGE_MARQUAGE: SECRET })
+  verifie('MARQUAGE : deux references, deux montants', m !== autre, [m, autre])
+
+  // Et le meme secret est indispensable : qui ne l'a pas ne peut pas
+  // predire le marquage.
+  const autreSecret = await montantMarque(2, 'VX-K7M2PQ4R', { CHANGE_MARQUAGE: SECRET + 'x' })
+  verifie('MARQUAGE : un autre secret donne un autre montant', m !== autreSecret, [m, autreSecret])
+}
+
+{
+  const sans = await montantMarque(2, 'VX-K7M2PQ4R', {})
+  verifie('MARQUAGE : sans secret, le montant ne bouge pas', sans === 2, sans)
+}
+
+{
+  /*
+  LE SOCLE EST TRONQUE A DEUX DECIMALES avant qu'on ajoute le marquage.
+  Sinon les decimales du demandeur et les notres se melangent, et deux
+  bases differentes peuvent tomber sur le meme total.
+  */
+  const a = await montantMarque(2.0, 'VX-SOCLE0001', { CHANGE_MARQUAGE: SECRET })
+  const b = await montantMarque(2.0049, 'VX-SOCLE0001', { CHANGE_MARQUAGE: SECRET })
+  verifie('MARQUAGE : le socle est tronque a deux decimales', a === b, [a, b])
+}
+
+verifie('MEME MONTANT : exact', memeMontant(2.004731, 2.004731))
+verifie('MEME MONTANT : un millionieme suffit a differer', !memeMontant(2.004731, 2.004732))
+verifie('MEME MONTANT : un pour cent ne passe plus', !memeMontant(2.0, 2.004731))
+
+// ─── L'attaque, de bout en bout ─────────────────────────────────────
+
+const ENV_MARQUE = { CHANGE_MARQUAGE: SECRET, CHANGE_MINIMUMS: '{"USDT":1}' }
+
+/** Installe un faux TronGrid qui rend UN versement donne. */
+function avecVersement(cache, montantRecu, quand) {
+  installer(cache)
+  const vrai = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('trongrid')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              transaction_id: 'aa'.repeat(32),
+              token_info: { address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 6, symbol: 'USDT' },
+              from: 'TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9',
+              to: 'TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM',
+              value: String(Math.round(montantRecu * 1e6)),
+              block_timestamp: quand,
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    }
+    return vrai(url, options)
+  }
+}
+
+const ENV_ADRESSE = { CHANGE_ADRESSES: '{"USDT":"TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM"}' }
+
+{
+  /*
+  ALICE : elle ouvre sa demande, PUIS envoie le montant marque qu'on lui
+  a donne. C'est le parcours normal, et il doit aboutir.
+  */
+  const cache = faireCache()
+  installer(cache)
+  const refAlice = 'VX-ALICE001'
+  const exact = await montantMarque(2, refAlice, ENV_MARQUE)
+
+  // Son versement arrive APRES l'ouverture de sa demande.
+  await marquerValeur('demande', refAlice, JSON.stringify({ ne: Date.now() - 60_000 }))
+  avecVersement(cache, exact, Date.now())
+
+  const r = await verifierVente({
+    monnaie: 'USDT',
+    montant: 2,
+    reference: refAlice,
+    env: { ...ENV_MARQUE, ...ENV_ADRESSE },
+  })
+  verifie('ALICE : son propre versement est reconnu', r.etat === 'confirme', r)
+  verifie('ALICE : le montant lu est le montant marque', r.montant === exact, [r.montant, exact])
+}
+
+{
+  /*
+  BOB : le versement d'Alice est sur la chaine. Il depose une demande pour
+  deux USDT avec SA reference. Le relais cherche SON montant marque, qui
+  n'est pas celui d'Alice.
+
+  C'EST LE TEST QUI JUSTIFIE TOUT CE FICHIER.
+  */
+  const cache = faireCache()
+  installer(cache)
+  const refAlice = 'VX-ALICE002'
+  const refBob = 'VX-BOB00002'
+  const exactAlice = await montantMarque(2, refAlice, ENV_MARQUE)
+  const exactBob = await montantMarque(2, refBob, ENV_MARQUE)
+  verifie('BOB : son marquage differe de celui d Alice', exactAlice !== exactBob, [exactAlice, exactBob])
+
+  // Le versement d'Alice est bien la, et Bob ouvre sa demande apres.
+  avecVersement(cache, exactAlice, Date.now() - 120_000)
+  await marquerValeur('demande', refBob, JSON.stringify({ ne: Date.now() }))
+
+  const r = await verifierVente({
+    monnaie: 'USDT',
+    montant: 2,
+    reference: refBob,
+    env: { ...ENV_MARQUE, ...ENV_ADRESSE },
+  })
+  verifie('BOB : ne peut pas reclamer le versement d Alice', r.etat === 'absent', r)
+}
+
+{
+  /*
+  BOB, SECONDE TENTATIVE : il annonce directement le montant exact
+  d'Alice, qu'il a lu sur la chaine. Ca ne change rien — le relais ne se
+  sert pas du montant qu'on lui donne, il le RECALCULE depuis la
+  reference.
+  */
+  const cache = faireCache()
+  installer(cache)
+  const exactAlice = await montantMarque(2, 'VX-ALICE003', ENV_MARQUE)
+  avecVersement(cache, exactAlice, Date.now() - 120_000)
+  await marquerValeur('demande', 'VX-BOB00003', JSON.stringify({ ne: Date.now() - 300_000 }))
+
+  const r = await verifierVente({
+    monnaie: 'USDT',
+    montant: exactAlice,
+    reference: 'VX-BOB00003',
+    env: { ...ENV_MARQUE, ...ENV_ADRESSE },
+  })
+  verifie('BOB : annoncer le montant d Alice ne sert a rien', r.etat === 'absent', r)
+}
+
+{
+  /*
+  L'ANTERIORITE SEULE, sans marquage : un versement anterieur a
+  l'ouverture de la demande est ecarte. C'est la seconde barriere, et elle
+  se teste separement parce qu'elle protege d'un attaquant qui aurait
+  devine le marquage.
+  */
+  const cache = faireCache()
+  installer(cache)
+  const ref = 'VX-TARD0001'
+  const exact = await montantMarque(2, ref, ENV_MARQUE)
+  // Le versement precede l'ouverture de deux heures.
+  avecVersement(cache, exact, Date.now() - 2 * 3600_000)
+  await marquerValeur('demande', ref, JSON.stringify({ ne: Date.now() }))
+
+  const r = await verifierVente({
+    monnaie: 'USDT',
+    montant: 2,
+    reference: ref,
+    env: { ...ENV_MARQUE, ...ENV_ADRESSE },
+  })
+  verifie('ANTERIORITE : un versement anterieur a la demande est ecarte', r.etat === 'absent', r)
+}
+
+{
+  /*
+  SANS MARQUAGE, LE COMPORTEMENT D'AVANT. Un relais deploye sans
+  CHANGE_MARQUAGE doit se comporter comme la v22 : tolerance d'un pour
+  cent, aucune anteriorite exigee. Sinon la mise a jour casserait le
+  service de qui ne regle rien.
+  */
+  const cache = faireCache()
+  installer(cache)
+  avecVersement(cache, 2, Date.now() - 2 * 3600_000)
+  const r = await verifierVente({
+    monnaie: 'USDT',
+    montant: 2,
+    reference: 'VX-SANSMARQ',
+    env: ENV_ADRESSE,
+  })
+  verifie('COMPATIBILITE : sans marquage, 2 USDT ronds passent', r.etat === 'confirme', r)
 }
 
 // ─── Verdict ────────────────────────────────────────────────────────
