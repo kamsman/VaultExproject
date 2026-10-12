@@ -660,8 +660,20 @@ fun DashboardScreen(navController: NavHostController) {
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
                     ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
-                    ActionTile(stringResource(R.string.action_acheter), Icons.Default.Payments,
-                        AccentOrange, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
+                    /*
+                    LE PANIER PLUTÔT QUE LA CARTE BANCAIRE, pour que la
+                    tuile et l'onglet « Acheter » de l'écran qui s'ouvre
+                    portent le même signe. Deux icônes différentes pour le
+                    même geste font hésiter sur l'endroit où l'on vient
+                    d'arriver.
+                    */
+                    ActionTile(
+                        stringResource(R.string.action_acheter),
+                        Icons.Default.ShoppingCart,
+                        AccentOrange,
+                        Modifier.weight(1f),
+                        vedette = true
+                    ) { navController.navigate(Routes.CHANGE) }
                 }
             }
 
@@ -1626,14 +1638,50 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/** Action (maquette) : tuile carrée arrondie BORDÉE, icône monochrome + libellé. */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA COULEUR ÉTAIT PASSÉE EN PARAMÈTRE, ET JETÉE
+═══════════════════════════════════════════════════════════════════════════
+
+`tint` arrivait depuis l'appelant — rouge pour Envoyer, vert pour Recevoir,
+bleu pour Swap, orange pour Acheter — et la ligne de l'icône forçait
+`TextPrimary`. Les quatre tuiles étaient donc identiques, en blanc.
+
+Le commentaire de l'appelant disait pourtant « on prend l'orange : la
+tuile se distingue des trois autres ». Elle ne s'en distinguait pas. Un
+paramètre ignoré ne lève aucune erreur : il se contente de faire mentir
+le code qui l'entoure.
+
+─── ET « ACHETER » MÉRITE PLUS QUE SA COULEUR ──────────────────────────
+
+Les trois premières tuiles déplacent de la crypto qu'on détient déjà.
+« Acheter » est la seule qui serve à quelqu'un qui n'en a PAS encore — et
+c'est aussi le seul chemin par lequel de l'argent entre dans
+l'application.
+
+Pour un portefeuille distribué au Burkina Faso, c'est le premier geste du
+premier jour. Il ne peut pas avoir la même apparence qu'un bouton de
+transfert interne : fond teinté, contour coloré, libellé en gras.
+═══════════════════════════════════════════════════════════════════════════
+*/
 @Composable
-private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: Modifier, onClick: () -> Unit) {
+private fun ActionTile(
+    label: String,
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier,
+    /** Vedette : fond teinté et contour coloré. Réservé à UNE tuile. */
+    vedette: Boolean = false,
+    onClick: () -> Unit
+) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        color = if (vedette) tint.copy(alpha = 0.12f) else com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(
+            if (vedette) 1.5.dp else 1.dp,
+            if (vedette) tint.copy(alpha = 0.55f) else BorderColor
+        ),
         modifier = modifier
     ) {
         Column(
@@ -1641,8 +1689,13 @@ private fun ActionTile(label: String, icon: ImageVector, tint: Color, modifier: 
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(26.dp))
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+            Text(
+                label,
+                fontSize = 14.sp,
+                fontWeight = if (vedette) FontWeight.Bold else FontWeight.Medium,
+                color = TextPrimary
+            )
         }
     }
 }
