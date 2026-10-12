@@ -194,7 +194,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 18
+const VERSION = 19
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2435,15 +2435,43 @@ liste. Le jour où l'un se ferme, la sonde le montre et l'ordre se corrige
 sans toucher au reste.
 */
 const NOEUDS_EVM = {
+  /*
+  SEPT NOEUDS BNB, ET CE N'EST PAS DE L'EXCES.
+
+  Une sonde a montré les TROIS premiers en panne au même instant : deux
+  429 de limite de débit et un 530. Trois hôtes qui tombent ensemble, ce
+  n'est pas une coïncidence — les points d'entrée publics gratuits sont
+  saturés aux mêmes heures, par les mêmes robots.
+
+  Sur une liste de trois, ça rend la vérification indisponible. Sur une
+  liste de sept, il faudrait que les sept tombent ensemble, et ils
+  n'appartiennent pas aux mêmes opérateurs.
+
+  Un nœud en plus ne coûte rien : le premier qui répond gagne, et les
+  suivants ne sont jamais interrogés. Ce sont les nœuds ABSENTS qui
+  coûtent.
+
+  `bsc-dataseed.bnbchain.org` est volontairement en dernier : c'est le
+  nœud officiel de Binance, et ce fichier porte la trace du filtrage que
+  Binance applique aux centres de données — `api.binance.com` répond 403
+  depuis un Worker. Peut-être que leur nœud RPC ne filtre pas ; /diag le
+  dira, et c'est la mesure qui tranchera, pas cette hypothèse.
+  */
   bnb: [
     'https://bsc-rpc.publicnode.com',
+    'https://bsc.meowrpc.com',
+    'https://bsc-dataseed1.defibit.io',
+    'https://bsc-dataseed1.ninicoin.io',
+    'https://1rpc.io/bnb',
     'https://bsc.drpc.org',
-    'https://binance.llamarpc.com',
+    'https://bsc-dataseed.bnbchain.org',
   ],
   eth: [
     'https://ethereum-rpc.publicnode.com',
     'https://eth.drpc.org',
-    'https://eth.llamarpc.com',
+    'https://eth.meowrpc.com',
+    'https://1rpc.io/eth',
+    'https://rpc.flashbots.net',
   ],
 }
 
