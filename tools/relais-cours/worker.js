@@ -92,6 +92,21 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
   CHANGE_NOM        Son nom, tel qu'il s'affiche.
   CHANGE_OPERATEUR  « Orange Money », « Moov »…
   CHANGE_DELAI      Délai annoncé, en minutes (défaut 30).
+  CHANGE_FENETRE_MINUTES
+                    Ancienneté maximale d'un versement pour qu'il puisse
+                    justifier une demande. Défaut 180 (trois heures), borné
+                    entre 15 minutes et 7 jours.
+
+                    Trois heures suffisent quand le client envoie depuis
+                    son propre portefeuille. Pas quand il retire depuis une
+                    plateforme d'échange dont la file traîne, part
+                    travailler et revient le soir : ses fonds sont arrivés
+                    à midi, et le relais lui répond « aucun versement ».
+
+                    Élargir ne rouvre PAS la réutilisation d'un versement —
+                    le marquage du txid s'en charge, pendant 24 h. Ce que
+                    cette fenêtre borne, c'est qu'un versement d'il y a un
+                    mois, légitime et jamais utilisé, serve aujourd'hui.
   CHANGE_MONNAIES   « USDT,BTC,ETH » — ce qu'il accepte à l'achat.
   TG_CHANGE_TOKEN   Jeton du bot Telegram. SECRET, jamais dans l'APK.
   TG_CHANGE_CHAT    Identifiant du groupe du changeur.
