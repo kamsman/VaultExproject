@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.LocalAtm
+import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.SwapVert
@@ -159,10 +159,10 @@ private fun ColumnScope.EtapeCalcul(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OngletSens(
             texte = stringResource(R.string.change_acheter),
-            // Le meme billet que la tuile de l'accueil : deux icones
+            // Le meme signe que la tuile de l'accueil : deux icones
             // differentes pour le meme geste font hesiter sur l'endroit
             // ou l'on vient d'arriver.
-            icone = Icons.Default.LocalAtm,
+            icone = Icons.Default.AttachMoney,
             choisi = state.sens == SensChange.ACHAT,
             modifier = Modifier.weight(1f)
         ) { vm.onSens(SensChange.ACHAT) }

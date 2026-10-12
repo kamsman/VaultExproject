@@ -687,17 +687,19 @@ fun DashboardScreen(navController: NavHostController) {
                     lieu de « ceci est ailleurs », et il ressort d'autant
                     mieux que les trois voisines sont blanches.
 
-                    LE BILLET PLUTÔT QUE LE PANIER. Un panier dit
-                    « acheter des choses » ; ici on achète avec des
-                    FRANCS, en espèces, auprès de quelqu'un. Le billet dit
-                    « argent liquide », qui est exactement ce dont il
-                    s'agit — et il ne ressemble à aucune des trois flèches
-                    voisines.
+                    LE SIGNE MONÉTAIRE, ET RIEN D'AUTRE. Le panier disait
+                    « acheter des choses » ; le billet, plus juste, restait
+                    un dessin — trois traits, un cadre, un rond — qui se
+                    brouille à vingt-six points sur un écran bon marché.
+
+                    Un « $ » est une seule forme. Il se lit à n'importe
+                    quelle taille, sur n'importe quel écran, et il ne
+                    ressemble à aucune des trois flèches voisines.
                     ═══════════════════════════════════════════════════════
                     */
                     ActionTile(
                         stringResource(R.string.action_acheter),
-                        Icons.Default.LocalAtm,
+                        Icons.Default.AttachMoney,
                         AccentBlue,
                         Modifier.weight(1f),
                         vedette = true
