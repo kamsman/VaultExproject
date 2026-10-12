@@ -209,7 +209,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 20
+const VERSION = 21
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -911,6 +911,8 @@ async function diagnostic(env) {
   }
   const plafondDiag = nb(env?.CHANGE_MAX, 50000)
   const premierDiag = nb(env?.CHANGE_MAX_PREMIER, plafondDiag)
+  sondes.fenetreVenteHeures = Math.round(fenetreVente(env) / 3600000)
+
   sondes.minimumsParMonnaie = {
     general: nb(env?.CHANGE_MIN, 5000),
     parMonnaie: minimumsChange(env),
@@ -2599,6 +2601,49 @@ serait lui faire perdre ses fonds.
 */
 const FENETRE_VENTE_MS = 3 * 60 * 60 * 1000
 
+/**
+ * La fenêtre réellement appliquée, en millisecondes.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * TROIS HEURES, SAUF QUAND TROIS HEURES NE SUFFISENT PAS
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * CHANGE_FENETRE_MINUTES, en minutes. Non réglée : trois heures.
+ *
+ * Ce réglage est né d'un essai réel. Un versement de test était bien
+ * arrivé sur la chaîne, et le relais répondait « absent » — non pas parce
+ * qu'il ne le voyait pas, mais parce qu'il datait de plus de trois heures.
+ * Le comportement était juste ; la durée, trop courte pour le cas qui se
+ * présentait.
+ *
+ * Et ce cas n'a rien d'exceptionnel : quelqu'un retire depuis une
+ * plateforme d'échange dont la file traîne, part travailler, et revient
+ * déposer sa demande le soir. Lui répondre « aucun versement » alors que
+ * ses fonds sont arrivés depuis midi, c'est l'envoyer chercher une panne
+ * qui n'existe pas.
+ *
+ * ─── CE QU'UNE FENÊTRE PLUS LARGE NE COÛTE PAS ──────────────────────
+ *
+ * Elle ne rouvre PAS la réutilisation d'un versement : le marquage du
+ * txid s'en charge, et il tient vingt-quatre heures. Deux protections
+ * distinctes, et c'est la seconde qui porte celle-là.
+ *
+ * Ce que la fenêtre borne, c'est autre chose : qu'un versement d'il y a
+ * un mois, légitime et jamais utilisé, serve à justifier une demande
+ * aujourd'hui. D'où le plafond de sept jours — au-delà, ce n'est plus un
+ * retard, c'est un autre sujet.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+function fenetreVente(env) {
+  const minutes = Number(env?.CHANGE_FENETRE_MINUTES)
+  if (!Number.isFinite(minutes) || minutes <= 0) return FENETRE_VENTE_MS
+  // Entre un quart d'heure et sept jours. En dessous, on refuserait des
+  // versements en cours de confirmation ; au-dessus, la fenêtre cesse de
+  // borner quoi que ce soit.
+  const borne = Math.min(Math.max(minutes, 15), 7 * 24 * 60)
+  return borne * 60 * 1000
+}
+
 /*
 UN POUR CENT.
 
@@ -2722,7 +2767,7 @@ function choisirTransfertTron(liste, critere) {
 
     const quand = Number(t?.block_timestamp)
     if (!Number.isFinite(quand) || quand <= 0) continue
-    if (maintenant - quand > FENETRE_VENTE_MS) continue
+    if (maintenant - quand > (critere.fenetre || FENETRE_VENTE_MS)) continue
     // Une horodate dans le futur n'existe pas sur une chaîne : cinq
     // minutes d'avance tolérées pour la dérive d'horloge, pas plus.
     if (quand - maintenant > 5 * 60 * 1000) continue
@@ -2897,6 +2942,7 @@ async function verifierTron(cfg, critere) {
     decimales: cfg.decimales,
     montant: critere.montant,
     txid: critere.txid,
+    fenetre: critere.fenetre,
     maintenant: critere.maintenant,
   })
 }
@@ -3008,7 +3054,8 @@ async function verifierBtc(cfg, critere) {
     // ici — `confirme: false` remonte au changeur, qui voit « 0
     // confirmation » et décide. La refuser ferait attendre dix minutes à
     // quelqu'un dont le versement est déjà public et visible.
-    if (Number.isFinite(quand) && quand > 0 && critere.maintenant - quand > FENETRE_VENTE_MS) {
+    const fenetre = critere.fenetre || FENETRE_VENTE_MS
+    if (Number.isFinite(quand) && quand > 0 && critere.maintenant - quand > fenetre) {
       continue
     }
     const trouve = choisirSortieBtc(tx, {
@@ -3196,6 +3243,7 @@ async function verifierVente(options) {
     adresse,
     montant,
     txid,
+    fenetre: fenetreVente(env),
     maintenant: Date.now(),
     cleTron: env?.TRONGRID_KEY ? String(env.TRONGRID_KEY) : '',
   }
@@ -3224,7 +3272,8 @@ async function verifierVente(options) {
       etat: 'absent',
       raison: txid
         ? "ce txid ne correspond a aucun versement attendu"
-        : 'aucun versement correspondant sur les 3 dernieres heures',
+        : `aucun versement correspondant sur les ` +
+          `${Math.round(critere.fenetre / 3600000)} dernieres heures`,
     }
   }
 
@@ -3363,6 +3412,7 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  fenetreVente,
   minimumsChange,
   minimumPourMonnaie,
   trierAdresses,
