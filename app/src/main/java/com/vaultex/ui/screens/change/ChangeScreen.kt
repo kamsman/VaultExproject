@@ -556,12 +556,48 @@ private fun ColumnScope.EtapePaiement(
             if (achat && p.nomChangeur.isNotBlank()) {
                 Ligne(stringResource(R.string.change_beneficiaire), p.nomChangeur)
             }
-            Ligne(
-                stringResource(R.string.change_montant_exact),
-                if (achat) "${fcfa(state.montantFcfa ?: 0.0)} FCFA"
-                else "${crypto(state.montantCrypto ?: 0.0, state.monnaie)} ${state.monnaie}",
-                fort = true
-            )
+            /*
+            ═══════════════════════════════════════════════════════════
+            SUR UNE VENTE, LE MONTANT EXACT EST AUSSI IMPORTANT QUE
+            L'ADRESSE
+            ═══════════════════════════════════════════════════════════
+
+            Le relais impose « 2,004731 » et non « 2 » : c'est ce qui
+            empêche quelqu'un de surveiller l'adresse publique du
+            changeur, de voir arriver un versement et de déposer une
+            demande pour le réclamer.
+
+            Mais un chiffre pareil se recopie mal, et surtout : il a
+            l'air d'une erreur. Quelqu'un qui lit « 2,004731 » sur une
+            ligne de détail, entre le délai et la référence, enverra 2 —
+            et son versement ne sera jamais reconnu.
+
+            Il sort donc des lignes de détail, passe en chasse fixe sur
+            toute la largeur, et porte son propre bouton de copie. Même
+            traitement que l'adresse, pour la même raison : c'est une
+            chaîne de caractères qu'on ne retape pas.
+            ═══════════════════════════════════════════════════════════
+            */
+            if (achat) {
+                Ligne(
+                    stringResource(R.string.change_montant_exact),
+                    "${fcfa(state.montantFcfa ?: 0.0)} FCFA",
+                    fort = true
+                )
+            } else {
+                val montantTexte = crypto(state.montantCrypto ?: 0.0, state.monnaie)
+                LigneACopier(
+                    libelle = stringResource(R.string.change_montant_exact),
+                    valeur = "$montantTexte ${state.monnaie}",
+                    onCopier = { copier(montantTexte) }
+                )
+                /*
+                LE BOUTON COPIE LE NOMBRE SEUL, sans « USDT-BNB » derrière.
+                C'est ce qu'on colle dans le champ Montant d'un exchange, et
+                une unité collée avec ferait refuser la saisie.
+                */
+                Note(stringResource(R.string.change_montant_exact_note), AccentOrange)
+            }
             /*
             LA RÉFÉRENCE EST CE QUI RATTACHE UN PAIEMENT À UNE DEMANDE.
 

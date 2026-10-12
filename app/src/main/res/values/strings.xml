@@ -1193,4 +1193,5 @@
     <string name="change_tu_recois">Tu reçois</string>
     <string name="change_ussd_bouton">Payer avec %1$s</string>
     <string name="change_ussd_note">Ton téléphone va ouvrir le composeur avec le code déjà écrit. Vérifie le montant, appuie sur Appeler, et termine avec ton code secret — VaultEx ne le voit jamais.</string>
+    <string name="change_montant_exact_note">Envoie EXACTEMENT ce montant, décimales comprises. C\'est lui qui rattache le versement à ta demande — un montant arrondi ne sera pas reconnu.</string>
 </resources>

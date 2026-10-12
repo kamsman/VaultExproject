@@ -172,6 +172,32 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
                          Non réglé, tout le mécanisme est éteint et les
                          achats repartent comme avant la v16.
 
+  CHANGE_MARQUAGE        ⚠️ SECRET, au moins 16 caractères. Active le
+                         MARQUAGE DES MONTANTS sur les ventes.
+
+                         Sans lui, le relais accepte « environ 2 USDT » à
+                         1 % près. C'est agréable, et c'est précisément ce
+                         qui permet de voler le versement d'un autre :
+                         l'adresse du changeur est publique, n'importe qui
+                         la surveille, voit arriver 2 USDT, et dépose une
+                         demande pour les réclamer.
+
+                         Avec lui, le relais impose un montant exact
+                         dérivé de la référence — 2,004731 pour l'une,
+                         2,009182 pour une autre. Deux demandes ne peuvent
+                         plus se confondre, et nul ne peut prédire son
+                         chiffre sans le secret.
+
+                         `openssl rand -hex 24` en produit un bon. Un
+                         secret trop court est REFUSÉ plutôt qu'accepté
+                         en donnant l'illusion d'une protection : il se
+                         retrouve par force brute dès qu'on observe un
+                         couple (référence, montant), et les deux sont
+                         publics.
+
+                         Éteint par défaut : un relais sans ce réglage se
+                         comporte exactement comme avant.
+
   CHANGE_USSD            Modèle de code USSD pré-rempli sur l'écran de
                          paiement d'un ACHAT, par exemple
                          « *144*2*1*{numero}*{montant}# ». Vide par
@@ -231,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 22
+const VERSION = 23
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -435,11 +461,37 @@ export default {
       return await recevoirSms(requete, env)
     }
 
+    /*
+    LA CONSIGNE : QUEL MONTANT EXACT ENVOYER.
+
+    L'application l'appelle au moment où l'utilisateur confirme, avant
+    qu'il n'envoie quoi que ce soit. Deux choses s'y passent :
+
+      — le relais calcule le montant marqué pour cette référence ;
+      — il NOTE L'INSTANT, qui servira ensuite à exiger que le versement
+        lui soit postérieur.
+
+    Le second point est la raison pour laquelle cet appel existe en tant
+    que tel au lieu d'être fondu dans /change/verifier : il faut un moment
+    où l'on puisse dire « la demande commence ici », et c'est celui-là.
+    */
+    if (url.pathname === '/change/consigne') {
+      return await consigneChange(url, env)
+    }
+
     if (url.pathname === '/change/verifier') {
       const resultat = await verifierVente({
         monnaie: url.searchParams.get('monnaie'),
         montant: url.searchParams.get('montant'),
         txid: url.searchParams.get('txid'),
+        /*
+        LA RÉFÉRENCE PLUTÔT QUE LE MONTANT, quand le marquage est en
+        service. Le relais recalcule alors le montant exact lui-même, et
+        le `montant` reçu ne sert plus que de socle. Faire autrement
+        reviendrait à laisser l'appelant choisir ce qu'on va chercher —
+        c'est-à-dire à annuler le marquage.
+        */
+        reference: url.searchParams.get('reference'),
         env,
       })
       return json(resultat, 0)
@@ -1996,6 +2048,9 @@ async function ordreChange(requete, env) {
       // le montant LU SUR LA CHAÎNE qui est ensuite affiché au changeur.
       montant: nombreFrancais(ordre.montantCrypto),
       txid: ordre.txid,
+      // Le relais recalcule le montant marqué depuis CETTE référence : un
+      // ordre forgé avec le montant de quelqu'un d'autre ne trouve rien.
+      reference: ordre.reference,
       env,
     })
     /*
@@ -2825,12 +2880,30 @@ function choisirTransfertTron(liste, critere) {
     const quand = Number(t?.block_timestamp)
     if (!Number.isFinite(quand) || quand <= 0) continue
     if (maintenant - quand > (critere.fenetre || FENETRE_VENTE_MS)) continue
+    /*
+    ANTÉRIORITÉ. Une marge d'une minute parce que l'horloge d'un bloc et
+    celle du relais ne sont pas la même, et qu'un versement émis à la
+    seconde où la demande s'ouvre ne doit pas être rejeté pour un décalage
+    de quelques centaines de millisecondes.
+    */
+    if (critere.apres && quand < critere.apres - 60_000) continue
     // Une horodate dans le futur n'existe pas sur une chaîne : cinq
     // minutes d'avance tolérées pour la dérive d'horloge, pas plus.
     if (quand - maintenant > 5 * 60 * 1000) continue
 
     const lu = depuisUnites(t?.value, decimales)
-    if (!montantProche(lu, montant)) continue
+    /*
+    EXACT QUAND LE MONTANT EST MARQUÉ, À UN POUR CENT PRÈS SINON.
+
+    La tolérance existait pour absorber un arrondi d'affichage. Elle est
+    aussi ce qui permettait de confondre deux versements voisins — et donc
+    de réclamer celui de quelqu'un d'autre. Quand le relais impose
+    lui-même le montant, il n'y a plus rien à absorber.
+    */
+    const correspond = critere.exact
+      ? memeMontant(lu, montant)
+      : montantProche(lu, montant)
+    if (!correspond) continue
 
     return { txid: ident, montant: lu, quand, de: String(t?.from ?? '').trim() }
   }
@@ -2999,6 +3072,8 @@ async function verifierTron(cfg, critere) {
     decimales: cfg.decimales,
     montant: critere.montant,
     txid: critere.txid,
+    exact: critere.exact,
+    apres: critere.apres,
     fenetre: critere.fenetre,
     maintenant: critere.maintenant,
   })
@@ -3286,6 +3361,26 @@ async function verifierVente(options) {
   if (!(montant > 0)) return { etat: 'indisponible', raison: 'montant illisible' }
 
   /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE MONTANT CHERCHÉ EST CALCULÉ ICI, PAS REÇU
+  ═══════════════════════════════════════════════════════════════════════
+
+  Quand le marquage est en service et qu'une référence est fournie, le
+  relais dérive lui-même le montant exact. Celui que l'appelant a envoyé
+  ne sert plus que de socle — partie entière et deux décimales.
+
+  Sans ça, le marquage ne protégerait de rien : il suffirait d'annoncer
+  directement le montant qu'on convoite.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const reference = String(options?.reference ?? '').trim()
+  const marque = marquageActif(env) && reference.length > 0
+  const cherche = marque ? await montantMarque(montant, reference, env) : montant
+
+  // L'instant où la demande est née, pour exiger un versement postérieur.
+  const naissance = marque ? Number((await lireValeur('demande', reference))?.ne) || 0 : 0
+
+  /*
   L'ADRESSE VIENT DU WORKER, JAMAIS DE LA REQUÊTE.
 
   Si l'appelant pouvait dire quelle adresse surveiller, il donnerait la
@@ -3298,8 +3393,25 @@ async function verifierVente(options) {
 
   const critere = {
     adresse,
-    montant,
+    montant: cherche,
     txid,
+    exact: marque,
+    /*
+    LE VERSEMENT DOIT ÊTRE POSTÉRIEUR À LA DEMANDE.
+
+    Deuxième barrière, et elle complète la première : le marquage empêche
+    de deviner le montant, celle-ci empêche de déposer une demande APRÈS
+    avoir vu passer un versement.
+
+    Prises ensemble, elles obligent un attaquant à ouvrir sa demande avant
+    le versement qu'il convoite, ET à tomber sur le bon marquage parmi dix
+    mille. Prises séparément, chacune se contourne.
+
+    Zéro quand on ne sait pas : la mémoire est évictable, et refuser un
+    versement parce qu'on a oublié quand la demande est née punirait
+    l'honnête.
+    */
+    apres: naissance,
     fenetre: fenetreVente(env),
     maintenant: Date.now(),
     cleTron: env?.TRONGRID_KEY ? String(env.TRONGRID_KEY) : '',
@@ -3329,8 +3441,11 @@ async function verifierVente(options) {
       etat: 'absent',
       raison: txid
         ? "ce txid ne correspond a aucun versement attendu"
-        : `aucun versement correspondant sur les ` +
-          `${Math.round(critere.fenetre / 3600000)} dernieres heures`,
+        : marque
+          ? `aucun versement de ${cherche} ${monnaie} depuis l'ouverture ` +
+            `de cette demande`
+          : `aucun versement correspondant sur les ` +
+            `${Math.round(critere.fenetre / 3600000)} dernieres heures`,
     }
   }
 
@@ -3371,6 +3486,10 @@ async function verifierVente(options) {
     ═══════════════════════════════════════════════════════════════════════
     */
     de: trouve.de || '',
+    // Rendu pour que l'écran puisse dire « 2,004731 attendus » quand il
+    // affiche une recherche en cours ou un échec.
+    attendu: cherche,
+    marque,
     explorateur: trouve.txid ? `${cfg.explorateur}${trouve.txid}` : '',
   }
 }
@@ -3469,6 +3588,12 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  verifierVente,
+  marquerValeur,
+  lireValeur,
+  montantMarque,
+  marquageActif,
+  memeMontant,
   fenetreVente,
   minimumsChange,
   minimumPourMonnaie,
@@ -3973,4 +4098,217 @@ async function verifierAchat(ordre, env) {
     rapproche: par,
     explorateur: '',
   }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE MONTANT MARQUÉ — FERMER LE VOL DU VERSEMENT D'AUTRUI
+═══════════════════════════════════════════════════════════════════════════
+
+L'attaque que ceci ferme, et elle est facile :
+
+  Alice envoie 2 USDT à l'adresse du changeur et ne dépose pas tout de
+  suite sa demande. Bob surveille cette adresse — elle est publique,
+  l'application la montre à chaque vendeur. Il voit le versement, dépose
+  une demande pour 2 USDT avec SON numéro de téléphone. Le relais cherche
+  un versement de 2 USDT, trouve celui d'Alice, répond « confirmé ».
+  Bob est payé. Alice ne l'est pas.
+
+Rien dans la vérification on-chain ne s'y oppose : le versement est réel,
+le contrat est le bon, le montant correspond. Tout est vrai sauf
+l'identité du demandeur.
+
+─── POURQUOI PAS UNE SIGNATURE ──────────────────────────────────────────
+
+C'était ma première idée : faire signer la demande par la clé de l'adresse
+qui a envoyé, et vérifier contre le `from` lu sur la chaîne.
+
+Elle ne marche pas, et c'est un essai réel qui l'a montré. Le premier
+versement de test est parti DEPUIS BINANCE : l'expéditeur sur la chaîne
+est le portefeuille chaud de l'exchange, dont personne n'a la clé. Exiger
+une signature refuserait tous les retraits d'exchange — c'est-à-dire la
+majorité des ventes. Et l'accepter en option ne fermerait rien, puisque
+l'attaquant se contenterait de ne pas signer.
+
+─── CE QUE FAIT LE MARQUAGE ─────────────────────────────────────────────
+
+Le relais n'accepte plus « environ 2 USDT ». Il impose un montant EXACT,
+dérivé de la référence par un HMAC dont lui seul a la clé :
+
+    VX-K7M2PQ4R  →  envoyer exactement 2,004731
+    VX-P3QW8NZD  →  envoyer exactement 2,009182
+
+Alice envoie 2,004731 pour SA référence. Bob dépose sa demande — la
+sienne exige 2,009182, et aucun versement de ce montant n'existe. Il ne
+peut pas choisir son chiffre : il ne connaît pas le secret.
+
+─── CE QUE ÇA COÛTE, ET CE QUE ÇA NE COÛTE PAS ──────────────────────────
+
+Ça coûte un montant bizarre à recopier. L'écran doit le mettre en avant.
+
+Ça ne coûte RIEN à l'utilisateur : il envoie 2,004731 et reçoit des francs
+pour 2,004731, au même taux. Le marquage ajoute moins d'un centième
+d'unité, et cette fraction lui est payée comme le reste.
+
+─── ÉTEINT PAR DÉFAUT ───────────────────────────────────────────────────
+
+Sans CHANGE_MARQUAGE, la tolérance d'un pour cent s'applique comme avant.
+Un relais déployé sans ce réglage se comporte exactement comme la v22.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/** Vrai si le marquage des montants est en service. */
+function marquageActif(env) {
+  return String(env?.CHANGE_MARQUAGE ?? '').length >= 16
+}
+
+/*
+SEIZE CARACTÈRES AU MINIMUM, et ce n'est pas arbitraire.
+
+Ce secret est la seule chose qui empêche de calculer le marquage d'une
+référence. Un secret de six caractères se retrouve par force brute hors
+ligne dès qu'on observe un seul couple (référence, montant) — et les deux
+sont publics : la référence est affichée à l'utilisateur, le montant est
+sur la chaîne.
+
+Refuser un secret trop court vaut mieux que de l'accepter en donnant
+l'impression d'une protection. `openssl rand -hex 24` en produit un bon.
+*/
+
+/**
+ * Le montant exact à envoyer pour cette demande.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * QUATRE DÉCIMALES DE MARQUAGE, PAS SIX
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Le marquage occupe les décimales 3 à 6 : de 0,000001 à 0,009999. Au
+ * maximum un centième d'unité ajouté.
+ *
+ * Six décimales pleines donneraient dix mille fois plus de combinaisons —
+ * mais ajouteraient jusqu'à 0,999999 USDT, et « envoie 2,847193 » pour une
+ * vente de 2 ne ressemble plus à rien. Quelqu'un croirait à une erreur et
+ * enverrait 2.
+ *
+ * Dix mille combinaisons, c'est peu en soi : un attaquant qui interroge
+ * /change/consigne en boucle finit par tomber sur le marquage qu'il vise.
+ * C'est pourquoi le marquage ne vient JAMAIS seul — voir le contrôle
+ * d'antériorité dans verifierVente, qui lui impose d'avoir déposé sa
+ * demande AVANT le versement qu'il convoite.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+async function montantMarque(base, reference, env) {
+  const b = Number(base)
+  if (!(b > 0)) return 0
+  if (!marquageActif(env)) return b
+  const ref = String(reference ?? '').trim()
+  if (!ref) return b
+
+  const cle = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(String(env.CHANGE_MARQUAGE)),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    cle,
+    new TextEncoder().encode(`vaultex:marquage:${ref}`)
+  )
+  const octets = new Uint8Array(signature)
+  // Quatre premiers octets en entier, modulo dix mille : de 1 à 9999. On
+  // écarte zéro, qui laisserait le montant rond — donc non marqué, donc
+  // confondable avec celui de quelqu'un d'autre.
+  const brut =
+    ((octets[0] << 24) >>> 0) + (octets[1] << 16) + (octets[2] << 8) + octets[3]
+  const marque = (brut % 9999) + 1
+
+  /*
+  ON TRONQUE LA BASE AVANT D'AJOUTER.
+
+  Si quelqu'un demande 2,0037 et qu'on ajoute le marquage, le résultat
+  porte ses décimales ET les nôtres — et deux demandes de bases
+  différentes pourraient tomber sur le même total. On repart donc de la
+  partie entière plus les deux premières décimales, et le marquage occupe
+  seul les quatre suivantes.
+  */
+  const socle = Math.floor(b * 100) / 100
+  return Math.round((socle + marque / 1_000_000) * 1_000_000) / 1_000_000
+}
+
+/**
+ * Deux montants sont-ils le même, à la micro-unité près ?
+ *
+ * EXACT, et non à un pour cent près. C'est tout l'objet du marquage : la
+ * tolérance qui rendait le service agréable est précisément ce qui
+ * permettait de confondre deux versements.
+ *
+ * On compare en micro-unités entières plutôt qu'en flottants : 2,004731
+ * et 2,004731 calculés par deux chemins différents ne sont pas forcément
+ * le même double.
+ */
+function memeMontant(lu, attendu) {
+  return Math.round(Number(lu) * 1_000_000) === Math.round(Number(attendu) * 1_000_000)
+}
+
+/**
+ * Le montant exact à envoyer, et la naissance de la demande.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * APPELÉ AVANT L'ENVOI, ET C'EST TOUT L'INTÉRÊT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * L'application appelle ceci quand l'utilisateur confirme son prix, donc
+ * avant qu'il ne touche à sa crypto. Le relais en profite pour noter
+ * l'instant : à partir de là, seuls les versements POSTÉRIEURS pourront
+ * satisfaire cette référence.
+ *
+ * C'est ce qui empêche de déposer une demande après avoir vu passer le
+ * versement de quelqu'un d'autre. Le marquage du montant empêche de le
+ * deviner ; celui-ci empêche de le constater.
+ *
+ * ─── RÉPÉTABLE SANS DOMMAGE ─────────────────────────────────────────
+ *
+ * Deux appels avec la même référence rendent le même montant — un HMAC
+ * est déterministe — et le PREMIER instant est conservé. Une application
+ * qui redemande après un changement d'écran ne repousse donc pas sa
+ * propre date de naissance, ce qui l'empêcherait de reconnaître un
+ * versement déjà parti.
+ */
+async function consigneChange(url, env) {
+  const monnaie = String(url.searchParams.get('monnaie') ?? '').trim().toUpperCase()
+  const base = nombreFrancais(url.searchParams.get('montant'))
+  const reference = String(url.searchParams.get('reference') ?? '').trim()
+
+  if (!monnaie || !(base > 0) || !reference) {
+    return json({ ok: false, raison: 'consigne incomplete' }, 0, 400)
+  }
+
+  const montantExact = await montantMarque(base, reference, env)
+
+  /*
+  LA NAISSANCE EST POSÉE UNE SEULE FOIS.
+
+  `lireValeur` d'abord : si la demande est déjà connue, on garde sa date.
+  Sinon un simple retour sur l'écran de calcul, puis une reconfirmation,
+  repousserait sa naissance après un versement déjà effectué — et
+  l'utilisateur ne retrouverait jamais ses propres fonds.
+  */
+  const connue = await lireValeur('demande', reference)
+  const ne = Number(connue?.ne) || Date.now()
+  if (!connue) await marquerValeur('demande', reference, JSON.stringify({ ne }))
+
+  return json(
+    {
+      ok: true,
+      reference,
+      marque: marquageActif(env),
+      // En texte, avec ses six décimales : c'est ce que l'utilisateur doit
+      // recopier, et un nombre JSON perdrait les zéros de fin.
+      montantExact: montantExact.toFixed(6).replace(/0+$/, '').replace(/\.$/, ''),
+      ne,
+    },
+    0
+  )
 }

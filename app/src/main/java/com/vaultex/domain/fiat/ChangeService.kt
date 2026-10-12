@@ -368,8 +368,13 @@ class ChangeService @Inject constructor(
      * qu'il a envoye des fonds de facon irreversible, serait lui annoncer
      * une perte qui n'a pas eu lieu.
      */
-    suspend fun verifier(monnaie: String, montant: String, txid: String = ""): Verification = try {
-        val dto = api.verifier(monnaie.uppercase(), montant, txid.trim())
+    suspend fun verifier(
+        monnaie: String,
+        montant: String,
+        txid: String = "",
+        reference: String = ""
+    ): Verification = try {
+        val dto = api.verifier(monnaie.uppercase(), montant, txid.trim(), reference.trim())
         Verification(
             etat = EtatVerification.depuisTexte(dto.etat),
             txid = dto.txid.orEmpty(),
@@ -386,6 +391,30 @@ class ChangeService @Inject constructor(
             etat = EtatVerification.INDISPONIBLE,
             raison = "le relais n'a pas répondu"
         )
+    }
+
+    /**
+     * Le montant exact a envoyer, ou null si le relais n'a pas repondu.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * NULL DOIT ARRETER L'OPERATION, PAS LA LAISSER CONTINUER
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Si le relais marque les montants et qu'on n'arrive pas a lui
+     * demander lequel, laisser l'utilisateur envoyer un montant rond le
+     * conduirait droit au mur : le relais chercherait 2,004731, il aurait
+     * envoye 2, et son versement ne serait jamais reconnu. Irreversible.
+     *
+     * L'ecran doit donc refuser d'avancer plutot que d'avancer avec le
+     * mauvais chiffre. C'est desagreable et c'est la seule option sure.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    suspend fun consigne(monnaie: String, montant: String, reference: String): String? = try {
+        val dto = api.consigne(monnaie.uppercase(), montant, reference)
+        dto.montantExact?.trim()?.takeIf { it.isNotBlank() && dto.ok == true }
+    } catch (e: Exception) {
+        com.vaultex.core.monitoring.reportUnlessCancelled("consigne change", e)
+        null
     }
 
     private companion object {
