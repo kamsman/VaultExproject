@@ -673,37 +673,21 @@ fun DashboardScreen(navController: NavHostController) {
                     ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                     /*
-                    ═══════════════════════════════════════════════════════
-                    LE BILLET, ET LE BLEU DE L'APPLICATION
-                    ═══════════════════════════════════════════════════════
+                    LE SIGNE MONÉTAIRE, ET RIEN D'AUTRE.
 
-                    L'ORANGE NE TENAIT PAS. Le fond est bleu nuit, le logo
-                    est bleu, le bouton flottant est bleu-violet : une
-                    tuile orange ne ressortait pas, elle jurait. Ressortir
-                    et jurer ne sont pas la même chose — la première
-                    attire, la seconde fait détourner le regard.
-
-                    Le bleu de l'application dit « ceci est à nous » au
-                    lieu de « ceci est ailleurs », et il ressort d'autant
-                    mieux que les trois voisines sont blanches.
-
-                    LE SIGNE MONÉTAIRE, ET RIEN D'AUTRE. Le panier disait
-                    « acheter des choses » ; le billet, plus juste, restait
-                    un dessin — trois traits, un cadre, un rond — qui se
-                    brouille à vingt-six points sur un écran bon marché.
+                    Un panier disait « acheter des choses » ; un billet,
+                    plus juste, restait un dessin — trois traits, un cadre,
+                    un rond — qui se brouille à vingt-six points sur un
+                    écran bon marché.
 
                     Un « $ » est une seule forme. Il se lit à n'importe
-                    quelle taille, sur n'importe quel écran, et il ne
-                    ressemble à aucune des trois flèches voisines.
-                    ═══════════════════════════════════════════════════════
+                    quelle taille, et il ne ressemble à aucune des trois
+                    flèches voisines. C'est ce qui distingue cette tuile,
+                    et c'est TOUT ce qui la distingue : même fond, même
+                    contour, même blanc que les autres.
                     */
-                    ActionTile(
-                        stringResource(R.string.action_acheter),
-                        Icons.Default.AttachMoney,
-                        AccentBlue,
-                        Modifier.weight(1f),
-                        vedette = true
-                    ) { navController.navigate(Routes.CHANGE) }
+                    ActionTile(stringResource(R.string.action_acheter), Icons.Default.AttachMoney,
+                        TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
                 }
             }
 
@@ -1668,50 +1652,40 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/*
-═══════════════════════════════════════════════════════════════════════════
-LA COULEUR ÉTAIT PASSÉE EN PARAMÈTRE, ET JETÉE
-═══════════════════════════════════════════════════════════════════════════
-
-`tint` arrivait depuis l'appelant — rouge pour Envoyer, vert pour Recevoir,
-bleu pour Swap, orange pour Acheter — et la ligne de l'icône forçait
-`TextPrimary`. Les quatre tuiles étaient donc identiques, en blanc.
-
-Le commentaire de l'appelant disait pourtant « on prend l'orange : la
-tuile se distingue des trois autres ». Elle ne s'en distinguait pas. Un
-paramètre ignoré ne lève aucune erreur : il se contente de faire mentir
-le code qui l'entoure.
-
-─── ET « ACHETER » MÉRITE PLUS QUE SA COULEUR ──────────────────────────
-
-Les trois premières tuiles déplacent de la crypto qu'on détient déjà.
-« Acheter » est la seule qui serve à quelqu'un qui n'en a PAS encore — et
-c'est aussi le seul chemin par lequel de l'argent entre dans
-l'application.
-
-Pour un portefeuille distribué au Burkina Faso, c'est le premier geste du
-premier jour. Il ne peut pas avoir la même apparence qu'un bouton de
-transfert interne : fond teinté, contour coloré, libellé en gras.
-═══════════════════════════════════════════════════════════════════════════
-*/
+/**
+ * Tuile d'action : carrée arrondie, bordée, icône et libellé centrés.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * `tint` ÉTAIT PASSÉ ET JETÉ
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * L'appelant passait une couleur par tuile — rouge, vert, bleu, orange —
+ * et la ligne de l'icône forçait `TextPrimary`. Le commentaire de
+ * l'appelant disait pourtant « on prend l'orange : la tuile se distingue
+ * des trois autres ». Elle ne s'en distinguait pas.
+ *
+ * Un paramètre ignoré ne lève aucune erreur : il se contente de faire
+ * mentir le code qui l'entoure, et le commentaire avec.
+ *
+ * Il est employé maintenant. Et les quatre appelants lui passent
+ * `TextPrimary`, ce qui est un CHOIX et non un oubli : quatre tuiles
+ * coloriées côte à côte se lisent comme un seul bloc, et plus aucune ne
+ * ressort. Ce qui distingue « Acheter » est son signe, pas sa couleur.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 @Composable
 private fun ActionTile(
     label: String,
     icon: ImageVector,
     tint: Color,
     modifier: Modifier,
-    /** Vedette : fond teinté et contour coloré. Réservé à UNE tuile. */
-    vedette: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = if (vedette) tint.copy(alpha = 0.12f) else com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(
-            if (vedette) 1.5.dp else 1.dp,
-            if (vedette) tint.copy(alpha = 0.55f) else BorderColor
-        ),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = modifier
     ) {
         Column(
@@ -1720,12 +1694,7 @@ private fun ActionTile(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
-            Text(
-                label,
-                fontSize = 14.sp,
-                fontWeight = if (vedette) FontWeight.Bold else FontWeight.Medium,
-                color = TextPrimary
-            )
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
     }
 }
