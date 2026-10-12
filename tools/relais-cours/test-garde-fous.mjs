@@ -692,6 +692,102 @@ verifie('FORME : BNB attend de l evm', formeAttendue('BNB') === 'evm')
 verifie('FORME : PI attend du stellar', formeAttendue('PI') === 'stellar')
 verifie('FORME : une inconnue n attend rien', formeAttendue('DOGE') === null)
 
+// ─── Le minimum par monnaie ─────────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE RESEAU LE PLUS CHER NE DOIT PAS DEVENIR UN PIEGE
+═══════════════════════════════════════════════════════════════════════════
+
+Un seuil unique tenait tant qu'il n'y avait qu'une chaine. Avec plusieurs,
+Ethereum prend entre douze et cent vingt-cinq pour cent d'une vente de
+cinq mille francs — et l'utilisateur ne le decouvre qu'au moment de signer
+dans son portefeuille.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+import { minimumsChange, minimumPourMonnaie } from './worker.js'
+
+const MINIMUMS = JSON.stringify({ USDT: 20000, 'USDT-BNB': 2000, 'USDT-ETH': 50000 })
+
+verifie(
+  'MINIMUM : chaque monnaie a le sien',
+  minimumPourMonnaie('USDT', { CHANGE_MINIMUMS: MINIMUMS }) === 20000 &&
+    minimumPourMonnaie('USDT-BNB', { CHANGE_MINIMUMS: MINIMUMS }) === 2000 &&
+    minimumPourMonnaie('USDT-ETH', { CHANGE_MINIMUMS: MINIMUMS }) === 50000
+)
+
+verifie(
+  'MINIMUM : la casse ne compte pas',
+  minimumPourMonnaie('usdt-bnb', { CHANGE_MINIMUMS: MINIMUMS }) === 2000
+)
+
+/*
+UNE MONNAIE ABSENTE RETOMBE SUR LE SEUIL GENERAL, et c'est ce qui rend
+l'ajout d'une chaine sans risque : on applique le comportement d'avant au
+lieu d'ouvrir un trou.
+*/
+verifie(
+  'MINIMUM : une monnaie absente prend le general',
+  minimumPourMonnaie('BTC', { CHANGE_MINIMUMS: MINIMUMS, CHANGE_MIN: '5000' }) === 5000
+)
+
+verifie(
+  'MINIMUM : sans table, tout prend le general',
+  minimumPourMonnaie('USDT', { CHANGE_MIN: '7000' }) === 7000
+)
+
+verifie(
+  'MINIMUM : sans rien, 5000 par defaut',
+  minimumPourMonnaie('USDT', {}) === 5000
+)
+
+/*
+JSON ILLISIBLE : ON RETOMBE SUR LE SEUIL GENERAL, pas sur « aucun
+minimum ». C'est l'inverse du choix fait pour les adresses, ou un JSON
+casse rend un objet vide : la, ne rien rendre FERME le service ; ici, ca
+l'ouvrirait sans garde-fou. On echoue du cote qui protege, dans les deux
+cas.
+*/
+verifie(
+  'MINIMUM : un JSON casse retombe sur le general',
+  minimumPourMonnaie('USDT', { CHANGE_MINIMUMS: '{"USDT":}', CHANGE_MIN: '5000' }) === 5000
+)
+
+verifie(
+  'MINIMUM : un seuil nul ou negatif est ecarte',
+  minimumPourMonnaie('USDT', { CHANGE_MINIMUMS: '{"USDT":0}', CHANGE_MIN: '5000' }) === 5000 &&
+    minimumPourMonnaie('USDT', { CHANGE_MINIMUMS: '{"USDT":-1}', CHANGE_MIN: '5000' }) === 5000
+)
+
+verifie('MINIMUM : un tableau n est pas une table', Object.keys(minimumsChange('[1,2]')).length === 0)
+
+{
+  /*
+  ET SURTOUT : IL EST APPLIQUE PAR LE RELAIS, pas seulement affiche.
+  Un reglage que seul le client verifie n'est pas un reglage.
+  */
+  const r = await poster(
+    demande({ monnaie: 'USDT-ETH', montantFcfa: '10 000' }),
+    { CHANGE_MINIMUMS: MINIMUMS },
+    faireCache()
+  )
+  verifie('MINIMUM : une vente ETH sous son seuil est refusee', r.statut === 400, r)
+  verifie('MINIMUM : la raison nomme la monnaie', String(r.corps.raison).includes('USDT-ETH'), r.corps)
+  verifie('MINIMUM : et rien ne part', envois.length === 0, envois.length)
+}
+
+{
+  // Le meme montant passe sur BNB Chain, dont les frais sont cent fois
+  // plus bas. C'est tout l'interet du reglage.
+  const r = await poster(
+    demande({ monnaie: 'USDT-BNB', montantFcfa: '10 000' }),
+    { CHANGE_MINIMUMS: MINIMUMS },
+    faireCache()
+  )
+  verifie('MINIMUM : le meme montant passe sur BNB', r.statut === 200, r)
+}
+
 // ─── Verdict ────────────────────────────────────────────────────────
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)

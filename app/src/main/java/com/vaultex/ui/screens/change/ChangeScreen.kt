@@ -366,7 +366,7 @@ private fun ColumnScope.EtapeCalcul(
     */
     val blocage = state.blocage()
     blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
-        NoteEnDeuxTemps(messageBlocage(it, p), AccentRed)
+        NoteEnDeuxTemps(messageBlocage(it, p, state.monnaie), AccentRed)
     }
 
     Button(
@@ -1616,11 +1616,22 @@ private fun Note(texte: String, couleur: androidx.compose.ui.graphics.Color) {
 }
 
 @Composable
-private fun messageBlocage(code: String, p: com.vaultex.domain.fiat.ParametresChange): String = when (code) {
+private fun messageBlocage(
+    code: String,
+    p: com.vaultex.domain.fiat.ParametresChange,
+    monnaie: String
+): String = when (code) {
     "ferme" -> stringResource(R.string.change_ferme)
     "pas_de_rachat" -> stringResource(R.string.change_pas_de_rachat)
     "sans_cours" -> stringResource(R.string.change_sans_cours)
-    "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumFcfa))
+    /*
+    LE CHIFFRE AFFICHE EST CELUI DE LA MONNAIE CHOISIE.
+
+    Montrer le seuil general pendant qu'un autre s'applique enverrait
+    quelqu'un retaper un montant qui sera refuse une seconde fois. C'est
+    exactement le genre de message qui fait fermer l'application.
+    */
+    "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumPour(monnaie)))
     "plafond" -> stringResource(R.string.change_sur_plafond, fcfa(p.plafondFcfa))
     else -> stringResource(R.string.change_montant_invalide)
 }

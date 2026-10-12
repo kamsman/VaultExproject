@@ -162,7 +162,9 @@ data class ChangeState(
         if (sens == SensChange.VENTE && !p.rachetable(monnaie)) return "pas_de_rachat"
         if (prix == null) return "sans_cours"
         val fcfa = montantFcfa ?: return "montant"
-        if (fcfa < p.minimumFcfa) return "minimum"
+        // Par monnaie : TRON coute 13 a 27 TRX par transfert, BNB Chain
+        // vingt centimes. Un seuil unique ferait du plus cher un piege.
+        if (fcfa < p.minimumPour(monnaie)) return "minimum"
         if (fcfa > p.plafondFcfa) return "plafond"
         return null
     }

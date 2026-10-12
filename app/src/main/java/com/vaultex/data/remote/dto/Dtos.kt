@@ -481,7 +481,17 @@ data class ParametresChangeDto(
      * l'application refuse tout modele qui en porte un autre — voir
      * CodeUssd.modeleValide. Le code secret n'y entre JAMAIS.
      */
-    val ussdModele: String? = null
+    val ussdModele: String? = null,
+    /**
+     * Minimum par monnaie, en francs — ou null.
+     *
+     * Les frais de reseau n'ont rien a voir d'une chaine a l'autre : 13 a
+     * 27 TRX sur TRON, 0,20 $ sur BNB Chain, jusqu'a 10 $ sur Ethereum. Un
+     * seuil unique transformerait le reseau le plus cher en piege.
+     *
+     * Une monnaie absente de cette table retombe sur [minimumFcfa].
+     */
+    val minimumsParMonnaie: Map<String, Double>? = null
 )
 
 /**

@@ -71,7 +71,22 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
 
   CHANGE_ACTIF      0 ferme le service en une seconde, sans republier.
   CHANGE_MARGE      Marge en FRANCS PAR DOLLAR (défaut 25).
-  CHANGE_MIN        Minimum par opération, en francs (défaut 5000).
+  CHANGE_MIN        Minimum par opération, en francs (défaut 5000). Sert
+                    de repli aux monnaies absentes de CHANGE_MINIMUMS.
+  CHANGE_MINIMUMS   Minimum PAR MONNAIE :
+                    {"USDT":20000,"USDT-BNB":2000,"USDT-ETH":50000}
+
+                    Les frais de réseau n'ont rien à voir d'une chaîne à
+                    l'autre — 13 à 27 TRX sur TRON, environ 0,20 $ sur BNB
+                    Chain, jusqu'à 10 $ sur Ethereum. Sur une vente de
+                    8 USDT, Ethereum prend entre douze et cent vingt-cinq
+                    pour cent de l'opération, et l'utilisateur ne le
+                    découvre qu'au moment de signer dans son portefeuille.
+
+                    Une monnaie absente retombe sur CHANGE_MIN : ajouter
+                    une chaîne sans penser à son seuil n'ouvre aucun trou.
+                    Le plafond, lui, reste global — il borne un risque de
+                    fraude, pas un coût de réseau.
   CHANGE_MAX        Plafond par opération, en francs (défaut 50000).
   CHANGE_NUMERO     Numéro Mobile Money du changeur, pour les ACHATS.
   CHANGE_NOM        Son nom, tel qu'il s'affiche.
@@ -194,7 +209,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 19
+const VERSION = 20
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -896,6 +911,11 @@ async function diagnostic(env) {
   }
   const plafondDiag = nb(env?.CHANGE_MAX, 50000)
   const premierDiag = nb(env?.CHANGE_MAX_PREMIER, plafondDiag)
+  sondes.minimumsParMonnaie = {
+    general: nb(env?.CHANGE_MIN, 5000),
+    parMonnaie: minimumsChange(env),
+  }
+
   sondes.gardeFous = {
     // Appliquées par le relais depuis la v15. Avant, elles ne vivaient que
     // dans l'application — donc nulle part, pour qui ne l'utilise pas.
@@ -1382,6 +1402,15 @@ function parametresChange(env) {
       ═══════════════════════════════════════════════════════════════════
       */
       ussdModele: String(env?.CHANGE_USSD ?? ''),
+      /*
+      LES SEUILS PAR MONNAIE, POUR QUE L'ÉCRAN DISE LE BON CHIFFRE.
+
+      Le relais les applique de toute façon. S'il était seul à les
+      connaître, l'utilisateur taperait un montant, verrait le bouton
+      s'allumer, et se ferait refuser au dépôt — après avoir envoyé sa
+      crypto. Le freiner avant vaut mieux que l'arrêter après.
+      */
+      minimumsParMonnaie: minimumsChange(env),
     },
     TTL_PARAMETRES_CHANGE
   )
@@ -1446,6 +1475,78 @@ const FORMES_ADRESSE = {
   btc: /^(bc1[0-9a-z]{20,80}|[13][1-9A-HJ-NP-Za-km-z]{25,39})$/,
   // Stellar et Pi, StrKey : « G » puis 55 caractères en base32.
   stellar: /^G[A-Z2-7]{55}$/,
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN MINIMUM PAR MONNAIE, PARCE QUE LES FRAIS DE RÉSEAU N'ONT RIEN À VOIR
+═══════════════════════════════════════════════════════════════════════════
+
+CHANGE_MIN posait un seuil unique pour tout le monde. Ça tenait tant qu'il
+n'y avait qu'une chaîne. Avec plusieurs, c'est un piège :
+
+  TRON        13 à 27 TRX par transfert
+  BNB Chain   environ 0,20 $
+  Ethereum    1 à 10 $
+
+Sur une vente de 8 USDT — cinq mille francs, le minimum d'aujourd'hui —
+Ethereum prend entre douze et cent vingt-cinq pour cent de l'opération.
+Quelqu'un choisirait « USDT-ETH » dans la liste PARCE QU'IL Y EST, et ne
+découvrirait le coût qu'au moment de signer dans son portefeuille, bien
+après avoir lu « Tu reçois 4 800 FCFA » sur l'écran.
+
+L'application aurait dit la vérité sur le prix et menti par omission sur
+le coût. C'est le genre de silence qu'on ne pardonne pas à un
+portefeuille.
+
+CHANGE_MINIMUMS = {"USDT":20000,"USDT-BNB":2000,"USDT-ETH":50000}
+
+Une monnaie absente retombe sur CHANGE_MIN. Ajouter une chaîne sans penser
+à son seuil ne casse donc rien : ça applique le seuil général, c'est-à-dire
+le comportement d'avant.
+
+─── LE PLAFOND RESTE GLOBAL, ET CE N'EST PAS UN OUBLI ───────────────────
+
+Le minimum borne un COÛT DE RÉSEAU, qui dépend de la chaîne. Le plafond
+borne un RISQUE DE FRAUDE, qui dépend de la confiance accordée au client —
+la même quelle que soit la chaîne qu'il emploie.
+
+Deux grandeurs différentes, deux réglages différents.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function minimumsChange(env) {
+  const brut = env?.CHANGE_MINIMUMS
+  if (!brut) return {}
+  try {
+    const o = JSON.parse(String(brut))
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
+    const sortie = {}
+    for (const [cle, valeur] of Object.entries(o)) {
+      const n = Number(valeur)
+      // Un seuil nul ou négatif n'est pas un seuil : on l'écarte plutôt
+      // que d'ouvrir la monnaie sans minimum du tout.
+      if (Number.isFinite(n) && n > 0) sortie[String(cle).trim().toUpperCase()] = n
+    }
+    return sortie
+  } catch (_) {
+    /*
+    JSON ILLISIBLE : ON RETOMBE SUR LE SEUIL GÉNÉRAL.
+
+    Pas sur « aucun minimum ». C'est l'inverse du choix fait pour les
+    adresses, où un JSON cassé rend un objet vide — là, ne rien rendre
+    FERME le service ; ici, ça l'ouvrirait sans garde-fou. On échoue du
+    côté qui protège, dans les deux cas.
+    */
+    return {}
+  }
+}
+
+/** Le minimum applicable à cette monnaie, en francs. */
+function minimumPourMonnaie(monnaie, env) {
+  const general = Number(env?.CHANGE_MIN)
+  const parDefaut = Number.isFinite(general) && general >= 0 ? general : 5000
+  const propre = minimumsChange(env)[String(monnaie ?? '').trim().toUpperCase()]
+  return Number.isFinite(propre) && propre > 0 ? propre : parDefaut
 }
 
 /** Quelle forme attendre pour cette monnaie, ou null si on ne sait pas. */
@@ -1592,14 +1693,20 @@ async function ordreChange(requete, env) {
     const n = Number(v)
     return Number.isFinite(n) && n >= 0 ? n : defaut
   }
-  const minimum = nombreRegle(env?.CHANGE_MIN, 5000)
+  // Par monnaie : les frais de reseau n'ont rien a voir d'une chaine a
+  // l'autre. Voir minimumsChange.
+  const minimum = minimumPourMonnaie(ordre.monnaie, env)
   const plafond = nombreRegle(env?.CHANGE_MAX, 50000)
   const fcfa = nombreFrancais(ordre.montantFcfa)
   if (!(fcfa > 0)) {
     return json({ ok: false, raison: 'montant illisible' }, 0, 400)
   }
   if (fcfa < minimum) {
-    return json({ ok: false, raison: `minimum ${minimum} FCFA` }, 0, 400)
+    return json(
+      { ok: false, raison: `minimum ${minimum} FCFA pour ${ordre.monnaie}` },
+      0,
+      400
+    )
   }
   if (fcfa > plafond) {
     return json({ ok: false, raison: `plafond ${plafond} FCFA` }, 0, 400)
@@ -3256,6 +3363,8 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  minimumsChange,
+  minimumPourMonnaie,
   trierAdresses,
   formeAttendue,
   lireSmsPaiement,
