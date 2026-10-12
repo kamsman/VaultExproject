@@ -46,6 +46,8 @@ data class ChangeState(
     val erreur: String? = null,
     /** Les demandes deja transmises, de la plus recente a la plus ancienne. */
     val historique: List<DemandeChange> = emptyList(),
+    /** Solde detenu de la monnaie choisie, pour la vente. */
+    val solde: Double? = null,
     /*
     ═══════════════════════════════════════════════════════════════════════
     LA VERIFICATION ON-CHAIN, POUR UNE VENTE
@@ -313,8 +315,17 @@ class ChangeViewModel @Inject constructor(
         }
         val taux = TauxFcfa.fcfaParDollar(cours.second, cours.first)
         val prix = taux?.let { TauxFcfa.prix(cours.second, p.margeFcfaParDollar, it) }
-        _state.update { it.copy(prix = prix, fcfaParDollar = taux) }
+        val solde = soldeDe(s.monnaie)
+        _state.update { it.copy(prix = prix, fcfaParDollar = taux, solde = solde) }
     }
+
+    /** Solde detenu de cette monnaie, ou null si l'instantane ne le dit pas. */
+    private fun soldeDe(symbole: String): Double? = try {
+        val json = secureStorage.getPortfolioSnapshot()
+        val snap = json?.let { gson.fromJson(it, SnapLiteChange::class.java) }
+        snap?.tokens?.firstOrNull { it.symbol.equals(symbole, ignoreCase = true) }
+            ?.amountRaw?.takeIf { it > 0.0 }
+    } catch (_: Exception) { null }
 
     /** (cours en dollars, cours en francs) depuis l'instantané du portefeuille. */
     private fun coursDe(symbole: String): Pair<Double, Double>? = try {
@@ -366,6 +377,33 @@ class ChangeViewModel @Inject constructor(
     }
 
     fun onSaisie(valeur: String) = _state.update { it.copy(saisie = valeur, erreur = null) }
+
+    /**
+     * Remplit le champ d'un coup, depuis une pastille de montant.
+     *
+     * TROIS MONTANTS COURANTS PLUTOT QU'UN CLAVIER. « 5 000 » se tape en
+     * quatre frappes sur un telephone qu'on tient d'une main, dans la rue.
+     * Les pastilles suppriment ces frappes pour les montants que les gens
+     * echangent reellement — et elles rappellent au passage l'ordre de
+     * grandeur attendu a celui qui ouvre l'ecran pour la premiere fois.
+     */
+    fun onMontantRapide(valeur: Double) = _state.update {
+        it.copy(saisie = montantTexte(valeur), erreur = null)
+    }
+
+    /**
+     * Met tout le solde dans le champ, pour une vente.
+     *
+     * ON NE RETIRE RIEN POUR LES FRAIS, contrairement au bouton MAX d'un
+     * envoi ordinaire. Les frais de reseau se paient en TRX ou en BNB,
+     * pas dans le jeton vendu : vendre tout son USDT est possible, a
+     * condition d'avoir de quoi payer le gaz — ce que l'ecran d'envoi
+     * verifiera a son tour.
+     */
+    fun onToutVendre() = _state.update { etat ->
+        val solde = etat.solde ?: return@update etat
+        etat.copy(saisie = montantTexte(solde), erreur = null)
+    }
     fun onReferencePaiement(v: String) = _state.update { it.copy(referencePaiement = v) }
     fun onTelephone(v: String) = _state.update { it.copy(telephone = v) }
 
@@ -889,6 +927,18 @@ class ChangeViewModel @Inject constructor(
     private data class TokenLiteChange(
         val symbol: String = "",
         val priceUsd: Double = 0.0,
-        val priceXof: Double = 0.0
+        val priceXof: Double = 0.0,
+        /**
+         * Solde exact, non arrondi.
+         *
+         * Il ne sert qu'a la VENTE, et il y sert vraiment : quelqu'un qui
+         * ignore combien il detient tape un montant au hasard, se fait
+         * refuser, et recommence. Le lui montrer sur la carte qu'il
+         * remplit supprime ce tatonnement.
+         *
+         * A l'achat, il n'y a pas de solde a montrer — on ne detient pas
+         * de francs dans l'application.
+         */
+        val amountRaw: Double = 0.0
     )
 }

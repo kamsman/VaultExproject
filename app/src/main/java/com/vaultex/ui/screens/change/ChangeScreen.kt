@@ -18,9 +18,13 @@ import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -144,19 +148,27 @@ private fun ColumnScope.EtapeCalcul(
 ) {
     val p = state.parametres ?: return
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = state.sens == SensChange.ACHAT,
-            onClick = { vm.onSens(SensChange.ACHAT) },
-            label = { Text(stringResource(R.string.change_acheter)) },
+    /*
+    DEUX ONGLETS, ET CHACUN SON ICONE.
+
+    « Acheter » et « Vendre » se lisent vite et se confondent vite — deux
+    mots de même longueur, au même endroit. Le panier et la double flèche
+    donnent à l'oeil un repère qui ne dépend pas de la lecture, ce qui
+    compte sur un écran où se tromper de sens coûte une opération entière.
+    */
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OngletSens(
+            texte = stringResource(R.string.change_acheter),
+            icone = Icons.Default.ShoppingCart,
+            choisi = state.sens == SensChange.ACHAT,
             modifier = Modifier.weight(1f)
-        )
-        FilterChip(
-            selected = state.sens == SensChange.VENTE,
-            onClick = { vm.onSens(SensChange.VENTE) },
-            label = { Text(stringResource(R.string.change_vendre)) },
+        ) { vm.onSens(SensChange.ACHAT) }
+        OngletSens(
+            texte = stringResource(R.string.change_vendre),
+            icone = Icons.Default.SwapHoriz,
+            choisi = state.sens == SensChange.VENTE,
             modifier = Modifier.weight(1f)
-        )
+        ) { vm.onSens(SensChange.VENTE) }
     }
 
     /*
@@ -202,6 +214,10 @@ private fun ColumnScope.EtapeCalcul(
 
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_donnes),
+        solde = if (donneFcfa) null else state.solde,
+        onTout = if (donneFcfa) null else vm::onToutVendre,
+        rapides = if (donneFcfa) montantsRapides(p) else emptyList(),
+        onRapide = vm::onMontantRapide,
         /*
         LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
 
@@ -217,6 +233,39 @@ private fun ColumnScope.EtapeCalcul(
         onMontant = vm::onSaisie,
         vedette = true
     )
+
+    /*
+    LE BOUTON D'INVERSION, ENTRE LES DEUX CARTES.
+
+    Il fait la même chose que les onglets du haut, et c'est assumé : entre
+    deux cartes « tu donnes » et « tu reçois », l'oeil cherche ce bouton
+    là. Le refuser au nom de la non-redondance obligerait à remonter en
+    haut de l'écran pour un geste dont la place naturelle est ici.
+
+    Les onglets restent parce qu'ils NOMMENT l'opération. « Acheter » et
+    « Vendre » sont deux engagements distincts, et une flèche ne dit pas
+    lequel on est en train de prendre.
+    */
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Surface(
+            onClick = {
+                vm.onSens(if (donneFcfa) SensChange.VENTE else SensChange.ACHAT)
+            },
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = SurfaceColor,
+            border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f)),
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.SwapVert,
+                    stringResource(R.string.change_inverser),
+                    tint = AccentBlue,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
 
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_recois),
@@ -235,89 +284,103 @@ private fun ColumnScope.EtapeCalcul(
         monnaies = if (donneFcfa) p.monnaies else emptyList(),
         onMonnaie = vm::onMonnaie,
         onMontant = null,
+        approx = if (donneFcfa) state.montantCrypto?.let { c ->
+            java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
+                maximumFractionDigits = 2
+            }.format(c) + " " + state.monnaie
+        } else null,
         vedette = false
     )
 
     /*
-    CE QUI JUSTIFIE LES DEUX CHIFFRES DU DESSUS.
+    ═══════════════════════════════════════════════════════════════════════
+    UNE SEULE CARTE DE DÉTAIL, ET LE PRIX DU MARCHÉ DEDANS
+    ═══════════════════════════════════════════════════════════════════════
 
-    Les deux montants sont maintenant dans les cartes ; cette carte-ci ne
-    garde que de quoi les vérifier — le taux appliqué, et ce que
-    l'opération coûte réellement.
+    Il y en avait deux : les détails, puis un récapitulatif. Les deux
+    affichaient les frais — exactement la redondance que j'avais reprochée
+    aux montants quand ils étaient à la fois dans les cartes et dans les
+    détails. Deux endroits qui affichent la même somme finissent par ne
+    plus l'afficher pareil.
 
-    L'exigence de départ ne change pas : rien ne doit se découvrir après.
-    La marge est donnée dans les DEUX unités — en francs par dollar parce
-    que c'est la langue du marché local, en pourcentage parce que c'est la
-    seule qui se compare à un échangeur en ligne.
+    ─── LE PRIX DU MARCHÉ, PAS LE TAUX APPLIQUÉ ─────────────────────────
+
+    La ligne annonçait « Prix d'un USDT : 636 FCFA » — le cours majoré de
+    la marge. C'est le chiffre qui s'applique, mais ce n'est pas un prix de
+    marché, et rien ne le disait.
+
+    Elle montre maintenant le cours réel, et la marge apparaît en clair sur
+    sa propre ligne. L'écart entre les deux cesse d'être invisible, et
+    quelqu'un peut enfin comparer à un concurrent — ce que « 636 » tout
+    seul ne permettait pas.
+
+    C'est la même exigence que depuis le début, poussée d'un cran : rien ne
+    doit se découvrir après, y compris ce qu'on gagne.
+    ═══════════════════════════════════════════════════════════════════════
     */
     val prix = state.prix
     val taux = state.fcfaParDollar
     if (prix != null && taux != null) {
+        val envoye = if (donneFcfa) state.montantFcfa else state.montantCrypto
+        val recu = if (donneFcfa) state.montantCrypto else state.montantFcfa
+        val fraisFcfa = state.montantCrypto?.let { c ->
+            c * kotlin.math.abs(
+                (if (donneFcfa) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa
+            )
+        }
+        val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
+            ?.let { "%.2f".format(it) }
+
         Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val unitaire = if (donneFcfa) prix.achatFcfa else prix.venteFcfa
+            Column(
+                Modifier.fillMaxWidth().padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
                 Ligne(
-                    stringResource(R.string.change_taux, state.monnaie),
-                    "${fcfa(unitaire)} FCFA",
+                    stringResource(R.string.change_prix_marche, state.monnaie),
+                    "${fcfa(prix.baseFcfa)} FCFA",
                     icone = Icons.Default.ShowChart
                 )
+
                 /*
-                ═══════════════════════════════════════════════════════════
-                « 25 FCFA/$ » EST UNE UNITE, PAS UN MONTANT
-                ═══════════════════════════════════════════════════════════
+                LE RESTE N'APPARAÎT QU'AVEC UN MONTANT SAISI.
 
-                Cette ligne annoncait « Frais : 25 FCFA/$ ». Sur cent USDT,
-                les frais reels sont deux mille cinq cents francs.
-
-                Quelqu'un qui lit « 25 FCFA » et ne refait pas la
-                multiplication se trompe d'un facteur cent — et il ne la
-                refait pas, parce qu'une ligne intitulee « Frais » se lit
-                comme un montant, pas comme un taux.
-
-                On affiche donc ce que l'operation coute REELLEMENT, en
-                francs, des qu'un montant est saisi. Le taux reste a cote,
-                entre parentheses, pour qui veut comparer a un echangeur :
-                c'est la seule unite comparable, mais ce n'est pas celle
-                qu'on lit en premier.
-
-                Sans montant saisi, il n'y a pas de frais a annoncer : on
-                montre alors le taux seul, qui est tout ce qu'on sait.
-                ═══════════════════════════════════════════════════════════
+                Sans montant, il n'y a ni somme envoyée ni frais à
+                annoncer : seul le cours est connu. Afficher des lignes
+                vides, ou pire des zéros, ferait croire à une opération
+                qui ne rendrait rien.
                 */
-                val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
-                    ?.let { "%.2f %%".format(it) }
-                val fraisReels = state.montantCrypto?.let { c ->
-                    val applique = if (donneFcfa) prix.achatFcfa else prix.venteFcfa
-                    c * kotlin.math.abs(applique - prix.baseFcfa)
+                if (envoye != null && recu != null && fraisFcfa != null) {
+                    Ligne(
+                        stringResource(R.string.change_recap_envoye),
+                        if (donneFcfa) "${fcfa(envoye)} FCFA"
+                        else "${crypto(envoye, state.monnaie)} ${state.monnaie}",
+                        icone = Icons.Default.NorthEast
+                    )
+                    /*
+                    LES FRAIS EN FRANCS, ET LE POURCENTAGE À CÔTÉ.
+
+                    « 25 FCFA/$ » est une unité, pas un montant : sur cent
+                    USDT les frais réels sont deux mille cinq cents francs,
+                    et quelqu'un qui lit « 25 » se trompe d'un facteur cent.
+                    Le pourcentage reste entre parenthèses — c'est la seule
+                    unité comparable à un échangeur en ligne, mais ce n'est
+                    pas celle qu'on lit en premier.
+                    */
+                    Ligne(
+                        stringResource(R.string.change_marge),
+                        "${fcfa(fraisFcfa)} FCFA" + (pourcent?.let { " ($it %)" } ?: ""),
+                        icone = Icons.Default.Payments
+                    )
+                    HorizontalDivider(color = BgPrimary)
+                    Ligne(
+                        stringResource(R.string.change_recevra),
+                        if (donneFcfa) "${crypto(recu, state.monnaie)} ${state.monnaie}"
+                        else "${fcfa(recu)} FCFA",
+                        icone = Icons.Default.AccountBalanceWallet,
+                        vedette = true
+                    )
                 }
-                Ligne(
-                    stringResource(R.string.change_marge),
-                    icone = Icons.Default.Payments,
-                    valeur = if (fraisReels != null && fraisReels >= 1.0)
-                        "${fcfa(fraisReels)} FCFA" + (pourcent?.let { " ($it)" } ?: "")
-                    else "${fcfa(p.margeFcfaParDollar)} FCFA/$" + (pourcent?.let { " ($it)" } ?: "")
-                )
-                /*
-                ═══════════════════════════════════════════════════════════
-                CE QU'ON DONNE ET CE QU'ON RECOIT ONT QUITTE CETTE CARTE
-                ═══════════════════════════════════════════════════════════
-
-                Les deux montants etaient ici, en troisieme et quatrieme
-                ligne, derriere le taux et les frais. Ils sont desormais les
-                deux cartes du haut — la question qu'on vient poser merite
-                la premiere place, pas la quatrieme ligne d'un detail.
-
-                Il ne reste donc que ce qui JUSTIFIE ces deux chiffres : le
-                taux unitaire et ce que l'operation coute. Deux lignes, et
-                la carte se lit d'un coup d'oeil au lieu de demander un
-                rapprochement.
-
-                Les repeter ici serait pire que redondant : deux endroits
-                qui affichent le meme montant finissent par ne plus
-                l'afficher pareil — le mois dernier, « Tu paies 5 599 » et
-                « Tu recois 5 599 » cohabitaient sur cet ecran.
-                ═══════════════════════════════════════════════════════════
-                */
             }
         }
     }
@@ -1276,6 +1339,46 @@ private fun ColumnScope.EtapeTransmis(
     }
 }
 
+/** Un onglet de sens, avec son icone. */
+@Composable
+private fun OngletSens(
+    texte: String,
+    icone: androidx.compose.ui.graphics.vector.ImageVector,
+    choisi: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (choisi) AccentBlue.copy(alpha = 0.18f) else androidx.compose.ui.graphics.Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(
+            if (choisi) 1.5.dp else 1.dp,
+            if (choisi) AccentBlue else SurfaceColor
+        ),
+        modifier = modifier.height(46.dp)
+    ) {
+        Row(
+            Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icone, null,
+                tint = if (choisi) AccentBlue else TextSecondary,
+                modifier = Modifier.size(17.dp)
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                texte,
+                fontSize = 14.sp,
+                fontWeight = if (choisi) FontWeight.Bold else FontWeight.Medium,
+                color = if (choisi) TextPrimary else TextSecondary
+            )
+        }
+    }
+}
+
 // ─── Les deux cartes de montant ─────────────────────────────────────
 
 /*
@@ -1308,6 +1411,13 @@ private fun CarteMontantChange(
     libelle: String,
     montant: String,
     unite: String,
+    /** Solde detenu, pour la carte qu'on remplit lors d'une vente. */
+    solde: Double? = null,
+    /** « Tout », qui met le solde entier dans le champ. */
+    onTout: (() -> Unit)? = null,
+    /** Montants courants proposes en pastilles. Vide pour n'en proposer aucun. */
+    rapides: List<Double> = emptyList(),
+    onRapide: (Double) -> Unit = {},
     /** Le logo de la monnaie : sur la carte crypto, jamais sur celle en francs. */
     avecLogo: Boolean,
     /**
@@ -1321,6 +1431,8 @@ private fun CarteMontantChange(
     onMonnaie: (String) -> Unit,
     /** Null sur la carte qu'on lit : c'est ce qui la rend non modifiable. */
     onMontant: ((String) -> Unit)?,
+    /** Le même montant, arrondi, affiché en dessous s'il diffère. */
+    approx: String? = null,
     vedette: Boolean
 ) {
     var listeOuverte by remember { mutableStateOf(false) }
@@ -1342,7 +1454,46 @@ private fun CarteMontantChange(
             Modifier.fillMaxHeight().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
         ) {
-            Text(libelle, fontSize = 12.sp, color = TextSecondary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                /*
+                LE SOLDE, SUR LA CARTE QU'ON REMPLIT, ET SEULEMENT POUR
+                UNE VENTE.
+
+                Quelqu'un qui ignore combien il detient tape un montant au
+                hasard, se fait refuser, recommence. Le lui montrer la ou
+                il tape supprime ce tatonnement.
+
+                A l'achat il n'y a rien a montrer : on ne detient pas de
+                francs dans l'application, et afficher « Solde : 0 FCFA »
+                — comme le fait la maquette — laisserait croire qu'il
+                faudrait d'abord approvisionner quelque chose.
+                */
+                solde?.let { s ->
+                    Text(
+                        stringResource(R.string.change_solde, crypto(s, unite)),
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        maxLines = 1
+                    )
+                    onTout?.let { tout ->
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = AccentBlue.copy(alpha = 0.14f),
+                            modifier = Modifier.clickable { tout() }
+                        ) {
+                            Text(
+                                stringResource(R.string.change_tout),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentBlue
+                            )
+                        }
+                    }
+                }
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
@@ -1376,12 +1527,41 @@ private fun CarteMontantChange(
                                         .clip(androidx.compose.foundation.shape.CircleShape)
                                 )
                             }
-                            Text(
-                                unite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = TextPrimary
-                            )
+                            Column {
+                                Text(
+                                    unite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = TextPrimary
+                                )
+                                /*
+                                ═════════════════════════════════════════
+                                LE RÉSEAU EN TOUTES LETTRES
+                                ═════════════════════════════════════════
+
+                                « USDT » et « USDT-BNB » côte à côte dans
+                                une liste déroulante, ça ne suffit plus
+                                depuis qu'il y a deux chaînes. Trois
+                                caractères de différence, et un BEP-20
+                                envoyé à une adresse TRON est perdu
+                                définitivement — sans réclamation possible,
+                                sans support à contacter.
+
+                                Le nom du réseau sous le symbole coûte une
+                                ligne de neuf points. Une erreur coûte tout
+                                ce que la personne a envoyé.
+                                ═════════════════════════════════════════
+                                */
+                                reseauDe(unite)?.let { r ->
+                                    Text(
+                                        r,
+                                        fontSize = 9.sp,
+                                        color = AccentOrange,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                             if (choix) {
                                 Icon(
                                     Icons.Default.ArrowDropDown, null,
@@ -1438,20 +1618,116 @@ private fun CarteMontantChange(
                         }
                     )
                 } else {
-                    Text(
-                        montant.ifEmpty { "—" },
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
-                        // Le montant reçu en vert : c'est le seul chiffre qui
-                        // décide, et il garde la couleur qu'il avait quand il
-                        // était la ligne vedette de la carte de détails.
-                        color = if (montant.isEmpty()) TextSecondary else AccentGreen,
-                        maxLines = 1
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            montant.ifEmpty { "—" },
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            // Le montant reçu en vert : c'est le seul chiffre
+                            // qui décide, et il garde la couleur qu'il avait
+                            // quand il était la ligne vedette des détails.
+                            color = if (montant.isEmpty()) TextSecondary else AccentGreen,
+                            maxLines = 1
+                        )
+                        /*
+                        L'ARRONDI SOUS LE CHIFFRE EXACT.
+
+                        « 1,609509 USDT » est juste et illisible : on ne
+                        retient pas six décimales. « ≈ 1,61 » donne l'ordre
+                        de grandeur d'un coup d'oeil, et le chiffre exact
+                        reste au-dessus pour qui vérifie.
+
+                        On ne le montre que s'il apporte quelque chose : sur
+                        un montant déjà court, deux lignes pour le même
+                        nombre ne feraient que du bruit.
+                        */
+                        approx?.takeIf { it != montant }?.let { a ->
+                            Text("≈ $a", fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+                        }
+                    }
+                }
+            }
+
+            /*
+            LES MONTANTS COURANTS, SOUS LE CHAMP.
+
+            « 5 000 » se tape en quatre frappes sur un téléphone qu'on
+            tient d'une main, dans la rue. Les pastilles suppriment ces
+            frappes pour les sommes que les gens échangent réellement.
+
+            Et elles disent autre chose, sans un mot : l'ordre de grandeur
+            attendu. Quelqu'un qui ouvre cet écran pour la première fois ne
+            sait pas s'il s'échange ici des centaines ou des millions. Trois
+            chiffres le lui apprennent mieux qu'une phrase.
+            */
+            if (rapides.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rapides.forEach { v ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = SurfaceColor,
+                            modifier = Modifier.weight(1f).clickable { onRapide(v) }
+                        ) {
+                            Text(
+                                fcfa(v),
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE RÉSEAU D'UNE MONNAIE, EN TOUTES LETTRES
+═══════════════════════════════════════════════════════════════════════════
+
+Depuis qu'il y a deux chaînes, « USDT » et « USDT-BNB » côte à côte dans
+une liste ne suffisent plus. Trois caractères de différence, et un BEP-20
+envoyé à une adresse TRON est perdu définitivement.
+
+Null pour les francs, qui ne sont sur aucune chaîne — et pour une monnaie
+qu'on ne connaît pas, plutôt qu'un nom deviné. Mieux vaut ne rien dire que
+nommer le mauvais réseau.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
+    "USDT", "USDT-TRX", "TRX" -> "TRC20 · TRON"
+    "USDT-BNB", "BNB" -> "BEP20 · BNB Smart Chain"
+    "USDT-ETH", "ETH" -> "ERC20 · Ethereum"
+    "BTC" -> "Bitcoin"
+    "SOL" -> "Solana"
+    "PI" -> "Pi Network"
+    else -> null
+}
+
+/**
+ * Trois montants courants, déduits des bornes du changeur.
+ *
+ * DÉDUITS PLUTÔT QUE CODÉS. Le minimum et le plafond sont réglables à
+ * distance ; des pastilles figées finiraient par proposer des sommes
+ * refusées — ce qui est exactement le contraire de leur but.
+ */
+private fun montantsRapides(p: com.vaultex.domain.fiat.ParametresChange): List<Double> {
+    val min = p.minimumFcfa.coerceAtLeast(500.0)
+    val max = p.plafondFcfa
+    if (max <= min) return emptyList()
+    // Arrondis au millier le plus proche : « 5 000 » se lit, « 4 800 » non.
+    return listOf(min, (min + max) / 2, max)
+        .map { kotlin.math.round(it / 1000.0) * 1000.0 }
+        .distinct()
+        .filter { it in min..max }
 }
 
 /*
