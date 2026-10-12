@@ -1165,4 +1165,10 @@
     <string name="change_ussd_bouton">Pay with %1$s</string>
     <string name="change_ussd_note">Your phone will open the dialler with the code already filled in. Check the amount, press Call, and finish with your PIN — VaultEx never sees it.</string>
     <string name="change_montant_exact_note">Send EXACTLY this amount, decimals included. It is what ties the transfer to your request — a rounded amount will not be recognised.</string>
+    <string name="change_inverser">Swap buy and sell</string>
+    <string name="change_solde">Balance: %1$s</string>
+    <string name="change_tout">ALL</string>
+    <string name="change_recap_envoye">You send</string>
+    <string name="change_recevra">You will receive</string>
+    <string name="change_prix_marche">Market price (1 %1$s)</string>
 </resources>
