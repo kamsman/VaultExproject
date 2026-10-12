@@ -682,12 +682,20 @@ fun DashboardScreen(navController: NavHostController) {
 
                     Un « $ » est une seule forme. Il se lit à n'importe
                     quelle taille, et il ne ressemble à aucune des trois
-                    flèches voisines. C'est ce qui distingue cette tuile,
-                    et c'est TOUT ce qui la distingue : même fond, même
-                    contour, même blanc que les autres.
+                    flèches voisines.
+
+                    ET IL EST BLEU, lui seul. La tuile garde le fond et le
+                    contour des autres — un fond teinté les faisait toutes
+                    se disputer le regard. Un signe différent dans la
+                    couleur de l'application suffit à dire « celle-ci n'est
+                    pas un transfert de plus », sans crier.
+
+                    C'est ce qui justifie que `tint` existe : trois tuiles
+                    en blanc, une en bleu, et le paramètre sert enfin à
+                    quelque chose.
                     */
                     ActionTile(stringResource(R.string.action_acheter), Icons.Default.AttachMoney,
-                        TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
+                        AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
                 }
             }
 
@@ -1667,10 +1675,10 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
  * Un paramètre ignoré ne lève aucune erreur : il se contente de faire
  * mentir le code qui l'entoure, et le commentaire avec.
  *
- * Il est employé maintenant. Et les quatre appelants lui passent
- * `TextPrimary`, ce qui est un CHOIX et non un oubli : quatre tuiles
- * coloriées côte à côte se lisent comme un seul bloc, et plus aucune ne
- * ressort. Ce qui distingue « Acheter » est son signe, pas sa couleur.
+ * Il est employé maintenant, et il porte une vraie différence : trois
+ * tuiles en blanc, « Acheter » en bleu. Quatre tuiles toutes coloriées se
+ * liraient comme un seul bloc et plus aucune ne ressortirait — c'est le
+ * blanc des trois voisines qui donne sa valeur à la quatrième.
  * ═══════════════════════════════════════════════════════════════════════
  */
 @Composable
