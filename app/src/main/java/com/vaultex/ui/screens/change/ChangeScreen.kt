@@ -222,7 +222,7 @@ private fun ColumnScope.EtapeCalcul(
         libelle = stringResource(R.string.change_tu_donnes),
         solde = if (donneFcfa) null else state.solde,
         onTout = if (donneFcfa) null else vm::onToutVendre,
-        rapides = if (donneFcfa) montantsRapides(p) else emptyList(),
+        rapides = if (donneFcfa) montantsRapides(p, state.monnaie) else emptyList(),
         onRapide = vm::onMontantRapide,
         /*
         LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
@@ -1722,17 +1722,43 @@ private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
  * Trois montants courants, déduits des bornes du changeur.
  *
  * DÉDUITS PLUTÔT QUE CODÉS. Le minimum et le plafond sont réglables à
- * distance ; des pastilles figées finiraient par proposer des sommes
- * refusées — ce qui est exactement le contraire de leur but.
+ * distance, et par monnaie ; des pastilles figées finiraient par proposer
+ * des sommes refusées — ce qui est exactement le contraire de leur but.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LE MINIMUM N'EST PAS ARRONDI, ET IL A FALLU UNE CAPTURE POUR LE VOIR
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Il y avait trois pastilles dans le code et deux à l'écran. Cause :
+ * `kotlin.math.round` arrondit les demis VERS LE PAIR, pas vers le haut.
+ * Sur un minimum de 500, `round(500 / 1000.0)` rend 0 — pas 1 — donc la
+ * pastille valait zéro, sortait des bornes, et disparaissait en silence.
+ *
+ * Le piège est que l'arrondi « naturel » qu'on a en tête est celui de
+ * l'école, et que celui de la bibliothèque est celui des statisticiens.
+ * Les deux ne diffèrent que sur les demis exacts — donc presque jamais,
+ * donc jamais quand on teste.
+ *
+ * Le minimum est maintenant rendu TEL QUEL. C'est un chiffre qui a du
+ * sens en lui-même : la plus petite somme acceptée. L'arrondir pour faire
+ * joli la rendrait fausse dans un sens ou dans l'autre — en dessous elle
+ * serait refusée, au-dessus elle cacherait ce qui est permis.
+ * ═══════════════════════════════════════════════════════════════════════
  */
-private fun montantsRapides(p: com.vaultex.domain.fiat.ParametresChange): List<Double> {
-    val min = p.minimumFcfa.coerceAtLeast(500.0)
+private fun montantsRapides(
+    p: com.vaultex.domain.fiat.ParametresChange,
+    monnaie: String
+): List<Double> {
+    // PAR MONNAIE : TRON et BNB Chain n'ont pas le même seuil, parce
+    // qu'elles n'ont pas les mêmes frais de réseau.
+    val min = p.minimumPour(monnaie)
     val max = p.plafondFcfa
     if (max <= min) return emptyList()
-    // Arrondis au millier le plus proche : « 5 000 » se lit, « 4 800 » non.
-    return listOf(min, (min + max) / 2, max)
-        .map { kotlin.math.round(it / 1000.0) * 1000.0 }
+    val milieu = kotlin.math.round((min + max) / 2000.0) * 1000.0
+    return listOf(min, milieu, max)
+        .map { kotlin.math.round(it) }
         .distinct()
+        .map { it.toDouble() }
         .filter { it in min..max }
 }
 
