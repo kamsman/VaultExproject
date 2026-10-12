@@ -71,8 +71,15 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
 
   CHANGE_ACTIF      0 ferme le service en une seconde, sans republier.
   CHANGE_MARGE      Marge en FRANCS PAR DOLLAR (défaut 25).
-  CHANGE_MIN        Minimum par opération, en francs (défaut 5000). Sert
-                    de repli aux monnaies absentes de CHANGE_MINIMUMS.
+  CHANGE_MIN        UN NOMBRE, en francs (défaut 5000). Sert de repli aux
+                    monnaies absentes de CHANGE_MINIMUMS.
+
+                    ⚠️ Ne pas confondre avec CHANGE_MINIMUMS ci-dessous :
+                    les deux noms ne diffèrent que par trois lettres, et
+                    le tableau de bord les affiche l'un sous l'autre. Y
+                    coller le JSON par monnaie fait retomber le seuil
+                    général à 5000, sans aucun message. /diag le signale
+                    désormais dans `minimumsParMonnaie.alerte`.
   CHANGE_MINIMUMS   Minimum PAR MONNAIE :
                     {"USDT":20000,"USDT-BNB":2000,"USDT-ETH":50000}
 
@@ -224,7 +231,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 21
+const VERSION = 22
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -928,9 +935,44 @@ async function diagnostic(env) {
   const premierDiag = nb(env?.CHANGE_MAX_PREMIER, plafondDiag)
   sondes.fenetreVenteHeures = Math.round(fenetreVente(env) / 3600000)
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  CHANGE_MIN ET CHANGE_MINIMUMS SE RESSEMBLENT TROP
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est arrivé au premier réglage : le JSON destiné à CHANGE_MINIMUMS a
+  été collé dans CHANGE_MIN. Les deux noms ne diffèrent que par trois
+  lettres, et le tableau de bord les affiche l'un sous l'autre.
+
+  Le résultat ne ressemblait pas à une erreur. CHANGE_MIN cessait d'être
+  un nombre, donc le relais retombait sur 5 000 — silencieusement, comme
+  il doit le faire face à une valeur illisible. Et CHANGE_MINIMUMS
+  n'existait pas, donc aucun seuil par monnaie. Deux réglages perdus, zéro
+  message, et l'écran qui refuse une vente sans dire pourquoi.
+
+  Un repli silencieux est juste quand la valeur est ABSENTE. Il est
+  trompeur quand elle est PRÉSENTE et mal formée : là, quelqu'un croit
+  avoir réglé quelque chose.
+
+  On ne corrige pas à sa place — deviner qu'un JSON dans CHANGE_MIN était
+  destiné à CHANGE_MINIMUMS marcherait aujourd'hui et masquerait une vraie
+  faute demain. On le DIT, et c'est à /diag de le dire, puisque c'est la
+  page qu'on ouvre quand quelque chose ne va pas.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const minBrut = env?.CHANGE_MIN
+  const minLisible = minBrut === undefined || Number.isFinite(Number(minBrut))
   sondes.minimumsParMonnaie = {
     general: nb(env?.CHANGE_MIN, 5000),
+    generalLisible: minLisible,
     parMonnaie: minimumsChange(env),
+    ...(minLisible
+      ? {}
+      : {
+          alerte:
+            'CHANGE_MIN n\'est pas un nombre — le seuil general retombe a 5000. ' +
+            'Un JSON par monnaie se met dans CHANGE_MINIMUMS, pas ici.',
+        }),
   }
 
   sondes.gardeFous = {
