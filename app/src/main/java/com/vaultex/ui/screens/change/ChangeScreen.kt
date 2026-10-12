@@ -21,9 +21,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.LocalAtm
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -159,13 +159,19 @@ private fun ColumnScope.EtapeCalcul(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OngletSens(
             texte = stringResource(R.string.change_acheter),
-            icone = Icons.Default.ShoppingCart,
+            // Le meme billet que la tuile de l'accueil : deux icones
+            // differentes pour le meme geste font hesiter sur l'endroit
+            // ou l'on vient d'arriver.
+            icone = Icons.Default.LocalAtm,
             choisi = state.sens == SensChange.ACHAT,
             modifier = Modifier.weight(1f)
         ) { vm.onSens(SensChange.ACHAT) }
         OngletSens(
             texte = stringResource(R.string.change_vendre),
-            icone = Icons.Default.SwapHoriz,
+            // L'etiquette de prix, et non la double fleche : vendre n'est
+            // pas echanger, et la double fleche designe deja le Swap
+            // ailleurs dans l'application.
+            icone = Icons.Default.Sell,
             choisi = state.sens == SensChange.VENTE,
             modifier = Modifier.weight(1f)
         ) { vm.onSens(SensChange.VENTE) }
