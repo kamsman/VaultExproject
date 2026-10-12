@@ -622,6 +622,66 @@ verifie('groupeMilliers : 5000', groupeMilliers(5000) === '5 000')
 verifie('groupeMilliers : 999', groupeMilliers(999) === '999')
 verifie('groupeMilliers : 1234567', groupeMilliers(1234567) === '1 234 567')
 
+// ─── La fenêtre de rapprochement ────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE RÉGLAGE EST NÉ D'UN ESSAI RÉEL
+═══════════════════════════════════════════════════════════════════════════
+
+Un versement de test était bien arrivé sur la chaîne, et le relais
+répondait « absent » — non pas parce qu'il ne le voyait pas, mais parce
+qu'il datait de plus de trois heures.
+
+Le comportement était juste ; la durée, trop courte pour le cas qui se
+présentait. Et ce cas n'a rien d'exceptionnel : quelqu'un retire depuis
+une plateforme d'échange dont la file traîne, part travailler, et revient
+déposer sa demande le soir.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+import { fenetreVente } from './worker.js'
+
+verifie('FENETRE : trois heures par defaut', fenetreVente({}) === 3 * 3600_000, fenetreVente({}))
+verifie(
+  'FENETRE : reglable en minutes',
+  fenetreVente({ CHANGE_FENETRE_MINUTES: '720' }) === 12 * 3600_000
+)
+verifie(
+  'FENETRE : une valeur illisible retombe sur trois heures',
+  fenetreVente({ CHANGE_FENETRE_MINUTES: 'beaucoup' }) === 3 * 3600_000
+)
+verifie(
+  'FENETRE : zero ou negatif retombe sur trois heures',
+  fenetreVente({ CHANGE_FENETRE_MINUTES: '0' }) === 3 * 3600_000 &&
+    fenetreVente({ CHANGE_FENETRE_MINUTES: '-5' }) === 3 * 3600_000
+)
+/*
+LES BORNES. En dessous d'un quart d'heure, on refuserait des versements en
+cours de confirmation. Au-dela de sept jours, la fenetre cesse de borner
+quoi que ce soit — et son role est precisement qu'un versement d'il y a un
+mois ne justifie pas une demande d'aujourd'hui.
+*/
+verifie('FENETRE : plancher a quinze minutes', fenetreVente({ CHANGE_FENETRE_MINUTES: '1' }) === 15 * 60_000)
+verifie(
+  'FENETRE : plafond a sept jours',
+  fenetreVente({ CHANGE_FENETRE_MINUTES: '999999' }) === 7 * 24 * 3600_000
+)
+
+{
+  // Et elle est bien APPLIQUEE par le tri : un versement de six heures
+  // passe a douze heures de fenetre, pas a trois.
+  const vieux = transfertTron({ block_timestamp: MAINTENANT - 6 * 3600_000 })
+  verifie(
+    'FENETRE : six heures refusees par defaut',
+    choisirTransfertTron([vieux], critereTron()) === null
+  )
+  verifie(
+    'FENETRE : six heures acceptees a douze heures de fenetre',
+    choisirTransfertTron([vieux], critereTron({ fenetre: 12 * 3600_000 })) !== null
+  )
+}
+
 // ─── Verdict ────────────────────────────────────────────────────────
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
