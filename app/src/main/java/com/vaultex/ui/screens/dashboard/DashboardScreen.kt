@@ -654,23 +654,51 @@ fun DashboardScreen(navController: NavHostController) {
             */
             item(key = "actions") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionTile(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
-                        AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
-                    ActionTile(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
-                        AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
-                    ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
-                        AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                     /*
-                    LE PANIER PLUTÔT QUE LA CARTE BANCAIRE, pour que la
-                    tuile et l'onglet « Acheter » de l'écran qui s'ouvre
-                    portent le même signe. Deux icônes différentes pour le
-                    même geste font hésiter sur l'endroit où l'on vient
-                    d'arriver.
+                    LES TROIS PREMIÈRES RESTENT BLANCHES.
+
+                    J'avais rendu à chacune la couleur que l'appelant lui
+                    passait — rouge, vert, bleu. Quatre tuiles coloriées
+                    côte à côte, et plus aucune ne ressortait : une rangée
+                    d'arc-en-ciel se lit comme un seul bloc.
+
+                    Le blanc n'est donc pas un repli, c'est ce qui laisse
+                    la place. Une seule tuile porte une couleur, et c'est
+                    celle qu'on veut voir.
+                    */
+                    ActionTile(stringResource(R.string.action_send), Icons.Default.ArrowUpward,
+                        TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
+                    ActionTile(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
+                        TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
+                    ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
+                        TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE BILLET, ET LE BLEU DE L'APPLICATION
+                    ═══════════════════════════════════════════════════════
+
+                    L'ORANGE NE TENAIT PAS. Le fond est bleu nuit, le logo
+                    est bleu, le bouton flottant est bleu-violet : une
+                    tuile orange ne ressortait pas, elle jurait. Ressortir
+                    et jurer ne sont pas la même chose — la première
+                    attire, la seconde fait détourner le regard.
+
+                    Le bleu de l'application dit « ceci est à nous » au
+                    lieu de « ceci est ailleurs », et il ressort d'autant
+                    mieux que les trois voisines sont blanches.
+
+                    LE BILLET PLUTÔT QUE LE PANIER. Un panier dit
+                    « acheter des choses » ; ici on achète avec des
+                    FRANCS, en espèces, auprès de quelqu'un. Le billet dit
+                    « argent liquide », qui est exactement ce dont il
+                    s'agit — et il ne ressemble à aucune des trois flèches
+                    voisines.
+                    ═══════════════════════════════════════════════════════
                     */
                     ActionTile(
                         stringResource(R.string.action_acheter),
-                        Icons.Default.ShoppingCart,
-                        AccentOrange,
+                        Icons.Default.LocalAtm,
+                        AccentBlue,
                         Modifier.weight(1f),
                         vedette = true
                     ) { navController.navigate(Routes.CHANGE) }
