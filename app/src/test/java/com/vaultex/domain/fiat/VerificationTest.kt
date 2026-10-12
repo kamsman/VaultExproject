@@ -207,6 +207,108 @@ class VerificationTest {
         assertFalse(s.peutTransmettre())
     }
 
+    // ─── Le minimum par monnaie ─────────────────────────────────────
+
+    /**
+     * ═══════════════════════════════════════════════════════════════
+     * LE RESEAU LE PLUS CHER NE DOIT PAS DEVENIR UN PIEGE
+     * ═══════════════════════════════════════════════════════════════
+     *
+     * Les frais de reseau n'ont rien a voir d'une chaine a l'autre :
+     * 13 a 27 TRX sur TRON, environ 0,20 $ sur BNB Chain, 1 a 10 $ sur
+     * Ethereum.
+     *
+     * Sur une vente de 8 USDT — cinq mille francs — Ethereum prend entre
+     * douze et cent vingt-cinq pour cent de l'operation. Quelqu'un
+     * choisirait « USDT-ETH » dans la liste PARCE QU'IL Y EST, et ne
+     * decouvrirait le cout qu'au moment de signer dans son portefeuille,
+     * bien apres avoir lu « Tu recois 4 800 FCFA ».
+     */
+    @Test
+    fun `chaque monnaie a son minimum`() {
+        val p = parametres(
+            minimumFcfa = 5_000.0,
+            minimums = mapOf("USDT" to 20_000.0, "USDT-BNB" to 2_000.0, "USDT-ETH" to 50_000.0)
+        )
+        assertEquals(20_000.0, p.minimumPour("USDT"), 0.0)
+        assertEquals(2_000.0, p.minimumPour("USDT-BNB"), 0.0)
+        assertEquals(50_000.0, p.minimumPour("USDT-ETH"), 0.0)
+    }
+
+    @Test
+    fun `la casse ne compte pas`() {
+        val p = parametres(minimums = mapOf("USDT-BNB" to 2_000.0))
+        assertEquals(2_000.0, p.minimumPour("usdt-bnb"), 0.0)
+    }
+
+    /**
+     * UNE MONNAIE ABSENTE RETOMBE SUR LE SEUIL GENERAL.
+     *
+     * C'est ce qui rend l'ajout d'une chaine sans risque : on applique le
+     * comportement d'avant au lieu d'ouvrir un trou. Rendre zero — ou
+     * rien — ouvrirait la monnaie sans aucun minimum.
+     */
+    @Test
+    fun `une monnaie absente retombe sur le seuil general`() {
+        val p = parametres(minimumFcfa = 5_000.0, minimums = mapOf("USDT" to 20_000.0))
+        assertEquals(5_000.0, p.minimumPour("BTC"), 0.0)
+        assertEquals(5_000.0, parametres(minimumFcfa = 5_000.0).minimumPour("USDT"), 0.0)
+    }
+
+    @Test
+    fun `un seuil nul ou negatif est ecarte`() {
+        // Zero n'est pas un seuil, c'est l'absence de seuil. On ne laisse
+        // pas une valeur mal reglee ouvrir une monnaie sans minimum.
+        val p = parametres(
+            minimumFcfa = 5_000.0,
+            minimums = mapOf("USDT" to 0.0, "USDT-BNB" to -1.0)
+        )
+        assertEquals(5_000.0, p.minimumPour("USDT"), 0.0)
+        assertEquals(5_000.0, p.minimumPour("USDT-BNB"), 0.0)
+    }
+
+    /** Et le bouton doit s'eteindre sur le seuil de LA monnaie choisie. */
+    @Test
+    fun `le blocage suit le minimum de la monnaie`() {
+        val p = parametres(
+            minimumFcfa = 5_000.0,
+            minimums = mapOf("USDT-BNB" to 2_000.0, "USDT-ETH" to 50_000.0)
+        )
+        val prix = TauxFcfa.prix(585.0, 25.0, 585.0)!!
+        // 5 USDT a ~560 FCFA font 2 800 francs : au-dessus du seuil BNB,
+        // tres en dessous du seuil Ethereum.
+        val base = ChangeState(
+            parametres = p,
+            sens = SensChange.VENTE,
+            saisie = "5",
+            prix = prix,
+            fcfaParDollar = 585.0
+        )
+        assertEquals(null, base.copy(monnaie = "USDT-BNB").blocage())
+        assertEquals("minimum", base.copy(monnaie = "USDT-ETH").blocage())
+    }
+
+    private fun parametres(
+        minimumFcfa: Double = 5_000.0,
+        minimums: Map<String, Double> = emptyMap()
+    ) = ParametresChange(
+        actif = true,
+        margeFcfaParDollar = 25.0,
+        minimumFcfa = minimumFcfa,
+        plafondFcfa = 50_000.0,
+        numeroMobileMoney = "64088910",
+        nomChangeur = "KOANDA",
+        operateur = "Orange Money",
+        delaiMinutes = 30,
+        monnaies = listOf("USDT", "USDT-BNB", "USDT-ETH"),
+        adresses = mapOf(
+            "USDT" to "TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM",
+            "USDT-BNB" to "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+            "USDT-ETH" to "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+        ),
+        minimumsParMonnaie = minimums
+    )
+
     // ─── Les decimales affichees ────────────────────────────────────
 
     /**

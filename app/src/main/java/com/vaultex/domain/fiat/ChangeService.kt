@@ -68,8 +68,41 @@ data class ParametresChange(
      * USSD change sans preavis, et corriger une variable Cloudflare prend
      * dix secondes la ou republier un APK prend une semaine.
      */
-    val ussdModele: String = ""
+    val ussdModele: String = "",
+    /** Minimum par monnaie. Voir [minimumPour]. */
+    val minimumsParMonnaie: Map<String, Double> = emptyMap()
 ) {
+
+    /**
+     * Le minimum applicable a cette monnaie, en francs.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * POURQUOI UN SEUIL UNIQUE NE TIENT PAS AVEC PLUSIEURS CHAINES
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Les frais de reseau n'ont rien a voir d'une chaine a l'autre :
+     *
+     *   TRON        13 a 27 TRX par transfert
+     *   BNB Chain   environ 0,20 $
+     *   Ethereum    1 a 10 $
+     *
+     * Sur une vente de 8 USDT — cinq mille francs — Ethereum prend entre
+     * douze et cent vingt-cinq pour cent de l'operation. Quelqu'un
+     * choisirait « USDT-ETH » dans la liste PARCE QU'IL Y EST, et ne
+     * decouvrirait le cout qu'au moment de signer dans son portefeuille,
+     * bien apres avoir lu « Tu recois 4 800 FCFA » sur l'ecran.
+     *
+     * L'application aurait dit la verite sur le prix et menti par omission
+     * sur le cout.
+     *
+     * UNE MONNAIE ABSENTE RETOMBE SUR LE SEUIL GENERAL. Ajouter une chaine
+     * sans penser a son seuil n'ouvre donc aucun trou : ca applique le
+     * comportement d'avant.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun minimumPour(monnaie: String): Double =
+        minimumsParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 } ?: minimumFcfa
+
     /**
      * Un service annoncé actif mais sans numéro n'est pas utilisable.
      *
@@ -230,7 +263,11 @@ class ChangeService @Inject constructor(
                 delaiMinutes = dto.delaiMinutes ?: 30,
                 monnaies = dto.monnaies?.map { m -> m.uppercase() }.orEmpty(),
                 adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty(),
-                ussdModele = dto.ussdModele.orEmpty()
+                ussdModele = dto.ussdModele.orEmpty(),
+                minimumsParMonnaie = dto.minimumsParMonnaie
+                    ?.mapKeys { (k, _) -> k.uppercase() }
+                    ?.filterValues { v -> v > 0.0 }
+                    .orEmpty()
             )
             cache = p
             horodatage = maintenant
