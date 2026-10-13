@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 24
+const VERSION = 25
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -393,6 +393,37 @@ export default {
 
     if (url.pathname === '/diag') {
       return await diagnostic(env)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /diag/plages — COMBIEN DE BLOCS CHAQUE NŒUD ACCEPTE-T-IL VRAIMENT ?
+    ═══════════════════════════════════════════════════════════════════════
+
+    J'ai écrit deux fois une limite dans ce fichier en la supposant : deux
+    mille blocs, puis cinq cents, « qui passe partout ». Les deux fois le
+    relais a répondu « limit exceeded » en production, et les deux fois
+    l'essai de vente s'est arrêté là.
+
+    Cette sonde-ci ne suppose rien. Elle demande le MÊME appel que la
+    vérification — même contrat, mêmes sujets — à des largeurs croissantes,
+    et s'arrête au premier refus de chaque nœud. Ce qu'elle rend est la
+    limite réelle, et non une hypothèse sur la limite.
+
+    ─── POURQUOI ELLE VIT DANS LE RELAIS ────────────────────────────────
+
+    Parce qu'une mesure faite depuis un PC de maison ne vaut pas ici. Les
+    points d'entrée publics limitent PAR IP, et un Worker sort par des
+    adresses Cloudflare partagées avec tous les robots du monde. Ce même
+    fichier porte déjà la trace du phénomène : `api.binance.com` répond
+    403 depuis un Worker et parfaitement depuis un navigateur.
+
+    La seule mesure qui décrit ce que vit le relais est celle que le relais
+    fait lui-même.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/diag/plages') {
+      return await diagnostiquerPlages(url.searchParams)
     }
 
     /*
@@ -3048,6 +3079,148 @@ async function fetchBorne(url, options, millisecondes) {
 }
 
 /** Un appel JSON-RPC sur le premier nœud qui répond. */
+/*
+LES LARGEURS SONDÉES, ET POURQUOI ELLES MONTENT PAR PALIERS.
+
+On cherche un seuil, pas une valeur. Doubler à chaque fois trouverait le
+seuil en moins d'appels, mais nous laisserait avec « entre 128 et 256 » —
+alors que ce qu'il faut écrire dans TRANCHE_EVM est un nombre rond qu'on
+peut tenir. Ces paliers-là SONT les candidats.
+
+On s'arrête au premier refus : au-delà, ce sera pire, et insister ne fait
+qu'allonger une sonde qui tourne déjà contre sept hôtes.
+*/
+const PLAGES_SONDEES = [1, 10, 25, 50, 100, 200, 500, 1000]
+
+/**
+ * Mesure, nœud par nœud, la plage de blocs acceptée par `eth_getLogs`.
+ *
+ * Rend pour chaque hôte la plus grande largeur qui a répondu, et le motif
+ * exact du premier refus. C'est ce motif qui dit s'il s'agit d'une limite
+ * de plage (« exceed maximum block range ») ou d'une limite de débit
+ * (« rate limit »), et les deux ne se corrigent pas de la même façon.
+ */
+async function diagnostiquerPlages(params) {
+  const reseau = (params?.get('reseau') || 'bnb').toLowerCase()
+  const hotes = NOEUDS_EVM[reseau]
+  if (!hotes) {
+    return json({ ok: false, erreur: `reseau inconnu : ${reseau}`, connus: Object.keys(NOEUDS_EVM) }, 400)
+  }
+
+  /*
+  ON SONDE AVEC LE VRAI CONTRAT ET LES VRAIS SUJETS.
+
+  Un `eth_getLogs` sans filtre d'adresse rapporte tous les journaux de la
+  plage — des milliers — et se ferait refuser pour une raison qui n'est
+  pas celle qu'on mesure. La sonde doit poser la question que pose la
+  vérification, mot pour mot, sinon elle mesure autre chose.
+  */
+  const cfg = Object.values(CHAINES_VENTE).find((c) => c.reseau === reseau && c.contrat)
+  const sujets = [TOPIC_TRANSFER, null, topicDepuisAdresse('0x' + '11'.repeat(20))]
+
+  const resultats = {}
+  for (const hote of hotes) {
+    const nom = hote.replace('https://', '')
+    let dernier = 0
+    try {
+      const h = await rpcBrut(hote, 'eth_blockNumber', [])
+      if (h.erreur) { resultats[nom] = { hauteur: `✗ ${h.erreur}` }; continue }
+      dernier = parseInt(h.resultat, 16)
+      if (!Number.isFinite(dernier) || dernier <= 0) {
+        resultats[nom] = { hauteur: `✗ illisible : ${String(h.resultat).slice(0, 40)}` }
+        continue
+      }
+    } catch (e) {
+      resultats[nom] = { hauteur: `✗ ${String(e?.message ?? e).slice(0, 60)}` }
+      continue
+    }
+
+    let maxOk = 0
+    let refus = null
+    for (const largeur of PLAGES_SONDEES) {
+      // Deux blocs de marge : un `toBlock` égal à la tête est parfois
+      // refusé le temps que le nœud propage le dernier bloc.
+      const haut = dernier - 2
+      const bas = haut - largeur + 1
+      const r = await rpcBrut(hote, 'eth_getLogs', [
+        {
+          address: cfg?.contrat,
+          topics: sujets,
+          fromBlock: '0x' + bas.toString(16),
+          toBlock: '0x' + haut.toString(16),
+        },
+      ])
+      if (r.erreur) { refus = { largeur, motif: r.erreur }; break }
+      if (!Array.isArray(r.resultat)) { refus = { largeur, motif: 'resultat non-tableau' }; break }
+      maxOk = largeur
+    }
+
+    resultats[nom] = {
+      hauteur: dernier,
+      accepte: maxOk === 0 ? 'AUCUNE' : `${maxOk} blocs`,
+      refus: refus ? `${refus.largeur} blocs → ${refus.motif}` : `rien jusqu'a ${maxOk}`,
+    }
+  }
+
+  /*
+  LA CONCLUSION EST CALCULÉE, PAS LAISSÉE À LIRE.
+
+  Sept lignes de mesures demandent d'être comparées à la main, et c'est là
+  qu'on se trompe. Ce qui décide de TRANCHE_EVM est la plus grande largeur
+  qu'un nœud VIVANT accepte — parce qu'il suffit d'un nœud qui réponde.
+  */
+  const vivants = Object.values(resultats).filter((r) => typeof r.hauteur === 'number' && r.accepte !== 'AUCUNE')
+  const meilleur = vivants.reduce((m, r) => Math.max(m, parseInt(r.accepte, 10) || 0), 0)
+
+  return json({
+    ok: true,
+    version: VERSION,
+    reseau,
+    contrat: cfg?.contrat ?? '(aucun contrat regle pour ce reseau)',
+    tranche_actuelle: TRANCHE_EVM,
+    noeuds: resultats,
+    conclusion:
+      vivants.length === 0
+        ? 'AUCUN noeud ne repond a eth_getLogs : il faut une autre source que les RPC publics.'
+        : `${vivants.length} noeud(s) acceptent au moins une plage ; la plus large est ${meilleur} blocs. ` +
+          (meilleur >= TRANCHE_EVM
+            ? `TRANCHE_EVM (${TRANCHE_EVM}) passe.`
+            : `TRANCHE_EVM (${TRANCHE_EVM}) est TROP GRANDE : il faut descendre a ${meilleur}.`),
+  })
+}
+
+/**
+ * Un appel JSON-RPC à UN SEUL nœud, dont l'échec est une valeur.
+ *
+ * `appelEvm` bascule sur le nœud suivant et ne garde que la dernière
+ * erreur : c'est ce qu'il faut pour vérifier un versement, et c'est
+ * exactement ce qu'il ne faut pas pour mesurer. Ici on veut la réponse de
+ * CE nœud-là, refus compris, en clair.
+ */
+async function rpcBrut(hote, methode, params) {
+  try {
+    const r = await fetchBorne(
+      hote,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: methode, params: params || [] }),
+      },
+      6000
+    )
+    const texte = await r.text()
+    let o = null
+    try { o = JSON.parse(texte) } catch (_) {
+      return { erreur: `HTTP ${r.status}, reponse non-JSON : ${texte.slice(0, 60)}` }
+    }
+    if (o?.error) return { erreur: String(o.error?.message ?? 'rpc').slice(0, 90) }
+    if (!r.ok) return { erreur: `HTTP ${r.status}` }
+    return { resultat: o?.result ?? null }
+  } catch (e) {
+    return { erreur: String(e?.message ?? e).slice(0, 90) }
+  }
+}
+
 async function appelEvm(reseau, methode, params) {
   const noeuds = NOEUDS_EVM[reseau] || []
   let derniere = null
