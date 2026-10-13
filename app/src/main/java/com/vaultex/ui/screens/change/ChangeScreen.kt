@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
@@ -490,14 +492,32 @@ private fun ColumnScope.HistoriqueDemandes(
     copier: (String) -> Unit
 ) {
     if (demandes.isEmpty()) return
-    var tout by remember { mutableStateOf(false) }
-    val visibles = if (tout) demandes else demandes.take(APERCU_HISTORIQUE)
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    REPLIÉE PAR DÉFAUT, ET CE N'EST PAS QU'UNE QUESTION DE PLACE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Trois lignes dépliées en permanence poussaient le bouton « Continuer »
+    hors de l'écran sur un téléphone ordinaire — et neuf fois sur dix, on
+    ouvre cet écran pour faire une NOUVELLE opération, pas pour relire les
+    anciennes.
+
+    La dixième fois, on vient chercher une référence, et on sait qu'elle
+    est là : un appui la découvre. C'est le bon partage — ce qui sert
+    toujours reste visible, ce qui sert parfois s'ouvre.
+
+    LE NOMBRE EST VISIBLE MÊME REPLIÉE. Sans lui, un bandeau fermé ne dit
+    pas s'il cache une demande ou vingt, et on l'ouvre pour rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    var ouvert by remember { mutableStateOf(false) }
 
     Spacer(Modifier.height(6.dp))
     HorizontalDivider(color = SurfaceColor)
 
     Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
+        Modifier.fillMaxWidth().clickable { ouvert = !ouvert }.padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Default.History, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
@@ -506,21 +526,33 @@ private fun ColumnScope.HistoriqueDemandes(
             stringResource(R.string.change_historique_titre),
             fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
         )
-    }
-
-    visibles.forEach { d -> LigneHistorique(d, copier) }
-
-    if (demandes.size > APERCU_HISTORIQUE) {
-        TextButton(onClick = { tout = !tout }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+        Spacer(Modifier.width(8.dp))
+        Surface(shape = RoundedCornerShape(6.dp), color = SurfaceColor) {
             Text(
-                if (tout) stringResource(R.string.change_historique_moins)
-                else stringResource(R.string.change_historique_tout, demandes.size),
-                fontSize = 12.sp, color = AccentBlue
+                demandes.size.toString(),
+                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.dp),
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary
             )
         }
+        Spacer(Modifier.weight(1f))
+        Icon(
+            if (ouvert) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            null, tint = TextSecondary, modifier = Modifier.size(20.dp)
+        )
     }
 
-    Note(stringResource(R.string.change_historique_note), AccentBlue)
+    if (ouvert) {
+        /*
+        TOUT, ET NON LES TROIS PREMIÈRES.
+
+        Le « Tout voir (12) » d'avant était un second appui pour atteindre
+        ce qu'on cherchait. Maintenant que le bandeau lui-même demande un
+        appui, en exiger un deuxième serait une marche de trop : qui
+        l'ouvre vient chercher quelque chose.
+        */
+        demandes.forEach { d -> LigneHistorique(d, copier) }
+        Note(stringResource(R.string.change_historique_note), AccentBlue)
+    }
 }
 
 @Composable
@@ -586,9 +618,6 @@ private fun dateCourte(horodatage: Long): String =
     if (horodatage <= 0L) ""
     else java.text.SimpleDateFormat("d MMM · HH'h'mm", java.util.Locale.FRANCE)
         .format(java.util.Date(horodatage))
-
-/** Trois lignes avant d'avoir a deplier. Voir [HistoriqueDemandes]. */
-private const val APERCU_HISTORIQUE = 3
 
 // ─── Temps 2 : le paiement ──────────────────────────────────────────
 

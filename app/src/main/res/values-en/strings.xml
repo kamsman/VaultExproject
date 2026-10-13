@@ -1132,8 +1132,6 @@
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
-    <string name="change_historique_tout">See all (%1$d)</string>
-    <string name="change_historique_moins">Collapse</string>
     <string name="change_vente_coordonnees">Where to receive your francs</string>
     <string name="change_telephone_vente">Mobile Money number to receive on</string>
     <string name="change_telephone_vente_aide">The exchanger will send your francs to this number. 8 digits.</string>
