@@ -9,6 +9,7 @@ import com.vaultex.domain.fiat.EtatVerification
 import com.vaultex.domain.fiat.HistoriqueChange
 import com.vaultex.domain.fiat.OrdreChange
 import com.vaultex.domain.fiat.ParametresChange
+import com.vaultex.domain.fiat.PaveNumerique
 import com.vaultex.domain.fiat.PrixFcfa
 import com.vaultex.domain.fiat.ResultatOrdre
 import com.vaultex.domain.fiat.TauxFcfa
@@ -89,11 +90,29 @@ data class ChangeState(
      */
     val forcer: Boolean = false
 ) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE SEULE LECTURE DU TEXTE SAISI
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'était `saisie.replace(',', '.').replace(" ", "").toDoubleOrNull()`,
+    écrit deux fois. Deux copies d'une même règle finissent par ne plus
+    dire la même chose — et celle-ci laissait passer un cas :
+
+        "2," → "2." → toDoubleOrNull() rend 2.0
+
+    Java accepte un point final. On affichait donc le montant reçu pour
+    DEUX à l'instant où la virgule se pose, avant le premier chiffre
+    décimal. `PaveNumerique.valeur` refuse cet état de frappe, et c'est
+    elle qui tranche désormais pour tout le monde.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private val saisi: Double? get() = PaveNumerique.valeur(saisie)
+
     /** Montant en francs de l'opération, quel que soit le sens de la saisie. */
     val montantFcfa: Double?
         get() {
-            val n = saisie.replace(',', '.').replace(" ", "").toDoubleOrNull() ?: return null
-            if (n <= 0.0) return null
+            val n = saisi ?: return null
             val p = prix ?: return null
             return if (sens == SensChange.ACHAT) n else TauxFcfa.fcfaPourCrypto(n, p)
         }
@@ -101,8 +120,7 @@ data class ChangeState(
     /** Montant en crypto, quel que soit le sens de la saisie. */
     val montantCrypto: Double?
         get() {
-            val n = saisie.replace(',', '.').replace(" ", "").toDoubleOrNull() ?: return null
-            if (n <= 0.0) return null
+            val n = saisi ?: return null
             val p = prix ?: return null
             return if (sens == SensChange.ACHAT) TauxFcfa.cryptoPourFcfa(n, p) else n
         }
@@ -936,9 +954,32 @@ class ChangeViewModel @Inject constructor(
      * espace insecable dans un parametre de requete sont deux occasions de
      * se tromper pour rien.
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE SÉPARATEUR EST LA VIRGULE, COMME SUR LE PAVÉ
+    ═══════════════════════════════════════════════════════════════════════
+
+    `toPlainString` rend « 12.345678 », avec un point. Tant que le clavier
+    du système servait de saisie, ça ne gênait personne : il accepte les
+    deux, et `montantFcfa` remplace la virgule par un point avant de lire.
+
+    Depuis que le pavé est le seul clavier, le point devient un corps
+    étranger. Deux conséquences, toutes deux silencieuses :
+
+    — ON VERRAIT « 12.345678 » dans un champ dont toutes les touches
+      écrivent des virgules ;
+    — ET SURTOUT, `PaveNumerique` cherche la virgule pour savoir s'il est
+      dans la partie décimale. Sur « 12.345678 » il n'en trouve pas, croit
+      être dans la partie entière, et le chiffre suivant s'ajoute à la fin
+      SANS compter comme une décimale — donc sans la limite de six.
+
+    Un appui sur « Tout » suivi d'un chiffre suffisait à produire ça.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     private fun montantTexte(v: Double): String =
         java.math.BigDecimal(v).setScale(8, java.math.RoundingMode.DOWN)
             .stripTrailingZeros().toPlainString()
+            .replace('.', PaveNumerique.VIRGULE)
 
     private data class SnapLiteChange(val tokens: List<TokenLiteChange>?)
     private data class TokenLiteChange(
