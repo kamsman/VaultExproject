@@ -119,6 +119,38 @@ console.log(`\nRelais    : ${relais}`)
 console.log(`Monnaie   : ${monnaie}`)
 console.log(`Reference : ${reference}  (tiree au sort, comme l'application le fait)`)
 
+/*
+═══ 0. QUELLE VERSION DU RELAIS NOUS REPOND ? ════════════════════════════
+
+Cette etape n'existait pas, et son absence nous a coute quatre allers-
+retours : on corrigeait le code, on relancait l'essai, on lisait la meme
+erreur — parce que le tableau de bord Cloudflare avait « enregistre une
+version » sans la DEPLOYER. On debuggait du code que personne n'executait.
+
+Un essai doit donc commencer par dire contre quoi il s'execute. Sans ca,
+chaque echec est ambigu : le code est-il faux, ou pas en ligne ?
+
+On n'ARRETE pas sur un decalage — c'est peut-etre volontaire d'essayer
+contre l'ancienne version. On le dit, fort, et on continue.
+*/
+const ATTENDUE = 24
+
+const sante = await lire('/sante?x=' + Date.now())
+const enLigne = sante.corps?.version
+if (typeof enLigne === 'number') {
+  console.log(`Version   : ${enLigne}${enLigne === ATTENDUE ? '' : `  (ce depot en attend ${ATTENDUE})`}`)
+  if (enLigne < ATTENDUE) {
+    console.log(`\n⚠ LE RELAIS EN LIGNE EST PLUS ANCIEN QUE CE DEPOT.`)
+    console.log(`  Les corrections faites depuis la version ${enLigne} ne sont pas`)
+    console.log(`  actives. Recolle worker.js dans Cloudflare → Edit code, puis`)
+    console.log(`  clique DEPLOY (« Save version » enregistre sans publier).`)
+    console.log(`  L'essai continue quand meme — mais lis cet avertissement`)
+    console.log(`  avant de conclure quoi que ce soit d'un echec.\n`)
+  }
+} else {
+  console.log(`Version   : illisible (HTTP ${sante.statut}) — /sante ne repond pas comme attendu`)
+}
+
 // ─── 1. Les réglages, pour connaître l'adresse de destination ───────
 
 const reglages = await lire('/change/parametres?x=' + Date.now())
