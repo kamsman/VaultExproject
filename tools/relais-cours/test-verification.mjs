@@ -25,6 +25,9 @@ attaques listées échouent, pas qu'il n'en existe pas d'autres.
 import {
   choisirTransfertTron,
   choisirTransfertEtherscan,
+  chaineHorsOffre,
+  noeudsEvm,
+  hoteMasque,
   choisirJournalErc20,
   choisirNatifEvm,
   choisirSortieBtc,
@@ -988,6 +991,117 @@ const critereEs = (extra) => ({
   ]
   const r = choisirTransfertEtherscan(liste, critereEs())
   verifie('ES : le bon versement est trouve au milieu des autres', r && r.montant === 2.000359, r)
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE NŒUD NOMINATIF, ET LA CLÉ QUI NE DOIT PAS FUIR
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+{
+  /*
+  LE NŒUD À NOUS PASSE DEVANT, LES PUBLICS RESTENT DERRIÈRE.
+
+  L'ordre est le test : s'il passait derrière, les sept publics seraient
+  essayés d'abord et chacun coûterait son délai d'attente avant qu'on
+  arrive au seul qui marche. Et s'il les REMPLAÇAIT, on échangerait sept
+  secours contre un point de rupture unique.
+  */
+  const liste = noeudsEvm('bnb', { CHANGE_NOEUD_BNB: 'https://bnb.exemple.com/v2/CLE' })
+  verifie('NOEUD : le nominatif est en premier', liste[0] === 'https://bnb.exemple.com/v2/CLE', liste[0])
+  verifie('NOEUD : les publics sont toujours la', liste.length >= 8, liste.length)
+}
+
+{
+  const sansRien = noeudsEvm('bnb', {})
+  verifie('NOEUD : sans reglage, la liste publique est rendue telle quelle', sansRien.length === 7, sansRien.length)
+  verifie('NOEUD : un reseau inconnu rend une liste vide', noeudsEvm('solana', {}).length === 0)
+}
+
+{
+  /*
+  CE QUI N'EST PAS UNE URL HTTPS EST ÉCARTÉ.
+
+  Le cas réel qu'on attend ici : un collage raté. Une valeur vide, un
+  « https://... » laissé tel quel, un espace. Les laisser entrer ferait
+  échouer le PREMIER appel de chaque vérification — donc ajouterait un
+  délai d'attente à toutes les ventes, pour rien.
+  */
+  const sale = noeudsEvm('bnb', { CHANGE_NOEUD_BNB: '  ,  , http://pas-sur.com , https://bon.com/v2/K  ' })
+  verifie('NOEUD : le vide et le non-https sont ecartes', sale[0] === 'https://bon.com/v2/K', sale[0])
+  verifie('NOEUD : rien d autre ne s est glisse devant', sale.length === 8, sale.length)
+}
+
+{
+  // Deux nœuds nominatifs, séparés par une virgule : l'ordre est gardé.
+  const deux = noeudsEvm('eth', { CHANGE_NOEUD_ETH: 'https://a.com/1,https://b.com/2' })
+  verifie('NOEUD : deux nominatifs gardent leur ordre', deux[0] === 'https://a.com/1' && deux[1] === 'https://b.com/2', deux.slice(0, 2))
+}
+
+{
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  LA CLÉ NE DOIT PAS SORTIR DANS UN DIAGNOSTIC
+  ═════════════════════════════════════════════════════════════════════
+
+  `/diag/plages` imprime quel nœud a répondu quoi. Sans masquage, il
+  publierait l'URL complète — donc la clé — à quiconque ouvre l'adresse
+  du relais dans un navigateur. Le diagnostic est en accès libre : c'est
+  son intérêt, et c'est pourquoi il ne doit rien porter de secret.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  verifie(
+    'MASQUE : la cle du chemin disparait',
+    hoteMasque('https://bnb-mainnet.exemple.com/v2/abcdef0123456789') ===
+      'bnb-mainnet.exemple.com/v2/***',
+    hoteMasque('https://bnb-mainnet.exemple.com/v2/abcdef0123456789')
+  )
+  verifie(
+    'MASQUE : on sait encore QUEL noeud a repondu',
+    hoteMasque('https://bnb-mainnet.exemple.com/v2/abcdef0123456789').includes('bnb-mainnet.exemple.com')
+  )
+  verifie(
+    'MASQUE : un hote sans chemin est rendu entier',
+    hoteMasque('https://bsc.meowrpc.com') === 'bsc.meowrpc.com',
+    hoteMasque('https://bsc.meowrpc.com')
+  )
+  verifie(
+    'MASQUE : un chemin profond ne garde que son dernier segment cache',
+    hoteMasque('https://h.com/bsc/mainnet/CLE123') === 'h.com/bsc/mainnet/***',
+    hoteMasque('https://h.com/bsc/mainnet/CLE123')
+  )
+  /*
+  LE CAS QUI COMPTE VRAIMENT : aucune clé plausible ne doit se retrouver
+  dans la sortie. On le vérifie sur la chaîne elle-même plutôt que sur
+  une forme attendue — c'est la propriété qu'on veut, pas le format.
+  */
+  const CLE = 'sk_live_9f3c1aa7b2e4'
+  verifie(
+    'MASQUE : la cle est absente de la sortie, quelle que soit la forme',
+    !hoteMasque(`https://noeud.exemple.com/rpc/${CLE}`).includes(CLE)
+  )
+}
+
+{
+  /*
+  « PAS DANS TON OFFRE » SE DISTINGUE DE « CLÉ INVALIDE ».
+
+  Etherscan rend le même `status: "0"` pour les deux, et seul le texte
+  les sépare. Les confondre coûterait dans les deux sens : un refus
+  d'offre traité comme une panne empêcherait le secours de prendre la
+  main, et une clé invalide traitée comme un refus d'offre masquerait un
+  reglage à corriger.
+  */
+  verifie(
+    'OFFRE : le refus mesure sur BNB est reconnu',
+    chaineHorsOffre('etherscan : Free API access is not supported for this chain. Please upgrade your api plan')
+  )
+  verifie('OFFRE : une invitation a changer d offre est reconnue', chaineHorsOffre('Please upgrade your plan'))
+  verifie('OFFRE : une cle invalide N EST PAS un refus d offre', !chaineHorsOffre('Invalid API Key'))
+  verifie('OFFRE : un hote muet N EST PAS un refus d offre', !chaineHorsOffre('etherscan HTTP 502'))
+  verifie('OFFRE : rien du tout n est pas un refus d offre', !chaineHorsOffre('') && !chaineHorsOffre(undefined))
 }
 
 // ─── Verdict ────────────────────────────────────────────────────────

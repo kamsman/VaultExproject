@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 26
+const VERSION = 27
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -423,7 +423,7 @@ export default {
     ═══════════════════════════════════════════════════════════════════════
     */
     if (url.pathname === '/diag/plages') {
-      return await diagnostiquerPlages(url.searchParams)
+      return await diagnostiquerPlages(env, url.searchParams)
     }
 
     /*
@@ -3157,6 +3157,28 @@ async function listerEtherscan(cfg, adresse, cle) {
   throw new Error(`etherscan : ${String(o?.result ?? o?.message ?? 'reponse illisible').slice(0, 90)}`)
 }
 
+/**
+ * Ce refus d'Etherscan dit-il « pas dans ton offre » ?
+ *
+ * ON RECONNAÎT LA PHRASE, FAUTE DE MIEUX. Etherscan ne rend pas de code
+ * distinct pour ce cas : même `status: "0"` que pour une clé invalide, et
+ * seul le texte les sépare. Reconnaître un texte est fragile — il peut
+ * être réécrit sans préavis — mais l'alternative est de traiter tous les
+ * refus pareil, et on perdrait soit le secours, soit le motif.
+ *
+ * Si la phrase change, le symptôme sera `indisponible` avec le motif
+ * d'Etherscan en clair dans le message du changeur. Visible, donc
+ * réparable. C'est le mode d'échec qu'on choisit.
+ */
+function chaineHorsOffre(message) {
+  const m = String(message ?? '').toLowerCase()
+  return (
+    m.includes('not supported for this chain') ||
+    m.includes('upgrade your api plan') ||
+    m.includes('upgrade your plan')
+  )
+}
+
 /** Le topic du journal `Transfer(address,address,uint256)`, identique partout. */
 const TOPIC_TRANSFER =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
@@ -3284,9 +3306,15 @@ const PLAGES_SONDEES = [1, 10, 25, 50, 100, 200, 500, 1000]
  * de plage (« exceed maximum block range ») ou d'une limite de débit
  * (« rate limit »), et les deux ne se corrigent pas de la même façon.
  */
-async function diagnostiquerPlages(params) {
+async function diagnostiquerPlages(env, params) {
   const reseau = (params?.get('reseau') || 'bnb').toLowerCase()
-  const hotes = NOEUDS_EVM[reseau]
+  /*
+  LA SONDE MESURE LA LISTE RÉELLE, nœud nominatif compris. Mesurer la
+  liste publique pendant que la vérification en emploie une autre
+  rendrait un diagnostic qui décrit un code qui ne tourne pas — on a déjà
+  perdu quatre tours là-dessus avec « Save version ».
+  */
+  const hotes = NOEUDS_EVM[reseau] ? noeudsEvm(reseau, env) : null
   if (!hotes) {
     return json({ ok: false, erreur: `reseau inconnu : ${reseau}`, connus: Object.keys(NOEUDS_EVM) }, 400)
   }
@@ -3304,7 +3332,8 @@ async function diagnostiquerPlages(params) {
 
   const resultats = {}
   for (const hote of hotes) {
-    const nom = hote.replace('https://', '')
+    // JAMAIS l'URL entière : celle du nœud nominatif porte sa clé.
+    const nom = hoteMasque(hote)
     let dernier = 0
     try {
       const h = await rpcBrut(hote, 'eth_blockNumber', [])
@@ -3356,16 +3385,30 @@ async function diagnostiquerPlages(params) {
   const vivants = Object.values(resultats).filter((r) => typeof r.hauteur === 'number' && r.accepte !== 'AUCUNE')
   const meilleur = vivants.reduce((m, r) => Math.max(m, parseInt(r.accepte, 10) || 0), 0)
 
+  /*
+  LA CONCLUSION DIT AUSSI CE QU'IL FAUT FAIRE, et pas seulement ce qui
+  s'est passé. « Aucun nœud ne répond » laissait chercher le remède ; la
+  cause est connue et le remède tient en une variable.
+  */
+  const nomVariable = `CHANGE_NOEUD_${String(reseau).toUpperCase()}`
+  const aUnNoeudPerso = hotes.length > (NOEUDS_EVM[reseau] || []).length
+
   return json({
     ok: true,
     version: VERSION,
     reseau,
     contrat: cfg?.contrat ?? '(aucun contrat regle pour ce reseau)',
     tranche_actuelle: TRANCHE_EVM,
+    noeud_nominatif: aUnNoeudPerso ? `oui (${nomVariable} est reglee)` : `non (${nomVariable} n'est pas reglee)`,
     noeuds: resultats,
     conclusion:
       vivants.length === 0
-        ? 'AUCUN noeud ne repond a eth_getLogs : il faut une autre source que les RPC publics.'
+        ? aUnNoeudPerso
+          ? `AUCUN noeud ne repond a eth_getLogs, ${nomVariable} comprise. ` +
+            'Verifie que son URL est complete et que son quota n’est pas epuise.'
+          : 'AUCUN noeud ne repond a eth_getLogs. C’est attendu : les points d’entree ' +
+            'publics gratuits refusent cette methode aux IP de Cloudflare. ' +
+            `Regle ${nomVariable} dans Cloudflare avec l’URL d’un noeud nominatif.`
         : `${vivants.length} noeud(s) acceptent au moins une plage ; la plus large est ${meilleur} blocs. ` +
           (meilleur >= TRANCHE_EVM
             ? `TRANCHE_EVM (${TRANCHE_EVM}) passe.`
@@ -3446,15 +3489,27 @@ async function diagnostiquerEtherscan(env, params) {
     `listerEtherscan` ne met que le message d'Etherscan dans son erreur,
     et c'est précisément pour pouvoir l'afficher ici.
     */
+    const motif = String(e?.message ?? e)
+    /*
+    LE REMÈDE DÉPEND DU MOTIF, et depuis qu'on a mesuré le refus sur BNB
+    il n'y a plus à deviner. Un conseil générique obligeait à relire la
+    phrase d'Etherscan pour savoir quoi faire ; celui-ci la lit.
+    */
+    const horsOffre = chaineHorsOffre(motif)
     return json({
       ok: false,
       version: VERSION,
       reseau,
-      erreur: String(e?.message ?? e).slice(0, 160),
-      remede:
-        'Si le motif parle de cle invalide, verifie CHANGE_CLE_ETHERSCAN dans Cloudflare. ' +
-        'S’il parle de reseau ou de 403, c’est Etherscan qui refuse les IP Cloudflare ' +
-        'et il faudra une autre source.',
+      erreur: motif.slice(0, 160),
+      hors_offre: horsOffre,
+      remede: horsOffre
+        ? `Ta cle est BONNE et l’hote repond : le palier gratuit d’Etherscan ne couvre ` +
+          `simplement pas ${reseau}. La verification passera par eth_getLogs, qui a besoin ` +
+          `d’un noeud nominatif : regle CHANGE_NOEUD_${String(reseau).toUpperCase()} dans ` +
+          `Cloudflare, puis mesure-le avec /diag/plages?reseau=${reseau}.`
+        : 'Si le motif parle de cle invalide, verifie CHANGE_CLE_ETHERSCAN dans Cloudflare. ' +
+          'S’il parle de reseau ou de 403, c’est Etherscan qui refuse les IP Cloudflare ' +
+          'et il faudra une autre source.',
     })
   }
 }
@@ -3491,8 +3546,79 @@ async function rpcBrut(hote, methode, params) {
   }
 }
 
-async function appelEvm(reseau, methode, params) {
-  const noeuds = NOEUDS_EVM[reseau] || []
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN NŒUD À NOUS, DEVANT LES PUBLICS
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ : les sept nœuds publics refusent `eth_getLogs` sur un seul bloc
+depuis un Worker, et le palier gratuit d'Etherscan V2 ne couvre que
+Ethereum — BNB répond « Free API access is not supported for this chain ».
+
+Il reste donc une seule voie : un point d'entrée nominatif, dont le quota
+est le nôtre et non celui de toutes les IP de Cloudflare réunies. Les
+offres gratuites de ce genre existent et suffisent largement à notre
+débit — un appel toutes les quinze secondes pendant une vente.
+
+CE N'EST PAS UN RÉGLAGE D'EXPERT, c'est la condition pour que les ventes
+BNB se vérifient. Sans lui, `/change/verifier` répond `indisponible` —
+honnête, mais ne vend rien.
+
+─── LES PUBLICS RESTENT, DERRIÈRE ────────────────────────────────────────
+
+Le nœud nominatif passe DEVANT, il n'efface pas les autres. Un quota
+épuisé, une panne, une clé révoquée : `appelEvm` descend alors la liste et
+`eth_blockNumber` — qui passe sur cinq nœuds publics sur sept — continue
+de répondre. Remplacer la liste au lieu de la préfixer échangerait sept
+secours contre un point de rupture unique.
+
+─── LA VALEUR CONTIENT UNE CLÉ ───────────────────────────────────────────
+
+Ces URL portent l'identifiant dans leur chemin. Elle ne doit donc JAMAIS
+être rendue en entier par un diagnostic : `hoteMasque` existe pour ça, et
+tout ce qui imprime un nœud doit passer par elle.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function noeudsEvm(reseau, env) {
+  const brut = String(env?.[`CHANGE_NOEUD_${String(reseau).toUpperCase()}`] ?? '')
+  const perso = brut
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.startsWith('https://'))
+  return [...perso, ...(NOEUDS_EVM[reseau] || [])]
+}
+
+/**
+ * Le nom d'un nœud, sans ce qui l'identifie.
+ *
+ * `https://bnb.exemple.com/v2/abcdef123` devient `bnb.exemple.com/v2/***`.
+ * Un diagnostic doit pouvoir dire QUEL nœud a répondu sans publier la clé
+ * qui permet de s'en servir.
+ */
+function hoteMasque(url) {
+  const sansSchema = String(url).replace(/^https?:\/\//, '')
+  const bouts = sansSchema.split('/')
+  if (bouts.length <= 1) return sansSchema
+  /*
+  ON MASQUE LE DERNIER SEGMENT, et c'est là que vit la clé chez tous les
+  fournisseurs que j'ai vus. Masquer tout le chemin dirait seulement
+  « un nœud », et on ne saurait plus lequel a échoué.
+  */
+  return bouts.slice(0, -1).join('/') + '/***'
+}
+
+/*
+LA LISTE EST PASSÉE, PAS RELUE DANS `env`.
+
+`appelEvm` est appelé au fond de la vérification, et lui donner `env`
+ferait descendre tous les secrets du Worker — clé Telegram comprise — dans
+une fonction qui n'a besoin que de sept URL. La liste est donc calculée
+une fois, en haut, et passée.
+*/
+async function appelEvm(reseau, methode, params, noeudsDonnes) {
+  const noeuds = Array.isArray(noeudsDonnes) && noeudsDonnes.length
+    ? noeudsDonnes
+    : NOEUDS_EVM[reseau] || []
   let derniere = null
   for (const hote of noeuds) {
     try {
@@ -3584,9 +3710,9 @@ async function verifierTron(cfg, critere) {
  */
 async function verifierEvm(cfg, critere) {
   if (critere.txid) {
-    const tx = await appelEvm(cfg.reseau, 'eth_getTransactionByHash', [critere.txid])
+    const tx = await appelEvm(cfg.reseau, 'eth_getTransactionByHash', [critere.txid], critere.noeuds)
     if (!tx) return null
-    const recu = await appelEvm(cfg.reseau, 'eth_getTransactionReceipt', [critere.txid])
+    const recu = await appelEvm(cfg.reseau, 'eth_getTransactionReceipt', [critere.txid], critere.noeuds)
     if (!recu) return null
     const trouve = cfg.natif
       ? choisirNatifEvm(tx, recu, {
@@ -3628,17 +3754,54 @@ async function verifierEvm(cfg, critere) {
   ═══════════════════════════════════════════════════════════════════════
   */
   if (critere.cleEtherscan && CHAINE_ETHERSCAN[cfg.reseau]) {
-    const liste = await listerEtherscan(cfg, critere.adresse, critere.cleEtherscan)
-    return choisirTransfertEtherscan(liste, {
-      adresse: critere.adresse,
-      contrat: cfg.contrat,
-      decimales: cfg.decimales,
-      montant: critere.montant,
-      maintenant: critere.maintenant,
-      fenetre: critere.fenetre,
-      apres: critere.apres,
-      exact: critere.exact,
-    })
+    /*
+    ═════════════════════════════════════════════════════════════════════
+    UN REFUS D'ABONNEMENT N'EST PAS UNE PANNE : ON PASSE AU SUIVANT
+    ═════════════════════════════════════════════════════════════════════
+
+    MESURÉ sur BNB avec une clé valide :
+
+        Free API access is not supported for this chain.
+        Please upgrade your api plan for full chain support.
+
+    Le palier gratuit d'Etherscan V2 ne couvre qu'Ethereum. La clé est
+    bonne, l'hôte répond, et cette chaîne-là nous est simplement fermée.
+
+    Rendre ça comme une erreur ferait répondre `indisponible` alors qu'un
+    autre chemin existe juste en dessous. Et ce serait un défaut
+    PERMANENT : il ne s'arrangerait jamais tout seul, contrairement à un
+    nœud qui tousse.
+
+    On distingue donc deux refus :
+
+    — « cette chaîne n'est pas dans ton offre » ⇒ on continue vers
+      `eth_getLogs`, qui marchera si un nœud nominatif est réglé ;
+    — tout le reste (clé invalide, hôte muet) ⇒ on lève, parce que là il
+      n'y a rien à tenter de plus et que le motif doit remonter.
+
+    La même clé reste utile : sur `eth` (chainid=1) le gratuit passe, et
+    c'est le même code qui s'en sert.
+    ═════════════════════════════════════════════════════════════════════
+    */
+    let liste = null
+    try {
+      liste = await listerEtherscan(cfg, critere.adresse, critere.cleEtherscan)
+    } catch (e) {
+      if (!chaineHorsOffre(e?.message)) throw e
+      liste = null
+    }
+    if (liste) {
+      return choisirTransfertEtherscan(liste, {
+        adresse: critere.adresse,
+        contrat: cfg.contrat,
+        decimales: cfg.decimales,
+        montant: critere.montant,
+        maintenant: critere.maintenant,
+        fenetre: critere.fenetre,
+        apres: critere.apres,
+        exact: critere.exact,
+      })
+    }
   }
 
   /*
@@ -3663,7 +3826,7 @@ async function verifierEvm(cfg, critere) {
   versement introuvable.
   ═══════════════════════════════════════════════════════════════════════
   */
-  const hauteur = await appelEvm(cfg.reseau, 'eth_blockNumber', [])
+  const hauteur = await appelEvm(cfg.reseau, 'eth_blockNumber', [], critere.noeuds)
   const dernier = Number(BigInt(entierDepuisHex(hauteur)))
   if (!Number.isFinite(dernier) || dernier <= 0) throw new Error('hauteur illisible')
 
@@ -3697,7 +3860,7 @@ async function verifierEvm(cfg, critere) {
         fromBlock: '0x' + debut.toString(16),
         toBlock: '0x' + haut.toString(16),
       },
-    ])
+    ], critere.noeuds)
     if (!Array.isArray(tranche)) throw new Error('journaux illisibles')
     journaux.push(...tranche)
     haut = debut - 1
@@ -3981,6 +4144,9 @@ async function verifierVente(options) {
     répondra `indisponible` — ce qui est au moins honnête, mais ne vend rien.
     */
     cleEtherscan: env?.CHANGE_CLE_ETHERSCAN ? String(env.CHANGE_CLE_ETHERSCAN) : '',
+    // La liste des nœuds, calculée UNE FOIS ici : un nœud nominatif
+    // devant, les publics derrière en secours.
+    noeuds: noeudsEvm(cfg.reseau || '', env),
   }
 
   let trouve = null
@@ -4177,6 +4343,9 @@ export {
   ordreChange,
   choisirTransfertTron,
   choisirTransfertEtherscan,
+  chaineHorsOffre,
+  noeudsEvm,
+  hoteMasque,
   choisirJournalErc20,
   choisirNatifEvm,
   choisirSortieBtc,
