@@ -25,6 +25,8 @@ attaques listées échouent, pas qu'il n'en existe pas d'autres.
 import {
   choisirTransfertTron,
   choisirTransfertEtherscan,
+  choisirTransfertAlchemy,
+  estAlchemy,
   chaineHorsOffre,
   noeudsEvm,
   hoteMasque,
@@ -1102,6 +1104,200 @@ LE NŒUD NOMINATIF, ET LA CLÉ QUI NE DOIT PAS FUIR
   verifie('OFFRE : une cle invalide N EST PAS un refus d offre', !chaineHorsOffre('Invalid API Key'))
   verifie('OFFRE : un hote muet N EST PAS un refus d offre', !chaineHorsOffre('etherscan HTTP 502'))
   verifie('OFFRE : rien du tout n est pas un refus d offre', !chaineHorsOffre('') && !chaineHorsOffre(undefined))
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES TRANSFERTS ENRICHIS — LE TROISIÈME TRI, ET SES DEUX PIÈGES À LUI
+═══════════════════════════════════════════════════════════════════════════
+
+C'est le chemin qui marche sur BNB. Deux détails lui sont propres et ne
+lèveraient aucune erreur s'ils étaient manqués :
+
+— les décimales arrivent en HEXADÉCIMAL (« 0x12 » vaut 18, pas 12) ;
+— la réponse contient DEUX montants, et le commode est le faux.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+const USDT_BNB_BAS = USDT_BNB.toLowerCase()
+
+/** Un transfert tel qu'`alchemy_getAssetTransfers` le rend. */
+function transfertAl(modifications, brutMods) {
+  return {
+    hash: '0x' + 'ab'.repeat(32),
+    from: CLIENT_BNB,
+    to: CHANGEUR_BNB,
+    category: 'erc20',
+    asset: 'USDT',
+    // Le montant COMMODE, celui qu'il ne faut pas lire.
+    value: 2.000359,
+    rawContract: {
+      address: USDT_BNB_BAS,
+      value: '0x' + (2000359000000000000n).toString(16),
+      decimal: '0x12', // 18
+      ...(brutMods || {}),
+    },
+    metadata: { blockTimestamp: new Date(MAINTENANT - 5 * 60 * 1000).toISOString() },
+    ...(modifications || {}),
+  }
+}
+
+const critereAl = (extra) => ({
+  adresse: CHANGEUR_BNB,
+  contrat: USDT_BNB,
+  decimales: 18,
+  montant: 2.000359,
+  txid: '',
+  maintenant: MAINTENANT,
+  exact: true,
+  ...(extra || {}),
+})
+
+{
+  const r = choisirTransfertAlchemy([transfertAl()], critereAl())
+  verifie('AL : un versement conforme est trouve', r !== null, r)
+  verifie('AL : le montant vient de l entier brut', r && r.montant === 2.000359, r)
+  verifie('AL : l expediteur est rendu', r && r.de === CLIENT_BNB, r)
+}
+
+{
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  LE MONTANT COMMODE EST LE FAUX, ET CE TEST LE PROUVE
+  ═════════════════════════════════════════════════════════════════════
+
+  On donne ici un `value` flottant GROSSIÈREMENT faux, tout en laissant
+  l'entier brut correct. Si le tri lisait `value`, il refuserait ce
+  versement parfaitement valide.
+
+  En production la différence serait bien plus discrète — un arrondi sur
+  la sixième décimale — et c'est précisément pour ça qu'il faut la fixer
+  ici, où elle est visible.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const r = choisirTransfertAlchemy([transfertAl({ value: 999.999 })], critereAl())
+  verifie('AL : le flottant commode est ignore au profit de l entier brut', r !== null, r)
+  verifie('AL : et le montant rendu est le vrai', r && r.montant === 2.000359, r)
+}
+
+{
+  /*
+  LES DÉCIMALES SONT EN HEXADÉCIMAL. « 0x12 » vaut 18. Les lire en base
+  dix donnerait douze — six ordres de grandeur, un versement de 2 USDT
+  lu comme deux millions.
+  */
+  /*
+  SIX DÉCIMALES LUES EN HEXADÉCIMAL DONNENT BIEN SIX, et le montant s'en
+  déduit correctement. (J'avais d'abord écrit ici une assertion terminée
+  par `|| true` : elle ne pouvait pas échouer. C'est le défaut que ce
+  fichier dénonce deux cents lignes plus haut, et je l'avais commis.)
+  */
+  const six = choisirTransfertAlchemy(
+    [transfertAl(null, { decimal: '0x6', value: '0x' + (2000359n).toString(16) })],
+    critereAl({ decimales: 6 })
+  )
+  verifie('AL : 0x6 vaut six, et le montant suit', six !== null && six.montant === 2.000359, six)
+
+  // Et le cas qui compte : 0x12 n'est pas douze.
+  const faux = choisirTransfertAlchemy([transfertAl()], critereAl({ decimales: 12 }))
+  verifie('AL : 0x12 n est pas douze', faux === null, faux)
+  const vrai = choisirTransfertAlchemy([transfertAl()], critereAl({ decimales: 18 }))
+  verifie('AL : 0x12 est bien dix-huit', vrai !== null, vrai)
+}
+
+{
+  const r = choisirTransfertAlchemy([transfertAl(null, { decimal: undefined })], critereAl())
+  verifie('AL : des decimales absentes sont refusees, pas devinees', r === null, r)
+}
+
+// ─── Ce qui doit échouer ────────────────────────────────────────────
+
+{
+  verifie(
+    'AL : un versement vers quelqu un d autre est refuse',
+    choisirTransfertAlchemy([transfertAl({ to: CLIENT_BNB })], critereAl()) === null
+  )
+  verifie(
+    'AL : un faux jeton nomme USDT est refuse',
+    choisirTransfertAlchemy([transfertAl({ asset: 'USDT' }, { address: '0x' + '99'.repeat(20) })], critereAl()) === null
+  )
+  verifie(
+    'AL : un contrat absent est refuse',
+    choisirTransfertAlchemy([transfertAl(null, { address: '' })], critereAl()) === null
+  )
+  /*
+  LA CATÉGORIE : sans elle, un transfert natif de BNB pourrait se
+  présenter là où on attend un jeton. Le contrat le rattraperait sans
+  doute, mais une barrière qui dépend d'une autre n'est pas une barrière.
+  */
+  verifie(
+    'AL : un transfert natif n est pas un transfert de jeton',
+    choisirTransfertAlchemy([transfertAl({ category: 'external' })], critereAl()) === null
+  )
+  verifie(
+    'AL : marque, 2.000000 ne paie pas 2.000359',
+    choisirTransfertAlchemy(
+      [transfertAl(null, { value: '0x' + (2000000000000000000n).toString(16) })],
+      critereAl()
+    ) === null
+  )
+  verifie('AL : un versement sans txid est refuse', choisirTransfertAlchemy([transfertAl({ hash: '' })], critereAl()) === null)
+  verifie('AL : une reponse qui n est pas un tableau rend null', choisirTransfertAlchemy(null, critereAl()) === null)
+}
+
+{
+  /*
+  L'HORODATE EST UNE DATE ISO ICI — ni des secondes comme chez Etherscan,
+  ni des millisecondes comme chez TronGrid. Trois sources, trois formats.
+  */
+  const vieux = transfertAl({ metadata: { blockTimestamp: new Date(MAINTENANT - 6 * 3600_000).toISOString() } })
+  verifie('AL : six heures refusees par defaut', choisirTransfertAlchemy([vieux], critereAl()) === null)
+  verifie(
+    'AL : six heures acceptees a douze heures de fenetre',
+    choisirTransfertAlchemy([vieux], critereAl({ fenetre: 12 * 3600_000 })) !== null
+  )
+  verifie(
+    'AL : une horodate illisible est refusee',
+    choisirTransfertAlchemy([transfertAl({ metadata: { blockTimestamp: 'bientot' } })], critereAl()) === null
+  )
+  verifie(
+    'AL : une horodate absente est refusee',
+    choisirTransfertAlchemy([transfertAl({ metadata: {} })], critereAl()) === null
+  )
+}
+
+{
+  // L'attaque d'Alice et Bob, sur cette source aussi.
+  const versementAlice = transfertAl({
+    metadata: { blockTimestamp: new Date(MAINTENANT - 10 * 60 * 1000).toISOString() },
+  })
+  verifie(
+    'AL : Bob ne peut pas reclamer le versement anterieur d Alice',
+    choisirTransfertAlchemy([versementAlice], critereAl({ apres: MAINTENANT - 5 * 60 * 1000 })) === null,
+    'il a ete attribue a Bob'
+  )
+  verifie(
+    'AL : la meme demande ouverte avant trouve son versement',
+    choisirTransfertAlchemy([versementAlice], critereAl({ apres: MAINTENANT - 20 * 60 * 1000 })) !== null
+  )
+}
+
+{
+  /*
+  ON N'ENVOIE LA MÉTHODE ENRICHIE QU'À UN NŒUD QUI LA SERT. L'envoyer à
+  un nœud public coûterait un aller-retour pour une erreur certaine, à
+  chaque vérification.
+  */
+  verifie('ENRICHI : une URL Alchemy est reconnue', estAlchemy('https://bnb-mainnet.g.alchemy.com/v2/CLE'))
+  verifie('ENRICHI : un noeud public ne l est pas', !estAlchemy('https://bsc-rpc.publicnode.com'))
+  verifie('ENRICHI : une valeur vide ne l est pas', !estAlchemy('') && !estAlchemy(undefined))
+  /*
+  ET UN NOM QUI CONTIENT « alchemy.com » SANS ÊTRE ALCHEMY NE PASSE PAS.
+  Sans cette précision, n'importe qui enregistrant `alchemy.com.mal.net`
+  se verrait adresser nos requêtes — avec l'adresse du changeur dedans.
+  */
+  verifie('ENRICHI : un domaine qui imite alchemy.com est refuse', !estAlchemy('https://alchemy.com.mal.net/v2/x'))
 }
 
 // ─── Verdict ────────────────────────────────────────────────────────
