@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 25
+const VERSION = 26
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -424,6 +424,34 @@ export default {
     */
     if (url.pathname === '/diag/plages') {
       return await diagnostiquerPlages(url.searchParams)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /diag/etherscan — LA SOURCE RÉPOND-ELLE, ET DANS QUELLE FORME ?
+    ═══════════════════════════════════════════════════════════════════════
+
+    Deux questions distinctes, et c'est pour ça que cette sonde existe
+    plutôt qu'un simple essai de vente.
+
+    1. ETHERSCAN RÉPOND-IL À UN WORKER ? On ne peut pas le déduire. Ce
+       fichier porte deux contre-exemples : `api.binance.com` répond 403
+       depuis Cloudflare, et les sept nœuds BSC viennent de refuser
+       `eth_getLogs` depuis la même IP alors qu'ils l'acceptent ailleurs.
+
+    2. LES CHAMPS PORTENT-ILS LES NOMS QUE J'ATTENDS ? `hash`, `to`,
+       `contractAddress`, `tokenDecimal`, `value`, `timeStamp`. Si l'un
+       d'eux est nommé autrement, le tri ne lèvera AUCUNE erreur : il
+       rendra simplement « rien trouvé » sur tous les versements, et on
+       chercherait le défaut du côté de la chaîne pendant des heures.
+
+    La sonde rend donc les NOMS DE CHAMPS du premier enregistrement, et
+    dit lesquels manquent parmi ceux dont le tri a besoin. Elle ne rend
+    jamais la clé, ni l'URL qui la contient.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/diag/etherscan') {
+      return await diagnostiquerEtherscan(env, url.searchParams)
     }
 
     /*
@@ -2973,6 +3001,162 @@ function choisirTransfertTron(liste, critere) {
   return null
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+ETHERSCAN V2 — PARCE QUE `eth_getLogs` EST UN CUL-DE-SAC
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ, pas supposé. `/diag/plages?reseau=bnb` depuis le Worker, sur les
+sept nœuds :
+
+    bsc-rpc.publicnode.com      1 bloc → Rate limit exceeded
+    bsc.meowrpc.com             1 bloc → HTTP 429 Too Many Requests
+    bsc-dataseed1.defibit.io    1 bloc → limit exceeded
+    bsc-dataseed1.ninicoin.io   1 bloc → limit exceeded
+    1rpc.io/bnb                 usage limit (même pas la hauteur)
+    bsc.drpc.org                Public endpoint rate limit
+    bsc-dataseed.bnbchain.org   1 bloc → limit exceeded
+
+UN SEUL BLOC. Ce n'était donc jamais une question de plage, et la
+pagination que j'avais écrite corrigeait un défaut qui n'existait pas.
+
+Ce que la mesure dit vraiment : `eth_blockNumber` passe sur cinq nœuds
+sur sept, mais `eth_getLogs` est refusé partout. Les nœuds `dataseed` ne
+servent pas cette méthode du tout, et les autres nous limitent PAR IP —
+celle d'un Worker Cloudflare, partagée avec tous les robots du monde.
+Aucun réglage de notre côté ne change ça.
+
+─── POURQUOI CETTE SOURCE-LÀ ───────────────────────────────────────────
+
+Parce qu'elle pose la question qu'on veut poser. `eth_getLogs` demande
+« que s'est-il passé entre ces deux blocs ? » — et nous forçait donc à
+deviner les bons blocs, puis à trier. Etherscan répond directement à
+« quels transferts de ce jeton sont arrivés à cette adresse ? », et c'est
+MOT POUR MOT la question que TronGrid sert déjà pour TRON.
+
+Cette symétrie n'est pas un agrément : elle veut dire que `choisirTransfertEtherscan`
+porte les mêmes contrôles, dans le même ordre, que `choisirTransfertTron`,
+qui est relu et éprouvé. Un chemin de vérification qui ressemble à l'autre
+est un chemin qu'on sait lire.
+
+Et une seule clé gratuite couvre BNB (`chainid=56`) et Ethereum
+(`chainid=1`). Pas deux comptes, pas deux quotas.
+
+─── CE QU'ON GAGNE EN PLUS ─────────────────────────────────────────────
+
+L'ANTÉRIORITÉ DEVIENT VRAIE. Un journal rendu par `eth_getLogs` ne porte
+pas d'horodate : on bornait le temps en bornant les blocs, ce qui est une
+approximation. Etherscan rend `timeStamp`, donc le même contrôle qu'en
+TRON s'applique — au lieu d'être déduit d'un calcul sur la durée d'un bloc.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const ETHERSCAN = 'https://api.etherscan.io/v2/api'
+
+/** L'identifiant de chaîne Etherscan V2, par réseau. */
+const CHAINE_ETHERSCAN = { bnb: 56, eth: 1 }
+
+/**
+ * Le transfert de jeton choisi dans la liste rendue par Etherscan.
+ *
+ * MÊMES CONTRÔLES QUE `choisirTransfertTron`, DANS LE MÊME ORDRE. Les
+ * noms des champs changent, les questions posées ne changent pas :
+ * est-ce bien arrivé chez nous, est-ce bien ce jeton, avec ces décimales,
+ * après l'ouverture de la demande, et pour ce montant exact.
+ */
+function choisirTransfertEtherscan(liste, critere) {
+  const { adresse, contrat, montant, txid, maintenant } = critere
+  if (!Array.isArray(liste)) return null
+
+  for (const t of liste) {
+    const ident = String(t?.hash ?? '').trim()
+    if (!ident) continue
+    if (txid && ident.toLowerCase() !== String(txid).trim().toLowerCase()) continue
+
+    /*
+    LE DESTINATAIRE, COMPARÉ SANS LA CASSE — et c'est une différence avec
+    TRON, pas un relâchement. Une adresse EVM s'écrit indifféremment en
+    minuscules ou en casse de contrôle ; Etherscan rend l'une, nos
+    réglages portent souvent l'autre. Comparer brut rejetterait un
+    versement parfaitement valide.
+
+    Sur TRON, au contraire, la casse PORTE le code de contrôle : la
+    comparer strictement y est obligatoire. Les deux lignes se
+    ressemblent et disent le contraire ; c'est voulu.
+    */
+    if (String(t?.to ?? '').trim().toLowerCase() !== String(adresse).trim().toLowerCase()) continue
+
+    // Le contrat, sans quoi un jeton nommé « USDT » déployé ce matin
+    // passerait pour de l'USDT. Absent ⇒ on refuse, on ne devine pas.
+    const contratLu = String(t?.contractAddress ?? '').trim().toLowerCase()
+    if (!contratLu || contratLu !== String(contrat).trim().toLowerCase()) continue
+
+    // Les décimales viennent de la réponse et doivent valoir les nôtres.
+    // 18 lues comme 6, c'est un facteur mille milliards.
+    const decimales = Number(t?.tokenDecimal)
+    if (!Number.isInteger(decimales) || decimales !== critere.decimales) continue
+
+    /*
+    L'HORODATE EST EN SECONDES ICI, en millisecondes chez TronGrid. Une
+    conversion oubliée placerait tous les versements en 1970 et ferait
+    échouer l'antériorité sur tout — ou, selon le sens de l'erreur, la
+    ferait passer sur n'importe quoi.
+    */
+    const quand = Number(t?.timeStamp) * 1000
+    if (!Number.isFinite(quand) || quand <= 0) continue
+    if (maintenant - quand > (critere.fenetre || FENETRE_VENTE_MS)) continue
+    // Antériorité, avec la minute de marge des horloges de blocs.
+    if (critere.apres && quand < critere.apres - 60_000) continue
+    if (quand - maintenant > 5 * 60 * 1000) continue
+
+    const lu = depuisUnites(t?.value, decimales)
+    const correspond = critere.exact
+      ? memeMontant(lu, montant)
+      : montantProche(lu, montant)
+    if (!correspond) continue
+
+    return { txid: ident, montant: lu, quand, de: String(t?.from ?? '').trim() }
+  }
+  return null
+}
+
+/**
+ * Interroge Etherscan pour les transferts du jeton arrivés chez le changeur.
+ *
+ * Rend la liste brute. Le tri est fait par `choisirTransfertEtherscan`,
+ * qui est pur et donc éprouvable sans réseau.
+ */
+async function listerEtherscan(cfg, adresse, cle) {
+  const chaine = CHAINE_ETHERSCAN[cfg.reseau]
+  if (!chaine) throw new Error(`etherscan : reseau ${cfg.reseau} inconnu`)
+
+  const url =
+    `${ETHERSCAN}?chainid=${chaine}&module=account&action=tokentx` +
+    `&contractaddress=${encodeURIComponent(cfg.contrat)}` +
+    `&address=${encodeURIComponent(adresse)}` +
+    `&page=1&offset=50&sort=desc&apikey=${encodeURIComponent(cle)}`
+
+  const r = await fetchBorne(url, { headers: { accept: 'application/json', 'user-agent': AGENT } }, 8000)
+  if (!r.ok) throw new Error(`etherscan HTTP ${r.status}`)
+  const o = await r.json()
+
+  /*
+  « NO TRANSACTIONS FOUND » N'EST PAS UNE PANNE.
+
+  Etherscan rend `status: "0"` à la fois pour « rien trouvé » et pour
+  « ta clé est mauvaise ». Les confondre coûterait cher dans les deux
+  sens : traiter une clé invalide comme « rien trouvé » refuserait
+  silencieusement toutes les ventes, et traiter « rien trouvé » comme une
+  panne afficherait `indisponible` à quelqu'un dont le versement n'est
+  simplement pas encore arrivé.
+
+  On les sépare sur le message, qui est le seul champ qui les distingue.
+  */
+  if (Array.isArray(o?.result)) return o.result
+  const message = String(o?.message ?? o?.result ?? '').toLowerCase()
+  if (message.includes('no transactions found')) return []
+  throw new Error(`etherscan : ${String(o?.result ?? o?.message ?? 'reponse illisible').slice(0, 90)}`)
+}
+
 /** Le topic du journal `Transfer(address,address,uint256)`, identique partout. */
 const TOPIC_TRANSFER =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
@@ -3189,6 +3373,92 @@ async function diagnostiquerPlages(params) {
   })
 }
 
+/** Les champs dont `choisirTransfertEtherscan` a besoin pour trier. */
+const CHAMPS_ETHERSCAN = ['hash', 'to', 'from', 'contractAddress', 'tokenDecimal', 'value', 'timeStamp']
+
+/**
+ * Vérifie qu'Etherscan répond au Worker, et que ses champs portent les
+ * noms que le tri attend.
+ */
+async function diagnostiquerEtherscan(env, params) {
+  const reseau = (params?.get('reseau') || 'bnb').toLowerCase()
+  const cle = env?.CHANGE_CLE_ETHERSCAN ? String(env.CHANGE_CLE_ETHERSCAN) : ''
+  if (!cle) {
+    return json({
+      ok: false,
+      version: VERSION,
+      erreur: 'CHANGE_CLE_ETHERSCAN n’est pas reglee',
+      remede:
+        'Cree une cle gratuite sur etherscan.io/apis, puis ajoute-la dans ' +
+        'Cloudflare → Settings → Variables and Secrets, sous le nom CHANGE_CLE_ETHERSCAN.',
+    }, 400)
+  }
+
+  /*
+  ON RETIENT AUSSI LE NOM DE LA MONNAIE, pas seulement sa configuration.
+  C'est ce nom — « USDT-BNB » — qui sert de clé dans CHANGE_ADRESSES, et
+  sans lui la sonde tomberait sur l'adresse d'exemple en croyant sonder
+  celle du changeur.
+  */
+  const entree = Object.entries(CHAINES_VENTE).find(
+    ([, c]) => c.reseau === reseau && c.contrat && !c.natif
+  )
+  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 400)
+  const [monnaie, cfg] = entree
+
+  const adresse = trierAdresses(env?.CHANGE_ADRESSES).bonnes[monnaie] || ''
+  /*
+  ON SONDE SUR L'ADRESSE DU CHANGEUR quand elle est réglée. Ça teste la
+  chaîne complète d'un coup : l'hôte répond, la clé passe, ET l'adresse
+  réglée est lisible. Une adresse mal collée — un caractère de trop au
+  copier-coller — ne se voit nulle part ailleurs avant une vraie vente.
+  */
+  const cible = adresse || '0x28c6c06298d514db089934071355e5743bf21d60'
+
+  try {
+    const liste = await listerEtherscan(cfg, cible, cle)
+    const premier = liste[0] || null
+    const manquants = premier ? CHAMPS_ETHERSCAN.filter((c) => !(c in premier)) : []
+    return json({
+      ok: true,
+      version: VERSION,
+      reseau,
+      monnaie,
+      chaine_etherscan: CHAINE_ETHERSCAN[reseau],
+      contrat: cfg.contrat,
+      // L'adresse sondée, et SI c'est bien celle du changeur. Sonder une
+      // adresse d'exemple prouverait que l'hôte répond, et rien de plus.
+      adresse_sondee: cible,
+      adresse_du_changeur: Boolean(adresse),
+      transferts_lus: liste.length,
+      champs_du_premier: premier ? Object.keys(premier) : [],
+      champs_manquants: manquants,
+      conclusion: !premier
+        ? 'Etherscan repond, mais cette adresse n’a aucun transfert de ce jeton. ' +
+          'La cle et l’hote sont bons ; la forme des champs reste non verifiee.'
+        : manquants.length === 0
+          ? 'Etherscan repond et tous les champs attendus sont la. La verification des ventes BNB/ETH peut marcher.'
+          : `ATTENTION : champs absents (${manquants.join(', ')}). Le tri rendrait « rien trouve » sur TOUT versement.`,
+    })
+  } catch (e) {
+    /*
+    LE MOTIF EST RENDU TEL QUEL, mais jamais l'URL — elle porte la clé.
+    `listerEtherscan` ne met que le message d'Etherscan dans son erreur,
+    et c'est précisément pour pouvoir l'afficher ici.
+    */
+    return json({
+      ok: false,
+      version: VERSION,
+      reseau,
+      erreur: String(e?.message ?? e).slice(0, 160),
+      remede:
+        'Si le motif parle de cle invalide, verifie CHANGE_CLE_ETHERSCAN dans Cloudflare. ' +
+        'S’il parle de reseau ou de 403, c’est Etherscan qui refuse les IP Cloudflare ' +
+        'et il faudra une autre source.',
+    })
+  }
+}
+
 /**
  * Un appel JSON-RPC à UN SEUL nœud, dont l'échec est une valeur.
  *
@@ -3343,23 +3613,46 @@ async function verifierEvm(cfg, critere) {
 
   /*
   ═══════════════════════════════════════════════════════════════════════
-  ON NE DEMANDE PLUS DEUX MILLE BLOCS D'UN COUP
+  ETHERSCAN D'ABORD, QUAND LA CLÉ EST RÉGLÉE
   ═══════════════════════════════════════════════════════════════════════
 
-  Mesuré sur un vrai essai : les sept nœuds BSC ont répondu « limit
-  exceeded ». Aucun point d'entrée public gratuit n'accepte une plage de
-  deux mille blocs sur `eth_getLogs`, et ils plafonnent tous aux alentours
-  de cinq cents.
+  C'est devenu le chemin NORMAL, et `eth_getLogs` en dessous n'est plus
+  qu'un reste. La mesure est sans appel : les sept nœuds publics refusent
+  `eth_getLogs` sur UN SEUL bloc depuis un Worker. Le code qui suit ne
+  trouvera donc rien en production tant que ces nœuds restent les mêmes.
 
-  ─── ET JE N'AI PAS BESOIN DE DEUX MILLE BLOCS ───────────────────────
+  On le garde quand même, pour deux raisons. Il ne coûte rien quand la clé
+  est réglée — il n'est jamais atteint. Et il reste le seul chemin si
+  Etherscan tombe ou change ses conditions : une source unique pour toute
+  la vérification des ventes serait un point de rupture unique.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  if (critere.cleEtherscan && CHAINE_ETHERSCAN[cfg.reseau]) {
+    const liste = await listerEtherscan(cfg, critere.adresse, critere.cleEtherscan)
+    return choisirTransfertEtherscan(liste, {
+      adresse: critere.adresse,
+      contrat: cfg.contrat,
+      decimales: cfg.decimales,
+      montant: critere.montant,
+      maintenant: critere.maintenant,
+      fenetre: critere.fenetre,
+      apres: critere.apres,
+      exact: critere.exact,
+    })
+  }
 
-  C'est ce que j'avais raté en écrivant ce code. Depuis que l'antériorité
-  existe, un versement ne compte QUE s'il est postérieur à l'ouverture de
-  la demande. La plage utile ne se compte donc pas en heures mais en
-  minutes : le temps que quelqu'un confirme, ouvre son exchange et retire.
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE CHEMIN DE SECOURS : `eth_getLogs`, DÉCOUPÉ
+  ═══════════════════════════════════════════════════════════════════════
 
-  On part de la naissance de la demande, avec une marge, et on découpe en
-  tranches que les nœuds acceptent.
+  Il est écrit pour les nœuds qui plafonnent la PLAGE — ce que je croyais
+  être notre cas. La mesure a montré autre chose : ils refusent la méthode
+  entière, pas une plage trop large. Le découpage ci-dessous ne sauve donc
+  rien sur les nœuds publics d'aujourd'hui.
+
+  Il garde sa valeur pour un nœud privé ou payant, où la limite de plage
+  est réelle et où découper est exactement ce qu'il faut faire.
 
   ─── LE TEMPS DE BLOC EST SOUS-ESTIMÉ, ET C'EST VOULU ────────────────
 
@@ -3679,6 +3972,15 @@ async function verifierVente(options) {
     fenetre: fenetreVente(env),
     maintenant: Date.now(),
     cleTron: env?.TRONGRID_KEY ? String(env.TRONGRID_KEY) : '',
+    /*
+    SANS CETTE CLÉ, LES VENTES BNB ET ETH NE SE VÉRIFIENT PAS.
+
+    Ce n'est pas une option de confort comme `TRONGRID_KEY`, qui ne relève
+    qu'un quota. Mesuré depuis le Worker : les sept nœuds BSC publics
+    refusent `eth_getLogs` sur un seul bloc. Non réglée, une vente BNB
+    répondra `indisponible` — ce qui est au moins honnête, mais ne vend rien.
+    */
+    cleEtherscan: env?.CHANGE_CLE_ETHERSCAN ? String(env.CHANGE_CLE_ETHERSCAN) : '',
   }
 
   let trouve = null
@@ -3874,6 +4176,7 @@ export {
   incrementer,
   ordreChange,
   choisirTransfertTron,
+  choisirTransfertEtherscan,
   choisirJournalErc20,
   choisirNatifEvm,
   choisirSortieBtc,

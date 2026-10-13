@@ -24,6 +24,7 @@ attaques listées échouent, pas qu'il n'en existe pas d'autres.
 
 import {
   choisirTransfertTron,
+  choisirTransfertEtherscan,
   choisirJournalErc20,
   choisirNatifEvm,
   choisirSortieBtc,
@@ -221,6 +222,58 @@ const critereTron = (extra) => ({
   verifie('TRON : une reponse vide ne plante pas', r === null, r)
   const r2 = choisirTransfertTron([null, undefined, {}, { to: CHANGEUR_TRON }], critereTron())
   verifie('TRON : des entrees illisibles ne plantent pas', r2 === null, r2)
+}
+
+{
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  L'ANTÉRIORITÉ, SUR TRON AUSSI — ET CE TEST EXISTE À CAUSE D'UNE MUTATION
+  ═════════════════════════════════════════════════════════════════════
+
+  En éprouvant le tri d'Etherscan, j'ai supprimé par erreur la ligne
+  d'antériorité de `choisirTransfertTron` au lieu de la sienne. Aucun
+  test de ce fichier n'est tombé.
+
+  Elle était couverte de bout en bout ailleurs (test-garde-fous.mjs),
+  donc le garde-fou tenait. Mais un test de bout en bout qui tombe dit
+  « quelque chose s'est cassé quelque part », là où celui-ci dit « cette
+  ligne-là ». Entre les deux, il y a une heure de recherche.
+
+  Bob voit le versement d'Alice sur un explorateur — il est public — et
+  ouvre aussitôt une demande du même montant pour se l'attribuer.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const versementAlice = transfertTron({ block_timestamp: MAINTENANT - 10 * 60 * 1000 })
+  verifie(
+    'TRON : Bob ne peut pas reclamer le versement anterieur d Alice',
+    choisirTransfertTron([versementAlice], critereTron({ apres: MAINTENANT - 5 * 60 * 1000 })) === null,
+    'il a ete attribue a Bob'
+  )
+  verifie(
+    'TRON : la meme demande ouverte avant trouve son versement',
+    choisirTransfertTron([versementAlice], critereTron({ apres: MAINTENANT - 20 * 60 * 1000 })) !== null
+  )
+  /*
+  LA MARGE D'UNE MINUTE EST TESTÉE DANS LES DEUX SENS, parce qu'elle est
+  le seul endroit où ce contrôle peut être trop strict. L'horloge d'un
+  bloc et celle du relais ne sont pas la même : un versement émis à la
+  seconde où la demande s'ouvre ne doit pas être rejeté pour trois
+  centièmes de décalage.
+  */
+  verifie(
+    'TRON : trente secondes avant la demande passent (derive d horloge)',
+    choisirTransfertTron(
+      [transfertTron({ block_timestamp: MAINTENANT - 30_000 })],
+      critereTron({ apres: MAINTENANT })
+    ) !== null
+  )
+  verifie(
+    'TRON : deux minutes avant la demande ne passent pas',
+    choisirTransfertTron(
+      [transfertTron({ block_timestamp: MAINTENANT - 120_000 })],
+      critereTron({ apres: MAINTENANT })
+    ) === null
+  )
 }
 
 // ─── EVM : les journaux ─────────────────────────────────────────────
@@ -680,6 +733,261 @@ verifie(
     'FENETRE : six heures acceptees a douze heures de fenetre',
     choisirTransfertTron([vieux], critereTron({ fenetre: 12 * 3600_000 })) !== null
   )
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+ETHERSCAN — LE MÊME TRI, LA MÊME BATTERIE D'ATTAQUES
+═══════════════════════════════════════════════════════════════════════════
+
+Cette source est devenue le chemin NORMAL des ventes BNB et ETH, parce que
+les sept nœuds publics refusent `eth_getLogs` sur un seul bloc depuis un
+Worker. Un chemin normal se teste comme l'autre.
+
+ET IL Y A UNE RAISON PARTICULIÈRE DE L'ÉPROUVER : il ressemble beaucoup à
+`choisirTransfertTron`, et deux de ses lignes disent délibérément le
+CONTRAIRE de leur jumelle — la casse des adresses, et l'unité de
+l'horodate. Ce sont exactement les endroits où l'œil glisse en relisant.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+DES ADRESSES EN CASSE MIXTE, VOLONTAIREMENT.
+
+Celles du décor EVM plus haut sont des répétitions de chiffres — très
+lisibles, mais insensibles à la casse. Elles ne pourraient donc pas
+révéler une comparaison faite sans `toLowerCase`, qui est précisément la
+faute que ce tri-ci doit éviter. `USDT_BNB`, lui, est repris tel quel :
+il porte déjà sa casse de contrôle.
+*/
+const CHANGEUR_BNB = '0xbde137a9684f0bc437294b2cf2ab7295831e327e'
+const CLIENT_BNB = '0x28c6c06298d514db089934071355e5743bf21d60'
+
+/** Un transfert de jeton tel qu'Etherscan le rend, avec de quoi le déformer. */
+function transfertEs(modifications) {
+  return {
+    hash: '0x' + 'ab'.repeat(32),
+    from: CLIENT_BNB,
+    to: CHANGEUR_BNB,
+    contractAddress: USDT_BNB.toLowerCase(),
+    tokenDecimal: '18',
+    tokenSymbol: 'USDT',
+    // DIX-HUIT décimales. 2,000359 USDT-BNB en unités brutes, ce qui fait
+    // dix-neuf chiffres — au-delà de ce qu'un `Number` tient.
+    value: '2000359000000000000',
+    timeStamp: String(Math.floor((MAINTENANT - 5 * 60 * 1000) / 1000)),
+    ...(modifications || {}),
+  }
+}
+
+const critereEs = (extra) => ({
+  adresse: CHANGEUR_BNB,
+  contrat: USDT_BNB,
+  decimales: 18,
+  montant: 2.000359,
+  txid: '',
+  maintenant: MAINTENANT,
+  exact: true,
+  ...(extra || {}),
+})
+
+{
+  const r = choisirTransfertEtherscan([transfertEs()], critereEs())
+  verifie('ES : un versement conforme est trouve', r !== null, r)
+  verifie('ES : le montant vient de la reponse, pas de la demande', r && r.montant === 2.000359, r)
+  verifie('ES : l expediteur est rendu', r && r.de === CLIENT_BNB, r)
+  verifie('ES : le txid est rendu', r && r.txid === '0x' + 'ab'.repeat(32), r)
+}
+
+{
+  /*
+  LA CASSE DE CONTRÔLE NE DOIT PAS FAIRE RATER UN VERSEMENT.
+
+  C'est le cas qui a motivé la ligne : Etherscan rend les adresses en
+  casse mixte, et CHANGE_ADRESSES porte souvent la forme minuscule. Une
+  comparaison stricte refuserait ici un versement parfaitement valide —
+  et on chercherait le défaut sur la chaîne.
+  */
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ to: '0xBdE137a9684F0bC437294b2cF2ab7295831E327e' })],
+    critereEs()
+  )
+  verifie('ES : la casse de controle de l adresse est toleree', r !== null, r)
+}
+
+{
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ contractAddress: USDT_BNB.toUpperCase() })],
+    critereEs()
+  )
+  verifie('ES : la casse du contrat est toleree', r !== null, r)
+}
+
+{
+  /*
+  UN WEI D'ÉCART EST ACCEPTÉ, ET C'EST UNE DÉCISION, PAS UN RELÂCHEMENT.
+
+  « Exact » veut dire exact À SIX DÉCIMALES, parce que c'est la précision
+  du montant qu'on a demandé au client. Exiger le wei refuserait des
+  versements honnêtes : le client tape 2,000359 dans son exchange, et ce
+  qui part est arrondi par l'exchange, pas par lui.
+
+  Et ça ne rouvre rien : six décimales décrivent déjà un million de
+  montants possibles par unité, dont les quatre dernières sont dérivées
+  de la référence. L'écart qu'on tolère ici est mille milliards de fois
+  plus petit que celui qui permettrait une confusion.
+
+  J'avais d'abord écrit ici un test « dix-huit décimales ne débordent
+  pas ». Il passait sans rien prouver : à ces grandeurs, une conversion
+  naïve en Number rend le même résultat qu'un parcours en BigInt, parce
+  que l'arrondi à six décimales efface la différence. Un test qui ne peut
+  pas échouer est pire qu'un test absent — il rassure.
+  */
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ value: '2000358999999999999' })],
+    critereEs()
+  )
+  verifie('ES : un wei de moins est encore le bon montant', r !== null, r)
+
+  // Mais un MILLIONIÈME de moins, non : c'est la dernière décimale du
+  // marquage, et c'est elle qui distingue deux demandes.
+  const trop = choisirTransfertEtherscan(
+    [transfertEs({ value: '2000358000000000000' })],
+    critereEs()
+  )
+  verifie('ES : un millionieme de moins ne passe pas', trop === null, trop)
+}
+
+// ─── Ce qui doit échouer ────────────────────────────────────────────
+
+{
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ to: CLIENT_BNB })],
+    critereEs()
+  )
+  verifie('ES : un versement vers quelqu un d autre est refuse', r === null, r)
+}
+
+{
+  /*
+  LE FAUX JETON. Déployer un contrat nommé « USDT » à dix-huit décimales
+  prend dix minutes. Sans la ligne du contrat, ces jetons sans valeur
+  seraient lus comme de l'USDT et le changeur paierait en FCFA.
+  */
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ contractAddress: '0x' + '99'.repeat(20), tokenSymbol: 'USDT' })],
+    critereEs()
+  )
+  verifie('ES : un faux jeton nomme USDT est refuse', r === null, r)
+}
+
+{
+  const r = choisirTransfertEtherscan([transfertEs({ contractAddress: '' })], critereEs())
+  verifie('ES : un contrat absent est refuse, pas devine', r === null, r)
+}
+
+{
+  // Six décimales annoncées là où on en attend dix-huit : lire la valeur
+  // avec les mauvaises décimales donne un facteur mille milliards.
+  const r = choisirTransfertEtherscan([transfertEs({ tokenDecimal: '6' })], critereEs())
+  verifie('ES : des decimales qui ne sont pas les notres sont refusees', r === null, r)
+}
+
+{
+  const r = choisirTransfertEtherscan([transfertEs({ tokenDecimal: '' })], critereEs())
+  verifie('ES : des decimales absentes sont refusees', r === null, r)
+}
+
+{
+  // Montant marqué : un montant arrondi au voisinage ne passe PAS. C'est
+  // toute la raison d'être du marquage.
+  const r = choisirTransfertEtherscan(
+    [transfertEs({ value: '2000000000000000000' })],
+    critereEs()
+  )
+  verifie('ES : marque, 2.000000 ne paie pas 2.000359', r === null, r)
+}
+
+{
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  L'ATTAQUE D'ALICE ET BOB, REJOUÉE SUR CETTE SOURCE
+  ═════════════════════════════════════════════════════════════════════
+
+  Bob voit passer le versement d'Alice sur un explorateur public — il est
+  public, c'est tout l'objet d'une chaîne. Il ouvre aussitôt une demande
+  pour le même montant, en espérant que le relais lui attribue.
+
+  Deux barrières le refusent, et il faut les DEUX :
+
+  — l'antériorité : sa demande naît après le versement ;
+  — le marquage : le montant d'Alice ne porte pas les décimales de SA
+    référence, donc même sans antériorité il ne correspondrait pas.
+
+  Ce test vérifie que le refus tient sur la première, en isolant : on lui
+  donne le montant exact d'Alice, pour qu'il ne reste que l'antériorité.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const versementAlice = transfertEs({
+    timeStamp: String(Math.floor((MAINTENANT - 10 * 60 * 1000) / 1000)),
+  })
+  const demandeBob = critereEs({
+    // La demande de Bob naît cinq minutes APRÈS le versement d'Alice.
+    apres: MAINTENANT - 5 * 60 * 1000,
+  })
+  verifie(
+    'ES : Bob ne peut pas reclamer le versement anterieur d Alice',
+    choisirTransfertEtherscan([versementAlice], demandeBob) === null,
+    'il a ete attribue a Bob'
+  )
+  // Et la même demande, ouverte AVANT, trouve bien son versement : la
+  // barrière doit refuser Bob sans refuser Alice.
+  verifie(
+    'ES : la meme demande ouverte avant trouve son versement',
+    choisirTransfertEtherscan([versementAlice], critereEs({ apres: MAINTENANT - 20 * 60 * 1000 })) !== null
+  )
+}
+
+{
+  /*
+  L'HORODATE EST EN SECONDES ICI, en millisecondes chez TronGrid. Si la
+  conversion sautait, tous les versements se placeraient en 1970 et la
+  fenêtre les refuserait tous — ou, selon le sens de la faute, les
+  accepterait tous. Ce test fixe le sens.
+  */
+  const vieux = transfertEs({ timeStamp: String(Math.floor((MAINTENANT - 6 * 3600_000) / 1000)) })
+  verifie('ES : six heures refusees par defaut', choisirTransfertEtherscan([vieux], critereEs()) === null)
+  verifie(
+    'ES : six heures acceptees a douze heures de fenetre',
+    choisirTransfertEtherscan([vieux], critereEs({ fenetre: 12 * 3600_000 })) !== null
+  )
+  // Et une horodate en millisecondes, donnée par erreur, tombe DANS LE
+  // FUTUR de cinquante ans : elle doit être refusee, pas acceptee.
+  const futur = transfertEs({ timeStamp: String(MAINTENANT) })
+  verifie('ES : une horodate en millisecondes est refusee', choisirTransfertEtherscan([futur], critereEs()) === null)
+}
+
+{
+  const r = choisirTransfertEtherscan([transfertEs({ hash: '' })], critereEs())
+  verifie('ES : un versement sans txid est refuse', r === null, r)
+}
+
+{
+  verifie('ES : une reponse qui n est pas un tableau rend null', choisirTransfertEtherscan(null, critereEs()) === null)
+  verifie('ES : une liste vide rend null', choisirTransfertEtherscan([], critereEs()) === null)
+}
+
+{
+  // Le bon versement n'est pas le premier : Etherscan rend l'activité
+  // complète du changeur, et ses autres clients y sont aussi.
+  const liste = [
+    transfertEs({ value: '25000000000000000000', hash: '0x' + 'cd'.repeat(32) }),
+    transfertEs({ to: CLIENT_BNB, hash: '0x' + 'ef'.repeat(32) }),
+    transfertEs(),
+  ]
+  const r = choisirTransfertEtherscan(liste, critereEs())
+  verifie('ES : le bon versement est trouve au milieu des autres', r && r.montant === 2.000359, r)
 }
 
 // ─── Verdict ────────────────────────────────────────────────────────
