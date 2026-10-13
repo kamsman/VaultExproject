@@ -194,6 +194,27 @@ if (marque) {
   console.log('\n  Le montant est MARQUE : ces decimales sont derivees de la')
   console.log('  reference ci-dessus, et elles seules permettront de reconnaitre')
   console.log('  ton versement. Un montant arrondi ne sera pas reconnu.')
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  C'EST LE MONTANT REÇU QUI COMPTE, PAS LE MONTANT TAPÉ
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le relais lit la chaine. Ce qu'il y trouve est ce qui est ARRIVE chez
+  le changeur — apres la commission du reseau, que l'exchange retranche.
+
+  Sur Binance, le champ « Montant » n'est pas ce qu'on recoit : la page
+  affiche en dessous « Vous recevrez », et c'est CE nombre-la qui doit
+  valoir le montant marque. Taper le montant marque dans le champ du
+  haut ferait arriver quelques dixiemes de moins, et le versement ne
+  serait jamais reconnu — pour une raison invisible depuis le telephone.
+
+  Ca ne se devine pas, et ca coute un vrai retrait pour l'apprendre.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  console.log('\n  ⚠ SUR BINANCE, REGARDE « VOUS RECEVREZ », PAS « MONTANT ».')
+  console.log('    La commission du reseau est retranchee, et le relais lit ce')
+  console.log('    qui ARRIVE. Ajuste le champ du haut jusqu’a ce que la ligne')
+  console.log(`    « vous recevrez » affiche exactement ${exact}.`)
 } else {
   /*
   SANS MARQUAGE, ON LE DIT. C'est la difference entre « ton versement sera
