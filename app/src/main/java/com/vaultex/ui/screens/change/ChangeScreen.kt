@@ -690,7 +690,7 @@ private fun ColumnScope.EtapePaiement(
             c'est une soiree. Elle devient une ligne parmi les montants, la
             ou on la lit sans effort.
             */
-            Ligne(stringResource(R.string.change_delai), "~ ${p.delaiMinutes} min")
+            CompteARebours(state.confirmeA, p.delaiMinutes)
             /*
             COPIER LA REFERENCE, PAS LE NUMERO.
 
@@ -970,6 +970,91 @@ private fun ColumnScope.EtapePaiement(
 
     TextButton(onClick = vm::retourAuCalcul, modifier = Modifier.align(Alignment.CenterHorizontally)) {
         Text(stringResource(R.string.change_retour), color = TextSecondary, fontSize = 13.sp)
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN COMPTE À REBOURS PLUTÔT QU'UN DÉLAI ANNONCÉ
+═══════════════════════════════════════════════════════════════════════════
+
+« Délai annoncé : 30 min » ne dit rien d'utile une fois qu'on attend. Trente
+minutes à partir de quand ? On regarde l'écran, on ne sait pas si on vient
+d'arriver ou si on attend depuis vingt minutes, et on rappelle le changeur.
+
+Un chiffre qui descend répond à la seule question qu'on se pose, et il y
+répond sans qu'on la pose.
+
+─── CE QU'IL DÉCOMPTE, ET IL FAUT ÊTRE EXACT ────────────────────────────
+
+Le prix a été figé à la confirmation. Ce décompte est la durée pendant
+laquelle VaultEx le tient — pas une promesse sur le changeur, qui n'est lié
+par aucune horloge que nous contrôlions.
+
+Dire « le changeur paiera dans 10 minutes » serait engager quelqu'un
+d'autre. Dire « ton prix est garanti encore 9:47 » n'engage que nous, et
+c'est vrai.
+
+─── À ZÉRO, ON N'EFFACE RIEN ────────────────────────────────────────────
+
+Le prix cesse d'être garanti, et on le dit. On ne bloque pas, on n'annule
+pas : ses fonds sont peut-être déjà partis, et lui retirer son écran à
+cet instant précis serait le pire moment pour le faire.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun CompteARebours(confirmeA: Long, delaiMinutes: Int) {
+    if (confirmeA <= 0L) return
+    val fin = confirmeA + delaiMinutes * 60_000L
+
+    /*
+    UNE SECONDE, ET PAS PLUS FIN.
+
+    Un compte à rebours au dixième de seconde donne un écran agité pour
+    une information qui se lit à la minute. Et chaque recomposition coûte,
+    sur les téléphones modestes qui sont la cible.
+    */
+    var maintenant by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(fin) {
+        while (System.currentTimeMillis() < fin) {
+            maintenant = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000)
+        }
+        maintenant = System.currentTimeMillis()
+    }
+
+    val restant = fin - maintenant
+    val fini = restant <= 0L
+    val couleur = when {
+        fini -> AccentOrange
+        restant < 2 * 60_000L -> AccentOrange
+        else -> TextPrimary
+    }
+
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.Schedule, null, tint = couleur, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(
+                if (fini) R.string.change_prix_expire else R.string.change_prix_garanti
+            ),
+            fontSize = 12.sp,
+            color = TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        if (!fini) {
+            val m = restant / 60_000L
+            val sec = (restant % 60_000L) / 1_000L
+            Text(
+                "%d:%02d".format(m, sec),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = couleur,
+                // Chasse fixe : sans elle, les chiffres changent de largeur
+                // a chaque seconde et la ligne tremble.
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
+        }
     }
 }
 
