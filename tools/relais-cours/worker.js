@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 23
+const VERSION = 24
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2696,6 +2696,38 @@ const NOEUDS_EVM = {
   ],
 }
 
+/*
+LE TEMPS D'UN BLOC, SOUS-ESTIMÉ VOLONTAIREMENT.
+
+BNB Chain est passée de 3 s à 1,5 s puis à 0,75 s en deux ans. Une valeur
+trop GRANDE ferait calculer trop peu de blocs et rater des versements ;
+une valeur trop petite fait interroger quelques blocs de trop, ce qui ne
+coûte rien. On se trompe donc du côté qui ne perd rien.
+*/
+const MS_PAR_BLOC = { bnb: 700, eth: 11_000 }
+
+/*
+CINQ CENTS BLOCS PAR APPEL.
+
+Mesuré : les sept nœuds BSC refusent deux mille d'un coup — « limit
+exceeded ». Cinq cents passe partout, et découper coûte un aller-retour de
+plus seulement quand la demande est ancienne.
+*/
+const TRANCHE_EVM = 500
+
+/*
+VINGT MINUTES AU PLUS, et c'est l'antériorité qui le permet.
+
+Un versement ne compte que s'il est postérieur à l'ouverture de la
+demande. Chercher au-delà de ce que quelqu'un met à confirmer, ouvrir son
+exchange et retirer ne trouverait que des versements déjà écartés — pour
+une quarantaine d'appels réseau.
+
+Au-delà, il reste le txid, qui ne demande qu'un seul appel et ne connaît
+aucune limite de plage.
+*/
+const PLAGE_EVM_MAX_MS = 20 * 60_000
+
 const TRONGRID = 'https://api.trongrid.io'
 const BLOCKSTREAM = 'https://blockstream.info/api'
 
@@ -3041,7 +3073,15 @@ async function appelEvm(reseau, methode, params) {
       derniere = e
     }
   }
-  throw derniere || new Error('aucun noeud')
+  /*
+  LE MOTIF NOMME LA METHODE.
+
+  « indisponible : limit exceeded » ne disait pas quel appel avait echoue —
+  et c'est precisement ce qu'il fallait savoir : la plage de eth_getLogs,
+  pas la lecture de la hauteur. Trois mots de plus, et la cause saute aux
+  yeux au lieu de demander une heure.
+  */
+  throw new Error(`${methode} : ${derniere?.message ?? 'aucun noeud'}`)
 }
 
 /** Vérifie un transfert TRC-20 vers l'adresse du changeur. */
@@ -3129,23 +3169,74 @@ async function verifierEvm(cfg, critere) {
   }
 
   /*
-  LA FENÊTRE EST EN BLOCS, et les nœuds publics la bornent — souvent à
-  quelques milliers. On reste large sous la limite : deux mille blocs font
-  une heure et demie sur BNB Chain, près de sept heures sur Ethereum.
+  ═══════════════════════════════════════════════════════════════════════
+  ON NE DEMANDE PLUS DEUX MILLE BLOCS D'UN COUP
+  ═══════════════════════════════════════════════════════════════════════
+
+  Mesuré sur un vrai essai : les sept nœuds BSC ont répondu « limit
+  exceeded ». Aucun point d'entrée public gratuit n'accepte une plage de
+  deux mille blocs sur `eth_getLogs`, et ils plafonnent tous aux alentours
+  de cinq cents.
+
+  ─── ET JE N'AI PAS BESOIN DE DEUX MILLE BLOCS ───────────────────────
+
+  C'est ce que j'avais raté en écrivant ce code. Depuis que l'antériorité
+  existe, un versement ne compte QUE s'il est postérieur à l'ouverture de
+  la demande. La plage utile ne se compte donc pas en heures mais en
+  minutes : le temps que quelqu'un confirme, ouvre son exchange et retire.
+
+  On part de la naissance de la demande, avec une marge, et on découpe en
+  tranches que les nœuds acceptent.
+
+  ─── LE TEMPS DE BLOC EST SOUS-ESTIMÉ, ET C'EST VOULU ────────────────
+
+  BNB Chain est passée de 3 s à 1,5 s puis à 0,75 s en deux ans. Prendre
+  une valeur trop GRANDE ferait calculer trop peu de blocs, donc rater des
+  versements. On prend donc une valeur basse : on interroge quelques blocs
+  de trop, ce qui ne coûte rien, plutôt que pas assez, ce qui coûte un
+  versement introuvable.
+  ═══════════════════════════════════════════════════════════════════════
   */
   const hauteur = await appelEvm(cfg.reseau, 'eth_blockNumber', [])
   const dernier = Number(BigInt(entierDepuisHex(hauteur)))
   if (!Number.isFinite(dernier) || dernier <= 0) throw new Error('hauteur illisible')
-  const depuis = Math.max(0, dernier - 2000)
-  const journaux = await appelEvm(cfg.reseau, 'eth_getLogs', [
-    {
-      address: cfg.contrat,
-      topics: [TOPIC_TRANSFER, null, topicDepuisAdresse(critere.adresse)],
-      fromBlock: '0x' + depuis.toString(16),
-      toBlock: 'latest',
-    },
-  ])
-  if (!Array.isArray(journaux)) throw new Error('journaux illisibles')
+
+  const msParBloc = MS_PAR_BLOC[cfg.reseau] || 1000
+  // Depuis la naissance de la demande, plus cinq minutes de marge. Sans
+  // naissance connue, le quart d'heure écoulé : au-delà, il faut un txid.
+  const age = critere.apres > 0
+    ? critere.maintenant - critere.apres + 5 * 60_000
+    : 15 * 60_000
+  const blocs = Math.min(
+    Math.ceil(age / msParBloc),
+    Math.ceil(PLAGE_EVM_MAX_MS / msParBloc)
+  )
+
+  const journaux = []
+  let haut = dernier
+  const bas = Math.max(0, dernier - blocs)
+  /*
+  DU PLUS RÉCENT AU PLUS ANCIEN, et on s'arrête dès qu'on a trouvé.
+
+  Un versement qu'on attend vient d'arriver : il est dans la première
+  tranche neuf fois sur dix. Commencer par les blocs anciens ferait payer
+  à tout le monde le coût du cas rare.
+  */
+  while (haut > bas && journaux.length === 0) {
+    const debut = Math.max(bas, haut - TRANCHE_EVM)
+    const tranche = await appelEvm(cfg.reseau, 'eth_getLogs', [
+      {
+        address: cfg.contrat,
+        topics: [TOPIC_TRANSFER, null, topicDepuisAdresse(critere.adresse)],
+        fromBlock: '0x' + debut.toString(16),
+        toBlock: '0x' + haut.toString(16),
+      },
+    ])
+    if (!Array.isArray(tranche)) throw new Error('journaux illisibles')
+    journaux.push(...tranche)
+    haut = debut - 1
+  }
+
   // Du plus récent au plus ancien : entre deux versements du même montant,
   // c'est le dernier qui correspond à la demande qu'on dépose maintenant.
   for (const j of journaux.slice().reverse()) {

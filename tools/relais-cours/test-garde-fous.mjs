@@ -1022,6 +1022,122 @@ const ENV_ADRESSE = { CHANGE_ADRESSES: '{"USDT":"TQn9Y2khDD95J42FQtQTdwVVRZqjGBC
   verifie('COMPATIBILITE : sans marquage, 2 USDT ronds passent', r.etat === 'confirme', r)
 }
 
+// ─── La plage de eth_getLogs ────────────────────────────────────────
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE DEFAUT QUE SEUL UN VRAI ESSAI POUVAIT MONTRER
+═══════════════════════════════════════════════════════════════════════════
+
+Les sept noeuds BSC ont repondu « limit exceeded » sur une vraie tentative.
+Aucun point d'entree public gratuit n'accepte une plage de deux mille blocs
+sur eth_getLogs.
+
+Mes tests ne pouvaient pas le voir : ils nourrissent le code avec des
+reponses que j'ecris, et une reponse forgee n'a pas de limite de plage.
+
+Ceux-ci regardent ce que le relais DEMANDE, pas ce qu'on lui repond.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+const ADRESSE_BNB = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
+const ENV_BNB = { CHANGE_ADRESSES: JSON.stringify({ 'USDT-BNB': ADRESSE_BNB }) }
+
+/** Installe un faux noeud EVM qui note les plages demandees. */
+function avecNoeudEvm(cache, hauteur) {
+  installer(cache)
+  const plages = []
+  globalThis.fetch = async (url, options) => {
+    const corps = JSON.parse(options?.body ?? '{}')
+    if (corps.method === 'eth_blockNumber') {
+      return new Response(
+        JSON.stringify({ jsonrpc: '2.0', id: 1, result: '0x' + hauteur.toString(16) }),
+        { status: 200 }
+      )
+    }
+    if (corps.method === 'eth_getLogs') {
+      const f = Number(BigInt(corps.params[0].fromBlock))
+      const t = Number(BigInt(corps.params[0].toBlock))
+      plages.push({ de: f, a: t, largeur: t - f })
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: [] }), { status: 200 })
+    }
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: null }), { status: 200 })
+  }
+  return plages
+}
+
+{
+  const cache = faireCache()
+  const plages = avecNoeudEvm(cache, 50_000_000)
+  const ref = 'VX-PLAGE001'
+  // La demande est nee il y a deux minutes.
+  await marquerValeur('demande', ref, JSON.stringify({ ne: Date.now() - 2 * 60_000 }))
+
+  const r = await verifierVente({
+    monnaie: 'USDT-BNB',
+    montant: 2,
+    reference: ref,
+    env: { ...ENV_BNB, CHANGE_MARQUAGE: SECRET },
+  })
+  verifie('PLAGE : rien trouve, et c est normal', r.etat === 'absent', r)
+  verifie('PLAGE : au moins un appel a eth_getLogs', plages.length >= 1, plages)
+  /*
+  LE CONTROLE QUI AURAIT EVITE L'ECHEC REEL. Aucun appel ne doit depasser
+  cinq cents blocs — c'est ce que les noeuds publics acceptent.
+  */
+  verifie(
+    'PLAGE : aucun appel ne depasse 500 blocs',
+    plages.every((p) => p.largeur <= 500),
+    plages.map((p) => p.largeur)
+  )
+  /*
+  ET LA PLAGE SUIT L'AGE DE LA DEMANDE. Deux minutes a 700 ms le bloc font
+  environ 170 blocs, plus cinq minutes de marge : autour de 600. On
+  verifie l'ordre de grandeur, pas le chiffre exact — le temps de bloc est
+  une estimation volontairement basse.
+  */
+  const couvert = plages.reduce((n, p) => n + p.largeur, 0)
+  verifie(
+    'PLAGE : elle suit l age de la demande, pas 2000 blocs',
+    couvert > 200 && couvert < 1200,
+    couvert
+  )
+}
+
+{
+  // Sans naissance connue — marquage eteint — on retombe sur un quart
+  // d'heure, borne par PLAGE_EVM_MAX_MS. Jamais sur deux mille blocs d'un
+  // seul appel.
+  const cache = faireCache()
+  const plages = avecNoeudEvm(cache, 50_000_000)
+  await verifierVente({ monnaie: 'USDT-BNB', montant: 2, env: ENV_BNB })
+  verifie(
+    'PLAGE : sans naissance, les tranches restent bornees',
+    plages.length > 0 && plages.every((p) => p.largeur <= 500),
+    plages.map((p) => p.largeur)
+  )
+}
+
+{
+  /*
+  LE MOTIF D'ECHEC NOMME LA METHODE.
+
+  « indisponible : limit exceeded » ne disait pas quel appel avait echoue,
+  et c'etait precisement ce qu'il fallait savoir : la plage de getLogs, pas
+  la lecture de la hauteur.
+  */
+  const cache = faireCache()
+  installer(cache)
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ jsonrpc: '2.0', id: 1, error: { message: 'limit exceeded' } }),
+      { status: 200 }
+    )
+  const r = await verifierVente({ monnaie: 'USDT-BNB', montant: 2, env: ENV_BNB })
+  verifie('MOTIF : indisponible', r.etat === 'indisponible', r)
+  verifie('MOTIF : il nomme la methode', String(r.raison).includes('eth_'), r.raison)
+}
+
 // ─── Verdict ────────────────────────────────────────────────────────
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
