@@ -1169,6 +1169,9 @@
     <string name="change_recap_envoye">ترسل</string>
     <string name="change_recevra">ستستلم</string>
     <string name="change_prix_marche">سعر السوق (1 %1$s)</string>
+    <string name="change_taux_applique">السعر المطبق (1 %1$s)</string>
+    <string name="change_bornes">بين %1$s و %2$s</string>
+    <string name="change_bornes_approx">بين ≈ %1$s و ≈ %2$s</string>
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
     <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
 </resources>

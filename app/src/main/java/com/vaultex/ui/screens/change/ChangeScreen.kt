@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -243,6 +245,44 @@ private fun ColumnScope.EtapeCalcul(
     )
 
     /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES BORNES, AVANT DE TAPER — ET SURTOUT POUR LA VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le minimum et le plafond existaient déjà, mais ne se découvraient
+    QU'APRÈS avoir tapé un montant refusé. Or un refus est le pire moment
+    pour annoncer une règle : la personne a fait l'effort, et on le lui
+    rend en lui disant qu'il ne valait rien.
+
+    ─── POURQUOI C'ÉTAIT PIRE À LA VENTE ────────────────────────────────
+
+    À l'achat, les trois pastilles de montants courants commencent par le
+    minimum : il se voit, même sans être nommé. À la vente, il n'y a pas de
+    pastilles — on tape de la crypto, pas des francs — et le seuil est
+    exprimé en FRANCS. Quelqu'un qui tape « 5 USDT » n'a aucun moyen de
+    savoir si ça passe, parce que la réponse dépend d'un cours.
+
+    On convertit donc les bornes dans l'unité où la personne tape. C'est
+    approximatif par nature, puisque le cours bouge, et le « ≈ » le dit
+    plutôt que de le cacher.
+
+    ─── CE QUE CETTE LIGNE N'EST PAS ────────────────────────────────────
+
+    Un message d'erreur. Elle reste grise et au même endroit, qu'on soit
+    dans les clous ou non ; c'est `NoteEnDeuxTemps`, plus bas, qui parle
+    quand ça bloque. Deux éléments qui crient la même chose finiraient par
+    ne plus être lus ni l'un ni l'autre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    BornesChange(
+        minFcfa = p.minimumPour(state.monnaie),
+        maxFcfa = p.plafondFcfa,
+        enFcfa = donneFcfa,
+        monnaie = state.monnaie,
+        prix = state.prix
+    )
+
+    /*
     LE BOUTON D'INVERSION, ENTRE LES DEUX CARTES.
 
     Il fait la même chose que les onglets du haut, et c'est assumé : entre
@@ -348,6 +388,36 @@ private fun ColumnScope.EtapeCalcul(
                     stringResource(R.string.change_prix_marche, state.monnaie),
                     "${fcfa(prix.baseFcfa)} FCFA",
                     icone = Icons.Default.ShowChart
+                )
+
+                /*
+                ═════════════════════════════════════════════════════════
+                LE TAUX RÉELLEMENT APPLIQUÉ
+                ═════════════════════════════════════════════════════════
+
+                Ce chiffre était calculé, et il partait sur Telegram dans
+                le champ `taux` de l'ordre — mais l'utilisateur ne l'avait
+                jamais vu. Le changeur connaissait donc un nombre que le
+                client ne connaissait pas, alors que c'est LE nombre de
+                l'opération.
+
+                On montrait le prix du marché et la marge séparément, en se
+                disant que la soustraction se fait. Elle ne se fait pas :
+                personne ne soustrait une marge affichée en francs par
+                dollar pendant qu'il regarde un prix en francs par USDT.
+
+                ─── POURQUOI PAS À LA PLACE DU PRIX DU MARCHÉ ───────────
+
+                Parce que les deux ne répondent pas à la même question. Le
+                prix du marché permet de COMPARER à un concurrent ; le taux
+                appliqué dit ce qu'on obtient ici. Garder les deux rend
+                l'écart visible, ce qui est tout l'objet de cette carte.
+                ═════════════════════════════════════════════════════════
+                */
+                Ligne(
+                    stringResource(R.string.change_taux_applique, state.monnaie),
+                    "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
+                    icone = Icons.Default.Calculate
                 )
 
                 /*
@@ -1496,6 +1566,62 @@ private fun OngletSens(
                 color = if (choisi) TextPrimary else TextSecondary
             )
         }
+    }
+}
+
+/**
+ * Les bornes de l'opération, dans l'unité où l'on tape.
+ *
+ * EN FRANCS À L'ACHAT, EN CRYPTO À LA VENTE. Les deux chiffres sont réglés
+ * par le changeur en francs ; les montrer tels quels à quelqu'un qui tape
+ * des USDT lui demanderait de faire la conversion de tête, avec un cours
+ * qu'il n'a pas.
+ *
+ * N'AFFICHE RIEN plutôt qu'une ligne fausse quand le cours manque. Une
+ * borne en crypto sans cours serait un chiffre inventé, et celui-ci
+ * servirait à décider d'un montant à envoyer.
+ */
+@Composable
+private fun BornesChange(
+    minFcfa: Double,
+    maxFcfa: Double,
+    enFcfa: Boolean,
+    monnaie: String,
+    prix: com.vaultex.domain.fiat.PrixFcfa?
+) {
+    // Un plafond au-dessous du minimum ne borne rien : c'est un réglage
+    // incohérent, et l'annoncer ferait lire une règle impossible à tenir.
+    if (maxFcfa <= minFcfa) return
+
+    val texte = if (enFcfa) {
+        stringResource(R.string.change_bornes, "${fcfa(minFcfa)} FCFA", "${fcfa(maxFcfa)} FCFA")
+    } else {
+        /*
+        À LA VENTE, LA CONVERSION PASSE PAR LE PRIX DE VENTE — le même que
+        celui qui calcule ce qu'on recevra. Prendre le prix d'achat
+        donnerait une borne qui ne correspond pas à celle qu'on appliquera,
+        et l'écart serait exactement la marge : quelqu'un se verrait refusé
+        juste au-dessus d'un seuil qu'on lui a montré.
+        */
+        val v = prix?.venteFcfa ?: return
+        if (v <= 0.0) return
+        stringResource(
+            R.string.change_bornes_approx,
+            "${crypto(minFcfa / v, monnaie)} $monnaie",
+            "${crypto(maxFcfa / v, monnaie)} $monnaie"
+        )
+    }
+
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.SwapHoriz, null,
+            tint = TextSecondary, modifier = Modifier.size(14.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(texte, fontSize = 11.sp, color = TextSecondary, maxLines = 1)
     }
 }
 

@@ -1198,6 +1198,9 @@
     <string name="change_recap_envoye">Tu envoies</string>
     <string name="change_recevra">Tu recevras</string>
     <string name="change_prix_marche">Prix du marché (1 %1$s)</string>
+    <string name="change_taux_applique">Taux appliqué (1 %1$s)</string>
+    <string name="change_bornes">Entre %1$s et %2$s</string>
+    <string name="change_bornes_approx">Entre ≈ %1$s et ≈ %2$s</string>
     <string name="change_prix_garanti">Prix garanti encore</string>
     <string name="change_prix_expire">Le prix affiché n\'est plus garanti — reviens au calcul si tu n\'as pas encore envoyé.</string>
 </resources>
