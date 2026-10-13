@@ -1202,6 +1202,8 @@
     <string name="change_bornes">Entre %1$s et %2$s</string>
     <string name="change_bornes_approx">Entre ≈ %1$s et ≈ %2$s</string>
     <string name="change_effacer">Effacer — appui long pour tout effacer</string>
+    <string name="change_deplier">Voir le détail</string>
+    <string name="change_replier">Replier le détail</string>
     <string name="change_prix_garanti">Prix garanti encore</string>
     <string name="change_prix_expire">Le prix affiché n\'est plus garanti — reviens au calcul si tu n\'as pas encore envoyé.</string>
 </resources>

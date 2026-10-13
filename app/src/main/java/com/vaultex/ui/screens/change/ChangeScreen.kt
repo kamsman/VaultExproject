@@ -321,13 +321,25 @@ private fun ColumnScope.EtapeCalcul(
     « Vendre » sont deux engagements distincts, et une flèche ne dit pas
     lequel on est en train de prendre.
     */
+    /*
+    UN TRAIT QUI SÉPARE, ET LE BOUTON POSÉ DESSUS.
+
+    Depuis que les blocs n'ont plus de contour, rien ne disait où finissait
+    « tu donnes » et où commençait « tu reçois » — deux libellés et deux
+    nombres empilés sans frontière se lisent comme une seule liste.
+
+    Le trait la rend, et le bouton d'inversion s'y assoit : c'est là que
+    l'oeil le cherche entre deux montants, et il y gagne la place qu'il
+    occupait seul.
+    */
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        HorizontalDivider(color = SurfaceColor)
         Surface(
             onClick = {
                 vm.onSens(if (donneFcfa) SensChange.VENTE else SensChange.ACHAT)
             },
             shape = androidx.compose.foundation.shape.CircleShape,
-            color = SurfaceColor,
+            color = BgPrimary,
             border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f)),
             modifier = Modifier.size(40.dp)
         ) {
@@ -378,16 +390,16 @@ private fun ColumnScope.EtapeCalcul(
     détails. Deux endroits qui affichent la même somme finissent par ne
     plus l'afficher pareil.
 
-    ─── LE PRIX DU MARCHÉ, PAS LE TAUX APPLIQUÉ ─────────────────────────
+    ─── LE PRIX DU MARCHÉ *ET* LE TAUX APPLIQUÉ ─────────────────────────
 
-    La ligne annonçait « Prix d'un USDT : 636 FCFA » — le cours majoré de
-    la marge. C'est le chiffre qui s'applique, mais ce n'est pas un prix de
-    marché, et rien ne le disait.
+    Une seule ligne annonçait « Prix d'un USDT : 636 FCFA » — le cours
+    majoré de la marge. C'est le chiffre qui s'applique, mais ce n'est pas
+    un prix de marché, et rien ne le disait.
 
-    Elle montre maintenant le cours réel, et la marge apparaît en clair sur
-    sa propre ligne. L'écart entre les deux cesse d'être invisible, et
-    quelqu'un peut enfin comparer à un concurrent — ce que « 636 » tout
-    seul ne permettait pas.
+    Les deux sont là maintenant, et ils répondent à deux questions
+    différentes : le cours réel permet de COMPARER à un concurrent, le taux
+    appliqué dit ce qu'on obtient ici. L'écart entre eux cesse d'être
+    invisible — ce que « 636 » tout seul ne permettait pas.
 
     C'est la même exigence que depuis le début, poussée d'un cran : rien ne
     doit se découvrir après, y compris ce qu'on gagne.
@@ -406,11 +418,63 @@ private fun ColumnScope.EtapeCalcul(
         val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
             ?.let { "%.2f".format(it) }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE DÉTAIL SE REPLIE, MAIS LES FRAIS NE SE CACHENT JAMAIS
+        ═══════════════════════════════════════════════════════════════════
+
+        Quatre lignes de calcul sous deux montants déjà lisibles, c'est de
+        l'encombrement pour les neuf utilisateurs sur dix qui veulent juste
+        « combien je reçois ». Elles se replient donc.
+
+        ─── MAIS PAS LES FRAIS, ET C'EST TOUTE LA NUANCE ─────────────────
+
+        J'avais proposé de glisser cette carte SOUS le bouton. C'était une
+        faute, et elle venait de regarder la maquette plutôt que la règle :
+        un repli sous le bouton permet d'appuyer sans avoir vu la
+        commission. Dans un marché où la confiance se gagne lentement,
+        c'est exactement ce qui fait fermer une application.
+
+        La carte reste donc AVANT le bouton, et sa ligne toujours visible
+        porte les frais — le seul chiffre qu'on pourrait être tenté de
+        cacher. Ce qui se replie, c'est le prix du marché, le taux appliqué
+        et le récapitulatif : de quoi vérifier, pas de quoi décider.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        var detailOuvert by remember { mutableStateOf(false) }
+
         Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
             Column(
                 Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { detailOuvert = !detailOuvert },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.weight(1f)) {
+                        Ligne(
+                            stringResource(R.string.change_marge),
+                            fraisFcfa?.let { f ->
+                                "${fcfa(f)} FCFA" + (pourcent?.let { " ($it %)" } ?: "")
+                            } ?: "—",
+                            icone = Icons.Default.Payments
+                        )
+                    }
+                    Icon(
+                        if (detailOuvert) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        stringResource(
+                            if (detailOuvert) R.string.change_replier else R.string.change_deplier
+                        ),
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                if (!detailOuvert) return@Column
+
+                HorizontalDivider(color = BgPrimary)
+
                 Ligne(
                     stringResource(R.string.change_prix_marche, state.monnaie),
                     "${fcfa(prix.baseFcfa)} FCFA",
@@ -463,20 +527,17 @@ private fun ColumnScope.EtapeCalcul(
                         icone = Icons.Default.NorthEast
                     )
                     /*
-                    LES FRAIS EN FRANCS, ET LE POURCENTAGE À CÔTÉ.
+                    LES FRAIS NE SONT PLUS ICI : ils sont remontés dans
+                    l'en-tête, qui reste visible quand la carte est repliée.
+                    Les laisser aussi en bas les afficherait deux fois une
+                    fois dépliée — et deux endroits qui portent la même
+                    somme finissent par ne plus la porter pareil.
 
-                    « 25 FCFA/$ » est une unité, pas un montant : sur cent
-                    USDT les frais réels sont deux mille cinq cents francs,
-                    et quelqu'un qui lit « 25 » se trompe d'un facteur cent.
-                    Le pourcentage reste entre parenthèses — c'est la seule
-                    unité comparable à un échangeur en ligne, mais ce n'est
-                    pas celle qu'on lit en premier.
+                    Le pourcentage les accompagne là-haut : c'est la seule
+                    unité comparable à un échangeur en ligne. « 25 FCFA/$ »
+                    est une unité, pas un montant, et quelqu'un qui la lit
+                    comme un total se trompe d'un facteur cent.
                     */
-                    Ligne(
-                        stringResource(R.string.change_marge),
-                        "${fcfa(fraisFcfa)} FCFA" + (pourcent?.let { " ($it %)" } ?: ""),
-                        icone = Icons.Default.Payments
-                    )
                     HorizontalDivider(color = BgPrimary)
                     Ligne(
                         stringResource(R.string.change_recevra),
@@ -1807,6 +1868,35 @@ lit. Pas de fond coloré : deux surfaces pleines côte à côte se disputent
 le regard, et c'est le montant qui doit l'emporter, pas la carte.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA TAILLE DU NOMBRE SUIT SA LONGUEUR
+═══════════════════════════════════════════════════════════════════════════
+
+Un nombre géant est ce qui rend cet écran lisible d'un coup d'oeil. Mais
+« 17 590 » et « 0,000123456789 » n'occupent pas la même place, et une
+taille fixe oblige à choisir entre deux défauts : un petit nombre perdu
+dans le vide, ou un long nombre coupé — sur un écran où ce nombre est la
+somme qu'on va envoyer.
+
+Compose n'a pas de texte auto-ajusté en version stable. Trois paliers
+suffisent, et ils ont l'avantage d'être prévisibles : on sait toujours de
+quoi aura l'air un montant donné.
+
+Le palier le plus bas reste nettement au-dessus d'un libellé. En dessous,
+le montant cesserait d'être ce qu'on lit en premier — ce qui est toute la
+raison d'être de ce bloc.
+═══════════════════════════════════════════════════════════════════════════
+*/
+/** Le drapeau du Burkina Faso. Deux indicateurs regionaux : B et F. */
+private const val DRAPEAU_BF = "\uD83C\uDDE7\uD83C\uDDEB"
+
+private fun tailleMontant(texte: String) = when {
+    texte.length <= 8 -> 34.sp
+    texte.length <= 12 -> 26.sp
+    else -> 20.sp
+}
+
 @Composable
 private fun CarteMontantChange(
     libelle: String,
@@ -1846,21 +1936,22 @@ private fun CarteMontantChange(
     var listeOuverte by remember { mutableStateOf(false) }
     val choix = monnaies.size > 1
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = androidx.compose.ui.graphics.Color.Transparent,
-        border = androidx.compose.foundation.BorderStroke(
-            if (vedette) 1.5.dp else 1.dp,
-            if (vedette) AccentBlue else SurfaceColor
-        ),
-        // Hauteur plancher COMMUNE : sans elle, la carte qui porte un
-        // sélecteur dépasse l'autre, et deux cartes voisines de hauteurs
-        // différentes se lisent comme un défaut d'alignement.
-        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
-    ) {
+    /*
+    PLUS DE CONTOUR : L'ENCRE PORTE SEULE LA DISTINCTION.
+
+    Deux rectangles dessinés autour de deux nombres, sur un écran dont ces
+    deux nombres SONT le sujet. Ce qui distingue les blocs tient maintenant
+    dans ce qu'on vient lire — montant donné en blanc avec un trait bleu,
+    montant reçu en vert sans trait.
+
+    La hauteur plancher reste : sans elle, le bloc qui porte un sélecteur
+    dépasse l'autre, et deux hauteurs différentes se lisent comme un défaut
+    d'alignement, y compris sans contour pour le souligner.
+    */
+    Box(Modifier.fillMaxWidth().heightIn(min = 92.dp)) {
         Column(
-            Modifier.fillMaxHeight().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
+            Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
@@ -1903,7 +1994,95 @@ private fun CarteMontantChange(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            /*
+            ═══════════════════════════════════════════════════════════
+            LE NOMBRE À GAUCHE, LA MONNAIE À DROITE
+            ═══════════════════════════════════════════════════════════
+
+            C'était l'inverse : la pastille à gauche, le montant poussé à
+            droite. On lisait donc « USDT-BNB » avant de lire combien.
+
+            Or la question de cet écran est « combien », et la monnaie n'en
+            est que l'unité. On lit de gauche à droite : le chiffre vient
+            en premier, l'unité le qualifie. C'est aussi la disposition de
+            toutes les calculatrices et de tous les écrans de retrait que
+            ces utilisateurs connaissent déjà.
+            ═══════════════════════════════════════════════════════════
+            */
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+
+                    if (saisissable) {
+                        /*
+                        ═════════════════════════════════════════════════════
+                        PLUS DE CHAMP DE SAISIE : LE PAVÉ EST LE SEUL CLAVIER
+                        ═════════════════════════════════════════════════════
+
+                        C'était un `BasicTextField`, qui ouvrait le clavier du
+                        système. Laisser les deux coexister serait pire que
+                        n'avoir que l'un : deux claviers pour un seul champ,
+                        avec des règles différentes — le système accepte le
+                        point, le moins et autant de décimales qu'on veut, là
+                        où le pavé les refuse exprès.
+
+                        C'est donc un texte ordinaire. Le trait bleu dit où ça
+                        s'écrit, sans promettre un curseur qu'on pourrait
+                        déplacer : on tape à la fin, on efface à la fin.
+                        ═════════════════════════════════════════════════════
+                        */
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                // Un « 0 » en gris pâle montre où taper sans
+                                // prétendre être une valeur saisie.
+                                montant.ifEmpty { "0" },
+                                fontSize = tailleMontant(montant.ifEmpty { "0" }),
+                                fontWeight = FontWeight.Bold,
+                                color = if (montant.isEmpty()) {
+                                    TextSecondary.copy(alpha = 0.4f)
+                                } else TextPrimary,
+                                maxLines = 1
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Box(
+                                Modifier
+                                    .height(tailleMontant(montant.ifEmpty { "0" }).value.dp)
+                                    .width(2.dp)
+                                    .background(AccentBlue, RoundedCornerShape(1.dp))
+                            )
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text(
+                                montant.ifEmpty { "—" },
+                                fontSize = tailleMontant(montant.ifEmpty { "—" }),
+                                fontWeight = FontWeight.Bold,
+                                // Le montant reçu en vert : c'est le seul chiffre
+                                // qui décide, et il garde la couleur qu'il avait
+                                // quand il était la ligne vedette des détails.
+                                color = if (montant.isEmpty()) TextSecondary else AccentGreen,
+                                maxLines = 1
+                            )
+                            /*
+                            L'ARRONDI SOUS LE CHIFFRE EXACT.
+
+                            « 1,609509 USDT » est juste et illisible : on ne
+                            retient pas six décimales. « ≈ 1,61 » donne l'ordre
+                            de grandeur d'un coup d'oeil, et le chiffre exact
+                            reste au-dessus pour qui vérifie.
+
+                            On ne le montre que s'il apporte quelque chose : sur
+                            un montant déjà court, deux lignes pour le même
+                            nombre ne feraient que du bruit.
+                            */
+                            approx?.takeIf { it != montant }?.let { a ->
+                                Text("≈ $a", fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.width(10.dp))
+
                 Box {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -1934,6 +2113,22 @@ private fun CarteMontantChange(
                                     modifier = Modifier.size(26.dp)
                                         .clip(androidx.compose.foundation.shape.CircleShape)
                                 )
+                            } else {
+                                /*
+                                LE DRAPEAU, EN EMOJI PLUTOT QU'EN IMAGE.
+
+                                La pastille crypto porte un logo ; celle en
+                                francs n'avait rien, et deux pastilles cote a
+                                cote dont une seule porte une image se lisent
+                                comme un chargement rate.
+
+                                L'emoji est deja le motif employe ailleurs
+                                dans l'application (OptionPickerSheet). Il ne
+                                coute aucun fichier, aucun telechargement, et
+                                la ou il ne s'affiche pas — quelques vieux
+                                Android — il rend « BF », qui reste juste.
+                                */
+                                Text(DRAPEAU_BF, fontSize = 20.sp)
                             }
                             Column {
                                 Text(
@@ -1987,76 +2182,6 @@ private fun CarteMontantChange(
                                 text = { Text(m) },
                                 onClick = { onMonnaie(m); listeOuverte = false }
                             )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.weight(1f))
-
-                if (saisissable) {
-                    /*
-                    ═════════════════════════════════════════════════════
-                    PLUS DE CHAMP DE SAISIE : LE PAVÉ EST LE SEUL CLAVIER
-                    ═════════════════════════════════════════════════════
-
-                    C'était un `BasicTextField`, qui ouvrait le clavier du
-                    système. Laisser les deux coexister serait pire que
-                    n'avoir que l'un : deux claviers pour un seul champ,
-                    avec des règles différentes — le système accepte le
-                    point, le moins et autant de décimales qu'on veut, là
-                    où le pavé les refuse exprès.
-
-                    C'est donc un texte ordinaire. Le trait bleu dit où ça
-                    s'écrit, sans promettre un curseur qu'on pourrait
-                    déplacer : on tape à la fin, on efface à la fin.
-                    ═════════════════════════════════════════════════════
-                    */
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            // Un « 0 » en gris pâle montre où taper sans
-                            // prétendre être une valeur saisie.
-                            montant.ifEmpty { "0" },
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (montant.isEmpty()) {
-                                TextSecondary.copy(alpha = 0.4f)
-                            } else TextPrimary,
-                            maxLines = 1
-                        )
-                        Spacer(Modifier.width(3.dp))
-                        Box(
-                            Modifier
-                                .height(26.dp)
-                                .width(2.dp)
-                                .background(AccentBlue, RoundedCornerShape(1.dp))
-                        )
-                    }
-                } else {
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            montant.ifEmpty { "—" },
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Bold,
-                            // Le montant reçu en vert : c'est le seul chiffre
-                            // qui décide, et il garde la couleur qu'il avait
-                            // quand il était la ligne vedette des détails.
-                            color = if (montant.isEmpty()) TextSecondary else AccentGreen,
-                            maxLines = 1
-                        )
-                        /*
-                        L'ARRONDI SOUS LE CHIFFRE EXACT.
-
-                        « 1,609509 USDT » est juste et illisible : on ne
-                        retient pas six décimales. « ≈ 1,61 » donne l'ordre
-                        de grandeur d'un coup d'oeil, et le chiffre exact
-                        reste au-dessus pour qui vérifie.
-
-                        On ne le montre que s'il apporte quelque chose : sur
-                        un montant déjà court, deux lignes pour le même
-                        nombre ne feraient que du bruit.
-                        */
-                        approx?.takeIf { it != montant }?.let { a ->
-                            Text("≈ $a", fontSize = 11.sp, color = TextSecondary, maxLines = 1)
                         }
                     }
                 }
