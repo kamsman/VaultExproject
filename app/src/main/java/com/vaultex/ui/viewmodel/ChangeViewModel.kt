@@ -48,6 +48,13 @@ data class ChangeState(
     val historique: List<DemandeChange> = emptyList(),
     /** Solde detenu de la monnaie choisie, pour la vente. */
     val solde: Double? = null,
+    /**
+     * Instant ou le prix a ete fige, en millisecondes.
+     *
+     * Sert au compte a rebours de l'etape de paiement. Zero tant qu'on
+     * n'a rien confirme.
+     */
+    val confirmeA: Long = 0L,
     /*
     ═══════════════════════════════════════════════════════════════════════
     LA VERIFICATION ON-CHAIN, POUR UNE VENTE
@@ -256,7 +263,16 @@ class ChangeViewModel @Inject constructor(
                 monnaie = trace.monnaie.ifBlank { it.monnaie },
                 saisie = trace.saisie,
                 prix = PrixFcfa(trace.baseFcfa, trace.achatFcfa, trace.venteFcfa),
-                fcfaParDollar = trace.fcfaParDollar
+                fcfaParDollar = trace.fcfaParDollar,
+                /*
+                L'INSTANT D'ORIGINE, PAS CELUI DU RETOUR.
+
+                Le compte a rebours part de la confirmation. Le repartir a
+                l'ouverture de l'ecran rendrait a quelqu'un dix minutes
+                qu'il a deja consommees — et lui laisserait croire que son
+                prix tient encore alors que le marche a bouge.
+                */
+                confirmeA = trace.horodatage
             )
         }
         /*
@@ -521,6 +537,7 @@ class ChangeViewModel @Inject constructor(
                 etape = EtapeChange.PAIEMENT,
                 reference = reference,
                 saisie = saisie,
+                confirmeA = System.currentTimeMillis(),
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
