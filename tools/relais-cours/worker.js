@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 27
+const VERSION = 28
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -452,6 +452,25 @@ export default {
     */
     if (url.pathname === '/diag/etherscan') {
       return await diagnostiquerEtherscan(env, url.searchParams)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /diag/transferts — LA MÉTHODE ENRICHIE RÉPOND-ELLE, ET DANS QUELLE FORME ?
+    ═══════════════════════════════════════════════════════════════════════
+
+    Même raison d'être que /diag/etherscan, et même piège : si
+    `rawContract.decimal` s'appelait autrement, le tri ne lèverait AUCUNE
+    erreur — il rendrait « rien trouvé » sur tout versement, et on
+    chercherait du côté de la chaîne pendant des heures.
+
+    Deux choses s'y vérifient qu'on ne peut pas déduire : que le nœud sert
+    `alchemy_getAssetTransfers` sur BNB — ce n'est pas vrai de toutes les
+    chaînes — et que les champs portent les noms attendus.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/diag/transferts') {
+      return await diagnostiquerTransferts(env, url.searchParams)
     }
 
     /*
@@ -3157,6 +3176,161 @@ async function listerEtherscan(cfg, adresse, cle) {
   throw new Error(`etherscan : ${String(o?.result ?? o?.message ?? 'reponse illisible').slice(0, 90)}`)
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+`alchemy_getAssetTransfers` — LA BONNE QUESTION, ENFIN POSABLE
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ sur le nœud nominatif :
+
+    bnb-mainnet.g.alchemy.com   accepte 10 blocs
+    25 blocs → « Under the Free tier plan, you can make eth_getLogs
+                 requests with up to a 10 block range »
+
+C'est un vrai progrès — les sept publics refusaient UN bloc, celui-ci en
+accepte dix. Mais dix blocs font sept secondes de chaîne BNB, et couvrir
+vingt minutes demanderait CENT SOIXANTE-DIX appels par vérification.
+Ce n'est pas une tranche à baisser, c'est un chemin impraticable.
+
+─── POURQUOI CETTE MÉTHODE-LÀ CHANGE TOUT ───────────────────────────────
+
+`eth_getLogs` demande « que s'est-il passé entre ces deux blocs ? ». La
+plage est dans la question, donc la limite de plage est fatale.
+
+`alchemy_getAssetTransfers` demande « quels transferts de ce jeton sont
+arrivés à cette adresse ? » — la MÊME question que TronGrid sert pour
+TRON et qu'Etherscan sert pour Ethereum. Il n'y a plus de plage à
+découper, donc plus rien à plafonner : un seul appel couvre toute
+l'histoire de l'adresse, et `order: "desc"` met le dernier versement en
+premier.
+
+Les trois chaînes posent désormais la même question par trois portes
+différentes, et les trois tris portent les mêmes contrôles dans le même
+ordre. C'est ce qui rend l'ensemble relisable.
+
+─── LE PIÈGE DE CETTE RÉPONSE ───────────────────────────────────────────
+
+Elle contient DEUX montants. `value` est un nombre flottant déjà converti,
+commode et FAUX au-delà de quinze chiffres significatifs — c'est
+exactement le défaut que `depuisUnites` existe pour éviter. On lit donc
+`rawContract.value`, l'entier brut en hexadécimal, et on le divise nous-
+mêmes. Un marquage se joue sur la sixième décimale ; un arrondi du
+fournisseur le détruirait sans rien signaler.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/** Un nœud Alchemy sert-il les méthodes enrichies ? */
+function estAlchemy(url) {
+  return /(^|\/\/|\.)alchemy\.com\//.test(String(url))
+}
+
+/**
+ * Le transfert choisi dans la réponse d'`alchemy_getAssetTransfers`.
+ *
+ * MÊMES CONTRÔLES QUE LES DEUX AUTRES TRIS, DANS LE MÊME ORDRE. Seuls les
+ * noms des champs changent.
+ */
+function choisirTransfertAlchemy(liste, critere) {
+  const { adresse, contrat, montant, txid, maintenant } = critere
+  if (!Array.isArray(liste)) return null
+
+  for (const t of liste) {
+    const ident = String(t?.hash ?? '').trim()
+    if (!ident) continue
+    if (txid && ident.toLowerCase() !== String(txid).trim().toLowerCase()) continue
+
+    // Casse tolérée : une adresse EVM s'écrit indifféremment.
+    if (String(t?.to ?? '').trim().toLowerCase() !== String(adresse).trim().toLowerCase()) continue
+
+    // La catégorie, sinon un transfert natif de BNB pourrait se présenter
+    // là où on attend un jeton.
+    if (String(t?.category ?? '').toLowerCase() !== 'erc20') continue
+
+    const brut = t?.rawContract || {}
+    const contratLu = String(brut?.address ?? '').trim().toLowerCase()
+    if (!contratLu || contratLu !== String(contrat).trim().toLowerCase()) continue
+
+    /*
+    LES DÉCIMALES ARRIVENT EN HEXADÉCIMAL : « 0x12 » vaut 18, pas 12.
+    Les lire en base dix donnerait douze — six ordres de grandeur
+    d'écart, et un versement de 2 USDT lu comme deux millions.
+    */
+    const decimales = Number.parseInt(String(brut?.decimal ?? ''), 16)
+    if (!Number.isInteger(decimales) || decimales !== critere.decimales) continue
+
+    /*
+    L'HORODATE EST UNE DATE ISO ICI — ni des secondes comme chez
+    Etherscan, ni des millisecondes comme chez TronGrid. Trois sources,
+    trois formats : c'est le genre de détail qui ne lève aucune erreur et
+    fausse tout.
+    */
+    const quand = Date.parse(String(t?.metadata?.blockTimestamp ?? ''))
+    if (!Number.isFinite(quand) || quand <= 0) continue
+    if (maintenant - quand > (critere.fenetre || FENETRE_VENTE_MS)) continue
+    if (critere.apres && quand < critere.apres - 60_000) continue
+    if (quand - maintenant > 5 * 60 * 1000) continue
+
+    /*
+    ON LIT L'ENTIER BRUT, JAMAIS `t.value`. Voir le commentaire du bloc
+    ci-dessus : `t.value` est un flottant déjà arrondi par le
+    fournisseur, et le marquage se joue sur la sixième décimale.
+    */
+    let unites = ''
+    try {
+      unites = BigInt(String(brut?.value ?? '0x0')).toString()
+    } catch (_) {
+      continue
+    }
+    const lu = depuisUnites(unites, decimales)
+    const correspond = critere.exact ? memeMontant(lu, montant) : montantProche(lu, montant)
+    if (!correspond) continue
+
+    return { txid: ident, montant: lu, quand, de: String(t?.from ?? '').trim() }
+  }
+  return null
+}
+
+/** Interroge un nœud Alchemy pour les transferts du jeton arrivés chez le changeur. */
+async function listerAlchemy(noeud, cfg, adresse) {
+  const r = await fetchBorne(
+    noeud,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'alchemy_getAssetTransfers',
+        params: [
+          {
+            fromBlock: '0x0',
+            toBlock: 'latest',
+            // Le destinataire est le changeur. Jamais une adresse venue
+            // de la requête : c'est le Worker qui décide chez qui on
+            // regarde.
+            toAddress: adresse,
+            contractAddresses: [cfg.contrat],
+            category: ['erc20'],
+            // Sans quoi il n'y a pas d'horodate, et sans horodate il n'y
+            // a ni fenêtre ni antériorité.
+            withMetadata: true,
+            excludeZeroValue: true,
+            order: 'desc',
+            maxCount: '0x32',
+          },
+        ],
+      }),
+    },
+    9000
+  )
+  if (!r.ok) throw new Error(`alchemy HTTP ${r.status}`)
+  const o = await r.json()
+  if (o?.error) throw new Error(`alchemy : ${String(o.error?.message ?? 'rpc').slice(0, 90)}`)
+  const transferts = o?.result?.transfers
+  if (!Array.isArray(transferts)) throw new Error('alchemy : reponse sans transfers')
+  return transferts
+}
+
 /**
  * Ce refus d'Etherscan dit-il « pas dans ton offre » ?
  *
@@ -3414,6 +3588,99 @@ async function diagnostiquerPlages(env, params) {
             ? `TRANCHE_EVM (${TRANCHE_EVM}) passe.`
             : `TRANCHE_EVM (${TRANCHE_EVM}) est TROP GRANDE : il faut descendre a ${meilleur}.`),
   })
+}
+
+/** Les champs dont `choisirTransfertAlchemy` a besoin pour trier. */
+const CHAMPS_ALCHEMY = ['hash', 'from', 'to', 'category', 'rawContract', 'metadata']
+
+/** Vérifie que le nœud nominatif sert les transferts enrichis, et sous quelle forme. */
+async function diagnostiquerTransferts(env, params) {
+  const reseau = (params?.get('reseau') || 'bnb').toLowerCase()
+  if (!NOEUDS_EVM[reseau]) return json({ ok: false, erreur: `reseau inconnu : ${reseau}` }, 400)
+
+  const noeud = noeudsEvm(reseau, env).find(estAlchemy)
+  const nomVariable = `CHANGE_NOEUD_${String(reseau).toUpperCase()}`
+  if (!noeud) {
+    return json({
+      ok: false,
+      version: VERSION,
+      erreur: `aucun noeud servant les transferts enrichis dans ${nomVariable}`,
+      remede: `Regle ${nomVariable} avec l'URL d'un noeud Alchemy pour ce reseau.`,
+    }, 400)
+  }
+
+  const entree = Object.entries(CHAINES_VENTE).find(
+    ([, c]) => c.reseau === reseau && c.contrat && !c.natif
+  )
+  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 400)
+  const [monnaie, cfg] = entree
+
+  const adresse = trierAdresses(env?.CHANGE_ADRESSES).bonnes[monnaie] || ''
+  if (!adresse) {
+    return json({
+      ok: false,
+      version: VERSION,
+      erreur: `aucune adresse reglee pour ${monnaie} dans CHANGE_ADRESSES`,
+      remede: 'Sans elle, la sonde ne testerait pas la chaine complete.',
+    }, 400)
+  }
+
+  try {
+    const liste = await listerAlchemy(noeud, cfg, adresse)
+    const premier = liste[0] || null
+    const manquants = premier ? CHAMPS_ALCHEMY.filter((c) => !(c in premier)) : []
+    /*
+    LES SOUS-CHAMPS COMPTENT AUTANT QUE LES CHAMPS. `rawContract` peut
+    exister et ne pas contenir `decimal` ; c'est pourtant lui qui porte
+    les décimales, et sans elles le tri refuse tout.
+    */
+    const sousChamps = premier
+      ? {
+          'rawContract.address': premier?.rawContract?.address ?? '(absent)',
+          'rawContract.value': premier?.rawContract?.value ? '(present)' : '(ABSENT)',
+          'rawContract.decimal': premier?.rawContract?.decimal ?? '(ABSENT)',
+          'metadata.blockTimestamp': premier?.metadata?.blockTimestamp ?? '(ABSENT)',
+        }
+      : {}
+    const decimalesLues = premier ? Number.parseInt(String(premier?.rawContract?.decimal ?? ''), 16) : null
+
+    return json({
+      ok: true,
+      version: VERSION,
+      reseau,
+      monnaie,
+      noeud: hoteMasque(noeud),
+      contrat: cfg.contrat,
+      adresse_du_changeur: adresse,
+      transferts_lus: liste.length,
+      champs_du_premier: premier ? Object.keys(premier) : [],
+      champs_manquants: manquants,
+      sous_champs: sousChamps,
+      decimales_lues: decimalesLues,
+      decimales_attendues: cfg.decimales,
+      conclusion: !premier
+        ? 'Le noeud sert bien la methode, mais cette adresse n a encore recu aucun ' +
+          'versement de ce jeton. La forme des champs reste non verifiee — refais ' +
+          'cette sonde apres le premier envoi.'
+        : manquants.length === 0 && decimalesLues === cfg.decimales
+          ? 'Tout y est, et les decimales lues valent celles attendues. ' +
+            'La verification des ventes BNB peut marcher.'
+          : `ATTENTION : ${manquants.length ? 'champs absents (' + manquants.join(', ') + '). ' : ''}` +
+            `${decimalesLues !== cfg.decimales ? `decimales lues ${decimalesLues} au lieu de ${cfg.decimales}. ` : ''}` +
+            'Le tri rendrait « rien trouve » sur TOUT versement.',
+    })
+  } catch (e) {
+    return json({
+      ok: false,
+      version: VERSION,
+      reseau,
+      noeud: hoteMasque(noeud),
+      erreur: String(e?.message ?? e).slice(0, 160),
+      remede:
+        'Si le motif parle de methode inconnue, ce noeud ne sert pas les transferts ' +
+        'enrichis sur ce reseau, et la verification retombera sur eth_getLogs.',
+    })
+  }
 }
 
 /** Les champs dont `choisirTransfertEtherscan` a besoin pour trier. */
@@ -3806,6 +4073,34 @@ async function verifierEvm(cfg, critere) {
 
   /*
   ═══════════════════════════════════════════════════════════════════════
+  DEUXIÈME SOURCE : LES TRANSFERTS ENRICHIS D'UN NŒUD ALCHEMY
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est le chemin qui marche sur BNB aujourd'hui. Il vient APRÈS
+  Etherscan parce qu'Etherscan ne coûte rien quand il répond — mais sur
+  BNB il ne répond pas, et c'est donc ici qu'on arrive.
+
+  On n'essaie que sur un nœud qui sert cette méthode : l'envoyer à un
+  nœud public ferait perdre un aller-retour pour une erreur certaine.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const noeudEnrichi = (critere.noeuds || []).find(estAlchemy)
+  if (noeudEnrichi) {
+    const liste = await listerAlchemy(noeudEnrichi, cfg, critere.adresse)
+    return choisirTransfertAlchemy(liste, {
+      adresse: critere.adresse,
+      contrat: cfg.contrat,
+      decimales: cfg.decimales,
+      montant: critere.montant,
+      maintenant: critere.maintenant,
+      fenetre: critere.fenetre,
+      apres: critere.apres,
+      exact: critere.exact,
+    })
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
   LE CHEMIN DE SECOURS : `eth_getLogs`, DÉCOUPÉ
   ═══════════════════════════════════════════════════════════════════════
 
@@ -3851,8 +4146,24 @@ async function verifierEvm(cfg, critere) {
   tranche neuf fois sur dix. Commencer par les blocs anciens ferait payer
   à tout le monde le coût du cas rare.
   */
-  while (haut > bas && journaux.length === 0) {
-    const debut = Math.max(bas, haut - TRANCHE_EVM)
+  /*
+  UN PLAFOND D'APPELS, PARCE QUE LA TRANCHE PEUT ÊTRE MINUSCULE.
+
+  Mesuré : le palier gratuit d'Alchemy limite `eth_getLogs` à DIX blocs.
+  Couvrir vingt minutes à dix blocs ferait cent soixante-dix allers-
+  retours pour une seule vérification — le Worker y passerait son temps,
+  le quota y passerait tout court, et le client attendrait pour rien.
+
+  On s'arrête donc à vingt appels et on rend ce qu'on a. Mieux vaut
+  chercher sur une fenêtre plus courte que ne jamais répondre : le txid
+  reste disponible pour les cas que ça ne couvre pas, et il ne connaît
+  aucune limite de plage.
+  */
+  const MAX_APPELS_LOGS = 20
+  let appels = 0
+  while (haut > bas && journaux.length === 0 && appels < MAX_APPELS_LOGS) {
+    appels += 1
+    const debut = Math.max(bas, haut - (critere.tranche || TRANCHE_EVM))
     const tranche = await appelEvm(cfg.reseau, 'eth_getLogs', [
       {
         address: cfg.contrat,
@@ -4147,6 +4458,13 @@ async function verifierVente(options) {
     // La liste des nœuds, calculée UNE FOIS ici : un nœud nominatif
     // devant, les publics derrière en secours.
     noeuds: noeudsEvm(cfg.reseau || '', env),
+    /*
+    LA TRANCHE EST RÉGLABLE, parce que sa bonne valeur est MESURÉE et
+    change avec le fournisseur. Alchemy gratuit : 10. Un nœud payant :
+    des milliers. L'écrire en dur obligerait à redéployer le code pour
+    un chiffre que `/diag/plages` imprime déjà.
+    */
+    tranche: Math.max(1, Number(env?.CHANGE_TRANCHE_EVM) || TRANCHE_EVM),
   }
 
   let trouve = null
@@ -4343,6 +4661,8 @@ export {
   ordreChange,
   choisirTransfertTron,
   choisirTransfertEtherscan,
+  choisirTransfertAlchemy,
+  estAlchemy,
   chaineHorsOffre,
   noeudsEvm,
   hoteMasque,
