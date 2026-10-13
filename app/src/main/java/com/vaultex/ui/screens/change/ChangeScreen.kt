@@ -26,6 +26,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -238,8 +243,70 @@ private fun ColumnScope.EtapeCalcul(
         avecLogo = !donneFcfa,
         monnaies = if (donneFcfa) emptyList() else p.monnaies,
         onMonnaie = vm::onMonnaie,
-        onMontant = vm::onSaisie,
+        saisissable = true,
         vedette = true
+    )
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES BORNES, AVANT DE TAPER — ET SURTOUT POUR LA VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le minimum et le plafond existaient déjà, mais ne se découvraient
+    QU'APRÈS avoir tapé un montant refusé. Or un refus est le pire moment
+    pour annoncer une règle : la personne a fait l'effort, et on le lui
+    rend en lui disant qu'il ne valait rien.
+
+    ─── POURQUOI C'ÉTAIT PIRE À LA VENTE ────────────────────────────────
+
+    À l'achat, les trois pastilles de montants courants commencent par le
+    minimum : il se voit, même sans être nommé. À la vente, il n'y a pas de
+    pastilles — on tape de la crypto, pas des francs — et le seuil est
+    exprimé en FRANCS. Quelqu'un qui tape « 5 USDT » n'a aucun moyen de
+    savoir si ça passe, parce que la réponse dépend d'un cours.
+
+    On convertit donc les bornes dans l'unité où la personne tape. C'est
+    approximatif par nature, puisque le cours bouge, et le « ≈ » le dit
+    plutôt que de le cacher.
+
+    ─── CE QUE CETTE LIGNE N'EST PAS ────────────────────────────────────
+
+    Un message d'erreur. Elle reste grise et au même endroit, qu'on soit
+    dans les clous ou non ; c'est `NoteEnDeuxTemps`, plus bas, qui parle
+    quand ça bloque. Deux éléments qui crient la même chose finiraient par
+    ne plus être lus ni l'un ni l'autre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    BornesChange(
+        minFcfa = p.minimumPour(state.monnaie),
+        maxFcfa = p.plafondFcfa,
+        enFcfa = donneFcfa,
+        monnaie = state.monnaie,
+        prix = state.prix
+    )
+
+    /*
+    LE PAVÉ EST ICI, ENTRE CE QU'ON TAPE ET LE DÉTAIL.
+
+    Juste sous les deux cartes : le chiffre qu'on compose reste visible
+    pendant qu'on le compose, ce qu'un clavier système ne permettait pas —
+    il recouvrait la moitié basse de l'écran, donc le montant reçu.
+
+    Et AU-DESSUS du détail et du bouton, qui restent dans leur ordre : rien
+    de ce qui engage ne passe sous le pavé. C'est la règle que cet écran
+    tient depuis le début — rien ne doit se découvrir après.
+
+    ─── LE NOMBRE DE DÉCIMALES VIENT DE L'UNITÉ QU'ON TAPE ──────────────
+
+    Zéro pour les francs, qui n'ont pas de centimes. Celui de la monnaie
+    pour une vente — six sur l'USDT, huit sur le bitcoin. C'est ce chiffre
+    qui grise la virgule, et c'est lui qui empêche de promettre des
+    décimales que le jeton ne possède pas.
+    */
+    PaveDeSaisie(
+        saisie = state.saisie,
+        decimalesMax = if (donneFcfa) 0 else TauxFcfa.decimalesAffichage(state.monnaie),
+        onSaisie = vm::onSaisie
     )
 
     /*
@@ -291,7 +358,7 @@ private fun ColumnScope.EtapeCalcul(
         avecLogo = donneFcfa,
         monnaies = if (donneFcfa) p.monnaies else emptyList(),
         onMonnaie = vm::onMonnaie,
-        onMontant = null,
+        saisissable = false,
         approx = if (donneFcfa) state.montantCrypto?.let { c ->
             java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
                 maximumFractionDigits = 2
@@ -348,6 +415,36 @@ private fun ColumnScope.EtapeCalcul(
                     stringResource(R.string.change_prix_marche, state.monnaie),
                     "${fcfa(prix.baseFcfa)} FCFA",
                     icone = Icons.Default.ShowChart
+                )
+
+                /*
+                ═════════════════════════════════════════════════════════
+                LE TAUX RÉELLEMENT APPLIQUÉ
+                ═════════════════════════════════════════════════════════
+
+                Ce chiffre était calculé, et il partait sur Telegram dans
+                le champ `taux` de l'ordre — mais l'utilisateur ne l'avait
+                jamais vu. Le changeur connaissait donc un nombre que le
+                client ne connaissait pas, alors que c'est LE nombre de
+                l'opération.
+
+                On montrait le prix du marché et la marge séparément, en se
+                disant que la soustraction se fait. Elle ne se fait pas :
+                personne ne soustrait une marge affichée en francs par
+                dollar pendant qu'il regarde un prix en francs par USDT.
+
+                ─── POURQUOI PAS À LA PLACE DU PRIX DU MARCHÉ ───────────
+
+                Parce que les deux ne répondent pas à la même question. Le
+                prix du marché permet de COMPARER à un concurrent ; le taux
+                appliqué dit ce qu'on obtient ici. Garder les deux rend
+                l'écart visible, ce qui est tout l'objet de cette carte.
+                ═════════════════════════════════════════════════════════
+                */
+                Ligne(
+                    stringResource(R.string.change_taux_applique, state.monnaie),
+                    "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
+                    icone = Icons.Default.Calculate
                 )
 
                 /*
@@ -1499,6 +1596,190 @@ private fun OngletSens(
     }
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE PAVÉ NUMÉRIQUE, DANS L'ÉCRAN
+═══════════════════════════════════════════════════════════════════════════
+
+Pourquoi remplacer le clavier du système, qui marchait :
+
+— IL MANGEAIT L'ÉCRAN. Un clavier Android occupe la moitié basse ; sur un
+  écran qui porte deux cartes, le détail et un bouton, il recouvrait
+  précisément ce qu'on vient vérifier avant d'appuyer.
+— IL PROPOSE DES TOUCHES QUI N'ONT PAS DE SENS ICI : le point, le moins,
+  parfois une rangée de suggestions. Chacune est une frappe qui produit
+  une saisie que personne ne voulait.
+— SES TOUCHES SONT PETITES. Ce pavé-ci se tape d'un pouce, dans la rue,
+  sur un montant qu'on ne doit pas se tromper d'écrire.
+
+─── TROIS DÉCISIONS QUI SE VOIENT ────────────────────────────────────────
+
+LA VIRGULE EST GRISÉE EN FRANCS. Le franc CFA n'a pas de centimes. Et ce
+n'est pas cosmétique : voir PaveNumerique, une virgule seulement « sans
+effet » laisse taper « 5000,50 » et obtenir 500 050.
+
+⌫ EFFACE UN CARACTÈRE, UN APPUI LONG VIDE TOUT. Recommencer un montant est
+le geste le plus fréquent après une faute ; le faire en huit appuis quand
+un seul suffit use la patience sur l'écran le moins indiqué pour ça.
+
+PAS DE MISE EN FORME PENDANT LA FRAPPE. Le montant se réaffiche tel qu'il
+a été tapé. `NumberFormat` français sépare les milliers par une espace
+insécable étroite selon la version d'Android, et « 5 000 » redevient alors
+5 — un défaut qu'on a déjà payé dans ce projet.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun PaveDeSaisie(
+    saisie: String,
+    decimalesMax: Int,
+    onSaisie: (String) -> Unit
+) {
+    val appliquer = { touche: com.vaultex.domain.fiat.ToucheP ->
+        onSaisie(com.vaultex.domain.fiat.PaveNumerique.appliquer(saisie, touche, decimalesMax))
+    }
+
+    // LARGEUR EXPLICITE : `weight` partage la largeur DISPONIBLE, et une
+    // Row qui s'adapte à son contenu n'en a pas à partager. Sans ces
+    // `fillMaxWidth`, la rangée dépend d'une contrainte venue de plus haut.
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(1..3, 4..6, 7..9).forEach { rangee ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rangee.forEach { n ->
+                    ToucheDuPave(
+                        texte = n.toString(),
+                        modifier = Modifier.weight(1f)
+                    ) { appliquer(com.vaultex.domain.fiat.ToucheP.Chiffre(n)) }
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ToucheDuPave(
+                texte = com.vaultex.domain.fiat.PaveNumerique.VIRGULE.toString(),
+                // Grisée, pas absente : une case vide à cet endroit se lit
+                // comme un défaut d'affichage, et laisse chercher.
+                actif = decimalesMax > 0,
+                modifier = Modifier.weight(1f)
+            ) { appliquer(com.vaultex.domain.fiat.ToucheP.Virgule) }
+            ToucheDuPave(texte = "0", modifier = Modifier.weight(1f)) {
+                appliquer(com.vaultex.domain.fiat.ToucheP.Chiffre(0))
+            }
+            ToucheDuPave(
+                icone = Icons.Default.Backspace,
+                // Une touche en image n'a pas d'etiquette : sans ca, un
+                // lecteur d'ecran annonce « bouton » sur un pave de chiffres.
+                description = stringResource(R.string.change_effacer),
+                modifier = Modifier.weight(1f),
+                onLong = { appliquer(com.vaultex.domain.fiat.ToucheP.Vider) }
+            ) { appliquer(com.vaultex.domain.fiat.ToucheP.Effacer) }
+        }
+    }
+}
+
+/** Une touche du pavé. Du texte ou une icône, jamais les deux. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ToucheDuPave(
+    texte: String? = null,
+    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    /** Obligatoire sur une touche en image, inutile sur un chiffre. */
+    description: String? = null,
+    actif: Boolean = true,
+    modifier: Modifier = Modifier,
+    onLong: (() -> Unit)? = null,
+    onClic: () -> Unit
+) {
+    val couleur = if (actif) TextPrimary else TextSecondary.copy(alpha = 0.3f)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceColor,
+        modifier = modifier
+            .height(52.dp)
+            .then(
+                if (actif) {
+                    Modifier.combinedClickable(onClick = onClic, onLongClick = onLong)
+                } else Modifier
+            )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            when {
+                icone != null ->
+                    Icon(icone, description, tint = couleur, modifier = Modifier.size(22.dp))
+                texte != null -> Text(
+                    texte,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = couleur
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Les bornes de l'opération, dans l'unité où l'on tape.
+ *
+ * EN FRANCS À L'ACHAT, EN CRYPTO À LA VENTE. Les deux chiffres sont réglés
+ * par le changeur en francs ; les montrer tels quels à quelqu'un qui tape
+ * des USDT lui demanderait de faire la conversion de tête, avec un cours
+ * qu'il n'a pas.
+ *
+ * N'AFFICHE RIEN plutôt qu'une ligne fausse quand le cours manque. Une
+ * borne en crypto sans cours serait un chiffre inventé, et celui-ci
+ * servirait à décider d'un montant à envoyer.
+ */
+@Composable
+private fun BornesChange(
+    minFcfa: Double,
+    maxFcfa: Double,
+    enFcfa: Boolean,
+    monnaie: String,
+    prix: com.vaultex.domain.fiat.PrixFcfa?
+) {
+    // Un plafond au-dessous du minimum ne borne rien : c'est un réglage
+    // incohérent, et l'annoncer ferait lire une règle impossible à tenir.
+    if (maxFcfa <= minFcfa) return
+
+    val texte = if (enFcfa) {
+        stringResource(R.string.change_bornes, "${fcfa(minFcfa)} FCFA", "${fcfa(maxFcfa)} FCFA")
+    } else {
+        /*
+        À LA VENTE, LA CONVERSION PASSE PAR LE PRIX DE VENTE — le même que
+        celui qui calcule ce qu'on recevra. Prendre le prix d'achat
+        donnerait une borne qui ne correspond pas à celle qu'on appliquera,
+        et l'écart serait exactement la marge : quelqu'un se verrait refusé
+        juste au-dessus d'un seuil qu'on lui a montré.
+        */
+        val v = prix?.venteFcfa ?: return
+        if (v <= 0.0) return
+        stringResource(
+            R.string.change_bornes_approx,
+            "${crypto(minFcfa / v, monnaie)} $monnaie",
+            "${crypto(maxFcfa / v, monnaie)} $monnaie"
+        )
+    }
+
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.SwapHoriz, null,
+            tint = TextSecondary, modifier = Modifier.size(14.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(texte, fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+    }
+}
+
 // ─── Les deux cartes de montant ─────────────────────────────────────
 
 /*
@@ -1549,8 +1830,15 @@ private fun CarteMontantChange(
      */
     monnaies: List<String>,
     onMonnaie: (String) -> Unit,
-    /** Null sur la carte qu'on lit : c'est ce qui la rend non modifiable. */
-    onMontant: ((String) -> Unit)?,
+    /**
+     * Vrai sur la carte qu'on remplit, faux sur celle qu'on lit.
+     *
+     * C'était `onMontant: ((String) -> Unit)?`, du temps où la carte
+     * portait elle-même un champ de saisie. Depuis que le pavé est le seul
+     * clavier, la carte n'a plus rien à rappeler : elle a seulement besoin
+     * de savoir laquelle des deux elle est.
+     */
+    saisissable: Boolean,
     /** Le même montant, arrondi, affiché en dessous s'il diffère. */
     approx: String? = null,
     vedette: Boolean
@@ -1705,38 +1993,44 @@ private fun CarteMontantChange(
 
                 Spacer(Modifier.weight(1f))
 
-                if (onMontant != null) {
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = montant,
-                        onValueChange = onMontant,
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
+                if (saisissable) {
+                    /*
+                    ═════════════════════════════════════════════════════
+                    PLUS DE CHAMP DE SAISIE : LE PAVÉ EST LE SEUL CLAVIER
+                    ═════════════════════════════════════════════════════
+
+                    C'était un `BasicTextField`, qui ouvrait le clavier du
+                    système. Laisser les deux coexister serait pire que
+                    n'avoir que l'un : deux claviers pour un seul champ,
+                    avec des règles différentes — le système accepte le
+                    point, le moins et autant de décimales qu'on veut, là
+                    où le pavé les refuse exprès.
+
+                    C'est donc un texte ordinaire. Le trait bleu dit où ça
+                    s'écrit, sans promettre un curseur qu'on pourrait
+                    déplacer : on tape à la fin, on efface à la fin.
+                    ═════════════════════════════════════════════════════
+                    */
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            // Un « 0 » en gris pâle montre où taper sans
+                            // prétendre être une valeur saisie.
+                            montant.ifEmpty { "0" },
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.End
-                        ),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        ),
-                        modifier = Modifier.widthIn(min = 60.dp),
-                        decorationBox = { interieur ->
-                            Box(contentAlignment = Alignment.CenterEnd) {
-                                // Un « 0 » en gris pâle montre où taper sans
-                                // prétendre être une valeur saisie.
-                                if (montant.isEmpty()) {
-                                    Text(
-                                        "0",
-                                        fontSize = 26.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextSecondary.copy(alpha = 0.4f)
-                                    )
-                                }
-                                interieur()
-                            }
-                        }
-                    )
+                            color = if (montant.isEmpty()) {
+                                TextSecondary.copy(alpha = 0.4f)
+                            } else TextPrimary,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Box(
+                            Modifier
+                                .height(26.dp)
+                                .width(2.dp)
+                                .background(AccentBlue, RoundedCornerShape(1.dp))
+                        )
+                    }
                 } else {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
