@@ -843,3 +843,76 @@ val checkTestRefs by tasks.registering {
 
 tasks.matching { it.name.startsWith("compile") && it.name.endsWith("Kotlin") }
     .configureEach { dependsOn(checkTestRefs) }
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+DÉPOSER L'APK LÀ OÙ ON VA LE CHERCHER
+═══════════════════════════════════════════════════════════════════════════
+
+Même mécanisme que pour le robot du changeur, et pour la même raison :
+l'APK sort au fond de `app/build/outputs/apk/`, et il finit toujours dans
+le dossier qu'on ouvre pour l'installer ou l'envoyer.
+
+LE CHEMIN N'EST PAS DANS CE FICHIER VERSIONNÉ. Il se règle dans
+`local.properties`, qui est ignoré par git :
+
+    apk.sortie=C:/Users/HP/Desktop/app vaultex
+
+─── LA LIGNE EST LUE À LA MAIN, ET PAS AVEC `localProps` ────────────────
+
+Ce fichier charge déjà `local.properties` dans un `Properties` (plus
+haut), et il serait naturel d'y piocher cette clé-là aussi. On ne le fait
+pas, pour une raison précise : `Properties` traite la contre-oblique comme
+un ÉCHAPPEMENT. « C:\Users\HP » y devient « C:UsersHP », silencieusement
+— et l'APK atterrirait dans un dossier au nom absurde, créé sans erreur.
+
+Ça ne gêne pas les clés que `localProps` sert déjà : un mot de passe, un
+alias, un chemin de keystore relatif écrit avec des barres obliques. Ça
+gêne exactement celle-ci, qui est un chemin Windows absolu tapé à la main.
+
+Lue telle qu'elle est écrite, les deux écritures du chemin fonctionnent.
+
+─── LA VARIANTE FIGURE DANS LE NOM, ET CE N'EST PAS COSMÉTIQUE ──────────
+
+`VaultEx-release.apk` et `VaultEx-debug.apk`. Le debug porte un
+`applicationIdSuffix = ".debug"` : les deux s'installent donc CÔTE À CÔTE
+sur un téléphone, avec la même icône et le même nom. Distribuer l'un en
+croyant distribuer l'autre ne se verrait nulle part — sauf que le debug
+est débogable et non optimisé.
+═══════════════════════════════════════════════════════════════════════════
+*/
+val sortieApkVaultex: String? = run {
+    val fichier = rootProject.file("local.properties")
+    val depuisFichier = if (fichier.exists()) {
+        fichier.readLines()
+            .firstOrNull { it.trim().startsWith("apk.sortie") && it.contains('=') }
+            ?.substringAfter('=')
+            ?.trim()
+    } else null
+    (project.findProperty("apk.sortie") as String? ?: depuisFichier)?.trim()?.ifEmpty { null }
+}
+
+if (sortieApkVaultex != null) {
+    val dossierApk = layout.buildDirectory.dir("outputs/apk")
+    val destination = File(sortieApkVaultex)
+
+    listOf("assembleDebug" to "debug", "assembleRelease" to "release").forEach { (nom, variante) ->
+        tasks.matching { it.name == nom }.configureEach {
+            doLast {
+                val source = File(dossierApk.get().asFile, variante)
+                val apk = source.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
+                if (apk == null) {
+                    logger.lifecycle("vaultex : aucun APK trouve dans $source")
+                    return@doLast
+                }
+                if (!destination.exists() && !destination.mkdirs()) {
+                    logger.lifecycle("vaultex : impossible de creer $destination")
+                    return@doLast
+                }
+                val cible = File(destination, "VaultEx-$variante.apk")
+                apk.copyTo(cible, overwrite = true)
+                logger.lifecycle("vaultex : APK depose dans $cible")
+            }
+        }
+    }
+}
