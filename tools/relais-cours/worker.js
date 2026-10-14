@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 36
+const VERSION = 37
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1169,17 +1169,25 @@ async function diagnostic(env) {
     maxParJour: nb(env?.CHANGE_MAX_PAR_JOUR, 10),
     plafondPremiereOperation: premierDiag < plafondDiag ? premierDiag : 'eteint',
     /*
-    LA LIMITE DE CES TROIS-LÀ, ÉCRITE DANS LE DIAGNOSTIC LUI-MÊME.
+    CE QUI PORTE CES TROIS COMPTEURS, DIT ICI MÊME.
 
-    Elles s'appuient sur `caches.default`, qui est par centre de données et
-    évictable. Pour ce qui se joue en minutes — un renvoi, une rafale —
-    c'est suffisant. Pour ce qui doit tenir des semaines, non : un
-    attaquant qui change de pays trouve des compteurs neufs.
+    Cette ligne était écrite EN DUR : « cache par centre de données ».
+    C'était vrai quand je l'ai écrite, et elle est restée vraie dans le
+    diagnostic après être devenue fausse dans le code — le relais tournait
+    sur KV et affichait encore qu'il tournait sur le cache.
 
-    Qui lit ce diagnostic doit le savoir, sinon il croit ces protections
-    plus fortes qu'elles ne sont.
+    Un diagnostic qui décrit une version antérieure du code est pire qu'un
+    diagnostic absent : il rassure, et on cherche ailleurs. Elle est donc
+    MESURÉE désormais, comme tout le reste de ce fichier.
+
+    Ce que ça change pour qui lit : sur le cache, ces protections ne
+    tiennent que quelques minutes et un attaquant qui change de pays
+    trouve des compteurs neufs. Sur KV, elles tiennent — sans être
+    atomiques pour autant.
     */
-    memoire: 'cache par centre de donnees, evictable — exact avec Workers KV',
+    memoire: MEMOIRE
+      ? 'Workers KV — durable et global, mais non atomique (coherence eventuelle)'
+      : 'cache par centre de donnees, EVICTABLE — lie un espace KV nomme MEMOIRE',
   }
 
   /*
