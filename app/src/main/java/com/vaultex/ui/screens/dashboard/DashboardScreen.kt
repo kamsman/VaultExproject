@@ -500,6 +500,20 @@ fun DashboardScreen(navController: NavHostController) {
                 ) {
                     // Logo de marque (logo_tex.png) à gauche de la barre du haut.
                     com.vaultex.ui.components.VaultexWordmark(height = 26.dp)
+                    /*
+                    L'ASSISTANCE EST COLLEE AU LOGO, et pas rangee avec les
+                    deux autres a droite.
+
+                    Les boutons de droite sont des OUTILS qu'on va chercher :
+                    scanner un code, relire ses notifications. Celui-ci est un
+                    RECOURS, et on le cherche quand quelque chose ne va pas —
+                    c'est-a-dire au moment ou on lit le moins bien. A cote du
+                    nom de l'application, il se trouve sans etre cherche.
+                    */
+                    Spacer(Modifier.width(6.dp))
+                    HeaderSquareButton(Icons.AutoMirrored.Filled.HelpOutline) {
+                        navController.navigate(Routes.ASSISTANCE)
+                    }
                     Spacer(Modifier.weight(1f))
                     HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
                     BadgedBox(

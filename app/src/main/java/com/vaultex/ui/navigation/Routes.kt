@@ -140,6 +140,14 @@ object Routes {
 
     const val SCANNER = "scanner"
 
+    /*
+    L'ASSISTANCE EST ACCESSIBLE DE PARTOUT, donc elle a sa propre route et
+    non un onglet. Quelqu'un qui bloque a l'etape du paiement ne doit pas
+    avoir a revenir a l'accueil pour poser sa question — il la pose, et il
+    revient ou il en etait.
+    */
+    const val ASSISTANCE = "assistance"
+
     const val HISTORY_DETAIL = "historyDetail/{hash}"
 
     fun historyDetail(hash: String) = "historyDetail/$hash"
