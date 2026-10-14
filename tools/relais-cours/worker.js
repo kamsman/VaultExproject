@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 28
+const VERSION = 29
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -471,6 +471,39 @@ export default {
     */
     if (url.pathname === '/diag/transferts') {
       return await diagnostiquerTransferts(env, url.searchParams)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /diag/pourquoi — « ABSENT » NE DIT PAS POURQUOI, ET C'EST LE PROBLÈME
+    ═══════════════════════════════════════════════════════════════════════
+
+    `absent` affirme une seule chose : aucun transfert n'a passé TOUS les
+    contrôles. Il ne dit ni combien de transferts ont été regardés, ni
+    lequel a échoué sur quoi.
+
+    Or les causes possibles ne se corrigent pas de la même façon :
+
+      — le montant diffère de quelques centièmes ⇒ la commission de
+        l'exchange a été retranchée, et il faut viser « vous recevrez » ;
+      — le versement précède la demande ⇒ l'antériorité, donc l'ordre des
+        gestes ;
+      — les décimales lues ne sont pas 18 ⇒ la forme de la réponse ;
+      — rien du tout n'a été lu ⇒ le versement n'est pas arrivé.
+
+    Sans ce point d'entrée, chacune demandait un aller-retour : une
+    hypothèse, un déploiement, un essai. On en a fait quatre.
+
+    ─── IL REJOUE LE TRI, IL NE LE RÉIMPLÉMENTE PAS ─────────────────────
+
+    Un diagnostic qui recopierait les contrôles finirait par décrire un
+    code qui n'est plus celui qui tourne — et mentirait au pire moment.
+    Celui-ci décrit chaque contrôle PUIS appelle le vrai sélecteur, et
+    signale lui-même tout désaccord entre les deux.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/diag/pourquoi') {
+      return await diagnostiquerPourquoi(env, url.searchParams)
     }
 
     /*
@@ -3587,6 +3620,134 @@ async function diagnostiquerPlages(env, params) {
           (meilleur >= TRANCHE_EVM
             ? `TRANCHE_EVM (${TRANCHE_EVM}) passe.`
             : `TRANCHE_EVM (${TRANCHE_EVM}) est TROP GRANDE : il faut descendre a ${meilleur}.`),
+  })
+}
+
+/**
+ * Rejoue la sélection et dit, transfert par transfert, ce qui a échoué.
+ *
+ * Les paramètres sont ceux de `/change/verifier` : monnaie, montant,
+ * reference. Le montant marqué est recalculé ici de la même façon, donc
+ * un écart de marquage se verrait aussi.
+ */
+async function diagnostiquerPourquoi(env, params) {
+  const monnaie = String(params?.get('monnaie') ?? '').trim().toUpperCase()
+  const montantSocle = Number(params?.get('montant'))
+  const reference = String(params?.get('reference') ?? '').trim()
+
+  const cfg = CHAINES_VENTE[monnaie]
+  if (!cfg) return json({ ok: false, erreur: `${monnaie} n'est pas verifiable ici` }, 400)
+  if (!(montantSocle > 0)) return json({ ok: false, erreur: 'montant illisible' }, 400)
+  if (cfg.chaine !== 'evm') {
+    return json({ ok: false, erreur: `cette sonde ne couvre que les chaines EVM, pas ${cfg.chaine}` }, 400)
+  }
+
+  const adresse = adressesChangeur(env)[monnaie]
+  if (!adresse) return json({ ok: false, erreur: `aucune adresse reglee pour ${monnaie}` }, 400)
+
+  const marque = marquageActif(env) && reference.length > 0
+  const cherche = marque ? await montantMarque(montantSocle, reference, env) : montantSocle
+  const naissance = marque ? Number((await lireValeur('demande', reference))?.ne) || 0 : 0
+  const maintenant = Date.now()
+  const fenetre = fenetreVente(env)
+
+  const noeud = noeudsEvm(cfg.reseau, env).find(estAlchemy)
+  if (!noeud) {
+    return json({ ok: false, erreur: `aucun noeud servant les transferts enrichis pour ${cfg.reseau}` }, 400)
+  }
+
+  let liste
+  try {
+    liste = await listerAlchemy(noeud, cfg, adresse)
+  } catch (e) {
+    return json({ ok: false, erreur: String(e?.message ?? e).slice(0, 160) })
+  }
+
+  const critere = {
+    adresse, contrat: cfg.contrat, decimales: cfg.decimales,
+    montant: cherche, maintenant, fenetre, apres: naissance, exact: marque,
+  }
+
+  /*
+  CHAQUE CONTRÔLE EST DÉCRIT, PAS REJOUÉ DE MÉMOIRE.
+
+  L'ordre suit celui du sélecteur. On ne s'arrête PAS au premier échec :
+  savoir qu'un transfert rate l'antériorité ET le montant vaut mieux que
+  d'apprendre l'un puis l'autre en deux essais.
+  */
+  const examen = liste.slice(0, 10).map((t) => {
+    const brut = t?.rawContract || {}
+    const decimalesLues = Number.parseInt(String(brut?.decimal ?? ''), 16)
+    let lu = null
+    try {
+      lu = depuisUnites(BigInt(String(brut?.value ?? '0x0')).toString(), decimalesLues)
+    } catch (_) { /* valeur illisible : signalée ci-dessous */ }
+    const quand = Date.parse(String(t?.metadata?.blockTimestamp ?? ''))
+
+    const controles = {
+      destinataire:
+        String(t?.to ?? '').toLowerCase() === adresse.toLowerCase()
+          ? 'ok' : `recu par ${String(t?.to ?? '(vide)').slice(0, 12)}…, pas par le changeur`,
+      categorie:
+        String(t?.category ?? '').toLowerCase() === 'erc20'
+          ? 'ok' : `categorie « ${t?.category} », attendu « erc20 »`,
+      contrat:
+        String(brut?.address ?? '').toLowerCase() === String(cfg.contrat).toLowerCase()
+          ? 'ok' : `contrat ${String(brut?.address ?? '(vide)').slice(0, 12)}… — PAS le vrai jeton`,
+      decimales:
+        decimalesLues === cfg.decimales
+          ? 'ok' : `lues ${decimalesLues}, attendues ${cfg.decimales}`,
+      horodate:
+        Number.isFinite(quand) && quand > 0 ? 'ok' : `illisible : « ${t?.metadata?.blockTimestamp} »`,
+      fenetre:
+        maintenant - quand <= fenetre
+          ? 'ok' : `vieux de ${Math.round((maintenant - quand) / 60000)} min, fenetre ${Math.round(fenetre / 60000)} min`,
+      anteriorite:
+        !naissance || quand >= naissance - 60_000
+          ? 'ok'
+          : `arrive ${Math.round((naissance - quand) / 60000)} min AVANT l'ouverture de la demande`,
+      montant:
+        (marque ? memeMontant(lu, cherche) : montantProche(lu, cherche))
+          ? 'ok'
+          : `lu ${lu}, cherche ${cherche}` +
+            (lu !== null && lu < cherche ? ' — la difference ressemble a une commission d\'exchange' : ''),
+    }
+    const rates = Object.entries(controles).filter(([, v]) => v !== 'ok').map(([k]) => k)
+    return { txid: String(t?.hash ?? '').slice(0, 14) + '…', montant_lu: lu, rates, controles }
+  })
+
+  /*
+  LE VERDICT VIENT DU VRAI SÉLECTEUR, et on compare. Si l'examen
+  ci-dessus dit « tout passe » alors que le sélecteur rend null — ou
+  l'inverse — c'est que ce diagnostic a dérivé du code qu'il décrit, et
+  il doit le crier plutôt que d'induire en erreur.
+  */
+  const trouve = choisirTransfertAlchemy(liste, critere)
+  const examenDitOui = examen.some((e) => e.rates.length === 0)
+  const desaccord = Boolean(trouve) !== examenDitOui
+
+  return json({
+    ok: true,
+    version: VERSION,
+    monnaie,
+    adresse_du_changeur: adresse,
+    marquage: marque ? 'actif' : 'INACTIF (aucune reference, ou CHANGE_MARQUAGE non reglee)',
+    montant_cherche: cherche,
+    demande_ouverte_a: naissance ? new Date(naissance).toISOString() : '(inconnue)',
+    fenetre_minutes: Math.round(fenetre / 60000),
+    transferts_lus: liste.length,
+    examen,
+    verdict: trouve ? 'TROUVE' : 'absent',
+    desaccord_du_diagnostic: desaccord
+      ? 'OUI — ce diagnostic ne decrit plus le selecteur, ne te fie pas a son detail'
+      : 'non',
+    conclusion: trouve
+      ? 'Un transfert passe tous les controles. Si /change/verifier dit encore absent, relance-le.'
+      : liste.length === 0
+        ? 'AUCUN transfert de ce jeton sur cette adresse : le versement n\'est pas arrive. ' +
+          'Verifie le reseau choisi sur l\'exchange (BEP20) et l\'etat du retrait.'
+        : 'Des transferts existent mais aucun ne passe. Lis la colonne « rates » : ' +
+          'elle nomme le controle qui bloque, pour chacun.',
   })
 }
 
