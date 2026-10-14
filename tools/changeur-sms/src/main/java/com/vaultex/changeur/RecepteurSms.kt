@@ -78,6 +78,53 @@ class RecepteurSms : BroadcastReceiver() {
         pour dire pourquoi.
         ═══════════════════════════════════════════════════════════════════
         */
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LA CONFIRMATION DE NUMERO PASSE AVANT LE FILTRE D'EXPEDITEUR
+        ═══════════════════════════════════════════════════════════════════
+
+        Elle vient d'un CLIENT, donc d'un numero ordinaire : le filtre
+        d'expediteur la rejetterait toujours. C'est ici, et seulement ici,
+        qu'on accepte un message venu de n'importe qui.
+
+        ─── CE QUI REMPLACE LE FILTRE, ET POURQUOI C'EST AUSSI ETROIT ────
+
+        Le TEXTE. `referenceDans` ne reconnait que « VX- » suivi de huit
+        caracteres de l'alphabet des references — celui qui exclut O, I, 0
+        et 1. C'est la forme que l'application tire au sort elle-meme, et
+        rien d'autre ne lui ressemble.
+
+        ─── ET SEULE LA REFERENCE QUITTE LE TELEPHONE ────────────────────
+
+        Pas le texte. Si quelqu'un ecrivait sa reference au milieu d'une
+        confidence, seule la reference partirait. C'est la difference avec
+        un SMS d'operateur, dont le corps doit etre analyse — ici il n'y a
+        rien a analyser, la reference suffit.
+
+        On s'arrete apres : un SMS de client n'est pas un encaissement, et
+        le passer ensuite au filtre d'expediteur le ferait journaliser
+        comme « ecarte », ce qui serait faux.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val reference = Relais.referenceDans(texte)
+        if (reference != null && !reglages.expediteurAccepte(expediteur)) {
+            val suiteOtp = goAsync()
+            Thread {
+                try {
+                    val issue = Relais.envoyerOtp(reglages, reference, expediteur)
+                    reglages.journaliser(
+                        if (issue.ok) "✓ numero confirme pour $reference"
+                        else "✗ confirmation $reference : ${issue.message}"
+                    )
+                } catch (e: Exception) {
+                    reglages.journaliser("✗ interne : ${e.javaClass.simpleName}")
+                } finally {
+                    suiteOtp.finish()
+                }
+            }.start()
+            return
+        }
+
         if (!reglages.expediteurAccepte(expediteur)) {
             reglages.journaliser("— ecarte : expediteur « $expediteur »")
             return

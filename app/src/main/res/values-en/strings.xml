@@ -1135,6 +1135,8 @@
     <string name="change_vente_coordonnees">Where to receive your francs</string>
     <string name="change_telephone_vente">Mobile Money number to receive on</string>
     <string name="change_telephone_vente_aide">The exchanger will send your francs to this number. 8 digits.</string>
+    <string name="change_otp_titre">Confirm your number (recommended)</string>
+    <string name="change_otp_aide">Text “%1$s” to %2$s. The changer will see that this number is really yours before sending the money. One SMS, from the number you want to be paid on.</string>
     <string name="change_transmettre">Send my request</string>
     <string name="change_transmettre_verifie">Send — transfer verified</string>
     <string name="change_verif_recherche">Looking for your transfer…</string>

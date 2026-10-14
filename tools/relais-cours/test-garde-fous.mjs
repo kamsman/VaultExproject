@@ -63,15 +63,26 @@ function faireCache() {
 }
 
 let envois = []
+/*
+LE CORPS DES ENVOIS, ET PAS SEULEMENT LEUR ADRESSE.
+
+`envois` ne gardait que l'URL appelée, ce qui suffit pour compter les
+messages — c'est tout ce qu'on en demandait. Mais le TEXTE du message
+voyage dans le corps de la requête, et le chercher dans l'URL ne trouve
+jamais rien : un test écrit comme ça serait vert sans rien vérifier.
+*/
+let corpsEnvoyes = []
 let telegramEchoue = false
 
 function installer(cache) {
   globalThis.caches = cache.api
   envois = []
-  globalThis.fetch = async (url) => {
+  corpsEnvoyes = []
+  globalThis.fetch = async (url, options) => {
     const u = String(url)
     if (u.includes('api.telegram.org')) {
       envois.push(u)
+      corpsEnvoyes.push(String(options?.body ?? ''))
       if (telegramEchoue) {
         return new Response(JSON.stringify({ ok: false, description: 'chat not found' }), {
           status: 400,
@@ -389,7 +400,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -1305,6 +1316,175 @@ echouer tous les achats sans rien lever.
   )
   verifie('REEL : le solde du changeur ne paie aucune demande',
     r.corps.verification !== 'confirme', r.corps)
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'OTP INVERSE : LE CLIENT PROUVE QU'IL CONTROLE SON NUMERO
+═══════════════════════════════════════════════════════════════════════════
+
+LE TROU QU'IL BOUCHE. Sur une vente, le client tape le numero ou il veut
+recevoir ses francs. Un chiffre de travers, et le changeur envoie l'argent
+a un inconnu — irreversiblement. Rien n'empechait ca.
+
+Le client envoie sa reference par SMS au numero du changeur. Le robot voit
+le numero d'expediteur TEL QUE L'OPERATEUR LE DONNE, pas tel qu'il a ete
+tape dans un formulaire.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+LE TEXTE DU MESSAGE EST DANS LE CORPS, PAS DANS L'URL.
+
+Ma première version de ce lecteur cherchait dans `envois`, qui ne contient
+que des adresses. Elle ne trouvait rien — et un test écrit comme ça serait
+resté vert le jour où le texte aurait vraiment disparu.
+
+C'est le piège de tous les tests d'absence : ils passent aussi quand on
+regarde au mauvais endroit.
+*/
+function textesEnvoyes() {
+  /*
+  LE CORPS EST EN `x-www-form-urlencoded`, PAS EN JSON.
+
+  « chat_id=-100…&text=%F0%9F%92%B1+DEMANDE… ». `URLSearchParams` le lit
+  correctement, y compris le « + » qui code une espace — ce que
+  `decodeURIComponent` seul ne fait PAS, et c'est l'erreur que j'ai
+  commise avant celle-ci.
+  */
+  return corpsEnvoyes.map((c) => new URLSearchParams(c).get('text') ?? c)
+}
+
+async function posterOtp(reference, numero, cache, jeton) {
+  installer(cache)
+  const requete = new Request('https://relais.vaultex/change/otp', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-vaultex-sms': jeton === undefined ? 'jeton-du-robot' : jeton,
+    },
+    body: JSON.stringify({ reference, numero }),
+  })
+  const rep = await recevoirOtp(requete, { ...ENV, ...ENV_SMS })
+  return { statut: rep.status, corps: await rep.json() }
+}
+
+{
+  const cache = faireCache()
+  const r = await posterOtp('VX-ABCD1234', '70123456', cache)
+  verifie('OTP : une confirmation est acceptee', r.statut === 200 && r.corps.confirme === true, r)
+
+  // La meme, rejouee : deja connue, et ca concorde.
+  const r2 = await posterOtp('VX-ABCD1234', '70123456', cache)
+  verifie('OTP : la meme confirmation ne change rien', r2.corps.deja === true && r2.corps.concorde === true, r2)
+}
+
+{
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  L'ATTAQUE QUE CE MECANISME DOIT ARRETER
+  ═════════════════════════════════════════════════════════════════════
+
+  La reference s'affiche a l'ecran, elle se dit a voix haute, elle se
+  photographie. Quelqu'un qui la voit pourrait envoyer SON numero pour
+  cette reference-la, et detourner les francs du client.
+
+  LE PREMIER POSE TIENT. C'est la meme reponse que l'anteriorite sur les
+  ventes, par le meme moyen.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const cache = faireCache()
+  await posterOtp('VX-VICTIME1', '70111111', cache)
+  const voleur = await posterOtp('VX-VICTIME1', '70999999', cache)
+  verifie('OTP : un second numero ne remplace pas le premier', voleur.corps.concorde === false, voleur)
+  /*
+  ET LE NUMERO MEMORISE N'EST PAS RENDU. Qui poste ici detient le jeton du
+  robot, mais ca ne lui donne pas a LIRE les numeros des clients d'une
+  reference qu'il aurait devinee.
+  */
+  verifie(
+    'OTP : le numero memorise ne ressort pas',
+    !JSON.stringify(voleur.corps).includes('70111111'),
+    voleur.corps
+  )
+}
+
+{
+  const cache = faireCache()
+  const sansJeton = await posterOtp('VX-ABCD1234', '70123456', cache, '')
+  verifie('OTP : sans jeton, refuse', sansJeton.statut === 401, sansJeton)
+  const mauvais = await posterOtp('VX-ABCD1234', '70123456', cache, 'mauvais')
+  verifie('OTP : mauvais jeton, refuse', mauvais.statut === 401, mauvais)
+}
+
+{
+  const cache = faireCache()
+  verifie('OTP : une reference trop courte est refusee',
+    (await posterOtp('VX-1', '70123456', cache)).statut === 400)
+  verifie('OTP : un numero trop court est refuse',
+    (await posterOtp('VX-ABCD1234', '701', cache)).statut === 400)
+  verifie('OTP : un numero vide est refuse',
+    (await posterOtp('VX-ABCD1234', '', cache)).statut === 400)
+}
+
+{
+  /*
+  LA REFERENCE EST NORMALISEE COMME PARTOUT AILLEURS. Le client la recopie
+  a la main : il met ou non le tiret, l'ecrit ou non en minuscules.
+  */
+  const cache = faireCache()
+  await posterOtp('VX-ABCD1234', '70123456', cache)
+  const variante = await posterOtp('vx abcd1234', '70123456', cache)
+  verifie('OTP : tiret, casse et espaces ne changent rien',
+    variante.corps.deja === true && variante.corps.concorde === true, variante)
+}
+
+{
+  /*
+  LA CHAINE COMPLETE : le numero confirme doit apparaitre sur le message
+  du changeur, parce que c'est lui qui recopie les huit chiffres.
+  */
+  const cache = faireCache()
+  await posterOtp('VX-TESTOTP1', '70123456', cache)
+  const r = await poster(
+    demande({ sens: 'vente', reference: 'VX-TESTOTP1', telephone: '70123456', monnaie: 'USDT' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('OTP : la vente passe', r.statut === 200, r)
+  verifie('OTP : le message dit que le numero est confirme',
+    textesEnvoyes().some((t) => t.includes('confirme par SMS')), textesEnvoyes())
+}
+
+{
+  /*
+  ET LE CAS ALARMANT : la reference a ete confirmee depuis un AUTRE
+  numero que celui que la demande annonce. C'est soit une faute de frappe,
+  soit une tentative de detournement — et dans les deux cas le changeur
+  doit le voir AVANT de taper huit chiffres.
+  */
+  const cache = faireCache()
+  await posterOtp('VX-TESTOTP2', '70111111', cache)
+  const r = await poster(
+    demande({ sens: 'vente', reference: 'VX-TESTOTP2', telephone: '70999999', monnaie: 'USDT' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('OTP : la vente passe quand meme', r.statut === 200, r)
+  verifie('OTP : mais le message CRIE qu un autre numero a confirme',
+    textesEnvoyes().some((t) => t.includes('UN AUTRE NUMERO')), textesEnvoyes())
+}
+
+{
+  /*
+  SANS ROBOT INSTALLE, RIEN N'EST ECRIT. Un avertissement permanent sur
+  toutes les ventes d'un changeur qui n'a pas de robot finirait par ne
+  plus etre lu — et emousserait celui qui compte.
+  */
+  verifie('OTP : inactif n ecrit rien', marqueOtp('inactif') === '')
+  verifie('OTP : non confirme se dit sans accuser', marqueOtp('non').includes('non confirme'))
+  verifie('OTP : confirme porte une coche', marqueOtp('oui').includes('✔'))
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)

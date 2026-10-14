@@ -1164,6 +1164,8 @@
     <string name="change_vente_coordonnees">Où recevoir tes francs</string>
     <string name="change_telephone_vente">Numéro Mobile Money où recevoir</string>
     <string name="change_telephone_vente_aide">Le changeur enverra tes francs sur ce numéro. 8 chiffres.</string>
+    <string name="change_otp_titre">Confirme ton numéro (conseillé)</string>
+    <string name="change_otp_aide">Envoie « %1$s » par SMS au %2$s. Le changeur verra que ce numéro est bien le tien avant de t\'envoyer l\'argent. Un seul SMS, depuis le numéro où tu veux être payé.</string>
     <string name="change_transmettre">Transmettre ma demande</string>
     <string name="change_transmettre_verifie">Transmettre — versement vérifié</string>
     <string name="change_verif_recherche">Recherche de ton versement…</string>
