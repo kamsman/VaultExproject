@@ -243,8 +243,7 @@ private fun ColumnScope.EtapeCalcul(
         avecLogo = !donneFcfa,
         monnaies = if (donneFcfa) emptyList() else p.monnaies,
         onMonnaie = vm::onMonnaie,
-        saisissable = true,
-        vedette = true
+        saisissable = true
     )
 
     /*
@@ -375,8 +374,7 @@ private fun ColumnScope.EtapeCalcul(
             java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
                 maximumFractionDigits = 2
             }.format(c) + " " + state.monnaie
-        } else null,
-        vedette = false
+        } else null
     )
 
     /*
@@ -1930,8 +1928,7 @@ private fun CarteMontantChange(
      */
     saisissable: Boolean,
     /** Le même montant, arrondi, affiché en dessous s'il diffère. */
-    approx: String? = null,
-    vedette: Boolean
+    approx: String? = null
 ) {
     var listeOuverte by remember { mutableStateOf(false) }
     val choix = monnaies.size > 1
