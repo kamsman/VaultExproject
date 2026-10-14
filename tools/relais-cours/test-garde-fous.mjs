@@ -1188,6 +1188,125 @@ function avecNoeudEvm(cache, hauteur) {
 
 // ─── Verdict ────────────────────────────────────────────────────────
 
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA CHAINE COMPLETE, AVEC LE VRAI FORMAT D'ORANGE MONEY BURKINA
+═══════════════════════════════════════════════════════════════════════════
+
+Les tests de chaine ci-dessus emploient un SMS que j'avais invente :
+« Vous avez recu 10000 FCFA de 70123456 ». Il est propre, et c'est le
+probleme — un vrai SMS d'operateur ne l'est pas.
+
+Celui-ci est reel, chiffres remplaces, tout le reste verbatim. Il apporte
+quatre choses que le format invente n'avait pas :
+
+  — « 100000.0 » : une DECIMALE, la ou je lisais des milliers. Ce seul
+    point valait un facteur dix sur le montant credite ;
+  — « Frais:  FCFA, Taxe:  FCFA » : des unites sans nombre devant ;
+  — un SOLDE du meme ordre de grandeur, dans la meme phrase ;
+  — un lien publicitaire plein de chiffres a la fin.
+
+ON LE FAIT PASSER DANS LA CHAINE ENTIERE, et pas seulement dans le
+lecteur : c'est le rapprochement qui compte. Le montant lu doit servir de
+CLE, et une troncature appliquee d'un cote mais pas de l'autre ferait
+echouer tous les achats sans rien lever.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const SMS_REEL =
+    'Vous avez recu 20000.0 FCFA, Frais:  FCFA, Taxe:  FCFA du 74936353,HAMIDOU. ' +
+    'Le solde de votre compte est de 100484.4 FCFA Trans ID: PP261013.2118.60776882. ' +
+    'Flashez le QR CODE marchand avec Max it pour plus de facilite : https://onelink.to/nn64xw'
+
+  const cache = faireCache()
+  const sms = await posterSms(SMS_REEL, {}, cache)
+  verifie('REEL : le SMS d Orange est accepte', sms.statut === 200, sms)
+  verifie('REEL : le montant lu est 20000, pas 200000', sms.corps?.lu?.montant === 20000, sms.corps?.lu)
+  verifie('REEL : le numero lu est celui de l expediteur', sms.corps?.lu?.numero === '74936353', sms.corps?.lu)
+
+  /*
+  LE RAPPROCHEMENT PAR MONTANT ET NUMERO, sur ce SMS-la. C'est le cas du
+  client qui ne recopie aucune reference — le plus frequent.
+  */
+  const r = await poster(
+    demande({
+      sens: 'achat',
+      telephone: '74936353',
+      montantFcfa: '20 000',
+      montantCrypto: '32',
+      referencePaiement: '',
+    }),
+    ENV_SMS,
+    cache
+  )
+  verifie('REEL : l achat est transmis', r.statut === 200, r)
+  verifie('REEL : et marque verifie', r.corps.verification === 'confirme', r.corps)
+}
+
+{
+  /*
+  ET LE MEME SMS NE DOIT PAS PAYER UNE DEMANDE PLUS GROSSE.
+
+  C'est le controle qui compte le plus ici : avec l'ancienne lecture,
+  « 20000.0 » valait DEUX CENT MILLE, et une demande de 200 000 FCFA
+  aurait ete confirmee par un paiement de vingt mille.
+
+  Le relais compare le montant LU DANS LE SMS, jamais celui que la demande
+  annonce — ce test le fige.
+  */
+  const SMS_REEL =
+    'Vous avez recu 20000.0 FCFA, Frais:  FCFA, Taxe:  FCFA du 74936353,HAMIDOU. ' +
+    'Le solde de votre compte est de 100484.4 FCFA Trans ID: PP261013.2118.60776883.'
+
+  const cache = faireCache()
+  await posterSms(SMS_REEL, {}, cache)
+
+  const r = await poster(
+    demande({
+      sens: 'achat',
+      telephone: '74936353',
+      montantFcfa: '200 000',
+      montantCrypto: '320',
+      referencePaiement: '',
+    }),
+    { ...ENV_SMS, CHANGE_MAX: '500000' },
+    cache
+  )
+  verifie('REEL : une demande dix fois trop grosse N EST PAS confirmee',
+    r.corps.verification !== 'confirme', r.corps)
+}
+
+{
+  /*
+  LE SOLDE NE DOIT PAS PAYER LA DEMANDE.
+
+  Le SMS porte « 100484.4 FCFA » comme solde du compte. Une demande de ce
+  montant exact ne doit pas etre confirmee : ce chiffre n'est pas un
+  encaissement, c'est ce que le changeur possede.
+  */
+  const SMS_REEL =
+    'Vous avez recu 20000.0 FCFA, Frais:  FCFA, Taxe:  FCFA du 74936353,HAMIDOU. ' +
+    'Le solde de votre compte est de 100484.4 FCFA Trans ID: PP261013.2118.60776884.'
+
+  const cache = faireCache()
+  await posterSms(SMS_REEL, {}, cache)
+
+  const r = await poster(
+    demande({
+      sens: 'achat',
+      telephone: '74936353',
+      montantFcfa: '100 484',
+      montantCrypto: '160',
+      referencePaiement: '',
+    }),
+    { ...ENV_SMS, CHANGE_MAX: '500000' },
+    cache
+  )
+  verifie('REEL : le solde du changeur ne paie aucune demande',
+    r.corps.verification !== 'confirme', r.corps)
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les garde-fous tiennent, et dans le bon ordre.')
