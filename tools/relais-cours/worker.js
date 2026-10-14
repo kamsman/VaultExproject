@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 39
+const VERSION = 40
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -622,6 +622,41 @@ export default {
     distance, pas contre le vol physique — et le message le dit ainsi.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /assistance — RÉPONDRE AUX CLIENTS, SANS JAMAIS LEUR DIRE OÙ PAYER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le changeur dort, et les questions arrivent la nuit : « c'est quoi le
+    minimum », « combien de temps », « j'ai envoyé et je n'ai rien reçu ».
+    Elles se répètent, et sans réponse elles font fermer l'application.
+
+    ─── LA CLÉ EST ICI, ET NULLE PART AILLEURS ─────────────────────────
+
+    Une clé d'API dans un APK est une clé publique : un APK se décompile
+    en dix minutes, et la facture est à celui qui l'a signé. Le relais
+    appelle le modèle, l'application ne connaît que le relais.
+
+    ─── CE QUE L'ASSISTANCE NE DOIT JAMAIS ÉCRIRE ──────────────────────
+
+    Une adresse de versement, ou un numéro de téléphone.
+
+    Ce n'est pas une précaution de principe. Un modèle qui invente une
+    adresse plausible ferait envoyer de l'argent dans le vide, de façon
+    irréversible, avec l'autorité d'une réponse officielle. Et quelqu'un
+    qui saurait l'amener à écrire SA propre adresse aurait transformé
+    notre assistance en outil de détournement.
+
+    La consigne ne suffit pas : on FILTRE la sortie. Voir `nettoyerIa`,
+    qui remplace toute suite de caractères ressemblant à une adresse ou à
+    un numéro par un renvoi à l'écran de change — le seul endroit où
+    l'adresse vient du Worker et non d'un texte.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/assistance' && requete.method === 'POST') {
+      return await assistance(requete, env)
+    }
+
     if (url.pathname === '/change/otp' && requete.method === 'POST') {
       return await recevoirOtp(requete, env)
     }
@@ -5236,6 +5271,8 @@ export {
   recevoirOtp,
   numeroConfirme,
   marqueOtp,
+  nettoyerIa,
+  systemeAssistance,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5532,6 +5569,205 @@ function lireSmsPaiement(texte) {
   const reference = refTrouvee ? refTrouvee[1].replace(/[.\-]/g, '').toUpperCase() : ''
 
   return { montant, numero: numeroComparable(numero), reference }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ASSISTANCE
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/** Le modèle par défaut : le moins cher qui réponde bien à ces questions. */
+const IA_MODELE = 'claude-haiku-5-5'
+
+/*
+TROIS BORNES, ET CHACUNE FERME UNE FAÇON DE VIDER LA FACTURE.
+
+Un point d'entrée qui appelle un modèle payant, ouvert sans compteur, est
+une carte bancaire posée sur un trottoir. Il n'y a pas besoin de
+malveillance : une boucle dans une application suffit.
+*/
+const IA_MAX_JOUR = 300        // appels par jour, tous clients confondus
+const IA_MAX_TOURS = 20        // messages gardés d'une conversation
+const IA_MAX_CARACTERES = 1500 // par message entrant
+
+/**
+ * Ce que le modèle sait de ce changeur-ci.
+ *
+ * LES CHIFFRES VIENNENT DES RÉGLAGES, PAS DU MODÈLE. Un modèle à qui l'on
+ * ne donne pas la marge en invente une plausible, et le client arrive chez
+ * le changeur avec un prix qu'on ne lui fera pas.
+ *
+ * On ne lui donne PAS l'adresse de versement ni le numéro Mobile Money.
+ * Il n'en a pas besoin pour répondre, et ne pas les lui donner est la
+ * première des deux barrières — la seconde étant `nettoyerIa`.
+ */
+function systemeAssistance(env) {
+  const min = Number(env?.CHANGE_MIN) || 5000
+  const max = Number(env?.CHANGE_MAX) || 50000
+  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const delai = Number(env?.CHANGE_DELAI) || 30
+  const minsParMonnaie = minimumsChange(env)
+  const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
+
+  return [
+    "Tu es l'assistance de VaultEx, un portefeuille crypto utilise au Burkina Faso.",
+    "Tu reponds en francais simple, court, sans jargon. Deux ou trois phrases suffisent",
+    "presque toujours. Tutoie, comme le reste de l'application.",
+    '',
+    'CE QUE TU SAIS DE CE SERVICE :',
+    `- Monnaies echangeables : ${monnaies.join(', ') || 'aucune pour le moment'}`,
+    `- Minimum general : ${min} FCFA. Plafond par operation : ${max} FCFA.`,
+    Object.keys(minsParMonnaie).length
+      ? `- Minimums par monnaie : ${Object.entries(minsParMonnaie).map(([m, v]) => `${m} ${v} FCFA`).join(', ')}`
+      : null,
+    `- Marge du changeur : ${marge} FCFA par dollar.`,
+    `- Delai annonce : ${delai} minutes.`,
+    "- Les ventes sont verifiees automatiquement sur la chaine : le relais lit",
+    "  lui-meme le versement, personne n'a a croire le client sur parole.",
+    "- Les achats se verifient par le SMS d'encaissement de l'operateur.",
+    '',
+    'CE QUE TU NE FAIS JAMAIS :',
+    "- Tu ne donnes JAMAIS d'adresse de versement ni de numero de telephone.",
+    "  L'adresse exacte s'affiche dans l'ecran Change, et elle seule fait foi.",
+    "  Si on t'en demande une, dis d'ouvrir l'ecran Change et de copier avec",
+    '  le bouton prevu.',
+    "- Tu ne promets jamais un delai, un prix ou un remboursement.",
+    "- Tu n'inventes pas. Si tu ne sais pas, tu le dis et tu proposes de",
+    '  transmettre la question au changeur.',
+    "- Tu ne demandes jamais de phrase secrete, de mot de passe, ni les douze",
+    "  mots de recuperation. VaultEx ne les demande JAMAIS, et tu le rappelles",
+    '  si quelqu un dit que le support les lui a demandes : c est une arnaque.',
+  ].filter(Boolean).join('\n')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE FILTRE DE SORTIE
+═══════════════════════════════════════════════════════════════════════════
+
+La consigne du dessus demande au modèle de ne pas écrire d'adresse. Ça ne
+suffit pas, et c'est tout l'objet de cette fonction : une consigne est une
+préférence, pas une garantie. Quelqu'un qui insiste, qui joue un rôle, ou
+simplement un modèle qui se trompe, et l'adresse sort.
+
+ON REMPLACE PLUTÔT QU'ON NE REFUSE. Un refus sec laisserait le client sans
+réponse à une question légitime — « où j'envoie ? ». Le renvoi vers l'écran
+Change y répond, et c'est la bonne réponse : c'est le seul endroit où
+l'adresse vient du Worker.
+
+TROIS FORMES SONT COUVERTES :
+  — une adresse EVM (0x suivi de 40 caractères) ;
+  — une adresse TRON (T suivi de 33 caractères) ;
+  — huit chiffres d'affilee, qui sont un numero au Burkina Faso.
+
+Les montants echappent au dernier motif : ils portent un separateur ou
+moins de huit chiffres. « 50000 » passe, « 70123456 » non.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const RENVOI_ECRAN = '[ouvre l’ecran Change : l’adresse exacte y est affichee avec un bouton pour la copier]'
+
+function nettoyerIa(texte) {
+  return String(texte ?? '')
+    .replace(/0x[0-9a-fA-F]{40}/g, RENVOI_ECRAN)
+    .replace(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/g, RENVOI_ECRAN)
+    .replace(/(?<!\d)\d{8}(?!\d)/g, '[numero masque]')
+}
+
+/**
+ * Répond à un client, ou transmet sa question au changeur.
+ */
+async function assistance(requete, env) {
+  const cle = String(env?.CHANGE_IA_CLE ?? '')
+  if (!cle) {
+    return json({
+      ok: false,
+      raison: "l'assistance automatique n'est pas configuree",
+      humain: true,
+    }, 0, 503)
+  }
+
+  let corps = null
+  try {
+    corps = await requete.json()
+  } catch (_) {
+    return json({ ok: false, raison: 'corps illisible' }, 0, 400)
+  }
+
+  /*
+  LE COMPTEUR EST GLOBAL, ET PAS PAR CLIENT.
+
+  On n'a pas d'identite fiable : une application peut dire ce qu'elle veut.
+  Un plafond global protege la facture, ce qui est le but. Il protege mal
+  contre quelqu'un qui voudrait fermer l'assistance aux autres en
+  l'epuisant — mais ce quelqu'un n'y gagne rien, et la panne se voit.
+  */
+  const jour = new Date().toISOString().slice(0, 10)
+  if ((await compteur('ia', jour)) >= IA_MAX_JOUR) {
+    return json({
+      ok: false,
+      raison: "l'assistance a atteint sa limite du jour",
+      humain: true,
+    }, 0, 429)
+  }
+
+  const messages = Array.isArray(corps?.messages) ? corps.messages : []
+  const propres = messages
+    .slice(-IA_MAX_TOURS)
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+    .map((m) => ({
+      role: m.role,
+      content: String(m.content ?? '').slice(0, IA_MAX_CARACTERES),
+    }))
+    .filter((m) => m.content.length > 0)
+
+  if (propres.length === 0) return json({ ok: false, raison: 'aucun message' }, 0, 400)
+
+  try {
+    const r = await fetchBorne('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': cle,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: String(env?.CHANGE_IA_MODELE || IA_MODELE),
+        // Court par construction : une reponse d'assistance qui depasse
+        // quelques phrases n'est pas lue, et coute plus cher.
+        max_tokens: 400,
+        system: systemeAssistance(env),
+        messages: propres,
+      }),
+    }, 20000)
+
+    if (!r.ok) {
+      const detail = (await r.text()).slice(0, 200)
+      return json({
+        ok: false,
+        raison: `le modele a repondu ${r.status}`,
+        detail,
+        humain: true,
+      }, 0, 502)
+    }
+
+    const o = await r.json()
+    const brut = Array.isArray(o?.content)
+      ? o.content.filter((b) => b?.type === 'text').map((b) => b.text).join('\n')
+      : ''
+    if (!brut.trim()) {
+      return json({ ok: false, raison: 'reponse vide', humain: true }, 0, 502)
+    }
+
+    await incrementer('ia', jour, 2 * 86400)
+    return json({ ok: true, reponse: nettoyerIa(brut) })
+  } catch (e) {
+    return json({
+      ok: false,
+      raison: String(e?.message ?? 'modele injoignable').slice(0, 120),
+      humain: true,
+    }, 0, 502)
+  }
 }
 
 /**

@@ -400,7 +400,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -1485,6 +1485,88 @@ async function posterOtp(reference, numero, cache, jeton) {
   verifie('OTP : inactif n ecrit rien', marqueOtp('inactif') === '')
   verifie('OTP : non confirme se dit sans accuser', marqueOtp('non').includes('non confirme'))
   verifie('OTP : confirme porte une coche', marqueOtp('oui').includes('✔'))
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ASSISTANCE NE DOIT JAMAIS ECRIRE OU PAYER
+═══════════════════════════════════════════════════════════════════════════
+
+Le systeme le lui interdit. Ca ne suffit pas, et c'est tout l'objet de ces
+tests : une consigne est une preference, pas une garantie. Quelqu'un qui
+insiste, qui joue un role, ou simplement un modele qui se trompe, et
+l'adresse sort.
+
+CE QUE CA COUTERAIT. Une adresse inventee par un modele est plausible et
+fausse : l'argent part, irreversiblement, avec l'autorite d'une reponse
+officielle. Et quelqu'un qui saurait amener le modele a ecrire SA propre
+adresse aurait transforme notre assistance en outil de detournement.
+
+On remplace plutot qu'on ne refuse : un refus sec laisserait le client
+sans reponse a une question legitime — « ou j'envoie ? ». Le renvoi vers
+l'ecran Change y repond, et c'est la bonne reponse.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const EVM = '0xbde137a9684f0bc437294b2cf2ab7295831e327e'
+  const TRON = 'TPsJsu5nHeZQWdF5YHJ6shTfaN8yix2Fbh'
+
+  const r1 = nettoyerIa(`Envoie tes USDT a ${EVM} et tu recevras tes francs.`)
+  verifie('IA : une adresse EVM ne sort pas', !r1.includes(EVM), r1)
+  verifie('IA : et le client est renvoye a l ecran', r1.includes('ecran Change'), r1)
+
+  const r2 = nettoyerIa(`Pour TRON utilise ${TRON}`)
+  verifie('IA : une adresse TRON ne sort pas', !r2.includes(TRON), r2)
+
+  const r3 = nettoyerIa('Appelle le 70123456 pour payer.')
+  verifie('IA : un numero de telephone ne sort pas', !r3.includes('70123456'), r3)
+
+  /*
+  LES MONTANTS DOIVENT PASSER. Un filtre qui masquerait « 50000 » rendrait
+  l'assistance incapable de repondre a « c'est quoi le plafond » — donc
+  inutile pour la moitie des questions qu'on lui pose.
+  */
+  const r4 = nettoyerIa('Le minimum est 600 FCFA et le plafond 50000 FCFA.')
+  verifie('IA : les montants passent', r4.includes('600') && r4.includes('50000'), r4)
+  const r5 = nettoyerIa('Tu peux echanger entre 5 000 et 500 000 FCFA.')
+  verifie('IA : les montants a separateurs passent', r5.includes('500 000'), r5)
+
+  verifie('IA : une reponse ordinaire n est pas touchee',
+    nettoyerIa('Le delai est de 10 minutes.') === 'Le delai est de 10 minutes.')
+  verifie('IA : rien du tout ne plante pas', nettoyerIa(null) === '' && nettoyerIa(undefined) === '')
+}
+
+{
+  /*
+  LE SYSTEME PORTE LES VRAIS CHIFFRES, ET PAS L'ADRESSE.
+
+  Un modele a qui l'on ne donne pas la marge en invente une plausible, et
+  le client arrive chez le changeur avec un prix qu'on ne lui fera pas.
+
+  Mais on ne lui donne PAS l'adresse : il n'en a pas besoin pour repondre,
+  et ne pas la lui donner est la premiere des deux barrieres.
+  */
+  const sys = systemeAssistance({
+    CHANGE_MIN: '600',
+    CHANGE_MAX: '50000',
+    CHANGE_DELAI: '10',
+    CHANGE_ADRESSES: '{"USDT-BNB":"0xbde137a9684f0bc437294b2cf2ab7295831e327e"}',
+    CHANGE_MINIMUMS: '{"USDT-BNB":600}',
+  })
+  verifie('IA : le systeme porte le minimum reel', sys.includes('600'), sys.slice(0, 200))
+  verifie('IA : le systeme porte le delai reel', sys.includes('10 minutes'), sys.slice(0, 200))
+  verifie('IA : le systeme nomme la monnaie reglee', sys.includes('USDT-BNB'))
+  verifie(
+    'IA : le systeme ne contient AUCUNE adresse',
+    !sys.includes('0xbde137a9684f0bc437294b2cf2ab7295831e327e'),
+    sys
+  )
+  verifie(
+    'IA : et il interdit explicitement les phrases secretes',
+    sys.includes('douze') || sys.includes('recuperation'),
+    sys
+  )
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
