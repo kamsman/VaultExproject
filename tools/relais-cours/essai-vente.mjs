@@ -32,7 +32,29 @@ quand il échoue, pour voir où — il imprime tout ce qui passe.
 
 import { readFileSync } from 'node:fs'
 
-const [monnaieBrute, montantBrut, relaisArg] = process.argv.slice(2)
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES FRAIS DE L'EXCHANGE, PARCE QUE C'EST LA SEULE CHOSE QUI A RATE
+═══════════════════════════════════════════════════════════════════════════
+
+Cinq essais, cinq diagnostics. A chaque fois : destinataire ok, contrat
+ok, decimales ok, horodate ok, fenetre ok — et le montant faux. Toujours
+pour la meme raison : un exchange retranche ses frais du montant qu'on
+tape, et c'est la ligne « vous recevrez » qui arrive sur la chaine.
+
+On le savait, c'etait ecrit en gros dans l'outil, et ca a quand meme rate
+cinq fois. Un avertissement qui n'empeche pas la faute n'est pas un
+garde-fou : c'est un alibi.
+
+Donc l'outil calcule desormais le nombre A TAPER. Plus de « ajoute tes
+frais » — le nombre est imprime, pret a recopier.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const arguments_ = process.argv.slice(2)
+const fraisArg = arguments_.find((a) => a.startsWith('--frais='))
+const frais = fraisArg ? Number(fraisArg.slice(8).replace(',', '.')) : 0.01
+const positionnels = arguments_.filter((a) => !a.startsWith('--'))
+const [monnaieBrute, montantBrut, relaisArg] = positionnels
 
 if (!monnaieBrute || !montantBrut) {
   console.log('\nUsage :')
@@ -216,6 +238,26 @@ console.log('\n' + '═'.repeat(66))
 console.log(`  ENVOIE EXACTEMENT   ${exact} ${monnaie}`)
 console.log(`  A L'ADRESSE         ${adresse}`)
 console.log('═'.repeat(66))
+/*
+LE NOMBRE A TAPER, CALCULE ICI.
+
+`toFixed(6)` plutot qu'une addition brute : 4.996504 + 0.01 vaut
+5.006504000000001 en virgule flottante, et un exchange refuserait ces
+decimales parasites — ou pire, les arrondirait a notre insu.
+*/
+if (Number.isFinite(frais) && frais >= 0) {
+  const aTaper = (Number(exact) + frais).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+  console.log('\n' + '─'.repeat(66))
+  console.log(`  SUR UN EXCHANGE qui preleve ${frais} de frais :`)
+  console.log(`\n     tape dans « Montant »      ${aTaper}`)
+  console.log(`     « vous recevrez » doit dire  ${exact}`)
+  console.log('\n  Si « vous recevrez » affiche autre chose, tes frais ne sont pas')
+  console.log(`  ${frais}. Relance avec les tiens :  --frais=0,25`)
+  console.log('─'.repeat(66))
+  console.log('\n  DEPUIS UN PORTEFEUILLE (pas un exchange), il n’y a rien a')
+  console.log(`  ajouter : tape ${exact} et c’est ce qui arrive. Le gaz se paie a part.`)
+}
+
 if (marque) {
   console.log('\n  Le montant est MARQUE : ces decimales sont derivees de la')
   console.log('  reference ci-dessus, et elles seules permettront de reconnaitre')
