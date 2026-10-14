@@ -67,6 +67,27 @@ Sous Windows :
 
 L'APK sort dans `tools/changeur-sms/build/outputs/apk/debug/`.
 
+### Si la compilation dit « SDK location not found »
+
+C'est la conséquence directe de l'isolement du projet : ayant sa propre
+racine, Gradle cherche `local.properties` **ici** et non à la racine du
+dépôt — où le chemin du SDK est pourtant déjà réglé, puisque VaultEx se
+construit.
+
+`settings.gradle.kts` le règle tout seul à la première compilation : il
+recopie **la seule ligne `sdk.dir`** depuis la racine. Rien d'autre n'est
+lu — `local.properties` contient aussi le mot de passe du magasin de
+signature et des clés d'API, qui n'ont aucune raison d'exister en double.
+
+Si ça ne suffit pas, règle `ANDROID_HOME`, ou crée toi-même
+`tools/changeur-sms/local.properties` avec une seule ligne :
+
+```properties
+sdk.dir=C:\\Users\\<toi>\\AppData\\Local\\Android\\Sdk
+```
+
+Ce fichier est ignoré par git, à ce niveau comme à la racine.
+
 > Ce dossier a son **propre** `settings.gradle.kts` : il n'est pas un module
 > de VaultEx, et une faute ici ne peut pas faire échouer la compilation de
 > l'application principale. C'est voulu — cette application ne tourne que
