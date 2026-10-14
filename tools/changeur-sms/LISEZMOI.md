@@ -65,6 +65,28 @@ Sous Windows :
 .\gradlew.bat -p tools\changeur-sms assembleDebug
 ```
 
+### Pour l'APK qu'on installe vraiment : `assembleRelease`
+
+```powershell
+.\gradlew.bat -p tools\changeur-sms assembleRelease
+```
+
+L'APK sort dans `tools/changeur-sms/build/outputs/apk/release/`.
+
+**La différence qui compte est `debuggable`.** Un APK de debug est
+débogable par construction : quiconque branche un câble sur ce téléphone
+peut lire les préférences de l'application, donc le **jeton**. Or ce jeton
+permet d'affirmer au relais qu'un paiement a eu lieu — et donc de faire
+confirmer des achats jamais payés.
+
+Pour un APK qu'on installe une fois et qui reste en place des mois sur le
+téléphone qui encaisse, ça n'est pas un détail.
+
+Il est signé avec la clé de debug, ce qui suffit : il ne passera jamais par
+le Play Store et s'installe à la main. Sans configuration de signature,
+`assembleRelease` produirait un APK **non signé**, qu'Android refuse
+d'installer — et on ne s'en apercevrait qu'une fois le fichier transféré.
+
 L'APK sort dans `tools/changeur-sms/build/outputs/apk/debug/`.
 
 ### Si la compilation dit « SDK location not found »
@@ -87,6 +109,34 @@ sdk.dir=C:\\Users\\<toi>\\AppData\\Local\\Android\\Sdk
 ```
 
 Ce fichier est ignoré par git, à ce niveau comme à la racine.
+
+### Déposer l'APK directement dans un dossier
+
+Pour ne plus aller le chercher au fond de `build/outputs/`, ajoute une
+ligne dans le **même** `tools/changeur-sms/local.properties` :
+
+```properties
+apk.sortie=C:/Users/HP/Desktop/app changeur
+```
+
+Chaque `assembleDebug` ou `assembleRelease` y dépose alors l'APK sous un
+nom stable — `VaultEx-Changeur-release.apk` — de sorte qu'une
+réinstallation écrase la précédente au lieu d'empiler des fichiers dont on
+ne sait plus lequel est le dernier.
+
+> **Des barres obliques, pas des contre-obliques.** Un fichier
+> `.properties` traite la contre-oblique comme un échappement :
+> `C:\Users` y devient `C:Users`, silencieusement. Java accepte les barres
+> obliques sous Windows, donc on les emploie.
+>
+> La tâche imprime le chemin où elle écrit. Un chemin abîmé se voit alors
+> tout de suite, au lieu de créer un dossier fantôme quelque part.
+
+Pour une construction ponctuelle ailleurs, sans toucher aux réglages :
+
+```powershell
+.\gradlew.bat -p tools\changeur-sms assembleRelease "-Papk.sortie=D:/ailleurs"
+```
 
 > Ce dossier a son **propre** `settings.gradle.kts` : il n'est pas un module
 > de VaultEx, et une faute ici ne peut pas faire échouer la compilation de
