@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 29
+const VERSION = 30
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3702,8 +3702,23 @@ async function diagnostiquerPourquoi(env, params) {
       fenetre:
         maintenant - quand <= fenetre
           ? 'ok' : `vieux de ${Math.round((maintenant - quand) / 60000)} min, fenetre ${Math.round(fenetre / 60000)} min`,
-      anteriorite:
-        !naissance || quand >= naissance - 60_000
+      /*
+      « OK » NE DOIT PAS ÊTRE DIT QUAND LE CONTRÔLE N'A PAS EU LIEU.
+
+      Sans naissance connue, l'antériorité est DÉSACTIVÉE — le relais
+      laisse passer plutôt que de punir quelqu'un parce qu'il a oublié
+      quand la demande est née. Afficher « ok » dans ce cas laisserait
+      croire qu'une barrière a tenu, alors qu'elle n'a pas été posée.
+
+      Et une naissance inconnue n'est pas anodine : elle signifie que
+      cette référence n'est jamais passée par `/change/consigne`. Donc,
+      le plus souvent, qu'on diagnostique une AUTRE référence que celle
+      de l'essai.
+      */
+      anteriorite: !naissance
+        ? 'NON APPLIQUE — naissance inconnue, donc ce controle est desactive. ' +
+          'Cette reference n\'est jamais passee par /change/consigne.'
+        : quand >= naissance - 60_000
           ? 'ok'
           : `arrive ${Math.round((naissance - quand) / 60000)} min AVANT l'ouverture de la demande`,
       montant:
@@ -3722,6 +3737,17 @@ async function diagnostiquerPourquoi(env, params) {
   l'inverse — c'est que ce diagnostic a dérivé du code qu'il décrit, et
   il doit le crier plutôt que d'induire en erreur.
   */
+  /*
+  LE CAS « TOUT SAUF LE MONTANT » MERITE SA PHRASE.
+
+  C'est de loin le plus frequent, et c'est aussi le plus rassurant : il
+  dit que toute la chaine de preuve fonctionne et que l'argent est arrive.
+  Le noyer dans « lis la colonne rates » ferait chercher un defaut la ou
+  il n'y en a pas.
+  */
+  const seulementMontant =
+    examen.length > 0 && examen.every((e) => e.rates.length === 1 && e.rates[0] === 'montant')
+
   const trouve = choisirTransfertAlchemy(liste, critere)
   const examenDitOui = examen.some((e) => e.rates.length === 0)
   const desaccord = Boolean(trouve) !== examenDitOui
@@ -3746,8 +3772,14 @@ async function diagnostiquerPourquoi(env, params) {
       : liste.length === 0
         ? 'AUCUN transfert de ce jeton sur cette adresse : le versement n\'est pas arrive. ' +
           'Verifie le reseau choisi sur l\'exchange (BEP20) et l\'etat du retrait.'
-        : 'Des transferts existent mais aucun ne passe. Lis la colonne « rates » : ' +
-          'elle nomme le controle qui bloque, pour chacun.',
+        : seulementMontant
+          ? 'TOUT PASSE SAUF LE MONTANT. La chaine, le contrat, les decimales et la ' +
+            'fenetre sont bons : le versement est bien arrive chez le changeur, il ne ' +
+            'correspond simplement a aucune demande. Compare « lu » et « cherche » : un ' +
+            'ecart de quelques centiemes est une commission d\'exchange, un ecart franc ' +
+            'est un montant qui n\'a pas ete recopie.'
+          : 'Des transferts existent mais aucun ne passe. Lis la colonne « rates » : ' +
+            'elle nomme le controle qui bloque, pour chacun.',
   })
 }
 
