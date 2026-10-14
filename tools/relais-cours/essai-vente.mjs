@@ -115,6 +115,32 @@ async function lire(chemin) {
   }
 }
 
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ADRESSE DE DIAGNOSTIC, DEJA REMPLIE
+═══════════════════════════════════════════════════════════════════════════
+
+Parce que la recopier a la main a rate QUATRE FOIS dans ce projet, et
+jamais par etourderie : a chaque fois un exemple de documentation a ete
+colle tel quel — « T... », « 16+ caracteres », « VX-TAREFERENCE ».
+
+Et ce n'est pas une erreur anodine ici. Une reference inventee produit un
+diagnostic parfaitement coherent qui decrit une demande qui n'existe pas :
+on peut le relire trois fois sans voir qu'il parle d'autre chose.
+
+La seule correction qui tienne est de supprimer la recopie. L'outil
+connait la reference — il l'a tiree lui-meme — donc il imprime l'adresse
+complete, prete a ouvrir.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function lienPourquoi() {
+  return (
+    `${relais}/diag/pourquoi?monnaie=${encodeURIComponent(monnaie)}` +
+    `&montant=${montant}&reference=${encodeURIComponent(reference)}`
+  )
+}
+
 console.log(`\nRelais    : ${relais}`)
 console.log(`Monnaie   : ${monnaie}`)
 console.log(`Reference : ${reference}  (tiree au sort, comme l'application le fait)`)
@@ -133,7 +159,7 @@ chaque echec est ambigu : le code est-il faux, ou pas en ligne ?
 On n'ARRETE pas sur un decalage — c'est peut-etre volontaire d'essayer
 contre l'ancienne version. On le dit, fort, et on continue.
 */
-const ATTENDUE = 30
+const ATTENDUE = 31
 
 const sante = await lire('/sante?x=' + Date.now())
 const enLigne = sante.corps?.version
@@ -279,6 +305,7 @@ for (let tour = 1; tour <= ESSAIS; tour += 1) {
   */
   if (etat === 'indisponible' || etat === 'inconnue' || etat === 'deja_servi') {
     console.log(`\n❌ ${etat} : ${v.corps?.raison ?? ''}`)
+    console.log(`\n  Pourquoi, controle par controle :\n  ${lienPourquoi()}`)
     if (etat === 'deja_servi') {
       console.log('\n  Ce versement a deja paye une autre demande. Si c’est un')
       console.log('  second essai avec le meme montant, c’est le comportement voulu.')
@@ -292,6 +319,10 @@ for (let tour = 1; tour <= ESSAIS; tour += 1) {
 }
 
 console.log('\n⏱  Quinze minutes sans rien trouver.')
-console.log('   Verifie sur un explorateur que le versement est bien arrive,')
-console.log('   et que le montant correspond au centieme pres.')
+console.log('\n  OUVRE CECI — il dit quel controle a bloque, transfert par')
+console.log('  transfert, pour CETTE demande precisement :')
+console.log(`\n  ${lienPourquoi()}`)
+console.log('\n  Ne retape pas cette adresse : elle porte deja la reference')
+console.log('  de cet essai, et une autre reference decrirait une demande')
+console.log('  qui n’existe pas.')
 process.exit(1)

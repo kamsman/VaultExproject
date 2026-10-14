@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 30
+const VERSION = 31
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3752,9 +3752,39 @@ async function diagnostiquerPourquoi(env, params) {
   const examenDitOui = examen.some((e) => e.rates.length === 0)
   const desaccord = Boolean(trouve) !== examenDitOui
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE REFERENCE INCONNUE REND TOUT LE RESTE TROMPEUR
+  ═══════════════════════════════════════════════════════════════════════
+
+  Si la reference n'est jamais passee par /change/consigne, deux choses
+  sont fausses d'un coup, et aucune ne se voit :
+
+    — le montant cherche est derive d'une chaine qui n'a jamais ete
+      utilisee, donc il ne correspond a AUCUN essai ;
+    — l'anteriorite est desactivee faute de naissance.
+
+  Le diagnostic reste alors parfaitement coherent et parfaitement inutile,
+  et on peut le relire trois fois sans voir qu'il parle d'autre chose.
+
+  La cause la plus frequente, mesuree sur ce projet : un exemple de
+  documentation colle tel quel. Il faut donc que ca CRIE, en premier.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const referenceInconnue = marque && !naissance
+
   return json({
     ok: true,
     version: VERSION,
+    ...(referenceInconnue
+      ? {
+          AVERTISSEMENT:
+            `La reference « ${reference} » est inconnue du relais : elle n'est jamais ` +
+            'passee par /change/consigne. Le montant cherche ci-dessous est derive ' +
+            'd\'elle, donc il ne correspond a AUCUN essai, et l\'anteriorite est ' +
+            'desactivee. Relance l\'essai et reprends la reference VX-… qu\'il imprime.',
+        }
+      : {}),
     monnaie,
     adresse_du_changeur: adresse,
     marquage: marque ? 'actif' : 'INACTIF (aucune reference, ou CHANGE_MARQUAGE non reglee)',
