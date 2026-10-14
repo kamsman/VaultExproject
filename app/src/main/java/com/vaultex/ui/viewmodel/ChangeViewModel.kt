@@ -513,6 +513,59 @@ class ChangeViewModel @Inject constructor(
                 return@launch
             }
             /*
+            ═══════════════════════════════════════════════════════════════
+            LE MONTANT MARQUE PEUT DEPASSER LE SOLDE
+            ═══════════════════════════════════════════════════════════════
+
+            Le marquage s'AJOUTE : il occupe les trois decimales au-dessus
+            de la partie entiere, donc le montant a envoyer est toujours
+            superieur a celui qui a ete tape, d'au plus 0,999.
+
+            Quelqu'un qui detient 17,4 USDT et tape 17 se verrait demander
+            17,472 — qu'il ne peut pas envoyer. Et il ne l'apprendrait
+            qu'au moment de l'envoi, apres avoir quitte cette application,
+            sur un ecran qui ne sait rien de cette demande.
+
+            C'est ICI qu'il faut le dire, parce que c'est ici qu'on connait
+            le solde : le relais, lui, ne le connait pas.
+
+            ─── ON PROPOSE LE MONTANT QUI MARCHE ────────────────────────
+
+            Un refus sec laisserait chercher combien retirer. Le message
+            donne le chiffre : une unite de moins suffit toujours, puisque
+            le marquage ne depasse jamais 0,999.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val exactNombre = exact.replace(',', '.').toDoubleOrNull()
+            val soldeConnu = _state.value.solde
+            if (exactNombre != null && soldeConnu != null && exactNombre > soldeConnu) {
+                /*
+                UNE UNITE DE MOINS SUFFIT TOUJOURS, puisque le marquage ne
+                depasse jamais 0,999. Mais sur un petit solde, « une unite
+                de moins » peut tomber a zero : il faut alors dire que le
+                solde ne suffit pas, et non proposer d'envoyer rien.
+                */
+                val propose = kotlin.math.floor(soldeConnu).toInt() - 1
+                _state.update {
+                    it.copy(
+                        envoiEnCours = false,
+                        erreur = if (propose >= 1) {
+                            "Avec sa marque, le montant à envoyer serait de " +
+                                "$exact ${s.monnaie}, or tu n'en détiens que " +
+                                "${decimal(soldeConnu, s.monnaie)}. Réessaie avec " +
+                                "$propose ou moins."
+                        } else {
+                            "Avec sa marque, le montant à envoyer serait de " +
+                                "$exact ${s.monnaie}, or tu n'en détiens que " +
+                                "${decimal(soldeConnu, s.monnaie)}. Ce solde ne " +
+                                "suffit pas pour une vente."
+                        }
+                    )
+                }
+                return@launch
+            }
+
+            /*
             LA SAISIE DEVIENT LE MONTANT EXACT, et tout le reste suit.
 
             montantFcfa et montantCrypto se calculent depuis `saisie` : en
