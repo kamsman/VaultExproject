@@ -714,7 +714,27 @@ class ChangeViewModel @Inject constructor(
             val v = withContext(Dispatchers.IO) {
                 service.verifier(
                     s.monnaie,
-                    montantTexte(montant),
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    UN POINT SUR LE RESEAU, UNE VIRGULE A L'ECRAN
+                    ═══════════════════════════════════════════════════════
+
+                    C'etait `montantTexte`, et ca a casse la verification
+                    de TOUTES les ventes — « montant illisible », sur un
+                    vrai ecran de paiement, pendant un vrai essai.
+
+                    En ecrivant le pave numerique, j'ai fait rendre une
+                    VIRGULE a `montantTexte` pour que la saisie affichee
+                    soit francaise. Mais la meme fonction bâtissait le
+                    parametre envoye au relais, qui le lit avec `Number()`
+                    — et `Number("6,894")` vaut NaN.
+
+                    Une fonction qui sert a la fois l'oeil et le reseau
+                    finit toujours par trahir l'un des deux. Les deux usages
+                    sont separes : virgule pour l'ecran, point pour le fil.
+                    ═══════════════════════════════════════════════════════
+                    */
+                    montantCanonique(montant),
                     s.txidSaisi.trim(),
                     // Sans elle, le relais ne saurait pas quel montant
                     // marqué chercher — et répondrait « absent » sur une
@@ -1029,6 +1049,17 @@ class ChangeViewModel @Inject constructor(
     Un appui sur « Tout » suivi d'un chiffre suffisait à produire ça.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /**
+     * Le montant tel qu'il part sur le reseau : un point, jamais de virgule.
+     *
+     * Separe de `montantTexte` a dessein. Celui-ci s'adresse a une machine
+     * qui lit `Number()` ; l'autre s'adresse a quelqu'un qui tape sur un
+     * pave francais. Les confondre a deja coute une vente.
+     */
+    private fun montantCanonique(v: Double): String =
+        java.math.BigDecimal(v).setScale(8, java.math.RoundingMode.DOWN)
+            .stripTrailingZeros().toPlainString()
+
     private fun montantTexte(v: Double): String =
         java.math.BigDecimal(v).setScale(8, java.math.RoundingMode.DOWN)
             .stripTrailingZeros().toPlainString()

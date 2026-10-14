@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 33
+const VERSION = 34
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -4635,7 +4635,28 @@ function numeroComparable(brut) {
  */
 async function verifierVente(options) {
   const monnaie = String(options?.monnaie ?? '').trim().toUpperCase()
-  const montant = Number(options?.montant)
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  ON LIT « 6,894 » COMME « 6.894 »
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'était `Number(options?.montant)`. MESURÉ en production, sur un vrai
+  écran de paiement : « Vérification automatique impossible — montant
+  illisible ». L'application envoyait une virgule française, et
+  `Number('6,894')` vaut NaN.
+
+  La faute venait de l'application, et elle y est corrigée. Mais la
+  tolérance appartient ici : `/change/consigne` acceptait déjà les deux
+  écritures, et c'est cette asymétrie — deux points d'entrée voisins qui
+  ne lisent pas les nombres pareil — qui a rendu le défaut invisible. La
+  consigne réussissait, la vérification échouait, sur la même valeur.
+
+  Un relais lit ce qu'on lui envoie. Imposer une forme à des téléphones
+  déjà installés, qu'on ne met pas à jour d'un claquement de doigts,
+  casserait les ventes de tous ceux qui n'ont pas encore la correction.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const montant = nombreFrancais(options?.montant)
   const txidBrut = String(options?.txid ?? '').trim()
   const env = options?.env
 
