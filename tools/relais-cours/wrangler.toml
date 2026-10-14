@@ -80,3 +80,57 @@ keep_vars = true
 # de Cloudflare ne peut donc pas changer le fonctionnement du relais sans
 # qu'on l'ait décidé en modifiant cette ligne.
 compatibility_date = "2025-09-26"
+
+# ==========================================================================
+# LA MÉMOIRE DURABLE — ESPACE KV « MEMOIRE »
+# ==========================================================================
+#
+# Tout ce que le relais doit se rappeler y vit : la naissance de chaque
+# demande (pour l'antériorité), les transferts déjà servis (pour qu'un
+# versement ne paie qu'une fois), les paiements Orange Money lus par SMS,
+# et les limites de débit.
+#
+# Avant, c'était `caches.default`. Diagnostiqué sur une vraie vente : la
+# naissance écrite par /change/consigne était introuvable par
+# /change/verifier. Le cache de Cloudflare est PAR CENTRE DE DONNÉES,
+# évinçable à tout moment, et échoue en silence — donc deux barrières de
+# sécurité se désactivaient toutes seules sans que rien ne le signale.
+#
+# --------------------------------------------------------------------------
+# LE CRÉER — DEPUIS LE TABLEAU DE BORD
+# --------------------------------------------------------------------------
+#
+#   1. Storage & Databases → KV → Create namespace
+#      Nom : vaultex-memoire
+#
+#   2. Workers & Pages → vaultex-prix → Settings → Bindings → Add → KV
+#      Variable name : MEMOIRE          ← ce nom exactement
+#      KV namespace  : vaultex-memoire
+#
+#   3. Deploy, puis ouvrir /sante : il doit dire « memoire: KV (durable) ».
+#      S'il dit « cache (FRAGILE) », la liaison n'est pas prise.
+#
+# --------------------------------------------------------------------------
+# SI UN JOUR ON DÉPLOIE AVEC WRANGLER
+# --------------------------------------------------------------------------
+#
+# Décommenter ci-dessous et coller l'identifiant affiché par le tableau de
+# bord. Tant que le déploiement se fait en collant le code dans « Edit
+# code », ces lignes doivent RESTER COMMENTÉES : un identifiant absent ou
+# faux ferait échouer `wrangler deploy`, et une liaison déclarée ici mais
+# vide écraserait celle du tableau de bord.
+#
+# [[kv_namespaces]]
+# binding = "MEMOIRE"
+# id = "<identifiant affiche par le tableau de bord>"
+#
+# --------------------------------------------------------------------------
+# CE QUE KV NE RÈGLE PAS
+# --------------------------------------------------------------------------
+#
+# Il est à cohérence éventuelle, donc PAS atomique. Deux requêtes vraiment
+# simultanées peuvent lire la même valeur avant que l'une n'écrive : pour
+# « un transfert ne paie qu'une fois », ça laisse une fenêtre de quelques
+# secondes. La fermer demande un Durable Object — un autre modèle de
+# déploiement. C'est écrit ici pour que personne ne croie le sujet clos.
+# ==========================================================================
