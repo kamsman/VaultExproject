@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 31
+const VERSION = 32
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1769,6 +1769,35 @@ function minimumPourMonnaie(monnaie, env) {
   const parDefaut = Number.isFinite(general) && general >= 0 ? general : 5000
   const propre = minimumsChange(env)[String(monnaie ?? '').trim().toUpperCase()]
   return Number.isFinite(propre) && propre > 0 ? propre : parDefaut
+}
+
+/**
+ * Cet identifiant a-t-il la forme d'un hash de transaction sur cette chaîne ?
+ *
+ * ON VÉRIFIE LA FORME, PAS L'EXISTENCE. Un hash inexistant est une
+ * réponse légitime du nœud (« je ne connais pas cette transaction ») ;
+ * un hash MAL FORMÉ est une erreur d'appel qui fait tout échouer, y
+ * compris les chemins qui n'en avaient pas besoin.
+ *
+ * Les longueurs ne sont pas interchangeables : trente-deux octets partout,
+ * mais préfixés « 0x » sur les chaînes EVM et nus sur TRON et Bitcoin.
+ * Accepter la forme d'une chaîne pour une autre déplacerait simplement
+ * l'erreur d'une ligne.
+ */
+function txidValide(txid, chaine) {
+  const t = String(txid ?? '').trim()
+  if (!t) return false
+  switch (chaine) {
+    case 'evm':
+      return /^0x[0-9a-fA-F]{64}$/.test(t)
+    case 'tron':
+    case 'btc':
+      // Sans préfixe sur ces deux chaînes. On tolère un « 0x » collé par
+      // habitude plutôt que de refuser un hash par ailleurs correct.
+      return /^(0x)?[0-9a-fA-F]{64}$/.test(t)
+    default:
+      return false
+  }
 }
 
 /** Quelle forme attendre pour cette monnaie, ou null si on ne sait pas. */
@@ -4607,11 +4636,50 @@ function numeroComparable(brut) {
 async function verifierVente(options) {
   const monnaie = String(options?.monnaie ?? '').trim().toUpperCase()
   const montant = Number(options?.montant)
-  const txid = String(options?.txid ?? '').trim()
+  const txidBrut = String(options?.txid ?? '').trim()
   const env = options?.env
 
   const cfg = CHAINES_VENTE[monnaie]
   if (!cfg) return { etat: 'inconnue', raison: `${monnaie} n'est pas verifiable ici` }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UN IDENTIFIANT MAL FORMÉ NE DOIT PAS ATTEINDRE LA CHAÎNE
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ en production, dans un vrai message au changeur :
+
+      eth_getTransactionByHash : invalid argument 0:
+      hex string has length 40, want 64
+
+  Quarante caractères, c'est une ADRESSE. Soixante-quatre, c'est une
+  transaction. Quelqu'un a collé l'adresse du changeur dans le champ
+  prévu pour le hash — ce qui se comprend : les deux commencent par
+  « 0x » et se ressemblent.
+
+  ─── LE COÛT N'EST PAS CELUI QU'ON CROIT ────────────────────────────
+
+  Le nœud a refusé l'appel, et toute la vérification a répondu
+  `indisponible`. Or le versement était peut-être là, trouvable par son
+  montant marqué : ce champ FACULTATIF a donc empêché le chemin
+  obligatoire de s'exécuter. Un raccourci optionnel qui casse la route
+  principale est pire que l'absence de raccourci.
+
+  ─── ON L'IGNORE, ET ON LE DIT ──────────────────────────────────────
+
+  Refuser la demande punirait quelqu'un pour un champ dont il pouvait se
+  passer. L'ignorer en silence laisserait croire qu'il a servi. On
+  l'écarte donc, on cherche par le montant marqué — qui prouve autant —
+  et le changeur lit dans son message que l'identifiant fourni n'en
+  était pas un.
+
+  La forme est vérifiée PAR CHAÎNE : un hash EVM porte « 0x » et sa
+  longueur n'est pas celle d'un hash TRON. Accepter l'un pour l'autre
+  rendrait la même erreur une ligne plus loin.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const txid = txidValide(txidBrut, cfg.chaine) ? txidBrut : ''
+  const txidRejete = txidBrut.length > 0 && txid.length === 0
   if (!(montant > 0)) return { etat: 'indisponible', raison: 'montant illisible' }
 
   /*
@@ -4709,16 +4777,30 @@ async function verifierVente(options) {
     }
   }
 
+  /*
+  L'IDENTIFIANT ÉCARTÉ SE DIT DANS LES DEUX SENS.
+
+  Trouvé ou non, le changeur doit savoir qu'un champ qu'il croit rempli
+  n'a pas servi. Le taire sur un succès serait le pire des deux : il
+  conclurait que le hash a confirmé le versement, alors que c'est le
+  montant marqué qui l'a fait.
+  */
+  const noteTxid = txidRejete
+    ? " (l'identifiant fourni n'est pas un hash de transaction : il a ete ignore, " +
+      'la recherche a porte sur le montant marque)'
+    : ''
+
   if (!trouve) {
     return {
       etat: 'absent',
-      raison: txid
-        ? "ce txid ne correspond a aucun versement attendu"
-        : marque
-          ? `aucun versement de ${cherche} ${monnaie} depuis l'ouverture ` +
-            `de cette demande`
-          : `aucun versement correspondant sur les ` +
-            `${Math.round(critere.fenetre / 3600000)} dernieres heures`,
+      raison:
+        (txid
+          ? "ce txid ne correspond a aucun versement attendu"
+          : marque
+            ? `aucun versement de ${cherche} ${monnaie} depuis l'ouverture ` +
+              `de cette demande`
+            : `aucun versement correspondant sur les ` +
+              `${Math.round(critere.fenetre / 3600000)} dernieres heures`) + noteTxid,
     }
   }
 
@@ -4728,6 +4810,8 @@ async function verifierVente(options) {
 
   return {
     etat: 'confirme',
+    // Vide quand rien n'a ete ecarte : le message n'affiche alors rien.
+    noteTxid,
     txid: trouve.txid || '',
     montant: trouve.montant,
     quand: trouve.quand || 0,
@@ -4871,6 +4955,7 @@ export {
   minimumsChange,
   minimumPourMonnaie,
   trierAdresses,
+  txidValide,
   formeAttendue,
   lireSmsPaiement,
   sansAccents,
