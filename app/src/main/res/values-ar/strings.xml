@@ -1135,6 +1135,8 @@
     <string name="change_vente_coordonnees">أين تستلم فرنكاتك</string>
     <string name="change_telephone_vente">رقم Mobile Money للاستلام</string>
     <string name="change_telephone_vente_aide">سيرسل الصرّاف فرنكاتك إلى هذا الرقم. 8 أرقام.</string>
+    <string name="change_otp_titre">أكّد رقمك (مستحسن)</string>
+    <string name="change_otp_aide">أرسل «%1$s» برسالة نصية إلى %2$s. سيرى الصراف أن هذا الرقم رقمك فعلاً قبل إرسال المال. رسالة واحدة، من الرقم الذي تريد استلام المال عليه.</string>
     <string name="change_transmettre">إرسال طلبي</string>
     <string name="change_transmettre_verifie">إرسال — تحويل مُتحقَّق منه</string>
     <string name="change_verif_recherche">جارٍ البحث عن تحويلك…</string>

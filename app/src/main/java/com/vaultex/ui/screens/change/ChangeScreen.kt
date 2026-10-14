@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.Backspace
@@ -1119,6 +1120,66 @@ private fun ColumnScope.EtapePaiement(
         ),
         modifier = Modifier.fillMaxWidth()
     )
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CONFIRMER SON NUMERO PAR SMS — SUR UNE VENTE SEULEMENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le changeur va envoyer des francs sur ce numéro. Un chiffre de travers
+    et l'argent part chez un inconnu, sans recours. Rien n'empêchait ça.
+
+    En envoyant sa référence par SMS au numéro du changeur, le client fait
+    lire son numéro PAR L'OPÉRATEUR plutôt que par ce formulaire. Le
+    message qui arrive chez le changeur porte alors « ✔ confirmé par SMS »
+    sur la ligne du numéro — là où il recopie les huit chiffres.
+
+    ─── C'EST UNE INVITATION, PAS UNE OBLIGATION ────────────────────────
+
+    Le bouton reste actif sans ça, et le changeur décide. Bloquer la vente
+    sur un SMS que le client paie, et qui peut ne pas arriver, fermerait
+    le service à ceux qui n'ont plus de crédit — pour une protection dont
+    ils n'ont peut-être pas besoin s'ils ont tapé juste.
+
+    ─── ET ELLE NE S'AFFICHE QUE SI ELLE PEUT SERVIR ────────────────────
+
+    Sans numéro de changeur réglé, il n'y a nulle part où envoyer. Sans
+    référence, il n'y a rien à envoyer. Dans les deux cas on se tait,
+    plutôt que d'afficher une consigne qu'on ne peut pas suivre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (!achat && p.numeroMobileMoney.isNotBlank() && state.reference.isNotBlank()) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = AccentBlue.copy(alpha = 0.10f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Sms, null,
+                        tint = AccentBlue, modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.change_otp_titre),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+                Text(
+                    stringResource(
+                        R.string.change_otp_aide,
+                        state.reference,
+                        p.numeroMobileMoney
+                    ),
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+            }
+        }
+    }
 
     state.erreur?.let { Text(it, fontSize = 12.sp, color = AccentRed) }
 

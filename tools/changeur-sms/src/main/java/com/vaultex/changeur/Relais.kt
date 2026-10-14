@@ -48,15 +48,72 @@ object Relais {
         val reessayer: Boolean
     )
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE RÉFÉRENCE VAULTEX DANS UN SMS DE PARTICULIER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Sur une vente, le client envoie SA RÉFÉRENCE par SMS au numéro du
+    changeur, pour prouver qu'il contrôle le numéro où les francs
+    partiront. Ce message ne vient pas de l'opérateur : il vient de lui.
+
+    ─── CE MOTIF EST LA FRONTIÈRE, ET IL DOIT ÊTRE ÉTROIT ──────────────
+
+    Le filtre d'expéditeur ne peut rien ici — un client a un numéro
+    ordinaire. C'est donc le TEXTE qui décide, et c'est pourquoi ce motif
+    n'accepte qu'une forme exacte : « VX- » suivi de huit caractères de
+    l'alphabet des références, sans O ni I ni 0 ni 1.
+
+    Un motif plus large laisserait passer des messages personnels vers le
+    relais. Celui-ci ne reconnaît que ce que l'application a elle-même
+    tiré au sort.
+
+    ─── ET ON N'ENVOIE QUE CE QU'ON A RECONNU ──────────────────────────
+
+    La référence et le numéro de l'expéditeur. JAMAIS le texte. Même si
+    quelqu'un écrivait sa référence au milieu d'une confidence, seule la
+    référence quitterait ce téléphone.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private val MOTIF_REFERENCE = Regex("VX[- ]?([ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8})")
+
+    /** La référence VaultEx contenue dans ce SMS, ou null. */
+    fun referenceDans(texte: String): String? =
+        MOTIF_REFERENCE.find(texte.uppercase())?.groupValues?.get(1)
+
+    /** Transmet au relais la confirmation de numéro d'un client. */
+    fun envoyerOtp(reglages: Reglages, reference: String, numero: String): Issue =
+        poster(reglages, "/change/otp", org.json.JSONObject()
+            .put("reference", reference)
+            .put("numero", numero)
+            .toString())
+
     /** Transmet un SMS au relais. Bloquant : à appeler hors du fil principal. */
     fun envoyer(reglages: Reglages, expediteur: String, texte: String): Issue {
+        /*
+        org.json CONSTRUIT LE CORPS, et non une concaténation de chaînes.
+        Un SMS contient des apostrophes, des retours à la ligne, parfois
+        des guillemets — une concaténation produirait du JSON invalide, le
+        relais répondrait « corps illisible », et on chercherait du côté
+        du réseau. org.json est fourni par Android : aucune dépendance.
+        */
+        val corps = org.json.JSONObject()
+            .put("expediteur", expediteur)
+            .put("texte", texte)
+            .put("recu", System.currentTimeMillis())
+            .toString()
+        return poster(reglages, "/change/sms", corps)
+    }
+
+    /** L'envoi lui-même, commun aux deux points d'entrée. */
+    private fun poster(reglages: Reglages, chemin: String, corps: String): Issue {
         if (!reglages.configure) {
             return Issue(false, "adresse ou jeton manquant", reessayer = false)
         }
 
         var connexion: HttpURLConnection? = null
         return try {
-            val url = URL("${reglages.relais}/change/sms")
+            val url = URL("${reglages.relais}$chemin")
             connexion = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
@@ -79,21 +136,6 @@ object Relais {
                 // qui peut mal tourner sur un réseau mobile capricieux.
                 setRequestProperty("accept-encoding", "identity")
             }
-
-            /*
-            org.json CONSTRUIT LE CORPS, et non une concaténation de
-            chaînes. Un SMS contient des apostrophes, des retours à la
-            ligne, parfois des guillemets — une concaténation produirait du
-            JSON invalide, le relais répondrait « corps illisible », et on
-            chercherait du côté du réseau.
-
-            org.json est fourni par Android : aucune dépendance ajoutée.
-            */
-            val corps = org.json.JSONObject()
-                .put("expediteur", expediteur)
-                .put("texte", texte)
-                .put("recu", System.currentTimeMillis())
-                .toString()
 
             connexion.outputStream.use { flux ->
                 flux.write(corps.toByteArray(Charsets.UTF_8))
