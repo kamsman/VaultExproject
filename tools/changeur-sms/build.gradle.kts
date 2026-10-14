@@ -42,21 +42,44 @@ par git :
 
     apk.sortie=C:/Users/HP/Desktop/app changeur
 
-─── DES BARRES OBLIQUES, PAS DES CONTRE-OBLIQUES ────────────────────────
+─── LES DEUX ÉCRITURES DU CHEMIN FONCTIONNENT ───────────────────────────
 
-Un fichier `.properties` traite la contre-oblique comme un échappement :
-« C:\\Users » y devient « C:Users », silencieusement. Java accepte les
-barres obliques sous Windows, donc on les emploie et le piège disparaît.
+    apk.sortie=C:/Users/HP/Desktop/app changeur
+    apk.sortie=C:\\Users\\HP\\Desktop\\app changeur
 
-La tâche imprime le chemin où elle écrit : un chemin abîmé se voit alors
-tout de suite, au lieu de produire un dossier fantôme quelque part.
+La ligne est lue telle qu'elle est écrite, sans passer par
+`java.util.Properties` — qui traiterait la contre-oblique comme un
+échappement et transformerait « C:\\Users » en « C:Users » sans rien dire.
+
+La tâche imprime quand même le chemin où elle écrit : c'est ce qui fait
+voir un chemin faux tout de suite, au lieu d'un dossier fantôme quelque
+part.
 ═══════════════════════════════════════════════════════════════════════════
 */
 val sortieApk: String? = run {
     val fichier = rootProject.file("local.properties")
+    /*
+    ON LIT LA LIGNE À LA MAIN, ET NON AVEC `java.util.Properties`.
+
+    Deux raisons, et la seconde vaut mieux que la première.
+
+    D'ABORD PARCE QUE `java.util` EST IRRÉSOLVABLE ICI. Dans un
+    `build.gradle.kts`, `java` désigne l'extension Java du projet, qui
+    masque le paquet du même nom. La compilation du script échoue sur
+    « Unresolved reference: util » — mesuré.
+
+    ENSUITE, ET SURTOUT, PARCE QUE `Properties` ABÎMERAIT LE CHEMIN.
+    Il traite la contre-oblique comme un échappement : « C:\Users »
+    deviendrait « C:Users », silencieusement. En lisant la ligne telle
+    qu'elle est écrite, les deux écritures fonctionnent — avec des
+    barres obliques comme avec des contre-obliques — et le piège
+    disparaît au lieu d'être documenté.
+    */
     val depuisFichier = if (fichier.exists()) {
-        java.util.Properties().apply { fichier.inputStream().use { load(it) } }
-            .getProperty("apk.sortie")
+        fichier.readLines()
+            .firstOrNull { it.trim().startsWith("apk.sortie") && it.contains('=') }
+            ?.substringAfter('=')
+            ?.trim()
     } else null
     // `-Papk.sortie=…` l'emporte : c'est le moyen de dévier une
     // construction ponctuelle sans toucher aux réglages de la machine.
