@@ -110,6 +110,34 @@ sdk.dir=C:\\Users\\<toi>\\AppData\\Local\\Android\\Sdk
 
 Ce fichier est ignoré par git, à ce niveau comme à la racine.
 
+### Déposer l'APK directement dans un dossier
+
+Pour ne plus aller le chercher au fond de `build/outputs/`, ajoute une
+ligne dans le **même** `tools/changeur-sms/local.properties` :
+
+```properties
+apk.sortie=C:/Users/HP/Desktop/app changeur
+```
+
+Chaque `assembleDebug` ou `assembleRelease` y dépose alors l'APK sous un
+nom stable — `VaultEx-Changeur-release.apk` — de sorte qu'une
+réinstallation écrase la précédente au lieu d'empiler des fichiers dont on
+ne sait plus lequel est le dernier.
+
+> **Des barres obliques, pas des contre-obliques.** Un fichier
+> `.properties` traite la contre-oblique comme un échappement :
+> `C:\Users` y devient `C:Users`, silencieusement. Java accepte les barres
+> obliques sous Windows, donc on les emploie.
+>
+> La tâche imprime le chemin où elle écrit. Un chemin abîmé se voit alors
+> tout de suite, au lieu de créer un dossier fantôme quelque part.
+
+Pour une construction ponctuelle ailleurs, sans toucher aux réglages :
+
+```powershell
+.\gradlew.bat -p tools\changeur-sms assembleRelease "-Papk.sortie=D:/ailleurs"
+```
+
 > Ce dossier a son **propre** `settings.gradle.kts` : il n'est pas un module
 > de VaultEx, et une faute ici ne peut pas faire échouer la compilation de
 > l'application principale. C'est voulu — cette application ne tourne que

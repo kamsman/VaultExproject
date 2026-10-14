@@ -23,6 +23,46 @@ Trois raisons :
   pour le vérifier.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+OÙ DÉPOSER L'APK UNE FOIS CONSTRUIT
+═══════════════════════════════════════════════════════════════════════════
+
+L'APK sort au fond de `build/outputs/apk/release/`, et il faut aller l'y
+chercher à chaque fois. Comme il finit toujours au même endroit — un
+dossier qu'on ouvre pour le transférer sur le téléphone — autant l'y
+déposer tout seul.
+
+LE CHEMIN N'EST PAS DANS CE FICHIER. Il est propre à une machine, et ce
+fichier est versionné : l'écrire ici obligerait tout le monde à le
+corriger, ou pire, ferait écrire sur un bureau qui n'existe pas.
+
+Il se règle dans `tools/changeur-sms/local.properties`, qui est ignoré
+par git :
+
+    apk.sortie=C:/Users/HP/Desktop/app changeur
+
+─── DES BARRES OBLIQUES, PAS DES CONTRE-OBLIQUES ────────────────────────
+
+Un fichier `.properties` traite la contre-oblique comme un échappement :
+« C:\\Users » y devient « C:Users », silencieusement. Java accepte les
+barres obliques sous Windows, donc on les emploie et le piège disparaît.
+
+La tâche imprime le chemin où elle écrit : un chemin abîmé se voit alors
+tout de suite, au lieu de produire un dossier fantôme quelque part.
+═══════════════════════════════════════════════════════════════════════════
+*/
+val sortieApk: String? = run {
+    val fichier = rootProject.file("local.properties")
+    val depuisFichier = if (fichier.exists()) {
+        java.util.Properties().apply { fichier.inputStream().use { load(it) } }
+            .getProperty("apk.sortie")
+    } else null
+    // `-Papk.sortie=…` l'emporte : c'est le moyen de dévier une
+    // construction ponctuelle sans toucher aux réglages de la machine.
+    (project.findProperty("apk.sortie") as String? ?: depuisFichier)?.trim()?.ifEmpty { null }
+}
+
 plugins {
     id("com.android.application") version "8.5.0"
     id("org.jetbrains.kotlin.android") version "1.9.22"
@@ -126,5 +166,50 @@ android {
     */
     lint {
         abortOnError = false
+    }
+}
+
+/*
+LA COPIE, APRÈS CHAQUE CONSTRUCTION.
+
+`doLast` et non une tâche séparée : il n'y a rien à faire si l'APK n'a pas
+été produit, et une tâche de copie qu'on oublie de lancer ne vaut pas
+mieux que d'aller chercher le fichier à la main.
+
+Le dossier de sortie est capturé ICI, à la configuration, et non lu depuis
+`project` pendant l'exécution — c'est ce que demande le cache de
+configuration de Gradle, et ça évite une dépréciation de plus à chaque
+version.
+*/
+if (sortieApk != null) {
+    val dossierApk = layout.buildDirectory.dir("outputs/apk")
+    val destination = File(sortieApk)
+
+    listOf("assembleDebug", "assembleRelease").forEach { nom ->
+        tasks.matching { it.name == nom }.configureEach {
+            val variante = if (nom.endsWith("Release")) "release" else "debug"
+            doLast {
+                val source = File(dossierApk.get().asFile, variante)
+                val apk = source.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
+                if (apk == null) {
+                    logger.lifecycle("changeur-sms : aucun APK trouve dans $source")
+                    return@doLast
+                }
+                if (!destination.exists() && !destination.mkdirs()) {
+                    logger.lifecycle("changeur-sms : impossible de creer $destination")
+                    return@doLast
+                }
+                /*
+                UN NOM STABLE, pour que la reinstallation ecrase la
+                precedente au lieu d'empiler des fichiers dont on ne sait
+                plus lequel est le dernier. La variante y figure : installer
+                un debug en croyant poser un release serait invisible, et
+                c'est precisement la difference qui compte ici.
+                */
+                val cible = File(destination, "VaultEx-Changeur-$variante.apk")
+                apk.copyTo(cible, overwrite = true)
+                logger.lifecycle("changeur-sms : APK depose dans $cible")
+            }
+        }
     }
 }
