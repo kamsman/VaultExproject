@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 38
+const VERSION = 39
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -590,6 +590,42 @@ export default {
     partira. Il exige un jeton — voir recevoirSms, qui explique pourquoi
     ce jeton ne doit jamais entrer dans l'APK public.
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /change/otp — LE CLIENT PROUVE QU'IL CONTRÔLE SON NUMÉRO
+    ═══════════════════════════════════════════════════════════════════════
+
+    LE TROU QU'IL BOUCHE. Sur une vente, le client tape le numéro où il
+    veut recevoir ses francs. Un chiffre de travers, et le changeur envoie
+    l'argent à un inconnu — irréversiblement, sans recours. Rien
+    n'empêchait ça : ni l'écran, ni le relais, ni le changeur.
+
+    ─── POURQUOI « INVERSÉ » ───────────────────────────────────────────
+
+    L'OTP ordinaire fait envoyer un code PAR le service AU client. Il
+    faudrait que le changeur paie un SMS par vente, et une SIM personnelle
+    qui en envoie des dizaines finit signalée par l'opérateur.
+
+    Ici c'est le CLIENT qui envoie sa référence par SMS au numéro du
+    changeur. Le robot voit arriver le message, et avec lui le numéro
+    d'expéditeur TEL QUE L'OPÉRATEUR LE DONNE — pas tel qu'il a été tapé
+    dans un formulaire. C'est précisément ce qu'on cherche à établir.
+
+    Le client paie son propre SMS, le changeur ne paie rien, et le numéro
+    devient invérifiable à falsifier depuis l'application.
+
+    ─── CE QUE ÇA NE PROUVE PAS ────────────────────────────────────────
+
+    Qu'il s'agit de la bonne personne. Ça prouve que celui qui ouvre la
+    demande contrôle CE numéro-là. Un téléphone volé avec sa SIM passerait.
+    C'est une barrière contre l'erreur de frappe et contre l'usurpation à
+    distance, pas contre le vol physique — et le message le dit ainsi.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/change/otp' && requete.method === 'POST') {
+      return await recevoirOtp(requete, env)
+    }
+
     if (url.pathname === '/change/sms' && requete.method === 'POST') {
       return await recevoirSms(requete, env)
     }
@@ -2300,7 +2336,14 @@ async function ordreChange(requete, env) {
     )
   }
 
-  const lignes = messageOrdre(ordre, verif, coherence)
+  /*
+  LE NUMÉRO EST-IL CONFIRMÉ ? On le demande ICI, une fois, et on le passe
+  au message. Le demander dans `messageOrdre` rendrait cette fonction
+  asynchrone — or elle est pure, et c'est ce qui permet de l'éprouver en
+  imprimant ses six états sans rien appeler.
+  */
+  const otp = await numeroConfirme(ordre, env)
+  const lignes = messageOrdre(ordre, verif, coherence, otp)
 
   try {
     const corpsTg = new URLSearchParams({ chat_id: chat, text: lignes.join('\n') })
@@ -2422,7 +2465,42 @@ async function ordreChange(requete, env) {
  *
  * tools/relais-cours/rendu-message.mjs l'imprime pour les quatre états.
  */
-function messageOrdre(ordre, verif, coherence) {
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MARQUE QUI SUIT LE NUMÉRO, ET POURQUOI ELLE EST SI COURTE
+═══════════════════════════════════════════════════════════════════════════
+
+Elle tient sur la même ligne que le numéro, parce que c'est là qu'on la
+lit : au moment de recopier huit chiffres dans Orange Money. Une ligne
+séparée plus bas serait lue après avoir déjà tapé le numéro.
+
+QUATRE ÉTATS, ET ILS NE DISENT PAS LA MÊME CHOSE :
+
+  oui      le client a envoyé la référence depuis CE numéro
+  non      il ne l'a pas fait — ce n'est pas une accusation, beaucoup
+           ne le feront pas, et le changeur décide
+  autre    quelqu'un a confirmé cette référence depuis un AUTRE numéro.
+           C'est le seul état vraiment alarmant : soit le client s'est
+           trompé en tapant, soit quelqu'un essaie de détourner le
+           paiement.
+  inactif  le robot n'est pas installé. Rien à dire, donc rien d'écrit —
+           un avertissement permanent finit par ne plus être lu.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function marqueOtp(otp) {
+  switch (otp) {
+    case 'oui':
+      return '  ✔ confirme par SMS'
+    case 'autre':
+      return '  ⚠ UN AUTRE NUMERO a confirme cette reference'
+    case 'non':
+      return '  (non confirme par SMS)'
+    default:
+      return ''
+  }
+}
+
+function messageOrdre(ordre, verif, coherence, otp) {
   const achat = ordre.sens === 'achat'
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -2492,7 +2570,7 @@ function messageOrdre(ordre, verif, coherence) {
     `Taux      : ${ordre.taux}`,
     `Marge     : ${ordre.marge}`,
     ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
-    ordre.telephone ? `Telephone : ${ordre.telephone}` : null,
+    ordre.telephone ? `Telephone : ${ordre.telephone}${marqueOtp(otp)}` : null,
     ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
     ...lignesVerification(verif, coherence, ordre),
     '',
@@ -5155,6 +5233,9 @@ export {
   sansAccents,
   montantFcfaDepuisTexte,
   expediteurAccepte,
+  recevoirOtp,
+  numeroConfirme,
+  marqueOtp,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5451,6 +5532,95 @@ function lireSmsPaiement(texte) {
   const reference = refTrouvee ? refTrouvee[1].replace(/[.\-]/g, '').toUpperCase() : ''
 
   return { montant, numero: numeroComparable(numero), reference }
+}
+
+/**
+ * Reçoit la confirmation de numéro envoyée par un client.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * ON NE REÇOIT NI N'ÉCRIT LE TEXTE DU SMS
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Le robot n'envoie que deux choses : la référence qu'il a reconnue, et
+ * le numéro de l'expéditeur. Pas le corps du message.
+ *
+ * C'est la différence avec `/change/sms`, et elle est délibérée. Un SMS
+ * d'encaissement vient de l'opérateur, dont le texte doit être analysé.
+ * Celui-ci vient d'un particulier : son texte ne nous regarde pas, et le
+ * transmettre ouvrirait une porte que le filtre d'expéditeur ferme.
+ *
+ * Même jeton que `/change/sms` : c'est le même robot, sur le même
+ * téléphone. Un second secret à régler serait un second secret à oublier.
+ */
+async function recevoirOtp(requete, env) {
+  const jeton = String(env?.CHANGE_SMS_TOKEN ?? '')
+  if (!jeton) return json({ ok: false, raison: 'lecture sms non configuree' }, 0, 503)
+  if (String(requete.headers.get('x-vaultex-sms') ?? '') !== jeton) {
+    return json({ ok: false, raison: 'jeton refuse' }, 0, 401)
+  }
+
+  let corps = null
+  try {
+    corps = await requete.json()
+  } catch (_) {
+    return json({ ok: false, raison: 'corps illisible' }, 0, 400)
+  }
+
+  /*
+  LA RÉFÉRENCE EST NORMALISÉE COMME PARTOUT AILLEURS : sans tiret, en
+  majuscules. Le client la recopie à la main depuis son écran, et il y
+  met ou non le tiret, l'écrit ou non en minuscules.
+  */
+  const reference = String(corps?.reference ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  const numero = numeroComparable(corps?.numero)
+
+  if (reference.length < 6) return json({ ok: false, raison: 'reference illisible' }, 0, 400)
+  if (numero.length !== 8) return json({ ok: false, raison: 'numero illisible' }, 0, 400)
+
+  /*
+  LE PREMIER NUMÉRO GAGNE, ET NE SE REMPLACE PAS.
+
+  Sans ça, quelqu'un qui verrait passer une référence — elle s'affiche à
+  l'écran, elle se dit à voix haute — pourrait envoyer la sienne APRÈS
+  celle du client et détourner le paiement. C'est la même attaque que
+  l'antériorité écarte sur les ventes, par le même moyen : ce qui est
+  posé en premier tient.
+  */
+  const connu = await lireValeur('otp', reference)
+  if (connu?.numero) {
+    return json({
+      ok: true,
+      deja: true,
+      // On ne rend pas le numéro mémorisé : qui poste ici détient le
+      // jeton du robot, mais ça ne lui donne pas à lire les numéros des
+      // clients d'une référence qu'il aurait devinée.
+      raison: connu.numero === numero
+        ? 'ce numero etait deja confirme'
+        : 'un autre numero a confirme cette reference en premier',
+      concorde: connu.numero === numero,
+    })
+  }
+
+  await marquerValeur('otp', reference, JSON.stringify({ numero, quand: Date.now() }))
+  return json({ ok: true, confirme: true })
+}
+
+/**
+ * Le numéro déclaré a-t-il été confirmé par SMS pour cette référence ?
+ *
+ * Rend « inactif » quand le mécanisme n'est pas installé : c'est différent
+ * de « non confirmé », et les confondre collerait un avertissement sur
+ * toutes les ventes d'un changeur qui n'a pas encore de robot.
+ */
+async function numeroConfirme(ordre, env) {
+  if (!String(env?.CHANGE_SMS_TOKEN ?? '')) return 'inactif'
+  const reference = String(ordre?.reference ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (!reference) return 'non'
+  const connu = await lireValeur('otp', reference)
+  if (!connu?.numero) return 'non'
+  return connu.numero === numeroComparable(ordre?.telephone) ? 'oui' : 'autre'
 }
 
 /**
