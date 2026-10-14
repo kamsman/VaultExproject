@@ -33,7 +33,7 @@ connexion. Tu peux remplacer le numéro par un autre avant de coller.
 */
 
 import { readFileSync } from 'node:fs'
-import { lireSmsPaiement, sansAccents, montantFcfaDepuisTexte } from './worker.js'
+import { lireSmsPaiement, sansAccents, montantFcfaDepuisTexte, expediteurAccepte } from './worker.js'
 
 // ─── Mode vérification : un vrai SMS en argument ────────────────────
 
@@ -406,6 +406,48 @@ peut pas designer cinq francs et des millemes.
   verifie('SEP : 999.6 est tronque a 999, pas arrondi a 1000', montantFcfaDepuisTexte('999.6') === 999, montantFcfaDepuisTexte('999.6'))
   verifie('SEP : rien du tout vaut zero', montantFcfaDepuisTexte('') === 0 && montantFcfaDepuisTexte('   FCFA') === 0)
   verifie('SEP : une espace insecable etroite ne gene pas', montantFcfaDepuisTexte('5 000') === 5000)
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE FILTRE D'EXPEDITEUR, ET LE TROU QU'IL AVAIT
+═══════════════════════════════════════════════════════════════════════════
+
+Le test etait `expediteur.includes(e) || e.includes(expediteur)`. La
+seconde moitie sert a reconnaitre une forme abregee — « orange » pour
+« orange money ». Mais `'orangemoney'.includes('')` vaut VRAI : un
+expediteur VIDE etait donc accepte par tous les motifs a la fois.
+
+Ce filtre n'est pas une commodite. C'est lui qui empeche qu'un message
+quelconque — un code de connexion, un mot d'un proche — soit traite comme
+un encaissement. Le contourner ne demandait aucune astuce : il suffisait
+que le champ manque.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const L = ['orangemoney', 'orange money', 'wave']
+  verifie('EXPEDITEUR : vide est REFUSE', expediteurAccepte('', L) === false)
+  verifie('EXPEDITEUR : des espaces seuls sont refuses', expediteurAccepte('   ', L) === false)
+  verifie('EXPEDITEUR : une seule lettre est refusee', expediteurAccepte('a', L) === false)
+  verifie('EXPEDITEUR : deux lettres sont refusees', expediteurAccepte('ab', L) === false)
+  verifie('EXPEDITEUR : null est refuse', expediteurAccepte(null, L) === false)
+
+  verifie('EXPEDITEUR : orangemoney passe', expediteurAccepte('orangemoney', L) === true)
+  verifie('EXPEDITEUR : wave passe', expediteurAccepte('wave', L) === true)
+  /*
+  LA FORME ABREGEE RESTE ACCEPTEE : c'est la raison d'etre de la seconde
+  moitie du test, et la corriger ne doit pas la supprimer.
+  */
+  verifie('EXPEDITEUR : une forme abregee passe encore', expediteurAccepte('orange', L) === true)
+  verifie('EXPEDITEUR : un suffixe de pays passe', expediteurAccepte('orangemoneybf', L) === true)
+  verifie('EXPEDITEUR : un inconnu est refuse', expediteurAccepte('mtn', L) === false)
+  /*
+  UN MOTIF TROP COURT DANS LA LISTE ne doit pas tout ouvrir non plus :
+  quelqu'un qui reglerait CHANGE_SMS_EXPEDITEURS a « a,b » accepterait
+  sinon la moitie des expediteurs du monde.
+  */
+  verifie('EXPEDITEUR : un motif trop court est ignore', expediteurAccepte('orangemoney', ['a', 'o']) === false)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
