@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 35
+const VERSION = 37
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1169,17 +1169,25 @@ async function diagnostic(env) {
     maxParJour: nb(env?.CHANGE_MAX_PAR_JOUR, 10),
     plafondPremiereOperation: premierDiag < plafondDiag ? premierDiag : 'eteint',
     /*
-    LA LIMITE DE CES TROIS-LÀ, ÉCRITE DANS LE DIAGNOSTIC LUI-MÊME.
+    CE QUI PORTE CES TROIS COMPTEURS, DIT ICI MÊME.
 
-    Elles s'appuient sur `caches.default`, qui est par centre de données et
-    évictable. Pour ce qui se joue en minutes — un renvoi, une rafale —
-    c'est suffisant. Pour ce qui doit tenir des semaines, non : un
-    attaquant qui change de pays trouve des compteurs neufs.
+    Cette ligne était écrite EN DUR : « cache par centre de données ».
+    C'était vrai quand je l'ai écrite, et elle est restée vraie dans le
+    diagnostic après être devenue fausse dans le code — le relais tournait
+    sur KV et affichait encore qu'il tournait sur le cache.
 
-    Qui lit ce diagnostic doit le savoir, sinon il croit ces protections
-    plus fortes qu'elles ne sont.
+    Un diagnostic qui décrit une version antérieure du code est pire qu'un
+    diagnostic absent : il rassure, et on cherche ailleurs. Elle est donc
+    MESURÉE désormais, comme tout le reste de ce fichier.
+
+    Ce que ça change pour qui lit : sur le cache, ces protections ne
+    tiennent que quelques minutes et un attaquant qui change de pays
+    trouve des compteurs neufs. Sur KV, elles tiennent — sans être
+    atomiques pour autant.
     */
-    memoire: 'cache par centre de donnees, evictable — exact avec Workers KV',
+    memoire: MEMOIRE
+      ? 'Workers KV — durable et global, mais non atomique (coherence eventuelle)'
+      : 'cache par centre de donnees, EVICTABLE — lie un espace KV nomme MEMOIRE',
   }
 
   /*
@@ -1529,6 +1537,60 @@ function nombreFrancais(v) {
     .replace(',', '.')
   if (!/^[0-9]*\.?[0-9]+$/.test(nu)) return 0
   const n = parseFloat(nu)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN MONTANT EN FRANCS, LU DANS UN SMS D'OPÉRATEUR
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ sur un vrai SMS d'Orange Money Burkina :
+
+    Vous avez recu 100000.0 FCFA, Frais:  FCFA, Taxe:  FCFA du …
+
+Le point est une DÉCIMALE. Mon code supprimait tous les séparateurs et
+lisait 1 000 000 — dix fois trop. Sur un achat, ça confirmerait une
+demande de 1 000 000 FCFA pour un paiement de 100 000, et le changeur
+enverrait dix fois trop de crypto.
+
+Le commentaire que cette fonction remplace affirmait : « le franc CFA n'a
+pas de centimes, il n'y a donc aucune ambiguïté à lever ». C'était une
+déduction raisonnable, et elle était fausse — l'opérateur affiche bien
+une décimale, qui vaut toujours zéro ou presque.
+
+─── LA RÈGLE, ET POURQUOI ELLE TRANCHE DANS LES DEUX SENS ───────────────
+
+On regarde ce qui suit le DERNIER séparateur :
+
+    1 ou 2 chiffres  → c'est une décimale            100000.0  → 100000
+    exactement 3     → c'est un séparateur de milliers    5.000 → 5000
+    autre chose      → on ne garde que les chiffres
+
+Trois chiffres restent lus comme des milliers, et c'est volontaire : le
+franc CFA n'a pas de subdivision en usage, donc « 5.000 » ne peut pas
+désigner cinq francs et des millièmes. C'est la seule lecture possible.
+
+─── ON TRONQUE, ON N'ARRONDIT PAS ───────────────────────────────────────
+
+Les centimes sont jetés. Arrondir vers le haut ferait créditer un franc
+de plus que ce qui a été payé ; tronquer ne peut que sous-estimer, et une
+sous-estimation se voit — le client réclame. Une surestimation, non.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function montantFcfaDepuisTexte(brut) {
+  const nu = String(brut ?? '').replace(/[\s   ]/g, '')
+  if (!/\d/.test(nu)) return 0
+
+  const dernier = Math.max(nu.lastIndexOf('.'), nu.lastIndexOf(','))
+  let entier = nu
+  if (dernier >= 0 && /^\d{1,2}$/.test(nu.slice(dernier + 1))) {
+    entier = nu.slice(0, dernier)
+  }
+
+  const chiffres = entier.replace(/[^\d]/g, '')
+  if (!chiffres) return 0
+  const n = Number(chiffres)
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
@@ -5091,6 +5153,7 @@ export {
   formeAttendue,
   lireSmsPaiement,
   sansAccents,
+  montantFcfaDepuisTexte,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5305,19 +5368,14 @@ function lireSmsPaiement(texte) {
 
   /*
   LE MONTANT : des chiffres suivis de l'unité, dans cet ordre.
-
-  Les séparateurs de milliers sautent — « 5.000 », « 5 000 », « 5,000 »
-  désignent cinq mille dans les SMS d'opérateurs d'Afrique de l'Ouest, où
-  le point et la virgule servent tous deux de séparateur de milliers et
-  non de décimale. Le franc CFA n'a pas de centimes : il n'y a donc aucune
-  ambiguïté à lever, et traiter « 5.000 » comme cinq a déjà produit des
-  rapprochements ratés ailleurs.
+  La lecture du nombre lui-même est confiée à `montantFcfaDepuisTexte`,
+  qui sait distinguer un séparateur de milliers d'une décimale.
   */
   const montantTrouve = t.match(
     /(\d[\d .,]*)\s*(?:f\s*cfa|fcfa|xof|francs?|f\b)/
   )
   if (!montantTrouve) return null
-  const montant = Number(montantTrouve[1].replace(/[^\d]/g, ''))
+  const montant = montantFcfaDepuisTexte(montantTrouve[1])
   if (!Number.isFinite(montant) || montant <= 0) return null
 
   /*
