@@ -817,9 +817,22 @@ verifie('MARQUAGE : actif avec un vrai secret', marquageActif({ CHANGE_MARQUAGE:
 
 {
   const m = await montantMarque(2, 'VX-K7M2PQ4R', { CHANGE_MARQUAGE: SECRET })
-  verifie('MARQUAGE : ajoute moins d un centieme', m > 2 && m < 2.01, m)
   /*
-  SIX DECIMALES AU PLUS — ET MA PREMIERE VERSION DE CE TEST ETAIT FAUSSE.
+  LE MONTANT MONTE, D'AU PLUS UNE UNITE.
+
+  Le marquage occupe les trois decimales et s'ajoute a la partie entiere :
+  le resultat est donc toujours SUPERIEUR a ce qui a ete demande, d'au
+  plus 0,999. C'etait deja vrai avec six decimales — d'au plus 0,01 — mais
+  l'ecart devient assez grand pour se voir, et pour compter.
+
+  Consequence a ne pas perdre de vue : vendre TOUT son solde ne peut plus
+  passer par un montant egal au solde. L'application doit le detecter, et
+  c'est elle qui connait le solde.
+  */
+  verifie('MARQUAGE : le montant monte, d au plus une unite', m > 2 && m < 3, m)
+
+  /*
+  TROIS DECIMALES — ET MA PREMIERE VERSION DE CE TEST ETAIT FAUSSE.
 
   J'avais ecrit `Math.round(m * 1e6) === m * 1e6`. Sur 2,004933, le
   produit vaut 2004932,9999999998 : les deux cotes different, et le test
@@ -830,10 +843,17 @@ verifie('MARQUAGE : actif avec un vrai secret', marquageActif({ CHANGE_MARQUAGE:
   faire la demonstration.
   */
   verifie(
-    'MARQUAGE : six decimales au plus',
-    Math.abs(m * 1e6 - Math.round(m * 1e6)) < 1e-6,
+    'MARQUAGE : trois decimales, pas une de plus',
+    Math.abs(m * 1e3 - Math.round(m * 1e3)) < 1e-6,
     m
   )
+
+  /*
+  TAPABLE : c'est tout l'objet du passage de six decimales a trois. Un
+  montant qu'on ne peut pas recopier sans erreur n'est pas une protection,
+  c'est un obstacle — mesure sur cinq essais reels qui ont tous echoue la.
+  */
+  verifie('MARQUAGE : le montant tient en cinq caracteres', String(m).length <= 5, String(m))
 
   // DETERMINISTE : deux appels rendent le meme montant. Sans ca,
   // l'utilisateur verrait un chiffre a la confirmation et le relais en
@@ -855,6 +875,34 @@ verifie('MARQUAGE : actif avec un vrai secret', marquageActif({ CHANGE_MARQUAGE:
 {
   const sans = await montantMarque(2, 'VX-K7M2PQ4R', {})
   verifie('MARQUAGE : sans secret, le montant ne bouge pas', sans === 2, sans)
+}
+
+{
+  /*
+  COMBIEN DE DEMANDES RESTENT DISTINGUABLES ?
+
+  Mille, en theorie. On le MESURE plutot que de le supposer : si le modulo
+  etait mal ecrit — 999 au lieu de 1000, un decalage de un — la moitie des
+  valeurs pourrait manquer sans que rien ne le signale.
+
+  Et ce chiffre ne protege que des demandes OUVERTES EN MEME TEMPS : deux
+  demandes separees par une heure ne se confondent pas, la fenetre les
+  separe.
+  */
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const vus = new Set()
+  for (let i = 0; i < 400; i += 1) {
+    const ref = 'VX-' + String(i).padStart(4, '0') + ALPHABET[i % 32]
+    vus.add(await montantMarque(5, ref, { CHANGE_MARQUAGE: SECRET }))
+  }
+  /*
+  QUATRE CENTS TIRAGES DANS MILLE CASES : le paradoxe des anniversaires
+  predit environ 330 valeurs distinctes. Beaucoup moins signalerait un
+  marquage qui n'emploie pas toute sa plage.
+  */
+  verifie('MARQUAGE : la plage est bien employee', vus.size > 280, vus.size)
+  // Et tous restent dans l'unite au-dessus de la base.
+  verifie('MARQUAGE : tous entre 5 et 6', [...vus].every((m) => m > 5 && m < 6))
 }
 
 {
