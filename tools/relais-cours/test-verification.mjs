@@ -25,6 +25,7 @@ attaques listées échouent, pas qu'il n'en existe pas d'autres.
 import {
   choisirTransfertTron,
   choisirTransfertEtherscan,
+  txidValide,
   choisirTransfertAlchemy,
   estAlchemy,
   chaineHorsOffre,
@@ -1298,6 +1299,77 @@ const critereAl = (extra) => ({
   se verrait adresser nos requêtes — avec l'adresse du changeur dedans.
   */
   verifie('ENRICHI : un domaine qui imite alchemy.com est refuse', !estAlchemy('https://alchemy.com.mal.net/v2/x'))
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA FORME D'UN IDENTIFIANT DE TRANSACTION
+═══════════════════════════════════════════════════════════════════════════
+
+Ce bloc existe a cause d'un VRAI message envoye a un vrai changeur :
+
+    eth_getTransactionByHash : invalid argument 0:
+    hex string has length 40, want 64
+
+Quarante caracteres, c'est une adresse. Soixante-quatre, c'est une
+transaction. Les deux commencent par « 0x » et se ressemblent assez pour
+qu'on colle l'une a la place de l'autre.
+
+LE COUT N'ETAIT PAS CELUI QU'ON CROIT : le noeud a refuse l'appel, et
+TOUTE la verification a repondu « indisponible » — alors que le versement
+etait peut-etre la, trouvable par son montant marque. Un champ FACULTATIF
+empechait le chemin OBLIGATOIRE de s'executer.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+{
+  const HASH = '0x' + 'ab'.repeat(32)
+  verifie('TXID : un hash EVM bien forme passe', txidValide(HASH, 'evm'), HASH)
+  verifie('TXID : la casse ne gene pas', txidValide('0x' + 'AB'.repeat(32), 'evm'))
+}
+
+{
+  /*
+  LE CAS MESURE : l'adresse du changeur collee dans le champ du hash.
+  Quarante caracteres hexadecimaux apres « 0x ».
+  */
+  const ADRESSE = '0xbde137a9684f0bc437294b2cf2ab7295831e327e'
+  verifie('TXID : une ADRESSE EVM est refusee', !txidValide(ADRESSE, 'evm'), ADRESSE)
+  verifie('TXID : et elle l est aussi sur les autres chaines', !txidValide(ADRESSE, 'tron'))
+}
+
+{
+  verifie('TXID : vide, ce n est pas un identifiant', !txidValide('', 'evm'))
+  verifie('TXID : des espaces seuls non plus', !txidValide('   ', 'evm'))
+  verifie('TXID : un hash tronque est refuse', !txidValide('0x' + 'ab'.repeat(30), 'evm'))
+  verifie('TXID : un hash trop long est refuse', !txidValide('0x' + 'ab'.repeat(33), 'evm'))
+  verifie(
+    'TXID : un caractere non hexadecimal est refuse',
+    !txidValide('0x' + 'ab'.repeat(31) + 'zz', 'evm')
+  )
+}
+
+{
+  /*
+  LES FORMES NE SONT PAS INTERCHANGEABLES. Un hash TRON est nu, un hash
+  EVM porte « 0x ». Accepter l'un pour l'autre deplacerait simplement
+  l'erreur d'une ligne — le noeud refuserait plus loin.
+  */
+  const NU = 'cd'.repeat(32)
+  verifie('TXID : un hash TRON nu passe sur TRON', txidValide(NU, 'tron'))
+  verifie('TXID : le meme SANS 0x est refuse en EVM', !txidValide(NU, 'evm'))
+  verifie('TXID : un hash Bitcoin nu passe', txidValide(NU, 'btc'))
+  /*
+  ON TOLERE UN « 0x » COLLE PAR HABITUDE sur TRON et Bitcoin : le hash
+  est par ailleurs correct, et refuser quelqu'un pour deux caracteres de
+  politesse ferait echouer une vente honnete.
+  */
+  verifie('TXID : un 0x de trop est tolere sur TRON', txidValide('0x' + NU, 'tron'))
+}
+
+{
+  verifie('TXID : une chaine inconnue refuse tout', !txidValide('0x' + 'ab'.repeat(32), 'solana'))
 }
 
 // ─── Verdict ────────────────────────────────────────────────────────
