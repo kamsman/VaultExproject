@@ -33,7 +33,7 @@ connexion. Tu peux remplacer le numéro par un autre avant de coller.
 */
 
 import { readFileSync } from 'node:fs'
-import { lireSmsPaiement, sansAccents } from './worker.js'
+import { lireSmsPaiement, sansAccents, montantFcfaDepuisTexte } from './worker.js'
 
 // ─── Mode vérification : un vrai SMS en argument ────────────────────
 
@@ -301,9 +301,118 @@ function verifie(nom, condition, detail) {
 
 // ─── Verdict ────────────────────────────────────────────────────────
 
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE FORMAT REEL D'ORANGE MONEY BURKINA
+═══════════════════════════════════════════════════════════════════════════
+
+Enfin mesure, et il a immediatement montre un defaut qui aurait coute cher.
+
+Le SMS ci-dessous est un VRAI message, avec ses chiffres remplaces. Tout le
+reste est verbatim : la ponctuation, les champs vides, l'ordre des mots, le
+lien a la fin.
+
+CE QU'IL A REVELE : « 100000.0 FCFA ». Le point est une DECIMALE, pas un
+separateur de milliers. Le code supprimait tous les separateurs et lisait
+UN MILLION. Sur un achat, ca aurait confirme une demande de 1 000 000 FCFA
+pour un paiement de 100 000 — et le changeur aurait envoye dix fois trop
+de crypto.
+
+Le commentaire que ce defaut a fait supprimer affirmait : « le franc CFA
+n'a pas de centimes, il n'y a donc aucune ambiguite a lever ». Une
+deduction raisonnable, et fausse. C'est tout l'interet d'un format MESURE.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+const SMS_REEL =
+  'Vous avez recu 100000.0 FCFA, Frais:  FCFA, Taxe:  FCFA du 74936353,HAMIDOU. ' +
+  'Le solde de votre compte est de 100484.4 FCFA Trans ID: PP261013.2118.60776882. ' +
+  'Flashez le QR CODE marchand avec Max it pour plus de facilite : https://onelink.to/nn64xw'
+
+{
+  const lu = lireSmsPaiement(SMS_REEL)
+  verifie('REEL : le SMS d Orange est reconnu', lu !== null)
+  verifie('REEL : le point est une decimale, pas des milliers', lu?.montant === 100000, lu?.montant)
+  verifie('REEL : le numero de l expediteur est lu', lu?.numero === '74936353', lu?.numero)
+  verifie('REEL : la reference de l operateur est lue', lu?.reference === 'PP261013211860776882', lu?.reference)
+}
+
+{
+  /*
+  LE SOLDE NE DOIT JAMAIS ETRE PRIS POUR LE MONTANT.
+
+  Ce SMS porte DEUX sommes en francs : celle qu'on recoit, et le solde du
+  compte. Elles sont du meme ordre de grandeur ici, et le solde vient en
+  second — c'est pour ca que le motif s'arrete au premier.
+
+  Ce test le fige : si quelqu'un elargissait la recherche un jour, le
+  changeur se verrait confirmer son propre solde comme un paiement recu.
+  */
+  const lu = lireSmsPaiement(SMS_REEL)
+  verifie('REEL : le solde n est pas pris pour le montant', lu?.montant !== 100484, lu?.montant)
+}
+
+{
+  /*
+  LES CHAMPS VIDES — « Frais:  FCFA, Taxe:  FCFA » — ne doivent pas faire
+  echouer la lecture, ni etre lus comme des montants nuls. C'est une forme
+  qu'aucun format invente n'aurait produite.
+  */
+  const lu = lireSmsPaiement(SMS_REEL)
+  verifie('REEL : les champs Frais et Taxe vides ne genent pas', lu?.montant === 100000)
+}
+
+{
+  /*
+  LE LIEN A LA FIN contient des chiffres (« nn64xw ») et une adresse. Il ne
+  doit influencer ni le numero ni la reference.
+  */
+  const sansLien = SMS_REEL.split('Flashez')[0]
+  const avec = lireSmsPaiement(SMS_REEL)
+  const sans = lireSmsPaiement(sansLien)
+  verifie(
+    'REEL : le lien publicitaire ne change rien a la lecture',
+    avec?.montant === sans?.montant && avec?.numero === sans?.numero && avec?.reference === sans?.reference,
+    [avec, sans]
+  )
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA REGLE DU SEPARATEUR, ISOLEE
+═══════════════════════════════════════════════════════════════════════════
+
+On regarde ce qui suit le DERNIER separateur : une ou deux decimales, trois
+chiffres pour des milliers. Trois restent lus comme des milliers, et c'est
+volontaire — le franc CFA n'ayant pas de subdivision en usage, « 5.000 » ne
+peut pas designer cinq francs et des millemes.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  verifie('SEP : 100000.0 vaut cent mille', montantFcfaDepuisTexte('100000.0') === 100000, montantFcfaDepuisTexte('100000.0'))
+  verifie('SEP : 100484.4 vaut cent mille quatre cent quatre-vingt-quatre', montantFcfaDepuisTexte('100484.4') === 100484)
+  verifie('SEP : 5.000 vaut cinq mille', montantFcfaDepuisTexte('5.000') === 5000, montantFcfaDepuisTexte('5.000'))
+  verifie('SEP : 5,000 vaut cinq mille', montantFcfaDepuisTexte('5,000') === 5000)
+  verifie('SEP : 5 000 vaut cinq mille', montantFcfaDepuisTexte('5 000') === 5000)
+  verifie('SEP : 1.234.567,8 vaut un million deux cent trente-quatre mille cinq cent soixante-sept',
+    montantFcfaDepuisTexte('1.234.567,8') === 1234567, montantFcfaDepuisTexte('1.234.567,8'))
+  verifie('SEP : 1,50 est tronque a un', montantFcfaDepuisTexte('1,50') === 1, montantFcfaDepuisTexte('1,50'))
+  /*
+  ON TRONQUE, ON N'ARRONDIT PAS : arrondir vers le haut crediterait un franc
+  de plus que ce qui a ete paye. Une sous-estimation se voit — le client
+  reclame. Une surestimation, non.
+  */
+  verifie('SEP : 999.6 est tronque a 999, pas arrondi a 1000', montantFcfaDepuisTexte('999.6') === 999, montantFcfaDepuisTexte('999.6'))
+  verifie('SEP : rien du tout vaut zero', montantFcfaDepuisTexte('') === 0 && montantFcfaDepuisTexte('   FCFA') === 0)
+  verifie('SEP : une espace insecable etroite ne gene pas', montantFcfaDepuisTexte('5 000') === 5000)
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les REGLES de lecture tiennent.')
-console.log('⚠️  Le FORMAT reel d’Orange Money Burkina n’est PAS verifie ici.')
-console.log('   Colle un vrai SMS en argument pour le verifier en trente secondes :')
-console.log('   node tools/relais-cours/test-sms.mjs "Vous avez recu ..."')
+console.log('✅ Et le FORMAT reel d’Orange Money Burkina est fige depuis un vrai SMS.')
+console.log('\n   Un SEUL format est connu : l’encaissement depuis un particulier.')
+console.log('   Un paiement marchand, un depot en agence ou un transfert')
+console.log('   international peuvent s’ecrire autrement. Pour en verifier un :')
+console.log('   node tools/relais-cours/test-sms.mjs --fichier=sms.txt')
