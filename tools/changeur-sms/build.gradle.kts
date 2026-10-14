@@ -74,6 +74,34 @@ android {
         */
         release {
             isMinifyEnabled = false
+            /*
+            ═══════════════════════════════════════════════════════════════
+            SIGNÉ AVEC LA CLÉ DE DEBUG, ET CE N'EST PAS UN RACCOURCI
+            ═══════════════════════════════════════════════════════════════
+
+            Sans configuration de signature, `assembleRelease` produit un
+            APK NON SIGNÉ, qu'Android refuse d'installer. On ne s'en
+            aperçoit qu'une fois le fichier transféré sur le téléphone.
+
+            La clé de debug convient ici : cet APK ne passera jamais par le
+            Play Store — il s'installe à la main, sur un appareil, et il n'a
+            pas de mise à jour à faire correspondre à une signature d'auteur.
+
+            ─── CE QU'ON VIENT CHERCHER EN RELEASE ───────────────────────
+
+            `debuggable = false`, et c'est TOUT l'intérêt.
+
+            Un APK de debug est débogable par construction : quiconque
+            branche un câble sur ce téléphone peut lire les préférences de
+            l'application — donc le jeton. Or ce jeton permet d'affirmer au
+            relais qu'un paiement a eu lieu, et donc de faire confirmer des
+            achats jamais payés.
+
+            Pour un APK qu'on installe une fois et qui reste en place des
+            mois sur le téléphone qui encaisse, ça change tout.
+            ═══════════════════════════════════════════════════════════════
+            */
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
