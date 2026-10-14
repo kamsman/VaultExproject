@@ -5,8 +5,10 @@ LA LECTURE DES SMS D'ENCAISSEMENT
 
     node tools/relais-cours/test-sms.mjs
 
-    node tools/relais-cours/test-sms.mjs "Vous avez recu 10000 FCFA de ..."
-      └── MODE VÉRIFICATION : colle un VRAI SMS et vois ce qui en sort.
+    node tools/relais-cours/test-sms.mjs --fichier=sms.txt
+      └── MODE VÉRIFICATION : mets un VRAI SMS dans un fichier et vois
+          ce qui en sort. Le fichier plutôt que les guillemets, parce
+          qu'une apostrophe d'opérateur tronque un argument PowerShell.
 
 ═══════════════════════════════════════════════════════════════════════════
 POURQUOI LE SECOND MODE EXISTE
@@ -30,11 +32,62 @@ connexion. Tu peux remplacer le numéro par un autre avant de coller.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
+import { readFileSync } from 'node:fs'
 import { lireSmsPaiement, sansAccents } from './worker.js'
 
 // ─── Mode vérification : un vrai SMS en argument ────────────────────
 
-const colle = process.argv.slice(2).join(' ').trim()
+/*
+═══════════════════════════════════════════════════════════════════════════
+TROIS FAÇONS DE DONNER LE SMS, ET LA PREMIÈRE EST LA BONNE
+═══════════════════════════════════════════════════════════════════════════
+
+    node tools/relais-cours/test-sms.mjs --fichier=sms.txt     ← recommandé
+    Get-Content sms.txt | node tools/relais-cours/test-sms.mjs
+    node tools/relais-cours/test-sms.mjs "le texte entre guillemets"
+
+Le fichier est recommandé parce qu'un vrai SMS d'opérateur contient des
+apostrophes, des accents et parfois des retours à la ligne. Passé en
+argument sous PowerShell, l'apostrophe ferme la chaîne et le texte arrive
+tronqué — on analyserait alors un SMS qui n'est pas celui qu'on a reçu, et
+on corrigerait un motif qui n'avait rien.
+
+C'est la même famille de problème que le `&&` de PowerShell et que les
+exemples collés littéralement : la machine entre nous deux abîme le texte
+en silence. Un fichier ne s'abîme pas.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function texteDonne() {
+  const args = process.argv.slice(2)
+  const viaFichier = args.find((a) => a.startsWith('--fichier='))
+  if (viaFichier) {
+    const chemin = viaFichier.slice(10)
+    try {
+      return readFileSync(chemin, 'utf8').trim()
+    } catch (e) {
+      console.log(`\n❌ Fichier illisible : ${chemin}`)
+      console.log(`   ${e?.message}`)
+      process.exit(2)
+    }
+  }
+  const positionnels = args.filter((a) => !a.startsWith('--')).join(' ').trim()
+  if (positionnels) return positionnels
+  /*
+  L'ENTREE STANDARD, quand on tube un fichier. `isTTY` distingue « rien
+  n'est tube » de « un texte vide est tube » : sans ça, lancer le script
+  sans argument resterait bloque a attendre une saisie qui ne vient pas.
+  */
+  if (!process.stdin.isTTY) {
+    try {
+      return readFileSync(0, 'utf8').trim()
+    } catch (_) {
+      return ''
+    }
+  }
+  return ''
+}
+
+const colle = texteDonne()
 if (colle) {
   console.log('\nTexte recu :')
   console.log(`  ${colle}`)
