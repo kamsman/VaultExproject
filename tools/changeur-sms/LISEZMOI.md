@@ -124,13 +124,22 @@ nom stable — `VaultEx-Changeur-release.apk` — de sorte qu'une
 réinstallation écrase la précédente au lieu d'empiler des fichiers dont on
 ne sait plus lequel est le dernier.
 
-> **Des barres obliques, pas des contre-obliques.** Un fichier
-> `.properties` traite la contre-oblique comme un échappement :
-> `C:\Users` y devient `C:Users`, silencieusement. Java accepte les barres
-> obliques sous Windows, donc on les emploie.
+> **Les deux écritures fonctionnent**, avec des barres obliques comme avec
+> des contre-obliques :
 >
-> La tâche imprime le chemin où elle écrit. Un chemin abîmé se voit alors
-> tout de suite, au lieu de créer un dossier fantôme quelque part.
+> ```properties
+> apk.sortie=C:/Users/HP/Desktop/app changeur
+> apk.sortie=C:\Users\HP\Desktop\app changeur
+> ```
+>
+> La ligne est lue telle qu'elle est écrite, sans passer par
+> `java.util.Properties` — qui traiterait la contre-oblique comme un
+> échappement et transformerait `C:\Users` en `C:Users` sans rien dire.
+> Et dans un `build.gradle.kts`, `java` désigne de toute façon l'extension
+> Java du projet : `java.util` n'y est même pas résolvable.
+>
+> La tâche imprime quand même le chemin où elle écrit : c'est ce qui fait
+> voir un chemin faux tout de suite, au lieu d'un dossier fantôme.
 
 Pour une construction ponctuelle ailleurs, sans toucher aux réglages :
 
