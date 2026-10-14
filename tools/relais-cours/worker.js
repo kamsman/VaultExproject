@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 34
+const VERSION = 35
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -380,6 +380,16 @@ const PAIRES_SURES = new Set(['BTC', 'ETH', 'BNB', 'SOL', 'TRX'])
 
 export default {
   async fetch(requete, env) {
+    /*
+    LA MÉMOIRE EST POSÉE AVANT TOUT LE RESTE.
+
+    Oubliée, rien ne casse visiblement : le relais retombe sur le cache et
+    recommence à perdre ses demandes en silence. C'est précisément le mode
+    de panne qu'on vient de corriger, donc cette ligne vient en premier,
+    avant même le routage.
+    */
+    poserMemoire(env)
+
     const url = new URL(requete.url)
 
     // Sonde de vie : permet de vérifier le déploiement sans lancer l'app.
@@ -388,7 +398,19 @@ export default {
       // Sans elle, impossible de savoir si le code déployé est bien le
       // dernier — on a perdu du temps à corriger un défaut déjà corrigé,
       // simplement parce que l'ancienne version tournait encore.
-      return json({ ok: true, service: 'relais-cours-vaultex', version: VERSION })
+      return json({
+        ok: true,
+        service: 'relais-cours-vaultex',
+        version: VERSION,
+        /*
+        « DEGRADE » NE DOIT JAMAIS ETRE UNE SURPRISE.
+
+        Sans liaison KV le relais fonctionne — et oublie. Le dire sur la
+        sonde de vie, qu'on ouvre a chaque deploiement, est le seul moyen
+        de s'en apercevoir autrement que par une vente perdue.
+        */
+        memoire: MEMOIRE ? 'KV (durable)' : 'cache (FRAGILE — lie un espace KV nomme MEMOIRE)',
+      })
     }
 
     if (url.pathname === '/diag') {
@@ -4539,43 +4561,139 @@ l'utilisateur.
 */
 
 /** Vrai si cette marque a déjà été posée. */
-async function dejaVu(espace, valeur) {
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MÉMOIRE DU RELAIS : KV D'ABORD, LE CACHE EN SECOURS
+═══════════════════════════════════════════════════════════════════════════
+
+Tout ce que ce relais doit se rappeler passait par `caches.default`. Ça
+paraissait raisonnable — c'est fourni, c'est gratuit, ça marche. Ça ne
+marchait pas, et le défaut était invisible.
+
+DIAGNOSTIQUÉ SUR UNE VRAIE VENTE : `/change/consigne` avait écrit la
+naissance d'une demande, et `/change/verifier` ne la retrouvait pas.
+L'antériorité s'est donc désactivée en silence.
+
+Trois propriétés du cache que je n'avais pas prises au sérieux :
+
+  — il est PAR CENTRE DE DONNÉES, pas global ;
+  — il est ÉVINÇABLE à tout moment, sans préavis ni erreur ;
+  — il échoue EN SILENCE, et le `catch` vide avalait tout.
+
+CE QUE ÇA COÛTAIT, et ce n'est pas l'antériorité le plus grave :
+
+  — l'antériorité : la barrière qui empêche de déposer une demande APRÈS
+    avoir vu passer le versement d'un autre ;
+  — `deja_servi` : la garantie qu'un transfert ne paie QU'UNE FOIS. Un
+    simple défaut de cache suffisait à faire payer deux demandes avec un
+    seul versement ;
+  — la mémoire des paiements Orange Money, et la limite de débit.
+
+─── CE QUE KV RÈGLE, ET CE QU'IL NE RÈGLE PAS ───────────────────────────
+
+Il règle la durabilité et la portée : ce qui est écrit est écrit, partout,
+et ne disparaît qu'à l'expiration qu'on fixe. C'est l'essentiel.
+
+IL NE REND PAS LES ÉCRITURES ATOMIQUES. KV est à cohérence éventuelle :
+deux requêtes vraiment simultanées peuvent lire la même valeur avant que
+l'une n'écrive. Pour `deja_servi`, ça laisse une fenêtre de quelques
+secondes où un transfert pourrait payer deux fois. Fermer cette fenêtre
+demande un Durable Object — un autre modèle de déploiement, et une autre
+facture. Je le note plutôt que de laisser croire que c'est clos.
+
+─── LE SECOURS N'EST PAS UNE POLITESSE ──────────────────────────────────
+
+Sans liaison KV, on retombe sur le cache. C'est ce qui permet de déployer
+ce code AVANT de créer l'espace de noms sans rien casser — et c'est aussi
+ce qui ferait repasser le relais en mode dégradé si la liaison était
+supprimée par mégarde. `/diag` dit laquelle des deux est en service, pour
+que « dégradé » ne soit jamais une surprise.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/*
+LA LIAISON EST POSÉE AU DÉBUT DE CHAQUE REQUÊTE.
+
+Elle pourrait être passée en paramètre, et ce serait plus propre. Mais ces
+fonctions sont appelées depuis dix-neuf endroits situés au fond de la
+vérification, et faire descendre `env` jusque-là ferait voyager TOUS les
+secrets du Worker — jeton Telegram compris — dans des fonctions qui n'ont
+besoin que d'un espace de clés.
+
+Un module reste chargé entre les requêtes d'un même isolat, et la liaison
+est la même pour toutes. La reposer à chaque requête ne coûte rien et
+garantit qu'elle n'est jamais lue avant d'avoir été écrite.
+*/
+let MEMOIRE = null
+
+function poserMemoire(env) {
+  MEMOIRE = env?.MEMOIRE ?? null
+}
+
+/** La clé, identique quel que soit le magasin. */
+function cleMemoire(espace, valeur) {
+  return `${espace}:${encodeURIComponent(String(valeur))}`
+}
+
+/** Lit une valeur brute, ou null. */
+async function lireBrut(espace, valeur) {
+  if (MEMOIRE) {
+    try {
+      return await MEMOIRE.get(cleMemoire(espace, valeur))
+    } catch (_) {
+      /* KV indisponible : on tente le cache plutôt que d'oublier. */
+    }
+  }
   try {
-    const cle = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
+    const r = await caches.default.match(
+      new Request(`https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`)
     )
-    return Boolean(await caches.default.match(cle))
+    return r ? await r.text() : null
   } catch (_) {
-    return false
+    return null
   }
 }
 
-/** Pose une marque, pour [secondes]. */
-async function marquer(espace, valeur, secondes) {
+/** Écrit une valeur brute, pour [secondes]. */
+async function ecrireBrut(espace, valeur, contenu, secondes) {
+  /*
+  SOIXANTE SECONDES AU MOINS : KV refuse une expiration plus courte, et
+  une écriture refusée serait un oubli de plus — exactement ce qu'on
+  corrige ici.
+  */
+  const ttl = Math.max(60, Math.floor(Number(secondes) || 0))
+  if (MEMOIRE) {
+    try {
+      await MEMOIRE.put(cleMemoire(espace, valeur), String(contenu), { expirationTtl: ttl })
+      return
+    } catch (_) {
+      /* On retombe sur le cache : mieux vaut une mémoire fragile que rien. */
+    }
+  }
   try {
-    const cle = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
-    )
     await caches.default.put(
-      cle,
-      new Response('1', { headers: { 'cache-control': `max-age=${secondes}` } })
+      new Request(`https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`),
+      new Response(String(contenu), { headers: { 'cache-control': `max-age=${ttl}` } })
     )
   } catch (_) { /* sans effet sur l'ordre en cours */ }
 }
 
+async function dejaVu(espace, valeur) {
+  const brut = await lireBrut(espace, valeur)
+  return brut !== null
+}
+
+/** Pose une marque, pour [secondes]. */
+async function marquer(espace, valeur, secondes) {
+  await ecrireBrut(espace, valeur, '1', secondes)
+}
+
 /** Lit un compteur. */
 async function compteur(espace, valeur) {
-  try {
-    const cle = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
-    )
-    const r = await caches.default.match(cle)
-    if (!r) return 0
-    const n = Number(await r.text())
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  } catch (_) {
-    return 0
-  }
+  const brut = await lireBrut(espace, valeur)
+  if (brut === null) return 0
+  const n = Number(brut)
+  return Number.isFinite(n) && n >= 0 ? n : 0
 }
 
 /**
@@ -4590,15 +4708,7 @@ async function compteur(espace, valeur) {
  */
 async function incrementer(espace, valeur, secondes) {
   const n = (await compteur(espace, valeur)) + 1
-  try {
-    const cle = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(valeur)}`
-    )
-    await caches.default.put(
-      cle,
-      new Response(String(n), { headers: { 'cache-control': `max-age=${secondes}` } })
-    )
-  } catch (_) { /* sans effet */ }
+  await ecrireBrut(espace, valeur, String(n), secondes)
   return n
 }
 
@@ -4977,6 +5087,7 @@ export {
   minimumPourMonnaie,
   trierAdresses,
   txidValide,
+  poserMemoire,
   formeAttendue,
   lireSmsPaiement,
   sansAccents,
@@ -5358,28 +5469,15 @@ async function recevoirSms(requete, env) {
 
 /** Garde une valeur, pour la durée de la fenêtre de rapprochement. */
 async function marquerValeur(espace, cle, valeur) {
-  try {
-    const requete = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(cle)}`
-    )
-    await caches.default.put(
-      requete,
-      new Response(valeur, {
-        headers: { 'cache-control': `max-age=${Math.floor(FENETRE_PAIEMENT_MS / 1000)}` },
-      })
-    )
-  } catch (_) { /* sans effet sur l'ordre en cours */ }
+  await ecrireBrut(espace, cle, valeur, Math.floor(FENETRE_PAIEMENT_MS / 1000))
 }
 
 /** Relit une valeur gardée, ou null. */
 async function lireValeur(espace, cle) {
+  const brut = await lireBrut(espace, cle)
+  if (brut === null) return null
   try {
-    const requete = new Request(
-      `https://relais.vaultex/${espace}/${encodeURIComponent(cle)}`
-    )
-    const r = await caches.default.match(requete)
-    if (!r) return null
-    return JSON.parse(await r.text())
+    return JSON.parse(brut)
   } catch (_) {
     return null
   }
