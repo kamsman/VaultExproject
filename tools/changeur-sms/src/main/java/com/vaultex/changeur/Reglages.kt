@@ -82,12 +82,35 @@ class Reglages(contexte: Context) {
         get() = prefs.getString(CLE_EXPEDITEURS, DEFAUT_EXPEDITEURS).orEmpty()
         set(v) = prefs.edit().putString(CLE_EXPEDITEURS, v).apply()
 
-    /** Vrai si cet expéditeur fait partie de ceux qu'on transmet. */
+    /**
+     * Vrai si cet expéditeur fait partie de ceux qu'on transmet.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UN EXPÉDITEUR VIDE PASSAIT CE FILTRE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * `attendu.contains(vu)` servait à reconnaître une forme abrégée —
+     * « orange » pour « orange money ». Mais `"orangemoney".contains("")`
+     * vaut VRAI : un expéditeur vide était donc accepté par tous les
+     * motifs à la fois, et une seule lettre aussi.
+     *
+     * Ce n'est pas un détail : ce filtre est LA frontière de vie privée.
+     * C'est lui qui garantit qu'un code de connexion ou le message d'un
+     * proche ne quitte jamais ce téléphone. Le contourner ne demandait
+     * aucune astuce — il suffisait qu'Android ne rende pas d'adresse
+     * d'origine, ce qui arrive.
+     *
+     * Quatre caractères au moins : c'est la longueur du plus court motif
+     * accepté (« wave ») et celle d'un numéro court d'opérateur. En deçà,
+     * une correspondance partielle n'identifie plus personne.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     fun expediteurAccepte(expediteur: String): Boolean {
-        val vu = expediteur.lowercase().replace(" ", "")
+        val vu = expediteur.lowercase().replace(" ", "").trim()
+        if (vu.length < 4) return false
         return expediteurs.split(',')
             .map { it.trim().lowercase().replace(" ", "") }
-            .filter { it.isNotEmpty() }
+            .filter { it.length >= 4 }
             .any { attendu -> vu.contains(attendu) || attendu.contains(vu) }
     }
 

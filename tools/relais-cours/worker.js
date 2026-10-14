@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 37
+const VERSION = 38
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5154,6 +5154,7 @@ export {
   lireSmsPaiement,
   sansAccents,
   montantFcfaDepuisTexte,
+  expediteurAccepte,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5250,6 +5251,38 @@ falsifie. Elle sert à écarter le bruit — les SMS publicitaires, les
 notifications de solde, et un SMS qu'un client enverrait lui-même au
 changeur en imitant l'opérateur, qui est le cas le plus probable des trois.
 */
+/**
+ * Cet expéditeur fait-il partie de ceux qu'on accepte ?
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * UN EXPÉDITEUR VIDE PASSAIT CE FILTRE, ET C'ÉTAIT GRAVE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Le test était `expediteur.includes(e) || e.includes(expediteur)`. La
+ * seconde moitié servait à reconnaître une forme abrégée — « orange »
+ * pour « orange money ». Mais `'orangemoney'.includes('')` vaut VRAI :
+ * un expéditeur vide était donc accepté par tous les motifs à la fois.
+ *
+ * Et une seule lettre aussi : `'wave'.includes('a')` est vrai.
+ *
+ * Ce filtre n'est pas une commodité. C'est lui qui empêche qu'un message
+ * quelconque — un code de connexion, un mot d'un proche — soit traité
+ * comme un encaissement. Le contourner avec une chaîne vide ne demandait
+ * aucune astuce : il suffisait que le champ manque.
+ *
+ * ─── QUATRE CARACTÈRES AU MOINS ─────────────────────────────────────
+ *
+ * C'est la longueur du plus court motif accepté (« wave »), et celle
+ * d'un numéro court d'opérateur. En deçà, une correspondance partielle
+ * ne veut plus rien dire — « a » n'identifie personne.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+function expediteurAccepte(expediteur, liste) {
+  const vu = String(expediteur ?? '').trim()
+  if (vu.length < 4) return false
+  return liste.some((e) => e.length >= 4 && (vu.includes(e) || e.includes(vu)))
+}
+
 const EXPEDITEURS_SMS = ['orangemoney', 'orange money', 'moovmoney', 'moov money', 'wave']
 
 /*
@@ -5473,7 +5506,7 @@ async function recevoirSms(requete, env) {
   const acceptes = String(env?.CHANGE_SMS_EXPEDITEURS ?? '')
     .split(',').map((x) => sansAccents(x).replace(/\s+/g, ' ').trim()).filter(Boolean)
   const liste = acceptes.length > 0 ? acceptes : EXPEDITEURS_SMS
-  if (!liste.some((e) => expediteur.includes(e) || e.includes(expediteur))) {
+  if (!expediteurAccepte(expediteur, liste)) {
     /*
     ON REFUSE SANS BRUIT UN EXPÉDITEUR INCONNU, et c'est le filtre le plus
     utile du lot : le robot transmet ce qu'il voit, et ce qu'il voit
