@@ -172,6 +172,39 @@ class AssistanceViewModel @Inject constructor(
             }
             val r = try {
                 withContext(Dispatchers.IO) { api.assistance(DemandeAssistance(tours)) }
+            } catch (e: retrofit2.HttpException) {
+                /*
+                ═══════════════════════════════════════════════════════════
+                LA RAISON DU RELAIS EST DANS LE CORPS D'ERREUR
+                ═══════════════════════════════════════════════════════════
+
+                Retrofit LÈVE sur tout code hors 2xx, et le corps part avec
+                l'exception. Sans cette lecture, les trois refus que le
+                relais prend soin de distinguer deviennent tous
+                « L'assistance n'a pas répondu. Vérifie ta connexion. » —
+                mesuré sur un vrai écran, où le réseau marchait très bien.
+
+                  503  l'assistance n'est pas encore installée
+                  429  la limite du jour est atteinte
+                  502  le modèle est injoignable
+
+                Aucune de ces trois n'appelle de vérifier sa connexion, et
+                la première ne s'arrangera jamais toute seule. Envoyer
+                quelqu'un regarder son réseau devant un réglage absent,
+                c'est le faire recommencer indéfiniment une chose qui ne
+                peut pas aboutir.
+
+                Le même motif existe déjà dans ChangeService ; je ne
+                l'avais pas applique ici.
+                ═══════════════════════════════════════════════════════════
+                */
+                val corps = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                runCatching {
+                    com.google.gson.Gson().fromJson(
+                        corps,
+                        com.vaultex.data.remote.dto.ReponseAssistance::class.java
+                    )
+                }.getOrNull()
             } catch (e: Exception) {
                 com.vaultex.core.monitoring.reportUnlessCancelled("assistance", e)
                 null
