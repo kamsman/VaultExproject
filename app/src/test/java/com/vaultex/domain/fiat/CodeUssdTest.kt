@@ -27,6 +27,61 @@ class CodeUssdTest {
     // ─── Ce qui doit marcher ────────────────────────────────────────
 
     @Test
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE MODÈLE RÉEL D'ORANGE MONEY BURKINA
+    ═══════════════════════════════════════════════════════════════════
+
+    Mesuré sur un vrai téléphone, le 15 octobre 2026 :
+
+        #144#  →  2 « Transfert d'argent »  →  1
+        puis le NUMÉRO, puis le MONTANT, puis le code secret.
+
+    L'ORDRE DES DEUX DERNIERS CHAMPS DÉCIDE DE QUI REÇOIT L'ARGENT.
+    C'est pour ça que ce test existe, et qu'il porte le modèle en toutes
+    lettres : inverser `{numero}` et `{montant}` enverrait 70 123 456 FCFA
+    à quelqu'un dont le numéro serait « 100 » — ou, plus probablement,
+    ferait échouer le code sans dire pourquoi.
+
+    Ce modèle est un réglage distant (CHANGE_USSD). Le figer ici ne
+    l'impose pas : ça garantit que celui qu'on a mesuré reste accepté par
+    `modeleValide` le jour où quelqu'un durcira ses règles.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    @Test
+    fun `le modele reel d Orange Burkina est accepte et compose juste`() {
+        val reel = "*144*2*1*{numero}*{montant}#"
+        assertTrue(CodeUssd.modeleValide(reel))
+        assertEquals(
+            "*144*2*1*70123456*100#",
+            CodeUssd.composer(reel, "70123456", 100.0)
+        )
+        // Et tel qu'il entre dans une URI « tel: » — sans le dièse encodé,
+        // le composeur s'ouvre et l'appel ne valide rien.
+        assertEquals(
+            "*144*2*1*70123456*100%23",
+            CodeUssd.pourUriTel(CodeUssd.composer(reel, "70123456", 100.0)!!)
+        )
+    }
+
+    /*
+    L'ORDRE INVERSE DOIT RESTER DISTINGUABLE.
+
+    `modeleValide` ne peut pas savoir lequel des deux ordres est le bon —
+    les deux sont de la syntaxe USSD correcte. Ce test ne verifie donc pas
+    qu'il refuse l'inverse : il fige le fait que les deux composent des
+    chaines DIFFERENTES, pour que personne ne croie que l'ordre est sans
+    importance.
+    */
+    @Test
+    fun `inverser numero et montant donne une autre chaine`() {
+        val bon = CodeUssd.composer("*144*2*1*{numero}*{montant}#", "70123456", 100.0)
+        val inverse = CodeUssd.composer("*144*2*1*{montant}*{numero}#", "70123456", 100.0)
+        assertEquals("*144*2*1*70123456*100#", bon)
+        assertEquals("*144*2*1*100*70123456#", inverse)
+    }
+
+    @Test
     fun `un modele correct compose la chaine attendue`() {
         assertEquals(
             "*144*2*1*70123456*10000#",
