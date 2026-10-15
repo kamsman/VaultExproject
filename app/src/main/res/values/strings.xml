@@ -1221,4 +1221,8 @@
     <string name="assistance_numero_aide">Si ta question doit être transmise au changeur, c\'est là qu\'il te répondra. Il ne sert à rien d\'autre, et il ne part nulle part tant que tu ne demandes pas à joindre le changeur.</string>
     <string name="assistance_numero_valider">Enregistrer</string>
     <string name="assistance_numero_sans">Continuer sans</string>
+    <string name="assistance_ex_minimum">C\'est quoi le minimum pour échanger ?</string>
+    <string name="assistance_ex_delai">Combien de temps ça prend ?</string>
+    <string name="assistance_ex_reseau">Quel réseau je dois choisir ?</string>
+    <string name="assistance_ex_phrase">On me demande ma phrase secrète, c\'est normal ?</string>
 </resources>

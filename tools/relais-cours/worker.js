@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 40
+const VERSION = 41
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5273,6 +5273,7 @@ export {
   marqueOtp,
   nettoyerIa,
   systemeAssistance,
+  reponseConnue,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5674,19 +5675,110 @@ function nettoyerIa(texte) {
     .replace(/(?<!\d)\d{8}(?!\d)/g, '[numero masque]')
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES RÉPONSES QUI SONT DÉJÀ DANS LES RÉGLAGES
+═══════════════════════════════════════════════════════════════════════════
+
+Chaque entrée porte des mots à reconnaître et une réponse construite à
+partir des réglages RÉELS du Worker. Pas un texte figé : si le changeur
+monte sa marge, la réponse monte avec.
+
+─── POURQUOI DES MOTS ET NON UNE VRAIE COMPRÉHENSION ───────────────────
+
+Parce qu'on cherche à reconnaître cinq questions, pas à converser. « c koi
+le minimum », « minimum svp », « je peux echanger combien au moins »
+partagent le mot « minimum », et ça suffit. Ce qui n'est pas reconnu
+descend au modèle, qui est fait pour ça.
+
+LE RISQUE EST DE RÉPONDRE À CÔTÉ, et une réponse à côté est pire qu'un
+renvoi au modèle : elle a l'air d'une réponse. On le borne en exigeant des
+mots SPÉCIFIQUES — « minimum », jamais « combien ».
+═══════════════════════════════════════════════════════════════════════════
+*/
+function reponsesConnues(env) {
+  const min = Number(env?.CHANGE_MIN) || 5000
+  const max = Number(env?.CHANGE_MAX) || 50000
+  const delai = Number(env?.CHANGE_DELAI) || 30
+  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const parMonnaie = minimumsChange(env)
+  const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
+
+  const minTexte = Object.keys(parMonnaie).length
+    ? Object.entries(parMonnaie).map(([m, v]) => `${m} ${groupeMilliers(v)} FCFA`).join(', ')
+    : `${groupeMilliers(min)} FCFA`
+
+  return [
+    {
+      mots: ['minimum', 'minimom', 'le moins', 'au moins', 'plus petit'],
+      reponse:
+        `Le minimum depend de la monnaie — ${minTexte}. ` +
+        `Le plafond par operation est de ${groupeMilliers(max)} FCFA.`,
+    },
+    {
+      mots: ['delai', 'combien de temps', 'ca prend', 'duree', 'attendre', 'c est long'],
+      reponse:
+        `Le changeur annonce ${delai} minutes. En pratique c'est souvent plus court : ` +
+        `ta vente est verifiee automatiquement sur la chaine des que le versement arrive, ` +
+        `et le changeur voit la confirmation en meme temps que toi.`,
+    },
+    {
+      mots: ['frais', 'marge', 'commission', 'ca coute', 'vous prenez', 'tu prends'],
+      reponse:
+        `La marge du changeur est de ${marge} FCFA par dollar. Elle est affichee en clair ` +
+        `dans l'ecran Change avant que tu valides, avec le prix du marche a cote pour que ` +
+        `tu puisses comparer. Il n'y a aucun autre frais de notre part. Les frais de ` +
+        `reseau, eux, dependent de la chaine que tu choisis.`,
+    },
+    {
+      mots: ['reseau', 'quelle chaine', 'bep20', 'trc20', 'erc20', 'tron ou', 'bnb ou'],
+      reponse:
+        (monnaies.length ? `Monnaies acceptees ici : ${monnaies.join(', ')}. ` : '') +
+        `Choisis le reseau le moins cher que tu possedes : BNB Chain (BEP20) coute ` +
+        `quelques centimes, TRON (TRC20) souvent 1 a 3 dollars, Ethereum (ERC20) bien ` +
+        `plus. ATTENTION : le reseau choisi sur ton exchange doit etre EXACTEMENT celui ` +
+        `affiche dans l'ecran Change. Un envoi sur le mauvais reseau est perdu.`,
+    },
+    {
+      mots: ['pas recu', 'rien recu', 'ou est mon argent', 'toujours rien', 'pas arrive',
+             'jai envoye', "j'ai envoye", 'pas confirme'],
+      reponse:
+        `Rouvre ta demande dans l'ecran Change : la carte de verification dit ce que le ` +
+        `relais a lu sur la chaine, et elle se met a jour toute seule. Trois causes, dans ` +
+        `l'ordre de frequence : le montant envoye ne correspond pas EXACTEMENT a celui ` +
+        `demande — un exchange retranche ses frais, c'est la ligne « vous recevrez » qui ` +
+        `compte ; le retrait est encore en file chez ton exchange ; ou le reseau n'etait ` +
+        `pas le bon. Si rien de tout ca, demande le changeur.`,
+    },
+    {
+      mots: ['phrase secrete', 'douze mots', '12 mots', 'mnemonique', 'seed', 'cle privee'],
+      reponse:
+        `VaultEx ne te demandera JAMAIS ta phrase secrete, tes douze mots, ni ta cle ` +
+        `privee. Ni l'assistance, ni le changeur, ni personne. Quiconque te les reclame ` +
+        `est un escroc, meme s'il dit etre le support. Ne les ecris nulle part.`,
+    },
+  ]
+}
+
+/**
+ * La réponse connue à cette question, ou null.
+ *
+ * Ce qui n'est pas reconnu descend au modèle. Mieux vaut laisser passer
+ * une question qu'on aurait pu traiter que répondre à côté.
+ */
+function reponseConnue(question, env) {
+  const q = sansAccents(question)
+  if (q.length < 3) return null
+  for (const entree of reponsesConnues(env)) {
+    if (entree.mots.some((m) => q.includes(sansAccents(m)))) return entree.reponse
+  }
+  return null
+}
+
 /**
  * Répond à un client, ou transmet sa question au changeur.
  */
 async function assistance(requete, env) {
-  const cle = String(env?.CHANGE_IA_CLE ?? '')
-  if (!cle) {
-    return json({
-      ok: false,
-      raison: "l'assistance automatique n'est pas configuree",
-      humain: true,
-    }, 0, 503)
-  }
-
   let corps = null
   try {
     corps = await requete.json()
@@ -5722,6 +5814,47 @@ async function assistance(requete, env) {
     .filter((m) => m.content.length > 0)
 
   if (propres.length === 0) return json({ ok: false, raison: 'aucun message' }, 0, 400)
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA RÉPONSE CONNUE PASSE AVANT LE MODÈLE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Ce n'est pas un repli, c'est le bon ordre.
+
+  Les questions qu'on pose à une assistance de change ne sont pas variées :
+  le minimum, le délai, les frais, quel réseau choisir, « où est mon
+  argent ». Elles reviennent, et leurs réponses sont dans les réglages du
+  Worker — exactes par construction.
+
+  Y répondre ici coûte RIEN, arrive INSTANTANÉMENT, et ne peut pas se
+  tromper. Les faire passer par un modèle payant serait payer pour un
+  risque d'erreur.
+
+  ─── ET ÇA REND L'ASSISTANCE UTILISABLE SANS CLÉ ────────────────────
+
+  Conséquence, pas intention — mais elle compte : le jour où la clé
+  manque, où le crédit est épuisé, où le modèle est injoignable, les
+  questions les plus fréquentes trouvent quand même leur réponse.
+
+  Une assistance qui répond à la moitié des questions vaut infiniment
+  mieux qu'une qui n'en répond à aucune.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const derniere = propres[propres.length - 1]
+  if (derniere.role === 'user') {
+    const connue = reponseConnue(derniere.content, env)
+    if (connue) return json({ ok: true, reponse: connue, source: 'reglages' })
+  }
+
+  const cle = String(env?.CHANGE_IA_CLE ?? '')
+  if (!cle) {
+    return json({
+      ok: false,
+      raison: "je n'ai pas la reponse a celle-la, et l'assistance automatique n'est pas encore installee",
+      humain: true,
+    }, 0, 503)
+  }
 
   try {
     const r = await fetchBorne('https://api.anthropic.com/v1/messages', {

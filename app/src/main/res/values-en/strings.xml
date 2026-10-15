@@ -1192,4 +1192,8 @@
     <string name="assistance_numero_aide">If your question has to go to the changer, that is where he will answer. It is used for nothing else, and it goes nowhere until you ask to reach the changer.</string>
     <string name="assistance_numero_valider">Save</string>
     <string name="assistance_numero_sans">Continue without</string>
+    <string name="assistance_ex_minimum">What is the minimum to exchange?</string>
+    <string name="assistance_ex_delai">How long does it take?</string>
+    <string name="assistance_ex_reseau">Which network should I choose?</string>
+    <string name="assistance_ex_phrase">Someone is asking for my secret phrase, is that normal?</string>
 </resources>
