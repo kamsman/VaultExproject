@@ -133,6 +133,21 @@ class AssistanceViewModel @Inject constructor(
         if (!it.numeroValide) it else it.copy(numeroDemande = false, numeroDonne = true)
     }
 
+    /**
+     * Pose une question toute faite.
+     *
+     * Elle passe par `saisie` plutôt que d'appeler `envoyer` avec un
+     * argument : le message doit apparaître dans la conversation comme
+     * s'il avait été tapé, parce que c'est ce qu'il est du point de vue de
+     * celui qui lit. Une question posée autrement se relirait comme venue
+     * de nulle part.
+     */
+    fun poser(question: String) {
+        if (_state.value.enCours) return
+        _state.update { it.copy(saisie = question, erreur = null) }
+        envoyer()
+    }
+
     fun envoyer() {
         val s = _state.value
         if (!s.peutEnvoyer) return

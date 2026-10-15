@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.assistance
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,7 +105,7 @@ fun AssistanceScreen(navController: NavController) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (state.messages.isEmpty()) Accueil()
+                if (state.messages.isEmpty()) Accueil(vm)
 
                 state.messages.forEach { Bulle(it) }
 
@@ -168,7 +169,7 @@ vide ferait écrire « bonjour » et attendre ; une page d'explications ne
 serait pas lue.
 */
 @Composable
-private fun Accueil() {
+private fun Accueil(vm: AssistanceViewModel) {
     Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -187,6 +188,50 @@ private fun Accueil() {
                 stringResource(R.string.assistance_jamais_phrase),
                 fontSize = 12.sp, color = AccentOrange, fontWeight = FontWeight.SemiBold
             )
+
+            /*
+            ═══════════════════════════════════════════════════════════════
+            QUATRE QUESTIONS TOUTES FAITES
+            ═══════════════════════════════════════════════════════════════
+
+            Un champ vide demande de formuler, et formuler est justement ce
+            qu'on fait mal quand on est bloque ou presse. Sur un telephone,
+            dans la rue, « c'est quoi le minimum » prend vingt frappes.
+
+            CE SONT CELLES AUXQUELLES LE RELAIS SAIT REPONDRE SANS MODELE,
+            et ce n'est pas un hasard : tant qu'il n'y a pas de cle d'API,
+            ce sont les seules qui aboutissent. Les proposer, c'est mener
+            vers ce qui marche au lieu de laisser decouvrir ce qui ne
+            marche pas.
+
+            La derniere — la phrase secrete — n'est pas une question qu'on
+            pense a poser. C'est pour ca qu'elle est la : quelqu'un a qui
+            l'on vient de reclamer ses douze mots doit pouvoir verifier en
+            un geste, avant d'avoir le temps d'hesiter.
+            ═══════════════════════════════════════════════════════════════
+            */
+            Spacer(Modifier.height(2.dp))
+            listOf(
+                R.string.assistance_ex_minimum,
+                R.string.assistance_ex_delai,
+                R.string.assistance_ex_reseau,
+                R.string.assistance_ex_phrase
+            ).forEach { id ->
+                val texte = stringResource(id)
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = AccentBlue.copy(alpha = 0.10f),
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { vm.poser(texte) }
+                ) {
+                    Text(
+                        texte,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        fontSize = 12.sp,
+                        color = AccentBlue
+                    )
+                }
+            }
         }
     }
 }

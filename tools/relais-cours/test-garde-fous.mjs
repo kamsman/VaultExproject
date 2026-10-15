@@ -1643,6 +1643,34 @@ plus frequentes trouvent quand meme leur reponse.
   */
   verifie('CONNUE : les accents ne genent pas', reponseConnue('quel est le Délai ?', ENV_IA) !== null)
   verifie('CONNUE : les majuscules non plus', reponseConnue('MINIMUM', ENV_IA) !== null)
+
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  LES QUESTIONS PROPOSEES PAR L'ECRAN DOIVENT ABOUTIR
+  ═════════════════════════════════════════════════════════════════════
+
+  L'ecran d'assistance propose quatre questions toutes faites. Elles sont
+  copiees ici MOT POUR MOT depuis strings.xml.
+
+  Pourquoi ce test existe : proposer une question a laquelle on ne sait
+  pas repondre est pire que ne rien proposer. On invite quelqu'un a
+  appuyer, et on lui rend « je n'ai pas la reponse a celle-la ». Tant
+  qu'il n'y a pas de cle d'API, ce sont meme les SEULES qui aboutissent.
+
+  Si quelqu'un reformule un libelle dans strings.xml sans toucher aux
+  mots reconnus, ce test tombe — et c'est exactement ce qu'on veut, parce
+  que rien d'autre ne le signalerait.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const PROPOSEES = [
+    "C'est quoi le minimum pour échanger ?",
+    'Combien de temps ça prend ?',
+    'Quel réseau je dois choisir ?',
+    "On me demande ma phrase secrète, c'est normal ?",
+  ]
+  for (const q of PROPOSEES) {
+    verifie(`PROPOSEE : « ${q} » trouve sa reponse`, reponseConnue(q, ENV_IA) !== null, q)
+  }
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
