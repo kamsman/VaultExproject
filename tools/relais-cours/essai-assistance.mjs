@@ -99,6 +99,20 @@ async function demander(texte) {
 const aPoser = question ? [question] : QUESTIONS_CONNUES
 let connues = 0
 let modele = 0
+/*
+LE TROISIÈME CAS, QUE JE N'AVAIS PAS COMPTÉ.
+
+Le relais rend `source: 'repli'` quand il ne sait pas répondre ET qu'il
+n'y a pas de clé : une bulle qui liste ce qu'il sait faire. Mon compteur
+ne connaissait que « reglages » et « le reste », et classait donc ce repli
+comme une réponse de MODÈLE — en concluant « la cle d'API est posee et le
+credit tient » alors qu'il n'y a aucune clé.
+
+Un diagnostic qui se trompe dans ce sens-là est pire qu'absent : il fait
+croire qu'une facture court, ou qu'un réglage est en place quand il ne
+l'est pas.
+*/
+let replis = 0
 let echecs = 0
 
 for (const q of aPoser) {
@@ -120,8 +134,12 @@ for (const q of aPoser) {
     cette ligne, on croirait l'assistance installée alors qu'elle ne fait
     que réciter ce que le Worker sait déjà, ou l'inverse.
     */
-    const source = r.corps.source === 'reglages' ? 'REGLAGES (gratuit, exact)' : 'MODELE (paye)'
+    const source =
+      r.corps.source === 'reglages' ? 'REGLAGES (gratuit, exact)'
+      : r.corps.source === 'repli' ? 'REPLI (gratuit — aucune cle, aucun modele)'
+      : 'MODELE (paye)'
     if (r.corps.source === 'reglages') connues += 1
+    else if (r.corps.source === 'repli') replis += 1
     else modele += 1
     console.log(`\n💬 ${r.corps.reponse}`)
     console.log(`\n   source : ${source}`)
@@ -135,7 +153,10 @@ for (const q of aPoser) {
 }
 
 console.log('\n' + '═'.repeat(70))
-console.log(`  ${connues} par les reglages · ${modele} par le modele · ${echecs} sans reponse`)
+console.log(
+  `  ${connues} par les reglages · ${replis} en repli · ` +
+    `${modele} par le modele · ${echecs} sans reponse`
+)
 
 if (!question && connues < QUESTIONS_CONNUES.length && modele === 0) {
   /*
@@ -150,8 +171,25 @@ if (!question && connues < QUESTIONS_CONNUES.length && modele === 0) {
 }
 if (modele > 0) {
   console.log('\n✅ Le modele repond : la cle d’API est posee et le credit tient.')
+} else if (replis > 0) {
+  console.log('\nℹ  Repli : le relais ne sait pas repondre a celle-la, ET il n’y a')
+  console.log('   pas de cle d’API. Il liste ce qu’il sait faire, ce qui est la')
+  console.log('   bonne reponse en attendant — mais AUCUN modele n’a ete appele.')
 } else if (connues > 0) {
   console.log('\nℹ  Aucune reponse de modele. C’est normal tant que CHANGE_IA_CLE')
   console.log('   n’est pas reglee — les questions frequentes marchent quand meme.')
 }
-process.exit(echecs > 0 && connues === 0 ? 1 : 0)
+
+/*
+`process.exitCode` ET NON `process.exit()`.
+
+Mesuré sous Windows : « Assertion failed: !(handle->flags &
+UV_HANDLE_CLOSING) » s'affichait apres le resume. `process.exit()` coupe
+l'execution pendant que les descripteurs de `fetch` se referment encore,
+et libuv s'en plaint bruyamment.
+
+Ce n'est qu'un bruit, mais un outil de diagnostic qui finit sur une
+assertion fait douter de ce qu'il vient d'imprimer. On pose le code de
+sortie et on laisse Node se terminer tout seul.
+*/
+process.exitCode = echecs > 0 && connues === 0 && replis === 0 ? 1 : 0
