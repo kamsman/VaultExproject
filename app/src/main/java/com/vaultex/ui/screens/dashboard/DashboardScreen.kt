@@ -511,7 +511,7 @@ fun DashboardScreen(navController: NavHostController) {
                     nom de l'application, il se trouve sans etre cherche.
                     */
                     Spacer(Modifier.width(6.dp))
-                    HeaderSquareButton(Icons.AutoMirrored.Filled.HelpOutline) {
+                    HeaderSquareButton(Icons.Default.HelpOutline) {
                         navController.navigate(Routes.ASSISTANCE)
                     }
                     Spacer(Modifier.weight(1f))
