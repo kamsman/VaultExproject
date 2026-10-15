@@ -511,7 +511,22 @@ fun DashboardScreen(navController: NavHostController) {
                     nom de l'application, il se trouve sans etre cherche.
                     */
                     Spacer(Modifier.width(6.dp))
-                    HeaderSquareButton(Icons.Default.HelpOutline) {
+                    /*
+                    UN VISAGE CASQUE, ET NON UN POINT D'INTERROGATION.
+
+                    Le point d'interrogation dit « documentation » : on
+                    l'associe a une page qu'il faut lire, et on ne
+                    l'ouvre pas quand on est presse ou inquiet. Le casque
+                    dit « quelqu'un repond », et c'est ce qu'on cherche a
+                    ce moment-la.
+
+                    Le dessin vectoriel de Material plutot qu'une image
+                    fournie : il se teinte avec le theme, reste net a
+                    toutes les densites, et n'ajoute aucun fichier. Une
+                    image JPEG aurait pose un carre blanc sur un fond
+                    sombre, faute de transparence.
+                    */
+                    HeaderSquareButton(Icons.Default.SupportAgent) {
                         navController.navigate(Routes.ASSISTANCE)
                     }
                     Spacer(Modifier.weight(1f))
