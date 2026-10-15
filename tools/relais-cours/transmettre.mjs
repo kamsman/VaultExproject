@@ -162,11 +162,24 @@ console.log(`\n  LE CHANGEUR DEVRA ENVOYER ${fcfa.toLocaleString('fr-FR')} FCFA 
 
 // ─── 3. L'ordre ─────────────────────────────────────────────────────
 
+/*
+LES MILLIERS SONT GROUPÉS, COMME L'APPLICATION LES GROUPE.
+
+Mesuré sur le premier vrai message : « Montant : 3861 FCFA », là où un
+ordre venu de l'application affiche « 3 861 ». Le changeur lit cette ligne
+pour taper une somme dans Orange Money ; un nombre non groupé se relit
+mal, et c'est précisément là qu'un zéro se perd.
+
+Une espace ordinaire, et non l'espace insécable étroite de
+`NumberFormat` : le relais la retire de toute façon avant de lire, et
+elle traverse les URL et les messages sans se transformer en quelque
+chose d'autre — ce que l'espace étroite a déjà fait dans ce projet.
+*/
 const ordre = {
   reference,
   sens: 'vente',
   monnaie,
-  montantFcfa: String(fcfa),
+  montantFcfa: String(fcfa).replace(/\B(?=(\d{3})+(?!\d))/g, ' '),
   montantCrypto: String(montantRecu),
   taux: `${venteFcfa} FCFA`,
   marge: `${marge} FCFA/$ (${(proportion * 100).toFixed(2)} %)`,
