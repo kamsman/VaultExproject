@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 41
+const VERSION = 42
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5751,6 +5751,68 @@ function reponsesConnues(env) {
         `pas le bon. Si rien de tout ca, demande le changeur.`,
     },
     {
+      mots: ['comment vendre', 'je veux vendre', 'pour vendre', 'comment je vend',
+             'vendre mes usdt', 'vendre ma crypto'],
+      reponse:
+        `Ouvre l'ecran Change, onglet VENDRE, choisis ta monnaie et tape le montant. ` +
+        `L'application te donne alors une ADRESSE et un MONTANT EXACT, avec des decimales ` +
+        `precises : envoie exactement ce montant a cette adresse depuis ton portefeuille ` +
+        `ou ton exchange. Un montant arrondi ne sera pas reconnu — ce sont ces decimales ` +
+        `qui rattachent ton versement a ta demande.`,
+    },
+    {
+      mots: ['comment acheter', 'je veux acheter', 'pour acheter', 'comment je achete',
+             'acheter des usdt', 'acheter de la crypto'],
+      reponse:
+        `Ouvre l'ecran Change, onglet ACHETER, et tape le montant en francs. ` +
+        `L'application te donne le numero Mobile Money du changeur et une reference. ` +
+        `Paie ce montant exact, puis reviens valider : le changeur recoit ta demande et ` +
+        `envoie la crypto a ton adresse une fois le paiement verifie.`,
+    },
+    {
+      mots: ['orange money', 'moov', 'wave', 'mobile money', 'comment payer', 'je paie comment'],
+      reponse:
+        `Les paiements en francs se font par Mobile Money, sur le numero affiche dans ` +
+        `l'ecran Change au moment de l'achat. N'envoie jamais d'argent a un numero qu'on ` +
+        `t'aurait donne ailleurs — par message, par appel, ou par quelqu'un se disant du ` +
+        `support. Seul le numero affiche dans l'application fait foi.`,
+    },
+    {
+      mots: ['taux', 'le prix du dollar', 'cours', 'combien vaut'],
+      reponse:
+        `Le taux s'affiche en direct dans l'ecran Change, avec DEUX lignes : le prix du ` +
+        `marche, et le taux reellement applique. L'ecart entre les deux est la marge du ` +
+        `changeur, affichee en clair pour que tu puisses comparer avant de valider.`,
+    },
+    {
+      mots: ['annuler', 'je me suis trompe', 'erreur de montant', 'mauvais montant',
+             'revenir en arriere'],
+      reponse:
+        `Tant que tu n'as RIEN envoye, il n'y a rien a annuler : ferme l'ecran et ` +
+        `recommence, la demande expire toute seule. Si tu as deja envoye, l'operation est ` +
+        `IRREVERSIBLE sur la chaine — ecris au changeur tout de suite avec ta reference ` +
+        `VX-…, c'est lui qui pourra regler ca.`,
+    },
+    {
+      mots: ['nouveau telephone', 'change de telephone', 'perdu mon telephone',
+             'recuperer mon compte', 'restaurer', 'reinstaller'],
+      reponse:
+        `Ton portefeuille se restaure avec tes douze mots de recuperation, et UNIQUEMENT ` +
+        `avec eux : personne ne peut te les redonner, ni nous ni le changeur. Si tu les ` +
+        `as notes, choisis « importer un portefeuille » a l'installation. Si tu ne les as ` +
+        `pas, les fonds ne sont pas recuperables — c'est la contrepartie d'un portefeuille ` +
+        `que personne d'autre ne controle.`,
+    },
+    {
+      mots: ['mon solde', 'solde affiche', 'je vois pas mes', 'mes fonds', 'zero',
+             'balance'],
+      reponse:
+        `Si ton solde affiche zero ou semble faux, c'est le plus souvent une lecture qui ` +
+        `n'a pas abouti : tire l'ecran vers le bas pour rafraichir. Tes fonds ne sont pas ` +
+        `dans l'application — ils sont sur la chaine, et l'application ne fait que les ` +
+        `lire. Verifie aussi que tu regardes le bon reseau.`,
+    },
+    {
       mots: ['phrase secrete', 'douze mots', '12 mots', 'mnemonique', 'seed', 'cle privee'],
       reponse:
         `VaultEx ne te demandera JAMAIS ta phrase secrete, tes douze mots, ni ta cle ` +
@@ -5849,11 +5911,36 @@ async function assistance(requete, env) {
 
   const cle = String(env?.CHANGE_IA_CLE ?? '')
   if (!cle) {
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UN AVEU D'IGNORANCE N'EST PAS UNE ERREUR
+    ═══════════════════════════════════════════════════════════════════
+
+    C'était un 503 avec une raison, que l'écran affichait en ROUGE sous
+    la conversation. Mais ne pas savoir répondre à une question n'est pas
+    une panne : c'est une réponse, et elle doit se lire comme les autres.
+
+    Le rouge dit « quelque chose s'est cassé, réessaie » et fait chercher
+    un défaut qui n'existe pas. Une bulle ordinaire dit « je ne sais pas
+    faire ça, voilà ce que je sais faire » — et la liste qui suit est la
+    partie utile.
+
+    `humain: true` fait quand même apparaître la carte qui propose le
+    changeur : on ne sait pas, on le dit, et on indique qui saura.
+    ═══════════════════════════════════════════════════════════════════
+    */
     return json({
-      ok: false,
-      raison: "je n'ai pas la reponse a celle-la, et l'assistance automatique n'est pas encore installee",
+      ok: true,
+      source: 'repli',
       humain: true,
-    }, 0, 503)
+      reponse:
+        `Je ne sais pas encore repondre a celle-la. Pour l'instant je reponds a : ` +
+        `le minimum et le plafond, le delai, les frais et le taux, quel reseau choisir, ` +
+        `comment vendre, comment acheter, « j'ai envoye et je n'ai rien recu », annuler ` +
+        `une demande, changer de telephone, un solde qui semble faux, et tout ce qui ` +
+        `touche a ta phrase secrete.\n\n` +
+        `Reformule avec un de ces mots, ou ecris au changeur : il repondra lui-meme.`,
+    })
   }
 
   try {

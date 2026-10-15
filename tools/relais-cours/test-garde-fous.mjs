@@ -1662,6 +1662,44 @@ plus frequentes trouvent quand meme leur reponse.
   que rien d'autre ne le signalerait.
   ═════════════════════════════════════════════════════════════════════
   */
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  LES QUESTIONS QUE LES GENS POSENT VRAIMENT
+  ═════════════════════════════════════════════════════════════════════
+
+  Ecrites comme on les tape : sans accents, sans ponctuation, avec les
+  tournures qu'on emploie a l'oral. Un motif qui ne reconnait que la
+  forme bien ecrite ne reconnait rien.
+
+  CHACUNE DOIT ABOUTIR SANS CLE. Tant qu'il n'y a pas d'API, ce sont les
+  seules qui repondent — et c'est la difference entre une assistance
+  utile et une assistance qui dit « je ne sais pas » a tout le monde.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  const VRAIES = [
+    'comment je fais pour vendre mes usdt',
+    'je veux acheter des usdt comment faire',
+    'je peux payer avec orange money',
+    'cest quoi le taux aujourdhui',
+    'je me suis trompe de montant comment annuler',
+    'jai change de telephone comment recuperer mon compte',
+    'mon solde affiche zero',
+    'on me demande mes 12 mots',
+  ]
+  for (const q of VRAIES) {
+    verifie(`VRAIE : « ${q} » trouve sa reponse`, reponseConnue(q, ENV_IA) !== null, q)
+  }
+
+  /*
+  ET CE QUI RESTE HORS SUJET DOIT DESCENDRE AU MODELE. Un filet qui
+  attrape tout repondrait a cote, et une reponse a cote a l'air d'une
+  reponse — c'est pire qu'un aveu d'ignorance.
+  */
+  verifie('HORS SUJET : une question de logistique descend au modele',
+    reponseConnue('est ce que vous livrez a bobo dioulasso', ENV_IA) === null)
+  verifie('HORS SUJET : une salutation aussi',
+    reponseConnue('bonjour', ENV_IA) === null)
+
   const PROPOSEES = [
     "C'est quoi le minimum pour échanger ?",
     'Combien de temps ça prend ?',
