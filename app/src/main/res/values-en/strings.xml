@@ -1117,7 +1117,7 @@
     <string name="change_beneficiaire">Recipient</string>
     <string name="change_montant_exact">Exact amount</string>
     <string name="change_reference">Your reference</string>
-    <string name="change_motif">Put %1$s as the payment reason. That is what links your transfer to your request — without it, the exchanger sees money arrive without knowing from whom.</string>
+    <string name="change_motif">Keep your reference %1$s. If your payment method has a “reason” field, put it there. The USSD code has none: in that case, the exact amount and your number are what link your payment.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
     <string name="change_ref_paiement_aide">The transaction number your operator texted you.</string>

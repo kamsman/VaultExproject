@@ -1011,16 +1011,30 @@ private fun ColumnScope.EtapePaiement(
     }
 
     /*
-    LE MOTIF N'EXISTE QUE SUR MOBILE MONEY.
+    ═══════════════════════════════════════════════════════════════════════
+    LE MOTIF N'EXISTE PAS TOUJOURS — Y COMPRIS SUR UN ACHAT
+    ═══════════════════════════════════════════════════════════════════════
 
-    Cette note disait « mets VX-… en motif du paiement — sans lui, le
-    changeur voit de l'argent arriver sans savoir de qui ». Sur une vente,
-    elle est fausse deux fois : un transfert TRON ou EVM n'a aucun champ
-    pour y mettre quoi que ce soit, et depuis que le relais lit la chaîne,
-    c'est le transfert lui-même qui identifie l'envoi.
+    Cette note a déjà été corrigée une fois : elle disait « mets VX-… en
+    motif du paiement » sur une VENTE, où un transfert TRON ou EVM n'a
+    aucun champ où l'écrire. Elle a été restreinte aux achats.
 
-    Elle demandait donc quelque chose d'impossible, en annonçant une
-    conséquence qui n'existe plus.
+    ─── ET ELLE ÉTAIT ENCORE FAUSSE LÀ ─────────────────────────────────
+
+    Vu sur un vrai écran, juste sous le bouton « Payer avec Orange
+    Money » : LE CODE USSD N'A PAS DE CHAMP MOTIF. L'écran demandait donc
+    quelque chose d'impossible par le moyen qu'il venait lui-même
+    d'offrir, deux centimètres plus haut.
+
+    ─── CE QUI RATTACHE VRAIMENT LE PAIEMENT ───────────────────────────
+
+    Le relais rapproche par RÉFÉRENCE quand il y en a une, et à défaut par
+    MONTANT ET NUMÉRO. Le second chemin existe précisément pour les
+    paiements sans motif — c'est-à-dire pour la plupart.
+
+    La note dit donc les deux cas, et cesse d'annoncer une catastrophe
+    qui n'arrive pas.
+    ═══════════════════════════════════════════════════════════════════════
     */
     if (achat) {
         Note(stringResource(R.string.change_motif, state.reference), AccentBlue)

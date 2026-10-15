@@ -1146,7 +1146,7 @@
     <string name="change_beneficiaire">Bénéficiaire</string>
     <string name="change_montant_exact">Montant exact</string>
     <string name="change_reference">Ta référence</string>
-    <string name="change_motif">Mets %1$s en motif du paiement. C\'est ce qui permet de rattacher ton envoi à ta demande — sans lui, le changeur voit de l\'argent arriver sans savoir de qui.</string>
+    <string name="change_motif">Garde ta référence %1$s. Si ton moyen de paiement a un champ « motif », mets-la dedans. Le code USSD n\'en a pas : dans ce cas, ce sont le montant exact et ton numéro qui rattachent ton paiement.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
     <string name="change_ref_paiement_aide">Le numéro de transaction que ton opérateur t\'a envoyé par SMS.</string>
