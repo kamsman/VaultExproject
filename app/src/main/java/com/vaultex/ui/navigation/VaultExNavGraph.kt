@@ -298,6 +298,10 @@ fun VaultExNavGraph(navController: NavHostController) {
             QrScannerScreen(navController)
         }
 
+        composable(Routes.ASSISTANCE) {
+            com.vaultex.ui.screens.assistance.AssistanceScreen(navController)
+        }
+
         composable(
             route = Routes.HISTORY_DETAIL,
             arguments = listOf(navArgument("hash") { type = NavType.StringType })

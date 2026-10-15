@@ -1179,4 +1179,17 @@
     <string name="change_replier">Hide details</string>
     <string name="change_prix_garanti">Price guaranteed for</string>
     <string name="change_prix_expire">The displayed price is no longer guaranteed — go back to the calculation if you have not sent yet.</string>
+    <string name="assistance_titre">Support</string>
+    <string name="assistance_accueil_titre">VaultEx support</string>
+    <string name="assistance_accueil_aide">Ask your question in one sentence: delay, fees, minimum, which network to choose, where your exchange stands. Answers are automatic and immediate. If they are not enough, we offer to reach the changer.</string>
+    <string name="assistance_jamais_phrase">VaultEx will NEVER ask for your secret phrase or your twelve words. Anyone asking for them is a scammer, even if they claim to be support.</string>
+    <string name="assistance_placeholder">Write your question…</string>
+    <string name="assistance_envoyer">Send</string>
+    <string name="assistance_en_cours">Support is thinking…</string>
+    <string name="assistance_humain_titre">You can reach the changer</string>
+    <string name="assistance_humain_aide">This question deserves a human. Write to the changer on the usual channel — he will answer as soon as he is available.</string>
+    <string name="assistance_numero_titre">Your number, so we can call you back</string>
+    <string name="assistance_numero_aide">If your question has to go to the changer, that is where he will answer. It is used for nothing else, and it goes nowhere until you ask to reach the changer.</string>
+    <string name="assistance_numero_valider">Save</string>
+    <string name="assistance_numero_sans">Continue without</string>
 </resources>

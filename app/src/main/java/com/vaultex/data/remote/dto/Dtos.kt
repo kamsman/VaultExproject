@@ -619,3 +619,34 @@ data class VerificationDto(
     val raison: String? = null,
     val explorateur: String? = null
 )
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ASSISTANCE
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/**
+ * Un tour de conversation, dans la forme que le relais attend.
+ *
+ * `role` vaut « user » ou « assistant ». On envoie l'HISTORIQUE a chaque
+ * fois : le relais ne garde rien entre deux appels, et c'est voulu — une
+ * conversation d'assistance n'a pas a sejourner sur un serveur, et ne rien
+ * garder est la seule facon de ne rien perdre.
+ */
+data class TourAssistance(
+    val role: String,
+    val content: String
+)
+
+data class DemandeAssistance(
+    val messages: List<TourAssistance>
+)
+
+data class ReponseAssistance(
+    val ok: Boolean? = null,
+    val reponse: String? = null,
+    val raison: String? = null,
+    /** Vrai quand le relais conseille de passer au changeur. */
+    val humain: Boolean? = null
+)

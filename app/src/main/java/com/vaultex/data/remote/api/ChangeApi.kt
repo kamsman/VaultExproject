@@ -101,6 +101,18 @@ interface ChangeApi {
      * empeche de deposer une demande apres avoir vu passer le versement
      * de quelqu'un d'autre.
      */
+    /**
+     * Pose une question a l'assistance.
+     *
+     * LA CLE DU MODELE N'EST PAS ICI, et c'est tout l'interet de passer par
+     * le relais : un APK se decompile en dix minutes, et une cle qui y
+     * figure est une cle publique dont la facture est a celui qui a signe.
+     */
+    @POST("assistance")
+    suspend fun assistance(
+        @Body corps: com.vaultex.data.remote.dto.DemandeAssistance
+    ): com.vaultex.data.remote.dto.ReponseAssistance
+
     @GET("change/consigne")
     suspend fun consigne(
         @Query("monnaie") monnaie: String,

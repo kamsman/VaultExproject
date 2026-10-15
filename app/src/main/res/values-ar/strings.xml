@@ -1179,4 +1179,17 @@
     <string name="change_replier">إخفاء التفاصيل</string>
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
     <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
+    <string name="assistance_titre">المساعدة</string>
+    <string name="assistance_accueil_titre">مساعدة VaultEx</string>
+    <string name="assistance_accueil_aide">اطرح سؤالك في جملة واحدة: المهلة، الرسوم، الحد الأدنى، أي شبكة تختار، أين وصل تبادلك. الإجابات تلقائية وفورية. إذا لم تكفِ، نقترح عليك الاتصال بالصراف.</string>
+    <string name="assistance_jamais_phrase">لن يطلب منك VaultEx أبداً عبارتك السرية ولا كلماتك الاثنتي عشرة. من يطلبها محتال، حتى لو قال إنه الدعم.</string>
+    <string name="assistance_placeholder">اكتب سؤالك…</string>
+    <string name="assistance_envoyer">إرسال</string>
+    <string name="assistance_en_cours">المساعدة تفكّر…</string>
+    <string name="assistance_humain_titre">يمكنك الاتصال بالصراف</string>
+    <string name="assistance_humain_aide">هذا السؤال يستحق إنساناً. اكتب إلى الصراف على القناة المعتادة — سيجيب حالما يكون متاحاً.</string>
+    <string name="assistance_numero_titre">رقمك، حتى نتمكن من معاودة الاتصال بك</string>
+    <string name="assistance_numero_aide">إذا وجب تحويل سؤالك إلى الصراف، فهناك سيجيبك. لا يُستعمل لشيء آخر، ولا يُرسل إلى أي مكان حتى تطلب الاتصال بالصراف.</string>
+    <string name="assistance_numero_valider">حفظ</string>
+    <string name="assistance_numero_sans">المتابعة بدونه</string>
 </resources>
