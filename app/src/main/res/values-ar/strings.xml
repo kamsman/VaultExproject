@@ -1117,7 +1117,7 @@
     <string name="change_beneficiaire">المستفيد</string>
     <string name="change_montant_exact">المبلغ بالضبط</string>
     <string name="change_reference">مرجعك</string>
-    <string name="change_motif">ضع %1$s في خانة سبب الدفع. هذا ما يربط تحويلك بطلبك — بدونه يرى الصرّاف مالًا يصل دون أن يعرف من أرسله.</string>
+    <string name="change_motif">احتفظ بمرجعك %1$s. إذا كانت وسيلة الدفع تتيح خانة «السبب»، ضعه فيها. رمز USSD لا يتيحها: في هذه الحالة، المبلغ الدقيق ورقمك هما ما يربط دفعتك.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>
     <string name="change_ref_paiement_aide">رقم العملية الذي أرسله لك المشغّل برسالة نصية.</string>
