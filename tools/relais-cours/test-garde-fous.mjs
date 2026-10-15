@@ -400,7 +400,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -1567,6 +1567,82 @@ l'ecran Change y repond, et c'est la bonne reponse.
     sys.includes('douze') || sys.includes('recuperation'),
     sys
   )
+}
+
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES REPONSES CONNUES PASSENT AVANT LE MODELE
+═══════════════════════════════════════════════════════════════════════════
+
+Ce n'est pas un repli, c'est le bon ordre. Les questions qu'on pose a une
+assistance de change ne sont pas variees — le minimum, le delai, les
+frais, quel reseau, « ou est mon argent » — et leurs reponses sont dans
+les reglages du Worker, exactes par construction.
+
+Y repondre la coute RIEN, arrive INSTANTANEMENT, et ne peut pas se
+tromper. Les faire passer par un modele payant serait payer pour un
+risque d'erreur.
+
+CONSEQUENCE, PAS INTENTION, mais elle compte : le jour ou la cle manque,
+ou le credit est epuise, ou le modele est injoignable, les questions les
+plus frequentes trouvent quand meme leur reponse.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const ENV_IA = {
+    CHANGE_MIN: '600',
+    CHANGE_MAX: '50000',
+    CHANGE_DELAI: '10',
+    CHANGE_MINIMUMS: '{"USDT":20000,"USDT-BNB":600}',
+    CHANGE_ADRESSES: '{"USDT-BNB":"0xbde137a9684f0bc437294b2cf2ab7295831e327e"}',
+  }
+
+  /*
+  LES CHIFFRES VIENNENT DES REGLAGES, pas d'un texte fige. Si le changeur
+  monte son minimum, la reponse monte avec — sinon l'assistance annoncerait
+  un service qui n'existe plus, avec l'autorite d'une reponse officielle.
+  */
+  const min = reponseConnue('cest quoi le minimum', ENV_IA)
+  verifie('CONNUE : le minimum est reconnu', min !== null)
+  verifie('CONNUE : et il porte le chiffre REGLE', min.includes('600'), min)
+  verifie('CONNUE : par monnaie, les deux sont cites', min.includes('20 000'), min)
+
+  const delai = reponseConnue('ca prend combien de temps', ENV_IA)
+  verifie('CONNUE : le delai est reconnu et REGLE', delai?.includes('10 minutes'), delai)
+
+  verifie('CONNUE : les frais sont reconnus', reponseConnue('vous prenez combien', ENV_IA) !== null)
+  verifie('CONNUE : le reseau est reconnu', reponseConnue('quel reseau choisir', ENV_IA) !== null)
+  verifie('CONNUE : « jai envoye et rien recu » est reconnu',
+    reponseConnue('jai envoye mais jai rien recu', ENV_IA) !== null)
+
+  /*
+  LA QUESTION LA PLUS IMPORTANTE DE TOUTES. « On me demande ma phrase
+  secrete » doit trouver une reponse SANS passer par un modele, sans
+  dependre d'une cle, sans dependre du credit. C'est la seule ou une
+  seconde d'hesitation coute un portefeuille entier.
+  */
+  const phrase = reponseConnue('le support me demande ma phrase secrete', ENV_IA)
+  verifie('CONNUE : la phrase secrete est reconnue', phrase !== null, phrase)
+  verifie('CONNUE : et la reponse dit JAMAIS', phrase.includes('JAMAIS'), phrase)
+
+  /*
+  CE QUI N'EST PAS RECONNU DESCEND AU MODELE. Un filet trop large
+  repondrait a cote — et une reponse a cote est pire qu'un renvoi : elle a
+  l'air d'une reponse.
+  */
+  verifie('CONNUE : une salutation n est pas une question', reponseConnue('bonjour ca va', ENV_IA) === null)
+  verifie('CONNUE : une question hors sujet descend au modele',
+    reponseConnue('est ce que je peux acheter du bitcoin avec western union', ENV_IA) === null)
+  verifie('CONNUE : rien du tout rend null',
+    reponseConnue('', ENV_IA) === null && reponseConnue('ok', ENV_IA) === null)
+
+  /*
+  LES ACCENTS ET LA CASSE NE DOIVENT PAS GENER : on tape vite, sur un
+  telephone, et « Délai » comme « DELAI » designent la meme question.
+  */
+  verifie('CONNUE : les accents ne genent pas', reponseConnue('quel est le Délai ?', ENV_IA) !== null)
+  verifie('CONNUE : les majuscules non plus', reponseConnue('MINIMUM', ENV_IA) !== null)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
