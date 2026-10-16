@@ -269,6 +269,24 @@ val AIDE_CHEMIN = """
              gradlew -p tools/changeur-sms ouEstLApk
 """.trimIndent()
 
+/*
+LE BUREAU, RETROUVE TOUT SEUL.
+
+Dupliquee depuis app/build.gradle.kts, et c'est assume : ce projet a sa
+propre racine Gradle, donc il n'y a pas de `buildSrc` commun ou poser
+cette fonction. Dix lignes recopiees valent mieux qu'un repertoire de
+construction partage entre deux projets qu'on a separes expres.
+*/
+fun bureauProbable(): File? {
+    val profil = System.getenv("USERPROFILE") ?: System.getenv("HOME") ?: return null
+    return listOfNotNull(
+        System.getenv("OneDrive")?.let { File(it, "Desktop") },
+        File(profil, "OneDrive/Desktop"),
+        File(profil, "Desktop"),
+        File(profil, "Bureau"),
+    ).firstOrNull { it.isDirectory }
+}
+
 tasks.register("ouEstLApk") {
     group = "changeur"
     description = "Dit ou l'APK du robot sera depose, sans rien construire."
@@ -277,11 +295,31 @@ tasks.register("ouEstLApk") {
         // propriete de script a l'interieur d'un lambda.
         val chemin = sortieApk
         if (chemin == null) {
+            /*
+            ON DONNE LA LIGNE TOUTE FAITE, ET ON DIT QUE C'EST UNE LIGNE
+            DANS UN FICHIER. Vu sur une vraie machine : l'exemple a ete
+            tape dans PowerShell, qui a repondu « n'est pas reconnu comme
+            nom d'applet de commande ». Un chemin seul sur sa ligne
+            ressemble a une commande, et rien ne disait le contraire.
+            */
+            val bureau = bureauProbable()
+            val propose = if (bureau != null) {
+                File(bureau, "app changeur").absolutePath.replace('\\', '/')
+            } else {
+                "C:/Users/HP/Desktop/app changeur"
+            }
             logger.lifecycle(
                 "\nchangeur-sms : aucun dossier de depot regle.\n" +
                     "L'APK restera dans tools/changeur-sms/build/outputs/apk/.\n\n" +
-                    "Ajoute cette ligne dans le local.properties de la racine du depot :\n\n" +
-                    "    apk.sortie=C:/Users/HP/Desktop/app changeur\n"
+                    "POUR LE DEPOSER AILLEURS : ouvre le fichier local.properties, a la\n" +
+                    "RACINE DU DEPOT (celui de VaultEx), et AJOUTE CETTE LIGNE A LA FIN.\n" +
+                    "Ce n'est pas une commande a taper dans le terminal :\n\n" +
+                    "    apk.sortie=$propose\n\n" +
+                    (if (bureau != null) "Ton Bureau a ete trouve ici : ${bureau.absolutePath}\n"
+                    else "Le Bureau n'a pas ete trouve : remplace le chemin par le tien.\n") +
+                    "\nATTENTION : ce projet et VaultEx partagent cette ligne. Pour deux\n" +
+                    "dossiers differents, mets la ligne du robot dans\n" +
+                    "tools/changeur-sms/local.properties — elle l'emporte.\n"
             )
             return@doLast
         }

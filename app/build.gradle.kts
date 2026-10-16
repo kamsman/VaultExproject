@@ -940,19 +940,49 @@ minutes. On ne découvre plus un chemin faux à la fin d'une compilation.
 ═══════════════════════════════════════════════════════════════════════════
 */
 val AIDE_CHEMIN_APK = """
-    Verifie le chemin, puis reessaie :
+    Le chemin est faux. Pour le corriger :
 
-      1. Le Bureau est-il sous OneDrive ? Ouvre l'Explorateur, clique sur
-         ton Bureau, et lis la barre d'adresse. Si elle dit
-         C:\Users\HP\OneDrive\Desktop, c'est CE chemin qu'il faut.
-      2. Ecris la ligne dans local.properties plutot que sur la ligne de
-         commande — un chemin contenant une espace y passe sans guillemets
-         et sans surprise :
+      1. Demande ou l'APK devrait aller :   gradlew ouEstLApk
+         Sans reglage, cette commande ECRIT LA LIGNE A COLLER, avec le
+         Bureau reel de cette machine — OneDrive compris.
 
-             apk.sortie=C:/Users/HP/OneDrive/Desktop/app vaultex
+      2. Ouvre le fichier :   notepad local.properties
+         (a la racine du depot) et colle la ligne A LA FIN.
+         C'est une ligne DANS UN FICHIER, pas une commande a taper.
 
-      3. Puis verifie sans construire :  gradlew ouEstLApk
+      3. Reverifie :   gradlew ouEstLApk
 """.trimIndent()
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+RETROUVER LE BUREAU TOUT SEUL
+═══════════════════════════════════════════════════════════════════════════
+
+Parce que « mets ça sur ton Bureau » n'a pas de réponse unique sur
+Windows. Avec OneDrive actif, le Bureau est `%OneDrive%\Desktop` ; sans
+lui, `%USERPROFILE%\Desktop` ; sur une installation francophone ancienne,
+`Bureau`. Les trois existent dans la nature, et on ne peut pas deviner
+laquelle depuis un dépôt.
+
+CE QUE ÇA ÉVITE EST CONCRET. Le chemin se tape à la main, une fois, et
+une faute dedans ne se voit qu'à la fin d'une compilation — par un
+dossier vide. Donner la ligne toute faite, avec le Bureau RÉEL de cette
+machine-ci, supprime la frappe et la faute avec elle.
+
+On ne devine rien : on ne retient que le premier candidat qui existe
+VRAIMENT sur le disque. Si aucun n'existe, on se tait plutôt que de
+proposer un chemin inventé.
+═══════════════════════════════════════════════════════════════════════════
+*/
+fun bureauProbable(): File? {
+    val profil = System.getenv("USERPROFILE") ?: System.getenv("HOME") ?: return null
+    return listOfNotNull(
+        System.getenv("OneDrive")?.let { File(it, "Desktop") },
+        File(profil, "OneDrive/Desktop"),
+        File(profil, "Desktop"),
+        File(profil, "Bureau"),
+    ).firstOrNull { it.isDirectory }
+}
 
 /** Le dossier de dépôt, prêt à recevoir — ou une erreur qui dit pourquoi. */
 fun dossierDeDepot(chemin: String): File {
@@ -998,12 +1028,32 @@ tasks.register("ouEstLApk") {
         */
         val chemin = sortieApkVaultex
         if (chemin == null) {
+            /*
+            ON DONNE LA LIGNE TOUTE FAITE, AVEC LE VRAI BUREAU.
+
+            Et on dit que c'est une LIGNE DANS UN FICHIER. Vu sur une vraie
+            machine : l'exemple a ete tape dans PowerShell, qui a repondu
+            « n'est pas reconnu comme nom d'applet de commande ». Un
+            exemple de chemin, seul sur sa ligne, ressemble a une commande
+            — et rien dans le message ne disait le contraire.
+            */
+            val bureau = bureauProbable()
+            val propose = if (bureau != null) {
+                File(bureau, "app vaultex").absolutePath.replace('\\', '/')
+            } else {
+                "C:/Users/HP/Desktop/app vaultex"
+            }
             logger.lifecycle(
                 "\nvaultex : aucun dossier de depot regle.\n" +
                     "L'APK restera dans app/build/outputs/apk/.\n\n" +
-                    "Pour qu'il soit copie ailleurs, ajoute cette ligne dans " +
-                    "local.properties (a la racine du depot) :\n\n" +
-                    "    apk.sortie=C:/Users/HP/Desktop/app vaultex\n"
+                    "POUR LE DEPOSER AILLEURS : ouvre le fichier local.properties, a la\n" +
+                    "racine du depot, et AJOUTE CETTE LIGNE A LA FIN.\n" +
+                    "Ce n'est pas une commande a taper dans le terminal :\n\n" +
+                    "    apk.sortie=$propose\n\n" +
+                    (if (bureau != null) "Ton Bureau a ete trouve ici : ${bureau.absolutePath}\n"
+                    else "Le Bureau n'a pas ete trouve : remplace le chemin par le tien.\n") +
+                    "\nPour ouvrir le fichier :  notepad local.properties\n" +
+                    "Puis reviens verifier :   gradlew ouEstLApk\n"
             )
             return@doLast
         }
