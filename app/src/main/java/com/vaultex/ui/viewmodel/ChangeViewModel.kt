@@ -152,7 +152,55 @@ data class ChangeState(
     fun peutTransmettre(): Boolean = when {
         envoiEnCours -> false
         reference.isBlank() -> false
-        sens == SensChange.ACHAT -> referencePaiement.isNotBlank()
+        /*
+        ═══════════════════════════════════════════════════════════════
+        L'ACHAT AUSSI PASSE PAR LE VERDICT, MAIS IL FREINE SANS INTERDIRE
+        ═══════════════════════════════════════════════════════════════
+
+        Ce que ça attrape : une référence Orange Money recopiée de
+        travers — un O pour un zéro, un chiffre sauté. Avant, l'écran
+        disait « demande transmise » et c'est le CHANGEUR qui découvrait
+        le ❌, dans son canal, parmi d'autres messages. Il fallait
+        rappeler, faire corriger, redéposer ; pendant ce temps le client
+        croyait sa demande en cours.
+
+        ─── TROIS CAS, ET UN SEUL FREINE ─────────────────────────────
+
+        VERT : rien à dire, le bouton s'allume.
+
+        ABSENT : aucun encaissement ne correspond. C'est là que le
+        freinage sert, et c'est le seul endroit. Il faut alors un geste
+        explicite — « transmettre quand même » — parce que l'argent est
+        déjà parti et qu'on n'a pas le droit de le bloquer.
+
+        RIEN VÉRIFIÉ : le changeur n'a pas installé la lecture des SMS,
+        ou le relais n'a pas répondu. On n'a RIEN à opposer, donc on
+        n'oppose rien : le bouton reste comme avant. Freiner ici aurait
+        fait payer à chaque client, sur chaque achat, l'absence d'un
+        réglage côté changeur.
+        ═══════════════════════════════════════════════════════════════
+        */
+        sens == SensChange.ACHAT -> when {
+            referencePaiement.isBlank() -> false
+            verification?.estVert == true -> true
+            forcer -> true
+            // Un sondage est en vol : la réponse arrive dans l'instant,
+            // et laisser passer pendant ce temps viderait le contrôle de
+            // son sens.
+            rechercheEnCours -> false
+            /*
+            RIEN VÉRIFIÉ : soit la boucle n'a pas encore rendu de verdict,
+            soit elle a rendu « on n'a pas pu regarder ». Dans les deux cas
+            on n'a rien à opposer.
+
+            Appel sûr plutôt que cast implicite : ce `when` n'a pas de
+            sujet, et compter sur la propagation d'un `== null` écrit dans
+            une autre branche est le genre de pari qui se perd en
+            réordonnant les lignes.
+            */
+            else -> verification == null ||
+                verification?.etat == EtatVerification.INDISPONIBLE
+        }
         /*
         ═══════════════════════════════════════════════════════════════
         SUR UNE VENTE, LE NUMERO EST CE QUI PERMET D'ETRE PAYE
@@ -466,8 +514,65 @@ class ChangeViewModel @Inject constructor(
         val solde = etat.solde ?: return@update etat
         etat.copy(saisie = montantTexte(solde), erreur = null)
     }
-    fun onReferencePaiement(v: String) = _state.update { it.copy(referencePaiement = v) }
-    fun onTelephone(v: String) = _state.update { it.copy(telephone = v) }
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UN ACHAT, CES DEUX CHAMPS SONT LE CRITÈRE DE RECHERCHE
+    ═══════════════════════════════════════════════════════════════════════
+
+    La référence d'abord : le client la recopie depuis son SMS, l'opérateur
+    l'a écrite dans celui du changeur, et les deux doivent coïncider. À
+    défaut, le montant et le numéro — c'est le chemin de ceux qui n'ont
+    rien recopié, c'est-à-dire la plupart.
+
+    Les modifier relance donc la vérification. Sans ça, quelqu'un qui
+    corrige une référence fausse resterait devant le ❌ qu'il vient de
+    corriger, et conclurait que la correction n'a servi à rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun onReferencePaiement(v: String) {
+        _state.update { it.copy(referencePaiement = v) }
+        relancerVerificationAchat()
+    }
+
+    fun onTelephone(v: String) {
+        _state.update { it.copy(telephone = v) }
+        relancerVerificationAchat()
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON ATTEND LA FIN DE LA FRAPPE
+    ═══════════════════════════════════════════════════════════════════════
+
+    « MP251008123456 » fait quatorze caractères. Relancer à chaque frappe
+    enverrait quatorze requêtes pour une seule référence, dont treize sur
+    des références incomplètes qui répondraient toutes « absent » — et
+    c'est ce dernier point qui compte : l'écran clignoterait en rouge
+    pendant qu'on écrit, sur un champ correctement rempli.
+
+    Une seconde et deux dixièmes après la dernière touche, on cherche.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun relancerVerificationAchat() {
+        val s = _state.value
+        if (s.sens != SensChange.ACHAT || s.etape != EtapeChange.PAIEMENT) return
+
+        /*
+        RIEN À CHERCHER : on efface le verdict précédent plutôt que de le
+        laisser à l'écran. Un ❌ qui survit à l'effacement du champ qui
+        l'a causé accuse un formulaire vide.
+        */
+        if (s.referencePaiement.isBlank() && !s.telephoneValide) {
+            arreterVerification()
+            _state.update {
+                it.copy(verification = null, rechercheEnCours = false, essais = 0)
+            }
+            return
+        }
+
+        _state.update { it.copy(verification = null, essais = 0) }
+        demarrerVerification(ATTENTE_FRAPPE)
+    }
 
     /**
      * Passe à l'étape du paiement, en FIGEANT le prix.
@@ -697,15 +802,47 @@ class ChangeViewModel @Inject constructor(
     */
     private var rechercheJob: kotlinx.coroutines.Job? = null
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN NUMÉRO DE TOUR, POUR QUE L'ANCIENNE BOUCLE N'ÉTEIGNE PAS LA NOUVELLE
+    ═══════════════════════════════════════════════════════════════════════
+
+    `cancel()` ne tue pas sur place : la coroutine reprend plus tard pour
+    exécuter son `finally`. Depuis que la frappe relance la recherche, deux
+    boucles se succèdent en quelques millisecondes — et le `finally` de
+    l'ancienne arrivait APRÈS que la nouvelle ait allumé l'indicateur, donc
+    l'éteignait aussitôt.
+
+    L'écran serait resté sans indicateur devant une recherche en cours, ce
+    qui est exactement le défaut que ce `finally` existe pour éviter, à
+    l'envers.
+
+    Chaque boucle garde son numéro et ne touche l'état que si elle est
+    encore la dernière.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private var tourRecherche = 0
+
     private fun arreterVerification() {
         rechercheJob?.cancel()
         rechercheJob = null
     }
 
-    fun demarrerVerification() {
+    fun demarrerVerification(attente: Long = 0L) {
         arreterVerification()
+        val mien = ++tourRecherche
         rechercheJob = viewModelScope.launch {
             try {
+                if (attente > 0L) {
+                    /*
+                    L'INDICATEUR S'ALLUME AVANT L'ATTENTE, pas après. Il
+                    dit « on va chercher », ce qui est vrai, et il ferme
+                    la seconde où le bouton principal serait passé pour
+                    allumé faute de verdict.
+                    */
+                    _state.update { it.copy(rechercheEnCours = true) }
+                    kotlinx.coroutines.delay(attente)
+                }
                 boucleVerification()
             } finally {
                 /*
@@ -719,8 +856,16 @@ class ChangeViewModel @Inject constructor(
 
                 `update` n'est pas une fonction suspendue : elle marche dans
                 un contexte deja annule, ce qui est exactement le cas ici.
+
+                MAIS SEULEMENT SI PERSONNE N'A PRIS LA RELEVE — voir le
+                numero de tour ci-dessus. Et on ne sort PAS d'ici par
+                `return` : un `return` depuis un `finally` avalerait
+                l'annulation, et la coroutine passerait pour terminee
+                normalement.
                 */
-                _state.update { it.copy(rechercheEnCours = false) }
+                if (tourRecherche == mien) {
+                    _state.update { it.copy(rechercheEnCours = false) }
+                }
             }
         }
     }
@@ -735,40 +880,81 @@ class ChangeViewModel @Inject constructor(
             sur une copie figee interrogerait la chaine pour une
             operation qui n'existe plus.
             */
-            if (s.etape != EtapeChange.PAIEMENT || s.sens != SensChange.VENTE) return
-            val montant = s.montantCrypto ?: return
+            if (s.etape != EtapeChange.PAIEMENT) return
+
+            /*
+            ═══════════════════════════════════════════════════════════════
+            DEUX SENS, DEUX RÉSEAUX, UNE SEULE BOUCLE
+            ═══════════════════════════════════════════════════════════════
+
+            Une vente se lit sur une chaîne publique. Un achat se lit dans
+            le SMS que l'opérateur a envoyé au changeur, et que son robot a
+            transmis au relais.
+
+            Mais la CADENCE est la même, les verdicts sont les mêmes, et
+            les conditions d'arrêt sont les mêmes. Écrire une seconde
+            boucle pour l'achat aurait doublé tout ça — y compris le
+            `finally` qui éteint l'indicateur, la relecture de l'état à
+            chaque tour, et la règle « on n'insiste pas sur un verdict
+            définitif ». C'est exactement là qu'on finit par corriger un
+            sens en oubliant l'autre.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val achat = s.sens == SensChange.ACHAT
+
+            /*
+            SUR UN ACHAT, SANS CRITÈRE IL N'Y A RIEN À CHERCHER.
+
+            Ni référence recopiée ni numéro complet : le relais ne saurait
+            pas quel encaissement rapprocher, et répondrait « absent » sur
+            un paiement parfaitement réel. Mieux vaut ne pas demander que
+            de collecter un faux non.
+            */
+            if (achat && s.referencePaiement.isBlank() && !s.telephoneValide) return
+
+            // Des FRANCS pour un achat — c'est ce que dit le SMS de
+            // l'opérateur. De la crypto pour une vente.
+            val montant = (if (achat) s.montantFcfa else s.montantCrypto) ?: return
 
             _state.update { it.copy(rechercheEnCours = true, essais = tour + 1) }
             val v = withContext(Dispatchers.IO) {
-                service.verifier(
-                    s.monnaie,
-                    /*
-                    ═══════════════════════════════════════════════════════
-                    UN POINT SUR LE RESEAU, UNE VIRGULE A L'ECRAN
-                    ═══════════════════════════════════════════════════════
+                if (achat) {
+                    service.verifierAchat(
+                        montantCanonique(montant),
+                        s.telephone,
+                        s.referencePaiement
+                    )
+                } else {
+                    service.verifier(
+                        s.monnaie,
+                        /*
+                        ═══════════════════════════════════════════════════════
+                        UN POINT SUR LE RESEAU, UNE VIRGULE A L'ECRAN
+                        ═══════════════════════════════════════════════════════
 
-                    C'etait `montantTexte`, et ca a casse la verification
-                    de TOUTES les ventes — « montant illisible », sur un
-                    vrai ecran de paiement, pendant un vrai essai.
+                        C'etait `montantTexte`, et ca a casse la verification
+                        de TOUTES les ventes — « montant illisible », sur un
+                        vrai ecran de paiement, pendant un vrai essai.
 
-                    En ecrivant le pave numerique, j'ai fait rendre une
-                    VIRGULE a `montantTexte` pour que la saisie affichee
-                    soit francaise. Mais la meme fonction bâtissait le
-                    parametre envoye au relais, qui le lit avec `Number()`
-                    — et `Number("6,894")` vaut NaN.
+                        En ecrivant le pave numerique, j'ai fait rendre une
+                        VIRGULE a `montantTexte` pour que la saisie affichee
+                        soit francaise. Mais la meme fonction bâtissait le
+                        parametre envoye au relais, qui le lit avec `Number()`
+                        — et `Number("6,894")` vaut NaN.
 
-                    Une fonction qui sert a la fois l'oeil et le reseau
-                    finit toujours par trahir l'un des deux. Les deux usages
-                    sont separes : virgule pour l'ecran, point pour le fil.
-                    ═══════════════════════════════════════════════════════
-                    */
-                    montantCanonique(montant),
-                    s.txidSaisi.trim(),
-                    // Sans elle, le relais ne saurait pas quel montant
-                    // marqué chercher — et répondrait « absent » sur une
-                    // vente parfaitement valide.
-                    s.reference
-                )
+                        Une fonction qui sert a la fois l'oeil et le reseau
+                        finit toujours par trahir l'un des deux. Les deux usages
+                        sont separes : virgule pour l'ecran, point pour le fil.
+                        ═══════════════════════════════════════════════════════
+                        */
+                        montantCanonique(montant),
+                        s.txidSaisi.trim(),
+                        // Sans elle, le relais ne saurait pas quel montant
+                        // marqué chercher — et répondrait « absent » sur une
+                        // vente parfaitement valide.
+                        s.reference
+                    )
+                }
             }
             _state.update { it.copy(verification = v, rechercheEnCours = false) }
 
@@ -1044,6 +1230,16 @@ class ChangeViewModel @Inject constructor(
          * meme chose.
          */
         const val ESSAIS_MAX = 40
+
+        /**
+         * Le temps qu'on laisse a la frappe avant de chercher.
+         *
+         * « MP251008123456 » fait quatorze caracteres. Sans cette attente,
+         * c'est quatorze requetes pour une reference, dont treize sur des
+         * references incompletes qui repondent « absent » — donc un ecran
+         * qui clignote en rouge pendant qu'on ecrit correctement.
+         */
+        const val ATTENTE_FRAPPE = 1_200L
     }
 
     /**

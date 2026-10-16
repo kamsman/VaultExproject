@@ -394,6 +394,64 @@ class ChangeService @Inject constructor(
     }
 
     /**
+     * Demande au relais s'il voit le paiement Orange Money.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * CE QU'ELLE CORRIGE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * L'achat etait deja verifie — mais seulement au depot de l'ordre, et
+     * le verdict n'allait qu'au changeur. Quelqu'un qui recopiait mal sa
+     * reference voyait « demande transmise » et attendait ; c'est le
+     * changeur qui decouvrait le ❌, dans son canal, parmi d'autres
+     * messages.
+     *
+     * L'erreur se corrige maintenant la ou elle est commise : dans le
+     * champ qu'on vient de remplir, par celui qui l'a rempli.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LE MONTANT EST EN FRANCS, ET IL EST RECOMPARE PAR LE RELAIS
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * C'est le montant LU DANS LE SMS de l'operateur qui tranche, jamais
+     * celui que le telephone annonce. Recopier la reference d'un vrai
+     * paiement de mille francs pour une demande de quarante mille ne rend
+     * donc pas vert.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UN ECHEC RESEAU N'EST PAS UNE ABSENCE — MEME RAISON QU'A LA VENTE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * INDISPONIBLE, et surtout pas ABSENT. Dire « aucun paiement trouve »
+     * a quelqu'un qui vient de payer, parce que SON telephone a perdu la
+     * 3G, serait lui annoncer une perte qui n'a pas eu lieu — et le
+     * pousser a payer une seconde fois.
+     */
+    suspend fun verifierAchat(
+        montantFcfa: String,
+        telephone: String = "",
+        referencePaiement: String = ""
+    ): Verification = try {
+        val dto = api.verifierAchat(montantFcfa, telephone.trim(), referencePaiement.trim())
+        Verification(
+            etat = EtatVerification.depuisTexte(dto.etat),
+            txid = dto.txid.orEmpty(),
+            montant = dto.montant?.takeIf { it > 0.0 },
+            quand = dto.quand ?: 0L,
+            confirme = dto.confirme ?: true,
+            de = dto.de.orEmpty(),
+            raison = dto.raison.orEmpty(),
+            explorateur = dto.explorateur.orEmpty()
+        )
+    } catch (e: Exception) {
+        com.vaultex.core.monitoring.reportUnlessCancelled("verifier achat", e)
+        Verification(
+            etat = EtatVerification.INDISPONIBLE,
+            raison = "le relais n'a pas répondu"
+        )
+    }
+
+    /**
      * Le montant exact a envoyer, ou null si le relais n'a pas repondu.
      *
      * ═══════════════════════════════════════════════════════════════════

@@ -1123,6 +1123,7 @@
     <string name="change_ref_paiement_aide">رقم العملية الذي أرسله لك المشغّل برسالة نصية.</string>
     <string name="change_telephone">رقم Mobile Money المستخدم في الدفع</string>
     <string name="change_jai_paye">دفعتُ — إرسال الطلب</string>
+    <string name="change_jai_paye_verifie">تم التحقق من الدفعة — إرسال</string>
     <string name="change_retour">العودة إلى الحساب</string>
     <string name="change_transmis_titre">تم إرسال الطلب</string>
     <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
@@ -1157,6 +1158,19 @@
     <string name="change_verif_quand_meme">الإرسال على أي حال</string>
     <string name="change_verif_txid">hash المعاملة (اختياري)</string>
     <string name="change_verif_txid_aide">إن كان بحوزتك، فالصقه: يصبح البحث فوريًا.</string>
+    <string name="change_verif_achat_recherche">جارٍ البحث عن دفعتك…</string>
+    <string name="change_verif_achat_recherche_detail">يبحث المُرحِّل عن دفعة Orange Money المطابقة. بمجرد أن يُبلِغ المُشغّل الصرّاف بها، تظهر هنا.</string>
+    <string name="change_verif_achat_trouve">تم التحقق من الدفعة</string>
+    <string name="change_verif_achat_trouve_detail">ليس هاتفك من يقول ذلك: المُرحِّل قرأ رسالة المُشغّل التي وصلت الصرّاف. وهو يتلقى التأكيد نفسه تمامًا.</string>
+    <string name="change_verif_achat_recu">المبلغ المُستلم (من رسالة المُشغّل)</string>
+    <string name="change_verif_achat_de">دُفع من</string>
+    <string name="change_verif_achat_absent">لا توجد دفعة مطابقة</string>
+    <string name="change_verif_achat_absent_detail">بحث المُرحِّل %1$d مرة دون أن يجد دفعتك. راجع المرجع الذي نسخته ورقمك، حرفًا بحرف: هذا هو السبب الأكثر شيوعًا. وإن كنت قد دفعت للتو، فامنح رسالة المُشغّل بضع ثوانٍ. يمكنك أيضًا الإرسال على أي حال: سيتحقق الصرّاف من كشفه.</string>
+    <string name="change_verif_achat_deja_servi">هذه الدفعة استُخدمت من قبل</string>
+    <string name="change_verif_achat_deja_servi_detail">الدفعة موجودة، لكنها سوَّت طلبًا آخر بالفعل. راجع طلباتك الأخيرة: إن كان هذا هو الطلب، فهو عند الصرّاف ولا شيء عليك إعادته.</string>
+    <string name="change_verif_achat_impossible">التحقق التلقائي غير متاح</string>
+    <string name="change_verif_achat_impossible_detail">لا يستطيع المُرحِّل قراءة مقبوضات الصرّاف. لا شيء مُثبت ولا مَنفي: يمكنك الإرسال، وسيتحقق هو من كشفه.</string>
+    <string name="change_verif_achat_impossible_detail_raison">لا يستطيع المُرحِّل قراءة مقبوضات الصرّاف: %1$s. لا شيء مُثبت ولا مَنفي: يمكنك الإرسال، وسيتحقق هو من كشفه.</string>
     <string name="change_transmis_verifie">استلم الصرّاف طلبك مع تأكيد السلسلة. ولا شيء آخر يطلبه منك.</string>
     <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق الصرّاف من محفظته قبل الدفع: احتفظ بمرجعك.</string>
     <string name="change_copier_adresse">نسخ عنوان الصرّاف</string>
