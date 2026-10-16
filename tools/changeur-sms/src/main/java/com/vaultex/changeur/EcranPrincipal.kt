@@ -115,10 +115,39 @@ class EcranPrincipal : Activity() {
             )
         )
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LA CASE PREND EFFET TOUT DE SUITE
+        ═══════════════════════════════════════════════════════════════════
+
+        Elle ne faisait rien tant qu'on n'appuyait pas sur « Enregistrer ».
+        Vu sur un vrai téléphone : la case COCHÉE, et l'état au-dessus qui
+        affichait encore « ○ Éteint ». Les deux disaient vrai, et c'est bien
+        le problème — l'un montrait une intention, l'autre un fait.
+
+        Le robot était donc éteint devant quelqu'un qui venait de l'allumer.
+        Sur un mécanisme dont la panne est SILENCIEUSE — des encaissements
+        qui ne partent pas, et personne pour le dire —, c'est le pire
+        endroit où laisser un écart entre ce qu'on voit et ce qui est.
+
+        La case écrit maintenant le réglage à l'instant où on la touche, et
+        rafraîchit l'état. Les deux ne peuvent plus se contredire.
+
+        Le bouton « Enregistrer » reste, pour l'adresse et le jeton : ceux-là
+        se tapent, et on ne veut pas les enregistrer à chaque lettre.
+        ═══════════════════════════════════════════════════════════════════
+        */
         caseActif = CheckBox(this).apply {
             text = "Transmettre les SMS"
             isChecked = reglages.actif
             setPadding(0, 30, 0, 10)
+            // L'écouteur est posé APRÈS `isChecked` : sinon la pose
+            // initiale le déclenche et réécrit le réglage qu'on vient de
+            // lire.
+            setOnCheckedChangeListener { _, coche ->
+                reglages.actif = coche
+                rafraichir()
+            }
         }
         racine.addView(caseActif)
 
