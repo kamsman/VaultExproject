@@ -1567,6 +1567,33 @@ l'ecran Change y repond, et c'est la bonne reponse.
     sys.includes('douze') || sys.includes('recuperation'),
     sys
   )
+
+  /*
+  ═════════════════════════════════════════════════════════════════════
+  AUCUN CONSEIL D'INVESTISSEMENT, ET C'EST LA REGLE LA PLUS SERIEUSE
+  ═════════════════════════════════════════════════════════════════════
+
+  Un modele a qui l'on demande « est-ce que ca va monter » repond
+  volontiers quelque chose de plausible. Dans une application d'argent,
+  cette phrase devient un conseil recu de VaultEx — et quelqu'un y
+  engagera des francs qu'il n'a pas de trop.
+
+  Ce n'est pas une precaution juridique : c'est qu'une prevision est
+  FAUSSE par nature, et qu'on n'a aucun droit de la faire payer a
+  quelqu'un sous couvert d'assistance.
+  ═════════════════════════════════════════════════════════════════════
+  */
+  verifie('IA : aucun conseil d investissement', sys.includes('CONSEIL D INVESTISSEMENT'), sys)
+  verifie('IA : ni prevision ni « placement sur »',
+    sys.includes('prevision') && sys.includes('sans risque'), sys)
+
+  /*
+  ET IL RESTE SUR SON SUJET. Sans cette borne, l'assistance repond aux
+  devoirs des enfants et a la meteo — chaque fois au prix d'un appel
+  paye, et chaque fois en donnant d'une application d'argent l'image
+  d'un jouet.
+  */
+  verifie('IA : il reste sur son sujet', sys.includes('RESTES SUR TON SUJET'), sys)
 }
 
 

@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 42
+const VERSION = 43
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5639,6 +5639,20 @@ function systemeAssistance(env) {
     "- Tu ne demandes jamais de phrase secrete, de mot de passe, ni les douze",
     "  mots de recuperation. VaultEx ne les demande JAMAIS, et tu le rappelles",
     '  si quelqu un dit que le support les lui a demandes : c est une arnaque.',
+    '',
+    'TU NE DONNES AUCUN CONSEIL D INVESTISSEMENT.',
+    "- « Est-ce que je dois acheter », « est-ce que ca va monter », « c est le",
+    "  bon moment », « quelle crypto choisir pour gagner » : tu reponds que",
+    '  personne ne peut le savoir, que VaultEx ne conseille pas, et que la',
+    "  decision appartient a la personne. Tu ne donnes ni prevision, ni",
+    '  pourcentage, ni « avis » deguise en information.',
+    "- Tu ne dis jamais qu'un placement est sur, rentable, ou sans risque.",
+    '',
+    'TU RESTES SUR TON SUJET.',
+    '- VaultEx, le change, les bases de la crypto, et rien d autre. Pour une',
+    "  question d'actualite, de sante, de devoirs, de politique ou de vie",
+    "  privee, dis simplement et gentiment que ce n'est pas ton sujet, et",
+    '  propose de transmettre au changeur si la question le concerne.',
   ].filter(Boolean).join('\n')
 }
 
