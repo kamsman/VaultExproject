@@ -27,9 +27,6 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Sms
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
@@ -244,7 +241,9 @@ private fun ColumnScope.EtapeCalcul(
         avecLogo = !donneFcfa,
         monnaies = if (donneFcfa) emptyList() else p.monnaies,
         onMonnaie = vm::onMonnaie,
-        saisissable = true
+        onMontant = vm::onSaisie,
+        // Des francs à l'achat, de la crypto à la vente : le clavier suit.
+        decimalesMax = if (donneFcfa) 0 else TauxFcfa.decimalesAffichage(state.monnaie)
     )
 
     /*
@@ -285,42 +284,6 @@ private fun ColumnScope.EtapeCalcul(
         prix = state.prix
     )
 
-    /*
-    LE PAVÉ EST ICI, ENTRE CE QU'ON TAPE ET LE DÉTAIL.
-
-    Juste sous les deux cartes : le chiffre qu'on compose reste visible
-    pendant qu'on le compose, ce qu'un clavier système ne permettait pas —
-    il recouvrait la moitié basse de l'écran, donc le montant reçu.
-
-    Et AU-DESSUS du détail et du bouton, qui restent dans leur ordre : rien
-    de ce qui engage ne passe sous le pavé. C'est la règle que cet écran
-    tient depuis le début — rien ne doit se découvrir après.
-
-    ─── LE NOMBRE DE DÉCIMALES VIENT DE L'UNITÉ QU'ON TAPE ──────────────
-
-    Zéro pour les francs, qui n'ont pas de centimes. Celui de la monnaie
-    pour une vente — six sur l'USDT, huit sur le bitcoin. C'est ce chiffre
-    qui grise la virgule, et c'est lui qui empêche de promettre des
-    décimales que le jeton ne possède pas.
-    */
-    PaveDeSaisie(
-        saisie = state.saisie,
-        decimalesMax = if (donneFcfa) 0 else TauxFcfa.decimalesAffichage(state.monnaie),
-        onSaisie = vm::onSaisie
-    )
-
-    /*
-    LE BOUTON D'INVERSION, ENTRE LES DEUX CARTES.
-
-    Il fait la même chose que les onglets du haut, et c'est assumé : entre
-    deux cartes « tu donnes » et « tu reçois », l'oeil cherche ce bouton
-    là. Le refuser au nom de la non-redondance obligerait à remonter en
-    haut de l'écran pour un geste dont la place naturelle est ici.
-
-    Les onglets restent parce qu'ils NOMMENT l'opération. « Acheter » et
-    « Vendre » sont deux engagements distincts, et une flèche ne dit pas
-    lequel on est en train de prendre.
-    */
     /*
     UN TRAIT QUI SÉPARE, ET LE BOUTON POSÉ DESSUS.
 
@@ -370,7 +333,7 @@ private fun ColumnScope.EtapeCalcul(
         avecLogo = donneFcfa,
         monnaies = if (donneFcfa) p.monnaies else emptyList(),
         onMonnaie = vm::onMonnaie,
-        saisissable = false,
+        onMontant = null,
         approx = if (donneFcfa) state.montantCrypto?.let { c ->
             java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
                 maximumFractionDigits = 2
@@ -1730,134 +1693,6 @@ private fun OngletSens(
     }
 }
 
-/*
-═══════════════════════════════════════════════════════════════════════════
-LE PAVÉ NUMÉRIQUE, DANS L'ÉCRAN
-═══════════════════════════════════════════════════════════════════════════
-
-Pourquoi remplacer le clavier du système, qui marchait :
-
-— IL MANGEAIT L'ÉCRAN. Un clavier Android occupe la moitié basse ; sur un
-  écran qui porte deux cartes, le détail et un bouton, il recouvrait
-  précisément ce qu'on vient vérifier avant d'appuyer.
-— IL PROPOSE DES TOUCHES QUI N'ONT PAS DE SENS ICI : le point, le moins,
-  parfois une rangée de suggestions. Chacune est une frappe qui produit
-  une saisie que personne ne voulait.
-— SES TOUCHES SONT PETITES. Ce pavé-ci se tape d'un pouce, dans la rue,
-  sur un montant qu'on ne doit pas se tromper d'écrire.
-
-─── TROIS DÉCISIONS QUI SE VOIENT ────────────────────────────────────────
-
-LA VIRGULE EST GRISÉE EN FRANCS. Le franc CFA n'a pas de centimes. Et ce
-n'est pas cosmétique : voir PaveNumerique, une virgule seulement « sans
-effet » laisse taper « 5000,50 » et obtenir 500 050.
-
-⌫ EFFACE UN CARACTÈRE, UN APPUI LONG VIDE TOUT. Recommencer un montant est
-le geste le plus fréquent après une faute ; le faire en huit appuis quand
-un seul suffit use la patience sur l'écran le moins indiqué pour ça.
-
-PAS DE MISE EN FORME PENDANT LA FRAPPE. Le montant se réaffiche tel qu'il
-a été tapé. `NumberFormat` français sépare les milliers par une espace
-insécable étroite selon la version d'Android, et « 5 000 » redevient alors
-5 — un défaut qu'on a déjà payé dans ce projet.
-═══════════════════════════════════════════════════════════════════════════
-*/
-@Composable
-private fun PaveDeSaisie(
-    saisie: String,
-    decimalesMax: Int,
-    onSaisie: (String) -> Unit
-) {
-    val appliquer = { touche: com.vaultex.domain.fiat.ToucheP ->
-        onSaisie(com.vaultex.domain.fiat.PaveNumerique.appliquer(saisie, touche, decimalesMax))
-    }
-
-    // LARGEUR EXPLICITE : `weight` partage la largeur DISPONIBLE, et une
-    // Row qui s'adapte à son contenu n'en a pas à partager. Sans ces
-    // `fillMaxWidth`, la rangée dépend d'une contrainte venue de plus haut.
-    Column(
-        Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        listOf(1..3, 4..6, 7..9).forEach { rangee ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rangee.forEach { n ->
-                    ToucheDuPave(
-                        texte = n.toString(),
-                        modifier = Modifier.weight(1f)
-                    ) { appliquer(com.vaultex.domain.fiat.ToucheP.Chiffre(n)) }
-                }
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ToucheDuPave(
-                texte = com.vaultex.domain.fiat.PaveNumerique.VIRGULE.toString(),
-                // Grisée, pas absente : une case vide à cet endroit se lit
-                // comme un défaut d'affichage, et laisse chercher.
-                actif = decimalesMax > 0,
-                modifier = Modifier.weight(1f)
-            ) { appliquer(com.vaultex.domain.fiat.ToucheP.Virgule) }
-            ToucheDuPave(texte = "0", modifier = Modifier.weight(1f)) {
-                appliquer(com.vaultex.domain.fiat.ToucheP.Chiffre(0))
-            }
-            ToucheDuPave(
-                icone = Icons.Default.Backspace,
-                // Une touche en image n'a pas d'etiquette : sans ca, un
-                // lecteur d'ecran annonce « bouton » sur un pave de chiffres.
-                description = stringResource(R.string.change_effacer),
-                modifier = Modifier.weight(1f),
-                onLong = { appliquer(com.vaultex.domain.fiat.ToucheP.Vider) }
-            ) { appliquer(com.vaultex.domain.fiat.ToucheP.Effacer) }
-        }
-    }
-}
-
-/** Une touche du pavé. Du texte ou une icône, jamais les deux. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ToucheDuPave(
-    texte: String? = null,
-    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    /** Obligatoire sur une touche en image, inutile sur un chiffre. */
-    description: String? = null,
-    actif: Boolean = true,
-    modifier: Modifier = Modifier,
-    onLong: (() -> Unit)? = null,
-    onClic: () -> Unit
-) {
-    val couleur = if (actif) TextPrimary else TextSecondary.copy(alpha = 0.3f)
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = SurfaceColor,
-        modifier = modifier
-            .height(52.dp)
-            .then(
-                if (actif) {
-                    Modifier.combinedClickable(onClick = onClic, onLongClick = onLong)
-                } else Modifier
-            )
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            when {
-                icone != null ->
-                    Icon(icone, description, tint = couleur, modifier = Modifier.size(22.dp))
-                texte != null -> Text(
-                    texte,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = couleur
-                )
-            }
-        }
-    }
-}
-
 /**
  * Les bornes de l'opération, dans l'unité où l'on tape.
  *
@@ -1994,14 +1829,25 @@ private fun CarteMontantChange(
     monnaies: List<String>,
     onMonnaie: (String) -> Unit,
     /**
-     * Vrai sur la carte qu'on remplit, faux sur celle qu'on lit.
+     * Ce qui est tapé, ou null sur le bloc qu'on lit seulement.
      *
-     * C'était `onMontant: ((String) -> Unit)?`, du temps où la carte
-     * portait elle-même un champ de saisie. Depuis que le pavé est le seul
-     * clavier, la carte n'a plus rien à rappeler : elle a seulement besoin
-     * de savoir laquelle des deux elle est.
+     * C'ÉTAIT `saisissable: Boolean`, du temps où le pavé numérique de
+     * l'application était le seul clavier. Le pavé est parti ; le champ
+     * reprend donc la frappe, et il lui faut de nouveau où la rendre.
      */
-    saisissable: Boolean,
+    onMontant: ((String) -> Unit)?,
+    /**
+     * Combien de décimales la monnaie saisie possède — zéro pour les francs.
+     *
+     * Sert UNIQUEMENT à choisir le clavier. Le franc CFA n'ayant pas de
+     * centimes, lui offrir une touche virgule n'est pas seulement inutile :
+     * « 5000,50 » tapé dedans ne peut pas donner un montant juste, et c'est
+     * au filtre de rattraper ce que le clavier aurait dû ne pas proposer.
+     *
+     * Les règles, elles, restent dans `SaisieMontant` : un clavier ne
+     * protège de rien contre un collage.
+     */
+    decimalesMax: Int = 0,
     /** Le même montant, arrondi, affiché en dessous s'il diffère. */
     approx: String? = null
 ) {
@@ -2084,44 +1930,62 @@ private fun CarteMontantChange(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
 
-                    if (saisissable) {
+                    if (onMontant != null) {
                         /*
                         ═════════════════════════════════════════════════════
-                        PLUS DE CHAMP DE SAISIE : LE PAVÉ EST LE SEUL CLAVIER
+                        LE CLAVIER DU SYSTÈME EST REVENU
                         ═════════════════════════════════════════════════════
 
-                        C'était un `BasicTextField`, qui ouvrait le clavier du
-                        système. Laisser les deux coexister serait pire que
-                        n'avoir que l'un : deux claviers pour un seul champ,
-                        avec des règles différentes — le système accepte le
-                        point, le moins et autant de décimales qu'on veut, là
-                        où le pavé les refuse exprès.
+                        Le pavé construit dans l'application a été retiré. Le
+                        champ reprend donc la frappe, avec le clavier décimal
+                        d'Android.
 
-                        C'est donc un texte ordinaire. Le trait bleu dit où ça
-                        s'écrit, sans promettre un curseur qu'on pourrait
-                        déplacer : on tape à la fin, on efface à la fin.
+                        CE QUE LE PAVÉ GARANTISSAIT, LE FILTRE LE GARANTIT.
+                        Le clavier système accepte le point, le moins, et
+                        autant de décimales qu'on veut — y compris plus que
+                        le jeton n'en possède. `SaisieMontant.filtrer`, dans
+                        le ViewModel, écarte tout ça avant que la saisie ne
+                        soit gardée. Sans lui, l'écran réafficherait
+                        « 8,19672131 USDT » : une somme que personne ne peut
+                        envoyer.
+
+                        La taille suit toujours la longueur du nombre, et le
+                        curseur est celui du champ — on peut donc corriger au
+                        milieu, ce que le pavé ne permettait pas.
                         ═════════════════════════════════════════════════════
                         */
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                // Un « 0 » en gris pâle montre où taper sans
-                                // prétendre être une valeur saisie.
-                                montant.ifEmpty { "0" },
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = montant,
+                            onValueChange = onMontant,
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
                                 fontSize = tailleMontant(montant.ifEmpty { "0" }),
                                 fontWeight = FontWeight.Bold,
-                                color = if (montant.isEmpty()) {
-                                    TextSecondary.copy(alpha = 0.4f)
-                                } else TextPrimary,
-                                maxLines = 1
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Box(
-                                Modifier
-                                    .height(tailleMontant(montant.ifEmpty { "0" }).value.dp)
-                                    .width(2.dp)
-                                    .background(AccentBlue, RoundedCornerShape(1.dp))
-                            )
-                        }
+                                color = TextPrimary
+                            ),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = if (decimalesMax > 0) {
+                                    androidx.compose.ui.text.input.KeyboardType.Decimal
+                                } else androidx.compose.ui.text.input.KeyboardType.Number
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            decorationBox = { interieur ->
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    // Un « 0 » en gris pâle montre où taper
+                                    // sans prétendre être une valeur saisie.
+                                    if (montant.isEmpty()) {
+                                        Text(
+                                            "0",
+                                            fontSize = tailleMontant("0"),
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextSecondary.copy(alpha = 0.4f)
+                                        )
+                                    }
+                                    interieur()
+                                }
+                            }
+                        )
                     } else {
                         Column(horizontalAlignment = Alignment.Start) {
                             Text(

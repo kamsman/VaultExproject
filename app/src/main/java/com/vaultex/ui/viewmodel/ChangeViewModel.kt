@@ -9,7 +9,7 @@ import com.vaultex.domain.fiat.EtatVerification
 import com.vaultex.domain.fiat.HistoriqueChange
 import com.vaultex.domain.fiat.OrdreChange
 import com.vaultex.domain.fiat.ParametresChange
-import com.vaultex.domain.fiat.PaveNumerique
+import com.vaultex.domain.fiat.SaisieMontant
 import com.vaultex.domain.fiat.PrixFcfa
 import com.vaultex.domain.fiat.ResultatOrdre
 import com.vaultex.domain.fiat.TauxFcfa
@@ -103,11 +103,11 @@ data class ChangeState(
 
     Java accepte un point final. On affichait donc le montant reçu pour
     DEUX à l'instant où la virgule se pose, avant le premier chiffre
-    décimal. `PaveNumerique.valeur` refuse cet état de frappe, et c'est
+    décimal. `SaisieMontant.valeur` refuse cet état de frappe, et c'est
     elle qui tranche désormais pour tout le monde.
     ═══════════════════════════════════════════════════════════════════════
     */
-    private val saisi: Double? get() = PaveNumerique.valeur(saisie)
+    private val saisi: Double? get() = SaisieMontant.valeur(saisie)
 
     /** Montant en francs de l'opération, quel que soit le sens de la saisie. */
     val montantFcfa: Double?
@@ -410,7 +410,35 @@ class ChangeViewModel @Inject constructor(
         recalculer()
     }
 
-    fun onSaisie(valeur: String) = _state.update { it.copy(saisie = valeur, erreur = null) }
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CE QUI EST TAPÉ PASSE PAR UN FILTRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'était `it.copy(saisie = valeur)`, sans rien regarder. Un pavé
+    numérique construit dans l'application tenait alors les règles : il
+    n'autorisait que les frappes valides.
+
+    LE PAVÉ A ÉTÉ RETIRÉ, ET LES RÈGLES NE DOIVENT PAS PARTIR AVEC LUI.
+    Le clavier décimal d'Android accepte le point, plusieurs séparateurs,
+    et autant de décimales qu'on veut — y compris plus que le jeton n'en
+    possède. Sans filtre, l'écran réaffiche « 8,19672131 USDT » : deux
+    chiffres qui n'existent pas sur un jeton à six décimales, donc une
+    somme que personne ne peut envoyer. Ce défaut a déjà existé ici.
+
+    ─── LE NOMBRE DE DÉCIMALES DÉPEND DE CE QU'ON TAPE ─────────────────
+
+    Zéro pour les francs, qui n'ont pas de centimes. Celui de la monnaie
+    pour une vente — six sur l'USDT, huit sur le bitcoin. C'est le sens de
+    l'opération qui le dit, donc il se calcule ici et nulle part ailleurs.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun onSaisie(valeur: String) = _state.update { etat ->
+        val decimalesMax =
+            if (etat.sens == SensChange.ACHAT) 0
+            else TauxFcfa.decimalesAffichage(etat.monnaie)
+        etat.copy(saisie = SaisieMontant.filtrer(valeur, decimalesMax), erreur = null)
+    }
 
     /**
      * Remplit le champ d'un coup, depuis une pastille de montant.
@@ -1041,7 +1069,7 @@ class ChangeViewModel @Inject constructor(
 
     — ON VERRAIT « 12.345678 » dans un champ dont toutes les touches
       écrivent des virgules ;
-    — ET SURTOUT, `PaveNumerique` cherche la virgule pour savoir s'il est
+    — ET SURTOUT, `SaisieMontant` cherche la virgule pour savoir s'il est
       dans la partie décimale. Sur « 12.345678 » il n'en trouve pas, croit
       être dans la partie entière, et le chiffre suivant s'ajoute à la fin
       SANS compter comme une décimale — donc sans la limite de six.
@@ -1063,7 +1091,7 @@ class ChangeViewModel @Inject constructor(
     private fun montantTexte(v: Double): String =
         java.math.BigDecimal(v).setScale(8, java.math.RoundingMode.DOWN)
             .stripTrailingZeros().toPlainString()
-            .replace('.', PaveNumerique.VIRGULE)
+            .replace('.', SaisieMontant.VIRGULE)
 
     private data class SnapLiteChange(val tokens: List<TokenLiteChange>?)
     private data class TokenLiteChange(
