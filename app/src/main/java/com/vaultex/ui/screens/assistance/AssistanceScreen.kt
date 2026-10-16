@@ -98,7 +98,26 @@ fun AssistanceScreen(navController: NavController) {
         },
         containerColor = BgPrimary
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE CLAVIER NE DOIT PAS RECOUVRIR LA BARRE DE SAISIE
+        ═══════════════════════════════════════════════════════════════════
+
+        Vu sur un vrai téléphone : le clavier ouvert, et le champ passé
+        dessous. On écrit sans voir ce qu'on écrit — sur l'écran où l'on
+        pose une question, c'est-à-dire où l'on formule déjà mal.
+
+        Le manifeste déclare pourtant `adjustResize`, et d'autres écrans
+        de cette application emploient `imePadding()`. Celui-ci ne
+        l'avait pas : la barre de saisie est fixée en bas d'une colonne
+        qui remplit l'écran, donc elle descend avec le clavier.
+
+        `imePadding` réserve la hauteur du clavier ouvert. La conversation
+        se comprime, la barre reste visible, et le défilement automatique
+        la suit.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
 
             Column(
                 Modifier.weight(1f).verticalScroll(defilement)
