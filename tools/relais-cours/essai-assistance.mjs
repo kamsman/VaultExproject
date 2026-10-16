@@ -176,8 +176,23 @@ if (modele > 0) {
   console.log('   pas de cle d’API. Il liste ce qu’il sait faire, ce qui est la')
   console.log('   bonne reponse en attendant — mais AUCUN modele n’a ete appele.')
 } else if (connues > 0) {
-  console.log('\nℹ  Aucune reponse de modele. C’est normal tant que CHANGE_IA_CLE')
-  console.log('   n’est pas reglee — les questions frequentes marchent quand meme.')
+  /*
+  CETTE LIGNE DISAIT « c'est normal tant que CHANGE_IA_CLE n'est pas
+  reglee ». Elle l'a dit APRES que la cle a ete posee — et c'etait faux.
+
+  Aucun appel au modele ne prouve rien sur la cle quand toutes les
+  questions posees avaient deja leur reponse dans les reglages : c'est
+  precisement le resultat qu'on veut, et il se produit avec ou sans cle.
+
+  Un diagnostic ne doit affirmer que ce qu'il a mesure. Ici il n'a rien
+  mesure sur la cle, donc il dit comment la mesurer.
+  */
+  console.log('\nℹ  Aucune question n’a eu besoin du modele : les six connues ont')
+  console.log('   repondu depuis les reglages. C’est le bon ordre — elles sont')
+  console.log('   gratuites, instantanees, et exactes par construction.')
+  console.log('\n   Ca ne dit RIEN sur la cle d’API. Pour l’eprouver, pose une')
+  console.log('   question hors sujet :')
+  console.log('     node tools/relais-cours/essai-assistance.mjs "est ce que vous etes a bobo"')
 }
 
 /*
