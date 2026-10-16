@@ -75,12 +75,44 @@ val sortieApk: String? = run {
     barres obliques comme avec des contre-obliques — et le piège
     disparaît au lieu d'être documenté.
     */
-    val depuisFichier = if (fichier.exists()) {
-        fichier.readLines()
-            .firstOrNull { it.trim().startsWith("apk.sortie") && it.contains('=') }
+    /*
+    LA CLÉ EXACTE, ET PAS UN PRÉFIXE : une seconde clé commençant pareil,
+    écrite plus haut dans le fichier, serait lue à sa place sans que rien
+    ne le signale.
+    */
+    fun lireSortie(f: File): String? =
+        if (!f.exists()) null
+        else f.readLines()
+            .firstOrNull { it.contains('=') && it.substringBefore('=').trim() == "apk.sortie" }
             ?.substringAfter('=')
             ?.trim()
-    } else null
+            ?.ifEmpty { null }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON REGARDE AUSSI LE local.properties DE LA RACINE DU DÉPÔT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Ce projet a sa propre racine, donc `rootProject.file("local.properties")`
+    désigne `tools/changeur-sms/local.properties` — un fichier GÉNÉRÉ par
+    settings.gradle.kts, qui ne contient que `sdk.dir`.
+
+    Or quelqu'un qui veut régler le dossier de dépôt ouvre le
+    `local.properties` qu'il connaît : celui de la racine. Il y écrit sa
+    ligne, reconstruit, et il ne se passe rien. Aucun message, aucune
+    erreur — le réglage est simplement dans un fichier que ce projet ne lit
+    pas.
+
+    Signalé sur une vraie machine, dossier vide après construction.
+
+    Le fichier local l'emporte quand il porte la clé : quelqu'un qui a pris
+    la peine de l'écrire ICI voulait une destination différente de celle de
+    VaultEx.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val racine = File(rootDir, "../../local.properties")
+    val depuisFichier = lireSortie(fichier) ?: lireSortie(racine)
+
     // `-Papk.sortie=…` l'emporte : c'est le moyen de dévier une
     // construction ponctuelle sans toucher aux réglages de la machine.
     (project.findProperty("apk.sortie") as String? ?: depuisFichier)?.trim()?.ifEmpty { null }
@@ -204,6 +236,109 @@ Le dossier de sortie est capturé ICI, à la configuration, et non lu depuis
 configuration de Gradle, et ça évite une dépréciation de plus à chaque
 version.
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN DÉPÔT DEMANDÉ QUI N'A PAS LIEU EST UN ÉCHEC
+═══════════════════════════════════════════════════════════════════════════
+
+Les deux cas d'échec étaient des lignes d'information suivies d'un
+`return@doLast`. Sur une sortie Gradle de plusieurs centaines de lignes,
+elles ne se voient pas : on lit BUILD SUCCESSFUL, on ouvre le dossier, il
+est vide, et il n'y a rien à quoi se raccrocher.
+
+ET `mkdirs()` CRÉAIT TOUTE LA CHAÎNE MANQUANTE, en silence. Sur une
+machine où OneDrive est actif, le Bureau n'est pas `C:\Users\HP\Desktop`
+mais `C:\Users\HP\OneDrive\Desktop` : l'APK atterrissait dans un dossier
+réel, sur le disque, et invisible là où on le cherche.
+
+On refuse donc de créer un dossier dont le parent n'existe pas. Si le
+parent manque, c'est le chemin qui est faux.
+═══════════════════════════════════════════════════════════════════════════
+*/
+val AIDE_CHEMIN = """
+    Verifie le chemin, puis reessaie :
+
+      1. Le Bureau est-il sous OneDrive ? Ouvre l'Explorateur, clique sur
+         ton Bureau, et lis la barre d'adresse.
+      2. Ecris la ligne dans le local.properties de la RACINE du depot
+         (celui de VaultEx) — ce projet le lit aussi :
+
+             apk.sortie=C:/Users/HP/OneDrive/Desktop/app changeur
+
+      3. Puis verifie sans construire :
+             gradlew -p tools/changeur-sms ouEstLApk
+""".trimIndent()
+
+/*
+LE BUREAU, RETROUVE TOUT SEUL.
+
+Dupliquee depuis app/build.gradle.kts, et c'est assume : ce projet a sa
+propre racine Gradle, donc il n'y a pas de `buildSrc` commun ou poser
+cette fonction. Dix lignes recopiees valent mieux qu'un repertoire de
+construction partage entre deux projets qu'on a separes expres.
+*/
+fun bureauProbable(): File? {
+    val profil = System.getenv("USERPROFILE") ?: System.getenv("HOME") ?: return null
+    return listOfNotNull(
+        System.getenv("OneDrive")?.let { File(it, "Desktop") },
+        File(profil, "OneDrive/Desktop"),
+        File(profil, "Desktop"),
+        File(profil, "Bureau"),
+    ).firstOrNull { it.isDirectory }
+}
+
+tasks.register("ouEstLApk") {
+    group = "changeur"
+    description = "Dit ou l'APK du robot sera depose, sans rien construire."
+    doLast {
+        // Copie locale : Kotlin refuse le transtypage implicite d'une
+        // propriete de script a l'interieur d'un lambda.
+        val chemin = sortieApk
+        if (chemin == null) {
+            /*
+            ON DONNE LA LIGNE TOUTE FAITE, ET ON DIT QUE C'EST UNE LIGNE
+            DANS UN FICHIER. Vu sur une vraie machine : l'exemple a ete
+            tape dans PowerShell, qui a repondu « n'est pas reconnu comme
+            nom d'applet de commande ». Un chemin seul sur sa ligne
+            ressemble a une commande, et rien ne disait le contraire.
+            */
+            val bureau = bureauProbable()
+            val propose = if (bureau != null) {
+                File(bureau, "app changeur").absolutePath.replace('\\', '/')
+            } else {
+                "C:/Users/HP/Desktop/app changeur"
+            }
+            logger.lifecycle(
+                "\nchangeur-sms : aucun dossier de depot regle.\n" +
+                    "L'APK restera dans tools/changeur-sms/build/outputs/apk/.\n\n" +
+                    "POUR LE DEPOSER AILLEURS : ouvre le fichier local.properties, a la\n" +
+                    "RACINE DU DEPOT (celui de VaultEx), et AJOUTE CETTE LIGNE A LA FIN.\n" +
+                    "Ce n'est pas une commande a taper dans le terminal :\n\n" +
+                    "    apk.sortie=$propose\n\n" +
+                    (if (bureau != null) "Ton Bureau a ete trouve ici : ${bureau.absolutePath}\n"
+                    else "Le Bureau n'a pas ete trouve : remplace le chemin par le tien.\n") +
+                    "\nATTENTION : ce projet et VaultEx partagent cette ligne. Pour deux\n" +
+                    "dossiers differents, mets la ligne du robot dans\n" +
+                    "tools/changeur-sms/local.properties — elle l'emporte.\n"
+            )
+            return@doLast
+        }
+        val d = File(chemin)
+        logger.lifecycle("\nchangeur-sms : apk.sortie = $chemin")
+        logger.lifecycle("changeur-sms : chemin complet = ${d.absolutePath}")
+        val parent = d.absoluteFile.parentFile
+        logger.lifecycle(
+            when {
+                d.isDirectory -> "changeur-sms : le dossier existe. L'APK y sera depose.\n"
+                parent != null && !parent.isDirectory ->
+                    "changeur-sms : ATTENTION — le parent ${parent.absolutePath} n'existe " +
+                        "pas. Le depot echouera.\n\n$AIDE_CHEMIN\n"
+                else -> "changeur-sms : le dossier sera cree au premier depot.\n"
+            }
+        )
+    }
+}
+
 if (sortieApk != null) {
     val dossierApk = layout.buildDirectory.dir("outputs/apk")
     val destination = File(sortieApk)
@@ -214,13 +349,29 @@ if (sortieApk != null) {
             doLast {
                 val source = File(dossierApk.get().asFile, variante)
                 val apk = source.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
-                if (apk == null) {
-                    logger.lifecycle("changeur-sms : aucun APK trouve dans $source")
-                    return@doLast
+                    ?: throw GradleException(
+                        "changeur-sms : aucun APK trouve dans ${source.absolutePath}"
+                    )
+                if (destination.isFile) {
+                    throw GradleException(
+                        "changeur-sms : apk.sortie designe un FICHIER, pas un dossier — " +
+                            "${destination.absolutePath}\n\n$AIDE_CHEMIN"
+                    )
                 }
-                if (!destination.exists() && !destination.mkdirs()) {
-                    logger.lifecycle("changeur-sms : impossible de creer $destination")
-                    return@doLast
+                if (!destination.isDirectory) {
+                    val parent = destination.absoluteFile.parentFile
+                    if (parent != null && !parent.isDirectory) {
+                        throw GradleException(
+                            "changeur-sms : le dossier parent n'existe pas — " +
+                                "${parent.absolutePath}\n\n$AIDE_CHEMIN"
+                        )
+                    }
+                    if (!destination.mkdirs()) {
+                        throw GradleException(
+                            "changeur-sms : impossible de creer ${destination.absolutePath}" +
+                                "\n\n$AIDE_CHEMIN"
+                        )
+                    }
                 }
                 /*
                 UN NOM STABLE, pour que la reinstallation ecrase la
@@ -231,7 +382,7 @@ if (sortieApk != null) {
                 */
                 val cible = File(destination, "VaultEx-Changeur-$variante.apk")
                 apk.copyTo(cible, overwrite = true)
-                logger.lifecycle("changeur-sms : APK depose dans $cible")
+                logger.lifecycle("changeur-sms : APK depose dans ${cible.absolutePath}")
             }
         }
     }
