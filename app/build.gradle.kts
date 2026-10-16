@@ -885,33 +885,167 @@ val sortieApkVaultex: String? = run {
     val fichier = rootProject.file("local.properties")
     val depuisFichier = if (fichier.exists()) {
         fichier.readLines()
-            .firstOrNull { it.trim().startsWith("apk.sortie") && it.contains('=') }
+            /*
+            LA CLÉ EXACTE, ET PAS UN PRÉFIXE.
+
+            C'était `startsWith("apk.sortie")`. Le jour où l'on écrit une
+            seconde clé — `apk.sortie.robot`, par exemple — et qu'elle se
+            trouve plus haut dans le fichier, c'est elle qui est lue. Rien
+            ne le signale : l'APK part simplement ailleurs.
+            */
+            .firstOrNull { it.contains('=') && it.substringBefore('=').trim() == "apk.sortie" }
             ?.substringAfter('=')
             ?.trim()
     } else null
     (project.findProperty("apk.sortie") as String? ?: depuisFichier)?.trim()?.ifEmpty { null }
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+« JE N'ARRIVE PAS À LE METTRE DANS LE DOSSIER »
+═══════════════════════════════════════════════════════════════════════════
+
+Signalé sur une vraie machine, deux fois — une fois pour cet APK, une fois
+pour celui du robot. Le dossier restait vide et la construction disait
+BUILD SUCCESSFUL.
+
+LA COPIE N'ÉCHOUAIT PAS : ELLE SE TAISAIT. Les deux seuls cas d'échec
+étaient des `logger.lifecycle` suivis d'un `return@doLast`. Sur une sortie
+Gradle de plusieurs centaines de lignes — et filtrée, dans la commande
+qu'on donne à taper — une ligne d'information ne se voit pas. On lit
+« BUILD SUCCESSFUL », on ouvre le dossier, il est vide, et il n'y a rien à
+quoi se raccrocher.
+
+Un dépôt qu'on a demandé et qui n'a pas eu lieu est un ÉCHEC. Il fait donc
+échouer la tâche, avec la raison et le chemin complet.
+
+─── LE PIÈGE DU BUREAU ONEDRIVE, QUI EST LE PLUS PROBABLE ──────────────
+
+Sur une machine Windows où OneDrive est actif, le Bureau n'est pas
+`C:\Users\HP\Desktop` mais `C:\Users\HP\OneDrive\Desktop`. Le premier
+chemin n'existe parfois même plus.
+
+Et `mkdirs()` crée toute la chaîne manquante, sans rien dire. L'APK
+atterrissait donc dans un `C:\Users\HP\Desktop\app vaultex` tout neuf,
+réel, sur le disque — et invisible sur le Bureau qu'on regarde.
+
+On refuse maintenant de créer un dossier dont le PARENT n'existe pas. Un
+dossier de dépôt se range à côté d'autres choses ; si son parent manque,
+c'est le chemin qui est faux, pas le dossier qui manque.
+
+─── ET UNE COMMANDE POUR VÉRIFIER SANS CONSTRUIRE ──────────────────────
+
+`gradlew ouEstLApk` répond en quelques secondes au lieu de quelques
+minutes. On ne découvre plus un chemin faux à la fin d'une compilation.
+═══════════════════════════════════════════════════════════════════════════
+*/
+val AIDE_CHEMIN_APK = """
+    Verifie le chemin, puis reessaie :
+
+      1. Le Bureau est-il sous OneDrive ? Ouvre l'Explorateur, clique sur
+         ton Bureau, et lis la barre d'adresse. Si elle dit
+         C:\Users\HP\OneDrive\Desktop, c'est CE chemin qu'il faut.
+      2. Ecris la ligne dans local.properties plutot que sur la ligne de
+         commande — un chemin contenant une espace y passe sans guillemets
+         et sans surprise :
+
+             apk.sortie=C:/Users/HP/OneDrive/Desktop/app vaultex
+
+      3. Puis verifie sans construire :  gradlew ouEstLApk
+""".trimIndent()
+
+/** Le dossier de dépôt, prêt à recevoir — ou une erreur qui dit pourquoi. */
+fun dossierDeDepot(chemin: String): File {
+    val destination = File(chemin)
+    if (destination.isDirectory) return destination
+    if (destination.isFile) {
+        throw GradleException(
+            "vaultex : apk.sortie designe un FICHIER, pas un dossier — " +
+                "${destination.absolutePath}\n\n$AIDE_CHEMIN_APK"
+        )
+    }
+    val parent = destination.absoluteFile.parentFile
+    if (parent != null && !parent.isDirectory) {
+        throw GradleException(
+            "vaultex : le dossier parent n'existe pas — ${parent.absolutePath}\n" +
+                "Creer toute la chaine ferait atterrir l'APK dans un dossier reel " +
+                "mais invisible la ou tu le cherches.\n\n$AIDE_CHEMIN_APK"
+        )
+    }
+    if (!destination.mkdirs()) {
+        throw GradleException(
+            "vaultex : impossible de creer ${destination.absolutePath}\n\n$AIDE_CHEMIN_APK"
+        )
+    }
+    return destination
+}
+
+/*
+ELLE EXISTE MÊME SANS RÉGLAGE, et c'est volontaire : quand rien n'est
+réglé, c'est précisément ce qu'il faut apprendre.
+*/
+tasks.register("ouEstLApk") {
+    group = "vaultex"
+    description = "Dit ou l'APK sera depose, sans rien construire."
+    doLast {
+        /*
+        ON RECOPIE DANS UNE VARIABLE LOCALE AVANT DE TESTER.
+
+        `sortieApkVaultex` est une propriété du script. Kotlin refuse le
+        transtypage implicite d'une propriété à l'intérieur d'un lambda —
+        il ne peut pas garantir qu'elle vaut encore la même chose. Une
+        copie locale lève la question au lieu de la contourner.
+        */
+        val chemin = sortieApkVaultex
+        if (chemin == null) {
+            logger.lifecycle(
+                "\nvaultex : aucun dossier de depot regle.\n" +
+                    "L'APK restera dans app/build/outputs/apk/.\n\n" +
+                    "Pour qu'il soit copie ailleurs, ajoute cette ligne dans " +
+                    "local.properties (a la racine du depot) :\n\n" +
+                    "    apk.sortie=C:/Users/HP/Desktop/app vaultex\n"
+            )
+            return@doLast
+        }
+        val destination = File(chemin)
+        logger.lifecycle("\nvaultex : apk.sortie = $chemin")
+        logger.lifecycle("vaultex : chemin complet = ${destination.absolutePath}")
+        logger.lifecycle(
+            if (destination.isDirectory) {
+                "vaultex : le dossier existe. L'APK y sera depose sous " +
+                    "VaultEx-debug.apk ou VaultEx-release.apk.\n"
+            } else {
+                // On ne CRÉE rien ici : cette tâche observe, elle n'agit pas.
+                val parent = destination.absoluteFile.parentFile
+                if (parent != null && !parent.isDirectory) {
+                    "vaultex : ATTENTION — le parent ${parent.absolutePath} n'existe pas.\n" +
+                        "Le depot echouera.\n\n$AIDE_CHEMIN_APK\n"
+                } else {
+                    "vaultex : le dossier n'existe pas encore ; il sera cree au premier depot.\n"
+                }
+            }
+        )
+    }
+}
+
 if (sortieApkVaultex != null) {
+    // Hors lambda : ici le transtypage implicite est possible, et la copie
+    // locale est ce que les lambdas plus bas pourront capturer.
+    val cheminRegle: String = sortieApkVaultex
     val dossierApk = layout.buildDirectory.dir("outputs/apk")
-    val destination = File(sortieApkVaultex)
 
     listOf("assembleDebug" to "debug", "assembleRelease" to "release").forEach { (nom, variante) ->
         tasks.matching { it.name == nom }.configureEach {
             doLast {
                 val source = File(dossierApk.get().asFile, variante)
                 val apk = source.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
-                if (apk == null) {
-                    logger.lifecycle("vaultex : aucun APK trouve dans $source")
-                    return@doLast
-                }
-                if (!destination.exists() && !destination.mkdirs()) {
-                    logger.lifecycle("vaultex : impossible de creer $destination")
-                    return@doLast
-                }
+                    ?: throw GradleException(
+                        "vaultex : aucun APK trouve dans ${source.absolutePath}"
+                    )
+                val destination = dossierDeDepot(cheminRegle)
                 val cible = File(destination, "VaultEx-$variante.apk")
                 apk.copyTo(cible, overwrite = true)
-                logger.lifecycle("vaultex : APK depose dans $cible")
+                logger.lifecycle("vaultex : APK depose dans ${cible.absolutePath}")
             }
         }
     }
