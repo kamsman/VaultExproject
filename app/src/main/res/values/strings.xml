@@ -1152,6 +1152,7 @@
     <string name="change_ref_paiement_aide">Le numéro de transaction que ton opérateur t\'a envoyé par SMS.</string>
     <string name="change_telephone">Numéro Mobile Money utilisé pour le paiement</string>
     <string name="change_jai_paye">J\'ai payé — transmettre</string>
+    <string name="change_jai_paye_verifie">Paiement vérifié — transmettre</string>
     <string name="change_retour">Revenir au calcul</string>
     <string name="change_transmis_titre">Demande transmise</string>
     <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
@@ -1186,6 +1187,19 @@
     <string name="change_verif_quand_meme">Transmettre quand même</string>
     <string name="change_verif_txid">Hash de la transaction (facultatif)</string>
     <string name="change_verif_txid_aide">Si tu l\'as sous la main, colle-le : la recherche devient immédiate.</string>
+    <string name="change_verif_achat_recherche">Recherche de ton paiement…</string>
+    <string name="change_verif_achat_recherche_detail">Le relais cherche l\'encaissement Orange Money qui correspond. Dès que l\'opérateur l\'a signalé au changeur, il s\'affiche ici.</string>
+    <string name="change_verif_achat_trouve">Paiement vérifié</string>
+    <string name="change_verif_achat_trouve_detail">Ce n\'est pas ton téléphone qui le dit : le relais a lu le SMS de l\'opérateur reçu par le changeur. Il reçoit exactement la même confirmation.</string>
+    <string name="change_verif_achat_recu">Encaissé (lu dans le SMS de l\'opérateur)</string>
+    <string name="change_verif_achat_de">Payé depuis</string>
+    <string name="change_verif_achat_absent">Aucun paiement ne correspond</string>
+    <string name="change_verif_achat_absent_detail">Le relais a regardé %1$d fois sans trouver ton paiement. Relis la référence que tu as recopiée et ton numéro, caractère par caractère : c\'est la cause la plus fréquente. Si tu viens de payer, laisse quelques secondes au SMS de l\'opérateur. Tu peux aussi transmettre quand même : le changeur vérifiera dans son relevé.</string>
+    <string name="change_verif_achat_deja_servi">Ce paiement a déjà servi</string>
+    <string name="change_verif_achat_deja_servi_detail">L\'encaissement existe, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
+    <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>
+    <string name="change_verif_achat_impossible_detail">Le relais ne peut pas lire les encaissements du changeur. Rien n\'est prouvé ni infirmé : tu peux transmettre, et il vérifiera dans son relevé.</string>
+    <string name="change_verif_achat_impossible_detail_raison">Le relais ne peut pas lire les encaissements du changeur : %1$s. Rien n\'est prouvé ni infirmé : tu peux transmettre, et il vérifiera dans son relevé.</string>
     <string name="change_transmis_verifie">Le changeur a reçu ta demande avec la confirmation de la chaîne. Il n\'a rien à te demander de plus.</string>
     <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. Le changeur vérifiera son portefeuille avant de payer : garde ta référence.</string>
     <string name="change_copier_adresse">Copier l\'adresse du changeur</string>

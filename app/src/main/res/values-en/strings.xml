@@ -1123,6 +1123,7 @@
     <string name="change_ref_paiement_aide">The transaction number your operator texted you.</string>
     <string name="change_telephone">Mobile Money number used for the payment</string>
     <string name="change_jai_paye">I paid — send request</string>
+    <string name="change_jai_paye_verifie">Payment verified — send</string>
     <string name="change_retour">Back to the quote</string>
     <string name="change_transmis_titre">Request sent</string>
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
@@ -1157,6 +1158,19 @@
     <string name="change_verif_quand_meme">Send anyway</string>
     <string name="change_verif_txid">Transaction hash (optional)</string>
     <string name="change_verif_txid_aide">If you have it at hand, paste it: the search becomes immediate.</string>
+    <string name="change_verif_achat_recherche">Looking for your payment…</string>
+    <string name="change_verif_achat_recherche_detail">The relay is looking for the matching Orange Money payment. As soon as the operator reports it to the changer, it shows up here.</string>
+    <string name="change_verif_achat_trouve">Payment verified</string>
+    <string name="change_verif_achat_trouve_detail">This is not your phone saying so: the relay read the operator\'s SMS received by the changer. He gets exactly the same confirmation.</string>
+    <string name="change_verif_achat_recu">Received (read in the operator\'s SMS)</string>
+    <string name="change_verif_achat_de">Paid from</string>
+    <string name="change_verif_achat_absent">No matching payment</string>
+    <string name="change_verif_achat_absent_detail">The relay looked %1$d times without finding your payment. Check the reference you copied and your number, character by character: that is the most common cause. If you have just paid, give the operator\'s SMS a few seconds. You can also send anyway: the changer will check his own statement.</string>
+    <string name="change_verif_achat_deja_servi">This payment has already been used</string>
+    <string name="change_verif_achat_deja_servi_detail">The payment exists, but it has already settled another request. Check your recent requests: if this is the one, it is already with the changer and there is nothing to redo.</string>
+    <string name="change_verif_achat_impossible">Automatic check unavailable</string>
+    <string name="change_verif_achat_impossible_detail">The relay cannot read the changer\'s incoming payments. Nothing is proven or disproven: you can send, and he will check his statement.</string>
+    <string name="change_verif_achat_impossible_detail_raison">The relay cannot read the changer\'s incoming payments: %1$s. Nothing is proven or disproven: you can send, and he will check his statement.</string>
     <string name="change_transmis_verifie">The exchanger received your request together with the chain\'s confirmation. He has nothing more to ask you.</string>
     <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. The exchanger will check his wallet before paying: keep your reference.</string>
     <string name="change_copier_adresse">Copy the exchanger\'s address</string>

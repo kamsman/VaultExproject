@@ -93,6 +93,51 @@ interface ChangeApi {
     ): VerificationDto
 
     /**
+     * Le relais a-t-il vu ce paiement Orange Money ?
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LE PENDANT DE `verifier`, POUR L'AUTRE SENS
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Une vente se lit sur une chaine publique. Un achat se lit dans le
+     * SMS que l'operateur a envoye au changeur, et que son robot a
+     * transmis au relais. Deux reseaux, deux lectures — mais la meme
+     * reponse, et c'est pour ca que cette methode rend le meme DTO.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * ON NE DIT PAS AU RELAIS QUEL NUMERO SURVEILLER
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Le `numero` envoye ici est celui qui a PAYE, pas celui qui encaisse.
+     * Celui du changeur vient de son reglage, et aucun parametre de cet
+     * appel ne peut le designer — sinon n'importe qui declarerait son
+     * propre numero et se verifierait lui-meme.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * ET ELLE NE CONSOMME PAS L'ENCAISSEMENT
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * L'application l'appelle toutes les quinze secondes. Si le relais
+     * marquait le paiement comme servi en le trouvant, le PREMIER sondage
+     * brulerait celui du client : son propre ordre repartirait « deja
+     * servi », et il aurait paye pour rien. Le marquage a donc lieu dans
+     * /change/ordre, apres l'envoi au changeur, et nulle part ailleurs.
+     */
+    @GET("change/verifier-achat")
+    suspend fun verifierAchat(
+        /** En FRANCS, cette fois : c'est ce que dit le SMS de l'operateur. */
+        @Query("montant") montant: String,
+        /** Le numero qui a paye. Sert au rapprochement sans reference. */
+        @Query("numero") numero: String = "",
+        /**
+         * LA REFERENCE DE L'OPERATEUR, recopiee par le client — pas la
+         * reference VX- de la demande. C'est le rapprochement le plus net :
+         * les deux cotes citent le meme identifiant Orange Money.
+         */
+        @Query("reference") reference: String = ""
+    ): VerificationDto
+
+    /**
      * Le montant exact a envoyer, avant que l'utilisateur n'envoie.
      *
      * APPELE AU MOMENT DE LA CONFIRMATION, et c'est tout l'interet : le

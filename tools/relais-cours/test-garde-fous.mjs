@@ -21,7 +21,7 @@ la chaîne entière et regarder ce qui en sort.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { ordreChange, numeroComparable } from './worker.js'
+import relais, { ordreChange, numeroComparable, verifierAchat } from './worker.js'
 
 let passes = 0
 let echecs = 0
@@ -1736,6 +1736,155 @@ plus frequentes trouvent quand meme leur reponse.
   for (const q of PROPOSEES) {
     verifie(`PROPOSEE : « ${q} » trouve sa reponse`, reponseConnue(q, ENV_IA) !== null, q)
   }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA VÉRIFICATION DE L'ACHAT, VUE DEPUIS LE TÉLÉPHONE
+═══════════════════════════════════════════════════════════════════════════
+
+Le verdict existait déjà, mais il n'allait qu'au changeur. Il part
+maintenant aussi vers l'application, par /change/verifier-achat, pour
+qu'une référence recopiée de travers se voie là où elle a été tapée.
+
+TROIS CHOSES SONT ÉPROUVÉES ICI, ET LA PREMIÈRE EST LA SEULE QUI PUISSE
+COÛTER DE L'ARGENT.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  SONDER NE DOIT PAS CONSOMMER L'ENCAISSEMENT
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est LE défaut à ne pas écrire. L'application appelle cette adresse
+  toutes les quinze secondes : si la trouver marquait le paiement comme
+  servi, le PREMIER sondage brûlerait celui du client, et son propre
+  ordre repartirait « déjà servi » quelques secondes plus tard. Il aurait
+  payé, et le message partirait marqué comme un rejeu.
+
+  Vingt sondages, puis l'ordre. L'ordre doit être vert.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456 Ref: MP901', {}, cache)
+  installer(cache)
+
+  let verdicts = []
+  for (let i = 0; i < 20; i += 1) {
+    verdicts.push(
+      await verifierAchat(
+        { montantFcfa: '10 000', telephone: '70123456', referencePaiement: 'MP901' },
+        { ...ENV, ...ENV_SMS }
+      )
+    )
+  }
+  verifie('SONDE : les vingt sondages sont verts',
+    verdicts.every((v) => v.etat === 'confirme'), verdicts.map((v) => v.etat))
+
+  const r = await poster(
+    demande({ sens: 'achat', telephone: '70123456', montantFcfa: '10 000', referencePaiement: 'MP901' }),
+    ENV_SMS,
+    cache
+  )
+  verifie('SONDE : et l ordre reste verifie apres eux',
+    r.corps.verification === 'confirme', r.corps)
+}
+
+{
+  /*
+  CE QUE LE CLIENT DOIT VOIR SUR SON PROPRE ÉCRAN : une référence
+  recopiée de travers. C'est la raison d'être de cette adresse.
+  */
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456 Ref: MP902', {}, cache)
+  installer(cache)
+
+  const faux = await verifierAchat(
+    // Un zéro pris pour un O : la faute de frappe la plus commune.
+    { montantFcfa: '10 000', telephone: '', referencePaiement: 'MPO2' },
+    { ...ENV, ...ENV_SMS }
+  )
+  verifie('SONDE : une reference fausse rend absent', faux.etat === 'absent', faux)
+
+  const bon = await verifierAchat(
+    { montantFcfa: '10 000', telephone: '70123456', referencePaiement: 'MP902' },
+    { ...ENV, ...ENV_SMS }
+  )
+  verifie('SONDE : la bonne rend confirme', bon.etat === 'confirme', bon)
+
+  /*
+  ET LE MONTANT TRANCHE, MÊME QUAND LA RÉFÉRENCE COÏNCIDE. Sans ça,
+  recopier la référence d'un vrai paiement de dix mille francs
+  justifierait une demande de cent mille.
+  */
+  const gonfle = await verifierAchat(
+    { montantFcfa: '100 000', telephone: '70123456', referencePaiement: 'MP902' },
+    { ...ENV, ...ENV_SMS }
+  )
+  verifie('SONDE : un montant gonfle rend absent', gonfle.etat === 'absent', gonfle)
+}
+
+{
+  /*
+  SANS ROBOT : « indisponible », et surtout pas « absent ».
+
+  C'est ce qui permet au telephone de ne PAS freiner. Un ❌ accusateur sur
+  tous les achats d'un changeur qui n'a pas installé la lecture des SMS
+  ferait douter de clients honnêtes, et éteindrait le bouton de chacun
+  d'eux.
+  */
+  installer(faireCache())
+  const v = await verifierAchat(
+    { montantFcfa: '10 000', telephone: '70123456', referencePaiement: 'MP903' },
+    ENV
+  )
+  verifie('SANS ROBOT : indisponible, pas absent', v.etat === 'indisponible', v)
+}
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  L'ADRESSE EST BIEN BRANCHÉE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Les trois blocs ci-dessus appellent `verifierAchat` directement : ils
+  ne diraient rien d'un chemin mal orthographié dans le routeur. Or
+  l'application n'a que l'URL — et une URL qui ne correspond à aucune
+  route part chez CoinGecko, qui répond poliment autre chose.
+
+  On passe donc par `fetch`, comme le téléphone.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const cache = faireCache()
+  await posterSms('Vous avez recu 10000 FCFA de 70123456 Ref: MP904', {}, cache)
+  installer(cache)
+
+  const rep = await relais.fetch(
+    new Request(
+      'https://relais.vaultex/change/verifier-achat' +
+        '?montant=10000&numero=70123456&reference=MP904'
+    ),
+    { ...ENV, ...ENV_SMS }
+  )
+  const corps = await rep.json()
+  verifie('ROUTE : /change/verifier-achat repond 200', rep.status === 200, rep.status)
+  verifie('ROUTE : et rend le verdict', corps.etat === 'confirme', corps)
+  verifie('ROUTE : avec le montant lu dans le SMS', corps.montant === 10000, corps)
+
+  /*
+  LES NOMS DES PARAMÈTRES COMPTENT. `numero` et non `telephone` : c'est
+  ce que l'interface Retrofit envoie. Un nom qui ne correspond pas se lit
+  comme un numéro vide, donc comme un rapprochement impossible — et ça ne
+  se verrait que sur un vrai téléphone.
+  */
+  const sansRef = await relais.fetch(
+    new Request('https://relais.vaultex/change/verifier-achat?montant=10000&numero=70123456'),
+    { ...ENV, ...ENV_SMS }
+  )
+  const corpsSansRef = await sansRef.json()
+  verifie('ROUTE : le parametre « numero » est bien celui qui est lu',
+    corpsSansRef.etat === 'confirme', corpsSansRef)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)

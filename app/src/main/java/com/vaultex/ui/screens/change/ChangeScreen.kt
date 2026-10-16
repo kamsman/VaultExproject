@@ -1158,6 +1158,43 @@ private fun ColumnScope.EtapePaiement(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UN ACHAT, LA VÉRIFICATION VIENT APRÈS LES CHAMPS
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'est l'inverse de la vente, et c'est l'ordre du regard dans les deux
+    cas.
+
+    À LA VENTE, la question à cet instant est « est-ce que mon argent est
+    bien parti ». Il n'y a rien à remplir pour y répondre : la carte vient
+    donc en premier.
+
+    À L'ACHAT, la réponse DÉPEND de ce qu'on vient de taper — la référence
+    recopiée, le numéro. Un verdict posé au-dessus de ces champs porterait
+    sur un formulaire vide, et dirait « aucun paiement ne correspond » à
+    quelqu'un qui n'a encore rien déclaré. Mise en dessous, elle se lit
+    pour ce qu'elle est : la réponse à ce qu'on vient d'écrire.
+
+    Et elle est JUSTE AU-DESSUS DU BOUTON, parce que c'est là qu'elle
+    change quelque chose — un ❌ y éteint le bouton, et il faut que les
+    deux soient dans le même regard.
+
+    ─── ELLE N'EXISTE PAS AVANT QU'ON AIT DÉCLARÉ QUELQUE CHOSE ────────
+
+    Tant que ni la référence ni le numéro ne sont remplis, il n'y a rien à
+    chercher — et la carte afficherait « vérification impossible » sur un
+    formulaire vide, ce qui est une accusation gratuite doublée d'un
+    mensonge : on n'a pas essayé.
+
+    Elle apparaît donc à la première référence tapée, c'est-à-dire au
+    moment où elle a un verdict à rendre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (achat && (state.referencePaiement.isNotBlank() || state.telephoneValide)) {
+        CarteVerification(vm, state)
+    }
+
     state.erreur?.let { Text(it, fontSize = 12.sp, color = AccentRed) }
 
     Button(
@@ -1182,6 +1219,8 @@ private fun ColumnScope.EtapePaiement(
         Text(
             stringResource(
                 when {
+                    state.verification?.estVert == true && achat ->
+                        R.string.change_jai_paye_verifie
                     achat -> R.string.change_jai_paye
                     state.verification?.estVert == true -> R.string.change_transmettre_verifie
                     else -> R.string.change_transmettre
@@ -1324,6 +1363,27 @@ private fun ColumnScope.CarteVerification(
     val affichage = affichageVerification(state)
     val v = state.verification
     val vert = affichage == AffichageVerif.VERT
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA MÊME CARTE, DEUX VOCABULAIRES
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les cinq états sont les mêmes, les sorties sont les mêmes, les couleurs
+    sont les mêmes. Ce qui change, c'est CE QU'ON A REGARDÉ : une chaîne
+    publique pour une vente, le SMS de l'opérateur reçu par le changeur
+    pour un achat.
+
+    Écrire une seconde carte aurait doublé la logique des sorties — celle
+    qui décide si l'on peut encore réessayer, et si l'on a le droit de
+    passer outre. C'est la partie qu'il ne faut écrire qu'une fois.
+
+    Mais les PHRASES doivent être justes : « le relais interroge la chaîne
+    USDT » sur un paiement Orange Money ferait chercher sur une chaîne
+    quelqu'un qui vient de payer avec son téléphone, et lui apprendrait à
+    ne plus lire cette carte.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val achat = state.sens == SensChange.ACHAT
 
     val couleur = when (affichage) {
         AffichageVerif.VERT -> AccentGreen
@@ -1357,7 +1417,7 @@ private fun ColumnScope.CarteVerification(
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    stringResource(titreVerification(affichage)),
+                    stringResource(titreVerification(affichage, achat)),
                     fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary
                 )
             }
@@ -1379,10 +1439,37 @@ private fun ColumnScope.CarteVerification(
                 */
                 v.montant?.let { m ->
                     Ligne(
-                        stringResource(R.string.change_verif_recu),
-                        "${crypto(m, state.monnaie)} ${state.monnaie}",
-                        icone = Icons.Default.AccountBalanceWallet,
+                        stringResource(
+                            if (achat) R.string.change_verif_achat_recu
+                            else R.string.change_verif_recu
+                        ),
+                        // Des FRANCS sur un achat : c'est le chiffre du SMS
+                        // de l'opérateur. Afficher « 10 000 USDT » parce que
+                        // la carte a été écrite pour les ventes serait pire
+                        // que de ne rien afficher.
+                        if (achat) fcfa(m) else "${crypto(m, state.monnaie)} ${state.monnaie}",
+                        icone =
+                            if (achat) Icons.Default.Payments
+                            else Icons.Default.AccountBalanceWallet,
                         vedette = true
+                    )
+                }
+                /*
+                LE NUMÉRO QUI A PAYÉ, SUR UN ACHAT SEULEMENT.
+
+                C'est la preuve que le rapprochement s'est fait sur le bon
+                abonné. Quelqu'un qui a payé depuis le téléphone de son
+                frère et déclaré son propre numéro le voit ici, avant que
+                le changeur ne le lui demande.
+
+                Sur une vente, `de` est l'adresse d'un portefeuille chaud
+                d'exchange : elle n'apprend rien à personne.
+                */
+                if (achat && v.de.isNotBlank()) {
+                    Ligne(
+                        stringResource(R.string.change_verif_achat_de),
+                        v.de,
+                        icone = Icons.Default.Sms
                     )
                 }
                 if (v.quand > 0L) {
@@ -1443,7 +1530,10 @@ private fun ColumnScope.CarteVerification(
                 // ne peut rien changer.
                 if (v == null || !v.sansEspoir) {
                     OutlinedButton(
-                        onClick = vm::demarrerVerification,
+                        // Lambda plutot que reference : `demarrerVerification`
+                        // prend desormais un delai d'attente par defaut, et
+                        // « Reessayer » veut dire tout de suite.
+                        onClick = { vm.demarrerVerification() },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1473,8 +1563,15 @@ private fun ColumnScope.CarteVerification(
             qu'on rate une fois sur deux.
 
             Il n'arrive donc qu'une fois qu'on en a besoin.
+
+            ET JAMAIS SUR UN ACHAT. Il n'y a pas de hash : le paiement est
+            passé par Orange Money, pas par une chaîne. Ce qui rattache un
+            achat, c'est la référence de l'opérateur — un champ qui est
+            déjà à l'écran, juste au-dessus de cette carte. En demander un
+            second enverrait chercher dans ses SMS une chose qui n'y est
+            pas.
             */
-            if (avecSorties) {
+            if (avecSorties && !achat) {
                 OutlinedTextField(
                     value = state.txidSaisi,
                     onValueChange = vm::onTxid,
@@ -1535,25 +1632,26 @@ private fun affichageVerification(
     }
 }
 
-private fun titreVerification(affichage: AffichageVerif): Int = when (affichage) {
-    AffichageVerif.RECHERCHE -> R.string.change_verif_recherche
-    AffichageVerif.VERT -> R.string.change_verif_trouve
-    AffichageVerif.ABSENT -> R.string.change_verif_absent
-    AffichageVerif.DEJA_SERVI -> R.string.change_verif_deja_servi
-    AffichageVerif.IMPOSSIBLE -> R.string.change_verif_impossible
-}
+private fun titreVerification(affichage: AffichageVerif, achat: Boolean): Int =
+    if (achat) when (affichage) {
+        AffichageVerif.RECHERCHE -> R.string.change_verif_achat_recherche
+        AffichageVerif.VERT -> R.string.change_verif_achat_trouve
+        AffichageVerif.ABSENT -> R.string.change_verif_achat_absent
+        AffichageVerif.DEJA_SERVI -> R.string.change_verif_achat_deja_servi
+        AffichageVerif.IMPOSSIBLE -> R.string.change_verif_achat_impossible
+    } else when (affichage) {
+        AffichageVerif.RECHERCHE -> R.string.change_verif_recherche
+        AffichageVerif.VERT -> R.string.change_verif_trouve
+        AffichageVerif.ABSENT -> R.string.change_verif_absent
+        AffichageVerif.DEJA_SERVI -> R.string.change_verif_deja_servi
+        AffichageVerif.IMPOSSIBLE -> R.string.change_verif_impossible
+    }
 
 @Composable
 private fun detailVerification(
     state: com.vaultex.ui.viewmodel.ChangeState,
     affichage: AffichageVerif
-): String = when (affichage) {
-    AffichageVerif.RECHERCHE ->
-        stringResource(R.string.change_verif_recherche_detail, state.monnaie)
-    AffichageVerif.VERT -> stringResource(R.string.change_verif_trouve_detail)
-    AffichageVerif.ABSENT ->
-        stringResource(R.string.change_verif_absent_detail, state.essais)
-    AffichageVerif.DEJA_SERVI -> stringResource(R.string.change_verif_deja_servi_detail)
+): String {
     /*
     LA RAISON DU RELAIS EST TRANSMISE TELLE QUELLE quand il en donne une.
     « Le nœud n'a pas répondu » et « aucune adresse réglée pour BTC »
@@ -1562,13 +1660,45 @@ private fun detailVerification(
     « vérification impossible » enverrait quelqu'un réessayer indéfiniment
     une opération qui ne peut pas aboutir.
     */
-    AffichageVerif.IMPOSSIBLE -> {
-        val raison = state.verification?.raison.orEmpty()
-        if (raison.isNotBlank()) {
-            stringResource(R.string.change_verif_impossible_detail_raison, raison)
-        } else {
-            stringResource(R.string.change_verif_impossible_detail)
+    val raison = state.verification?.raison.orEmpty()
+
+    if (state.sens == SensChange.ACHAT) {
+        return when (affichage) {
+            AffichageVerif.RECHERCHE ->
+                stringResource(R.string.change_verif_achat_recherche_detail)
+            AffichageVerif.VERT -> stringResource(R.string.change_verif_achat_trouve_detail)
+            /*
+            SUR UN ACHAT, « ABSENT » DÉSIGNE SA PROPRE CAUSE LA PLUS
+            PROBABLE : la référence recopiée de travers. C'est tout
+            l'intérêt de montrer ce verdict au client — lui seul peut la
+            relire, et il l'a sous les yeux dans le SMS de l'opérateur.
+            */
+            AffichageVerif.ABSENT ->
+                stringResource(R.string.change_verif_achat_absent_detail, state.essais)
+            AffichageVerif.DEJA_SERVI ->
+                stringResource(R.string.change_verif_achat_deja_servi_detail)
+            AffichageVerif.IMPOSSIBLE ->
+                if (raison.isNotBlank()) {
+                    stringResource(R.string.change_verif_achat_impossible_detail_raison, raison)
+                } else {
+                    stringResource(R.string.change_verif_achat_impossible_detail)
+                }
         }
+    }
+
+    return when (affichage) {
+        AffichageVerif.RECHERCHE ->
+            stringResource(R.string.change_verif_recherche_detail, state.monnaie)
+        AffichageVerif.VERT -> stringResource(R.string.change_verif_trouve_detail)
+        AffichageVerif.ABSENT ->
+            stringResource(R.string.change_verif_absent_detail, state.essais)
+        AffichageVerif.DEJA_SERVI -> stringResource(R.string.change_verif_deja_servi_detail)
+        AffichageVerif.IMPOSSIBLE ->
+            if (raison.isNotBlank()) {
+                stringResource(R.string.change_verif_impossible_detail_raison, raison)
+            } else {
+                stringResource(R.string.change_verif_impossible_detail)
+            }
     }
 }
 

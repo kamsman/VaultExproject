@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 43
+const VERSION = 44
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -698,6 +698,64 @@ export default {
         reference: url.searchParams.get('reference'),
         env,
       })
+      return json(resultat, 0)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ACHAT SE VÉRIFIE AVANT D'ÊTRE TRANSMIS, LUI AUSSI
+    ═══════════════════════════════════════════════════════════════════
+
+    La vérification de l'achat existait déjà, mais UNIQUEMENT au dépôt de
+    l'ordre : le relais cherchait le SMS, écrivait ✅ ou ❌ dans le
+    message du changeur, et le client n'en savait rien.
+
+    Conséquence concrète : quelqu'un qui recopie mal sa référence Orange
+    Money — un O pris pour un zéro, un chiffre sauté — voyait l'écran
+    « demande transmise » et attendait. C'est le CHANGEUR qui découvrait
+    le ❌, dans son canal, parmi d'autres messages. Il faut alors le
+    rappeler, le faire corriger, redéposer. Pendant ce temps le client
+    croit sa demande en cours.
+
+    Cette adresse rend le même verdict à l'application, AVANT l'envoi,
+    pour que l'erreur se corrige là où elle a été commise — dans le champ
+    qu'on vient de remplir, par celui qui l'a rempli.
+
+    ─── EXACTEMENT LE MÊME CODE QUE LE DÉPÔT ─────────────────────────
+
+    `verifierAchat`, telle quelle, celle que /change/ordre appelle. Pas
+    une version allégée pour l'écran : une seconde implémentation finirait
+    par dire vert là où l'autre dit rouge, et c'est la pire des deux
+    réponses qui serait la vraie.
+
+    ─── ELLE NE CONSOMME RIEN ────────────────────────────────────────
+
+    Point crucial, parce que l'application l'appelle toutes les quinze
+    secondes. `verifierAchat` ne fait que LIRE : `dejaVu` interroge la
+    mémoire sans y écrire, et le marquage de l'encaissement a lieu dans
+    /change/ordre, après l'envoi Telegram. Si cette fonction marquait, le
+    premier sondage brûlerait le paiement du client et son propre ordre
+    repartirait « déjà servi ». Toute modification de `verifierAchat` doit
+    préserver ça.
+
+    ─── CE QU'ELLE RÉVÈLE, ET POURQUOI C'EST ACCEPTABLE ──────────────
+
+    Elle répond « ce paiement a-t-il été vu ». Il faut donc connaître
+    d'avance la référence, ou le couple montant + numéro, pour en tirer
+    quoi que ce soit — c'est-à-dire être déjà celui qui a payé, ou
+    connaître son numéro. /change/verifier a la même forme pour les
+    ventes depuis le début.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/change/verifier-achat') {
+      const resultat = await verifierAchat(
+        {
+          montantFcfa: url.searchParams.get('montant'),
+          telephone: url.searchParams.get('numero'),
+          referencePaiement: url.searchParams.get('reference'),
+        },
+        env
+      )
       return json(resultat, 0)
     }
 
