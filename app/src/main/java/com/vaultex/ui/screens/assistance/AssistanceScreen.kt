@@ -1,5 +1,8 @@
 package com.vaultex.ui.screens.assistance
 
+import android.content.Intent
+import android.net.Uri
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -19,8 +22,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
@@ -45,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -57,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vaultex.R
+import com.vaultex.domain.support.ContactsVaultex
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
@@ -176,27 +184,7 @@ fun AssistanceScreen(navController: NavController) {
                 où elle sert : quand la réponse automatique n'a pas suffi.
                 L'afficher en permanence la banaliserait.
                 */
-                if (state.passerAuChangeur) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = AccentOrange.copy(alpha = 0.10f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.assistance_humain_titre),
-                                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentOrange
-                            )
-                            Text(
-                                stringResource(R.string.assistance_humain_aide),
-                                fontSize = 12.sp, lineHeight = 17.sp, color = TextSecondary
-                            )
-                        }
-                    }
-                }
+                if (state.passerAuChangeur) JoindreEquipe()
 
                 Spacer(Modifier.height(4.dp))
             }
@@ -247,6 +235,132 @@ private fun Accueil() {
             )
             Alerte(stringResource(R.string.assistance_jamais_phrase), AccentOrange, Icons.Default.Lock)
         }
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+« PARLER À UN HUMAIN » N'EST PAS UN ÉCHEC, ET CE N'EST PLUS UNE PHRASE
+═══════════════════════════════════════════════════════════════════════════
+
+C'est la sortie prévue, et elle apparaît au moment où elle sert : quand la
+réponse automatique n'a pas suffi, ou quand le relais n'a pas répondu du
+tout. L'afficher en permanence la banaliserait.
+
+─── ELLE DISAIT « ÉCRIS AU CHANGEUR SUR LE CANAL HABITUEL » ────────────
+
+C'est-à-dire rien. Quelqu'un qui ouvre l'assistance pour la première fois
+n'a pas de canal habituel, et on venait de lui annoncer que la machine ne
+savait pas répondre. Une sortie qui demande de deviner où aller n'est pas
+une sortie.
+
+Trois canaux, chacun à un geste : WhatsApp, Telegram, courriel.
+
+─── LES ADRESSES SONT DANS L'APK, ET C'EST LA RAISON ───────────────────
+
+Le relais les connaît aussi — le modèle doit pouvoir les donner. Mais
+cette carte s'affiche PRÉCISÉMENT quand le relais n'a pas répondu. Des
+coordonnées de support qui dépendent du serveur en panne ne servent à rien
+le jour où elles servent.
+
+─── ET L'AVERTISSEMENT VOYAGE AVEC ELLES ───────────────────────────────
+
+Donner trois canaux sans dire qu'aucun ne demandera la phrase secrète,
+c'est apprendre à faire confiance à un canal. C'est exactement ce qu'un
+escroc exploite ensuite : « je suis le support VaultEx, sur WhatsApp ».
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun JoindreEquipe() {
+    val contexte = LocalContext.current
+
+    /*
+    UNE OUVERTURE QUI PEUT NE TROUVER PERSONNE.
+
+    `ACTION_VIEW` sur un téléphone sans navigateur, ou `ACTION_SENDTO` sans
+    client de messagerie, lève `ActivityNotFoundException`. Laisser passer
+    ferait fermer l'application sur un appui — depuis l'écran où quelqu'un
+    cherchait de l'aide.
+    */
+    fun ouvrir(action: String, lien: String) {
+        runCatching {
+            contexte.startActivity(Intent(action, Uri.parse(lien)))
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = AccentOrange.copy(alpha = 0.10f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(R.string.assistance_humain_titre),
+                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentOrange
+            )
+            Text(
+                stringResource(R.string.assistance_humain_aide),
+                fontSize = 12.sp, lineHeight = 17.sp, color = TextSecondary
+            )
+
+            Canal(
+                Icons.Default.Chat,
+                stringResource(R.string.assistance_canal_whatsapp),
+                ContactsVaultex.WHATSAPP_AFFICHE
+            ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.LIEN_WHATSAPP) }
+
+            Canal(
+                Icons.Default.Public,
+                stringResource(R.string.assistance_canal_telegram),
+                ContactsVaultex.TELEGRAM_AFFICHE
+            ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.TELEGRAM) }
+
+            Canal(
+                Icons.Default.Email,
+                stringResource(R.string.assistance_canal_email),
+                ContactsVaultex.EMAIL
+            ) { ouvrir(Intent.ACTION_SENDTO, ContactsVaultex.LIEN_EMAIL) }
+
+            Text(
+                stringResource(R.string.assistance_canal_avertissement),
+                fontSize = 11.sp, lineHeight = 15.sp, color = AccentOrange
+            )
+        }
+    }
+}
+
+/**
+ * Un canal, en une ligne sur laquelle on appuie.
+ *
+ * LA VALEUR EST AFFICHÉE, pas seulement le nom du canal. Quelqu'un dont
+ * le téléphone n'ouvre pas WhatsApp doit pouvoir lire le numéro et le
+ * recopier — et c'est aussi ce qui permet de vérifier, plus tard, qu'un
+ * « support » qui le contacte ailleurs n'est pas nous.
+ */
+@Composable
+private fun Canal(icone: ImageVector, nom: String, valeur: String, onClic: () -> Unit) {
+    val forme = RoundedCornerShape(12.dp)
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(forme)
+            .background(SurfaceColor)
+            .clickable(onClick = onClic)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(nom, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(valeur, fontSize = 11.sp, color = TextSecondary)
+        }
+        Icon(
+            Icons.Default.ChevronRight, null,
+            tint = AccentBlue, modifier = Modifier.size(17.dp)
+        )
     }
 }
 
@@ -307,7 +421,18 @@ private fun Suggestions(vm: AssistanceViewModel) {
             R.string.assistance_ex_minimum,
             R.string.assistance_ex_delai,
             R.string.assistance_ex_reseau,
-            R.string.assistance_ex_phrase
+            R.string.assistance_ex_phrase,
+            /*
+            LA CINQUIÈME : COMMENT NOUS JOINDRE.
+
+            Elle n'est pas là pour meubler. Quelqu'un qui doute d'un
+            message reçu — « le support VaultEx vous contacte » — n'a
+            aucun moyen simple de vérifier quels sont les vrais canaux.
+            Cette ligne les lui donne en un geste, depuis l'application
+            elle-même, qui est la seule source qu'un escroc ne contrôle
+            pas.
+            */
+            R.string.assistance_ex_equipe
         ).forEach { id ->
             val texte = stringResource(id)
             val forme = RoundedCornerShape(12.dp)

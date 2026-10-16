@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 44
+const VERSION = 45
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5332,6 +5332,9 @@ export {
   nettoyerIa,
   systemeAssistance,
   reponseConnue,
+  contactsVaultex,
+  equipeVaultex,
+  equipeTexte,
   recevoirSms,
   verifierAchat,
   numeroComparable,
@@ -5650,6 +5653,83 @@ const IA_MAX_JOUR = 300        // appels par jour, tous clients confondus
 const IA_MAX_TOURS = 20        // messages gardés d'une conversation
 const IA_MAX_CARACTERES = 1500 // par message entrant
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES CANAUX OFFICIELS, ET L'ÉQUIPE
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI ILS SONT ÉCRITS ICI PLUTÔT QUE LAISSÉS AU MODÈLE.
+
+Un modèle à qui l'on demande « comment je vous joins » et qui ne le sait
+pas invente une adresse plausible. Ce n'est pas une faute du modèle :
+c'est ce qu'on lui a demandé de faire. Et une adresse de support
+plausible-mais-fausse est le début exact d'une arnaque — sauf que là,
+c'est nous qui l'aurions écrite.
+
+Les trois canaux sont donc donnés, et la consigne interdit d'en inventer
+d'autres.
+
+─── RÉGLABLES SANS TOUCHER AU CODE ─────────────────────────────────────
+
+CHANGE_WHATSAPP, CHANGE_TELEGRAM, CHANGE_EMAIL. Les valeurs par défaut
+sont les vraies : ce ne sont pas des secrets, ce sont des adresses
+publiées, et un relais déployé sans ces réglages doit savoir répondre. La
+différence avec une clé d'API est entière — une clé absente doit faire
+échouer, une adresse publique absente doit avoir un défaut.
+
+─── L'ÉQUIPE, ET LA RÈGLE QUI VA AVEC ──────────────────────────────────
+
+Trois noms et trois postes, pas un de plus. La consigne dit au modèle de
+ne JAMAIS inventer de poste ni de nom : inventer un titre pour une vraie
+personne est une affirmation sur quelqu'un, pas une approximation.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const CONTACT_WHATSAPP = '+22672306526'
+const CONTACT_TELEGRAM = 'https://t.me/vaultexCommunity'
+const CONTACT_EMAIL = 'vaultexteams@gmail.com'
+
+/** Les trois canaux, tels qu'on peut les donner à un client. */
+function contactsVaultex(env) {
+  return {
+    whatsapp: String(env?.CHANGE_WHATSAPP ?? '').trim() || CONTACT_WHATSAPP,
+    telegram: String(env?.CHANGE_TELEGRAM ?? '').trim() || CONTACT_TELEGRAM,
+    email: String(env?.CHANGE_EMAIL ?? '').trim() || CONTACT_EMAIL,
+  }
+}
+
+const EQUIPE_DEFAUT = [
+  { nom: 'Koanda Moumine', poste: 'Fondateur' },
+  { nom: 'Rasmane OUEDRAOGO, dit DOLLAR', poste: 'Directeur Marketing' },
+  { nom: 'Abdul Hack Sakande', poste: 'Directeur Commercial' },
+]
+
+/**
+ * L'équipe, depuis CHANGE_EQUIPE ou par défaut.
+ *
+ * Format du réglage : `Nom|Poste;Nom|Poste`. Choisi pour être tapable
+ * dans un champ de variable d'environnement Cloudflare sans se tromper —
+ * un JSON s'y écrit mal, et une virgule manquante le rend illisible en
+ * entier. Ici, une entrée mal formée est simplement ignorée, et les
+ * autres restent.
+ */
+function equipeVaultex(env) {
+  const brut = String(env?.CHANGE_EQUIPE ?? '').trim()
+  if (!brut) return EQUIPE_DEFAUT
+  const lu = brut
+    .split(';')
+    .map((part) => {
+      const [nom, poste] = part.split('|')
+      return { nom: String(nom ?? '').trim(), poste: String(poste ?? '').trim() }
+    })
+    .filter((e) => e.nom.length > 1 && e.poste.length > 1)
+  return lu.length ? lu : EQUIPE_DEFAUT
+}
+
+/** « Koanda Moumine (Fondateur), … » — pour une phrase. */
+function equipeTexte(env) {
+  return equipeVaultex(env).map((e) => `${e.nom} (${e.poste})`).join(', ')
+}
+
 /**
  * Ce que le modèle sait de ce changeur-ci.
  *
@@ -5668,6 +5748,7 @@ function systemeAssistance(env) {
   const delai = Number(env?.CHANGE_DELAI) || 30
   const minsParMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
+  const contacts = contactsVaultex(env)
 
   return [
     "Tu es l'assistance de VaultEx, un portefeuille crypto utilise au Burkina Faso.",
@@ -5686,8 +5767,31 @@ function systemeAssistance(env) {
     "  lui-meme le versement, personne n'a a croire le client sur parole.",
     "- Les achats se verifient par le SMS d'encaissement de l'operateur.",
     '',
+    /*
+    L'ÉQUIPE ET LES CANAUX, DONNÉS PLUTÔT QUE DEVINÉS.
+
+    Sans eux, « comment je vous joins » fait inventer une adresse
+    plausible, et une adresse de support fausse écrite par nous est le
+    début d'une arnaque dont nous serions l'auteur.
+    */
+    "L'EQUIPE VAULTEX :",
+    ...equipeVaultex(env).map((e) => `- ${e.nom} — ${e.poste}`),
+    "- Tu ne cites QUE ces noms et QUE ces postes. Tu n'en inventes aucun,",
+    "  et tu n'attribues jamais un poste a quelqu'un qui n'est pas dans",
+    '  cette liste. Si on te demande quelqu un d autre, dis que tu ne peux',
+    '  pas le confirmer et propose les canaux officiels ci-dessous.',
+    '',
+    'COMMENT NOUS JOINDRE — LES SEULS CANAUX OFFICIELS :',
+    `- WhatsApp : ${contacts.whatsapp}`,
+    `- Telegram : ${contacts.telegram}`,
+    `- E-mail : ${contacts.email}`,
+    "- Ce sont les SEULS. Tu n'en inventes pas d'autres, tu ne donnes aucun",
+    '  autre numero, aucune autre adresse, aucun autre lien. Et tu rappelles',
+    "  que personne de l'equipe ne demandera jamais une phrase secrete,",
+    '  sur aucun de ces canaux.',
+    '',
     'CE QUE TU NE FAIS JAMAIS :',
-    "- Tu ne donnes JAMAIS d'adresse de versement ni de numero de telephone.",
+    "- Tu ne donnes JAMAIS d'adresse de versement ni de numero Mobile Money.",
     "  L'adresse exacte s'affiche dans l'ecran Change, et elle seule fait foi.",
     "  Si on t'en demande une, dis d'ouvrir l'ecran Change et de copier avec",
     '  le bouton prevu.',
@@ -5740,11 +5844,47 @@ moins de huit chiffres. « 50000 » passe, « 70123456 » non.
 */
 const RENVOI_ECRAN = '[ouvre l’ecran Change : l’adresse exacte y est affichee avec un bouton pour la copier]'
 
-function nettoyerIa(texte) {
-  return String(texte ?? '')
+function nettoyerIa(texte, env) {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES NUMÉROS OFFICIELS SURVIVENT AU MASQUAGE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Depuis que le modèle connaît le WhatsApp du support, il va l'écrire —
+  c'est le but. Mais « 72306526 » est huit chiffres d'affilée, donc
+  exactement ce que la dernière règle masque. L'assistance aurait répondu
+  « écris-nous au [numero masque] », ce qui est pire que de ne pas
+  répondre : ça a l'air d'une réponse.
+
+  Ce masque existe pour empêcher le numéro Mobile Money DU CHANGEUR de
+  sortir par la bouche du modèle. Un numéro de support publié n'est pas
+  dans ce cas : il est public, c'est nous qui l'avons donné au modèle, et
+  le cacher ne protège personne.
+
+  On le met donc de côté avant de masquer, et on le remet après. Les
+  sentinelles sont des caractères de contrôle : ni chiffre, ni lettre,
+  donc rien qu'une des trois règles puisse attraper.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const officiels = [contactsVaultex(env).whatsapp]
+    .map((n) => String(n).replace(/\D/g, ''))
+    .filter((n) => n.length >= 8)
+    .map((n) => n.slice(-8))
+
+  let t = String(texte ?? '')
+  officiels.forEach((n, i) => {
+    t = t.split(n).join(String.fromCharCode(1 + i))
+  })
+
+  t = t
     .replace(/0x[0-9a-fA-F]{40}/g, RENVOI_ECRAN)
     .replace(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/g, RENVOI_ECRAN)
     .replace(/(?<!\d)\d{8}(?!\d)/g, '[numero masque]')
+
+  officiels.forEach((n, i) => {
+    t = t.split(String.fromCharCode(1 + i)).join(n)
+  })
+  return t
 }
 
 /*
@@ -5775,6 +5915,7 @@ function reponsesConnues(env) {
   const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
   const parMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
+  const contacts = contactsVaultex(env)
 
   const minTexte = Object.keys(parMonnaie).length
     ? Object.entries(parMonnaie).map(([m, v]) => `${m} ${groupeMilliers(v)} FCFA`).join(', ')
@@ -5890,6 +6031,42 @@ function reponsesConnues(env) {
         `VaultEx ne te demandera JAMAIS ta phrase secrete, tes douze mots, ni ta cle ` +
         `privee. Ni l'assistance, ni le changeur, ni personne. Quiconque te les reclame ` +
         `est un escroc, meme s'il dit etre le support. Ne les ecris nulle part.`,
+    },
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES DEUX DERNIÈRES, ET LEUR PLACE EST UNE DÉCISION
+    ═══════════════════════════════════════════════════════════════════════
+
+    `reponseConnue` rend la PREMIÈRE entrée dont un mot apparaît. Or
+    « le support m'a demande ma phrase secrete » contient « support ».
+    Placées plus haut, ces deux entrées auraient volé cette question a la
+    reponse sur la phrase secrete — c'est-à-dire qu'on aurait répondu
+    « voici comment nous joindre » à quelqu'un en train de se faire
+    arnaquer.
+
+    Elles sont donc les dernières de la liste, après la phrase secrète.
+    Si l'on en ajoute d'autres, c'est ici, pas plus haut.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    {
+      mots: ['contacter', 'contact', 'joindre', 'whatsapp', 'telegram', 'votre mail',
+             'votre email', 'adresse mail', 'parler a quelqu un', 'parler a un humain',
+             'service client', 'support', 'numero de vaultex', 'vous ecrire'],
+      reponse:
+        `Trois canaux officiels, et il n'y en a pas d'autres : WhatsApp ` +
+        `${contacts.whatsapp}, Telegram ${contacts.telegram}, e-mail ${contacts.email}. ` +
+        `Tu les retrouves aussi dans Aide depuis les reglages. ATTENTION : personne de ` +
+        `l'equipe ne te demandera jamais ta phrase secrete, sur aucun de ces canaux — et ` +
+        `un numero recu ailleurs, par message ou par appel, n'est pas le notre.`,
+    },
+    {
+      mots: ['equipe', 'qui etes vous', 'qui est vaultex', 'fondateur', 'directeur',
+             'qui a cree', 'proprietaire', 'koanda', 'moumine', 'ouedraogo', 'rasmane',
+             'sakande', 'abdul', 'dollar'],
+      reponse:
+        `L'equipe VaultEx : ${equipeTexte(env)}. ` +
+        `Pour les joindre : WhatsApp ${contacts.whatsapp}, Telegram ${contacts.telegram}, ` +
+        `e-mail ${contacts.email}.`,
     },
   ]
 }
@@ -6052,7 +6229,7 @@ async function assistance(requete, env) {
     }
 
     await incrementer('ia', jour, 2 * 86400)
-    return json({ ok: true, reponse: nettoyerIa(brut) })
+    return json({ ok: true, reponse: nettoyerIa(brut, env) })
   } catch (e) {
     return json({
       ok: false,

@@ -1201,7 +1201,7 @@
     <string name="assistance_envoyer">Send</string>
     <string name="assistance_en_cours">Support is thinking…</string>
     <string name="assistance_humain_titre">You can reach the changer</string>
-    <string name="assistance_humain_aide">This question deserves a human. Write to the changer on the usual channel — he will answer as soon as he is available.</string>
+    <string name="assistance_humain_aide">This question deserves a human. Write to us on one of these three channels — they are the only official ones, and someone from the team will answer.</string>
     <string name="assistance_numero_titre">Your number, so we can call you back</string>
     <string name="assistance_numero_aide">If your question has to go to the changer, that is where he will answer. It is used for nothing else, and it goes nowhere until you ask to reach the changer.</string>
     <string name="assistance_numero_valider">Save</string>
@@ -1210,4 +1210,9 @@
     <string name="assistance_ex_delai">How long does it take?</string>
     <string name="assistance_ex_reseau">Which network should I choose?</string>
     <string name="assistance_ex_phrase">Someone is asking for my secret phrase, is that normal?</string>
+    <string name="assistance_canal_whatsapp">WhatsApp</string>
+    <string name="assistance_canal_telegram">Telegram</string>
+    <string name="assistance_canal_email">Email</string>
+    <string name="assistance_canal_avertissement">On none of these channels will anyone ask for your secret phrase. A number or link received anywhere else is not ours.</string>
+    <string name="assistance_ex_equipe">How do I reach the VaultEx team?</string>
 </resources>

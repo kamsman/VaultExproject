@@ -1230,7 +1230,7 @@
     <string name="assistance_envoyer">Envoyer</string>
     <string name="assistance_en_cours">L\'assistance réfléchit…</string>
     <string name="assistance_humain_titre">Tu peux joindre le changeur</string>
-    <string name="assistance_humain_aide">Cette question mérite un humain. Écris au changeur sur le canal habituel — il répondra dès qu\'il est disponible.</string>
+    <string name="assistance_humain_aide">Cette question mérite un humain. Écris-nous sur l\'un de ces trois canaux — ce sont les seuls officiels, et quelqu\'un de l\'équipe te répondra.</string>
     <string name="assistance_numero_titre">Ton numéro, pour qu\'on puisse te rappeler</string>
     <string name="assistance_numero_aide">Si ta question doit être transmise au changeur, c\'est là qu\'il te répondra. Il ne sert à rien d\'autre, et il ne part nulle part tant que tu ne demandes pas à joindre le changeur.</string>
     <string name="assistance_numero_valider">Enregistrer</string>
@@ -1239,4 +1239,9 @@
     <string name="assistance_ex_delai">Combien de temps ça prend ?</string>
     <string name="assistance_ex_reseau">Quel réseau je dois choisir ?</string>
     <string name="assistance_ex_phrase">On me demande ma phrase secrète, c\'est normal ?</string>
+    <string name="assistance_canal_whatsapp">WhatsApp</string>
+    <string name="assistance_canal_telegram">Telegram</string>
+    <string name="assistance_canal_email">E-mail</string>
+    <string name="assistance_canal_avertissement">Sur aucun de ces canaux on ne te demandera ta phrase secrète. Un numéro ou un lien reçu ailleurs n\'est pas le nôtre.</string>
+    <string name="assistance_ex_equipe">Comment joindre l\'équipe VaultEx ?</string>
 </resources>

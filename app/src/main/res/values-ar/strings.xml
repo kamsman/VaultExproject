@@ -1201,7 +1201,7 @@
     <string name="assistance_envoyer">إرسال</string>
     <string name="assistance_en_cours">المساعدة تفكّر…</string>
     <string name="assistance_humain_titre">يمكنك الاتصال بالصراف</string>
-    <string name="assistance_humain_aide">هذا السؤال يستحق إنساناً. اكتب إلى الصراف على القناة المعتادة — سيجيب حالما يكون متاحاً.</string>
+    <string name="assistance_humain_aide">هذا السؤال يستحق إنسانًا. راسلنا عبر إحدى هذه القنوات الثلاث — وهي القنوات الرسمية الوحيدة، وسيجيبك أحد أفراد الفريق.</string>
     <string name="assistance_numero_titre">رقمك، حتى نتمكن من معاودة الاتصال بك</string>
     <string name="assistance_numero_aide">إذا وجب تحويل سؤالك إلى الصراف، فهناك سيجيبك. لا يُستعمل لشيء آخر، ولا يُرسل إلى أي مكان حتى تطلب الاتصال بالصراف.</string>
     <string name="assistance_numero_valider">حفظ</string>
@@ -1210,4 +1210,9 @@
     <string name="assistance_ex_delai">كم من الوقت يستغرق؟</string>
     <string name="assistance_ex_reseau">أي شبكة يجب أن أختار؟</string>
     <string name="assistance_ex_phrase">يطلب مني أحدهم عبارتي السرية، هل هذا طبيعي؟</string>
+    <string name="assistance_canal_whatsapp">واتساب</string>
+    <string name="assistance_canal_telegram">تيليغرام</string>
+    <string name="assistance_canal_email">البريد الإلكتروني</string>
+    <string name="assistance_canal_avertissement">لن يطلب منك أحد عبارتك السرية في أيٍّ من هذه القنوات. وأي رقم أو رابط يصلك من مكان آخر ليس لنا.</string>
+    <string name="assistance_ex_equipe">كيف أتواصل مع فريق VaultEx؟</string>
 </resources>

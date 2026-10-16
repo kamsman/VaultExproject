@@ -48,15 +48,16 @@ import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.components.BoutonRecherche
 import com.vaultex.ui.components.ChampRecherche
 import com.vaultex.ui.components.rememberEtatRecherche
+import com.vaultex.domain.support.ContactsVaultex
 
-/** Canaux de contact du support VaultEx. */
-private const val SUPPORT_EMAIL = "vaultexteams@gmail.com"
-private const val SUPPORT_EMAILS = "vaultexteams@gmail.com"
-private const val SUPPORT_WHATSAPP = "22672306526"           // wa.me : international sans « + »
-private const val SUPPORT_TELEGRAM = "https://t.me/vaultexCommunity"
-private const val SUPPORT_FACEBOOK = "https://www.facebook.com/profile.php?id=61591429450182"
-private const val SUPPORT_PHONE = "+226 79 38 84 55"
-private const val SUPPORT_PHONE_DIAL = "+22679388455"
+/*
+LES CANAUX VIENNENT DE `ContactsVaultex`, PLUS D'ICI.
+
+Ils étaient déclarés dans ce fichier, et l'un l'était deux fois :
+SUPPORT_EMAIL et SUPPORT_EMAILS portaient la même adresse. Depuis que
+l'écran d'assistance a besoin des mêmes canaux, les garder ici voudrait
+dire qu'un jour deux écrans n'afficheront plus le même numéro de support.
+*/
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +133,7 @@ fun HelpScreen(navController: NavHostController) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://wa.me/$SUPPORT_WHATSAPP"))
+                            android.net.Uri.parse(ContactsVaultex.LIEN_WHATSAPP))
                     )
                 }
             }
@@ -140,12 +141,12 @@ fun HelpScreen(navController: NavHostController) {
                 icon = Icons.Default.Send,
                 iconBg = Color(0xFF229ED9),
                 title = "Telegram",
-                subtitle = "@vaultexCommunity"
+                subtitle = ContactsVaultex.TELEGRAM_AFFICHE
             ) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse(SUPPORT_TELEGRAM))
+                            android.net.Uri.parse(ContactsVaultex.TELEGRAM))
                     )
                 }
             }
@@ -158,7 +159,7 @@ fun HelpScreen(navController: NavHostController) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse(SUPPORT_FACEBOOK))
+                            android.net.Uri.parse(ContactsVaultex.FACEBOOK))
                     )
                 }
             }
@@ -166,12 +167,12 @@ fun HelpScreen(navController: NavHostController) {
                 icon = Icons.Default.Email,
                 iconBg = AccentBlue,
                 title = stringResource(R.string.help_email),
-                subtitle = SUPPORT_EMAIL
+                subtitle = ContactsVaultex.EMAIL
             ) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_SENDTO,
-                            android.net.Uri.parse("mailto:$SUPPORT_EMAILS?subject=VaultEx%20Support"))
+                            android.net.Uri.parse(ContactsVaultex.LIEN_EMAIL))
                     )
                 }
             }
@@ -179,12 +180,12 @@ fun HelpScreen(navController: NavHostController) {
                 icon = Icons.Default.Call,
                 iconBg = Color(0xFF7C5CFC),
                 title = stringResource(R.string.help_call),
-                subtitle = SUPPORT_PHONE
+                subtitle = ContactsVaultex.TELEPHONE_AFFICHE
             ) {
                 runCatching {
                     context.startActivity(
                         android.content.Intent(android.content.Intent.ACTION_DIAL,
-                            android.net.Uri.parse("tel:$SUPPORT_PHONE_DIAL"))
+                            android.net.Uri.parse(ContactsVaultex.LIEN_TELEPHONE))
                     )
                 }
             }
