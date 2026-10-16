@@ -193,13 +193,30 @@ data class ChangeState(
             soit elle a rendu « on n'a pas pu regarder ». Dans les deux cas
             on n'a rien à opposer.
 
+            ─── INCONNUE COMPTE AUSSI, ET C'EST UN PIÈGE ÉVITÉ ──────────
+
+            Elle ne vient pas du relais : elle vient d'une réponse que
+            l'application n'a pas su lire. Le cas concret est le jour du
+            déploiement — l'APK connaît /change/verifier-achat, le Worker
+            pas encore. La requête tombe alors dans le relais de cours,
+            qui répond poliment autre chose, et `etat` est illisible.
+
+            Sans cette branche, le bouton « J'ai payé » resterait éteint
+            sur CHAQUE achat jusqu'à la mise à jour du Worker, et il
+            faudrait passer outre à la main à chaque fois. Un écran qui se
+            bloque parce qu'un serveur n'a pas suivi est pire que pas de
+            vérification du tout.
+
             Appel sûr plutôt que cast implicite : ce `when` n'a pas de
             sujet, et compter sur la propagation d'un `== null` écrit dans
             une autre branche est le genre de pari qui se perd en
             réordonnant les lignes.
             */
-            else -> verification == null ||
-                verification?.etat == EtatVerification.INDISPONIBLE
+            else -> verification?.etat.let {
+                it == null ||
+                    it == EtatVerification.INDISPONIBLE ||
+                    it == EtatVerification.INCONNUE
+            }
         }
         /*
         ═══════════════════════════════════════════════════════════════
