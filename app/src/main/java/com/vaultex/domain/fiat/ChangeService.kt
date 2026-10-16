@@ -227,6 +227,62 @@ data class Verification(
         get() = etat == EtatVerification.INDISPONIBLE || etat == EtatVerification.DEJA_SERVI
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+POURQUOI LE RÉSULTAT DIT AUSSI POURQUOI
+═══════════════════════════════════════════════════════════════════════════
+
+`parametres()` rendait `null` pour tout, et l'écran affichait « Service
+indisponible pour le moment. Réessaie dans un instant. »
+
+VU SUR UN VRAI TÉLÉPHONE, SANS DONNÉES MOBILES. L'écran accusait le
+service d'être en panne alors que c'était la connexion — et la phrase
+qu'il affichait, « réessaie dans un instant », disait exactement la chose
+à ne pas faire : attendre. Quelqu'un peut rester devant cet écran
+indéfiniment, à réessayer, sans jamais penser à activer ses données.
+
+C'est le même défaut que « Vérifie ta connexion » affiché par
+l'assistance sur un réseau qui marchait, déjà corrigé — à l'envers. Dans
+les deux cas, une seule phrase servait pour deux causes qui appellent deux
+gestes opposés.
+
+─── COMMENT ON DISTINGUE, ET C'EST MESURABLE ───────────────────────────
+
+Par le TYPE de l'échec, pas par une devinette. Retrofit lève une
+`IOException` quand l'appel n'a pas pu aboutir — DNS muet, connexion
+refusée, délai dépassé. Il lève une `HttpException` quand le serveur a
+répondu, mais mal. Et une erreur d'analyse du corps n'est ni l'une ni
+l'autre.
+
+La première veut dire « le téléphone n'est pas sorti ». Les deux autres
+veulent dire « le relais a parlé et ce qu'il a dit ne sert à rien ». Ce
+sont deux situations, deux messages, deux gestes.
+
+On ne demande rien à `ConnectivityManager` : ce qu'il pense de la
+connexion est une opinion, l'exception est un fait.
+═══════════════════════════════════════════════════════════════════════════
+*/
+sealed interface ResultatParametres {
+
+    data class Ok(val parametres: ParametresChange) : ResultatParametres
+
+    /**
+     * Le téléphone n'a pas pu sortir.
+     *
+     * Données mobiles coupées, Wi-Fi sans Internet, DNS muet. L'écran doit
+     * parler de la CONNEXION, et surtout pas du service.
+     */
+    object HorsLigne : ResultatParametres
+
+    /**
+     * Le relais a répondu, et sa réponse n'est pas utilisable.
+     *
+     * Service fermé côté serveur, réglage manquant, corps illisible. Là,
+     * « réessaie dans un instant » est la bonne phrase.
+     */
+    object Indisponible : ResultatParametres
+}
+
 @Singleton
 class ChangeService @Inject constructor(
     private val api: com.vaultex.data.remote.api.ChangeApi
@@ -236,27 +292,33 @@ class ChangeService @Inject constructor(
     private var horodatage = 0L
 
     /**
-     * Réglages du change, ou null si le relais n'a pas répondu.
+     * Réglages du change, ou la raison pour laquelle il n'y en a pas.
      *
-     * NULL PLUTÔT QU'UN REPLI, et c'est le contraire du choix fait ailleurs
-     * dans ce dépôt. Un cours manquant se remplace par le dernier connu ;
-     * une marge manquante, non. Afficher un prix calculé avec une marge
-     * devinée, sur un écran où quelqu'un valide un envoi d'argent, serait
-     * lui faire payer un chiffre que personne n'a décidé.
+     * PAS DE REPLI SUR DES RÉGLAGES DEVINÉS, et c'est le contraire du choix
+     * fait ailleurs dans ce dépôt. Un cours manquant se remplace par le
+     * dernier connu ; une marge manquante, non. Afficher un prix calculé
+     * avec une marge devinée, sur un écran où quelqu'un valide un envoi
+     * d'argent, serait lui faire payer un chiffre que personne n'a décidé.
      *
      * Sans réglages, l'écran ne propose rien. C'est désagréable et c'est
-     * honnête.
+     * honnête — mais il doit dire POURQUOI, voir [ResultatParametres].
      */
-    suspend fun parametres(): ParametresChange? {
+    suspend fun parametres(): ResultatParametres {
         val maintenant = System.currentTimeMillis()
-        cache?.let { if (maintenant - horodatage < DUREE_CACHE) return it }
+        cache?.let {
+            if (maintenant - horodatage < DUREE_CACHE) return ResultatParametres.Ok(it)
+        }
         return try {
             val dto = api.parametres()
             val p = ParametresChange(
                 actif = dto.actif ?: false,
-                margeFcfaParDollar = dto.margeFcfaParDollar ?: return null,
+                // Le relais a parlé, mais sans ces deux chiffres on ne peut
+                // calculer aucun prix : c'est « indisponible », pas « hors
+                // ligne ».
+                margeFcfaParDollar = dto.margeFcfaParDollar
+                    ?: return ResultatParametres.Indisponible,
                 minimumFcfa = dto.minimumFcfa ?: 0.0,
-                plafondFcfa = dto.plafondFcfa ?: return null,
+                plafondFcfa = dto.plafondFcfa ?: return ResultatParametres.Indisponible,
                 numeroMobileMoney = dto.numeroMobileMoney.orEmpty(),
                 nomChangeur = dto.nomChangeur.orEmpty(),
                 operateur = dto.operateur ?: "Mobile Money",
@@ -271,10 +333,26 @@ class ChangeService @Inject constructor(
             )
             cache = p
             horodatage = maintenant
-            p
+            ResultatParametres.Ok(p)
+        } catch (e: java.io.IOException) {
+            /*
+            L'APPEL N'A PAS ABOUTI : le téléphone n'est pas sorti.
+
+            `UnknownHostException` quand le DNS ne répond pas — le cas
+            exact des données coupées — `ConnectException` quand rien
+            n'écoute, `SocketTimeoutException` quand ça traîne. Toutes
+            héritent d'`IOException`, et aucune n'est une panne du
+            service.
+
+            `HttpException` de Retrofit n'en hérite PAS : une réponse 500
+            tombe donc dans le `catch` suivant, ce qui est correct — le
+            relais a parlé.
+            */
+            com.vaultex.core.monitoring.reportUnlessCancelled("parametres change hors ligne", e)
+            ResultatParametres.HorsLigne
         } catch (e: Exception) {
             com.vaultex.core.monitoring.reportUnlessCancelled("parametres change", e)
-            null
+            ResultatParametres.Indisponible
         }
     }
 

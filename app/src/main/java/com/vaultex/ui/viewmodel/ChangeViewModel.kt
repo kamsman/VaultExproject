@@ -12,6 +12,7 @@ import com.vaultex.domain.fiat.ParametresChange
 import com.vaultex.domain.fiat.SaisieMontant
 import com.vaultex.domain.fiat.PrixFcfa
 import com.vaultex.domain.fiat.ResultatOrdre
+import com.vaultex.domain.fiat.ResultatParametres
 import com.vaultex.domain.fiat.TauxFcfa
 import com.vaultex.domain.fiat.Verification
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +32,24 @@ enum class EtapeChange { CALCUL, PAIEMENT, TRANSMIS }
 
 data class ChangeState(
     val parametres: ParametresChange? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SANS RÉGLAGES, IL FAUT ENCORE DIRE POURQUOI
+    ═══════════════════════════════════════════════════════════════════════
+
+    `parametres == null` servait pour les deux causes, et l'écran affichait
+    « Service indisponible pour le moment. Réessaie dans un instant. »
+
+    Vu sur un vrai téléphone, sans données mobiles : l'écran accusait le
+    service alors que c'était la connexion, et conseillait d'attendre —
+    exactement le geste qui ne marchera jamais. On peut rester devant cet
+    écran indéfiniment sans penser à activer ses données.
+
+    Ce drapeau est la réponse à « est-ce nous ou est-ce toi », et c'est le
+    relais qui tranche par le type de son échec, pas une devinette.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val horsLigne: Boolean = false,
     val chargement: Boolean = true,
     val sens: SensChange = SensChange.ACHAT,
     val monnaie: String = "USDT",
@@ -372,10 +391,12 @@ class ChangeViewModel @Inject constructor(
     fun charger() {
         viewModelScope.launch {
             _state.update { it.copy(chargement = true, erreur = null) }
-            val p = withContext(Dispatchers.IO) { service.parametres() }
+            val lu = withContext(Dispatchers.IO) { service.parametres() }
+            val p = (lu as? ResultatParametres.Ok)?.parametres
             _state.update {
                 it.copy(
                     parametres = p,
+                    horsLigne = lu is ResultatParametres.HorsLigne,
                     chargement = false,
                     monnaie = p?.monnaies?.firstOrNull() ?: it.monnaie
                 )

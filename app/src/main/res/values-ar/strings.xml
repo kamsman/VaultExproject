@@ -1097,6 +1097,7 @@
     <string name="change_titre">شراء / بيع</string>
     <string name="change_chargement">جارٍ قراءة شروط اليوم…</string>
     <string name="change_indisponible">الخدمة غير متاحة حاليًا. أعد المحاولة بعد قليل.</string>
+    <string name="change_hors_ligne">تعذّر الوصول إلى VaultEx. تحقق من بيانات الهاتف أو شبكة Wi-Fi، ثم أعد المحاولة.</string>
     <string name="change_ferme">الصرف مغلق حاليًا. عد لاحقًا.</string>
     <string name="change_acheter">شراء</string>
     <string name="change_vendre">بيع</string>

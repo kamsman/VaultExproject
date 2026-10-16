@@ -1097,6 +1097,7 @@
     <string name="change_titre">Buy / Sell</string>
     <string name="change_chargement">Reading today\'s terms…</string>
     <string name="change_indisponible">Service unavailable right now. Try again shortly.</string>
+    <string name="change_hors_ligne">Can't reach VaultEx. Check your mobile data or Wi-Fi, then try again.</string>
     <string name="change_ferme">Exchange is closed right now. Come back later.</string>
     <string name="change_acheter">Buy</string>
     <string name="change_vendre">Sell</string>

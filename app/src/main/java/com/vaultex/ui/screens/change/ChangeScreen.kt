@@ -123,8 +123,7 @@ fun ChangeScreen(navController: NavController) {
                 state.chargement && p == null ->
                     Note(stringResource(R.string.change_chargement), AccentBlue)
 
-                p == null ->
-                    Note(stringResource(R.string.change_indisponible), AccentOrange)
+                p == null -> SansReglages(state.horsLigne) { vm.charger() }
 
                 !p.utilisable ->
                     Note(stringResource(R.string.change_ferme), AccentOrange)
@@ -140,6 +139,49 @@ fun ChangeScreen(navController: NavController) {
 
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ÉCRAN QUAND IL N'Y A PAS DE RÉGLAGES
+═══════════════════════════════════════════════════════════════════════════
+
+DEUX CAUSES, DEUX PHRASES, DEUX GESTES.
+
+C'était une seule note : « Service indisponible pour le moment. Réessaie
+dans un instant. » Vu sur un vrai téléphone, sans données mobiles — elle
+accusait le service alors que c'était la connexion, et elle conseillait
+d'attendre, ce qui est précisément le geste qui ne marchera jamais. On
+peut rester devant cet écran indéfiniment sans penser à activer ses
+données.
+
+Hors ligne, on nomme la connexion. Service injoignable alors que le
+téléphone est sorti, on dit l'attente. La distinction vient du TYPE de
+l'échec réseau, pas d'une devinette — voir `ResultatParametres`.
+
+─── ET UN BOUTON, PARCE QUE C'ÉTAIT UN CUL-DE-SAC ──────────────────────
+
+L'écran n'affichait que cette phrase. Pour réessayer, il fallait sortir et
+revenir — ce que personne ne devine, et qui ressemble à une application
+cassée. « Réessaie dans un instant » invitait à un geste que l'écran ne
+proposait pas.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun ColumnScope.SansReglages(horsLigne: Boolean, onReessayer: () -> Unit) {
+    Note(
+        stringResource(
+            if (horsLigne) R.string.change_hors_ligne else R.string.change_indisponible
+        ),
+        AccentOrange
+    )
+    OutlinedButton(
+        onClick = onReessayer,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.change_verif_reessayer), fontSize = 13.sp)
     }
 }
 
