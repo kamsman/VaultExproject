@@ -400,7 +400,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, contactsVaultex, equipeVaultex } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -1732,10 +1732,164 @@ plus frequentes trouvent quand meme leur reponse.
     'Combien de temps ça prend ?',
     'Quel réseau je dois choisir ?',
     "On me demande ma phrase secrète, c'est normal ?",
+    "Comment joindre l'équipe VaultEx ?",
   ]
   for (const q of PROPOSEES) {
     verifie(`PROPOSEE : « ${q} » trouve sa reponse`, reponseConnue(q, ENV_IA) !== null, q)
   }
+}
+
+/*
+LE MÊME DÉCOR QUE LE BLOC CI-DESSUS, mais déclaré au niveau du fichier :
+les blocs qui suivent sont séparés, et `const` ne traverse pas un bloc.
+Un nom distinct plutôt qu'un ENV_IA de plus — deux constantes homonymes
+dans un même fichier finissent par ne plus porter les mêmes réglages.
+*/
+const ENV_EQUIPE = {
+  CHANGE_MIN: '600',
+  CHANGE_MAX: '50000',
+  CHANGE_DELAI: '10',
+  CHANGE_MINIMUMS: '{"USDT":20000,"USDT-BNB":600}',
+  CHANGE_ADRESSES: '{"USDT-BNB":"0xbde137a9684f0bc437294b2cf2ab7295831e327e"}',
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES CANAUX OFFICIELS ET L'ÉQUIPE
+═══════════════════════════════════════════════════════════════════════════
+
+Un modèle à qui l'on demande « comment je vous joins » et qui ne le sait
+pas invente une adresse plausible. Une adresse de support fausse écrite
+par nous est le début d'une arnaque dont nous serions l'auteur.
+
+Ce qui est éprouvé ici : que les trois canaux sortent, qu'ils soient les
+VRAIS, que l'équipe sorte avec ses postes — et surtout l'ORDRE, parce que
+c'est là qu'est le piège.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const r = reponseConnue('comment je peux vous contacter', ENV_EQUIPE)
+  verifie('CONTACT : la question trouve une reponse', r !== null)
+  verifie('CONTACT : le whatsapp y est', String(r).includes('+22672306526'), r)
+  verifie('CONTACT : le telegram y est', String(r).includes('t.me/vaultexCommunity'), r)
+  verifie('CONTACT : l email y est', String(r).includes('vaultexteams@gmail.com'), r)
+  /*
+  ET L'AVERTISSEMENT VOYAGE AVEC. Donner trois canaux sans dire qu'aucun
+  ne demandera la phrase secrète, c'est apprendre à faire confiance à un
+  canal — ce qui est exactement ce qu'un escroc exploite ensuite.
+  */
+  verifie('CONTACT : l avertissement sur la phrase secrete suit',
+    String(r).toLowerCase().includes('phrase secrete'), r)
+}
+
+{
+  const r = reponseConnue('qui est le directeur marketing de vaultex', ENV_EQUIPE)
+  verifie('EQUIPE : la question trouve une reponse', r !== null)
+  for (const nom of ['Koanda Moumine', 'Rasmane', 'Sakande']) {
+    verifie(`EQUIPE : ${nom} y est`, String(r).includes(nom), r)
+  }
+  for (const poste of ['Fondateur', 'Directeur Marketing', 'Directeur Commercial']) {
+    verifie(`EQUIPE : le poste « ${poste} » y est`, String(r).includes(poste), r)
+  }
+}
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE PIÈGE DE L'ORDRE — LE SEUL CONTRÔLE DANGEREUX DE CE BLOC
+  ═══════════════════════════════════════════════════════════════════════
+
+  `reponseConnue` rend la PREMIÈRE entrée dont un mot apparaît, et
+  l'entrée « contact » reconnaît le mot « support ». Or « le support m'a
+  demande ma phrase secrete » contient « support ».
+
+  Placée trop haut, elle aurait répondu « voici comment nous joindre » à
+  quelqu'un en train de se faire arnaquer. C'est pour ça que les deux
+  nouvelles entrées sont les DERNIÈRES de la liste, et c'est ce test qui
+  le tient.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const pieges = [
+    "le support m'a demande ma phrase secrete, c'est normal ?",
+    'un agent du service client veut mes 12 mots',
+    'on me contacte sur whatsapp pour ma phrase secrete',
+  ]
+  for (const q of pieges) {
+    const r = String(reponseConnue(q, ENV_EQUIPE))
+    verifie(`ORDRE : « ${q.slice(0, 34)}… » rend l avertissement, pas les contacts`,
+      r.includes('escroc'), r)
+  }
+}
+
+{
+  /*
+  LE NUMÉRO OFFICIEL SURVIT AU MASQUAGE, CELUI DU CHANGEUR NON.
+
+  « 72306526 » est huit chiffres d'affilée, donc exactement ce que le
+  masque attrape. Sans exception, l'assistance aurait répondu « ecris-nous
+  au [numero masque] » — pire que pas de réponse, parce que ça a l'air
+  d'une réponse.
+  */
+  const t = nettoyerIa(
+    'Ecris-nous au 72306526 ou au +22672306526, mais pas au 70123456.',
+    ENV_EQUIPE
+  )
+  verifie('MASQUE : le numero officiel en forme locale survit', t.includes('72306526'), t)
+  verifie('MASQUE : en forme internationale aussi', t.includes('+22672306526'), t)
+  verifie('MASQUE : un AUTRE numero reste masque',
+    !t.includes('70123456') && t.includes('[numero masque]'), t)
+
+  /*
+  ET LE MASQUE N'EST PAS DEVENU PERMISSIF POUR AUTANT : c'est la seule
+  raison pour laquelle ce bloc existe plutôt qu'un simple retrait de la
+  règle.
+  */
+  const adresse = nettoyerIa('Envoie a 0x1234567890abcdef1234567890abcdef12345678', ENV_EQUIPE)
+  verifie('MASQUE : une adresse EVM reste remplacee',
+    !adresse.includes('0x1234567890'), adresse)
+}
+
+{
+  /*
+  L'ÉQUIPE EST RÉGLABLE SANS TOUCHER AU CODE, et un réglage mal tapé ne
+  doit pas vider la fiche. Une entrée sans poste est ignoree ; si rien ne
+  reste, on retombe sur la liste par defaut plutot que de repondre « notre
+  equipe : ».
+  */
+  const regle = equipeVaultex({ CHANGE_EQUIPE: 'Ada Lovelace|Ingenieure; Alan Turing|Logicien' })
+  verifie('EQUIPE REGLEE : deux entrees lues', regle.length === 2, regle)
+  verifie('EQUIPE REGLEE : le poste suit le nom',
+    regle[0].nom === 'Ada Lovelace' && regle[0].poste === 'Ingenieure', regle)
+
+  const bancal = equipeVaultex({ CHANGE_EQUIPE: 'Ada Lovelace|Ingenieure; SansPoste' })
+  verifie('EQUIPE REGLEE : l entree sans poste est ignoree', bancal.length === 1, bancal)
+
+  const vide = equipeVaultex({ CHANGE_EQUIPE: '|||' })
+  verifie('EQUIPE REGLEE : un reglage inutilisable retombe sur le defaut',
+    vide.length === 3 && vide[0].nom === 'Koanda Moumine', vide)
+
+  const contacts = contactsVaultex({ CHANGE_WHATSAPP: '+22600000000' })
+  verifie('CONTACT REGLE : le whatsapp suit le reglage',
+    contacts.whatsapp === '+22600000000', contacts)
+  verifie('CONTACT REGLE : les autres gardent leur defaut',
+    contacts.email === 'vaultexteams@gmail.com', contacts)
+}
+
+{
+  /*
+  LA CONSIGNE DU MODÈLE PORTE L'ÉQUIPE ET LES CANAUX — sinon il les
+  invente, et c'est tout l'objet de ce travail.
+  */
+  const sys = systemeAssistance(ENV_EQUIPE)
+  for (const attendu of [
+    'Koanda Moumine', 'Rasmane', 'Sakande',
+    'Fondateur', 'Directeur Marketing', 'Directeur Commercial',
+    '+22672306526', 't.me/vaultexCommunity', 'vaultexteams@gmail.com',
+  ]) {
+    verifie(`CONSIGNE : « ${attendu} » est dans le prompt`, sys.includes(attendu), attendu)
+  }
+  verifie('CONSIGNE : elle interdit d inventer un poste',
+    sys.includes('inventes aucun') || sys.includes("n'en inventes aucun"), null)
 }
 
 /*
