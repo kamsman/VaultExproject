@@ -1075,6 +1075,83 @@ tasks.register("ouEstLApk") {
                 }
             }
         )
+
+        /*
+        ET CE QU'IL Y A DANS LE DOSSIER DE SORTIE, MAINTENANT.
+
+        C'est la moitie de l'enquete, et elle manquait. « Le dossier reste
+        vide » a deux causes opposees : soit l'APK n'a jamais ete
+        construit, soit il l'a ete et n'a pas ete copie. Sans regarder
+        app/build/outputs/apk, on ne peut pas trancher — et on cherche du
+        mauvais cote.
+        */
+        listOf("debug", "release").forEach { variante ->
+            val source = File(layout.buildDirectory.dir("outputs/apk").get().asFile, variante)
+            val trouves = source.listFiles { f -> f.name.endsWith(".apk") }.orEmpty()
+            logger.lifecycle(
+                when {
+                    !source.isDirectory ->
+                        "vaultex : $variante — rien n'a encore ete construit " +
+                            "(${source.absolutePath} n'existe pas)"
+                    trouves.isEmpty() ->
+                        "vaultex : $variante — dossier present mais AUCUN apk dedans"
+                    else ->
+                        "vaultex : $variante — construit : " +
+                            trouves.joinToString { "${it.name} (${it.length() / 1024} Ko)" }
+                }
+            )
+        }
+        logger.lifecycle("")
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+DÉPOSER SANS RECONSTRUIRE
+═══════════════════════════════════════════════════════════════════════════
+
+Parce que « le dossier reste vide » survit aux trois explications que j'ai
+données, et qu'à chaque essai il faut attendre une compilation complète
+pour apprendre qu'on s'est trompé.
+
+Cette tâche ne construit rien : elle prend l'APK déjà présent dans
+`app/build/outputs/apk/` et le copie. Elle répond en une seconde, et elle
+sépare les deux questions — « est-ce que l'APK existe » et « est-ce que la
+copie marche » — qu'`assembleDebug` mélangeait.
+
+Si elle dépose et qu'`assembleDebug` ne dépose pas, le défaut est dans
+l'accrochage de l'action à la tâche, pas dans la copie. Si elle ne dépose
+pas non plus, elle dit pourquoi, tout de suite.
+═══════════════════════════════════════════════════════════════════════════
+*/
+tasks.register("deposerApk") {
+    group = "vaultex"
+    description = "Copie l'APK deja construit vers apk.sortie, sans rien reconstruire."
+    doLast {
+        val chemin = sortieApkVaultex
+            ?: throw GradleException(
+                "vaultex : aucun dossier de depot regle. Lance d'abord : gradlew ouEstLApk"
+            )
+        val racineApk = layout.buildDirectory.dir("outputs/apk").get().asFile
+        var deposes = 0
+        listOf("debug", "release").forEach { variante ->
+            val source = File(racineApk, variante)
+            val apk = source.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
+            if (apk == null) {
+                logger.lifecycle("vaultex : rien a deposer pour $variante (${source.absolutePath})")
+                return@forEach
+            }
+            val cible = File(dossierDeDepot(chemin), "VaultEx-$variante.apk")
+            apk.copyTo(cible, overwrite = true)
+            logger.lifecycle("vaultex : APK depose dans ${cible.absolutePath}")
+            deposes += 1
+        }
+        if (deposes == 0) {
+            throw GradleException(
+                "vaultex : aucun APK a deposer. Construis-le d'abord :\n" +
+                    "    gradlew assembleDebug"
+            )
+        }
     }
 }
 
