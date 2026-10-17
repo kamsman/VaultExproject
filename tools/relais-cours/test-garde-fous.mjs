@@ -1592,8 +1592,18 @@ l'ecran Change y repond, et c'est la bonne reponse.
   devoirs des enfants et a la meteo — chaque fois au prix d'un appel
   paye, et chaque fois en donnant d'une application d'argent l'image
   d'un jouet.
+
+  LA BORNE A CHANGE DE FORME, PAS D'EXISTENCE. Elle disait « VaultEx, le
+  change, les bases de la crypto, et rien d autre » : lue par un modele,
+  cette phrase est un interrupteur, et il se declarait hors sujet au
+  moindre doute. Elle nomme maintenant ce qui est EXCLU — actualite,
+  sante, devoirs, politique, vie privee — ce qui borne aussi bien sans
+  fermer le reste.
   */
-  verifie('IA : il reste sur son sujet', sys.includes('RESTES SUR TON SUJET'), sys)
+  verifie('IA : ce qui est hors sujet est nomme',
+    sys.includes("CE QUI N'EST PAS TON SUJET"), sys.slice(0, 200))
+  verifie('IA : les devoirs et la meteo en font partie',
+    sys.includes('devoirs') && sys.includes('politique'), null)
 }
 
 
@@ -1925,6 +1935,90 @@ c'est là qu'est le piège.
   }
   verifie('CONSIGNE : elle interdit d inventer un poste',
     sys.includes('inventes aucun') || sys.includes("n'en inventes aucun"), null)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA CONSIGNE DOIT DECRIRE L'APPLICATION, PAS SEULEMENT LE CHANGE
+═══════════════════════════════════════════════════════════════════════════
+
+« L'assistance n'est pas si intelligente, beaucoup de questions elle ne
+peut pas y repondre » — signale apres usage, et c'etait exact.
+
+LE MODELE N'ETAIT PAS EN CAUSE. On ne lui avait decrit QUE le service de
+change. Tout le reste de l'application — envoyer, recevoir, echanger,
+sauvegarder, le PIN, le carnet d'adresses — n'existait pas pour lui, donc
+il repondait « ce n'est pas mon sujet » a des questions qui sont
+exactement son sujet. Changer de modele n'aurait rien change.
+
+Ces verifications tiennent le contenu de la consigne. Elles tomberaient
+le jour ou quelqu'un l'allegerait sans voir ce qu'elle porte.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const sys = systemeAssistance(ENV_EQUIPE)
+
+  const ATTENDUS = [
+    // Ce que l'application fait reellement, ecran par ecran.
+    'NON CUSTODIAL', 'ENVOYER', 'RECEVOIR', 'Swap', 'HISTORIQUE',
+    'CARNET', 'ALERTES', 'LANGUES',
+    // Les chaines, parce qu'on les lui demande sans cesse.
+    'Bitcoin', 'BNB Chain', 'TRON', 'Solana', 'Pi',
+    // La securite, qui est la moitie des questions.
+    'DOUZE MOTS', 'PIN DE PANIQUE', 'ANTI-PHISHING', 'biometrie',
+  ]
+  for (const attendu of ATTENDUS) {
+    verifie(`APPLICATION : « ${attendu} » est decrit dans la consigne`,
+      sys.includes(attendu), attendu)
+  }
+
+  /*
+  ET LE PERIMETRE EST OUVERT, PAS FERME.
+
+  L'ancienne consigne disait « VaultEx, le change, les bases de la crypto,
+  et rien d autre ». Lue par un modele, cette phrase est un interrupteur :
+  au moindre doute il se declare hors sujet.
+  */
+  verifie('PERIMETRE : la consigne nomme un sujet LARGE',
+    sys.includes('TON SUJET EST LARGE'), null)
+  verifie('PERIMETRE : elle interdit le refus par prudence',
+    sys.includes('Ne refuse JAMAIS'), null)
+  verifie('PERIMETRE : elle couvre les arnaques',
+    sys.includes('ARNAQUES'), null)
+  verifie('PERIMETRE : repondre passe AVANT renvoyer',
+    sys.includes('TU REPONDS D ABORD'), null)
+  verifie("PERIMETRE : l ancienne formule fermee a disparu",
+    !sys.includes('et rien d autre'), null)
+}
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES LIGNES VIDES SURVIVENT A LA CONSTRUCTION
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'etait `.filter(Boolean)`, et une chaine vide est falsy : TOUTES les
+  separations entre sections disparaissaient. La consigne arrivait au
+  modele en un pave de cent lignes sans respiration.
+
+  EXACTEMENT LA MEME FAUTE QUE DANS `messageOrdre`, ou elle a deja ete
+  trouvee et corrigee. Un test par endroit, parce qu'une lecon apprise
+  ailleurs ne protege pas celui-ci.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const sys = systemeAssistance(ENV_EQUIPE)
+  const vides = sys.split('\n').filter((l) => l === '').length
+  verifie('CONSIGNE : les lignes vides separent les sections', vides >= 8, vides)
+
+  /*
+  MAIS LE NUL, LUI, DOIT TOUJOURS DISPARAITRE. La ligne des minimums par
+  monnaie vaut `null` quand il n'y en a pas : filtrer « tout sauf le
+  vide » sans exclure le nul ecrirait « null » dans la consigne, et le
+  modele le lirait comme un fait.
+  */
+  const sansMinimums = systemeAssistance({})
+  verifie('CONSIGNE : aucun « null » ne fuit quand une section manque',
+    !sansMinimums.includes('null'), null)
 }
 
 /*

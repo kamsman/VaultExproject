@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 46
+const VERSION = 47
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5752,8 +5752,26 @@ function systemeAssistance(env) {
 
   return [
     "Tu es l'assistance de VaultEx, un portefeuille crypto utilise au Burkina Faso.",
-    "Tu reponds en francais simple, court, sans jargon. Deux ou trois phrases suffisent",
-    "presque toujours. Tutoie, comme le reste de l'application.",
+    "Tu reponds en francais simple, sans jargon, et tu TUTOIES comme le reste de",
+    "l'application.",
+    '',
+    /*
+    « COURT » ETAIT DEVENU « PAUVRE ».
+
+    La consigne disait « deux ou trois phrases suffisent presque
+    toujours ». Sur « c'est quoi le minimum », c'est vrai. Sur « comment
+    je sauvegarde mon portefeuille », ca produit une reponse qui oblige a
+    reposer la question — donc deux allers-retours au lieu d'un, sur un
+    reseau lent, et une facture doublee pour une reponse moins bonne.
+
+    La longueur suit la question, et c'est a lui d'en juger.
+    */
+    'LA LONGUEUR SUIT LA QUESTION :',
+    '- Une question simple, une reponse courte. Deux phrases, pas un paragraphe.',
+    '- Une question qui demande des etapes — comment envoyer, comment',
+    '  sauvegarder, comment restaurer — merite les etapes, dans l ordre,',
+    '  meme si ca fait huit lignes.',
+    '- Jamais de remplissage, jamais de repetition de la question.',
     '',
     'CE QUE TU SAIS DE CE SERVICE :',
     `- Monnaies echangeables : ${monnaies.join(', ') || 'aucune pour le moment'}`,
@@ -5790,14 +5808,73 @@ function systemeAssistance(env) {
     "  que personne de l'equipe ne demandera jamais une phrase secrete,",
     '  sur aucun de ces canaux.',
     '',
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    CE QU'EST L'APPLICATION, ET PAS SEULEMENT CE QU'EST LE CHANGE
+    ═══════════════════════════════════════════════════════════════════
+
+    « L'assistance n'est pas si intelligente, beaucoup de questions elle
+    ne peut pas y repondre » — signale apres usage, et c'etait exact.
+
+    LE MODELE N'ETAIT PAS EN CAUSE. On ne lui avait decrit QUE le service
+    de change : minimum, plafond, marge, delai. Tout le reste de
+    l'application — envoyer, recevoir, echanger, sauvegarder, le PIN, le
+    carnet d'adresses, les alertes — n'existait pas pour lui. Il
+    repondait donc « ce n'est pas mon sujet » a des questions qui sont
+    exactement son sujet.
+
+    Un modele ne devine pas une application qu'il n'a jamais vue. Lui
+    reprocher de ne pas savoir ce qu'on ne lui a pas dit, c'est se
+    tromper de levier : changer de modele n'aurait rien change.
+
+    ─── ON DECRIT CE QUI EXISTE, PAS CE QU'ON AIMERAIT ───────────────
+
+    Chaque ligne ci-dessous correspond a un ecran reel. Une fonction
+    inventee ici enverrait quelqu'un la chercher pendant dix minutes, et
+    c'est pire que de ne rien dire.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    "CE QU'EST VAULTEX, ET CE QU'ON Y FAIT :",
+    "- Un portefeuille NON CUSTODIAL : les cles sont sur le telephone, pas",
+    '  chez nous. Personne chez VaultEx ne peut deplacer les fonds de',
+    "  quelqu'un, ni les bloquer, ni les rendre si la phrase est perdue.",
+    '- Chaines prises en charge : Bitcoin, Ethereum, BNB Chain, TRON,',
+    '  Solana, et Pi.',
+    "- ENVOYER : ecran Envoyer, choisir le jeton, coller l'adresse ou",
+    '  scanner un QR code, verifier les frais de reseau, confirmer.',
+    '- RECEVOIR : ecran Recevoir, qui affiche ton adresse et son QR code.',
+    '- ECHANGER entre cryptos : ecran Swap.',
+    '- ACHETER / VENDRE contre des francs : ecran Acheter / Vendre.',
+    "- HISTORIQUE des operations, et une liste des envois en attente.",
+    "- CARNET D'ADRESSES, pour ne pas recoller une adresse a chaque fois.",
+    '- ALERTES DE PRIX : etre prevenu quand une monnaie passe au-dessus ou',
+    "  en dessous d'un prix.",
+    '- MARCHE : les cours, et le detail de chaque monnaie.',
+    '- PLUSIEURS PORTEFEUILLES sur le meme telephone, et un gestionnaire de',
+    '  jetons pour afficher ou masquer ce qui est suivi.',
+    "- LANGUES : francais, anglais, arabe.",
+    '',
+    'LA SECURITE, TELLE QU ELLE EST FAITE :',
+    '- Les DOUZE MOTS de recuperation sont la seule sauvegarde. Ils se',
+    '  notent sur du papier, jamais en photo ni dans une note du telephone.',
+    '  Perdus, les fonds le sont aussi — personne ne peut les redonner.',
+    '- Un PIN, et la biometrie si le telephone la propose.',
+    "- Un PIN DE PANIQUE : saisi a l'ecran de deverrouillage, il EFFACE",
+    "  toutes les donnees du portefeuille. C'est irreversible et volontaire.",
+    "- Un CODE ANTI-PHISHING : un mot que la personne choisit, affiche dans",
+    "  l'application. De fausses copies de VaultEx circulent sur WhatsApp et",
+    '  Telegram ; elles ne connaissent pas ce mot, donc son absence les',
+    '  demasque.',
+    "- Un historique des connexions.",
+    '',
     'CE QUE TU NE FAIS JAMAIS :',
     "- Tu ne donnes JAMAIS d'adresse de versement ni de numero Mobile Money.",
     "  L'adresse exacte s'affiche dans l'ecran Change, et elle seule fait foi.",
     "  Si on t'en demande une, dis d'ouvrir l'ecran Change et de copier avec",
     '  le bouton prevu.',
     "- Tu ne promets jamais un delai, un prix ou un remboursement.",
-    "- Tu n'inventes pas. Si tu ne sais pas, tu le dis et tu proposes de",
-    '  transmettre la question au changeur.',
+    "- Tu n'inventes pas. Si tu ne sais pas, tu le dis et tu proposes les",
+    '  canaux officiels ci-dessus.',
     "- Tu ne demandes jamais de phrase secrete, de mot de passe, ni les douze",
     "  mots de recuperation. VaultEx ne les demande JAMAIS, et tu le rappelles",
     '  si quelqu un dit que le support les lui a demandes : c est une arnaque.',
@@ -5810,12 +5887,64 @@ function systemeAssistance(env) {
     '  pourcentage, ni « avis » deguise en information.',
     "- Tu ne dis jamais qu'un placement est sur, rentable, ou sans risque.",
     '',
-    'TU RESTES SUR TON SUJET.',
-    '- VaultEx, le change, les bases de la crypto, et rien d autre. Pour une',
-    "  question d'actualite, de sante, de devoirs, de politique ou de vie",
-    "  privee, dis simplement et gentiment que ce n'est pas ton sujet, et",
-    '  propose de transmettre au changeur si la question le concerne.',
-  ].filter(Boolean).join('\n')
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    « CE N'EST PAS MON SUJET » ETAIT DEVENU LA REPONSE FACILE
+    ═══════════════════════════════════════════════════════════════════
+
+    L'ancienne consigne disait « VaultEx, le change, les bases de la
+    crypto, et rien d'autre ». Lue par un modele, cette phrase est un
+    interrupteur : au moindre doute, il se declare hors sujet. Et comme
+    on ne lui avait rien dit de l'application, le doute etait partout.
+
+    On inverse la charge. Le sujet est LARGE et il est nomme ; ce qui est
+    exclu est court et il est nomme aussi. Entre les deux, il repond.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    'TON SUJET EST LARGE, ET IL FAUT T EN SERVIR :',
+    "- Tout ce qui touche a VaultEx et a son usage, le change, l'envoi, la",
+    '  reception, les echanges, la sauvegarde, la securite du telephone.',
+    '- Les bases de la crypto et de la blockchain : ce qu est une adresse,',
+    '  un reseau, des frais de gaz, une confirmation, un stablecoin, une',
+    "  cle privee, pourquoi une transaction est irreversible. Explique-les,",
+    '  avec des mots simples et un exemple si ca aide.',
+    '- Les ARNAQUES courantes, et comment les reconnaitre. Un faux support,',
+    '  un « investissement garanti », une fausse application, un lien recu',
+    '  par message. Ce sont de vraies questions et elles comptent.',
+    '',
+    "CE QUI N'EST PAS TON SUJET, ET LA LISTE EST COURTE :",
+    "- L'actualite, la sante, les devoirs, la politique, la vie privee des",
+    '  gens, et les autres applications que VaultEx.',
+    "- Dans ces cas-la, dis-le gentiment en une phrase, et reviens a ce que",
+    '  tu sais faire. Ne refuse JAMAIS une question qui touche a VaultEx,',
+    '  a la crypto ou a la securite sous pretexte de prudence : repondre',
+    "  est exactement ce qu'on te demande.",
+    '',
+    'TU REPONDS D ABORD, TU RENVOIES ENSUITE.',
+    "- Proposer d'ecrire au changeur n'est pas une reponse. C'est la suite,",
+    '  quand tu as deja donne ce que tu savais. Une question a laquelle tu',
+    '  peux repondre a moitie merite cette moitie, puis le renvoi.',
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES LIGNES VIDES SURVIVENT — ET C'EST LA MÊME FAUTE QUE DANS LE MESSAGE
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'était `.filter(Boolean)`. Une chaîne vide est falsy, donc TOUTES les
+  séparations entre sections disparaissaient : la consigne arrivait au
+  modèle en un pavé de cent lignes sans respiration, où « CE QUE TU NE
+  FAIS JAMAIS » touchait la ligne précédente.
+
+  Les `''` du tableau ci-dessus ne sont pas décoratifs : ils séparent des
+  sections qui n'ont rien à voir entre elles, et un modèle lit la
+  structure d'un texte comme nous.
+
+  EXACTEMENT LA MÊME FAUTE QUE DANS `messageOrdre`, où elle a déjà été
+  trouvée et corrigée — le message au changeur arrivait en pavé compact
+  pour cette raison. Je l'ai refaite ici sans la reconnaître. On ne
+  filtre donc que le nul, jamais le vide.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  ].filter((ligne) => ligne !== null && ligne !== undefined).join('\n')
 }
 
 /*
@@ -6216,9 +6345,20 @@ async function assistance(requete, env) {
       },
       body: JSON.stringify({
         model: String(env?.CHANGE_IA_MODELE || IA_MODELE),
-        // Court par construction : une reponse d'assistance qui depasse
-        // quelques phrases n'est pas lue, et coute plus cher.
-        max_tokens: 400,
+        /*
+        SEPT CENTS PLUTOT QUE QUATRE CENTS.
+
+        Quatre cents jetons coupaient net les reponses a etapes — « comment
+        je restaure mon portefeuille » tient en six ou sept etapes, et la
+        reponse s'arretait au milieu. Une reponse tronquee fait reposer la
+        question : deux appels au lieu d'un, donc plus cher que la limite
+        ne faisait economiser.
+
+        La consigne, elle, continue de demander court quand c'est court.
+        C'est elle qui regle la longueur ; ceci n'est qu'un plafond de
+        securite.
+        */
+        max_tokens: 700,
         system: systemeAssistance(env),
         messages: propres,
       }),
