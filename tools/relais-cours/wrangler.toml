@@ -121,30 +121,50 @@ compatibility_date = "2025-09-26"
 # LE CRÉER — DEPUIS LE TABLEAU DE BORD
 # --------------------------------------------------------------------------
 #
+# Il EXISTE DÉJÀ, et il est déclaré plus bas — il n'y a rien à faire. Ce qui
+# suit ne sert qu'à le recréer sur un autre compte.
+#
 #   1. Storage & Databases → KV → Create namespace
-#      Nom : vaultex-memoire
+#      Nom : MEMOIRE
 #
-#   2. Workers & Pages → vaultex-prix → Settings → Bindings → Add → KV
-#      Variable name : MEMOIRE          ← ce nom exactement
-#      KV namespace  : vaultex-memoire
+#   2. Relever son identifiant et le reporter dans [[kv_namespaces]] ci-dessous :
+#      npx wrangler kv namespace list --config wrangler.toml
 #
-#   3. Deploy, puis ouvrir /sante : il doit dire « memoire: KV (durable) ».
-#      S'il dit « cache (FRAGILE) », la liaison n'est pas prise.
+#   3. Déployer, puis :
+#      node ../../tools/relais-cours/verifier-deploiement.mjs
+#      Il doit dire « memoire : KV (durable) ».
 #
 # --------------------------------------------------------------------------
-# SI UN JOUR ON DÉPLOIE AVEC WRANGLER
+# POURQUOI ELLE EST DÉCLARÉE ICI, ET PLUS SEULEMENT DANS LE TABLEAU DE BORD
 # --------------------------------------------------------------------------
 #
-# Décommenter ci-dessous et coller l'identifiant affiché par le tableau de
-# bord. Tant que le déploiement se fait en collant le code dans « Edit
-# code », ces lignes doivent RESTER COMMENTÉES : un identifiant absent ou
-# faux ferait échouer `wrangler deploy`, et une liaison déclarée ici mais
-# vide écraserait celle du tableau de bord.
+# MESURÉ, À LA PREMIÈRE VRAIE UTILISATION DE WRANGLER. Le déploiement a
+# réussi — version 48 en ligne — et il a EMPORTÉ la liaison KV. La sonde est
+# passée de « KV (durable) » à « cache (FRAGILE) » dans la même minute.
 #
-# [[kv_namespaces]]
-# binding = "MEMOIRE"
-# id = "<identifiant affiche par le tableau de bord>"
+# `keep_vars = true` protège les VARIABLES en clair du tableau de bord. Il ne
+# protège pas les LIAISONS : pour celles-là, ce fichier fait foi, et ce qu'il
+# ne déclare pas est retiré.
 #
+# Ces lignes étaient commentées, avec la consigne de les laisser ainsi tant
+# qu'on déployait en collant le code à la main. C'était juste à l'époque, et
+# faux dès le premier `wrangler deploy` — une note qui dit « ne pas toucher »
+# sans dire « jusqu'à quand » finit toujours par être lue trop tard.
+#
+# CE QUE ÇA COÛTAIT, ET POURQUOI C'EST GRAVE. Sans KV, le relais retombe sur
+# `caches.default` : par centre de données, évinçable, et silencieux. Deux
+# barrières s'éteignent alors toutes seules — l'antériorité des demandes, et
+# « un versement ne paie qu'une fois » — sans qu'aucun écran ne change. On
+# ne l'apprendrait qu'en perdant de l'argent.
+#
+# `verifier-deploiement.mjs` contrôle cette ligne à chaque passage, et c'est
+# lui qui l'a vue. Le déclarer ici ferme la cause ; le script reste là pour
+# le jour où quelque chose d'autre l'emportera.
+
+[[kv_namespaces]]
+binding = "MEMOIRE"
+id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
+
 # --------------------------------------------------------------------------
 # CE QUE KV NE RÈGLE PAS
 # --------------------------------------------------------------------------
