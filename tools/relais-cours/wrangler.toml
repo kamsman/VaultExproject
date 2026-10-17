@@ -13,11 +13,32 @@
 # --------------------------------------------------------------------------
 #
 #   cd tools/relais-cours
-#   npx wrangler deploy
+#   npx wrangler deploy --config wrangler.toml
 #
 # Sous PowerShell, si `npx` est bloqué par la politique d'exécution, appeler
 # `npx.cmd` : il contourne le script .ps1 sans rien changer aux réglages de
 # sécurité de la machine.
+#
+# --------------------------------------------------------------------------
+# POURQUOI `--config`, ALORS QUE LE FICHIER EST DANS LE DOSSIER COURANT
+# --------------------------------------------------------------------------
+#
+# MESURÉ : `npx wrangler deploy` depuis ce dossier a lu `../../wrangler.jsonc`
+# — un fichier de la RACINE DU DÉPÔT — et a échoué sur « Expected "name" to
+# be ... but got "VaultEx" ».
+#
+# Ce fichier-là n'est pas versionné : il est apparu tout seul sur la machine,
+# et son `name` est simplement le nom du dossier du projet Android. Wrangler
+# remonte l'arborescence à la recherche d'une configuration et préfère le
+# format JSON ; il trouve donc celle de la racine avant celle-ci.
+#
+# L'effet est le pire possible : un déploiement qui ÉCHOUE est bruyant et se
+# corrige, mais la même recherche pourrait un jour aboutir — et publier le
+# relais sous un autre nom, à une autre adresse, pendant que l'application
+# continue d'appeler l'ancienne. C'est exactement le mode de panne qu'on
+# vient de passer une séance entière à diagnostiquer.
+#
+# `--config wrangler.toml` supprime la recherche : on nomme le fichier.
 #
 # La première fois, une page de connexion Cloudflare s'ouvre dans le
 # navigateur. C'est une fois pour toutes sur cette machine.
