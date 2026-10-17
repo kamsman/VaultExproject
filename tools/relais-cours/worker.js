@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 47
+const VERSION = 48
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5779,7 +5779,7 @@ function systemeAssistance(env) {
     Object.keys(minsParMonnaie).length
       ? `- Minimums par monnaie : ${Object.entries(minsParMonnaie).map(([m, v]) => `${m} ${v} FCFA`).join(', ')}`
       : null,
-    `- Marge du changeur : ${marge} FCFA par dollar.`,
+    `- Marge appliquee : ${marge} FCFA par dollar.`,
     `- Delai annonce : ${delai} minutes.`,
     "- Les ventes sont verifiees automatiquement sur la chaine : le relais lit",
     "  lui-meme le versement, personne n'a a croire le client sur parole.",
@@ -5799,10 +5799,34 @@ function systemeAssistance(env) {
     '  cette liste. Si on te demande quelqu un d autre, dis que tu ne peux',
     '  pas le confirmer et propose les canaux officiels ci-dessous.',
     '',
-    'COMMENT NOUS JOINDRE — LES SEULS CANAUX OFFICIELS :',
-    `- WhatsApp : ${contacts.whatsapp}`,
-    `- Telegram : ${contacts.telegram}`,
-    `- E-mail : ${contacts.email}`,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ORDRE DES CANAUX EST UNE DECISION, PAS UNE LISTE
+    ═══════════════════════════════════════════════════════════════════
+
+    WhatsApp d'abord : au Burkina Faso c'est l'application que tout le
+    monde a deja ouverte, la reponse y arrive en minutes, et elle marche
+    sur une connexion faible.
+
+    L'e-mail ensuite : il laisse une trace et accepte des captures
+    d'ecran, donc il vaut mieux pour un probleme qui demande des pieces —
+    une reference, un recu, un historique.
+
+    Telegram en dernier : c'est une COMMUNAUTE, pas un guichet. On y
+    repond, mais d'autres y lisent. Y envoyer quelqu'un qui a un
+    probleme d'argent precis, c'est l'exposer pour rien.
+
+    Donner les trois a plat laissait le modele choisir, et il choisissait
+    au hasard. Un ordre nomme supprime ce hasard.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    'COMMENT NOUS JOINDRE — LES SEULS CANAUX OFFICIELS, DANS CET ORDRE :',
+    `- 1. WhatsApp : ${contacts.whatsapp} — c'est le plus rapide, propose-le EN PREMIER.`,
+    `- 2. E-mail : ${contacts.email} — pour un probleme qui demande des captures`,
+    '     ou une trace ecrite.',
+    `- 3. Telegram, la communaute : ${contacts.telegram} — en dernier, et en`,
+    "     precisant que c'est un groupe, pas un guichet prive.",
+    '- Quand tu proposes un canal, donne-le en entier, pas « contacte-nous ».',
     "- Ce sont les SEULS. Tu n'en inventes pas d'autres, tu ne donnes aucun",
     '  autre numero, aucune autre adresse, aucun autre lien. Et tu rappelles',
     "  que personne de l'equipe ne demandera jamais une phrase secrete,",
@@ -5921,9 +5945,24 @@ function systemeAssistance(env) {
     "  est exactement ce qu'on te demande.",
     '',
     'TU REPONDS D ABORD, TU RENVOIES ENSUITE.',
-    "- Proposer d'ecrire au changeur n'est pas une reponse. C'est la suite,",
+    "- Proposer d'ecrire a l'equipe n'est pas une reponse. C'est la suite,",
     '  quand tu as deja donne ce que tu savais. Une question a laquelle tu',
     '  peux repondre a moitie merite cette moitie, puis le renvoi.',
+    "- Tu ne renvoies qu'apres avoir ESSAYE. Explique, donne les etapes,",
+    '  propose une verification a faire dans l application. Le canal vient',
+    '  ensuite, et avec le numero WhatsApp en entier.',
+    '',
+    /*
+    « LE CHANGEUR » EST UN MOT DE NOTRE CUISINE, PAS DU LEUR.
+
+    Pour celui qui ecrit, il n'y a pas un « changeur » quelque part : il y
+    a VaultEx. Le mot vient de notre organisation interne — c'est celui
+    qui detient les fonds et qui paie — et il a fuite dans les reponses.
+    Il sonne comme un intermediaire qu'on ne connait pas, sur un ecran ou
+    l'on vient justement chercher a qui on a affaire.
+    */
+    "TU DIS « L'EQUIPE TECHNIQUE » OU « L'EQUIPE VAULTEX », JAMAIS",
+    '« le changeur ». Ce mot ne doit apparaitre dans aucune de tes reponses.',
   /*
   ═══════════════════════════════════════════════════════════════════════
   LES LIGNES VIDES SURVIVENT — ET C'EST LA MÊME FAUTE QUE DANS LE MESSAGE
@@ -6060,14 +6099,14 @@ function reponsesConnues(env) {
     {
       mots: ['delai', 'combien de temps', 'ca prend', 'duree', 'attendre', 'c est long'],
       reponse:
-        `Le changeur annonce ${delai} minutes. En pratique c'est souvent plus court : ` +
+        `Le delai annonce est de ${delai} minutes. En pratique c'est souvent plus court : ` +
         `ta vente est verifiee automatiquement sur la chaine des que le versement arrive, ` +
-        `et le changeur voit la confirmation en meme temps que toi.`,
+        `et l'equipe technique voit la confirmation en meme temps que toi.`,
     },
     {
       mots: ['frais', 'marge', 'commission', 'ca coute', 'vous prenez', 'tu prends'],
       reponse:
-        `La marge du changeur est de ${marge} FCFA par dollar. Elle est affichee en clair ` +
+        `La marge appliquee est de ${marge} FCFA par dollar. Elle est affichee en clair ` +
         `dans l'ecran Change avant que tu valides, avec le prix du marche a cote pour que ` +
         `tu puisses comparer. Il n'y a aucun autre frais de notre part. Les frais de ` +
         `reseau, eux, dependent de la chaine que tu choisis.`,
@@ -6090,7 +6129,7 @@ function reponsesConnues(env) {
         `l'ordre de frequence : le montant envoye ne correspond pas EXACTEMENT a celui ` +
         `demande — un exchange retranche ses frais, c'est la ligne « vous recevrez » qui ` +
         `compte ; le retrait est encore en file chez ton exchange ; ou le reseau n'etait ` +
-        `pas le bon. Si rien de tout ca, demande le changeur.`,
+        `pas le bon. Si rien de tout ca, ecris-nous sur WhatsApp au ${contacts.whatsapp}.`,
     },
     {
       mots: ['comment vendre', 'je veux vendre', 'pour vendre', 'comment je vend',
@@ -6107,8 +6146,8 @@ function reponsesConnues(env) {
              'acheter des usdt', 'acheter de la crypto'],
       reponse:
         `Ouvre l'ecran Change, onglet ACHETER, et tape le montant en francs. ` +
-        `L'application te donne le numero Mobile Money du changeur et une reference. ` +
-        `Paie ce montant exact, puis reviens valider : le changeur recoit ta demande et ` +
+        `L'application te donne le numero Mobile Money a payer et une reference. ` +
+        `Paie ce montant exact, puis reviens valider : l'equipe recoit ta demande et ` +
         `envoie la crypto a ton adresse une fois le paiement verifie.`,
     },
     {
@@ -6124,7 +6163,7 @@ function reponsesConnues(env) {
       reponse:
         `Le taux s'affiche en direct dans l'ecran Change, avec DEUX lignes : le prix du ` +
         `marche, et le taux reellement applique. L'ecart entre les deux est la marge du ` +
-        `changeur, affichee en clair pour que tu puisses comparer avant de valider.`,
+        `appliquee, affichee en clair pour que tu puisses comparer avant de valider.`,
     },
     {
       mots: ['annuler', 'je me suis trompe', 'erreur de montant', 'mauvais montant',
@@ -6132,7 +6171,8 @@ function reponsesConnues(env) {
       reponse:
         `Tant que tu n'as RIEN envoye, il n'y a rien a annuler : ferme l'ecran et ` +
         `recommence, la demande expire toute seule. Si tu as deja envoye, l'operation est ` +
-        `IRREVERSIBLE sur la chaine — ecris au changeur tout de suite avec ta reference ` +
+        `IRREVERSIBLE sur la chaine — ecris-nous tout de suite sur WhatsApp au ` +
+        `${contacts.whatsapp} avec ta reference ` +
         `VX-…, c'est lui qui pourra regler ca.`,
     },
     {
@@ -6140,7 +6180,7 @@ function reponsesConnues(env) {
              'recuperer mon compte', 'restaurer', 'reinstaller'],
       reponse:
         `Ton portefeuille se restaure avec tes douze mots de recuperation, et UNIQUEMENT ` +
-        `avec eux : personne ne peut te les redonner, ni nous ni le changeur. Si tu les ` +
+        `avec eux : personne ne peut te les redonner, pas meme nous. Si tu les ` +
         `as notes, choisis « importer un portefeuille » a l'installation. Si tu ne les as ` +
         `pas, les fonds ne sont pas recuperables — c'est la contrepartie d'un portefeuille ` +
         `que personne d'autre ne controle.`,
@@ -6158,7 +6198,7 @@ function reponsesConnues(env) {
       mots: ['phrase secrete', 'douze mots', '12 mots', 'mnemonique', 'seed', 'cle privee'],
       reponse:
         `VaultEx ne te demandera JAMAIS ta phrase secrete, tes douze mots, ni ta cle ` +
-        `privee. Ni l'assistance, ni le changeur, ni personne. Quiconque te les reclame ` +
+        `privee. Ni l'assistance, ni l'equipe technique, ni personne. Quiconque te les reclame ` +
         `est un escroc, meme s'il dit etre le support. Ne les ecris nulle part.`,
     },
     /*
@@ -6182,9 +6222,11 @@ function reponsesConnues(env) {
              'votre email', 'adresse mail', 'parler a quelqu un', 'parler a un humain',
              'service client', 'support', 'numero de vaultex', 'vous ecrire'],
       reponse:
-        `Trois canaux officiels, et il n'y en a pas d'autres : WhatsApp ` +
-        `${contacts.whatsapp}, Telegram ${contacts.telegram}, e-mail ${contacts.email}. ` +
-        `Tu les retrouves aussi dans Aide depuis les reglages. ATTENTION : personne de ` +
+        `Le plus rapide : WhatsApp au ${contacts.whatsapp}. ` +
+        `Si ta question demande une capture d'ecran ou une trace ecrite, ecris a ` +
+        `${contacts.email}. Et pour echanger avec la communaute, Telegram : ` +
+        `${contacts.telegram} — c'est un groupe, pas un guichet prive. ` +
+        `Tu retrouves les trois dans Aide, depuis les reglages. ATTENTION : personne de ` +
         `l'equipe ne te demandera jamais ta phrase secrete, sur aucun de ces canaux — et ` +
         `un numero recu ailleurs, par message ou par appel, n'est pas le notre.`,
     },
@@ -6208,8 +6250,8 @@ function reponsesConnues(env) {
              'sakande', 'abdul', 'dollar'],
       reponse:
         `L'equipe VaultEx : ${equipeTexte(env)}. ` +
-        `Pour les joindre : WhatsApp ${contacts.whatsapp}, Telegram ${contacts.telegram}, ` +
-        `e-mail ${contacts.email}.`,
+        `Pour la joindre, le plus rapide est WhatsApp : ${contacts.whatsapp}. ` +
+        `Sinon ${contacts.email}, ou la communaute Telegram ${contacts.telegram}.`,
     },
   ]
 }
@@ -6331,7 +6373,9 @@ async function assistance(requete, env) {
         `comment vendre, comment acheter, « j'ai envoye et je n'ai rien recu », annuler ` +
         `une demande, changer de telephone, un solde qui semble faux, et tout ce qui ` +
         `touche a ta phrase secrete.\n\n` +
-        `Reformule avec un de ces mots, ou ecris au changeur : il repondra lui-meme.`,
+        `Reformule avec un de ces mots — ou ecris-nous, quelqu'un te repondra :\n` +
+        `WhatsApp ${contactsVaultex(env).whatsapp} (le plus rapide), ` +
+        `e-mail ${contactsVaultex(env).email}.`,
     })
   }
 

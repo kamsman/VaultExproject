@@ -1201,8 +1201,8 @@
     <string name="assistance_placeholder">اكتب سؤالك…</string>
     <string name="assistance_envoyer">إرسال</string>
     <string name="assistance_en_cours">المساعدة تفكّر…</string>
-    <string name="assistance_humain_titre">يمكنك الاتصال بالصراف</string>
-    <string name="assistance_humain_aide">هذا السؤال يستحق إنسانًا. راسلنا عبر إحدى هذه القنوات الثلاث — وهي القنوات الرسمية الوحيدة، وسيجيبك أحد أفراد الفريق.</string>
+    <string name="assistance_humain_titre">يمكنك التواصل مع الفريق التقني</string>
+    <string name="assistance_humain_aide">هذا السؤال يستحق إنسانًا. واتساب هو الأسرع — سيجيبك أحد أفراد الفريق. هذه هي القنوات الرسمية الوحيدة.</string>
     <string name="assistance_numero_titre">رقمك، حتى نتمكن من معاودة الاتصال بك</string>
     <string name="assistance_numero_aide">إذا وجب تحويل سؤالك إلى الصراف، فهناك سيجيبك. لا يُستعمل لشيء آخر، ولا يُرسل إلى أي مكان حتى تطلب الاتصال بالصراف.</string>
     <string name="assistance_numero_valider">حفظ</string>

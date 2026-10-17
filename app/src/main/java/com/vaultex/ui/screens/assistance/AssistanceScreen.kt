@@ -306,6 +306,27 @@ private fun JoindreEquipe() {
                 fontSize = 12.sp, lineHeight = 17.sp, color = TextSecondary
             )
 
+            /*
+            ═══════════════════════════════════════════════════════════
+            L'ORDRE EST UNE DECISION, PAS UNE LISTE
+            ═══════════════════════════════════════════════════════════
+
+            WHATSAPP D'ABORD. Au Burkina Faso c'est l'application que
+            tout le monde a deja ouverte, la reponse y arrive en
+            minutes, et elle marche sur une connexion faible. C'est
+            aussi celui qu'on appuie sans reflechir : la premiere ligne
+            est celle qui sera touchee.
+
+            L'E-MAIL ENSUITE. Il laisse une trace et accepte des
+            captures d'ecran, donc il vaut mieux pour un probleme qui
+            demande des pieces — une reference, un recu, un historique.
+
+            TELEGRAM EN DERNIER, et c'est une COMMUNAUTE, pas un
+            guichet. On y repond, mais d'autres y lisent. Y envoyer en
+            premier quelqu'un qui a un probleme d'argent precis, c'est
+            l'exposer pour rien.
+            ═══════════════════════════════════════════════════════════
+            */
             Canal(
                 Icons.Default.Chat,
                 stringResource(R.string.assistance_canal_whatsapp),
@@ -313,16 +334,16 @@ private fun JoindreEquipe() {
             ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.LIEN_WHATSAPP) }
 
             Canal(
-                Icons.Default.Public,
-                stringResource(R.string.assistance_canal_telegram),
-                ContactsVaultex.TELEGRAM_AFFICHE
-            ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.TELEGRAM) }
-
-            Canal(
                 Icons.Default.Email,
                 stringResource(R.string.assistance_canal_email),
                 ContactsVaultex.EMAIL
             ) { ouvrir(Intent.ACTION_SENDTO, ContactsVaultex.LIEN_EMAIL) }
+
+            Canal(
+                Icons.Default.Public,
+                stringResource(R.string.assistance_canal_telegram),
+                ContactsVaultex.TELEGRAM_AFFICHE
+            ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.TELEGRAM) }
 
             Text(
                 stringResource(R.string.assistance_canal_avertissement),
