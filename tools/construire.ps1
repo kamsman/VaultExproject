@@ -1,4 +1,4 @@
-<#
+﻿<#
 ═══════════════════════════════════════════════════════════════════════════
 CONSTRUIRE VAULTEX ET DÉPOSER L'APK, EN UNE COMMANDE
 ═══════════════════════════════════════════════════════════════════════════
@@ -27,6 +27,28 @@ espace dedans, que PowerShell coupe en deux avant de le passer à
 Une commande qu'on retape chaque fois finit par être retapée de travers.
 Celle-ci est écrite une fois.
 
+─── POURQUOI CE FICHIER EST EN UTF-8 AVEC BOM, ET SON CODE EN ASCII ─────
+
+MESURÉ : le script refusait de s'analyser, sur trois erreurs qui
+désignaient des lignes parfaitement correctes — « Le terminateur " est
+manquant dans la chaîne ».
+
+La cause était un TIRET CADRATIN dans un message. Windows PowerShell 5.1
+lit un `.ps1` sans BOM comme de l'ANSI : les trois octets UTF-8 du tiret
+(E2 80 94) deviennent trois caractères, dont `0x94` — le guillemet
+fermant typographique. Or PowerShell accepte les guillemets
+typographiques comme délimiteurs de chaîne. La chaîne se fermait donc au
+milieu du message, et tout ce qui suivait devenait du charabia.
+
+Deux protections, parce qu'une seule casse le jour où l'autre manque :
+
+  — le fichier porte un BOM UTF-8, ce qui suffit à PowerShell 5.1 ;
+  — et AUCUNE ligne exécutable ne contient de caractère non-ASCII, ce qui
+    reste vrai même si un éditeur, un outil ou un copier-coller perd le
+    BOM en route.
+
+Les commentaires, eux, gardent leurs accents : ils ne sont pas analysés.
+
 ─── CE QU'IL NE FAIT PAS ────────────────────────────────────────────────
 
 Il ne règle pas le dossier de dépôt : c'est `apk.sortie` dans
@@ -52,7 +74,7 @@ Set-Location $racine
 
 $variante = if ($Release) { 'Release' } else { 'Debug' }
 Write-Host ""
-Write-Host "VaultEx — construction $variante" -ForegroundColor Cyan
+Write-Host "VaultEx - construction $variante" -ForegroundColor Cyan
 Write-Host "Depot : $racine" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -144,7 +166,7 @@ if ($depot -and (Test-Path $depot)) {
     $fichier = Join-Path $depot $nom
     if (Test-Path $fichier) {
         $f = Get-Item $fichier
-        Write-Host "OK — $nom" -ForegroundColor Green
+        Write-Host "OK - $nom" -ForegroundColor Green
         Write-Host "   $($f.FullName)"
         Write-Host "   $([math]::Round($f.Length / 1MB, 1)) Mo, ecrit a $($f.LastWriteTime.ToString('HH:mm:ss'))"
         if ($Ouvrir) { explorer.exe $depot }
@@ -154,7 +176,7 @@ if ($depot -and (Test-Path $depot)) {
     }
 } else {
     Write-Host "Compilation reussie." -ForegroundColor Green
-    Write-Host "Aucun dossier de depot regle — l'APK est reste dans app\build\outputs\apk\." -ForegroundColor Yellow
+    Write-Host "Aucun dossier de depot regle - l'APK est reste dans app\build\outputs\apk\." -ForegroundColor Yellow
     Write-Host "Pour en regler un :  .\gradlew.bat ouEstLApk"
 }
 Write-Host ""
