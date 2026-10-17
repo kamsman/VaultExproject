@@ -1238,6 +1238,15 @@
     <string name="assistance_numero_aide">Si ta question doit être transmise à l\'équipe technique, c\'est là qu\'on te répondra. Il ne sert à rien d\'autre, et il ne part nulle part tant que tu ne demandes pas à joindre l\'équipe.</string>
     <string name="assistance_numero_valider">Enregistrer</string>
     <string name="assistance_numero_sans">Continuer sans</string>
+    <string name="assistance_ex_acheter">Comment acheter de la crypto ?</string>
+    <string name="assistance_carte_acheter">Acheter</string>
+    <string name="assistance_carte_acheter_aide">Comment ça marche</string>
+    <string name="assistance_carte_minimum">Minimums</string>
+    <string name="assistance_carte_minimum_aide">Montant minimum</string>
+    <string name="assistance_carte_delai">Délais</string>
+    <string name="assistance_carte_delai_aide">Temps de traitement</string>
+    <string name="assistance_carte_reseau">Réseau</string>
+    <string name="assistance_carte_reseau_aide">Lequel choisir</string>
     <string name="assistance_ex_minimum">C\'est quoi le minimum pour échanger ?</string>
     <string name="assistance_ex_delai">Combien de temps ça prend ?</string>
     <string name="assistance_ex_reseau">Quel réseau je dois choisir ?</string>

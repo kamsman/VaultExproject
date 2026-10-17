@@ -26,7 +26,10 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
@@ -421,24 +424,131 @@ terminées par un chevron, elles se lisent pour ce qu'elles sont — des
 lignes sur lesquelles on appuie.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/** Une carte de la grille : ce qu'on voit, et la question qui part. */
+private data class Carte(
+    val icone: ImageVector,
+    val titre: Int,
+    val aide: Int,
+    val question: Int
+)
+
 @Composable
 private fun Suggestions(vm: AssistanceViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        listOf(
-            R.string.assistance_ex_minimum,
-            R.string.assistance_ex_delai,
-            R.string.assistance_ex_reseau,
-            R.string.assistance_ex_phrase,
-            /*
-            LA CINQUIÈME : COMMENT NOUS JOINDRE.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
-            Elle n'est pas là pour meubler. Quelqu'un qui doute d'un
-            message reçu — « le support VaultEx vous contacte » — n'a
-            aucun moyen simple de vérifier quels sont les vrais canaux.
-            Cette ligne les lui donne en un geste, depuis l'application
-            elle-même, qui est la seule source qu'un escroc ne contrôle
-            pas.
-            */
+        /*
+        ═══════════════════════════════════════════════════════════════
+        QUATRE CARTES, ET DERRIÈRE CHACUNE UNE VRAIE QUESTION
+        ═══════════════════════════════════════════════════════════════
+
+        La maquette proposait quatre cartes de CATÉGORIES : « Changer »,
+        « Minimums », « Délais », « Fonctionnement ». Jolies, et c'est la
+        bonne forme — une grille se balaie du regard là où une liste de
+        phrases se lit ligne à ligne.
+
+        Mais une catégorie n'est pas une question. « Fonctionnement —
+        aide générale » ne correspond à rien que le relais sache rendre
+        sans modèle : ça partirait chez le modèle, donc payant, plus
+        lent, et moins sûr qu'une réponse construite depuis les réglages
+        réels.
+
+        Les cartes gardent donc l'apparence et envoient la question. Les
+        quatre tombent sur une réponse prête — vérifié, pas supposé : le
+        relais répond aux quatre sans appeler le modèle.
+
+        Le titre nomme le thème, pour l'œil ; la question part, pour le
+        relais. Personne n'a à savoir laquelle des deux il touche.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val cartes = listOf(
+            Carte(
+                Icons.Default.SwapHoriz,
+                R.string.assistance_carte_acheter,
+                R.string.assistance_carte_acheter_aide,
+                R.string.assistance_ex_acheter
+            ),
+            Carte(
+                Icons.Default.Payments,
+                R.string.assistance_carte_minimum,
+                R.string.assistance_carte_minimum_aide,
+                R.string.assistance_ex_minimum
+            ),
+            Carte(
+                Icons.Default.Schedule,
+                R.string.assistance_carte_delai,
+                R.string.assistance_carte_delai_aide,
+                R.string.assistance_ex_delai
+            ),
+            Carte(
+                Icons.Default.Public,
+                R.string.assistance_carte_reseau,
+                R.string.assistance_carte_reseau_aide,
+                R.string.assistance_ex_reseau
+            ),
+        )
+
+        /*
+        DEUX RANGÉES DE DEUX, À LA MAIN.
+
+        Pas de `LazyVerticalGrid` : cette colonne défile déjà, et une
+        grille qui défile dans une colonne qui défile se mesure mal — le
+        contenu se replie à zéro ou la page cesse de défiler. Quatre
+        éléments connus d'avance ne valent pas ce risque.
+        */
+        cartes.chunked(2).forEach { paire ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                paire.forEach { c ->
+                    val question = stringResource(c.question)
+                    val forme = RoundedCornerShape(14.dp)
+                    Column(
+                        Modifier.weight(1f)
+                            .clip(forme)
+                            .border(1.dp, BorderColor, forme)
+                            .clickable { vm.poser(question) }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(c.icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        Text(
+                            stringResource(c.titre),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Text(stringResource(c.aide), fontSize = 11.sp, color = TextSecondary)
+                    }
+                }
+            }
+        }
+
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LES DEUX DERNIÈRES RESTENT DES LIGNES, ET C'EST VOULU
+        ═══════════════════════════════════════════════════════════════
+
+        Ce ne sont pas des catégories. Ce sont deux questions qu'on ne
+        pense pas à poser, et qu'il faut pouvoir toucher au moment
+        précis où l'on en a besoin.
+
+        LA PHRASE SECRÈTE. Quelqu'un à qui l'on vient de réclamer ses
+        douze mots doit pouvoir vérifier en un geste, avant d'avoir le
+        temps d'hésiter. Noyée parmi quatre cartes de même poids, elle
+        deviendrait un thème parmi d'autres.
+
+        LES CANAUX. Quelqu'un qui doute d'un message reçu — « le support
+        VaultEx vous contacte » — n'a aucun moyen simple de vérifier
+        quels sont les vrais. L'application est la seule source qu'un
+        escroc ne contrôle pas.
+
+        Posées en pleine largeur sous la grille, elles se lisent comme ce
+        qu'elles sont : des phrases, pas des rubriques.
+        ═══════════════════════════════════════════════════════════════
+        */
+        listOf(
+            R.string.assistance_ex_phrase,
             R.string.assistance_ex_equipe
         ).forEach { id ->
             val texte = stringResource(id)
@@ -470,8 +580,12 @@ distingue les deux voix même quand une réponse est courte et tient sur la
 même largeur que la question.
 
 LA LARGEUR MAXIMALE SUIT L'ÉCRAN. 300 dp fixes débordaient d'un petit
-téléphone et flottaient sur un grand ; 78 % de la largeur laisse toujours
+téléphone et flottaient sur un grand ; 72 % de la largeur laisse toujours
 voir de quel côté la bulle est posée.
+
+ELLE EST PASSÉE DE 78 À 72 % en même temps que l'avatar est arrivé : le
+jeton prend 36 dp sur la gauche, et sans cette reprise les réponses
+longues venaient toucher le bord droit de l'écran.
 */
 @Composable
 private fun Bulle(m: MessageAssistance) {

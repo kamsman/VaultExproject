@@ -1209,6 +1209,15 @@
     <string name="assistance_numero_aide">إذا وجب تحويل سؤالك إلى الصراف، فهناك سيجيبك. لا يُستعمل لشيء آخر، ولا يُرسل إلى أي مكان حتى تطلب الاتصال بالصراف.</string>
     <string name="assistance_numero_valider">حفظ</string>
     <string name="assistance_numero_sans">المتابعة بدونه</string>
+    <string name="assistance_ex_acheter">كيف أشتري العملات الرقمية؟</string>
+    <string name="assistance_carte_acheter">الشراء</string>
+    <string name="assistance_carte_acheter_aide">كيف يعمل</string>
+    <string name="assistance_carte_minimum">الحد الأدنى</string>
+    <string name="assistance_carte_minimum_aide">أقل مبلغ</string>
+    <string name="assistance_carte_delai">المدة</string>
+    <string name="assistance_carte_delai_aide">زمن المعالجة</string>
+    <string name="assistance_carte_reseau">الشبكة</string>
+    <string name="assistance_carte_reseau_aide">أيها أختار</string>
     <string name="assistance_ex_minimum">ما هو الحد الأدنى للتبادل؟</string>
     <string name="assistance_ex_delai">كم من الوقت يستغرق؟</string>
     <string name="assistance_ex_reseau">أي شبكة يجب أن أختار؟</string>

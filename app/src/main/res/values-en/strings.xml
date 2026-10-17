@@ -1209,6 +1209,15 @@
     <string name="assistance_numero_aide">If your question has to go to the changer, that is where he will answer. It is used for nothing else, and it goes nowhere until you ask to reach the changer.</string>
     <string name="assistance_numero_valider">Save</string>
     <string name="assistance_numero_sans">Continue without</string>
+    <string name="assistance_ex_acheter">How do I buy crypto?</string>
+    <string name="assistance_carte_acheter">Buy</string>
+    <string name="assistance_carte_acheter_aide">How it works</string>
+    <string name="assistance_carte_minimum">Minimums</string>
+    <string name="assistance_carte_minimum_aide">Minimum amount</string>
+    <string name="assistance_carte_delai">Timing</string>
+    <string name="assistance_carte_delai_aide">Processing time</string>
+    <string name="assistance_carte_reseau">Network</string>
+    <string name="assistance_carte_reseau_aide">Which one to pick</string>
     <string name="assistance_ex_minimum">What is the minimum to exchange?</string>
     <string name="assistance_ex_delai">How long does it take?</string>
     <string name="assistance_ex_reseau">Which network should I choose?</string>
