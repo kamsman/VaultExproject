@@ -1169,10 +1169,46 @@ if (sortieApkVaultex != null) {
                     ?: throw GradleException(
                         "vaultex : aucun APK trouve dans ${source.absolutePath}"
                     )
+                /*
+                ═══════════════════════════════════════════════════════════
+                UNE RELEASE NON SIGNÉE NE DOIT PAS PORTER LE NOM D'UNE VRAIE
+                ═══════════════════════════════════════════════════════════
+
+                Sans keystore, ce projet construit la release NON SIGNÉE au
+                lieu d'échouer — c'est un choix assumé, pour qu'une machine
+                sans les secrets puisse quand même compiler.
+
+                Mais le dépôt effaçait la trace de ce choix : Gradle écrit
+                `app-release-unsigned.apk`, et on le recopiait en
+                `VaultEx-release.apk`. Le seul indice du problème
+                disparaissait dans le renommage.
+
+                Un APK non signé ne s'installe pas. Distribué, il ne produit
+                qu'un message d'erreur d'Android que personne ne rattache à
+                sa cause — et on le découvre sur le téléphone de quelqu'un
+                d'autre.
+
+                Le nom le dit donc, en capitales, et le message aussi.
+                ═══════════════════════════════════════════════════════════
+                */
+                val nonSigne = apk.name.contains("unsigned", ignoreCase = true)
                 val destination = dossierDeDepot(cheminRegle)
-                val cible = File(destination, "VaultEx-$variante.apk")
+                val cible = File(
+                    destination,
+                    if (nonSigne) "VaultEx-$variante-NON-SIGNE.apk"
+                    else "VaultEx-$variante.apk"
+                )
                 apk.copyTo(cible, overwrite = true)
                 logger.lifecycle("vaultex : APK depose dans ${cible.absolutePath}")
+                if (nonSigne) {
+                    logger.lifecycle("")
+                    logger.lifecycle("vaultex : ATTENTION — CET APK N'EST PAS SIGNE.")
+                    logger.lifecycle("vaultex : Il ne s'installera pas. Ne le distribue pas.")
+                    logger.lifecycle("vaultex : Il manque keystore.properties a la racine")
+                    logger.lifecycle("vaultex : du depot, ou le fichier .jks qu'il designe.")
+                    logger.lifecycle("vaultex : Voir keystore.properties.example.")
+                    logger.lifecycle("")
+                }
             }
         }
     }
