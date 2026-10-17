@@ -1201,8 +1201,8 @@
     <string name="assistance_placeholder">Write your question…</string>
     <string name="assistance_envoyer">Send</string>
     <string name="assistance_en_cours">Support is thinking…</string>
-    <string name="assistance_humain_titre">You can reach the changer</string>
-    <string name="assistance_humain_aide">This question deserves a human. Write to us on one of these three channels — they are the only official ones, and someone from the team will answer.</string>
+    <string name="assistance_humain_titre">You can reach the technical team</string>
+    <string name="assistance_humain_aide">This question deserves a human. WhatsApp is the fastest — someone from the team will answer. These are the only official channels.</string>
     <string name="assistance_numero_titre">Your number, so we can call you back</string>
     <string name="assistance_numero_aide">If your question has to go to the changer, that is where he will answer. It is used for nothing else, and it goes nowhere until you ask to reach the changer.</string>
     <string name="assistance_numero_valider">Save</string>

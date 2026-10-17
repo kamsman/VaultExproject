@@ -1991,6 +1991,78 @@ le jour ou quelqu'un l'allegerait sans voir ce qu'elle porte.
     !sys.includes('et rien d autre'), null)
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+« LE CHANGEUR » EST UN MOT DE NOTRE CUISINE, PAS DU LEUR
+═══════════════════════════════════════════════════════════════════════════
+
+Pour celui qui ecrit a l'assistance, il n'y a pas un « changeur » quelque
+part : il y a VaultEx. Le mot vient de notre organisation interne — c'est
+celui qui detient les fonds et qui paie — et il avait fuite dans une
+dizaine de reponses. Il sonne comme un intermediaire inconnu, sur un ecran
+ou l'on vient justement chercher a qui on a affaire.
+
+IL RESTE LEGITIME AILLEURS : dans le message Telegram, que le changeur lit
+lui-meme, et dans l'ecran Change ou il designe la personne qui paie. Ce
+test ne couvre QUE ce que l'assistance renvoie.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const QUESTIONS = [
+    'cest quoi le minimum', 'ca prend combien de temps', 'vous prenez combien',
+    'quel reseau choisir', 'jai envoye et jai rien recu', 'comment vendre',
+    'comment acheter', 'orange money', 'cest quoi le taux', 'je veux annuler',
+    'jai un nouveau telephone', 'mon solde est faux', 'phrase secrete',
+    'comment vous contacter', 'qui a fonde vaultex',
+  ]
+  for (const q of QUESTIONS) {
+    const r = reponseConnue(q, ENV_EQUIPE)
+    verifie(`VOCABULAIRE : « ${q} » ne dit pas « changeur »`,
+      r !== null && !String(r).toLowerCase().includes('changeur'), r)
+  }
+
+  const sys = systemeAssistance(ENV_EQUIPE)
+  verifie('VOCABULAIRE : la consigne interdit le mot',
+    sys.includes("TU DIS « L'EQUIPE TECHNIQUE »"), null)
+}
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  L'ORDRE DES CANAUX
+  ═══════════════════════════════════════════════════════════════════════
+
+  WhatsApp d'abord : au Burkina Faso c'est l'application deja ouverte, la
+  reponse y arrive en minutes, et elle marche sur une connexion faible.
+  L'e-mail ensuite, parce qu'il accepte des captures et laisse une trace.
+  Telegram en dernier, parce que c'est une COMMUNAUTE : y envoyer en
+  premier quelqu'un qui a un probleme d'argent precis, c'est l'exposer.
+
+  Donner les trois a plat laissait le modele choisir, et il choisissait au
+  hasard. On verifie donc des POSITIONS, pas des presences.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const r = String(reponseConnue('comment vous contacter', ENV_EQUIPE))
+  const wa = r.indexOf('+22672306526')
+  const mail = r.indexOf('vaultexteams@gmail.com')
+  const tg = r.indexOf('t.me/vaultexCommunity')
+  verifie('ORDRE : les trois canaux sont la', wa >= 0 && mail >= 0 && tg >= 0, r)
+  verifie('ORDRE : WhatsApp avant l e-mail', wa < mail, `wa=${wa} mail=${mail}`)
+  verifie('ORDRE : l e-mail avant Telegram', mail < tg, `mail=${mail} tg=${tg}`)
+  verifie('ORDRE : Telegram est annonce comme un groupe',
+    r.includes('communaute') || r.includes('groupe'), r)
+
+  const equipe = String(reponseConnue('qui a fonde vaultex', ENV_EQUIPE))
+  verifie('ORDRE : la fiche equipe mene a WhatsApp en premier',
+    equipe.indexOf('+22672306526') < equipe.indexOf('vaultexteams@gmail.com'), equipe)
+
+  const sys = systemeAssistance(ENV_EQUIPE)
+  verifie('ORDRE : la consigne nomme WhatsApp en premier',
+    sys.includes('propose-le EN PREMIER'), null)
+  verifie('ORDRE : et demande le canal en entier',
+    sys.includes('donne-le en entier'), null)
+}
+
 {
   /*
   ═══════════════════════════════════════════════════════════════════════
