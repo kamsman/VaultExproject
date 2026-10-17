@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 45
+const VERSION = 46
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -6060,8 +6060,22 @@ function reponsesConnues(env) {
         `un numero recu ailleurs, par message ou par appel, n'est pas le notre.`,
     },
     {
-      mots: ['equipe', 'qui etes vous', 'qui est vaultex', 'fondateur', 'directeur',
-             'qui a cree', 'proprietaire', 'koanda', 'moumine', 'ouedraogo', 'rasmane',
+      /*
+      LES FORMES VERBALES MANQUAIENT, ET C'EST LA PREMIERE QU'ON TAPE.
+
+      Mesure sur un vrai ecran : « qui a fonde Vaultex ? » ne trouvait
+      rien. J'avais liste « fondateur » — le NOM — et personne n'ecrit
+      « qui est le fondateur » quand « qui a fonde » est plus court.
+
+      La lecon vaut au-dela de ce cas : une liste de mots-cles ecrite
+      depuis la reponse attrape le vocabulaire de celui qui repond, pas
+      celui de celui qui demande. Les formes ci-dessous viennent de la
+      question telle qu'elle a ete posee.
+      */
+      mots: ['equipe', 'qui etes vous', 'qui est vaultex', 'fondateur', 'fondatrice',
+             'a fonde', 'fonde par', 'directeur', 'directrice', 'qui dirige',
+             'qui a cree', 'cree par', 'proprietaire', 'appartient a qui', 'patron',
+             'derriere vaultex', 'koanda', 'moumine', 'ouedraogo', 'rasmane',
              'sakande', 'abdul', 'dollar'],
       reponse:
         `L'equipe VaultEx : ${equipeTexte(env)}. ` +

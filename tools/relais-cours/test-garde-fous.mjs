@@ -1783,6 +1783,41 @@ c'est là qu'est le piège.
 }
 
 {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES FORMES VERBALES, PARCE QUE C'EST CE QU'ON TAPE
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ SUR UN VRAI ÉCRAN : « qui a fondé Vaultex ? » ne trouvait rien.
+  J'avais listé « fondateur » — le NOM — et personne n'écrit « qui est le
+  fondateur » quand « qui a fondé » est plus court.
+
+  La leçon dépasse ce cas : une liste de mots-clés écrite depuis la
+  réponse attrape le vocabulaire de celui qui RÉPOND, pas de celui qui
+  DEMANDE. Les phrases ci-dessous sont celles qu'on pose vraiment.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const FORMULATIONS = [
+    'tu connais moumine',
+    'qui a fondé Vaultex ?',
+    'qui est le fondateur',
+    'qui a créé VaultEx',
+    'c est qui le patron de vaultex',
+    'vaultex appartient a qui',
+    'qui dirige vaultex',
+    'qui est derriere vaultex',
+    'parle moi de l equipe',
+    'qui est rasmane',
+    'abdul hack sakande c est qui',
+  ]
+  for (const q of FORMULATIONS) {
+    const r = reponseConnue(q, ENV_EQUIPE)
+    verifie(`FORMULATION : « ${q} » trouve l equipe`,
+      r !== null && String(r).includes('Koanda Moumine'), r)
+  }
+}
+
+{
   const r = reponseConnue('qui est le directeur marketing de vaultex', ENV_EQUIPE)
   verifie('EQUIPE : la question trouve une reponse', r !== null)
   for (const nom of ['Koanda Moumine', 'Rasmane', 'Sakande']) {
