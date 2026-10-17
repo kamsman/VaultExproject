@@ -94,6 +94,37 @@ main = "worker.js"
 #
 # Si une version de Wrangler refusait cette clé, l'équivalent en ligne de
 # commande est `--keep-vars`.
+#
+# --------------------------------------------------------------------------
+# L'AVERTISSEMENT QUI FAIT PEUR, ET QU'IL FAUT ACCEPTER
+# --------------------------------------------------------------------------
+#
+# À chaque déploiement, Wrangler affiche la liste des variables du tableau
+# de bord précédées d'un SIGNE MOINS, puis demande :
+#
+#     Uploading the Worker will override the remote configuration
+#     with your local one.
+#     Would you like to continue? ...
+#
+# Il faut répondre OUI.
+#
+# Ce diff décrit ce qui arriverait SANS `keep_vars` — c'est la comparaison
+# entre ce fichier, qui ne déclare aucune variable, et le tableau de bord
+# qui en porte huit. `keep_vars` agit ensuite, au moment de l'envoi.
+#
+# VÉRIFIÉ APRÈS COUP, ET PAS DÉDUIT : après un déploiement où toutes les
+# variables apparaissaient en moins et où l'on a répondu oui,
+# /change/parametres rendait encore la marge, le plafond, les deux adresses,
+# les minimums par monnaie et le modèle USSD. Rien n'avait bougé.
+#
+# C'est écrit ici parce que la prudence pousse à répondre « no » — ce qui
+# annule le déploiement et laisse l'ancienne version en service, sans que
+# rien ne le signale. On a déjà perdu une séance entière à chercher pourquoi
+# quatre versions n'étaient jamais arrivées en ligne.
+#
+# En cas de doute, la réponse est à une adresse, pas à une supposition :
+#
+#     https://vaultex-prix.<compte>.workers.dev/change/parametres
 # ==========================================================================
 keep_vars = true
 
