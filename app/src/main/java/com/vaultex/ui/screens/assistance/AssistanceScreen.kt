@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +38,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -47,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -66,6 +65,8 @@ import androidx.navigation.NavController
 import com.vaultex.R
 import com.vaultex.domain.support.ContactsVaultex
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentBlueDark
+import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
@@ -122,22 +123,7 @@ fun AssistanceScreen(navController: NavController) {
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.assistance_titre),
-                        fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
-            )
-        },
+        topBar = { EnTete(state.erreur == null) { navController.popBackStack() } },
         containerColor = BgPrimary
     ) { padding ->
         /*
@@ -489,28 +475,155 @@ voir de quel côté la bulle est posée.
 */
 @Composable
 private fun Bulle(m: MessageAssistance) {
-    val maxLargeur = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
+    val maxLargeur = (LocalConfiguration.current.screenWidthDp * 0.72f).dp
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = if (m.deMoi) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (m.deMoi) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
-        Surface(
-            shape =
-                if (m.deMoi) RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
-                else RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
-            // Le message de l'utilisateur en bleu plein : c'est la couleur
-            // de l'action dans toute l'application, et ici l'action c'est
-            // d'avoir demandé. La réponse reste sur le fond des cartes.
-            color = if (m.deMoi) AccentBlue else SurfaceColor,
-            modifier = Modifier.widthIn(max = maxLargeur)
-        ) {
+        /*
+        L'AVATAR NE SERT PAS A DECORER.
+
+        Une conversation d'assistance se relit, parfois en la montrant a
+        quelqu'un d'autre. Sans marque de qui parle, une reponse copiee
+        d'un escroc et une reponse de l'application se ressemblent. Le
+        jeton VaultEx, du cote des reponses seulement, dit d'ou vient la
+        phrase qu'on est en train de croire.
+        */
+        if (!m.deMoi) {
+            Box(
+                Modifier.size(28.dp).clip(CircleShape).background(AccentBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("V", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Column(horizontalAlignment = if (m.deMoi) Alignment.End else Alignment.Start) {
+            Surface(
+                shape =
+                    if (m.deMoi) RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+                    else RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
+                // Le message de l'utilisateur en bleu plein : c'est la couleur
+                // de l'action dans toute l'application, et ici l'action c'est
+                // d'avoir demandé. La réponse reste sur le fond des cartes.
+                color = if (m.deMoi) AccentBlue else SurfaceColor,
+                modifier = Modifier.widthIn(max = maxLargeur)
+            ) {
+                Text(
+                    m.texte,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    color = if (m.deMoi) Color.White else TextPrimary
+                )
+            }
+            /*
+            L'HEURE, ET RIEN D'AUTRE.
+
+            Pas de double coche : elle voudrait dire « lu », et personne
+            ne lit. Imiter cette marque-la sur une machine, c'est faire
+            croire a quelqu'un derriere l'ecran — exactement ce que le
+            reste de cet ecran s'applique a ne pas faire.
+
+            L'heure, elle, est vraie et elle sert : on retrouve a quel
+            moment on a pose la question quand on la rapporte.
+            */
             Text(
-                m.texte,
-                modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                color = if (m.deMoi) Color.White else TextPrimary
+                heureCourte(m.quand),
+                fontSize = 10.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
+        }
+    }
+}
+
+/** « 18:22 ». Lue dans le fuseau du telephone, comme toutes les heures. */
+private fun heureCourte(quand: Long): String =
+    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        .format(java.util.Date(quand))
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'EN-TÊTE
+═══════════════════════════════════════════════════════════════════════════
+
+Un dégradé, un jeton, un titre, et une ligne d'état. C'est la forme d'une
+messagerie, et elle dit en un coup d'œil où l'on est.
+
+─── CE QUE LA LIGNE D'ÉTAT NE DIRA PAS ─────────────────────────────────
+
+« En ligne • Nous répondons rapidement ». C'était dans la maquette, et
+c'est refusé.
+
+Les deux moitiés promettent quelqu'un. « En ligne » est le mot des
+messageries pour dire qu'une PERSONNE est devant son écran ; « nous
+répondons » met un nous humain derrière. Or il n'y a personne : il y a un
+modèle, et l'accueil de cet écran prend soin de le dire — « les réponses
+sont automatiques et immédiates ».
+
+Laisser croire à un humain se paie deux fois : par la déception quand une
+réponse sonne faux, et par la confiance qu'on ne regagne pas. C'est écrit
+en toutes lettres en haut de ce fichier depuis le premier jour.
+
+─── ELLE EST MESURÉE, PAS DÉCORATIVE ───────────────────────────────────
+
+Le point vert ne dit pas « nous sommes là ». Il dit que le dernier
+échange a abouti. Quand le relais ne répond pas, il passe à l'orange et
+le texte change — parce qu'un voyant qui reste vert pendant une panne
+n'est pas un voyant, c'est un dessin.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun EnTete(enService: Boolean, onRetour: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(AccentBlue, AccentBlueDark)))
+            .statusBarsPadding()
+            .padding(horizontal = 6.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onRetour) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    stringResource(R.string.back),
+                    tint = Color.White
+                )
+            }
+            Box(
+                Modifier.size(38.dp).clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.SupportAgent, null,
+                    tint = Color.White, modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    stringResource(R.string.assistance_titre),
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(7.dp).clip(CircleShape)
+                            .background(if (enService) AccentGreen else AccentOrange)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(
+                            if (enService) R.string.assistance_statut_actif
+                            else R.string.assistance_statut_muet
+                        ),
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
         }
     }
 }

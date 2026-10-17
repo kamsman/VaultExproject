@@ -24,7 +24,15 @@ import javax.inject.Inject
  */
 data class MessageAssistance(
     val deMoi: Boolean,
-    val texte: String
+    val texte: String,
+    /*
+    L'HEURE EST POSÉE À LA CRÉATION, PAS À L'AFFICHAGE.
+    
+    Prise au moment du dessin, elle changerait à chaque recomposition —
+    et toute la conversation afficherait la même heure, celle de la
+    dernière frappe. L'heure d'un message est celle où il a existé.
+    */
+    val quand: Long = System.currentTimeMillis()
 )
 
 data class AssistanceState(

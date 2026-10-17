@@ -1224,6 +1224,8 @@
     <string name="change_prix_garanti">Prix garanti encore</string>
     <string name="change_prix_expire">Le prix affiché n\'est plus garanti — reviens au calcul si tu n\'as pas encore envoyé.</string>
     <string name="assistance_titre">Assistance</string>
+    <string name="assistance_statut_actif">Réponses automatiques et immédiates</string>
+    <string name="assistance_statut_muet">Service injoignable pour le moment</string>
     <string name="assistance_accueil_titre">Assistance VaultEx</string>
     <string name="assistance_accueil_aide">Pose ta question en une phrase : délai, frais, minimum, quel réseau choisir, où en est ton échange. Les réponses sont automatiques et immédiates. Si elles ne suffisent pas, on te propose de joindre l\'équipe technique.</string>
     <string name="assistance_jamais_phrase">VaultEx ne te demandera JAMAIS ta phrase secrète ni tes douze mots. Quiconque te les réclame est un escroc, même s\'il dit être le support.</string>
