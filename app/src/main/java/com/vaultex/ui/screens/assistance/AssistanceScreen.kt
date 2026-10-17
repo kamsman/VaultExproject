@@ -26,12 +26,14 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +41,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -47,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -66,6 +68,8 @@ import androidx.navigation.NavController
 import com.vaultex.R
 import com.vaultex.domain.support.ContactsVaultex
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentBlueDark
+import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
@@ -122,22 +126,7 @@ fun AssistanceScreen(navController: NavController) {
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.assistance_titre),
-                        fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
-            )
-        },
+        topBar = { EnTete(state.erreur == null) { navController.popBackStack() } },
         containerColor = BgPrimary
     ) { padding ->
         /*
@@ -435,24 +424,131 @@ terminées par un chevron, elles se lisent pour ce qu'elles sont — des
 lignes sur lesquelles on appuie.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/** Une carte de la grille : ce qu'on voit, et la question qui part. */
+private data class Carte(
+    val icone: ImageVector,
+    val titre: Int,
+    val aide: Int,
+    val question: Int
+)
+
 @Composable
 private fun Suggestions(vm: AssistanceViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        listOf(
-            R.string.assistance_ex_minimum,
-            R.string.assistance_ex_delai,
-            R.string.assistance_ex_reseau,
-            R.string.assistance_ex_phrase,
-            /*
-            LA CINQUIÈME : COMMENT NOUS JOINDRE.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
-            Elle n'est pas là pour meubler. Quelqu'un qui doute d'un
-            message reçu — « le support VaultEx vous contacte » — n'a
-            aucun moyen simple de vérifier quels sont les vrais canaux.
-            Cette ligne les lui donne en un geste, depuis l'application
-            elle-même, qui est la seule source qu'un escroc ne contrôle
-            pas.
-            */
+        /*
+        ═══════════════════════════════════════════════════════════════
+        QUATRE CARTES, ET DERRIÈRE CHACUNE UNE VRAIE QUESTION
+        ═══════════════════════════════════════════════════════════════
+
+        La maquette proposait quatre cartes de CATÉGORIES : « Changer »,
+        « Minimums », « Délais », « Fonctionnement ». Jolies, et c'est la
+        bonne forme — une grille se balaie du regard là où une liste de
+        phrases se lit ligne à ligne.
+
+        Mais une catégorie n'est pas une question. « Fonctionnement —
+        aide générale » ne correspond à rien que le relais sache rendre
+        sans modèle : ça partirait chez le modèle, donc payant, plus
+        lent, et moins sûr qu'une réponse construite depuis les réglages
+        réels.
+
+        Les cartes gardent donc l'apparence et envoient la question. Les
+        quatre tombent sur une réponse prête — vérifié, pas supposé : le
+        relais répond aux quatre sans appeler le modèle.
+
+        Le titre nomme le thème, pour l'œil ; la question part, pour le
+        relais. Personne n'a à savoir laquelle des deux il touche.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val cartes = listOf(
+            Carte(
+                Icons.Default.SwapHoriz,
+                R.string.assistance_carte_acheter,
+                R.string.assistance_carte_acheter_aide,
+                R.string.assistance_ex_acheter
+            ),
+            Carte(
+                Icons.Default.Payments,
+                R.string.assistance_carte_minimum,
+                R.string.assistance_carte_minimum_aide,
+                R.string.assistance_ex_minimum
+            ),
+            Carte(
+                Icons.Default.Schedule,
+                R.string.assistance_carte_delai,
+                R.string.assistance_carte_delai_aide,
+                R.string.assistance_ex_delai
+            ),
+            Carte(
+                Icons.Default.Public,
+                R.string.assistance_carte_reseau,
+                R.string.assistance_carte_reseau_aide,
+                R.string.assistance_ex_reseau
+            ),
+        )
+
+        /*
+        DEUX RANGÉES DE DEUX, À LA MAIN.
+
+        Pas de `LazyVerticalGrid` : cette colonne défile déjà, et une
+        grille qui défile dans une colonne qui défile se mesure mal — le
+        contenu se replie à zéro ou la page cesse de défiler. Quatre
+        éléments connus d'avance ne valent pas ce risque.
+        */
+        cartes.chunked(2).forEach { paire ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                paire.forEach { c ->
+                    val question = stringResource(c.question)
+                    val forme = RoundedCornerShape(14.dp)
+                    Column(
+                        Modifier.weight(1f)
+                            .clip(forme)
+                            .border(1.dp, BorderColor, forme)
+                            .clickable { vm.poser(question) }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(c.icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        Text(
+                            stringResource(c.titre),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Text(stringResource(c.aide), fontSize = 11.sp, color = TextSecondary)
+                    }
+                }
+            }
+        }
+
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LES DEUX DERNIÈRES RESTENT DES LIGNES, ET C'EST VOULU
+        ═══════════════════════════════════════════════════════════════
+
+        Ce ne sont pas des catégories. Ce sont deux questions qu'on ne
+        pense pas à poser, et qu'il faut pouvoir toucher au moment
+        précis où l'on en a besoin.
+
+        LA PHRASE SECRÈTE. Quelqu'un à qui l'on vient de réclamer ses
+        douze mots doit pouvoir vérifier en un geste, avant d'avoir le
+        temps d'hésiter. Noyée parmi quatre cartes de même poids, elle
+        deviendrait un thème parmi d'autres.
+
+        LES CANAUX. Quelqu'un qui doute d'un message reçu — « le support
+        VaultEx vous contacte » — n'a aucun moyen simple de vérifier
+        quels sont les vrais. L'application est la seule source qu'un
+        escroc ne contrôle pas.
+
+        Posées en pleine largeur sous la grille, elles se lisent comme ce
+        qu'elles sont : des phrases, pas des rubriques.
+        ═══════════════════════════════════════════════════════════════
+        */
+        listOf(
+            R.string.assistance_ex_phrase,
             R.string.assistance_ex_equipe
         ).forEach { id ->
             val texte = stringResource(id)
@@ -484,33 +580,164 @@ distingue les deux voix même quand une réponse est courte et tient sur la
 même largeur que la question.
 
 LA LARGEUR MAXIMALE SUIT L'ÉCRAN. 300 dp fixes débordaient d'un petit
-téléphone et flottaient sur un grand ; 78 % de la largeur laisse toujours
+téléphone et flottaient sur un grand ; 72 % de la largeur laisse toujours
 voir de quel côté la bulle est posée.
+
+ELLE EST PASSÉE DE 78 À 72 % en même temps que l'avatar est arrivé : le
+jeton prend 36 dp sur la gauche, et sans cette reprise les réponses
+longues venaient toucher le bord droit de l'écran.
 */
 @Composable
 private fun Bulle(m: MessageAssistance) {
-    val maxLargeur = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
+    val maxLargeur = (LocalConfiguration.current.screenWidthDp * 0.72f).dp
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = if (m.deMoi) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (m.deMoi) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
-        Surface(
-            shape =
-                if (m.deMoi) RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
-                else RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
-            // Le message de l'utilisateur en bleu plein : c'est la couleur
-            // de l'action dans toute l'application, et ici l'action c'est
-            // d'avoir demandé. La réponse reste sur le fond des cartes.
-            color = if (m.deMoi) AccentBlue else SurfaceColor,
-            modifier = Modifier.widthIn(max = maxLargeur)
-        ) {
+        /*
+        L'AVATAR NE SERT PAS A DECORER.
+
+        Une conversation d'assistance se relit, parfois en la montrant a
+        quelqu'un d'autre. Sans marque de qui parle, une reponse copiee
+        d'un escroc et une reponse de l'application se ressemblent. Le
+        jeton VaultEx, du cote des reponses seulement, dit d'ou vient la
+        phrase qu'on est en train de croire.
+        */
+        if (!m.deMoi) {
+            Box(
+                Modifier.size(28.dp).clip(CircleShape).background(AccentBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("V", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Column(horizontalAlignment = if (m.deMoi) Alignment.End else Alignment.Start) {
+            Surface(
+                shape =
+                    if (m.deMoi) RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+                    else RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
+                // Le message de l'utilisateur en bleu plein : c'est la couleur
+                // de l'action dans toute l'application, et ici l'action c'est
+                // d'avoir demandé. La réponse reste sur le fond des cartes.
+                color = if (m.deMoi) AccentBlue else SurfaceColor,
+                modifier = Modifier.widthIn(max = maxLargeur)
+            ) {
+                Text(
+                    m.texte,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    color = if (m.deMoi) Color.White else TextPrimary
+                )
+            }
+            /*
+            L'HEURE, ET RIEN D'AUTRE.
+
+            Pas de double coche : elle voudrait dire « lu », et personne
+            ne lit. Imiter cette marque-la sur une machine, c'est faire
+            croire a quelqu'un derriere l'ecran — exactement ce que le
+            reste de cet ecran s'applique a ne pas faire.
+
+            L'heure, elle, est vraie et elle sert : on retrouve a quel
+            moment on a pose la question quand on la rapporte.
+            */
             Text(
-                m.texte,
-                modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                color = if (m.deMoi) Color.White else TextPrimary
+                heureCourte(m.quand),
+                fontSize = 10.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
+        }
+    }
+}
+
+/** « 18:22 ». Lue dans le fuseau du telephone, comme toutes les heures. */
+private fun heureCourte(quand: Long): String =
+    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        .format(java.util.Date(quand))
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'EN-TÊTE
+═══════════════════════════════════════════════════════════════════════════
+
+Un dégradé, un jeton, un titre, et une ligne d'état. C'est la forme d'une
+messagerie, et elle dit en un coup d'œil où l'on est.
+
+─── CE QUE LA LIGNE D'ÉTAT NE DIRA PAS ─────────────────────────────────
+
+« En ligne • Nous répondons rapidement ». C'était dans la maquette, et
+c'est refusé.
+
+Les deux moitiés promettent quelqu'un. « En ligne » est le mot des
+messageries pour dire qu'une PERSONNE est devant son écran ; « nous
+répondons » met un nous humain derrière. Or il n'y a personne : il y a un
+modèle, et l'accueil de cet écran prend soin de le dire — « les réponses
+sont automatiques et immédiates ».
+
+Laisser croire à un humain se paie deux fois : par la déception quand une
+réponse sonne faux, et par la confiance qu'on ne regagne pas. C'est écrit
+en toutes lettres en haut de ce fichier depuis le premier jour.
+
+─── ELLE EST MESURÉE, PAS DÉCORATIVE ───────────────────────────────────
+
+Le point vert ne dit pas « nous sommes là ». Il dit que le dernier
+échange a abouti. Quand le relais ne répond pas, il passe à l'orange et
+le texte change — parce qu'un voyant qui reste vert pendant une panne
+n'est pas un voyant, c'est un dessin.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun EnTete(enService: Boolean, onRetour: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(AccentBlue, AccentBlueDark)))
+            .statusBarsPadding()
+            .padding(horizontal = 6.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onRetour) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    stringResource(R.string.back),
+                    tint = Color.White
+                )
+            }
+            Box(
+                Modifier.size(38.dp).clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.SupportAgent, null,
+                    tint = Color.White, modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    stringResource(R.string.assistance_titre),
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(7.dp).clip(CircleShape)
+                            .background(if (enService) AccentGreen else AccentOrange)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(
+                            if (enService) R.string.assistance_statut_actif
+                            else R.string.assistance_statut_muet
+                        ),
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
         }
     }
 }
