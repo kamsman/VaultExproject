@@ -715,12 +715,55 @@ private fun ColumnScope.EtapeCalcul(
         NoteEnDeuxTemps(messageBlocage(it, p, state.monnaie), AccentRed)
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « LE BOUTON CONTINUER NE PASSE PAS » — ET IL NE DISAIT RIEN
+    ═══════════════════════════════════════════════════════════════════════
+
+    Signale a l'usage, sur une VENTE, et c'etait exact.
+
+    Sur un ACHAT, « Continuer » passe a l'etape suivante immediatement :
+    tout est calcule sur le telephone.
+
+    Sur une VENTE, non. Le bouton appelle d'abord le relais pour obtenir
+    le MONTANT MARQUE — « 6,894231 » et non « 6 » — parce qu'il faut le
+    connaitre AVANT d'envoyer quoi que ce soit. Cet appel prend le temps
+    d'un aller-retour reseau, et il peut echouer.
+
+    Or cet ecran n'affichait NI l'attente NI l'echec. `confirmer()` posait
+    bien un message dans `erreur`, mais aucun endroit du temps 1 ne le
+    lisait — il n'etait affiche qu'a l'etape de paiement, ou l'on n'arrive
+    justement jamais quand l'appel echoue.
+
+    Resultat : on appuyait, l'ecran ne bougeait pas, et rien n'expliquait
+    pourquoi. Le defaut le plus couteux d'une interface n'est pas celui
+    qui se voit — c'est celui qui ne se voit pas.
+
+    Trois corrections, et les trois comptent :
+
+      — le message d'erreur s'affiche, en rouge, au-dessus du bouton ;
+      — le bouton tourne pendant l'appel, pour qu'on sache qu'il se passe
+        quelque chose ;
+      — et il s'eteint pendant ce temps. `confirmer()` refusait deja un
+        second appel, mais un bouton qui reste actif invite a reappuyer,
+        et reappuyer sans effet fait conclure qu'il est casse.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    state.erreur?.let { Text(it, fontSize = 12.sp, color = AccentRed) }
+
     Button(
         onClick = vm::confirmer,
-        enabled = blocage == null,
+        enabled = blocage == null && !state.envoiEnCours,
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth().height(52.dp)
     ) {
+        if (state.envoiEnCours) {
+            CircularProgressIndicator(
+                Modifier.size(18.dp), strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(Modifier.width(10.dp))
+        }
         Text(stringResource(R.string.change_continuer), fontWeight = FontWeight.Bold)
     }
 
