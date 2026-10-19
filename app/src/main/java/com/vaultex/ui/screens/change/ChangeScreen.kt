@@ -15,6 +15,9 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -35,6 +38,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -868,14 +872,32 @@ private fun ColumnScope.EtapePaiement(
             quelqu'un chercher entre Orange Money, Moov et Wave — et payer
             depuis la mauvaise ne marche pas toujours entre operateurs.
             */
+            /*
+            UNE ICONE PAR LIGNE, POUR QU'ON RETROUVE SANS RELIRE.
+
+            Cinq lignes de detail se ressemblent toutes a l'oeil : meme
+            taille, meme couleur, meme alignement. On les relit donc en
+            entier a chaque fois qu'on cherche le numero ou le montant,
+            alors qu'on est debout, en train de payer.
+
+            Une pastille teintee par ligne donne a chacune une silhouette.
+            C'est le meme mecanisme que les quatre cartes de l'assistance,
+            et il n'y a rien de plus a dire : ca se balaie au lieu de se
+            lire.
+            */
             LigneACopier(
                 libelle = if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
                 else stringResource(R.string.change_adresse),
                 valeur = aCopier,
+                icone = if (achat) Icons.Default.Smartphone else Icons.Default.AccountBalanceWallet,
                 onCopier = { copier(aCopier) }
             )
             if (achat && p.nomChangeur.isNotBlank()) {
-                Ligne(stringResource(R.string.change_beneficiaire), p.nomChangeur)
+                Ligne(
+                    stringResource(R.string.change_beneficiaire),
+                    p.nomChangeur,
+                    icone = Icons.Default.Person
+                )
             }
             /*
             ═══════════════════════════════════════════════════════════
@@ -900,10 +922,24 @@ private fun ColumnScope.EtapePaiement(
             ═══════════════════════════════════════════════════════════
             */
             if (achat) {
+                /*
+                LE MONTANT EN VEDETTE, ET EN BLEU.
+
+                C'est le chiffre qu'on recopie dans Orange Money, et le
+                seul de cet ecran dont une erreur coute de l'argent. Il
+                etait a la meme taille que le benificiaire et le delai.
+
+                En bleu, et non en vert : le vert de `vedette` dit « ce
+                que tu recois », ce qui est juste sur une vente. Ici c'est
+                ce qu'on PAIE — annoncer une sortie en vert serait a
+                contresens.
+                */
                 Ligne(
                     stringResource(R.string.change_montant_exact),
                     "${fcfa(state.montantFcfa ?: 0.0)} FCFA",
-                    fort = true
+                    icone = Icons.Default.Payments,
+                    vedette = true,
+                    teinte = AccentBlue
                 )
             } else {
                 val montantTexte = crypto(state.montantCrypto ?: 0.0, state.monnaie)
@@ -927,7 +963,12 @@ private fun ColumnScope.EtapePaiement(
             donc mise en avant, et l'écran demande explicitement de la
             porter en motif.
             */
-            Ligne(stringResource(R.string.change_reference), state.reference, fort = true)
+            Ligne(
+                stringResource(R.string.change_reference),
+                state.reference,
+                icone = Icons.Default.Description,
+                fort = true
+            )
             /*
             LE DELAI RESTE, LE PAVE ORANGE PART.
 
@@ -1065,13 +1106,36 @@ private fun ColumnScope.EtapePaiement(
             valider AVANT de l'envoyer, ce qui est la seule vérification
             qui compte sur une opération irréversible.
             */
-            Text(
-                code,
-                fontSize = 13.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                color = TextSecondary,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            /*
+            ET IL SE COPIE, CE QUI MANQUAIT.
+
+            Le commentaire ci-dessus dit que le code reste composable a la
+            main quand le composeur s'ouvre vide — ce qui arrive sur
+            certaines surcouches constructeur. Mais il fallait alors le
+            RECOPIER CARACTERE PAR CARACTERE depuis l'ecran, avec ses
+            etoiles, ses diese et un montant au franc pres.
+
+            Une raison d'etre qu'on ne peut pas suivre n'en est pas une.
+            Le bouton de copie fait tenir la promesse du commentaire.
+            */
+            Row(
+                Modifier.align(Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    code,
+                    fontSize = 13.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = { copier(code) }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.ContentCopy, stringResource(R.string.copy),
+                        tint = AccentBlue, modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
             /*
             ═══════════════════════════════════════════════════════════
             LA NOTE SOUS LE BOUTON A ETE RETIREE
@@ -2545,10 +2609,15 @@ où un libellé s'allonge.
 ═══════════════════════════════════════════════════════════════════════════
 */
 @Composable
-private fun LigneACopier(libelle: String, valeur: String, onCopier: () -> Unit) {
+private fun LigneACopier(
+    libelle: String,
+    valeur: String,
+    icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onCopier: () -> Unit
+) {
     if (valeur.length <= VALEUR_COURTE) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { Ligne(libelle, valeur, fort = true) }
+            Box(Modifier.weight(1f)) { Ligne(libelle, valeur, icone = icone, fort = true) }
             IconButton(onClick = onCopier, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.ContentCopy, stringResource(R.string.copy),
@@ -2610,7 +2679,18 @@ private fun Ligne(
     valeur: String,
     icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
     fort: Boolean = false,
-    vedette: Boolean = false
+    vedette: Boolean = false,
+    /*
+    LA TEINTE D'UNE VEDETTE, QUAND LE VERT NE VEUT RIEN DIRE.
+
+    Le vert etait cable en dur : il dit « ce que tu recois », et c'est
+    juste sur une vente. Sur un achat, la vedette est le montant qu'on
+    DOIT PAYER — le vert y annoncerait un gain la ou il y a une sortie.
+
+    Le bleu est la couleur de l'action dans toute l'application, et payer
+    est une action.
+    */
+    teinte: Color? = null
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         icone?.let {
@@ -2622,14 +2702,14 @@ private fun Ligne(
             ce qu'on lui demande : permettre de retrouver « ce que je
             recois » sans relire les quatre lignes.
             */
-            val teinte = if (vedette) AccentGreen else AccentBlue
+            val couleurIcone = teinte ?: if (vedette) AccentGreen else AccentBlue
             Box(
                 Modifier.size(28.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(teinte.copy(alpha = 0.12f)),
+                    .background(couleurIcone.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(it, null, tint = teinte, modifier = Modifier.size(15.dp))
+                Icon(it, null, tint = couleurIcone, modifier = Modifier.size(15.dp))
             }
             Spacer(Modifier.width(10.dp))
         }
@@ -2638,7 +2718,7 @@ private fun Ligne(
             valeur,
             fontSize = if (vedette) 18.sp else if (fort) 14.sp else 12.sp,
             fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
-            color = if (vedette) AccentGreen else TextPrimary
+            color = teinte ?: if (vedette) AccentGreen else TextPrimary
         )
     }
 }
