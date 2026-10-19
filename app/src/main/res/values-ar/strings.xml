@@ -1106,7 +1106,6 @@
     <string name="change_marge">رسوم الصرف</string>
     <string name="change_delai">المدة المعلنة</string>
     <string name="change_continuer">متابعة</string>
-    <string name="change_avertissement">تتم العملية بينك وبين %1$s، لا مع VaultEx. أموالك لا تمر عبر التطبيق أبدًا.</string>
     <string name="change_pas_de_rachat">لا تُشترى هذه العملة حاليًا. اختر غيرها، أو اشترِ بدل البيع.</string>
     <string name="change_sans_cours">السعر غير متاح: لا يمكن حساب سعر نزيه. افتح الشاشة الرئيسية للتحديث ثم عد.</string>
     <string name="change_sous_minimum">الحد الأدنى: %1$s فرنك.</string>
