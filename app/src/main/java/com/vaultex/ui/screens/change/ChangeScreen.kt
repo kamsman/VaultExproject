@@ -123,7 +123,7 @@ fun ChangeScreen(navController: NavController) {
                 state.chargement && p == null ->
                     Note(stringResource(R.string.change_chargement), AccentBlue)
 
-                p == null -> SansReglages(state.horsLigne) { vm.charger() }
+                p == null -> SansReglages(state) { vm.charger() }
 
                 !p.utilisable ->
                     Note(stringResource(R.string.change_ferme), AccentOrange)
@@ -169,13 +169,47 @@ proposait pas.
 ═══════════════════════════════════════════════════════════════════════════
 */
 @Composable
-private fun ColumnScope.SansReglages(horsLigne: Boolean, onReessayer: () -> Unit) {
+private fun ColumnScope.SansReglages(
+    state: com.vaultex.ui.viewmodel.ChangeState,
+    onReessayer: () -> Unit
+) {
+    /*
+    TROIS CAUSES, TROIS PHRASES, TROIS GESTES.
+
+    La troisieme vient d'etre separee : `SSLException` herite
+    d'`IOException`, donc un refus de connexion securisee s'affichait
+    « verifie tes donnees mobiles ». La cause la plus frequente etant la
+    DATE du telephone, on envoyait chercher a l'exact oppose de l'endroit
+    utile.
+    */
     Note(
         stringResource(
-            if (horsLigne) R.string.change_hors_ligne else R.string.change_indisponible
+            when {
+                state.securise -> R.string.change_tls
+                state.horsLigne -> R.string.change_hors_ligne
+                else -> R.string.change_indisponible
+            }
         ),
         AccentOrange
     )
+
+    /*
+    LE NOM DE L'EXCEPTION, EN PETIT.
+
+    Il ne veut rien dire pour l'utilisateur, et c'est assume : il est la
+    pour la capture d'ecran qu'il enverra. Sans lui, « pas de donnees »,
+    « DNS muet » et « certificat refuse » se ressemblent a l'ecran — et il
+    a deja fallu quatre echanges pour trancher une question que cette
+    ligne repond seule.
+    */
+    if (state.causeReseau.isNotBlank()) {
+        Text(
+            state.causeReseau,
+            fontSize = 10.sp,
+            color = TextSecondary,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+    }
     OutlinedButton(
         onClick = onReessayer,
         shape = RoundedCornerShape(12.dp),
