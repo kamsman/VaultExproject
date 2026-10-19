@@ -6,6 +6,12 @@ COMPOSER UNE BANNIERE D'ANNONCE — PORTRAIT A GAUCHE, LOGO A DROITE
     powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
       -Portrait "C:\Users\HP\Downloads\photo.jpg"
 
+Sans portrait — pour citer quelqu'un dont le visage n'existe pas :
+
+    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
+      -FichierCitation "tools\annonces\citation-satoshi.txt" `
+      -Sortie "tools\annonces\la-confiance.jpg"
+
 Avec une citation :
 
     powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
@@ -75,7 +81,7 @@ des lignes saines. C'est arrive. Deux protections valent mieux qu'une.
 #>
 
 param(
-    [Parameter(Mandatory = $true)][string]$Portrait,
+    [string]$Portrait,
     [string]$Sortie,
     [string]$Logo,
     [string]$Citation,
@@ -95,7 +101,24 @@ function Absolu([string]$chemin, [string]$defaut) {
     return [System.IO.Path]::GetFullPath((Join-Path $racine $chemin))
 }
 
-$cheminPortrait = Absolu $Portrait ''
+<#
+===========================================================================
+LE PORTRAIT EST FACULTATIF, ET CE N'EST PAS UN CONFORT
+===========================================================================
+
+Il y a des gens qu'on cite et dont le visage n'existe pas. Satoshi
+Nakamoto en est un : personne ne sait qui c'est, et les « photos de
+Satoshi » qui circulent sont soit des images fabriquees, soit — et c'est
+le pire cas — le visage de Dorian Nakamoto, un homme designe a tort par
+Newsweek en 2014 et dont la vie a ete bouleversee par cette erreur.
+
+Mettre un visage la ou il n'y en a pas, c'est affirmer quelque chose de
+faux sur quelqu'un de reel. Sans portrait, la citation prend toute la
+largeur : c'est elle l'objet de la carte, et elle se suffit.
+===========================================================================
+#>
+$avecPortrait = -not [string]::IsNullOrWhiteSpace($Portrait)
+$cheminPortrait = if ($avecPortrait) { Absolu $Portrait '' } else { '' }
 $cheminLogo     = Absolu $Logo    'app\src\main\res\drawable\logorond.png'
 $cheminSortie   = Absolu $Sortie  'tools\annonces\banniere.jpg'
 
@@ -141,7 +164,8 @@ if (-not [string]::IsNullOrWhiteSpace($FichierCitation)) {
     }
 }
 
-foreach ($f in @($cheminPortrait, $cheminLogo)) {
+$aControler = if ($avecPortrait) { @($cheminPortrait, $cheminLogo) } else { @($cheminLogo) }
+foreach ($f in $aControler) {
     if (-not (Test-Path $f)) {
         Write-Host ""
         Write-Host "Introuvable : $f" -ForegroundColor Red
@@ -156,7 +180,9 @@ foreach ($f in @($cheminPortrait, $cheminLogo)) {
 # 2:1, et assez large pour ne pas etre etire sur un grand ecran.
 $L = 1024
 $H = 512
-$zoneP = 460          # largeur de la zone du portrait
+# Sans portrait, sa zone vaut zero : la citation part du bord gauche,
+# avec la seule marge, et dispose de toute la largeur.
+$zoneP = if ($avecPortrait) { 460 } else { 0 }
 $fondu = 150          # largeur du degrade qui fond le portrait dans le fond
 $tailleLogo = 230
 
@@ -200,7 +226,8 @@ $pinceauFond = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
     $tout, $haut, $bas, 25.0)
 $g.FillRectangle($pinceauFond, $tout)
 
-# ---- Le portrait, a gauche ----------------------------------------------
+# ---- Le portrait, a gauche (s'il y en a un) -----------------------------
+if ($avecPortrait) {
 $photo = Charger $cheminPortrait 'portrait'
 
 <#
@@ -243,6 +270,7 @@ $invisible = [System.Drawing.Color]::FromArgb(0, $bas.R, $bas.G, $bas.B)
 $pinceauFondu = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
     $zoneFondu, $invisible, $bas, 0.0)
 $g.FillRectangle($pinceauFondu, $zoneFondu)
+}
 
 # ---- Le logo, a droite --------------------------------------------------
 #
@@ -278,7 +306,9 @@ if ($avecCitation) {
     $petit = 70
     $g.DrawImage($imageLogo, ($L - $petit - 34), ($H - $petit - 30), $petit, $petit)
 
-    $marge = 40
+    # Sans portrait, le texte respire des deux cotes : une ligne qui court
+    # d'un bord a l'autre sur 1024 points se lit mal.
+    $marge = if ($avecPortrait) { 40 } else { 80 }
     $gauche = $zoneP + $marge
     $largeurTexte = $L - $gauche - $marge
     $hauteurTexte = $H - 150
@@ -348,8 +378,10 @@ if ($extension -eq '.png') {
 }
 
 $imageLogo.Dispose()
-$photo.Dispose()
-$pinceauFondu.Dispose()
+if ($avecPortrait) {
+    $photo.Dispose()
+    $pinceauFondu.Dispose()
+}
 $pinceauFond.Dispose()
 $g.Dispose()
 $image.Dispose()
