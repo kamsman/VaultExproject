@@ -87,7 +87,7 @@ class NotificationHub @Inject constructor(
         // échoue (permission refusée, canal bloqué), l'utilisateur retrouve
         // quand même l'événement dans l'application.
         val lienSur = LienAnnonce.valide(lien)
-        center.push(title, body, symbol, hash, lienSur)
+        center.push(title, body, symbol, hash, lienSur, imageUrl)
 
         /*
         ═══════════════════════════════════════════════════════════════════

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
@@ -212,6 +213,46 @@ private fun NotifRow(item: NotifItem, onClick: (() -> Unit)?) {
             Column(Modifier.weight(1f)) {
                 Text(item.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary)
                 Text(item.body, fontSize = 12.sp, color = TextSecondary)
+
+                /*
+                ═══════════════════════════════════════════════════════════
+                LA BANNIÈRE, ICI AUSSI
+                ═══════════════════════════════════════════════════════════
+
+                Signalé après un vrai envoi : « c'est bien venu mais pas de
+                photo ». Elle n'existait que dans la notification Android,
+                et seulement DÉPLIÉE — repliée on ne la voit pas, balayée
+                elle disparaît.
+
+                Or c'est ici qu'on revient relire une annonce. La cloche
+                est la trace durable ; le volet système ne l'est pas. Le
+                travail de composer une bannière était donc a moitié perdu.
+
+                ─── ELLE N'EMPÊCHE RIEN SI ELLE NE VIENT PAS ──────────────
+
+                Pas d'indicateur de chargement, pas de place reservee :
+                sans reseau, la ligne garde son titre, son texte et sa date,
+                et l'image est simplement absente. Une notification ne doit
+                jamais dependre d'un telechargement pour etre lisible.
+
+                Le rapport 2:1 est celui de la banniere composee, donc rien
+                n'est recadre ici — contrairement au volet systeme.
+                ═══════════════════════════════════════════════════════════
+                */
+                item.image?.takeIf { it.isNotBlank() }?.let { adresse ->
+                    Spacer(Modifier.height(8.dp))
+                    coil.compose.AsyncImage(
+                        model = adresse,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(2f)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
+
                 /*
                 LA DATE SEULE, PUISQUE L'HEURE EST À DROITE.
 

@@ -34,7 +34,28 @@ data class NotifItem(
      * nul aussi sur les notifications enregistrées avant l'ajout de ce champ,
      * que Gson relit sans broncher.
      */
-    val lien: String? = null
+    val lien: String? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA BANNIÈRE DE L'ANNONCE, POUR QU'ELLE SURVIVE AU VOLET SYSTÈME
+    ═══════════════════════════════════════════════════════════════════════
+
+    Signalé après un vrai envoi : « c'est bien venu mais pas de photo ».
+
+    La bannière n'existait que dans la notification Android, et seulement
+    DÉPLIÉE. Repliée, elle ne se voit pas ; balayée, elle disparaît. Or
+    c'est ici qu'on revient relire une annonce — la cloche est la trace
+    durable, le volet système ne l'est pas.
+
+    Le travail de composer une bannière était donc à moitié perdu : elle
+    vivait quelques secondes, pour ceux qui pensaient à dérouler.
+
+    Nul sur tout le reste — alerte de prix, dépôt — et nul aussi sur les
+    notifications enregistrées avant l'ajout de ce champ, que Gson relit
+    sans broncher. C'est la même mécanique que `hash` et `lien`.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val image: String? = null
 )
 
 /**
@@ -99,7 +120,8 @@ class NotificationCenter @Inject constructor(
         body: String,
         symbol: String? = null,
         hash: String? = null,
-        lien: String? = null
+        lien: String? = null,
+        image: String? = null
     ) {
         val item = NotifItem(
             id = System.currentTimeMillis(),
@@ -109,7 +131,8 @@ class NotificationCenter @Inject constructor(
             symbol = symbol,
             read = false,
             hash = hash,
-            lien = lien
+            lien = lien,
+            image = image
         )
         apply((listOf(item) + _items.value).take(100))
     }
