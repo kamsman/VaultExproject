@@ -271,8 +271,44 @@ sealed interface ResultatParametres {
      *
      * Données mobiles coupées, Wi-Fi sans Internet, DNS muet. L'écran doit
      * parler de la CONNEXION, et surtout pas du service.
+     *
+     * [detail] porte le nom de l'exception — `UnknownHostException`,
+     * `ConnectException`… Il s'affiche en petit sous le message : sans
+     * lui, une capture d'écran ne permet pas de distinguer les trois
+     * causes, et on en est réduit à deviner.
      */
-    object HorsLigne : ResultatParametres
+    data class HorsLigne(val detail: String = "") : ResultatParametres
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA CONNEXION SÉCURISÉE A ÉTÉ REFUSÉE — ET CE N'EST PAS « HORS LIGNE »
+    ═══════════════════════════════════════════════════════════════════════
+
+    `SSLException` HÉRITE D'`IOException`. Tout ce qui touche au TLS
+    tombait donc dans [HorsLigne], et l'écran disait « vérifie tes données
+    mobiles » — à quelqu'un dont les données marchaient parfaitement.
+
+    C'est la faute que cet écran venait d'être corrigé pour ne plus
+    commettre, refaite une branche plus loin : une seule phrase pour deux
+    causes qui appellent deux gestes opposés.
+
+    ─── LES TROIS CAUSES RÉELLES, ET LEUR ORDRE ────────────────────────
+
+    LA DATE DU TÉLÉPHONE, de loin la plus fréquente. Un certificat n'est
+    valable qu'entre deux dates ; une horloge qui a dérivé de quelques
+    jours les rend toutes les deux fausses. L'utilisateur peut le corriger
+    seul, en dix secondes, et il n'y penserait jamais.
+
+    UN PORTAIL WI-FI qui intercepte la connexion avant d'avoir été
+    accepté — hôtel, cybercafé.
+
+    UNE EMPREINTE ÉPINGLÉE qui ne correspond plus. Là, l'utilisateur ne
+    peut rien : c'est à nous de republier. Mais le relais n'est pas
+    épinglé, donc ce cas-là ne devrait pas toucher cet écran — et s'il le
+    touche, `detail` le dira.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    data class Securise(val detail: String = "") : ResultatParametres
 
     /**
      * Le relais a répondu, et sa réponse n'est pas utilisable.
@@ -349,7 +385,15 @@ class ChangeService @Inject constructor(
             relais a parlé.
             */
             com.vaultex.core.monitoring.reportUnlessCancelled("parametres change hors ligne", e)
-            ResultatParametres.HorsLigne
+            /*
+            ON SÉPARE LE TLS DU RESTE, parce que `SSLException` hérite
+            d'`IOException` et que les deux appellent des gestes opposés :
+            l'un fait regarder ses données mobiles, l'autre la date du
+            téléphone.
+            */
+            val nom = e::class.java.simpleName
+            if (e is javax.net.ssl.SSLException) ResultatParametres.Securise(nom)
+            else ResultatParametres.HorsLigne(nom)
         } catch (e: Exception) {
             com.vaultex.core.monitoring.reportUnlessCancelled("parametres change", e)
             ResultatParametres.Indisponible

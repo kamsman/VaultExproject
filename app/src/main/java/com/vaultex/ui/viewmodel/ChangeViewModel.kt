@@ -50,6 +50,24 @@ data class ChangeState(
     ═══════════════════════════════════════════════════════════════════════
     */
     val horsLigne: Boolean = false,
+    /**
+     * La connexion securisee a ete refusee — ce n'est PAS « hors ligne ».
+     *
+     * `SSLException` herite d'`IOException` : tout ce qui touche au TLS
+     * tombait dans `horsLigne`, et l'ecran disait « verifie tes donnees
+     * mobiles » a quelqu'un dont les donnees marchaient. La cause la plus
+     * frequente est la DATE du telephone, qu'il peut corriger seul.
+     */
+    val securise: Boolean = false,
+    /**
+     * Le nom de l'exception, affiche en petit sous le message.
+     *
+     * Sans lui, une capture d'ecran ne permet pas de distinguer
+     * « pas de donnees » de « DNS muet » ou « certificat refuse » — et on
+     * en est reduit a deviner. Il a deja fallu quatre echanges pour
+     * trancher une question que cette ligne repond seule.
+     */
+    val causeReseau: String = "",
     val chargement: Boolean = true,
     val sens: SensChange = SensChange.ACHAT,
     val monnaie: String = "USDT",
@@ -397,6 +415,12 @@ class ChangeViewModel @Inject constructor(
                 it.copy(
                     parametres = p,
                     horsLigne = lu is ResultatParametres.HorsLigne,
+                    securise = lu is ResultatParametres.Securise,
+                    causeReseau = when (lu) {
+                        is ResultatParametres.HorsLigne -> lu.detail
+                        is ResultatParametres.Securise -> lu.detail
+                        else -> ""
+                    },
                     chargement = false,
                     monnaie = p?.monnaies?.firstOrNull() ?: it.monnaie
                 )

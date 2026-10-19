@@ -1127,6 +1127,7 @@
     <string name="change_chargement">Lecture des conditions du jour…</string>
     <string name="change_indisponible">Service indisponible pour le moment. Réessaie dans un instant.</string>
     <string name="change_hors_ligne">Impossible de joindre VaultEx. Vérifie tes données mobiles ou ton Wi-Fi, puis réessaie.</string>
+    <string name="change_tls">La connexion sécurisée a été refusée. Vérifie d\'abord la DATE et l\'HEURE de ton téléphone — c\'est la cause la plus fréquente. Si tu es sur un Wi-Fi public, ouvre son portail puis réessaie.</string>
     <string name="change_ferme">Le change est fermé pour le moment. Reviens plus tard.</string>
     <string name="change_acheter">Acheter</string>
     <string name="change_vendre">Vendre</string>
