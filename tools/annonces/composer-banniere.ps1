@@ -18,6 +18,10 @@ Options :
     -Sortie <chemin>   defaut : tools\annonces\banniere.jpg
     -Logo <chemin>     defaut : le logo rond de l'application
     -Citation <texte>  une phrase a droite ; le logo passe en petit, en coin
+    -FichierCitation <chemin>
+                       la citation ligne 1, l'auteur ligne 2, en UTF-8.
+                       A PREFERER des qu'il y a des accents : la ligne de
+                       commande Windows les abime, un fichier non.
     -Auteur <nom>      le nom sous la phrase
     -Qualite <1-100>   defaut : 85
 
@@ -75,6 +79,7 @@ param(
     [string]$Sortie,
     [string]$Logo,
     [string]$Citation,
+    [string]$FichierCitation,
     [string]$Auteur,
     [int]$Qualite = 85
 )
@@ -93,6 +98,48 @@ function Absolu([string]$chemin, [string]$defaut) {
 $cheminPortrait = Absolu $Portrait ''
 $cheminLogo     = Absolu $Logo    'app\src\main\res\drawable\logorond.png'
 $cheminSortie   = Absolu $Sortie  'tools\annonces\banniere.jpg'
+
+<#
+===========================================================================
+LA CITATION PEUT VENIR D'UN FICHIER, ET C'EST LE MOYEN SUR
+===========================================================================
+
+MESURE : une citation francaise passee en argument perd ses accents, ou
+pire, la ligne de commande se mange les continuations et le script recoit
+« m » comme valeur de -Qualite.
+
+C'est le meme probleme que send-announcement.sh, dont le LISEZMOI impose
+--fichier pour cette raison exacte : la ligne de commande Windows abime
+les accents, un fichier UTF-8 non.
+
+Format du fichier : la citation sur la PREMIERE ligne, l'auteur sur la
+SECONDE. Deux lignes, rien a echapper, et le texte se relit dans un
+editeur au lieu de vivre dans un historique de terminal.
+===========================================================================
+#>
+if (-not [string]::IsNullOrWhiteSpace($FichierCitation)) {
+    $cheminCitation = Absolu $FichierCitation ''
+    if (-not (Test-Path $cheminCitation)) {
+        Write-Host ""
+        Write-Host "Introuvable : $cheminCitation" -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
+    # UTF8 explicite : sans ca, Windows PowerShell lit en ANSI et les
+    # accents deviennent des paires de caracteres illisibles.
+    $lignes = Get-Content -Path $cheminCitation -Encoding UTF8
+    $lignes = @($lignes | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($lignes.Count -lt 1) {
+        Write-Host ""
+        Write-Host "Ce fichier est vide : $cheminCitation" -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
+    $Citation = $lignes[0].Trim()
+    if ($lignes.Count -ge 2 -and [string]::IsNullOrWhiteSpace($Auteur)) {
+        $Auteur = $lignes[1].Trim()
+    }
+}
 
 foreach ($f in @($cheminPortrait, $cheminLogo)) {
     if (-not (Test-Path $f)) {
