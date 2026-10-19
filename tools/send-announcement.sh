@@ -12,6 +12,15 @@
 #   ./tools/send-announcement.sh "BTC franchit un cap" "Nouveau sommet." BTC
 #   ./tools/send-announcement.sh "Promotion" "Frais reduits." "" https://exemple.com/banniere.png
 #
+# AVANT D'ENVOYER A TOUT LE MONDE — voir le resultat d'abord :
+#
+#   --essai        affiche tout et n'envoie RIEN
+#   --moi <JETON>  envoie a ton seul appareil, pour voir la vraie
+#                  notification avant qu'elle parte aux autres
+#
+# Les deux se placent en premier. Section « VOIR AVANT D'ENVOYER », plus
+# bas, pour le detail.
+#
 # --------------------------------------------------------------------------
 # LE LOGO DE LA NOTIFICATION
 # --------------------------------------------------------------------------

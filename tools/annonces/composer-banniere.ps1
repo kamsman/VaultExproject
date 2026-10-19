@@ -6,6 +6,15 @@ COMPOSER UNE BANNIERE D'ANNONCE — PORTRAIT A GAUCHE, LOGO A DROITE
     powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
       -Portrait "C:\Users\HP\Downloads\photo.jpg"
 
+Une infographie deja composee, servie telle quelle :
+
+    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
+      -Pleine -Portrait "C:\...\hold.png" `
+      -Sortie "tools\annonces\hold-banniere.jpg"
+
+  L'image est recadree en 2:1 PAR LE HAUT — la ou vivent le titre et le
+  premier element. Android, lui, recadrerait au centre et perdrait tout.
+
 Sans portrait — pour citer quelqu'un dont le visage n'existe pas :
 
     powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
@@ -84,6 +93,7 @@ param(
     [string]$Portrait,
     [string]$Sortie,
     [string]$Logo,
+    [switch]$Pleine,
     [string]$Citation,
     [string]$FichierCitation,
     [string]$Auteur,
@@ -233,6 +243,88 @@ $g = [System.Drawing.Graphics]::FromImage($image)
 $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+
+<#
+===========================================================================
+-Pleine : L'IMAGE ENTIERE, RECADREE EN 2:1 PAR LE HAUT
+===========================================================================
+
+Pour une infographie deja composee ailleurs — un classement, une affiche —
+qu'on veut servir telle quelle en banniere.
+
+LE PROBLEME QUE CA RESOUT. Android recadre toute banniere en 2:1 AU
+CENTRE. Une infographie verticale y perd son titre, sa signature, et
+souvent l'essentiel : il ne reste qu'une bande prise au milieu, sans
+contexte, qui ne veut rien dire.
+
+ON COUPE DONC NOUS-MEMES, ET PAR LE HAUT. Dans une affiche, le haut porte
+le titre et le premier element — c'est ce qui se lit et c'est ce qui
+donne envie de voir le reste. Laisser Android choisir, c'est accepter
+qu'il choisisse mal.
+
+CE QUE CA NE FAIT PAS : montrer toute l'infographie. Aucune banriere ne
+le peut. Pour ca, publier l'image entiere sur Telegram et faire pointer
+l'annonce dessus — `send-announcement.sh` accepte un lien `t.me` en
+cinquieme argument.
+#>
+if ($Pleine) {
+    if (-not $avecPortrait) {
+        Write-Host ""
+        Write-Host "-Pleine demande une image : ajoute -Portrait <chemin>." -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
+    $source = Charger $cheminPortrait 'image'
+    $rapportCible = $L / $H
+    $rapportSource = $source.Width / $source.Height
+    if ($rapportSource -gt $rapportCible) {
+        # Plus large que 2:1 : on coupe les cotes, a egalite.
+        $sh2 = $source.Height
+        $sw2 = [int]($source.Height * $rapportCible)
+        $sx2 = [int](($source.Width - $sw2) / 2)
+        $sy2 = 0
+    } else {
+        # Plus haute : on garde LE HAUT, ou vit le titre.
+        $sw2 = $source.Width
+        $sh2 = [int]($source.Width / $rapportCible)
+        $sx2 = 0
+        $sy2 = 0
+    }
+    $plein = New-Object System.Drawing.Rectangle 0, 0, $L, $H
+    $g.DrawImage($source, $plein, $sx2, $sy2, $sw2, $sh2,
+        [System.Drawing.GraphicsUnit]::Pixel)
+    $source.Dispose()
+
+    $extPleine = [System.IO.Path]::GetExtension($cheminSortie).ToLower()
+    $dossierPlein = Split-Path -Parent $cheminSortie
+    if (-not (Test-Path $dossierPlein)) {
+        New-Item -ItemType Directory -Force -Path $dossierPlein | Out-Null
+    }
+    if ($extPleine -eq '.png') {
+        $image.Save($cheminSortie, [System.Drawing.Imaging.ImageFormat]::Png)
+    } else {
+        $codecP = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() |
+            Where-Object { $_.MimeType -eq 'image/jpeg' }
+        $reglagesP = New-Object System.Drawing.Imaging.EncoderParameters 1
+        $reglagesP.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter(
+            [System.Drawing.Imaging.Encoder]::Quality, [long]$Qualite)
+        $image.Save($cheminSortie, $codecP, $reglagesP)
+        $reglagesP.Dispose()
+    }
+    $imageLogoPlein = $null
+    $g.Dispose()
+    $image.Dispose()
+
+    $poidsPlein = [math]::Round((Get-Item $cheminSortie).Length / 1KB, 1)
+    Write-Host ""
+    Write-Host "Banniere ecrite : $cheminSortie" -ForegroundColor Green
+    Write-Host "   $L x $H, $poidsPlein Ko  (image entiere, recadree par le haut)"
+    Write-Host ""
+    Write-Host "Verifie-la :" -ForegroundColor DarkGray
+    Write-Host "   node tools\annonces\verifier-banniere.mjs $cheminSortie"
+    Write-Host ""
+    exit 0
+}
 
 # ---- Le fond ------------------------------------------------------------
 $tout = New-Object System.Drawing.Rectangle 0, 0, $L, $H
