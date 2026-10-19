@@ -1128,6 +1128,17 @@ private fun ColumnScope.EtapePaiement(
 
     La note dit donc les deux cas, et cesse d'annoncer une catastrophe
     qui n'arrive pas.
+
+    ─── ET ELLE LES DIT EN DEUX LIGNES, PLUS EN QUATRE ─────────────────
+
+    Elle expliquait ce qu'est un champ « motif », puis que le code USSD
+    n'en a pas, puis ce qui rattache le paiement à défaut. Trois temps
+    pour une consigne qui en vaut un : garde la référence, mets-la en
+    motif s'il y en a un, sinon le montant et le numéro suffisent.
+
+    Sur un écran qui porte déjà le numéro, le bénéficiaire, le montant, la
+    référence, le compte à rebours et le code USSD, une note longue est
+    une note sautée — et c'est celle-ci qui dit quoi garder.
     ═══════════════════════════════════════════════════════════════════════
     */
     if (achat) {
