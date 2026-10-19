@@ -39,11 +39,15 @@ lignes.
 
 ## Si c'est pour une carte visuelle
 
-Le portrait fourni est carré. Pour une bannière 2:1 :
+Le portrait fourni est carré. Pour une bannière 2:1, une seule ligne à
+coller — pas de retour à la ligne, il casse la commande :
 
-    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
-      -Portrait "C:\...\rasmane.jpg" `
-      -FichierCitation "tools\annonces\citation-rasmane.txt" `
-      -Sortie "tools\annonces\rasmane.jpg"
+    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 -Portrait "C:\Users\HP\Downloads\rasm.jpg" -FichierCitation "tools\annonces\citation-rasmane.txt" -Sortie "tools\annonces\rasmane.jpg"
 
-Le fichier de citation reste à créer : la phrase ligne 1, le nom ligne 2.
+Le fichier de citation existe : `citation-rasmane.txt`, la phrase ligne 1,
+le nom ligne 2.
+
+Le texte de l'annonce est `esprit-04-confiance-des-africains.txt`. Il est
+volontairement court : une notification repliée n'affiche qu'une seule
+ligne de corps, et c'est « Directeur Marketing de VaultEx. » qui doit
+tenir dedans. La citation et la bannière n'apparaissent qu'en dépliant.
