@@ -98,6 +98,45 @@ fun ChangeScreen(navController: NavController) {
     val state by vm.state.collectAsState()
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE BOUTON RETOUR DU TELEPHONE RAMENE AU FORMULAIRE, PAS A L'ACCUEIL
+    ═══════════════════════════════════════════════════════════════════════
+
+    Signale a l'usage : depuis l'ecran de paiement d'un achat, le retour
+    systeme quittait l'ecran et deposait sur l'accueil. L'ecran precedent,
+    du point de vue de celui qui l'utilise, c'est le FORMULAIRE — pas
+    l'accueil.
+
+    Il fait donc desormais ce que fait le bouton « Retour » deja present
+    en bas de l'ecran. Une seule facon de revenir, un seul resultat.
+
+    ─── POURQUOI SEULEMENT SUR UN ACHAT ────────────────────────────────
+
+    Parce que revenir ABANDONNE la demande : la reference est effacee, et
+    la trace sur le disque avec elle.
+
+    Sur un achat, c'est sans consequence tant qu'on n'a pas transmis — le
+    changeur ne sait rien, et rien n'est parti.
+
+    Sur une VENTE, non. Le relais impose un montant marque, derive de
+    cette reference-la, et l'utilisateur a peut-etre DEJA ENVOYE sa crypto
+    quand il appuie. Perdre la reference sur un retour machinal lui
+    couterait son versement — irreversiblement. Le retour systeme y garde
+    donc son comportement : il quitte l'ecran, et la demande reste sur le
+    disque pour etre reprise a la reouverture.
+
+    Deux comportements, parce qu'il y a deux risques. Ce n'est pas une
+    incoherence : c'est la seule facon de ne pas faire payer a l'un la
+    commodite de l'autre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    androidx.activity.compose.BackHandler(
+        enabled = state.etape == EtapeChange.PAIEMENT && state.sens == SensChange.ACHAT
+    ) {
+        vm.retourAuCalcul()
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -1258,16 +1297,35 @@ private fun ColumnScope.EtapePaiement(
             onValueChange = vm::onReferencePaiement,
             label = { Text(stringResource(R.string.change_ref_paiement)) },
             /*
-            UN EXEMPLE PLUTOT QU'UNE DESCRIPTION. « Le numero de
-            transaction que ton operateur t'a envoye par SMS » demande de
-            comprendre une phrase ; « MP251008123456 » se reconnait d'un
-            coup d'oeil dans le SMS qu'on a sous les yeux.
+            ═══════════════════════════════════════════════════════════════
+            L'EXEMPLE EST DANS L'AIDE, PLUS DANS LE PLACEHOLDER
+            ═══════════════════════════════════════════════════════════════
+
+            Il y etait, et il ne se voyait pas. Avec un OutlinedTextField,
+            le LIBELLE occupe la case tant que le champ est vide et non
+            touche : le placeholder n'apparait qu'au focus — c'est-a-dire
+            une fois qu'on a deja decide quoi taper.
+
+            Le commentaire que ces lignes remplacent disait « un exemple
+            plutot qu'une description ». L'intention etait juste ; c'est
+            la description qu'on voyait.
+
+            « Ex. MP251008123456 » vit donc dans l'aide, toujours
+            affichee, et se reconnait d'un coup d'oeil dans le SMS qu'on a
+            sous les yeux.
+            ═══════════════════════════════════════════════════════════════
             */
-            placeholder = { Text("Ex. MP251008123456", color = TextSecondary) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Description, null,
+                    tint = AccentBlue, modifier = Modifier.size(18.dp)
+                )
+            },
             supportingText = {
                 Text(stringResource(R.string.change_ref_paiement_aide), fontSize = 11.sp)
             },
             singleLine = true,
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1298,7 +1356,17 @@ private fun ColumnScope.EtapePaiement(
                 )
             )
         },
-        placeholder = { Text("Ex. 70 12 34 56", color = TextSecondary) },
+        /*
+        MEME RAISON QUE CI-DESSUS : l'exemple est passe dans l'aide, qui
+        est toujours visible, au lieu du placeholder qui ne l'est qu'au
+        focus.
+        */
+        leadingIcon = {
+            Icon(
+                Icons.Default.Smartphone, null,
+                tint = AccentBlue, modifier = Modifier.size(18.dp)
+            )
+        },
         supportingText = {
             Text(
                 stringResource(
@@ -1315,6 +1383,7 @@ private fun ColumnScope.EtapePaiement(
         },
         isError = !achat && state.telephone.isNotBlank() && !state.telephoneValide,
         singleLine = true,
+        shape = RoundedCornerShape(12.dp),
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
         ),
