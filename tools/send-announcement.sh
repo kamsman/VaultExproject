@@ -171,6 +171,22 @@ if [ "${1:-}" = "--fichier" ]; then
   fi
   TITLE=$(head -n 1 "$FICHIER")
   BODY=$(tail -n +2 "$FICHIER")
+  # ----------------------------------------------------------------------
+  # LES LIGNES VIDES DU DEBUT SONT RETIREES
+  # ----------------------------------------------------------------------
+  #
+  # Plusieurs fichiers separent le titre du corps par une ligne vide, pour
+  # se relire. Le corps commencait donc par un saut de ligne — invisible
+  # dans un editeur, et pas du tout dans la notification : REPLIEE, Android
+  # n'affiche qu'UNE ligne de corps, et cette ligne-la etait vide.
+  #
+  # L'annonce arrivait avec son titre et rien en dessous, pour tous ceux
+  # qui ne la deroulent pas. Vu a l'essai sur esprit-04.
+  #
+  # `sed '/./,$!d'` supprime tout jusqu'a la premiere ligne non vide. Les
+  # lignes vides DANS le texte sont gardees : elles separent des
+  # paragraphes qu'on lit en deroulant.
+  BODY=$(printf '%s\n' "$BODY" | sed '/./,$!d')
   SYMBOL="${3:-}"
   IMAGE="${4:-}"
   LIEN="${5:-}"
