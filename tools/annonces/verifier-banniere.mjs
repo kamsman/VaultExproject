@@ -179,7 +179,17 @@ if (!cible.startsWith('http')) {
   depot remonte de deux crans.
   */
   const absolu = /^([A-Za-z]:[\\/]|\/)/.test(cible)
-  const cheminDepuisRelais = absolu ? cible : `../../${cible}`
+  /*
+  UN SEUL SENS DE BARRE DANS LA COMMANDE AFFICHEE.
+
+  PowerShell donne « tools\annonces\x.jpg » ; on prefixait par
+  « ../../ », d'ou « ../../tools\annonces\x.jpg ». Ca fonctionne sous
+  Windows, et ca a l'air d'une faute — or cette ligne existe pour etre
+  recopiee telle quelle. Une commande qui a l'air fausse se retape a la
+  main, et c'est la qu'on se trompe.
+  */
+  const propre = cible.replace(/\\/g, '/')
+  const cheminDepuisRelais = absolu ? propre : `../../${propre}`
 
   console.log('\nℹ  Ce fichier doit etre servi depuis une adresse HTTPS PUBLIQUE.')
   console.log('   Depose-le sur le relais, qui en est une :')
