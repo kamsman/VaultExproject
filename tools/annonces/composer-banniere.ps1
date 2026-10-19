@@ -1,0 +1,204 @@
+﻿<#
+===========================================================================
+COMPOSER UNE BANNIERE D'ANNONCE — PORTRAIT A GAUCHE, LOGO A DROITE
+===========================================================================
+
+    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
+      -Portrait "C:\Users\HP\Downloads\photo.jpg"
+
+Options :
+
+    -Sortie <chemin>   defaut : tools\annonces\banniere.jpg
+    -Logo <chemin>     defaut : le logo rond de l'application
+    -Qualite <1-100>   defaut : 85
+
+--- POURQUOI CET OUTIL EXISTE -------------------------------------------
+
+Android recadre la banniere d'une notification en 2:1, au centre. Une
+photo de portrait donnee telle quelle y perd le haut et le bas : sur un
+visage, c'est le visage qui disparait. Mesure sur une vraie photo :
+473 x 648, soit 0,73:1 la ou il en faut 2.
+
+Le recadrage ne peut donc pas etre automatique — il faut COMPOSER :
+poser le portrait sur un cote, et remplir le reste. C'est ce que fait ce
+script.
+
+--- POURQUOI DU JPEG, ET PAS DU PNG -------------------------------------
+
+Le PNG est sans perte, donc une photo de 1024 x 512 y pese souvent plus
+d'un demi-megaoctet. Or cette image est telechargee sur le reseau mobile
+de CHAQUE utilisateur, au moment ou la notification arrive : au-dela de
+300 Ko, elle n'arrive simplement jamais sur une connexion lente.
+
+Le JPEG a 85 % tient la meme image sous les 150 Ko, et la difference ne
+se voit pas sur une banniere de notification. Le script accepte .png si
+on le demande, et previent du poids.
+
+--- POURQUOI LE HAUT DE LA PHOTO EST GARDE ------------------------------
+
+Quand la photo est plus etroite que la zone — ce qui est le cas de tout
+portrait — il faut couper en hauteur. On garde le HAUT : c'est la que se
+trouve le visage. Couper au centre, comme le fait Android, decapiterait.
+
+--- AUCUNE DEPENDANCE, ET WINDOWS SEULEMENT -----------------------------
+
+System.Drawing est fourni avec Windows. Rien a installer, rien a
+telecharger — ce qui compte sur une machine qui construit deja une
+application Android et n'a pas besoin d'un outil graphique de plus.
+
+--- CE FICHIER EST EN UTF-8 AVEC BOM, ET SON CODE EN ASCII --------------
+
+Windows PowerShell 5.1 lit un .ps1 sans BOM comme de l'ANSI. Un tiret
+cadratin dans une chaine y devient un guillemet typographique, que
+PowerShell accepte comme delimiteur : la chaine se ferme au milieu du
+message et le script refuse de s'analyser, sur des erreurs qui designent
+des lignes saines. C'est arrive. Deux protections valent mieux qu'une.
+===========================================================================
+#>
+
+param(
+    [Parameter(Mandatory = $true)][string]$Portrait,
+    [string]$Sortie,
+    [string]$Logo,
+    [int]$Qualite = 85
+)
+
+Add-Type -AssemblyName System.Drawing
+
+# La racine du depot, quel que soit l'endroit d'ou le script est lance.
+$racine = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+
+function Absolu([string]$chemin, [string]$defaut) {
+    if ([string]::IsNullOrWhiteSpace($chemin)) { $chemin = $defaut }
+    if ([System.IO.Path]::IsPathRooted($chemin)) { return $chemin }
+    return [System.IO.Path]::GetFullPath((Join-Path $racine $chemin))
+}
+
+$cheminPortrait = Absolu $Portrait ''
+$cheminLogo     = Absolu $Logo    'app\src\main\res\drawable\logorond.png'
+$cheminSortie   = Absolu $Sortie  'tools\annonces\banniere.jpg'
+
+foreach ($f in @($cheminPortrait, $cheminLogo)) {
+    if (-not (Test-Path $f)) {
+        Write-Host ""
+        Write-Host "Introuvable : $f" -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
+}
+
+# ---- Les mesures, toutes au meme endroit --------------------------------
+#
+# 1024 x 512 est le format sur pour une notification Android : exactement
+# 2:1, et assez large pour ne pas etre etire sur un grand ecran.
+$L = 1024
+$H = 512
+$zoneP = 460          # largeur de la zone du portrait
+$fondu = 150          # largeur du degrade qui fond le portrait dans le fond
+$tailleLogo = 230
+
+# Le degrade du splash de l'application : c'est deja la marque.
+$haut = [System.Drawing.ColorTranslator]::FromHtml('#080D22')
+$bas  = [System.Drawing.ColorTranslator]::FromHtml('#1A2858')
+
+$image = New-Object System.Drawing.Bitmap $L, $H
+$g = [System.Drawing.Graphics]::FromImage($image)
+$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+$g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+
+# ---- Le fond ------------------------------------------------------------
+$tout = New-Object System.Drawing.Rectangle 0, 0, $L, $H
+$pinceauFond = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+    $tout, $haut, $bas, 25.0)
+$g.FillRectangle($pinceauFond, $tout)
+
+# ---- Le portrait, a gauche ----------------------------------------------
+$photo = [System.Drawing.Image]::FromFile($cheminPortrait)
+
+<#
+RECADRAGE « COUVRIR », JAMAIS « ETIRER ».
+
+On prend la plus grande partie de la photo qui ait le rapport de la zone,
+et on la met a l'echelle. Etirer deformerait un visage, ce qui se voit
+immediatement et donne l'air d'un montage bacle.
+#>
+$rapportZone  = $zoneP / $H
+$rapportPhoto = $photo.Width / $photo.Height
+
+if ($rapportPhoto -gt $rapportZone) {
+    # Photo plus large que la zone : on coupe les cotes, a egalite.
+    $sh = $photo.Height
+    $sw = [int]($photo.Height * $rapportZone)
+    $sx = [int](($photo.Width - $sw) / 2)
+    $sy = 0
+} else {
+    # Photo plus etroite : on coupe en hauteur, et ON GARDE LE HAUT.
+    $sw = $photo.Width
+    $sh = [int]($photo.Width / $rapportZone)
+    $sx = 0
+    $sy = 0
+}
+
+$zone = New-Object System.Drawing.Rectangle 0, 0, $zoneP, $H
+$g.DrawImage($photo, $zone, $sx, $sy, $sw, $sh,
+    [System.Drawing.GraphicsUnit]::Pixel)
+
+<#
+LE FONDU, POUR QUE LA PHOTO NE SOIT PAS UN TIMBRE COLLE.
+
+Sans lui, le portrait s'arrete sur une arete verticale nette au milieu de
+la banniere. Un degrade du transparent vers la couleur du fond le fait
+entrer dans l'image au lieu d'y etre pose.
+#>
+$zoneFondu = New-Object System.Drawing.Rectangle ($zoneP - $fondu), 0, $fondu, $H
+$invisible = [System.Drawing.Color]::FromArgb(0, $bas.R, $bas.G, $bas.B)
+$pinceauFondu = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+    $zoneFondu, $invisible, $bas, 0.0)
+$g.FillRectangle($pinceauFondu, $zoneFondu)
+
+# ---- Le logo, a droite --------------------------------------------------
+$logo = [System.Drawing.Image]::FromFile($cheminLogo)
+$lx = $zoneP + [int](($L - $zoneP - $tailleLogo) / 2)
+$ly = [int](($H - $tailleLogo) / 2)
+$g.DrawImage($logo, $lx, $ly, $tailleLogo, $tailleLogo)
+
+# ---- Enregistrement -----------------------------------------------------
+$extension = [System.IO.Path]::GetExtension($cheminSortie).ToLower()
+$dossier = Split-Path -Parent $cheminSortie
+if (-not (Test-Path $dossier)) { New-Item -ItemType Directory -Force -Path $dossier | Out-Null }
+
+if ($extension -eq '.png') {
+    $image.Save($cheminSortie, [System.Drawing.Imaging.ImageFormat]::Png)
+} else {
+    $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() |
+        Where-Object { $_.MimeType -eq 'image/jpeg' }
+    $reglages = New-Object System.Drawing.Imaging.EncoderParameters 1
+    $reglages.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter(
+        [System.Drawing.Imaging.Encoder]::Quality, [long]$Qualite)
+    $image.Save($cheminSortie, $codec, $reglages)
+    $reglages.Dispose()
+}
+
+$logo.Dispose()
+$photo.Dispose()
+$pinceauFondu.Dispose()
+$pinceauFond.Dispose()
+$g.Dispose()
+$image.Dispose()
+
+$poids = [math]::Round((Get-Item $cheminSortie).Length / 1KB, 1)
+Write-Host ""
+Write-Host "Banniere ecrite : $cheminSortie" -ForegroundColor Green
+Write-Host "   $L x $H, $poids Ko"
+if ($poids -gt 300) {
+    Write-Host ""
+    Write-Host "ATTENTION : $poids Ko, c'est lourd." -ForegroundColor Yellow
+    Write-Host "Cette image est telechargee sur le reseau mobile de CHAQUE"
+    Write-Host "utilisateur. Relance avec -Qualite 70, ou en .jpg si tu as"
+    Write-Host "demande du .png."
+}
+Write-Host ""
+Write-Host "Verifie-la, puis depose-la :" -ForegroundColor DarkGray
+Write-Host "   node tools\annonces\verifier-banniere.mjs $cheminSortie"
+Write-Host ""
