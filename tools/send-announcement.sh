@@ -101,6 +101,56 @@
 
 set -euo pipefail
 
+# ==========================================================================
+# VOIR AVANT D'ENVOYER
+# ==========================================================================
+#
+# Une annonce part a TOUS les utilisateurs et ne se rattrape pas. Jusqu'ici
+# on pouvait regarder la banniere d'un cote et le texte de l'autre, jamais
+# le resultat — et le resultat, c'est une notification Android, avec son
+# titre tronque, son corps replie et son image recadree.
+#
+# Deux facons de voir avant :
+#
+#   --essai        N'ENVOIE RIEN. Affiche le titre, le corps, l'image, le
+#                  lien, et le message exact qui partirait. De quoi relire
+#                  a tete reposee.
+#
+#   --moi <JETON>  Envoie a UN SEUL appareil, le tien, au lieu du canal
+#                  general. C'est le vrai apercu : la notification arrive
+#                  pour de bon, avec son recadrage et sa troncature, et
+#                  personne d'autre ne la recoit.
+#
+#                  Le jeton se copie dans l'application :
+#                  Reglages -> Notifications -> carte « Jeton FCM ».
+#
+# Les deux se placent AVANT le reste :
+#
+#   ./tools/send-announcement.sh --essai --fichier msg.txt "" <image>
+#   ./tools/send-announcement.sh --moi fXy... --fichier msg.txt "" <image>
+#
+# POURQUOI L'APERCU SUR UN SEUL APPAREIL VAUT MIEUX QUE N'IMPORTE QUEL
+# RENDU. Android recadre la banniere en 2:1 au centre, coupe le titre a la
+# largeur de l'ecran, et replie le corps sur une ligne. Aucune maquette ne
+# reproduit ca fidelement ; le telephone, si.
+# ==========================================================================
+ESSAI=0
+JETON=""
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --essai) ESSAI=1; shift ;;
+    --moi)
+      JETON="${2:-}"
+      if [ -z "$JETON" ]; then
+        echo "ERREUR : --moi attend un jeton d'appareil." >&2
+        echo "Il se copie dans Reglages -> Notifications -> carte Jeton FCM." >&2
+        exit 1
+      fi
+      shift 2 ;;
+    *) break ;;
+  esac
+done
+
 # --fichier <chemin> : premiere ligne = titre, le reste = corps.
 # L'argument ne passe alors plus par la ligne de commande, donc aucun
 # encodage ne peut l'abimer. C'est la voie sure pour un texte accentue.
@@ -125,17 +175,41 @@ fi
 SA_FILE="${SA_FILE:-firebase-service-account.json}"
 TOPIC="vaultex_all"   # doit correspondre a VaultExApplication.ANNOUNCE_TOPIC
 
+# FCM veut « topic » OU « token », jamais les deux. Avec --moi, le message
+# ne part que vers cet appareil-la.
+if [ -n "$JETON" ]; then
+  CIBLE_JSON=$(printf '"token":"%s"' "$JETON")
+  CIBLE_LISIBLE="cet appareil seulement"
+else
+  CIBLE_JSON=$(printf '"topic":"%s"' "$TOPIC")
+  CIBLE_LISIBLE="$TOPIC (TOUS les utilisateurs)"
+fi
+
 if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
   echo "Usage : $0 \"Titre\" \"Corps du message\" [SYMBOLE] [IMAGE]" >&2
   echo "   ou : $0 --fichier message.txt [SYMBOLE] [IMAGE]   (titre = 1re ligne)" >&2
+  echo >&2
+  echo "Avant d'envoyer a tout le monde :" >&2
+  echo "  --essai        affiche tout, n'envoie rien" >&2
+  echo "  --moi <JETON>  envoie a ton seul appareil" >&2
   exit 1
 fi
 
-if [ ! -f "$SA_FILE" ]; then
+# L'ESSAI N'A BESOIN D'AUCUNE CLE : il n'envoie rien. L'exiger quand meme
+# interdirait de relire une annonce depuis une machine qui n'a pas le
+# secret — c'est-a-dire de la faire relire par quelqu'un d'autre.
+if [ "$ESSAI" != "1" ] && [ ! -f "$SA_FILE" ]; then
   echo "ERREUR : $SA_FILE introuvable." >&2
   echo "Voir l'en-tete de ce script, section PREPARATION." >&2
   exit 1
 fi
+
+if [ "$ESSAI" = "1" ]; then
+  PROJECT_ID="(essai)"
+  ACCESS_TOKEN=""
+  # NOW sert aussi a la cle du message, plus bas, hors de ce bloc.
+  NOW=$(date +%s)
+else
 
 # ─── Lecture du compte de service ─────────────────────────────────────────
 # Extraction sans jq, qui n'est pas garanti present dans Git Bash.
@@ -175,6 +249,8 @@ if [ -z "$ACCESS_TOKEN" ]; then
   echo "Verifie que $SA_FILE est bien la cle du projet $PROJECT_ID." >&2
   exit 1
 fi
+
+fi   # fin du bloc saute en mode essai
 
 # ══════════════════════════════════════════════════════════════════════════
 # ECHAPPEMENT JSON — ET LE PROBLEME DES ACCENTS
@@ -308,16 +384,29 @@ MSG_KEY="announce:$NOW"
 
 # AUCUN champ `notification` : c'est ce qui force le passage par
 # onMessageReceived. En ajouter un ferait retomber dans le probleme d'origine.
-PAYLOAD=$(printf '{"message":{"topic":"%s","data":{"title":"%s","body":"%s","key":"%s"%s%s%s},"android":{"priority":"high"}}}' \
-  "$TOPIC" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD" "$IMAGE_FIELD" "$LIEN_FIELD")
+PAYLOAD=$(printf '{"message":{%s,"data":{"title":"%s","body":"%s","key":"%s"%s%s%s},"android":{"priority":"high"}}}' \
+  "$CIBLE_JSON" "$TITLE_J" "$BODY_J" "$MSG_KEY" "$SYMBOL_FIELD" "$IMAGE_FIELD" "$LIEN_FIELD")
 
 echo "Projet : $PROJECT_ID"
-echo "Canal  : $TOPIC"
+echo "Cible  : $CIBLE_LISIBLE"
 echo "Titre  : $TITLE"
 echo "Logo   : ${SYMBOL:-VaultEx}"
 echo "Image  : ${IMAGE:-aucune}"
 echo "Lien   : ${LIEN:-aucun, ouvre VaultEx}"
 echo
+echo "─── Corps ───"
+echo "$BODY"
+echo
+
+if [ "$ESSAI" = "1" ]; then
+  echo "─── Message qui partirait ───"
+  echo "$PAYLOAD"
+  echo
+  echo "ESSAI : RIEN N'A ETE ENVOYE."
+  echo "Pour envoyer a ton seul appareil :  --moi <JETON>"
+  echo "Le jeton se copie dans Reglages -> Notifications -> carte Jeton FCM."
+  exit 0
+fi
 
 RESPONSE=$(curl -s -X POST \
   "https://fcm.googleapis.com/v1/projects/$PROJECT_ID/messages:send" \
