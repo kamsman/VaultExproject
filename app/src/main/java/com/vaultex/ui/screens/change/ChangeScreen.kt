@@ -1072,7 +1072,35 @@ private fun ColumnScope.EtapePaiement(
                 color = TextSecondary,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
-            Note(stringResource(R.string.change_ussd_note), AccentBlue)
+            /*
+            ═══════════════════════════════════════════════════════════
+            LA NOTE SOUS LE BOUTON A ETE RETIREE
+            ═══════════════════════════════════════════════════════════
+
+            Elle disait : « Ton telephone va ouvrir le composeur avec le
+            code deja ecrit. Verifie le montant, appuie sur Appeler, et
+            termine avec ton code secret — VaultEx ne le voit jamais. »
+
+            TROIS PHRASES POUR DECRIRE CE QUI SE PASSE DE TOUTE FACON. Le
+            composeur s'ouvre, le code y est, on appuie sur Appeler : on
+            le decouvre en une seconde, et on ne relit pas une explication
+            de ce qu'on vient de voir.
+
+            Elle s'ajoutait a un ecran qui portait deja le numero, le
+            beneficiaire, le montant, la reference, le compte a rebours,
+            le code USSD en clair et une seconde note. A ce niveau
+            d'empilement, chaque encadre supplementaire fait baisser la
+            lecture des autres — y compris celle qui compte vraiment, la
+            reference a conserver.
+
+            CE QUI ETAIT DOMMAGE D'Y PERDRE — « VaultEx ne le voit
+            jamais », a propos du code secret Orange Money — n'a pas
+            besoin d'etre ecrit : le code ne se tape pas dans VaultEx. Il
+            se tape dans le composeur du telephone, apres que
+            l'application a ete quittee. Le geste le dit mieux que la
+            phrase.
+            ═══════════════════════════════════════════════════════════
+            */
         }
     }
 
