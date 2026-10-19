@@ -1150,7 +1150,7 @@
     <string name="change_motif">Garde ta référence %1$s. Mets-la en motif si ton paiement en propose un — sinon, ce sont le montant exact et ton numéro qui le rattachent.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
-    <string name="change_ref_paiement_aide">Le numéro de transaction que ton opérateur t\'a envoyé par SMS.</string>
+    <string name="change_ref_paiement_aide">Ex. MP251008123456 — le numéro de transaction reçu par SMS.</string>
     <string name="change_telephone">Numéro Mobile Money utilisé pour le paiement</string>
     <string name="change_jai_paye">J\'ai payé — transmettre</string>
     <string name="change_jai_paye_verifie">Paiement vérifié — transmettre</string>
@@ -1159,7 +1159,7 @@
     <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="action_acheter">Acheter</string>
-    <string name="change_telephone_aide">Le numéro qui a fait le paiement (8 chiffres, sans espace).</string>
+    <string name="change_telephone_aide">Ex. 70 12 34 56 — le numéro qui a fait le paiement.</string>
     <string name="change_copier_reference">Copier la référence</string>
     <string name="change_historique_titre">Mes dernières demandes</string>
     <string name="change_historique_note">Cette liste est celle de tes demandes, enregistrée sur ton téléphone. Elle ne prouve pas un paiement — elle te permet de citer une référence exacte si tu dois réclamer.</string>

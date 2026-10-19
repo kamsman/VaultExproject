@@ -1121,7 +1121,7 @@
     <string name="change_motif">Keep your reference %1$s. Put it in the reason field if your payment has one — otherwise the exact amount and your number are what link it.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
-    <string name="change_ref_paiement_aide">The transaction number your operator texted you.</string>
+    <string name="change_ref_paiement_aide">E.g. MP251008123456 — the transaction number from your SMS.</string>
     <string name="change_telephone">Mobile Money number used for the payment</string>
     <string name="change_jai_paye">I paid — send request</string>
     <string name="change_jai_paye_verifie">Payment verified — send</string>
@@ -1130,7 +1130,7 @@
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
-    <string name="change_telephone_aide">The number that made the payment (8 digits, no spaces).</string>
+    <string name="change_telephone_aide">E.g. 70 12 34 56 — the number that made the payment.</string>
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>

@@ -1121,7 +1121,7 @@
     <string name="change_motif">احتفظ بمرجعك %1$s. ضعه في خانة السبب إن وُجدت — وإلا فالمبلغ الدقيق ورقمك هما ما يربط دفعتك.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>
-    <string name="change_ref_paiement_aide">رقم العملية الذي أرسله لك المشغّل برسالة نصية.</string>
+    <string name="change_ref_paiement_aide">مثال: MP251008123456 — رقم العملية الوارد في الرسالة.</string>
     <string name="change_telephone">رقم Mobile Money المستخدم في الدفع</string>
     <string name="change_jai_paye">دفعتُ — إرسال الطلب</string>
     <string name="change_jai_paye_verifie">تم التحقق من الدفعة — إرسال</string>
@@ -1130,7 +1130,7 @@
     <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="action_acheter">شراء</string>
-    <string name="change_telephone_aide">الرقم الذي نفّذ الدفع (8 أرقام، بدون مسافات).</string>
+    <string name="change_telephone_aide">مثال: 70 12 34 56 — الرقم الذي نفّذ الدفع.</string>
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
     <string name="change_historique_note">هذه قائمة طلباتك، محفوظة على هاتفك. هي لا تُثبت الدفع — لكنها تتيح لك ذكر مرجع دقيق إذا احتجت إلى المطالبة.</string>
