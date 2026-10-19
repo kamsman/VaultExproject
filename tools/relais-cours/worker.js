@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 49
+const VERSION = 50
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1071,6 +1071,30 @@ const TYPES_IMAGE = {
  * fichier porte un même nom. On les laisse donc en cache un an, côté
  * Cloudflare comme côté téléphone : l'image est téléchargée sur le
  * réseau mobile de chaque utilisateur, et c'est ce qui coûte.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LA RÈGLE QUI VA AVEC : UN CONTENU DIFFÉRENT, UN NOM DIFFÉRENT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * `immutable` est une PROMESSE : elle dit au cache et au téléphone que
+ * cette adresse ne changera jamais de contenu. Tant qu'elle est tenue,
+ * l'image n'est téléchargée qu'une fois par appareil, ce qui est tout
+ * l'intérêt sur un réseau mobile.
+ *
+ * Mais écraser une clé KV sous le même nom la rompt. Cloudflare et les
+ * téléphones continueront de servir l'ANCIENNE image, parfois des mois —
+ * et rien ne le signalera. On republierait une annonce en se demandant
+ * pourquoi l'ancienne photo revient.
+ *
+ * Donc : jamais `img:banniere.jpg` deux fois pour deux images. Le nom
+ * porte la version — `img:argent-pertinent-v2.jpg` — ou la date. C'est
+ * une discipline de nommage, pas un réglage, et c'est la contrepartie
+ * du cache d'un an.
+ *
+ * Le jour où une image doit vraiment changer sous son nom, il faut
+ * purger le cache de Cloudflare depuis le tableau de bord : l'effacer
+ * de KV ne suffit pas.
+ * ═══════════════════════════════════════════════════════════════════════
  */
 async function servirImage(url, env) {
   const nom = decodeURIComponent(url.pathname.slice('/img/'.length))
