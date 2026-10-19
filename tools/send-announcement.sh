@@ -22,11 +22,25 @@
 # Les deux se placent en premier. Section « VOIR AVANT D'ENVOYER », plus
 # bas, pour le detail.
 #
-# DEPUIS POWERSHELL, lancer par `bash`, jamais par `./` : `./script.sh`
-# ouvre une fenetre Git Bash separee qui se referme aussitot, et tu ne vois
-# ni le resultat ni l'erreur.
+# OU LANCER CE SCRIPT, SOUS WINDOWS
+#
+# Dans la fenetre Git Bash (MINGW64). C'est la seule voie simple :
 #
 #   bash tools/send-announcement.sh --moi --fichier tools/annonces/x.txt
+#
+# Depuis PowerShell, DEUX pieges, et ils ne se ressemblent pas :
+#
+#   ./tools/send-announcement.sh      ouvre une fenetre Git Bash separee
+#                                     qui se referme aussitot : ni resultat
+#                                     ni erreur a l'ecran.
+#
+#   bash tools/send-announcement.sh   appelle le bash de WSL, pas celui de
+#                                     Git. Sans distribution installee :
+#                                     « execvpe(/bin/bash) failed ».
+#
+# Si PowerShell est vraiment necessaire, designer le bash de Git :
+#
+#   & "C:\Program Files\Git\bin\bash.exe" tools/send-announcement.sh ...
 #
 # --------------------------------------------------------------------------
 # LE LOGO DE LA NOTIFICATION
