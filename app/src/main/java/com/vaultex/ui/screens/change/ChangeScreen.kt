@@ -53,6 +53,7 @@ import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.OrangeMoney
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.theme.Surface as SurfaceColor
@@ -1088,6 +1089,22 @@ private fun ColumnScope.EtapePaiement(
                     }
                 },
                 shape = RoundedCornerShape(14.dp),
+                /*
+                AUX COULEURS DE L'OPERATEUR, ET PAS A CELLES DES ALERTES.
+
+                `OrangeMoney` est une constante de marque, fixe, posee a
+                cote de celles des chaines. `AccentOrange` aurait fait lire
+                une mise en garde la ou il y a un geste a faire — et aurait
+                banalise la couleur qui porte « ce versement a deja servi »
+                ou « on ne te demandera jamais ta phrase secrete ».
+
+                Le texte est blanc : sur ce orange, le bleu ou le gris de
+                `onPrimary` ne tiendrait pas le contraste.
+                */
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OrangeMoney,
+                    contentColor = Color.White
+                ),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Icon(Icons.Default.Dialpad, null, modifier = Modifier.size(18.dp))
