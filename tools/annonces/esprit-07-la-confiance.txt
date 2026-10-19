@@ -1,0 +1,2 @@
+Satoshi Nakamoto : « toute la confiance qu'il faut »
+« Le problème fondamental des monnaies classiques, c'est toute la confiance qu'il faut pour les faire fonctionner », écrivait-il le 11 février 2009 en présentant Bitcoin — en anglais : « The root problem with conventional currency is all the trust that's required to make it work. » Dans VaultEx, tu n'as personne à qui faire confiance pour tes clés : elles sont sur ton téléphone, et personne d'autre ne peut les utiliser. En échange, personne ne peut te les redonner — note tes douze mots sur papier.
