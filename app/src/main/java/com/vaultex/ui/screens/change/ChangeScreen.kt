@@ -159,7 +159,15 @@ fun ChangeScreen(navController: NavController) {
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            /*
+            DIX POINTS ET NON QUATORZE.
+
+            Multiplie par la dizaine d'elements de l'etape de paiement, ce
+            sont une quarantaine de points gagnes — de quoi faire tenir
+            l'ecran sans defilement, ce qui vaut mieux qu'un peu d'air entre
+            des blocs qui se distinguent deja par leur fond.
+            */
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             val p = state.parametres
 
@@ -899,7 +907,10 @@ private fun ColumnScope.EtapePaiement(
     val aCopier = if (achat) p.numeroMobileMoney else p.adresses[state.monnaie].orEmpty()
 
     Surface(shape = RoundedCornerShape(14.dp), color = AccentBlue.copy(alpha = 0.08f)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Text(
                 stringResource(
                     if (achat) R.string.change_payer_titre else R.string.change_envoyer_titre
@@ -926,7 +937,21 @@ private fun ColumnScope.EtapePaiement(
             lire.
             */
             LigneACopier(
-                libelle = if (achat) "${stringResource(R.string.change_numero)} (${p.operateur})"
+                /*
+                L'OPERATEUR N'EST PLUS DANS LE LIBELLE.
+
+                Il y etait pour dire QUELLE application ouvrir — « numero a
+                crediter » seul laisse chercher entre Orange Money, Moov et
+                Wave. C'etait juste, et ca ne l'est plus : le bouton de
+                paiement, deux lignes plus bas, porte le nom de l'operateur
+                EN GRAND et a ses couleurs. L'information est mieux dite
+                qu'avant.
+
+                Et elle coutait une ligne : « Numero a crediter (Orange
+                Money) » passait a la ligne sur un telephone ordinaire, sur
+                un ecran qu'on demande a tenir sans defilement.
+                */
+                libelle = if (achat) stringResource(R.string.change_numero)
                 else stringResource(R.string.change_adresse),
                 valeur = aCopier,
                 icone = if (achat) Icons.Default.Smartphone else Icons.Default.AccountBalanceWallet,
@@ -1003,11 +1028,15 @@ private fun ColumnScope.EtapePaiement(
             donc mise en avant, et l'écran demande explicitement de la
             porter en motif.
             */
-            Ligne(
-                stringResource(R.string.change_reference),
-                state.reference,
+            /*
+            LA REFERENCE PORTE SA COPIE, comme le numero. C'est ce qui
+            permet de retirer le gros bouton plus bas sans perdre le geste.
+            */
+            LigneACopier(
+                libelle = stringResource(R.string.change_reference),
+                valeur = state.reference,
                 icone = Icons.Default.Description,
-                fort = true
+                onCopier = { copier(state.reference) }
             )
             /*
             LE DELAI RESTE, LE PAVE ORANGE PART.
@@ -1055,18 +1084,34 @@ private fun ColumnScope.EtapePaiement(
             sert à rien puisqu'il n'y a aucun champ pour la mettre.
             ═══════════════════════════════════════════════════════════
             */
-            OutlinedButton(
-                onClick = { copier(if (achat) state.reference else aCopier) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(
-                        if (achat) R.string.change_copier_reference
-                        else R.string.change_copier_adresse
-                    )
-                )
+            /*
+            ═══════════════════════════════════════════════════════════
+            LE GROS BOUTON DE COPIE A ETE RETIRE — SUR UN ACHAT
+            ═══════════════════════════════════════════════════════════
+
+            Il faisait doublon : la ligne « Ta reference » porte desormais
+            sa propre icone de copie, comme le numero juste au-dessus. Deux
+            boutons pour le meme geste, a quatre centimetres d'ecart.
+
+            Et il coutait une soixantaine de points de hauteur sur un ecran
+            qu'on demandait a tenir SANS DEFILEMENT. Un bouton qu'on peut
+            supprimer sans perdre une action est le premier a partir.
+
+            SUR UNE VENTE IL RESTE. Ce qu'on y copie est une ADRESSE de
+            chaine — quarante caracteres qu'on ne retape pas, et dont la
+            copie est le geste central de l'ecran. Elle merite une cible
+            large, pas une icone de seize points.
+            ═══════════════════════════════════════════════════════════
+            */
+            if (!achat) {
+                OutlinedButton(
+                    onClick = { copier(aCopier) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.change_copier_adresse))
+                }
             }
         }
     }
@@ -1262,7 +1307,19 @@ private fun ColumnScope.EtapePaiement(
     ═══════════════════════════════════════════════════════════════════════
     */
     if (achat) {
-        Note(stringResource(R.string.change_motif, state.reference), AccentBlue)
+        /*
+        LA REFERENCE N'EST PLUS REPETEE DANS LA NOTE.
+
+        Elle y etait en toutes lettres — « Garde ta reference VX-ZV4EPAGW »
+        — alors qu'elle est ecrite deux lignes plus haut, en gras, avec son
+        bouton de copie. La redire coutait une ligne de texte sur un ecran
+        qu'on demande a tenir sans defilement, et n'apprenait rien.
+
+        Ce que la note dit encore, et qu'aucun autre endroit ne dit : OU la
+        mettre, et ce qui rattache le paiement quand il n'y a pas de champ
+        motif.
+        */
+        Note(stringResource(R.string.change_motif), AccentBlue)
     }
 
     /*
@@ -1275,12 +1332,24 @@ private fun ColumnScope.EtapePaiement(
     */
     if (!achat) CarteVerification(vm, state)
 
-    Text(
-        stringResource(
-            if (achat) R.string.change_declarer_titre else R.string.change_vente_coordonnees
-        ),
-        fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
-    )
+    /*
+    « UNE FOIS LE PAIEMENT ENVOYE » PART, SUR UN ACHAT.
+
+    Le titre annonçait deux champs qui s'annoncent eux-memes : ils portent
+    « Reference du paiement » et « Numero Mobile Money utilise pour le
+    paiement », et ils sont sous le bouton de paiement. Quand les lire est
+    deja evident, le dire coute une ligne pour rien.
+
+    Sur une VENTE il reste. La, les champs demandent des COORDONNEES — ou
+    le changeur doit envoyer les francs — et rien dans leur libelle ne dit
+    que c'est de l'argent qui va arriver. Le titre y fait un vrai travail.
+    */
+    if (!achat) {
+        Text(
+            stringResource(R.string.change_vente_coordonnees),
+            fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
+        )
+    }
 
     /*
     LA REFERENCE MOBILE MONEY N'A DE SENS QUE SUR UN ACHAT.
@@ -1579,10 +1648,21 @@ private fun CompteARebours(confirmeA: Long, delaiMinutes: Int) {
 
     val restant = fin - maintenant
     val fini = restant <= 0L
+    /*
+    ORANGE D'ENTREE, ROUGE SOUS DEUX MINUTES.
+
+    Il etait noir, puis orange a deux minutes. Un chiffre noir au milieu de
+    chiffres noirs ne se distingue pas : on ne le regardait qu'en le
+    cherchant, alors qu'il dit combien de temps le prix tient encore.
+
+    Orange des le depart : c'est un delai, donc quelque chose qui s'epuise.
+    Rouge sous deux minutes : il ne reste plus de quoi payer tranquillement,
+    et il faut le voir sans lire.
+    */
     val couleur = when {
-        fini -> AccentOrange
-        restant < 2 * 60_000L -> AccentOrange
-        else -> TextPrimary
+        fini -> AccentRed
+        restant < 2 * 60_000L -> AccentRed
+        else -> AccentOrange
     }
 
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
