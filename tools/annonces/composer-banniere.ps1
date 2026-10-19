@@ -101,6 +101,30 @@ $tailleLogo = 230
 $haut = [System.Drawing.ColorTranslator]::FromHtml('#080D22')
 $bas  = [System.Drawing.ColorTranslator]::FromHtml('#1A2858')
 
+<#
+CHARGER UNE IMAGE, OU DIRE POURQUOI ON N'A PAS PU.
+
+`FromFile` leve une exception .NET sur un fichier illisible, tronque, ou
+qui n'est pas une image malgre son extension — un .jpg a moitie
+telecharge, par exemple. Sans cette enveloppe, on obtient une pile
+d'appels au lieu d'une phrase.
+
+La fonction rend donc l'image, ou arrete le script en nommant le fichier
+fautif. Elle sert aux deux : le portrait et le logo.
+#>
+function Charger([string]$chemin, [string]$quoi) {
+    try {
+        return [System.Drawing.Image]::FromFile($chemin)
+    } catch {
+        Write-Host ""
+        Write-Host "Ce fichier n'est pas une image lisible ($quoi) :" -ForegroundColor Red
+        Write-Host "   $chemin"
+        Write-Host "   $($_.Exception.Message)"
+        Write-Host ""
+        exit 1
+    }
+}
+
 $image = New-Object System.Drawing.Bitmap $L, $H
 $g = [System.Drawing.Graphics]::FromImage($image)
 $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -114,7 +138,7 @@ $pinceauFond = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
 $g.FillRectangle($pinceauFond, $tout)
 
 # ---- Le portrait, a gauche ----------------------------------------------
-$photo = [System.Drawing.Image]::FromFile($cheminPortrait)
+$photo = Charger $cheminPortrait 'portrait'
 
 <#
 RECADRAGE « COUVRIR », JAMAIS « ETIRER ».
@@ -158,10 +182,23 @@ $pinceauFondu = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
 $g.FillRectangle($pinceauFondu, $zoneFondu)
 
 # ---- Le logo, a droite --------------------------------------------------
-$logo = [System.Drawing.Image]::FromFile($cheminLogo)
+#
+# LE NOM NE PEUT PAS ETRE $logo, ET CA A COUTE UN LOGO ABSENT.
+#
+# PowerShell NE DISTINGUE PAS LA CASSE des noms de variables : $logo et
+# le parametre $Logo sont la MEME variable. Or ce parametre est declare
+# [string], et PowerShell impose le type declare a chaque affectation.
+#
+# `$logo = [System.Drawing.Image]::FromFile(...)` convertissait donc
+# l'image en la chaine « System.Drawing.Bitmap », sans rien dire. La
+# banniere sortait complete, a la bonne taille, au bon poids — et sans
+# logo. L'erreur n'apparaissait qu'au DrawImage suivant, en parlant d'une
+# conversion de String vers Image, ce qui n'a aucun sens tant qu'on n'a
+# pas vu la collision.
+$imageLogo = Charger $cheminLogo 'logo'
 $lx = $zoneP + [int](($L - $zoneP - $tailleLogo) / 2)
 $ly = [int](($H - $tailleLogo) / 2)
-$g.DrawImage($logo, $lx, $ly, $tailleLogo, $tailleLogo)
+$g.DrawImage($imageLogo, $lx, $ly, $tailleLogo, $tailleLogo)
 
 # ---- Enregistrement -----------------------------------------------------
 $extension = [System.IO.Path]::GetExtension($cheminSortie).ToLower()
@@ -180,7 +217,7 @@ if ($extension -eq '.png') {
     $reglages.Dispose()
 }
 
-$logo.Dispose()
+$imageLogo.Dispose()
 $photo.Dispose()
 $pinceauFondu.Dispose()
 $pinceauFond.Dispose()
