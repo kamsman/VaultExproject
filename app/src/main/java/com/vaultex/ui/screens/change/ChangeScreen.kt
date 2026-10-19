@@ -1008,9 +1008,19 @@ private fun ColumnScope.EtapePaiement(
                 )
             } else {
                 val montantTexte = crypto(state.montantCrypto ?: 0.0, state.monnaie)
+                /*
+                LA MEME ICONE QUE SUR UN ACHAT, et pour la meme raison :
+                c'est le chiffre dont une erreur coute de l'argent, et il
+                doit se retrouver sans relire les lignes voisines.
+
+                Il garde en plus son bouton de copie : « 6,894231 » ne se
+                retape pas, et c'est justement sa fraction qui rattache le
+                versement a la demande.
+                */
                 LigneACopier(
                     libelle = stringResource(R.string.change_montant_exact),
                     valeur = "$montantTexte ${state.monnaie}",
+                    icone = Icons.Default.Payments,
                     onCopier = { copier(montantTexte) }
                 )
                 /*
@@ -1948,10 +1958,23 @@ private fun ColumnScope.CarteVerification(
                     value = state.txidSaisi,
                     onValueChange = vm::onTxid,
                     label = { Text(stringResource(R.string.change_verif_txid)) },
+                    /*
+                    LA MEME FORME QUE LES DEUX CHAMPS DE L'ACHAT : une
+                    icone de tete, des coins arrondis. Trois champs de
+                    saisie dans le meme parcours qui ne se ressemblent pas
+                    donnent l'impression d'ecrans assembles a la hate.
+                    */
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Description, null,
+                            tint = AccentBlue, modifier = Modifier.size(18.dp)
+                        )
+                    },
                     supportingText = {
                         Text(stringResource(R.string.change_verif_txid_aide), fontSize = 11.sp)
                     },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontSize = 12.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
