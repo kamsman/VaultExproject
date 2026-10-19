@@ -2242,6 +2242,139 @@ COÛTER DE L'ARGENT.
     corpsSansRef.etat === 'confirme', corpsSansRef)
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES IMAGES D'ANNONCE, ET LE NOM QUI NE DOIT PAS S'ÉCHAPPER
+═══════════════════════════════════════════════════════════════════════════
+
+Le bandeau d'une annonce doit vivre à une adresse HTTPS publique. Le relais
+en est une, donc il les sert — depuis KV, sous la clé `img:<nom>`.
+
+CE NOM VIENT DE L'URL, ET IL PART DANS UNE CLÉ KV. C'est tout l'objet de
+ces vérifications : un nom libre laisserait lire n'importe quelle clé de
+cet espace, dont celles qui portent la naissance des demandes et les
+encaissements déjà servis. Le motif est fermé, et ces essais le tiennent.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  // Un KV de papier : on y met des octets, on en ressort des octets.
+  const sac = new Map()
+  sac.set('img:banniere.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer)
+  sac.set('demande/VX-SECRET', 'naissance confidentielle')
+  const MEMOIRE = {
+    async get(cle, type) {
+      const v = sac.get(cle)
+      if (v === undefined) return null
+      return type === 'arrayBuffer' ? v : String(v)
+    },
+    async put() {},
+  }
+  const ENV_IMG = { ...ENV, MEMOIRE }
+
+  installer(faireCache())
+  const demander = (chemin) =>
+    relais.fetch(new Request(`https://relais.vaultex${chemin}`), ENV_IMG)
+
+  {
+    const r = await demander('/img/banniere.png')
+    verifie('IMAGE : une image deposee est servie', r.status === 200, r.status)
+    verifie('IMAGE : avec le bon type',
+      r.headers.get('content-type') === 'image/png', r.headers.get('content-type'))
+    verifie('IMAGE : et un cache long, car un bandeau ne change pas',
+      String(r.headers.get('cache-control')).includes('immutable'),
+      r.headers.get('cache-control'))
+    /*
+    `nosniff` N'EST PAS DECORATIF. Sans lui, un navigateur peut deviner un
+    type a partir du contenu et executer ce qu'il a devine — depuis NOTRE
+    domaine, donc avec notre nom.
+    */
+    verifie('IMAGE : rien n’est devine a partir du contenu',
+      r.headers.get('x-content-type-options') === 'nosniff', null)
+  }
+
+  {
+    const r = await demander('/img/absente.png')
+    verifie('IMAGE : une image absente rend 404', r.status === 404, r.status)
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE CONTROLE QUI COMPTE : LE NOM NE SORT PAS DE SON ESPACE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Chacune de ces adresses cherche a lire autre chose qu'une image. La
+  derniere est la plus parlante : `../demande/VX-SECRET` viserait la
+  naissance d'une demande — exactement ce qui tient le controle
+  d'anteriorite.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const ATTAQUES = [
+    '/img/%2E%2E%2Fdemande%2FVX-SECRET',
+    '/img/demande/VX-SECRET',
+    '/img/..%2Fpaiementservi%2FMP888',
+    '/img/' + 'a'.repeat(200) + '.png',
+    '/img/',
+  ]
+  for (const chemin of ATTAQUES) {
+    const r = await demander(chemin)
+    const corps = await r.text()
+    verifie(`ECHAPPEMENT : « ${chemin.slice(0, 44)} » est refuse`,
+      r.status >= 400, r.status)
+    verifie(`ECHAPPEMENT : « ${chemin.slice(0, 44)} » ne rend rien de la memoire`,
+      !corps.includes('confidentielle'), corps.slice(0, 60))
+  }
+
+  {
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA FORME `../` LITTERALE N'ATTEINT JAMAIS CETTE ROUTE
+    ═══════════════════════════════════════════════════════════════════
+
+    MON PREMIER ESSAI ICI ATTENDAIT UN 4xx, et il a echoue sur un 200 —
+    ce qui m'a fait croire a une faille avant de comprendre.
+
+    `new URL()` NORMALISE le chemin : « /img/../demande/VX-SECRET »
+    devient « /demande/VX-SECRET » avant que le routeur ne le voie. La
+    requete ne commence donc plus par /img/, ne passe pas par
+    `servirImage`, et finit dans le relais de cours — qui ne lit aucune
+    cle.
+
+    Ce qui compte n'est pas le code de retour : c'est qu'AUCUNE image ne
+    soit servie et qu'AUCUNE memoire ne sorte. C'est ce qu'on verifie,
+    et c'est ce qui serait encore vrai si la normalisation changeait un
+    jour de comportement.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    const r = await demander('/img/../demande/VX-SECRET')
+    const corps = await r.text()
+    verifie('NORMALISATION : rien de la memoire ne sort',
+      !corps.includes('confidentielle'), corps.slice(0, 60))
+    verifie('NORMALISATION : et aucune image n’est servie',
+      !String(r.headers.get('content-type') ?? '').startsWith('image/'),
+      r.headers.get('content-type'))
+  }
+
+  {
+    /*
+    ET LES TYPES EXECUTABLES SONT REFUSES, meme si quelqu'un deposait un
+    tel fichier dans KV. Servir un HTML depuis ce domaine en ferait une
+    page de notre origine.
+    */
+    sac.set('img:page.html', 'arrayBuffer')
+    const r = await demander('/img/page.html')
+    verifie('TYPE : un .html n’est pas servi', r.status === 415, r.status)
+  }
+
+  {
+    // Sans liaison KV, on le dit au lieu de faire semblant.
+    installer(faireCache())
+    const r = await relais.fetch(
+      new Request('https://relais.vaultex/img/banniere.png'), { ...ENV }
+    )
+    verifie('IMAGE : sans KV, 503 et pas 404', r.status === 503, r.status)
+  }
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les garde-fous tiennent, et dans le bon ordre.')

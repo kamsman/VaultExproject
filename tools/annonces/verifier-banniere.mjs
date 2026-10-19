@@ -157,13 +157,43 @@ if (ko > 500) {
 }
 
 if (!cible.startsWith('http')) {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  L'ANCIENNE CONVENTION NE MARCHAIT PAS, ET SON ECHEC ETAIT SILENCIEUX
+  ═══════════════════════════════════════════════════════════════════════
+
+  Elle disait de servir l'image depuis
+  `raw.githubusercontent.com/<depot>/master/<chemin>`. Ca suppose que le
+  fichier soit sur la branche par defaut. Le travail se fait sur une
+  branche : l'adresse rendait 404, et l'annonce partait sans banniere —
+  sans que rien ne le signale, puisqu'une image injoignable n'empeche pas
+  la notification.
+
+  Le relais, lui, est deja une adresse publique, deja deployee, et elle
+  ne depend de l'etat d'aucune branche.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  /*
+  LE CHEMIN EST DONNE DEPUIS tools/relais-cours, d'ou la commande se lance.
+  Un chemin absolu s'y recopie tel quel ; un chemin relatif a la racine du
+  depot remonte de deux crans.
+  */
+  const absolu = /^([A-Za-z]:[\\/]|\/)/.test(cible)
+  const cheminDepuisRelais = absolu ? cible : `../../${cible}`
+
   console.log('\nℹ  Ce fichier doit etre servi depuis une adresse HTTPS PUBLIQUE.')
-  console.log('   La convention du depot :')
-  console.log('   https://raw.githubusercontent.com/kamsman/vaultexproject/master/<chemin>')
-  console.log('\n   ATTENTION : l’adresse cite « master ». Un fichier pousse sur une')
-  console.log('   autre branche rend 404, et l’annonce part sans banniere.')
-  console.log('   Reverifie avec cette commande en lui donnant l’ADRESSE, une fois')
-  console.log('   le fichier sur master.')
+  console.log('   Depose-le sur le relais, qui en est une :')
+  console.log('')
+  console.log('     cd tools/relais-cours')
+  console.log('     npx wrangler kv key put --config wrangler.toml --remote \\')
+  console.log(`       --binding MEMOIRE "img:${cible.split(/[\\/]/).pop()}" --path ${cheminDepuisRelais}`)
+  console.log('')
+  console.log('   Puis REVERIFIE en donnant l’ADRESSE a cette commande :')
+  console.log('')
+  console.log(`     node tools/annonces/verifier-banniere.mjs https://<relais>/img/${cible.split(/[\\/]/).pop()}`)
+  console.log('')
+  console.log('   Ne saute pas cette seconde verification : c’est la seule qui')
+  console.log('   prouve que l’image est VRAIMENT joignable depuis un telephone.')
 }
 
 console.log('')
