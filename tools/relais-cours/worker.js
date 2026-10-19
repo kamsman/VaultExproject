@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 48
+const VERSION = 49
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -391,6 +391,56 @@ export default {
     poserMemoire(env)
 
     const url = new URL(requete.url)
+
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LES IMAGES DES ANNONCES
+    ═══════════════════════════════════════════════════════════════════
+
+    Une annonce part par Firebase, et Android télécharge son bandeau
+    depuis une ADRESSE HTTPS PUBLIQUE — pas depuis un fichier local. Il
+    fallait donc héberger l'image quelque part.
+
+    LA CONVENTION PRÉCÉDENTE NE MARCHAIT PAS. Elle pointait sur
+    `raw.githubusercontent.com/<dépôt>/master/<chemin>`, ce qui suppose
+    que le fichier soit sur la branche par défaut. Le travail se fait sur
+    une branche ; l'adresse rendait donc 404, et l'annonce partait sans
+    bandeau — sans que rien ne le signale, puisqu'une image injoignable
+    n'empêche pas la notification.
+
+    LE RELAIS EST DÉJÀ UNE ADRESSE PUBLIQUE, déjà déployée, et elle nous
+    appartient. Pas de service de plus, pas de compte de plus, et aucune
+    dépendance à l'état d'une branche git.
+
+    ─── CE QU'ON SERT, ET CE QU'ON REFUSE ─────────────────────────────
+
+    Des images, et rien d'autre. Le type est déduit de l'extension et
+    la liste est fermée : servir un HTML depuis ce domaine en ferait une
+    page de notre origine, donc un endroit où un script hostile
+    s'exécuterait avec notre nom. Une extension inconnue est refusée.
+
+    ─── POURQUOI KV PLUTÔT QUE DES FICHIERS STATIQUES ─────────────────
+
+    Les fichiers statiques de Workers changent la façon dont les requêtes
+    sont distribuées À L'ENTRÉE, avant notre code. Sur un relais qui
+    décide si un paiement est confirmé, vingt lignes qu'on écrit valent
+    mieux qu'un comportement de plateforme qu'on ne maîtrise pas.
+
+    ─── DÉPOSER UNE IMAGE ─────────────────────────────────────────────
+
+        cd tools/relais-cours
+        npx wrangler kv key put --config wrangler.toml --remote \
+          --binding MEMOIRE "img:directeur.png" --path ../../photo.png
+
+    Puis vérifier, AVANT d'envoyer à tout le monde :
+
+        node tools/annonces/verifier-banniere.mjs \
+          https://<relais>/img/directeur.png
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname.startsWith('/img/')) {
+      return await servirImage(url, env)
+    }
 
     // Sonde de vie : permet de vérifier le déploiement sans lancer l'app.
     if (url.pathname === '/' || url.pathname === '/sante') {
@@ -999,6 +1049,69 @@ async function ajouteTickers(cible, bases) {
  * Ce point d'entrée n'expose aucun secret — deux appels publics et leur code
  * de retour.
  */
+/*
+LES SEULS TYPES QU'ON ACCEPTE DE SERVIR.
+
+Fermée à dessein. Android n'affiche de toute façon qu'un PNG ou un JPEG
+dans une notification — le WebP est là pour d'autres usages. Tout le
+reste est refusé plutôt que deviné : un type deviné finit par servir un
+document exécutable depuis notre domaine.
+*/
+const TYPES_IMAGE = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+}
+
+/**
+ * Sert une image déposée dans KV sous la clé `img:<nom>`.
+ *
+ * Les bandeaux d'annonce ne changent jamais une fois publiés — un même
+ * fichier porte un même nom. On les laisse donc en cache un an, côté
+ * Cloudflare comme côté téléphone : l'image est téléchargée sur le
+ * réseau mobile de chaque utilisateur, et c'est ce qui coûte.
+ */
+async function servirImage(url, env) {
+  const nom = decodeURIComponent(url.pathname.slice('/img/'.length))
+
+  /*
+  LE NOM EST BORNÉ, ET PAS SEULEMENT PAR POLITESSE. Il part dans une clé
+  KV : un nom libre laisserait lire n'importe quelle clé de cet espace,
+  dont celles qui portent la mémoire des demandes.
+  */
+  if (!/^[a-zA-Z0-9._-]{1,64}$/.test(nom) || nom.includes('..')) {
+    return new Response('nom invalide', { status: 400 })
+  }
+
+  const extension = nom.split('.').pop().toLowerCase()
+  const type = TYPES_IMAGE[extension]
+  if (!type) {
+    return new Response('type non servi', { status: 415 })
+  }
+
+  if (!env?.MEMOIRE) {
+    return new Response('stockage indisponible', { status: 503 })
+  }
+
+  let octets
+  try {
+    octets = await env.MEMOIRE.get(`img:${nom}`, 'arrayBuffer')
+  } catch (_) {
+    return new Response('lecture impossible', { status: 503 })
+  }
+  if (!octets) return new Response('introuvable', { status: 404 })
+
+  return new Response(octets, {
+    headers: {
+      'content-type': type,
+      'cache-control': 'public, max-age=31536000, immutable',
+      // Rien d'exécutable ne doit être deviné à partir de ce contenu.
+      'x-content-type-options': 'nosniff',
+    },
+  })
+}
+
 async function diagnostic(env) {
   const sondes = { version: VERSION }
 

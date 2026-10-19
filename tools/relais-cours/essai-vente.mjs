@@ -181,7 +181,7 @@ chaque echec est ambigu : le code est-il faux, ou pas en ligne ?
 On n'ARRETE pas sur un decalage — c'est peut-etre volontaire d'essayer
 contre l'ancienne version. On le dit, fort, et on continue.
 */
-const ATTENDUE = 48
+const ATTENDUE = 49
 
 const sante = await lire('/sante?x=' + Date.now())
 const enLigne = sante.corps?.version
