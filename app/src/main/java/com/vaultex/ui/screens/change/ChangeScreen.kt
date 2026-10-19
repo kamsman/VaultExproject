@@ -616,10 +616,37 @@ private fun ColumnScope.EtapeCalcul(
         )
     }
 
-    Note(
-        stringResource(R.string.change_avertissement, p.nomChangeur.ifBlank { "un changeur" }),
-        AccentOrange
-    )
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'AVERTISSEMENT « PAS AVEC VAULTEX » A ETE RETIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il disait : « L'echange a lieu entre toi et <nom du changeur>, pas avec
+    VaultEx. Ton argent ne passe jamais par l'application. »
+
+    IL ETAIT JUSTE QUAND IL A ETE ECRIT, et il a cesse de l'etre. Le
+    changeur n'est pas un tiers : c'est le fondateur de VaultEx. La phrase
+    annoncait donc une separation qui n'existe pas, en nommant une personne
+    que l'utilisateur ne connait pas — ce qui inquiete au lieu de proteger.
+
+    C'EST LA MEME CORRECTION QUE LE VOCABULAIRE. On vient de retirer « le
+    changeur » de toutes les reponses de l'assistance pour la meme raison :
+    pour celui qui echange, il n'y a pas un intermediaire quelque part, il
+    y a VaultEx. Garder cet encadre aurait contredit, sur l'ecran meme de
+    l'operation, ce que l'assistance dit a cote.
+
+    ─── CE QUI N'EST PAS PERDU ────────────────────────────────────────────
+
+    La seconde moitie — « ton argent ne passe jamais par l'application » —
+    reste vraie et reste dite ailleurs : l'ecran de paiement donne le
+    numero Mobile Money a payer directement, et l'ecran de vente donne
+    l'adresse a crediter. Le fait se voit dans le geste, ce qui vaut mieux
+    qu'une phrase.
+
+    Si un jour le change passe par un changeur TIERS, cet avertissement
+    doit revenir — et il redeviendra vrai le jour ou il reviendra.
+    ═══════════════════════════════════════════════════════════════════════
+    */
 
     /*
     UN BLOCAGE EST UN ENCADRE, PAS UNE LIGNE DE TEXTE ROUGE.
