@@ -84,6 +84,26 @@ val BorderColor: Color    @Composable get() = LocalAppColors.current.borderColor
 val SplashNavyTop    = Color(0xFF080D22)
 val SplashNavyBottom = Color(0xFF1A2858)
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE ORANGE D'ORANGE MONEY — UNE COULEUR DE MARQUE, PAS UN ACCENT
+═══════════════════════════════════════════════════════════════════════════
+
+Il a sa propre constante, et surtout PAS `accentOrange`.
+
+`accentOrange` est le orange des AVERTISSEMENTS : il porte « pas encore
+visible sur la chaine », « ce versement a deja servi », « VaultEx ne te
+demandera jamais ta phrase secrete ». Peindre le bouton de paiement avec
+lui ferait lire une mise en garde la ou il y a un geste a faire — et,
+pire, affaiblirait les vrais avertissements en banalisant leur couleur.
+
+Celui-ci est le orange de l'operateur, fixe comme ceux des chaines juste
+en dessous. Il ne suit pas le theme clair/sombre : une couleur de marque
+n'est pas a nous.
+═══════════════════════════════════════════════════════════════════════════
+*/
+val OrangeMoney = Color(0xFFFF7900)
+
 val NetworkBtc = Color(0xFFF7931A)
 val NetworkEth = Color(0xFF627EEA)
 val NetworkBnb = Color(0xFFF0B90B)
