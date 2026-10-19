@@ -265,6 +265,45 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                     }
                 }
             }
+
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE JETON DE CET APPAREIL — ECRIT ET JAMAIS AFFICHE
+            ═══════════════════════════════════════════════════════════════
+
+            `FcmTokenCard` existait depuis longtemps, complete et
+            fonctionnelle, et n'etait APPELEE NULLE PART. Du code mort,
+            qu'aucun compilateur ne signale : une fonction composable sans
+            appelant se compile parfaitement.
+
+            Ca s'est vu le jour ou l'on en a eu besoin — la documentation
+            de send-announcement.sh renvoyait a « Reglages -> Notifications
+            -> carte Jeton FCM », et il n'y avait pas de carte.
+
+            ─── A QUOI ELLE SERT MAINTENANT ──────────────────────────────
+
+            A s'envoyer une annonce A SOI SEUL avant qu'elle parte a tous :
+
+                ./tools/send-announcement.sh --moi <JETON> --fichier ...
+
+            Une annonce ne se rattrape pas. Pouvoir la voir arriver sur son
+            propre telephone, avec son vrai recadrage et sa vraie
+            troncature, vaut tous les apercus.
+
+            ─── CE QUE CE JETON N'EST PAS ────────────────────────────────
+
+            Un secret. C'est une ADRESSE de livraison : il permet d'envoyer
+            une notification a cet appareil, rien d'autre. Il ne donne
+            acces ni au portefeuille, ni aux cles, ni au compte Firebase —
+            lequel exige la cle de service, qui n'est pas dans l'APK.
+
+            Il est donc affichable sans danger. Il est quand meme pose tout
+            en bas : c'est un outil, pas un reglage.
+            ═══════════════════════════════════════════════════════════════
+            */
+            Spacer(Modifier.height(10.dp))
+            FcmTokenCard()
+
             Spacer(Modifier.height(10.dp))
         }
     }
