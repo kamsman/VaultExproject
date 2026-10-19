@@ -164,6 +164,9 @@ if (-not [string]::IsNullOrWhiteSpace($FichierCitation)) {
     }
 }
 
+# Su tot, parce que la mise en page en depend : voir $zoneP plus bas.
+$avecCitation = -not [string]::IsNullOrWhiteSpace($Citation)
+
 $aControler = if ($avecPortrait) { @($cheminPortrait, $cheminLogo) } else { @($cheminLogo) }
 foreach ($f in $aControler) {
     if (-not (Test-Path $f)) {
@@ -180,9 +183,20 @@ foreach ($f in $aControler) {
 # 2:1, et assez large pour ne pas etre etire sur un grand ecran.
 $L = 1024
 $H = 512
-# Sans portrait, sa zone vaut zero : la citation part du bord gauche,
-# avec la seule marge, et dispose de toute la largeur.
-$zoneP = if ($avecPortrait) { 460 } else { 0 }
+<#
+LA ZONE DE GAUCHE N'EST PAS CELLE DU PORTRAIT : C'EST CELLE DE L'IMAGE.
+
+Avec un portrait, elle vaut 460 points et le portrait l'occupe.
+
+SANS PORTRAIT MAIS AVEC UNE CITATION, elle vaut 360 et c'est LE LOGO qui
+s'y installe, en grand. Mis a zero, la citation courait d'un bord a
+l'autre et le logo se recroquevillait dans un coin a 70 points, pendant
+que la moitie gauche de la carte restait vide. La meme grammaire que la
+version avec portrait : une image a gauche, le texte a droite.
+
+Sans citation du tout, elle vaut zero : le logo prend le centre.
+#>
+$zoneP = if ($avecPortrait) { 460 } elseif ($avecCitation) { 360 } else { 0 }
 $fondu = 150          # largeur du degrade qui fond le portrait dans le fond
 $tailleLogo = 230
 
@@ -287,7 +301,23 @@ $g.FillRectangle($pinceauFondu, $zoneFondu)
 # conversion de String vers Image, ce qui n'a aucun sens tant qu'on n'a
 # pas vu la collision.
 $imageLogo = Charger $cheminLogo 'logo'
-$avecCitation = -not [string]::IsNullOrWhiteSpace($Citation)
+
+<#
+TROIS PLACES POUR LE LOGO, ET CHACUNE REPOND A CE QU'IL Y A A COTE.
+
+  portrait + citation -> en bas a droite, petit. Le visage et la phrase
+                         occupent deja la carte ; il signe, il ne dispute
+                         pas le regard.
+  citation seule      -> A GAUCHE ET EN GRAND, a la place qu'aurait prise
+                         le portrait. Sinon la moitie gauche reste vide.
+  portrait seul       -> au centre de la partie droite, en grand.
+#>
+if ($avecCitation -and -not $avecPortrait) {
+    $taillePleine = 200
+    $lx = [int](($zoneP - $taillePleine) / 2)
+    $ly = [int](($H - $taillePleine) / 2)
+    $g.DrawImage($imageLogo, $lx, $ly, $taillePleine, $taillePleine)
+}
 
 if ($avecCitation) {
     <#
@@ -303,8 +333,10 @@ if ($avecCitation) {
     d'ou vient la carte, pas assez pour qu'on le lise avant le texte.
     ===================================================================
     #>
-    $petit = 70
-    $g.DrawImage($imageLogo, ($L - $petit - 34), ($H - $petit - 30), $petit, $petit)
+    if ($avecPortrait) {
+        $petit = 70
+        $g.DrawImage($imageLogo, ($L - $petit - 34), ($H - $petit - 30), $petit, $petit)
+    }
 
     # Sans portrait, le texte respire des deux cotes : une ligne qui court
     # d'un bord a l'autre sur 1024 points se lit mal.
