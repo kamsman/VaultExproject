@@ -22,6 +22,10 @@ google-services.json
 firebase-service-account.json
 *-service-account.json
 
+# Jeton FCM de l'appareil de test, pour l'apercu `--moi` des annonces.
+# Identifie un telephone precis : il n'a rien a faire dans le depot.
+tools/.jeton-fcm
+
 # Le robot SMS du changeur a son propre build, hors du projet principal.
 tools/changeur-sms/build/
 tools/changeur-sms/.gradle/

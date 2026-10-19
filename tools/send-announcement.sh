@@ -14,12 +14,19 @@
 #
 # AVANT D'ENVOYER A TOUT LE MONDE — voir le resultat d'abord :
 #
-#   --essai        affiche tout et n'envoie RIEN
-#   --moi <JETON>  envoie a ton seul appareil, pour voir la vraie
-#                  notification avant qu'elle parte aux autres
+#   --essai  affiche tout et n'envoie RIEN
+#   --moi    envoie a ton seul appareil, pour voir la vraie notification
+#            avant qu'elle parte aux autres. Le jeton se colle une fois
+#            dans tools/.jeton-fcm ; rien a taper dans la commande.
 #
 # Les deux se placent en premier. Section « VOIR AVANT D'ENVOYER », plus
 # bas, pour le detail.
+#
+# DEPUIS POWERSHELL, lancer par `bash`, jamais par `./` : `./script.sh`
+# ouvre une fenetre Git Bash separee qui se referme aussitot, et tu ne vois
+# ni le resultat ni l'erreur.
+#
+#   bash tools/send-announcement.sh --moi --fichier tools/annonces/x.txt
 #
 # --------------------------------------------------------------------------
 # LE LOGO DE LA NOTIFICATION
@@ -125,18 +132,18 @@ set -euo pipefail
 #                  lien, et le message exact qui partirait. De quoi relire
 #                  a tete reposee.
 #
-#   --moi <JETON>  Envoie a UN SEUL appareil, le tien, au lieu du canal
+#   --moi          Envoie a UN SEUL appareil, le tien, au lieu du canal
 #                  general. C'est le vrai apercu : la notification arrive
 #                  pour de bon, avec son recadrage et sa troncature, et
 #                  personne d'autre ne la recoit.
 #
-#                  Le jeton se copie dans l'application :
-#                  Reglages -> Notifications -> carte « Jeton FCM ».
+#                  Le jeton se colle UNE FOIS dans tools/.jeton-fcm, lu
+#                  automatiquement ensuite. Voir plus haut.
 #
 # Les deux se placent AVANT le reste :
 #
-#   ./tools/send-announcement.sh --essai --fichier msg.txt "" <image>
-#   ./tools/send-announcement.sh --moi fXy... --fichier msg.txt "" <image>
+#   bash tools/send-announcement.sh --essai --fichier msg.txt "" <image>
+#   bash tools/send-announcement.sh --moi --fichier msg.txt "" <image>
 #
 # POURQUOI L'APERCU SUR UN SEUL APPAREIL VAUT MIEUX QUE N'IMPORTE QUEL
 # RENDU. Android recadre la banniere en 2:1 au centre, coupe le titre a la
@@ -145,17 +152,83 @@ set -euo pipefail
 # ==========================================================================
 ESSAI=0
 JETON=""
+
+# --------------------------------------------------------------------------
+# LE JETON SE RANGE DANS UN FICHIER, IL NE SE TAPE PAS
+# --------------------------------------------------------------------------
+#
+# Un jeton FCM fait cent cinquante caracteres. Ecrit dans la commande, il
+# force a remplacer un mot par un collage — et c'est la qu'on envoie le mot
+# a la place du jeton. Arrive trois fois : « TON_JETON », puis
+# « LE_VRAI_JETON ». Firebase repond « not a valid FCM registration token »
+# et l'apercu n'a pas lieu.
+#
+# Donc : le jeton se colle UNE FOIS dans tools/.jeton-fcm (ignore par git),
+# et `--moi` seul le relit ensuite. Plus rien a substituer dans la commande.
+#
+#   Reglages -> Notifications -> carte « Jeton FCM » -> Copier
+#   puis coller dans tools/.jeton-fcm
+#
+# Un jeton passe en argument reste accepte : --moi <JETON>.
+FICHIER_JETON="$(dirname "$0")/.jeton-fcm"
+
+# Garde-fou. Un vrai jeton contient « : » et depasse largement cent
+# caracteres ; un mot reserve n'a ni l'un ni l'autre. On refuse AVANT
+# l'appel reseau, avec la marche a suivre, au lieu de laisser Firebase
+# repondre une erreur qui ne dit pas quoi faire.
+verifier_jeton() {
+  case "$1" in
+    *:*) ;;
+    *)
+      echo "ERREUR : « $1 » n'est pas un jeton d'appareil." >&2
+      echo >&2
+      echo "Le vrai jeton fait ~150 caracteres et contient « : »." >&2
+      echo "Il se copie dans l'application : Reglages -> Notifications" >&2
+      echo "-> carte « Jeton FCM » -> Copier." >&2
+      echo >&2
+      echo "Colle-le dans $FICHIER_JETON, puis relance avec --moi seul," >&2
+      echo "sans rien a remplacer dans la commande." >&2
+      exit 1 ;;
+  esac
+  if [ "${#1}" -lt 100 ]; then
+    echo "ERREUR : jeton trop court (${#1} caracteres, il en faut ~150)." >&2
+    echo "Le collage s'est probablement arrete en route. Recopie-le." >&2
+    exit 1
+  fi
+}
+
 while [ $# -gt 0 ]; do
   case "${1:-}" in
     --essai) ESSAI=1; shift ;;
     --moi)
-      JETON="${2:-}"
-      if [ -z "$JETON" ]; then
-        echo "ERREUR : --moi attend un jeton d'appareil." >&2
-        echo "Il se copie dans Reglages -> Notifications -> carte Jeton FCM." >&2
-        exit 1
-      fi
-      shift 2 ;;
+      # `--moi` suivi de `--fichier` ou de rien : on relit le fichier.
+      case "${2:-}" in
+        ""|--*)
+          if [ ! -f "$FICHIER_JETON" ]; then
+            echo "ERREUR : $FICHIER_JETON n'existe pas." >&2
+            echo >&2
+            echo "Copie le jeton dans l'application — Reglages ->" >&2
+            echo "Notifications -> carte « Jeton FCM » -> Copier — puis :" >&2
+            echo >&2
+            echo "  echo 'COLLE_ICI' > $FICHIER_JETON" >&2
+            echo >&2
+            echo "Ce fichier est ignore par git et ne sera jamais versionne." >&2
+            exit 1
+          fi
+          # tr retire les retours a la ligne et les espaces : un collage
+          # depuis le telephone en traine souvent un.
+          JETON=$(tr -d ' \t\r\n' < "$FICHIER_JETON")
+          if [ -z "$JETON" ]; then
+            echo "ERREUR : $FICHIER_JETON est vide." >&2
+            exit 1
+          fi
+          verifier_jeton "$JETON"
+          shift ;;
+        *)
+          JETON="$2"
+          verifier_jeton "$JETON"
+          shift 2 ;;
+      esac ;;
     *) break ;;
   esac
 done
@@ -215,8 +288,8 @@ if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
   echo "   ou : $0 --fichier message.txt [SYMBOLE] [IMAGE]   (titre = 1re ligne)" >&2
   echo >&2
   echo "Avant d'envoyer a tout le monde :" >&2
-  echo "  --essai        affiche tout, n'envoie rien" >&2
-  echo "  --moi <JETON>  envoie a ton seul appareil" >&2
+  echo "  --essai  affiche tout, n'envoie rien" >&2
+  echo "  --moi    envoie a ton seul appareil (jeton dans $FICHIER_JETON)" >&2
   exit 1
 fi
 
@@ -428,8 +501,13 @@ if [ "$ESSAI" = "1" ]; then
   echo "$PAYLOAD"
   echo
   echo "ESSAI : RIEN N'A ETE ENVOYE."
-  echo "Pour envoyer a ton seul appareil :  --moi <JETON>"
-  echo "Le jeton se copie dans Reglages -> Notifications -> carte Jeton FCM."
+  echo "Pour envoyer a ton seul appareil, ajoute  --moi"
+  if [ -f "$FICHIER_JETON" ]; then
+    echo "Le jeton est deja en place dans $FICHIER_JETON."
+  else
+    echo "Colle d'abord le jeton (Reglages -> Notifications -> Jeton FCM)"
+    echo "dans $FICHIER_JETON."
+  fi
   exit 0
 fi
 
