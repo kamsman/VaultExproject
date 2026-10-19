@@ -6,11 +6,25 @@ COMPOSER UNE BANNIERE D'ANNONCE — PORTRAIT A GAUCHE, LOGO A DROITE
     powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
       -Portrait "C:\Users\HP\Downloads\photo.jpg"
 
+Avec une citation :
+
+    powershell -ExecutionPolicy Bypass -File .\tools\annonces\composer-banniere.ps1 `
+      -Portrait "C:\...\photo.jpg" `
+      -Citation "Money will stop being relevant at some point in the future." `
+      -Auteur "Elon Musk"
+
 Options :
 
     -Sortie <chemin>   defaut : tools\annonces\banniere.jpg
     -Logo <chemin>     defaut : le logo rond de l'application
+    -Citation <texte>  une phrase a droite ; le logo passe en petit, en coin
+    -Auteur <nom>      le nom sous la phrase
     -Qualite <1-100>   defaut : 85
+
+ATTRIBUER UNE PHRASE A QUELQU'UN L'ENGAGE. Entre guillemets, elle
+affirme qu'il a dit CES MOTS-LA. Si la formulation exacte n'est pas
+verifiee contre une source primaire, mieux vaut une paraphrase sans
+guillemets — qui dit la meme idee sans pretendre citer.
 
 --- POURQUOI CET OUTIL EXISTE -------------------------------------------
 
@@ -60,6 +74,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Portrait,
     [string]$Sortie,
     [string]$Logo,
+    [string]$Citation,
+    [string]$Auteur,
     [int]$Qualite = 85
 )
 
@@ -196,9 +212,76 @@ $g.FillRectangle($pinceauFondu, $zoneFondu)
 # conversion de String vers Image, ce qui n'a aucun sens tant qu'on n'a
 # pas vu la collision.
 $imageLogo = Charger $cheminLogo 'logo'
-$lx = $zoneP + [int](($L - $zoneP - $tailleLogo) / 2)
-$ly = [int](($H - $tailleLogo) / 2)
-$g.DrawImage($imageLogo, $lx, $ly, $tailleLogo, $tailleLogo)
+$avecCitation = -not [string]::IsNullOrWhiteSpace($Citation)
+
+if ($avecCitation) {
+    <#
+    ===================================================================
+    UNE CARTE DE CITATION : LE TEXTE PREND LA PLACE, LE LOGO SE RETIRE
+    ===================================================================
+
+    Quand il y a une phrase a lire, c'est elle l'objet de l'image. Un
+    logo de 230 px au milieu lui disputerait le regard pour ne rien
+    dire de plus que la signature.
+
+    Il descend donc en bas a droite, a 70 px : assez pour qu'on sache
+    d'ou vient la carte, pas assez pour qu'on le lise avant le texte.
+    ===================================================================
+    #>
+    $petit = 70
+    $g.DrawImage($imageLogo, ($L - $petit - 34), ($H - $petit - 30), $petit, $petit)
+
+    $marge = 40
+    $gauche = $zoneP + $marge
+    $largeurTexte = $L - $gauche - $marge
+    $hauteurTexte = $H - 150
+
+    <#
+    LA TAILLE DU TEXTE S'ADAPTE, ELLE N'EST PAS DEVINEE.
+
+    Une citation courte doit remplir la carte, une longue doit tenir
+    dedans. Un corps fixe fait l'un ou l'autre, jamais les deux : on
+    mesure donc, en descendant jusqu'a ce que ca rentre.
+
+    La borne basse existe aussi : en dessous de 15 px, une banniere de
+    notification n'est plus lisible sur un telephone, et il vaut mieux
+    une citation raccourcie qu'une image illisible.
+    #>
+    $ouvrante = [string][char]0x00AB
+    $fermante = [string][char]0x00BB
+    $texte = $ouvrante + ' ' + $Citation.Trim() + ' ' + $fermante
+
+    $corps = 15
+    for ($essai = 34; $essai -ge 15; $essai -= 1) {
+        $test = New-Object System.Drawing.Font('Segoe UI', $essai, [System.Drawing.FontStyle]::Italic)
+        $mesure = $g.MeasureString($texte, $test, [int]$largeurTexte)
+        $test.Dispose()
+        if ($mesure.Height -le $hauteurTexte) { $corps = $essai; break }
+    }
+
+    $police = New-Object System.Drawing.Font('Segoe UI', $corps, [System.Drawing.FontStyle]::Italic)
+    $blanc = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
+    $cadre = New-Object System.Drawing.RectangleF $gauche, 56, $largeurTexte, $hauteurTexte
+    $g.DrawString($texte, $police, $blanc, $cadre)
+
+    if (-not [string]::IsNullOrWhiteSpace($Auteur)) {
+        # Le nom sous la phrase, plus petit et dans le bleu de la marque :
+        # on lit la phrase d'abord, l'auteur ensuite. C'est l'ordre naturel.
+        $hauteurPhrase = $g.MeasureString($texte, $police, [int]$largeurTexte).Height
+        $policeAuteur = New-Object System.Drawing.Font('Segoe UI', ([int]($corps * 0.62)), [System.Drawing.FontStyle]::Bold)
+        $bleu = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#6FA8FF'))
+        $g.DrawString(('- ' + $Auteur.Trim()), $policeAuteur, $bleu, $gauche, (56 + $hauteurPhrase + 18))
+        $policeAuteur.Dispose()
+        $bleu.Dispose()
+    }
+
+    $police.Dispose()
+    $blanc.Dispose()
+} else {
+    $lx = $zoneP + [int](($L - $zoneP - $tailleLogo) / 2)
+    $ly = [int](($H - $tailleLogo) / 2)
+    $g.DrawImage($imageLogo, $lx, $ly, $tailleLogo, $tailleLogo)
+}
 
 # ---- Enregistrement -----------------------------------------------------
 $extension = [System.IO.Path]::GetExtension($cheminSortie).ToLower()
