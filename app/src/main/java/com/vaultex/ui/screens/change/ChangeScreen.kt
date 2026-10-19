@@ -3030,6 +3030,7 @@ private fun messageBlocage(
     */
     "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumPour(monnaie)))
     "plafond" -> stringResource(R.string.change_sur_plafond, fcfa(p.plafondFcfa))
+    "solde" -> stringResource(R.string.change_solde_insuffisant)
     else -> stringResource(R.string.change_montant_invalide)
 }
 

@@ -1139,6 +1139,7 @@
     <string name="change_sans_cours">Cours indisponible : impossible de calculer un prix honnête. Ouvre l\'accueil pour rafraîchir, puis reviens.</string>
     <string name="change_sous_minimum">Minimum : %1$s FCFA.</string>
     <string name="change_sur_plafond">Maximum : %1$s FCFA par opération.</string>
+    <string name="change_solde_insuffisant">Tu n\'en détiens pas assez pour cette vente. Réduis le montant, ou dépose d\'abord sur ton portefeuille.</string>
     <string name="change_montant_invalide">Saisis un montant.</string>
     <string name="change_payer_titre">Envoie le paiement</string>
     <string name="change_envoyer_titre">Envoie la crypto</string>

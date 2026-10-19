@@ -295,6 +295,37 @@ data class ChangeState(
         // vingt centimes. Un seuil unique ferait du plus cher un piege.
         if (fcfa < p.minimumPour(monnaie)) return "minimum"
         if (fcfa > p.plafondFcfa) return "plafond"
+        /*
+        ═══════════════════════════════════════════════════════════════
+        ON NE PEUT PAS VENDRE CE QU'ON N'A PAS
+        ═══════════════════════════════════════════════════════════════
+
+        Ce controle existait — mais dans `confirmer()`, APRES l'appel au
+        relais, et sur le montant MARQUE. Deux consequences.
+
+        La premiere est un aller-retour reseau pour rien, qui enregistre
+        au passage la naissance d'une demande qui n'aboutira jamais.
+
+        La seconde est pire : le bouton restait ALLUME. On appuyait, on
+        attendait, et un message rouge venait dire que le solde ne suffit
+        pas — alors que l'ecran savait des la saisie.
+
+        Ici, le bouton s'eteint et la raison s'ecrit au-dessus, comme
+        pour le minimum et le plafond. C'est la meme famille de refus :
+        un chiffre qui ne peut pas marcher.
+
+        LE MONTANT MARQUE RESTE CONTROLE DANS `confirmer()`, et il le
+        faut : il s'AJOUTE a la saisie, jusqu'a 0,999. Quelqu'un qui
+        detient 6,5 et tape 6 passe ici, et se verra refuser la-bas si
+        la marque porte le total a 6,7. Les deux controles ne disent pas
+        la meme chose.
+        ═══════════════════════════════════════════════════════════════
+        */
+        if (sens == SensChange.VENTE) {
+            val detenu = solde
+            val demande = saisi
+            if (detenu != null && demande != null && demande > detenu) return "solde"
+        }
         return null
     }
 }
@@ -464,11 +495,39 @@ class ChangeViewModel @Inject constructor(
     }
 
     /** Solde detenu de cette monnaie, ou null si l'instantane ne le dit pas. */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    NULL VEUT DIRE « INCONNU », PAS « ZERO »
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'etait `?.amountRaw?.takeIf { it > 0.0 }` : un solde de zero rendait
+    null, exactement comme une monnaie absente de l'instantane.
+
+    ET CA DESACTIVAIT LE GARDE-FOU QUI COMPTE. `confirmer()` refuse une
+    vente dont le montant marque depasse le solde — mais seulement si le
+    solde est CONNU :
+
+        if (exactNombre != null && soldeConnu != null && exactNombre > soldeConnu)
+
+    Avec un solde nul rendu comme inconnu, la condition ne se declenchait
+    jamais. Quelqu'un qui ne detient rien pouvait aller jusqu'a l'ecran de
+    paiement et se voir demander d'envoyer 6,47 USDT qu'il n'a pas — et
+    l'ecran lui donnait une adresse, un montant, un compte a rebours, tout
+    l'appareil d'une operation qui ne peut pas aboutir.
+
+    Le garde-fou etait precisement la pour ce cas-la, et il etait
+    desactive par le cas qu'il devait attraper.
+
+    DESORMAIS : null UNIQUEMENT quand la monnaie n'est pas dans
+    l'instantane — c'est-a-dire quand on ne sait vraiment pas. Un zero
+    present est un zero.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     private fun soldeDe(symbole: String): Double? = try {
         val json = secureStorage.getPortfolioSnapshot()
         val snap = json?.let { gson.fromJson(it, SnapLiteChange::class.java) }
         snap?.tokens?.firstOrNull { it.symbol.equals(symbole, ignoreCase = true) }
-            ?.amountRaw?.takeIf { it > 0.0 }
+            ?.amountRaw
     } catch (_: Exception) { null }
 
     /** (cours en dollars, cours en francs) depuis l'instantané du portefeuille. */
