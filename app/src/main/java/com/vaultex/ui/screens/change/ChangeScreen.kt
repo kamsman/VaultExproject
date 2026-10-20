@@ -141,8 +141,41 @@ fun ChangeScreen(navController: NavController) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE TITRE DIT LEQUEL DES DEUX, PAS « LES DEUX »
+                    ═══════════════════════════════════════════════════════
+
+                    Il affichait « Acheter / Vendre » en permanence. Le
+                    nom du MENU, pas celui de ce qu'on est en train de
+                    faire — et sur l'etape de paiement, c'etait le seul
+                    endroit de l'ecran a pouvoir le dire.
+
+                    Car les onglets ne vivent qu'au temps 1. Au temps 2,
+                    il reste « Envoie le paiement » ou « Envoie la
+                    crypto », qui disent le GESTE sans nommer l'operation.
+                    Quelqu'un qui revient d'Orange Money vingt minutes
+                    plus tard, ou qui retrouve l'ecran apres qu'Android a
+                    ferme l'application, n'avait rien pour verifier d'un
+                    coup d'oeil qu'il est bien du bon cote.
+
+                    Et se tromper de sens coute ici une operation entiere,
+                    dans un sens irreversible.
+
+                    ─── POURQUOI PAS SIMPLEMENT « ACHETER » ─────────────
+
+                    Parce qu'au temps 1, l'onglet choisi porte deja ce mot
+                    exact, en gras, a deux centimetres en dessous. Deux
+                    fois le meme mot l'un sous l'autre ne se lit plus. En
+                    nommant l'objet — « Acheter de la crypto » — le titre
+                    dit quelque chose que l'onglet ne dit pas.
+                    ═══════════════════════════════════════════════════════
+                    */
                     Text(
-                        stringResource(R.string.change_titre),
+                        stringResource(
+                            if (state.sens == SensChange.ACHAT) R.string.change_titre_achat
+                            else R.string.change_titre_vente
+                        ),
                         fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
                     )
                 },
@@ -337,14 +370,22 @@ private fun ColumnScope.EtapeCalcul(
     l'achat, et le logo collé devant un montant en francs qui laissait
     croire qu'on saisissait des USDT.
 
-    ─── CE QU'ON NE MET PAS : UN BOUTON D'INVERSION ──────────────────────
+    ─── DEUX COMMANDES POUR UN SEUL ÉTAT, ET C'EST VOULU ────────────────
 
-    Le Swap en a un, et il y est juste : échanger A contre B ou B contre A
-    sont la même opération. Ici non. « Acheter » et « Vendre » sont deux
-    engagements distincts — l'un envoie des francs, l'autre envoie de la
-    crypto de façon irréversible — et ils portent des noms que les gens
-    emploient. Deux commandes pour un seul état se contrediraient ; on
-    garde celle qui est écrite en mots.
+    Ce commentaire disait l'inverse : « on ne met pas de bouton
+    d'inversion ». Le bouton était pourtant là, entre les deux cartes,
+    depuis plus longtemps que la phrase qui le niait. Un commentaire faux
+    est pire qu'un commentaire absent — on s'y fie pour décider.
+
+    Les onglets et le bouton rond écrivent le MÊME état, `state.sens` : ils
+    ne peuvent pas se contredire, seulement s'atteindre différemment. Les
+    onglets nomment l'engagement en mots, ce qui compte sur un écran où se
+    tromper de sens coûte une opération entière. Le bouton rond est le
+    geste qu'on connaît du Swap, à l'endroit où l'oeil le cherche — entre
+    les deux montants.
+
+    Ce qu'on ne met pas, en revanche, c'est un troisième chemin, ni un
+    état séparé « inversé » qui devrait rester d'accord avec celui-là.
     ═══════════════════════════════════════════════════════════════════════
     */
     // Acheter, c'est donner des francs ; vendre, c'est en recevoir. Tout

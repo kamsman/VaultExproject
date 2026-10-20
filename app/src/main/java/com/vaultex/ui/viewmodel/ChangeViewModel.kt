@@ -384,8 +384,86 @@ class ChangeViewModel @Inject constructor(
         val achatFcfa: Double = 0.0,
         val venteFcfa: Double = 0.0,
         val fcfaParDollar: Double = 0.0,
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE NUMERO ET LA REFERENCE DE PAIEMENT SONT DANS LA TRACE
+        ═══════════════════════════════════════════════════════════════════
+
+        Ils n'y etaient pas, et c'est l'ACHAT qui payait l'oubli — le sens
+        le plus utilise.
+
+        Sur un achat, ces deux champs ne sont pas du decor : ce sont les
+        CRITERES avec lesquels le relais retrouve l'encaissement. Tant
+        qu'ils sont vides, `boucleVerification` ne cherche rien, et c'est
+        voulu.
+
+        Or ils se tapent APRES la confirmation, sur l'ecran de paiement,
+        donc apres l'ecriture de la trace. Et juste apres les avoir tapes,
+        l'utilisateur part dans Orange Money — le moment precis ou Android
+        ferme l'application sur un telephone peu puissant.
+
+        Il revenait donc sur un ecran de paiement correct mais avec ses
+        deux champs vides, a retaper son numero debout dans la rue, et sans
+        verdict : la recherche ne redemarrait pas non plus pour un achat.
+
+        Le commentaire de `reprendre` disait deja que c'est « le cas qui en
+        a le plus besoin ». Il ne couvrait que la vente.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val referencePaiement: String = "",
+        val telephone: String = "",
         val horodatage: Long = 0L
     )
+
+    /**
+     * La trace, construite en UN SEUL endroit.
+     *
+     * Elle s'ecrit a deux moments — a la confirmation, puis a chaque fois
+     * que le numero ou la reference de paiement changent. Deux listes de
+     * champs recopiees cote a cote finiraient par diverger, et le champ
+     * oublie serait invisible jusqu'au jour ou quelqu'un revient d'Orange
+     * Money sans lui.
+     */
+    private fun traceDe(
+        s: ChangeState,
+        reference: String,
+        prix: PrixFcfa,
+        saisie: String,
+        horodatage: Long
+    ) = ChangeEnCours(
+        reference = reference,
+        sens = if (s.sens == SensChange.ACHAT) "achat" else "vente",
+        monnaie = s.monnaie,
+        saisie = saisie,
+        baseFcfa = prix.baseFcfa,
+        achatFcfa = prix.achatFcfa,
+        venteFcfa = prix.venteFcfa,
+        fcfaParDollar = s.fcfaParDollar ?: 0.0,
+        referencePaiement = s.referencePaiement,
+        telephone = s.telephone,
+        horodatage = horodatage
+    )
+
+    /**
+     * Reecrit la trace depuis l'etat courant, en gardant son horodatage
+     * d'origine.
+     *
+     * L'HORODATAGE NE BOUGE PAS. C'est lui qui fait courir le compte a
+     * rebours et qui decide qu'une trace est perimee ; le rafraichir a
+     * chaque frappe rendrait indefiniment valide un prix fige il y a une
+     * heure.
+     *
+     * Ne fait rien hors de l'etape de paiement : il n'y a alors aucune
+     * demande en cours a decrire.
+     */
+    private fun sauverTrace() {
+        val s = _state.value
+        val prix = s.prix ?: return
+        if (s.etape != EtapeChange.PAIEMENT || s.reference.isBlank()) return
+        secureStorage.saveChangeEnCours(
+            gson.toJson(traceDe(s, s.reference, prix, s.saisie, s.confirmeA))
+        )
+    }
 
     private fun reprendre() {
         val json = secureStorage.getChangeEnCours() ?: return
@@ -423,7 +501,11 @@ class ChangeViewModel @Inject constructor(
                 qu'il a deja consommees — et lui laisserait croire que son
                 prix tient encore alors que le marche a bouge.
                 */
-                confirmeA = trace.horodatage
+                confirmeA = trace.horodatage,
+                // Sur un achat, les criteres de recherche. Vides sur une
+                // vente, qui se lit sur la chaine et n'en a pas besoin.
+                referencePaiement = trace.referencePaiement,
+                telephone = trace.telephone
             )
         }
         /*
@@ -433,8 +515,24 @@ class ChangeViewModel @Inject constructor(
         envoyait sa crypto depuis une autre application, il revient ici
         sans rien. C'est exactement le moment ou le versement a eu le temps
         d'arriver sur la chaine : on redemande.
+
+        ─── ET MAINTENANT POUR L'ACHAT AUSSI ───────────────────────────
+
+        La ligne ne couvrait que la vente. Sur un achat, celui qui revient
+        d'Orange Money est dans la meme situation, en plus courante : son
+        paiement vient d'etre encaisse, le SMS de l'operateur est peut-etre
+        deja arrive au relais, et l'ecran n'allait pas le chercher.
+
+        A une condition pres : il faut un critere. Sans numero ni reference
+        recopiee, `boucleVerification` s'arrete immediatement — on ne lance
+        pas une boucle pour qu'elle reparte aussitot.
         */
-        if (_state.value.sens == SensChange.VENTE) demarrerVerification()
+        val reprise = _state.value
+        if (reprise.sens == SensChange.VENTE ||
+            reprise.referencePaiement.isNotBlank() || reprise.telephoneValide
+        ) {
+            demarrerVerification()
+        }
     }
 
     fun charger() {
@@ -652,11 +750,16 @@ class ChangeViewModel @Inject constructor(
     */
     fun onReferencePaiement(v: String) {
         _state.update { it.copy(referencePaiement = v) }
+        // SAUVE A CHAQUE FRAPPE, et non a la fin de la saisie : la frappe
+        // n'a pas de fin reperable, et c'est juste apres le dernier
+        // caractere qu'on part dans Orange Money.
+        sauverTrace()
         relancerVerificationAchat()
     }
 
     fun onTelephone(v: String) {
         _state.update { it.copy(telephone = v) }
+        sauverTrace()
         relancerVerificationAchat()
     }
 
@@ -840,29 +943,42 @@ class ChangeViewModel @Inject constructor(
         reference: String,
         saisie: String
     ) {
+        /*
+        UN SEUL INSTANT POUR LES DEUX. `System.currentTimeMillis()` etait
+        appele deux fois, une fois pour la trace et une fois pour l'etat :
+        le compte a rebours de l'ecran et celui que la reprise restaure ne
+        partaient donc pas du meme point. L'ecart est de quelques
+        millisecondes, et c'est sans consequence — mais deux horodatages
+        pour un seul evenement est le genre d'ecart qui grandit.
+        */
+        val maintenant = System.currentTimeMillis()
+        /*
+        LA REFERENCE DE PAIEMENT NE SE REPORTE PAS D'UNE OPERATION A
+        L'AUTRE, mais le numero, si.
+
+        La reference est celle que l'operateur a ecrite dans UN SMS, pour
+        UN encaissement. La garder ferait chercher le paiement precedent
+        avec le montant du nouveau : le relais repondrait « absent », et
+        l'utilisateur lirait un refus sur un paiement qu'il n'a pas encore
+        fait.
+
+        Le numero, lui, est le sien. Le reclamer a chaque operation serait
+        huit chiffres a retaper pour rien.
+        */
+        val neuf = s.copy(referencePaiement = "")
+
         // ECRITE AVANT, jamais apres : le moment dangereux est precisement
         // celui ou l'utilisateur quitte l'application pour aller payer.
         secureStorage.saveChangeEnCours(
-            gson.toJson(
-                ChangeEnCours(
-                    reference = reference,
-                    sens = if (s.sens == SensChange.ACHAT) "achat" else "vente",
-                    monnaie = s.monnaie,
-                    saisie = saisie,
-                    baseFcfa = prix.baseFcfa,
-                    achatFcfa = prix.achatFcfa,
-                    venteFcfa = prix.venteFcfa,
-                    fcfaParDollar = s.fcfaParDollar ?: 0.0,
-                    horodatage = System.currentTimeMillis()
-                )
-            )
+            gson.toJson(traceDe(neuf, reference, prix, saisie, maintenant))
         )
         _state.update {
             it.copy(
                 etape = EtapeChange.PAIEMENT,
                 reference = reference,
                 saisie = saisie,
-                confirmeA = System.currentTimeMillis(),
+                confirmeA = maintenant,
+                referencePaiement = "",
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
