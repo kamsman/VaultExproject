@@ -337,14 +337,22 @@ private fun ColumnScope.EtapeCalcul(
     l'achat, et le logo collé devant un montant en francs qui laissait
     croire qu'on saisissait des USDT.
 
-    ─── CE QU'ON NE MET PAS : UN BOUTON D'INVERSION ──────────────────────
+    ─── DEUX COMMANDES POUR UN SEUL ÉTAT, ET C'EST VOULU ────────────────
 
-    Le Swap en a un, et il y est juste : échanger A contre B ou B contre A
-    sont la même opération. Ici non. « Acheter » et « Vendre » sont deux
-    engagements distincts — l'un envoie des francs, l'autre envoie de la
-    crypto de façon irréversible — et ils portent des noms que les gens
-    emploient. Deux commandes pour un seul état se contrediraient ; on
-    garde celle qui est écrite en mots.
+    Ce commentaire disait l'inverse : « on ne met pas de bouton
+    d'inversion ». Le bouton était pourtant là, entre les deux cartes,
+    depuis plus longtemps que la phrase qui le niait. Un commentaire faux
+    est pire qu'un commentaire absent — on s'y fie pour décider.
+
+    Les onglets et le bouton rond écrivent le MÊME état, `state.sens` : ils
+    ne peuvent pas se contredire, seulement s'atteindre différemment. Les
+    onglets nomment l'engagement en mots, ce qui compte sur un écran où se
+    tromper de sens coûte une opération entière. Le bouton rond est le
+    geste qu'on connaît du Swap, à l'endroit où l'oeil le cherche — entre
+    les deux montants.
+
+    Ce qu'on ne met pas, en revanche, c'est un troisième chemin, ni un
+    état séparé « inversé » qui devrait rester d'accord avec celui-là.
     ═══════════════════════════════════════════════════════════════════════
     */
     // Acheter, c'est donner des francs ; vendre, c'est en recevoir. Tout
