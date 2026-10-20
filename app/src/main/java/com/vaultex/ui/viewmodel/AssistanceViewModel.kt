@@ -179,7 +179,18 @@ class AssistanceViewModel @Inject constructor(
                 TourAssistance(role = if (it.deMoi) "user" else "assistant", content = it.texte)
             }
             val r = try {
-                withContext(Dispatchers.IO) { api.assistance(DemandeAssistance(tours)) }
+                withContext(Dispatchers.IO) {
+                    api.assistance(
+                        DemandeAssistance(
+                            messages = tours,
+                            // La langue CHOISIE dans l'application, pas celle
+                            // du systeme : c'est celle qu'il a reglee qui dit
+                            // dans quelle langue il veut qu'on lui reponde.
+                            langue = com.vaultex.core.session.LocaleManager
+                                .appLocale().language
+                        )
+                    )
+                }
             } catch (e: retrofit2.HttpException) {
                 /*
                 ═══════════════════════════════════════════════════════════

@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 50
+const VERSION = 51
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -5878,7 +5878,23 @@ function equipeTexte(env) {
  * Il n'en a pas besoin pour répondre, et ne pas les lui donner est la
  * première des deux barrières — la seconde étant `nettoyerIa`.
  */
-function systemeAssistance(env) {
+/**
+ * Les trois langues de l'application, et rien d'autre.
+ *
+ * LA LISTE EST FERMEE PARCE QUE CE CHAMP ENTRE DANS LA CONSIGNE. Un code
+ * recopie tel quel depuis le corps de la requete y ferait entrer du texte
+ * choisi par l'appelant — c'est une injection, et elle vaut pour un champ
+ * d'une ligne comme pour un message entier. On ne retient donc que trois
+ * valeurs connues, et on retombe sur le francais pour tout le reste.
+ */
+const LANGUES_ASSISTANCE = { fr: 'francais', en: 'anglais', ar: 'arabe' }
+
+function nomLangue(code) {
+  return LANGUES_ASSISTANCE[String(code ?? '').slice(0, 2).toLowerCase()] ||
+    LANGUES_ASSISTANCE.fr
+}
+
+function systemeAssistance(env, langue) {
   const min = Number(env?.CHANGE_MIN) || 5000
   const max = Number(env?.CHANGE_MAX) || 50000
   const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
@@ -5889,8 +5905,38 @@ function systemeAssistance(env) {
 
   return [
     "Tu es l'assistance de VaultEx, un portefeuille crypto utilise au Burkina Faso.",
-    "Tu reponds en francais simple, sans jargon, et tu TUTOIES comme le reste de",
-    "l'application.",
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA LANGUE DE LA REPONSE EST CELLE DE LA QUESTION
+    ═══════════════════════════════════════════════════════════════════════
+
+    La consigne disait « tu reponds en francais ». L'application, elle,
+    existe en trois langues — et l'assistance l'annonce elle-meme dans ce
+    qu'elle connait du produit. Elle promettait donc ce qu'elle ne faisait
+    pas : quelqu'un qui ecrit en anglais recevait du francais, ou pire,
+    une reponse ou le modele hesitait entre obeir a la consigne et suivre
+    son interlocuteur.
+
+    ─── POURQUOI LA LANGUE DE L'APPLICATION SERT QUAND MEME ─────────────
+
+    Parce que beaucoup de messages n'ont pas de langue. « combien ? »,
+    « ok », un montant seul, une reference recopiee — et ce sont les plus
+    frequents. Sans repere, le modele choisit, et il peut changer d'avis
+    d'un tour a l'autre dans la meme conversation.
+
+    Le reglage de l'application tranche ces cas-la, et ceux-la seulement :
+    des que la question porte une langue, c'est elle qui gagne. Quelqu'un
+    dont l'application est en francais et qui ecrit en arabe veut une
+    reponse en arabe — c'est le sens meme d'avoir ecrit en arabe.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    'TU REPONDS DANS LA LANGUE DE LA QUESTION. Francais, anglais ou arabe :',
+    "tu reponds dans celle que la personne vient d'employer, meme si les tours",
+    'precedents etaient dans une autre.',
+    `Quand le message est trop court pour la dire — « ok », « combien ? », un`,
+    `montant seul — reponds dans la langue de son application : ${nomLangue(langue)}.`,
+    'Reponds simplement, sans jargon, et TUTOIE comme le reste de',
+    "l'application (en arabe, emploie la forme familiere correspondante).",
     '',
     /*
     « COURT » ETAIT DEVENU « PAUVRE ».
@@ -6474,8 +6520,28 @@ async function assistance(requete, env) {
   mieux qu'une qui n'en répond à aucune.
   ═══════════════════════════════════════════════════════════════════════
   */
+  /*
+  ─── ELLES SONT EN FRANCAIS, DONC ELLES NE SERVENT QU'EN FRANCAIS ─────
+
+  Leurs textes sont ecrits en francais et leurs declencheurs sont des
+  mots francais. Les laisser repondre a tout le monde produit le defaut
+  exact qu'on vient de corriger ailleurs : « minimum » s'ecrit pareil en
+  anglais, donc un anglophone qui le tape recevait un paragraphe en
+  francais — et la consigne de langue n'y pouvait rien, puisque le modele
+  n'etait meme pas appele.
+
+  Quand l'application n'est pas en francais, on passe donc directement au
+  modele. CA COUTE : ces questions-la etaient gratuites et instantanees,
+  et elles deviennent des appels sur les trois cents du jour. C'est le
+  prix d'une reponse dans la bonne langue, et il se paie sur une minorite
+  — l'application est d'abord utilisee au Burkina Faso.
+
+  Les traduire les rendrait gratuites dans les trois langues. C'est un
+  vrai travail : les textes ET les listes de mots declencheurs, trois
+  fois, en gardant les contacts et les chiffres a jour partout.
+  */
   const derniere = propres[propres.length - 1]
-  if (derniere.role === 'user') {
+  if (derniere.role === 'user' && nomLangue(corps?.langue) === 'francais') {
     const connue = reponseConnue(derniere.content, env)
     if (connue) return json({ ok: true, reponse: connue, source: 'reglages' })
   }
@@ -6540,7 +6606,7 @@ async function assistance(requete, env) {
         securite.
         */
         max_tokens: 700,
-        system: systemeAssistance(env),
+        system: systemeAssistance(env, corps?.langue),
         messages: propres,
       }),
     }, 20000)
