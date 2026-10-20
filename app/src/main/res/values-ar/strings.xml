@@ -1187,7 +1187,7 @@
     <string name="change_montant_exact_note">أرسل هذا المبلغ بالضبط، بما في ذلك الكسور العشرية. هو ما يربط التحويل بطلبك — المبلغ المقرَّب لن يُعترف به.</string>
     <string name="change_inverser">عكس الشراء والبيع</string>
     <string name="change_solde">الرصيد: %1$s</string>
-    <string name="change_tout">الكل</string>
+    <string name="change_tout_valeur">الكل: %1$s</string>
     <string name="change_recap_envoye">ترسل</string>
     <string name="change_recevra">ستستلم</string>
     <string name="change_prix_marche">سعر السوق (1 %1$s)</string>

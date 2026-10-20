@@ -419,6 +419,24 @@ data class ChangeState(
     val referencePaiementUtile: String
         get() = if (problemeReference() == null) referenceNormalisee else ""
 
+    /**
+     * Le plus grand montant qu'on puisse vendre d'un solde donne.
+     *
+     * UNE SEULE DEFINITION, parce qu'elle sert a deux endroits qui
+     * doivent s'accorder : le bouton « Tout », qui l'ecrit dans le champ,
+     * et le message d'erreur du marquage, qui le PROPOSE quand on a tape
+     * trop haut. Deux formules voisines finiraient par differer d'une
+     * unite, et l'ecran proposerait un chiffre que son propre bouton
+     * n'ecrit pas.
+     *
+     * Rend 0 quand le solde ne permet aucune vente — a l'appelant de ne
+     * rien proposer dans ce cas plutot que d'ecrire zero.
+     */
+    fun plusGrandMontantVendable(solde: Double): Double {
+        val v = kotlin.math.floor(solde - 0.999)
+        return if (v >= 1.0) v else 0.0
+    }
+
     fun blocage(): String? {
         val p = parametres ?: return "indisponible"
         if (!p.utilisable) return "ferme"
@@ -863,9 +881,50 @@ class ChangeViewModel @Inject constructor(
      * condition d'avoir de quoi payer le gaz — ce que l'ecran d'envoi
      * verifiera a son tour.
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « TOUT » NE MET PAS TOUT, ET IL NE PEUT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il mettait le solde entier. Ça ne pouvait pas aboutir.
+
+    Le relais derive le montant a envoyer ainsi :
+
+        marque  = 1 a 999
+        a_envoyer = floor(montant tape) + marque / 1000
+
+    Avec un solde de 3, taper 3 demande d'envoyer entre 3,001 et 3,999 —
+    toujours plus que ce qu'on detient. `confirmer()` le voyait et le
+    disait, mais apres l'aller-retour, et apres avoir laisse croire que le
+    bouton menait quelque part.
+
+    Pour un solde ENTIER, « tout » echouait a tous les coups. Pour un
+    solde decimal — 3,5 — environ une fois sur deux, selon le marquage
+    tire. Un bouton qui echoue au hasard est pire qu'un bouton absent :
+    on l'essaie deux fois avant de renoncer.
+
+    ─── LES DECIMALES QU'ON TAPE SONT JETEES ────────────────────────────
+
+    C'est la cle, et elle n'est pas evidente : le marquage repart de la
+    PARTIE ENTIERE. Taper 2,9 ou 2,0 donne exactement le meme montant a
+    envoyer. Proposer des parts — 25 %, 50 % — n'aurait donc aucun sens
+    ici : trois pastilles sur quatre tomberaient sur la meme valeur reelle.
+
+    ─── LE PLUS GRAND MONTANT QUI PASSE TOUJOURS ────────────────────────
+
+    Il faut floor(tape) + 0,999 <= solde, donc floor(tape) <= solde − 0,999.
+    Le plus grand entier qui convienne est floor(solde − 0,999), et il
+    passe quel que soit le marquage tire.
+
+    Sur 3 il rend 2 ; sur 3,999 il rend 3 — la ou « une unite de moins »
+    aurait rendu 2 et perdu une unite vendable pour rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     fun onToutVendre() = _state.update { etat ->
         val solde = etat.solde ?: return@update etat
-        etat.copy(saisie = montantTexte(solde), erreur = null)
+        val vendable = plusGrandMontantVendable(solde)
+        if (vendable <= 0.0) return@update etat
+        etat.copy(saisie = montantTexte(vendable), erreur = null)
     }
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -1031,12 +1090,19 @@ class ChangeViewModel @Inject constructor(
             val soldeConnu = _state.value.solde
             if (exactNombre != null && soldeConnu != null && exactNombre > soldeConnu) {
                 /*
-                UNE UNITE DE MOINS SUFFIT TOUJOURS, puisque le marquage ne
-                depasse jamais 0,999. Mais sur un petit solde, « une unite
-                de moins » peut tomber a zero : il faut alors dire que le
-                solde ne suffit pas, et non proposer d'envoyer rien.
+                LE MEME CHIFFRE QUE CELUI QU'ECRIT « TOUT ».
+
+                C'etait `floor(solde) - 1`. Juste, mais trop prudent d'une
+                unite sur un solde decimal — sur 3,999 il proposait 2 quand
+                3 passe — et surtout DIFFERENT de ce que le bouton « Tout »
+                ecrit. L'ecran aurait propose un montant que son propre
+                bouton refusait d'inscrire.
+
+                Une seule definition, `plusGrandMontantVendable`, pour les
+                deux. Elle rend 0 quand aucune vente n'est possible, et
+                c'est ce cas-la que la seconde phrase traite.
                 */
-                val propose = kotlin.math.floor(soldeConnu).toInt() - 1
+                val propose = _state.value.plusGrandMontantVendable(soldeConnu).toInt()
                 _state.update {
                     it.copy(
                         envoiEnCours = false,
