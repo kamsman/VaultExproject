@@ -1164,6 +1164,7 @@
     <string name="change_verif_quand_meme">تأكيد على أي حال</string>
     <string name="change_verif_txid">hash المعاملة (اختياري)</string>
     <string name="change_verif_txid_aide">إن كان بحوزتك، فالصقه: يصبح البحث فوريًا.</string>
+    <string name="change_verif_txid_lien">لديّ hash المعاملة</string>
     <string name="change_verif_achat_recherche">جارٍ البحث عن دفعتك…</string>
     <string name="change_verif_achat_recherche_detail">يبحث المُرحِّل عن دفعة Orange Money المطابقة. بمجرد أن يُبلِغ المُشغّل الصرّاف بها، تظهر هنا.</string>
     <string name="change_verif_achat_trouve">تم التحقق من الدفعة</string>

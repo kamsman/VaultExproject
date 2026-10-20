@@ -1626,11 +1626,28 @@ private fun ColumnScope.EtapePaiement(
     plutôt que d'afficher une consigne qu'on ne peut pas suivre.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ─── ELLE EST REPLIEE, ET SON TITRE EST LA COMMANDE ──────────────────
+
+    Signale sur capture : cet ecran demandait deux pleines pages. Les
+    textes raccourcis n'y ont pas suffi — il fallait retirer de la
+    HAUTEUR, pas des mots.
+
+    Ce bloc est le candidat evident : c'est une invitation, pas une
+    obligation, et la vente aboutit sans lui. Replie, il ne coute qu'une
+    ligne ; deplie, il dit exactement ce qu'il disait.
+
+    Le titre porte deja « conseille » et le chevron dit qu'il y a
+    quelque chose dessous. Rien n'est cache : ce qui etait lu est encore
+    atteignable d'un appui, et ce qui ne l'etait pas ne prend plus la
+    place de ce qui l'est.
+    */
     if (!achat && p.numeroMobileMoney.isNotBlank() && state.reference.isNotBlank()) {
+        var smsOuvert by remember { mutableStateOf(false) }
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = AccentBlue.copy(alpha = 0.10f),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().clickable { smsOuvert = !smsOuvert }
         ) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1643,18 +1660,27 @@ private fun ColumnScope.EtapePaiement(
                         stringResource(R.string.change_otp_titre),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        if (smsOuvert) Icons.Default.ExpandLess
+                        else Icons.Default.ExpandMore,
+                        null,
+                        tint = AccentBlue, modifier = Modifier.size(18.dp)
                     )
                 }
-                Text(
-                    stringResource(
-                        R.string.change_otp_aide,
-                        state.reference,
-                        p.numeroMobileMoney
-                    ),
-                    fontSize = 12.sp,
-                    color = TextSecondary
-                )
+                if (smsOuvert) {
+                    Text(
+                        stringResource(
+                            R.string.change_otp_aide,
+                            state.reference,
+                            p.numeroMobileMoney
+                        ),
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                }
             }
         }
     }
@@ -1923,6 +1949,8 @@ private fun ColumnScope.CarteVerification(
         else -> AccentOrange
     }
 
+    var hashOuvert by remember { mutableStateOf(false) }
+
     Surface(shape = RoundedCornerShape(14.dp), color = couleur.copy(alpha = 0.10f)) {
         Column(
             Modifier.fillMaxWidth().padding(14.dp),
@@ -2102,7 +2130,34 @@ private fun ColumnScope.CarteVerification(
             second enverrait chercher dans ses SMS une chose qui n'y est
             pas.
             */
-            if (avecSorties && !achat) {
+            /*
+            ─── ET IL EST DERRIERE UN LIEN, PAS A L'ECRAN ───────────────
+
+            Le champ et sa ligne d'aide prennent une centaine de points
+            pour un geste que presque personne ne fait : le relais trouve
+            sans, et celui qui a son hash sous la main est l'exception.
+
+            Un champ de soixante-quatre caracteres affiche en permanence
+            demande a tout le monde de decider s'il le concerne. Une
+            ligne demande la meme chose en dix fois moins de place, et
+            ouvre le champ pour ceux que ca concerne.
+
+            IL RESTE OUVERT UNE FOIS QU'ON A TAPE DEDANS : le replier
+            sous les yeux de quelqu'un qui vient d'y coller un hash
+            donnerait l'impression de l'avoir perdu.
+            */
+            if (avecSorties && !achat && !hashOuvert && state.txidSaisi.isBlank()) {
+                TextButton(
+                    onClick = { hashOuvert = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(R.string.change_verif_txid_lien),
+                        fontSize = 12.sp, color = AccentBlue, maxLines = 1
+                    )
+                }
+            }
+            if (avecSorties && !achat && (hashOuvert || state.txidSaisi.isNotBlank())) {
                 OutlinedTextField(
                     value = state.txidSaisi,
                     onValueChange = vm::onTxid,

@@ -1164,6 +1164,7 @@
     <string name="change_verif_quand_meme">Confirm anyway</string>
     <string name="change_verif_txid">Transaction hash (optional)</string>
     <string name="change_verif_txid_aide">If you have it at hand, paste it: the search becomes immediate.</string>
+    <string name="change_verif_txid_lien">I have the transaction hash</string>
     <string name="change_verif_achat_recherche">Looking for your payment…</string>
     <string name="change_verif_achat_recherche_detail">The relay is looking for the matching Orange Money payment. As soon as the operator reports it to the changer, it shows up here.</string>
     <string name="change_verif_achat_trouve">Payment verified</string>
