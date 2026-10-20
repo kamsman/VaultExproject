@@ -1193,6 +1193,7 @@
     <string name="change_verif_quand_meme">Confirmer quand même</string>
     <string name="change_verif_txid">Hash de la transaction (facultatif)</string>
     <string name="change_verif_txid_aide">Si tu l\'as sous la main, colle-le : la recherche devient immédiate.</string>
+    <string name="change_verif_txid_lien">J\'ai le hash de la transaction</string>
     <string name="change_verif_achat_recherche">Recherche de ton paiement…</string>
     <string name="change_verif_achat_recherche_detail">Le relais cherche l\'encaissement Orange Money qui correspond. Dès que l\'opérateur l\'a signalé au changeur, il s\'affiche ici.</string>
     <string name="change_verif_achat_trouve">Paiement vérifié</string>
