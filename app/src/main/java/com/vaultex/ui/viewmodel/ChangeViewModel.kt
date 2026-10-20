@@ -254,7 +254,7 @@ data class ChangeState(
             pas tenir, c'est que les deux regles different.
             ═══════════════════════════════════════════════════════════
             */
-            referencePaiement.isBlank() && !telephoneValide -> false
+            referencePaiementUtile.isBlank() && !telephoneValide -> false
             verification?.estVert == true -> true
             forcer -> true
             // Un sondage est en vol : la réponse arrive dans l'instant,
@@ -320,6 +320,104 @@ data class ChangeState(
      */
     val telephoneValide: Boolean
         get() = telephone.count { it.isDigit() } == 8
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DEUX FAUTES DE SAISIE QUI SE RECONNAISSENT SANS LE RESEAU
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le vrai controle, celui qui compte, est ailleurs : le relais compare
+    la reference au SMS reel de l'operateur. Rien d'ecrit ici ne peut le
+    remplacer, et rien ici ne doit le doubler.
+
+    Ce que ces controles ajoutent est autre chose : DIRE LEQUEL DES DEUX
+    EST EN CAUSE. Jusqu'ici, une reference mal tapee et un paiement
+    absent rendaient le meme ❌ — « aucun encaissement ne porte cette
+    reference » — qui accuse le paiement alors que c'est le champ qui est
+    faux. Quelqu'un qui vient de payer lit que son argent n'est pas
+    arrive.
+
+    ─── ON NE VALIDE PAS UN FORMAT D'OPERATEUR ──────────────────────────
+
+    Et c'est deliberement. Le relais accepte ce qui suit « ref », « id »
+    ou « transaction », sur 5 a 32 caracteres, parce qu'Orange, Moov et
+    Wave redigent differemment et changent leurs libelles. Coder
+    « MP + 12 chiffres » ici ferait refuser une reference valable le jour
+    ou l'un d'eux change de forme — un refus que personne ne saurait
+    expliquer, sur un paiement deja fait.
+
+    On ne reconnait donc que ce qui ne PEUT PAS etre une reference
+    d'operateur, jamais ce qui devrait en etre une.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+
+    /**
+     * La reference telle que le relais la rangera : alphanumerique, en
+     * capitales. C'est `verifierAchat` qui impose cette forme — il
+     * applique exactement ce nettoyage avant de chercher sa cle.
+     */
+    val referenceNormalisee: String
+        /*
+        L'ASCII SEUL, parce que le relais retire `[^a-zA-Z0-9]`.
+        `isLetterOrDigit` laisserait passer les lettres accentuees : la
+        reference envoyee ne serait plus celle que le relais range, et la
+        longueur mesuree ici ne serait pas la sienne.
+        */
+        get() = referencePaiement
+            .filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }
+            .uppercase()
+
+    /**
+     * Ce qui cloche dans la reference saisie, ou `null` si elle est
+     * plausible. Un champ vide ne cloche pas : on ne reproche pas a
+     * quelqu'un de ne pas avoir encore tape.
+     */
+    fun problemeReference(): String? {
+        if (referencePaiement.isBlank()) return null
+        val r = referenceNormalisee
+        /*
+        LA CONFUSION ENTRE LES DEUX REFERENCES, et c'est le piege le plus
+        probable de cet ecran : les deux y sont affichees, et les deux
+        s'appellent « reference ».
+
+        « VX-A7K2M4P9 » est celle de la DEMANDE, celle qu'on met en motif.
+        Le champ, lui, attend celle du PAIEMENT, lue dans le SMS.
+
+        Le format VaultEx se reconnait sans ambiguite utile : VX suivi de
+        huit caracteres d'un alphabet qui exclut O, I, 0 et 1. Un
+        identifiant d'operateur qui tomberait par hasard dans ce moule
+        serait une coincidence; la confusion, elle, est quotidienne.
+        */
+        if (OrdreChange.MOTIF_REFERENCE_DEMANDE.matches(r)) return "ref_demande"
+        /*
+        UNE LONGUEUR IMPOSSIBLE. Le relais ne range jamais que des
+        references de 5 a 32 caracteres : sa propre extraction ne peut
+        pas en produire d'autres. En dessous ou au-dessus, il n'y a rien
+        a trouver, et le dire tout de suite epargne un aller-retour et un
+        ❌ trompeur.
+        */
+        if (r.length < 5) return "courte"
+        if (r.length > 32) return "longue"
+        // Aucun chiffre : aucun operateur ne numerote ses transactions
+        // en lettres seules. C'est un mot recopie a la place du numero.
+        if (r.none { it.isDigit() }) return "sans_chiffre"
+        return null
+    }
+
+    /**
+     * La reference qu'on envoie reellement — vide tant qu'elle cloche.
+     *
+     * Une reference mal formee n'est pas un lien vers un paiement : la
+     * chercher rendrait un « absent » sur un paiement bien reel, et la
+     * transmettre occuperait chez le relais une cle de dedoublonnage
+     * avec du bruit.
+     *
+     * Le numero, lui, reste utilisable : quelqu'un qui s'est trompe de
+     * reference mais a donne son numero sera retrouve par le montant et
+     * le numero, et c'est exactement ce que fait le relais.
+     */
+    val referencePaiementUtile: String
+        get() = if (problemeReference() == null) referenceNormalisee else ""
 
     fun blocage(): String? {
         val p = parametres ?: return "indisponible"
@@ -565,7 +663,7 @@ class ChangeViewModel @Inject constructor(
         */
         val reprise = _state.value
         if (reprise.sens == SensChange.VENTE ||
-            reprise.referencePaiement.isNotBlank() || reprise.telephoneValide
+            reprise.referencePaiementUtile.isNotBlank() || reprise.telephoneValide
         ) {
             demarrerVerification()
         }
@@ -822,7 +920,7 @@ class ChangeViewModel @Inject constructor(
         laisser à l'écran. Un ❌ qui survit à l'effacement du champ qui
         l'a causé accuse un formulaire vide.
         */
-        if (s.referencePaiement.isBlank() && !s.telephoneValide) {
+        if (s.referencePaiementUtile.isBlank() && !s.telephoneValide) {
             arreterVerification()
             _state.update {
                 it.copy(verification = null, rechercheEnCours = false, essais = 0)
@@ -1183,7 +1281,7 @@ class ChangeViewModel @Inject constructor(
             un paiement parfaitement réel. Mieux vaut ne pas demander que
             de collecter un faux non.
             */
-            if (achat && s.referencePaiement.isBlank() && !s.telephoneValide) return
+            if (achat && s.referencePaiementUtile.isBlank() && !s.telephoneValide) return
 
             // Des FRANCS pour un achat — c'est ce que dit le SMS de
             // l'opérateur. De la crypto pour une vente.
@@ -1195,7 +1293,7 @@ class ChangeViewModel @Inject constructor(
                     service.verifierAchat(
                         montantCanonique(montant),
                         s.telephone,
-                        s.referencePaiement
+                        s.referencePaiementUtile
                     )
                 } else {
                     service.verifier(
@@ -1309,7 +1407,7 @@ class ChangeViewModel @Inject constructor(
                     (pourcent?.let { "(%.2f %%)".format(it) } ?: ""),
                 adresse = adresse,
                 telephone = s.telephone.trim(),
-                referencePaiement = s.referencePaiement.trim(),
+                referencePaiement = s.referencePaiementUtile,
                 /*
                 LE HASH TROUVE PAR LE RELAIS PASSE DEVANT CELUI QU'ON A
                 SAISI, et c'est l'ordre qui compte.
