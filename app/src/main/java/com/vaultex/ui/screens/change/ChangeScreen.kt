@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -53,6 +54,7 @@ import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
 import com.vaultex.ui.theme.BgPrimary
+import com.vaultex.ui.theme.BgTertiary
 import com.vaultex.ui.theme.OrangeMoney
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
@@ -810,6 +812,14 @@ private fun ColumnScope.EtapeCalcul(
             Spacer(Modifier.width(10.dp))
         }
         Text(stringResource(R.string.change_continuer), fontWeight = FontWeight.Bold)
+        // ELLE DIT QUE LE BOUTON FAIT AVANCER. A cette etape rien ne
+        // s'engage encore : la fleche annonce une etape suivante la ou un
+        // bouton nu laisse craindre une validation.
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            Icons.Default.ArrowForward, null,
+            modifier = Modifier.size(18.dp)
+        )
     }
 
     /*
@@ -2331,15 +2341,27 @@ private fun OngletSens(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    /*
+    L'ONGLET CHOISI EST BLEU PLEIN, PAS BLEU PALE.
+
+    Il portait un fond a 18 % et un contour. Pose sur un fond de page
+    deja bleute, l'ecart entre choisi et non choisi tenait dans une
+    nuance — lisible a l'arret, beaucoup moins en plein soleil, qui est
+    la condition ordinaire d'usage ici.
+
+    Se tromper de sens coute une operation entiere. La distinction doit
+    donc etre celle qui resiste au pire eclairage : une surface pleine
+    contre une surface vide.
+    */
+    val plein = androidx.compose.ui.graphics.Color.White
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = if (choisi) AccentBlue.copy(alpha = 0.18f) else androidx.compose.ui.graphics.Color.Transparent,
-        border = androidx.compose.foundation.BorderStroke(
-            if (choisi) 1.5.dp else 1.dp,
-            if (choisi) AccentBlue else SurfaceColor
+        shape = RoundedCornerShape(14.dp),
+        color = if (choisi) AccentBlue else SurfaceColor,
+        border = if (choisi) null else androidx.compose.foundation.BorderStroke(
+            1.dp, BgTertiary
         ),
-        modifier = modifier.height(46.dp)
+        modifier = modifier.height(52.dp)
     ) {
         Row(
             Modifier.fillMaxSize(),
@@ -2348,15 +2370,15 @@ private fun OngletSens(
         ) {
             Icon(
                 icone, null,
-                tint = if (choisi) AccentBlue else TextSecondary,
-                modifier = Modifier.size(17.dp)
+                tint = if (choisi) plein else TextSecondary,
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(Modifier.width(7.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
                 texte,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 fontWeight = if (choisi) FontWeight.Bold else FontWeight.Medium,
-                color = if (choisi) TextPrimary else TextSecondary
+                color = if (choisi) plein else TextSecondary
             )
         }
     }
@@ -2578,10 +2600,36 @@ private fun CarteMontantChange(
     dépasse l'autre, et deux hauteurs différentes se lisent comme un défaut
     d'alignement, y compris sans contour pour le souligner.
     */
-    Box(Modifier.fillMaxWidth().heightIn(min = 92.dp)) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA CARTE REVIENT, ET LE CHAMP DEVIENT UN BLOC
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un commentaire de cette fonction disait « plus de contour : l'encre
+    porte seule la distinction ». C'etait vrai tant que la page n'avait
+    qu'elles ; ca a cesse de l'etre quand la carte des details a pris un
+    fond blanc. Deux blocs nus au-dessus d'un bloc dessine ne se lisaient
+    plus comme une suite, mais comme un element manquant.
+
+    Deux niveaux, et chacun dit quelque chose :
+
+      la CARTE blanche delimite une question — « tu donnes », « tu
+      recois » — sur le fond bleute de la page ;
+
+      le BLOC teinte, a l'interieur, delimite ce qu'on manipule : le
+      nombre et son unite. C'est lui qui dit ou l'on tape, sans curseur
+      et sans avoir a essayer.
+
+    LE BLOC DU BAS EST VERT, et ce n'est pas un rappel du chiffre : c'est
+    le meme vert que le montant recu portait deja. La couleur separe
+    l'entree de la sortie avant qu'on lise un seul mot.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    Surface(shape = RoundedCornerShape(18.dp), color = SurfaceColor) {
+      Box(Modifier.fillMaxWidth().heightIn(min = 92.dp)) {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
@@ -2659,7 +2707,18 @@ private fun CarteMontantChange(
             ces utilisateurs connaissent déjà.
             ═══════════════════════════════════════════════════════════
             */
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                // Teinte bleue sur ce qu'on remplit, verte sur ce qu'on
+                // lit : la meme distinction que porte deja le chiffre.
+                color = if (onMontant != null) BgTertiary
+                        else AccentGreen.copy(alpha = 0.10f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
 
                     if (onMontant != null) {
@@ -2854,6 +2913,7 @@ private fun CarteMontantChange(
                     }
                 }
             }
+            }
 
             /*
             LES MONTANTS COURANTS, SOUS LE CHAMP.
@@ -2875,7 +2935,9 @@ private fun CarteMontantChange(
                     rapides.forEach { v ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = SurfaceColor,
+                            // BLANC SUR BLANC DEPUIS QUE LA CARTE EXISTE :
+                            // la pastille prend la teinte du champ.
+                            color = BgTertiary,
                             modifier = Modifier.weight(1f).clickable { onRapide(v) }
                         ) {
                             Text(
@@ -2892,6 +2954,7 @@ private fun CarteMontantChange(
                 }
             }
         }
+      }
     }
 }
 
