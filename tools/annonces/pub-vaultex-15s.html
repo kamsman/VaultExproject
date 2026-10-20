@@ -1,0 +1,549 @@
+<title>VaultEx 15 secondes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+
+<style>
+/* Scène 9:16 figée à 1080x1920, mise à l'échelle par transform ; une seule
+   horloge de 15 s, chaque élément découpant sa fenêtre en pourcentages. */
+:root {
+  --ink: #0B1120;
+  --ink-2: #111A2E;
+  --line: #243044;
+  --blue: #3B82F6;
+  --blue-deep: #1D4ED8;
+  --green: #22C55E;
+  --om: #FF7900;
+  --text: #F1F5F9;
+  --mute: #94A3B8;
+
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, sans-serif;
+  --figure: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+
+  color-scheme: dark;
+}
+
+html, body { background: var(--ink); color: var(--text); }
+body {
+  font-family: var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* ─── Le cadre et la scène ───────────────────────────────────────────── */
+
+.shell { display: grid; place-items: center; width: 100%; }
+.shell:fullscreen { background: #000; width: 100%; height: 100%; }
+
+.frame {
+  position: relative;
+  width: min(100%, calc(70vh * 9 / 16));
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--ink);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .55);
+}
+.shell:fullscreen .frame {
+  width: calc(100vh * 9 / 16);
+  max-width: 100vw;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.stage {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1080px; height: 1920px;
+  transform-origin: top left;
+  overflow: hidden;
+}
+
+/* ─── Fond : une lueur qui dérive sans couture sur les 15 s ──────────── */
+
+.glow, .glow-2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.glow {
+  width: 900px; height: 900px;
+  left: -180px; top: 180px;
+  background: radial-gradient(circle, rgba(59, 130, 246, .40), transparent 68%);
+  animation: derive 15s linear infinite;
+}
+.glow-2 {
+  width: 760px; height: 760px;
+  right: -220px; bottom: 120px;
+  background: radial-gradient(circle, rgba(29, 78, 216, .34), transparent 68%);
+  animation: derive-2 15s linear infinite;
+}
+@keyframes derive {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(140px, 240px, 0) scale(1.14); }
+  66%  { transform: translate3d(60px, 620px, 0) scale(.94); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes derive-2 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  40%  { transform: translate3d(-120px, -300px, 0) scale(1.1); }
+  75%  { transform: translate3d(-40px, -540px, 0) scale(.9); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+.vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, transparent 48%, rgba(5, 8, 16, .82));
+  pointer-events: none;
+}
+
+/* ─── Les scènes se superposent au même endroit ──────────────────────── */
+
+.sc {
+  position: absolute;
+  inset: 0;
+  padding: 0 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  opacity: 0;
+}
+.sc.mid { align-items: center; text-align: center; }
+
+.mark { width: 190px; height: 190px; }
+.word { width: 430px; height: auto; }
+
+h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 104px;
+  line-height: .98;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--blue); }
+
+.eyebrow {
+  margin: 0;
+  font-family: var(--body);
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+.tag {
+  margin: 0;
+  font-family: var(--body);
+  font-weight: 500;
+  font-size: 36px;
+  letter-spacing: .02em;
+  color: var(--mute);
+}
+.sub { margin: 0; font-size: 42px; line-height: 1.35; color: var(--mute); max-width: 780px; }
+.fine { margin: 0; font-size: 26px; color: #64748B; }
+
+/* ─── Scène 1 : la marque ────────────────────────────────────────────── */
+
+.s1 { gap: 46px; }
+.s1 { animation: sc1 15s linear infinite both; }
+.s1 .mark { animation: pop1 15s linear infinite both; }
+.s1 .word { animation: rise1 15s linear infinite both; }
+.s1 .tag  { animation: rise1b 15s linear infinite both; }
+
+@keyframes sc1 {
+  0% { opacity: 0 } 2% { opacity: 1 } 15% { opacity: 1 } 17% { opacity: 0 } 100% { opacity: 0 }
+}
+@keyframes pop1 {
+  0% { transform: scale(.74); opacity: 0 }
+  4% { transform: scale(1); opacity: 1 }
+  17% { transform: scale(1.05); opacity: 1 }
+  100% { opacity: 0 }
+}
+@keyframes rise1 {
+  0%, 2% { transform: translateY(34px); opacity: 0 }
+  6% { transform: translateY(0); opacity: 1 }
+  17%, 100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise1b {
+  0%, 5% { transform: translateY(24px); opacity: 0 }
+  9% { transform: translateY(0); opacity: 1 }
+  17%, 100% { transform: translateY(0); opacity: 1 }
+}
+
+/* ─── Scène 2 : acheter en FCFA ──────────────────────────────────────── */
+
+.s2 { gap: 38px; animation: sc2 15s linear infinite both; }
+.s2 .eyebrow { animation: rise2a 15s linear infinite both; }
+.s2 h1 { animation: rise2b 15s linear infinite both; }
+.s2 .convert { animation: rise2c 15s linear infinite both; }
+.s2 .out { animation: rise2d 15s linear infinite both; }
+
+@keyframes sc2 {
+  0%, 17% { opacity: 0 } 19% { opacity: 1 } 39% { opacity: 1 } 41%, 100% { opacity: 0 }
+}
+@keyframes rise2a {
+  0%, 17% { transform: translateY(18px); opacity: 0 }
+  20% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise2b {
+  0%, 18% { transform: translateY(30px); opacity: 0 }
+  22% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise2c {
+  0%, 21% { transform: translateY(30px); opacity: 0 }
+  25% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise2d {
+  0%, 26% { transform: translateY(22px); opacity: 0 }
+  30% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+
+.convert {
+  width: 100%;
+  border: 2px solid var(--line);
+  border-radius: 28px;
+  background: rgba(17, 26, 46, .82);
+  padding: 38px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.row { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.row .k { font-size: 28px; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
+.row .v {
+  font-family: var(--figure);
+  font-weight: 600;
+  font-size: 58px;
+  font-variant-numeric: tabular-nums;
+}
+.row.out .v { color: var(--green); }
+.chip {
+  display: inline-flex; align-items: center; gap: 14px;
+  align-self: flex-start;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: rgba(255, 121, 0, .14);
+  border: 2px solid rgba(255, 121, 0, .55);
+  color: var(--om);
+  font-size: 27px; font-weight: 600;
+}
+.chip i { width: 18px; height: 18px; border-radius: 50%; background: var(--om); display: block; }
+.rule { height: 2px; background: var(--line); }
+
+/* ─── Scène 3 : les clés ─────────────────────────────────────────────── */
+
+.s3 { gap: 44px; animation: sc3 15s linear infinite both; }
+.s3 .keyart { animation: keypulse 15s linear infinite both; }
+.s3 h1 { animation: rise3a 15s linear infinite both; }
+.s3 .sub { animation: rise3b 15s linear infinite both; }
+
+@keyframes sc3 {
+  0%, 41% { opacity: 0 } 43% { opacity: 1 } 59% { opacity: 1 } 61%, 100% { opacity: 0 }
+}
+@keyframes keypulse {
+  0%, 41% { transform: scale(.8) rotate(-8deg); opacity: 0 }
+  45% { transform: scale(1) rotate(0deg); opacity: 1 }
+  52% { transform: scale(1.06) rotate(0deg); opacity: 1 }
+  59% { transform: scale(1) rotate(0deg); opacity: 1 }
+  100% { opacity: 0 }
+}
+@keyframes rise3a {
+  0%, 43% { transform: translateY(30px); opacity: 0 }
+  47% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise3b {
+  0%, 47% { transform: translateY(22px); opacity: 0 }
+  51% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+.keyart { width: 150px; height: 150px; }
+
+/* ─── Scène 4 : trois promesses ──────────────────────────────────────── */
+
+.s4 { gap: 36px; animation: sc4 15s linear infinite both; }
+.s4 .eyebrow { animation: rise4e 15s linear infinite both; }
+.s4 li:nth-child(1) { animation: rise4a 15s linear infinite both; }
+.s4 li:nth-child(2) { animation: rise4b 15s linear infinite both; }
+.s4 li:nth-child(3) { animation: rise4c 15s linear infinite both; }
+
+@keyframes sc4 {
+  0%, 61% { opacity: 0 } 63% { opacity: 1 } 79% { opacity: 1 } 81%, 100% { opacity: 0 }
+}
+@keyframes rise4e {
+  0%, 61% { transform: translateY(18px); opacity: 0 }
+  64% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise4a {
+  0%, 63% { transform: translateX(-28px); opacity: 0 }
+  66% { transform: translateX(0); opacity: 1 }
+  100% { transform: translateX(0); opacity: 1 }
+}
+@keyframes rise4b {
+  0%, 66% { transform: translateX(-28px); opacity: 0 }
+  69% { transform: translateX(0); opacity: 1 }
+  100% { transform: translateX(0); opacity: 1 }
+}
+@keyframes rise4c {
+  0%, 69% { transform: translateX(-28px); opacity: 0 }
+  72% { transform: translateX(0); opacity: 1 }
+  100% { transform: translateX(0); opacity: 1 }
+}
+
+.promesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 34px; }
+.promesses li {
+  display: flex; align-items: center; gap: 28px;
+  font-size: 52px; font-weight: 500; line-height: 1.15;
+}
+.promesses .tick {
+  flex: 0 0 auto;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: rgba(34, 197, 94, .16);
+  border: 2px solid rgba(34, 197, 94, .6);
+  display: grid; place-items: center;
+}
+.promesses .tick svg { width: 30px; height: 30px; }
+
+/* ─── Scène 5 : l'appel ──────────────────────────────────────────────── */
+
+.s5 { gap: 40px; animation: sc5 15s linear infinite both; }
+.s5 .mark { animation: pop5 15s linear infinite both; }
+.s5 .word { animation: rise5a 15s linear infinite both; }
+.s5 .tag { animation: rise5b 15s linear infinite both; }
+.s5 .contacts { animation: rise5c 15s linear infinite both; }
+
+@keyframes sc5 {
+  0%, 81% { opacity: 0 } 83% { opacity: 1 } 98% { opacity: 1 } 100% { opacity: 0 }
+}
+@keyframes pop5 {
+  0%, 81% { transform: scale(.82); opacity: 0 }
+  85% { transform: scale(1); opacity: 1 }
+  100% { transform: scale(1); opacity: 1 }
+}
+@keyframes rise5a {
+  0%, 83% { transform: translateY(26px); opacity: 0 }
+  86% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise5b {
+  0%, 85% { transform: translateY(20px); opacity: 0 }
+  88% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+@keyframes rise5c {
+  0%, 88% { transform: translateY(20px); opacity: 0 }
+  91% { transform: translateY(0); opacity: 1 }
+  100% { transform: translateY(0); opacity: 1 }
+}
+
+.contacts {
+  display: flex; flex-direction: column; gap: 16px;
+  font-family: var(--figure); font-size: 32px; color: var(--mute);
+  font-variant-numeric: tabular-nums;
+}
+.contacts b { color: var(--text); font-weight: 600; }
+
+/* ─── La barre de commande, hors de la zone filmée ───────────────────── */
+
+.panneau {
+  width: min(100%, 560px);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.piste {
+  height: 6px; border-radius: 99px; background: var(--line); overflow: hidden;
+}
+.piste span { display: block; height: 100%; width: 0; background: var(--blue); }
+.boutons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button {
+  font: inherit; font-weight: 600; font-size: 15px;
+  padding: 11px 18px; border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--ink-2); color: var(--text);
+  cursor: pointer;
+}
+button:hover { border-color: var(--blue); }
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.horloge {
+  margin-left: auto;
+  font-family: var(--figure); font-size: 14px; color: var(--mute);
+  font-variant-numeric: tabular-nums;
+}
+.notice { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--mute); }
+.notice b { color: var(--text); font-weight: 600; }
+.notice code {
+  font-family: var(--figure); font-size: .92em;
+  background: var(--ink-2); border: 1px solid var(--line);
+  padding: 1px 6px; border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage * { animation-play-state: paused !important; }
+}
+</style>
+
+<div class="shell" id="shell">
+  <div class="frame" id="frame">
+    <div class="stage" id="stage">
+      <div class="glow"></div>
+      <div class="glow-2"></div>
+
+      <section class="sc s1 mid">
+        <img class="mark" src="logorond.png" alt="">
+        <img class="word" src="logo_tex.png" alt="VaultEx">
+        <p class="tag">Your Crypto. Your Keys. Your Freedom</p>
+      </section>
+
+      <section class="sc s2">
+        <p class="eyebrow">Acheter &amp; vendre</p>
+        <h1>Ta crypto<br>en <em>francs CFA</em>.</h1>
+        <div class="convert">
+          <span class="chip"><i></i> Orange Money</span>
+          <div class="row">
+            <span class="k">Tu paies</span>
+            <span class="v">10 000 FCFA</span>
+          </div>
+          <div class="rule"></div>
+          <div class="row out">
+            <span class="k">Tu reçois</span>
+            <span class="v">15,87 USDT</span>
+          </div>
+          <p class="fine">Exemple, au cours du jour.</p>
+        </div>
+      </section>
+
+      <section class="sc s3">
+        <svg class="keyart" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <circle cx="17" cy="17" r="10" stroke="#3B82F6" stroke-width="3.4"/>
+          <circle cx="17" cy="17" r="3.4" fill="#3B82F6"/>
+          <path d="M24.2 24.2 40 40" stroke="#3B82F6" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M33 33l-4.4 4.4M38 38l-4.4 4.4" stroke="#22C55E" stroke-width="3.4" stroke-linecap="round"/>
+        </svg>
+        <h1>Tes clés restent<br>sur <em>ton téléphone</em>.</h1>
+        <p class="sub">Personne d’autre ne les détient. Pas même nous.</p>
+      </section>
+
+      <section class="sc s4">
+        <p class="eyebrow">Ce qu’il n’y a pas</p>
+        <ul class="promesses">
+          <li>
+            <span class="tick"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7" stroke="#22C55E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Pas de compte à ouvrir
+          </li>
+          <li>
+            <span class="tick"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7" stroke="#22C55E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Paiement par Mobile Money
+          </li>
+          <li>
+            <span class="tick"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7" stroke="#22C55E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Tes douze mots, ton portefeuille
+          </li>
+        </ul>
+      </section>
+
+      <section class="sc s5 mid">
+        <img class="mark" src="logorond.png" alt="">
+        <img class="word" src="logo_tex.png" alt="VaultEx">
+        <p class="tag">Your Crypto. Your Keys. Your Freedom</p>
+        <div class="contacts">
+          <span><b>WhatsApp</b> +226 72 30 65 26</span>
+          <span><b>Telegram</b> t.me/vaultexCommunity</span>
+        </div>
+      </section>
+
+      <div class="vignette"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panneau">
+  <div class="piste"><span id="barre"></span></div>
+  <div class="boutons">
+    <button id="rejouer" type="button">Rejouer depuis zéro</button>
+    <button id="pause" type="button">Pause</button>
+    <button id="plein" type="button">Plein écran</button>
+    <span class="horloge"><span id="t">0,0</span> / 15,0 s</span>
+  </div>
+  <p class="notice">
+    <b>Pour enregistrer :</b> ouvre cette page sur ton téléphone, appuie sur
+    <code>Plein écran</code>, lance l’enregistrement d’écran, puis
+    <code>Rejouer depuis zéro</code>. Arrête après le passage à 15,0 s.
+    La boucle est sans couture, donc un tour entier suffit.
+  </p>
+</div>
+
+<script>
+(function () {
+  var frame = document.getElementById('frame');
+  var stage = document.getElementById('stage');
+  var shell = document.getElementById('shell');
+  var barre = document.getElementById('barre');
+  var minuteur = document.getElementById('t');
+  var btnPause = document.getElementById('pause');
+
+  // La scène est dessinée en 1080x1920 et ramenée a la taille du cadre.
+  // Une echelle, pas un redimensionnement : les proportions ne peuvent
+  // pas deriver d'un element a l'autre.
+  function ajuster() {
+    var e = frame.clientWidth / 1080;
+    stage.style.transform = 'scale(' + e + ')';
+  }
+  ajuster();
+  if (window.ResizeObserver) new ResizeObserver(ajuster).observe(frame);
+  else window.addEventListener('resize', ajuster);
+
+  function animations() {
+    if (!stage.getAnimations) return [];
+    return stage.getAnimations({ subtree: true });
+  }
+
+  document.getElementById('rejouer').addEventListener('click', function () {
+    animations().forEach(function (a) { a.currentTime = 0; a.play(); });
+    btnPause.textContent = 'Pause';
+  });
+
+  btnPause.addEventListener('click', function () {
+    var liste = animations();
+    if (!liste.length) return;
+    var enCours = liste[0].playState === 'running';
+    liste.forEach(function (a) { enCours ? a.pause() : a.play(); });
+    btnPause.textContent = enCours ? 'Reprendre' : 'Pause';
+  });
+
+  document.getElementById('plein').addEventListener('click', function () {
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen();
+    } else if (shell.requestFullscreen) {
+      shell.requestFullscreen().catch(function () {});
+    }
+  });
+  document.addEventListener('fullscreenchange', ajuster);
+
+  // Le temps affiche vient d'une animation reelle, pas d'un compteur
+  // parallele : un compteur separe derive de la boucle qu'il pretend
+  // decrire, et c'est precisement ce qu'on regarde pour couper.
+  function tic() {
+    var liste = animations();
+    if (liste.length) {
+      var t = (liste[0].currentTime || 0) / 1000;
+      minuteur.textContent = t.toFixed(1).replace('.', ',');
+      barre.style.width = (t / 15 * 100) + '%';
+    }
+    requestAnimationFrame(tic);
+  }
+  requestAnimationFrame(tic);
+})();
+</script>
