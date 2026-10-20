@@ -1455,6 +1455,15 @@ private fun ColumnScope.EtapePaiement(
     invente quelque chose.
     */
     if (achat) {
+        // Traduit une fois ici : la fonction d'etat rend une cause, pas un
+        // texte — elle n'a pas a connaitre les ressources.
+        val probleme = when (state.problemeReference()) {
+            "ref_demande" -> R.string.change_ref_probleme_demande
+            "courte" -> R.string.change_ref_probleme_courte
+            "longue" -> R.string.change_ref_probleme_longue
+            "sans_chiffre" -> R.string.change_ref_probleme_sans_chiffre
+            else -> null
+        }
         OutlinedTextField(
             value = state.referencePaiement,
             onValueChange = vm::onReferencePaiement,
@@ -1484,8 +1493,36 @@ private fun ColumnScope.EtapePaiement(
                     tint = AccentBlue, modifier = Modifier.size(18.dp)
                 )
             },
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LA FAUTE DE SAISIE PREND LA PLACE DE L'AIDE, ELLE NE S'Y AJOUTE
+            PAS
+            ═══════════════════════════════════════════════════════════════
+
+            Les deux repondent a la meme question — « qu'est-ce que je
+            mets ici » — et les empiler donnerait deux lignes sous un
+            champ, sur un ecran qu'on demande a tenir sans defilement.
+
+            Tant que rien ne cloche, l'exemple. Des qu'une faute se
+            reconnait, elle seule, en rouge : elle contient l'aide, et
+            elle dit en plus ce qui ne va pas.
+
+            CE N'EST PAS LE VERDICT DU RELAIS. Celui-la est en dessous,
+            dans sa carte, et il porte sur le PAIEMENT. Celui-ci porte sur
+            le CHAMP, et c'est tout l'interet de les separer : jusqu'ici
+            une reference mal tapee rendait « aucun encaissement ne porte
+            cette reference », ce qui fait lire a quelqu'un qui vient de
+            payer que son argent n'est pas arrive.
+            ═══════════════════════════════════════════════════════════════
+            */
+            isError = probleme != null,
             supportingText = {
-                Text(stringResource(R.string.change_ref_paiement_aide), fontSize = 11.sp)
+                Text(
+                    if (probleme != null) stringResource(probleme)
+                    else stringResource(R.string.change_ref_paiement_aide),
+                    fontSize = 11.sp,
+                    color = if (probleme != null) AccentRed else TextSecondary
+                )
             },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
@@ -1646,7 +1683,7 @@ private fun ColumnScope.EtapePaiement(
     moment où elle a un verdict à rendre.
     ═══════════════════════════════════════════════════════════════════════
     */
-    if (achat && (state.referencePaiement.isNotBlank() || state.telephoneValide)) {
+    if (achat && (state.referencePaiementUtile.isNotBlank() || state.telephoneValide)) {
         CarteVerification(vm, state)
     }
 

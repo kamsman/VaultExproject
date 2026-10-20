@@ -679,6 +679,26 @@ data class OrdreChange(
         private const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
         /**
+         * Reconnaitre une reference de DEMANDE la ou l'on attend celle
+         * d'un PAIEMENT.
+         *
+         * Les deux sont affichees sur l'ecran de paiement et portent le
+         * meme mot. Celle-ci se met en motif du virement ; l'autre se lit
+         * dans le SMS de l'operateur. Les intervertir ne produit qu'un
+         * « aucun encaissement ne porte cette reference », qui accuse le
+         * paiement au lieu du champ.
+         *
+         * IL EST DERIVE DE L'ALPHABET, et non recopie : changer celui-ci
+         * sans toucher au motif ferait cesser la reconnaissance en
+         * silence. L'alphabet ne contient ni metacaractere ni tiret, donc
+         * son insertion dans une classe est sure.
+         *
+         * S'applique a la forme NORMALISEE — sans tiret, en capitales —
+         * la meme que le relais range.
+         */
+        val MOTIF_REFERENCE_DEMANDE: Regex = Regex("^VX[$ALPHABET]{8}$")
+
+        /**
          * HUIT CARACTÈRES, ET NON SIX.
          *
          * Le relais refuse une référence déjà vue pendant une heure — c'est

@@ -1124,6 +1124,10 @@
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
     <string name="change_ref_paiement_aide">E.g. MP251008123456 — the transaction number from your SMS.</string>
+    <string name="change_ref_probleme_demande">That is your REQUEST reference, the one you put as the payment reason. Here we need your payment\'s reference, from the operator\'s SMS — e.g. MP251008123456.</string>
+    <string name="change_ref_probleme_courte">Too short for a transaction number. Copy it in full from your SMS.</string>
+    <string name="change_ref_probleme_longue">Too long for a transaction number. Copy only the reference, not the whole SMS.</string>
+    <string name="change_ref_probleme_sans_chiffre">A transaction number contains digits. Check your SMS — e.g. MP251008123456.</string>
     <string name="change_telephone">Your Mobile Money number</string>
     <string name="change_jai_paye">I paid — send request</string>
     <string name="change_jai_paye_verifie">Payment verified — send</string>

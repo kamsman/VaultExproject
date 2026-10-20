@@ -1153,6 +1153,10 @@
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
     <string name="change_ref_paiement_aide">Ex. MP251008123456 — le numéro de transaction reçu par SMS.</string>
+    <string name="change_ref_probleme_demande">Ça, c\'est la référence de ta DEMANDE, celle qu\'on met en motif. Ici il faut celle de ton paiement, dans le SMS de l\'opérateur — ex. MP251008123456.</string>
+    <string name="change_ref_probleme_courte">Trop court pour un numéro de transaction. Recopie-le en entier depuis ton SMS.</string>
+    <string name="change_ref_probleme_longue">Trop long pour un numéro de transaction. Ne recopie que la référence, pas tout le SMS.</string>
+    <string name="change_ref_probleme_sans_chiffre">Un numéro de transaction contient des chiffres. Vérifie dans ton SMS — ex. MP251008123456.</string>
     <string name="change_telephone">Ton numéro Mobile Money</string>
     <string name="change_jai_paye">J\'ai payé — transmettre</string>
     <string name="change_jai_paye_verifie">Paiement vérifié — transmettre</string>
