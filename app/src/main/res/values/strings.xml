@@ -1216,7 +1216,7 @@
     <string name="change_montant_exact_note">Envoie EXACTEMENT ce montant, décimales comprises. C\'est lui qui rattache le versement à ta demande — un montant arrondi ne sera pas reconnu.</string>
     <string name="change_inverser">Inverser acheter et vendre</string>
     <string name="change_solde">Solde : %1$s</string>
-    <string name="change_tout">TOUT</string>
+    <string name="change_tout_valeur">Tout : %1$s</string>
     <string name="change_recap_envoye">Tu envoies</string>
     <string name="change_recevra">Tu recevras</string>
     <string name="change_prix_marche">Prix du marché (1 %1$s)</string>

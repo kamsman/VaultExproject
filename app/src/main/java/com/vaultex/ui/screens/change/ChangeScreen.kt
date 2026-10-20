@@ -396,6 +396,10 @@ private fun ColumnScope.EtapeCalcul(
         libelle = stringResource(R.string.change_tu_donnes),
         solde = if (donneFcfa) null else state.solde,
         onTout = if (donneFcfa) null else vm::onToutVendre,
+        toutValeur = if (donneFcfa) null else state.solde
+            ?.let { state.plusGrandMontantVendable(it) }
+            ?.takeIf { it > 0.0 }
+            ?.let { crypto(it, state.monnaie) },
         rapides = if (donneFcfa) montantsRapides(p, state.monnaie) else emptyList(),
         onRapide = vm::onMontantRapide,
         /*
@@ -2394,10 +2398,45 @@ private fun BornesChange(
         */
         val v = prix?.venteFcfa ?: return
         if (v <= 0.0) return
+        /*
+        ═══════════════════════════════════════════════════════════════
+        DEUX DECIMALES, PAS SIX
+        ═══════════════════════════════════════════════════════════════
+
+        `crypto` rend la precision d'AFFICHAGE d'un solde — six
+        decimales pour l'USDT. Vu sur un vrai ecran, cette ligne
+        donnait :
+
+            Entre ≈ 1,075269 USDT-BNB et ≈ 89,605735 USDT-BNB
+
+        Quatorze caracteres de nombre pour une borne, sur une ligne de
+        onze points qui doit tenir sans couper. Et surtout : le « ≈ »
+        annonce une approximation, les six decimales en promettent une
+        exactitude. Les deux ne peuvent pas etre vrais en meme temps.
+
+        Ces chiffres ne servent qu'a situer un ordre de grandeur avant
+        de taper — et le cours dont ils derivent bouge de plus que leur
+        sixieme decimale entre deux rafraichissements.
+
+        LE MINIMUM EST ARRONDI VERS LE HAUT, le plafond vers le BAS.
+        Arrondir le minimum a 1,07 quand il vaut 1,075269 afficherait
+        une borne que le controle refuse — on taperait le chiffre lu, et
+        on se ferait reprendre par la regle qu'on vient de lire.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val cent = 100.0
+        val bas = kotlin.math.ceil(minFcfa / v * cent) / cent
+        val haut = kotlin.math.floor(maxFcfa / v * cent) / cent
+        if (haut <= bas) return
+        val deuxDecimales = java.text.NumberFormat
+            .getNumberInstance(java.util.Locale.FRANCE).apply {
+                maximumFractionDigits = 2
+                minimumFractionDigits = 0
+            }
         stringResource(
             R.string.change_bornes_approx,
-            "${crypto(minFcfa / v, monnaie)} $monnaie",
-            "${crypto(maxFcfa / v, monnaie)} $monnaie"
+            "${deuxDecimales.format(bas)} $monnaie",
+            "${deuxDecimales.format(haut)} $monnaie"
         )
     }
 
@@ -2477,8 +2516,16 @@ private fun CarteMontantChange(
     unite: String,
     /** Solde detenu, pour la carte qu'on remplit lors d'une vente. */
     solde: Double? = null,
-    /** « Tout », qui met le solde entier dans le champ. */
+    /** « Tout », qui ecrit le plus grand montant vendable dans le champ. */
     onTout: (() -> Unit)? = null,
+    /**
+     * Ce que « Tout » va ecrire, deja mis en forme — ou null quand aucun
+     * montant ne passe, et le bouton ne s'affiche alors pas.
+     *
+     * CALCULE PAR L'APPELANT, parce que la regle appartient au modele :
+     * elle depend du marquage, et cette carte ne sait rien de lui.
+     */
+    toutValeur: String? = null,
     /** Montants courants proposes en pastilles. Vide pour n'en proposer aucun. */
     rapides: List<Double> = emptyList(),
     onRapide: (Double) -> Unit = {},
@@ -2558,15 +2605,35 @@ private fun CarteMontantChange(
                         color = TextSecondary,
                         maxLines = 1
                     )
-                    onTout?.let { tout ->
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE BOUTON DIT LE CHIFFRE QU'IL VA ECRIRE
+                    ═══════════════════════════════════════════════════════
+
+                    Il disait « TOUT », et il ne met pas tout : le marquage
+                    ajoute jusqu'a 0,999 au montant tape, donc vendre un
+                    solde entier demanderait d'en envoyer plus qu'on n'en a.
+                    Il ecrit le plus grand montant qui passe a coup sur.
+
+                    Garder le mot « tout » sur un bouton qui en laisse une
+                    partie serait un mensonge d'un mot. Afficher « Tout : 2 »
+                    dit les deux choses — le geste, et son resultat — avant
+                    qu'on appuie, la ou l'ancien libelle laissait decouvrir
+                    l'ecart apres coup.
+
+                    ET IL DISPARAIT QUAND IL N'Y A RIEN A PROPOSER. Sous un
+                    solde de 1,99, aucun montant ne passe : un bouton qui
+                    ecrirait zero inviterait a un geste sans issue.
+                    */
+                    if (onTout != null && toutValeur != null) {
                         Spacer(Modifier.width(6.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = AccentBlue.copy(alpha = 0.14f),
-                            modifier = Modifier.clickable { tout() }
+                            modifier = Modifier.clickable { onTout() }
                         ) {
                             Text(
-                                stringResource(R.string.change_tout),
+                                stringResource(R.string.change_tout_valeur, toutValeur),
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
