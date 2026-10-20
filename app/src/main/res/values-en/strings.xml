@@ -1129,8 +1129,8 @@
     <string name="change_ref_probleme_longue">Too long for a transaction number. Copy only the reference, not the whole SMS.</string>
     <string name="change_ref_probleme_sans_chiffre">A transaction number contains digits. Check your SMS — e.g. MP251008123456.</string>
     <string name="change_telephone">Your Mobile Money number</string>
-    <string name="change_jai_paye">I paid — send request</string>
-    <string name="change_jai_paye_verifie">Payment verified — send</string>
+    <string name="change_jai_paye">Confirm payment</string>
+    <string name="change_jai_paye_verifie">Payment verified — confirm</string>
     <string name="change_retour">Back to the quote</string>
     <string name="change_transmis_titre">Request sent</string>
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
@@ -1145,8 +1145,8 @@
     <string name="change_telephone_vente_aide">The exchanger will send your francs to this number. 8 digits.</string>
     <string name="change_otp_titre">Confirm your number (recommended)</string>
     <string name="change_otp_aide">Text “%1$s” to %2$s. The changer will see that this number is really yours before sending the money. One SMS, from the number you want to be paid on.</string>
-    <string name="change_transmettre">Send my request</string>
-    <string name="change_transmettre_verifie">Send — transfer verified</string>
+    <string name="change_transmettre">Confirm transfer</string>
+    <string name="change_transmettre_verifie">Transfer verified — confirm</string>
     <string name="change_verif_recherche">Looking for your transfer…</string>
     <string name="change_verif_recherche_detail">The relay is querying the %1$s chain. As soon as your transfer appears there, it shows up here — with nothing for you to copy.</string>
     <string name="change_verif_trouve">Transfer verified on the chain</string>
@@ -1162,7 +1162,7 @@
     <string name="change_verif_impossible_detail">The relay could not read the chain. Nothing is proven or disproven: you can send, and the exchanger will check as before.</string>
     <string name="change_verif_impossible_detail_raison">The relay could not read the chain: %1$s. Nothing is proven or disproven: you can send, and the exchanger will check as before.</string>
     <string name="change_verif_reessayer">Retry</string>
-    <string name="change_verif_quand_meme">Send anyway</string>
+    <string name="change_verif_quand_meme">Confirm anyway</string>
     <string name="change_verif_txid">Transaction hash (optional)</string>
     <string name="change_verif_txid_aide">If you have it at hand, paste it: the search becomes immediate.</string>
     <string name="change_verif_achat_recherche">Looking for your payment…</string>

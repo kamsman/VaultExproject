@@ -1129,8 +1129,8 @@
     <string name="change_ref_probleme_longue">طويل جدًا ليكون رقم معاملة. انسخ المرجع فقط، لا الرسالة كلها.</string>
     <string name="change_ref_probleme_sans_chiffre">رقم المعاملة يحتوي على أرقام. تحقق من رسالتك — مثال MP251008123456.</string>
     <string name="change_telephone">رقم Mobile Money الخاص بك</string>
-    <string name="change_jai_paye">دفعتُ — إرسال الطلب</string>
-    <string name="change_jai_paye_verifie">تم التحقق من الدفعة — إرسال</string>
+    <string name="change_jai_paye">تأكيد الدفع</string>
+    <string name="change_jai_paye_verifie">تم التحقق من الدفعة — تأكيد</string>
     <string name="change_retour">العودة إلى الحساب</string>
     <string name="change_transmis_titre">تم إرسال الطلب</string>
     <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
@@ -1145,8 +1145,8 @@
     <string name="change_telephone_vente_aide">سيرسل الصرّاف فرنكاتك إلى هذا الرقم. 8 أرقام.</string>
     <string name="change_otp_titre">أكّد رقمك (مستحسن)</string>
     <string name="change_otp_aide">أرسل «%1$s» برسالة نصية إلى %2$s. سيرى الصراف أن هذا الرقم رقمك فعلاً قبل إرسال المال. رسالة واحدة، من الرقم الذي تريد استلام المال عليه.</string>
-    <string name="change_transmettre">إرسال طلبي</string>
-    <string name="change_transmettre_verifie">إرسال — تحويل مُتحقَّق منه</string>
+    <string name="change_transmettre">تأكيد التحويل</string>
+    <string name="change_transmettre_verifie">تم التحقق من التحويل — تأكيد</string>
     <string name="change_verif_recherche">جارٍ البحث عن تحويلك…</string>
     <string name="change_verif_recherche_detail">المُرحِّل يستعلم من سلسلة %1$s. بمجرد ظهور تحويلك هناك، سيظهر هنا — دون أن تنسخ أي شيء.</string>
     <string name="change_verif_trouve">تم التحقق من التحويل على السلسلة</string>
@@ -1162,7 +1162,7 @@
     <string name="change_verif_impossible_detail">لم يتمكن المُرحِّل من قراءة السلسلة. لا شيء مُثبَت ولا مَنفي: يمكنك الإرسال، وسيتحقق الصرّاف كما في السابق.</string>
     <string name="change_verif_impossible_detail_raison">لم يتمكن المُرحِّل من قراءة السلسلة: %1$s. لا شيء مُثبَت ولا مَنفي: يمكنك الإرسال، وسيتحقق الصرّاف كما في السابق.</string>
     <string name="change_verif_reessayer">إعادة المحاولة</string>
-    <string name="change_verif_quand_meme">الإرسال على أي حال</string>
+    <string name="change_verif_quand_meme">تأكيد على أي حال</string>
     <string name="change_verif_txid">hash المعاملة (اختياري)</string>
     <string name="change_verif_txid_aide">إن كان بحوزتك، فالصقه: يصبح البحث فوريًا.</string>
     <string name="change_verif_achat_recherche">جارٍ البحث عن دفعتك…</string>

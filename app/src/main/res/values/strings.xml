@@ -1158,8 +1158,8 @@
     <string name="change_ref_probleme_longue">Trop long pour un numéro de transaction. Ne recopie que la référence, pas tout le SMS.</string>
     <string name="change_ref_probleme_sans_chiffre">Un numéro de transaction contient des chiffres. Vérifie dans ton SMS — ex. MP251008123456.</string>
     <string name="change_telephone">Ton numéro Mobile Money</string>
-    <string name="change_jai_paye">J\'ai payé — transmettre</string>
-    <string name="change_jai_paye_verifie">Paiement vérifié — transmettre</string>
+    <string name="change_jai_paye">Confirmer le paiement</string>
+    <string name="change_jai_paye_verifie">Paiement vérifié — confirmer</string>
     <string name="change_retour">Revenir au calcul</string>
     <string name="change_transmis_titre">Demande transmise</string>
     <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
@@ -1174,8 +1174,8 @@
     <string name="change_telephone_vente_aide">Le changeur enverra tes francs sur ce numéro. 8 chiffres.</string>
     <string name="change_otp_titre">Confirme ton numéro (conseillé)</string>
     <string name="change_otp_aide">Envoie « %1$s » par SMS au %2$s. Le changeur verra que ce numéro est bien le tien avant de t\'envoyer l\'argent. Un seul SMS, depuis le numéro où tu veux être payé.</string>
-    <string name="change_transmettre">Transmettre ma demande</string>
-    <string name="change_transmettre_verifie">Transmettre — versement vérifié</string>
+    <string name="change_transmettre">Confirmer l\'envoi</string>
+    <string name="change_transmettre_verifie">Versement vérifié — confirmer</string>
     <string name="change_verif_recherche">Recherche de ton versement…</string>
     <string name="change_verif_recherche_detail">Le relais interroge la chaîne %1$s. Dès que ton versement y apparaît, il s\'affiche ici — sans que tu aies rien à recopier.</string>
     <string name="change_verif_trouve">Versement vérifié sur la chaîne</string>
@@ -1191,7 +1191,7 @@
     <string name="change_verif_impossible_detail">Le relais n\'a pas pu lire la chaîne. Rien n\'est prouvé ni infirmé : tu peux transmettre, et le changeur vérifiera comme avant.</string>
     <string name="change_verif_impossible_detail_raison">Le relais n\'a pas pu lire la chaîne : %1$s. Rien n\'est prouvé ni infirmé : tu peux transmettre, et le changeur vérifiera comme avant.</string>
     <string name="change_verif_reessayer">Réessayer</string>
-    <string name="change_verif_quand_meme">Transmettre quand même</string>
+    <string name="change_verif_quand_meme">Confirmer quand même</string>
     <string name="change_verif_txid">Hash de la transaction (facultatif)</string>
     <string name="change_verif_txid_aide">Si tu l\'as sous la main, colle-le : la recherche devient immédiate.</string>
     <string name="change_verif_achat_recherche">Recherche de ton paiement…</string>
