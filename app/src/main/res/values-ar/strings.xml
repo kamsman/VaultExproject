@@ -1140,11 +1140,10 @@
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
     <string name="change_historique_note">هذه قائمة طلباتك، محفوظة على هاتفك. هي لا تُثبت الدفع — لكنها تتيح لك ذكر مرجع دقيق إذا احتجت إلى المطالبة.</string>
-    <string name="change_vente_coordonnees">أين تستلم فرنكاتك</string>
     <string name="change_telephone_vente">رقم Mobile Money للاستلام</string>
-    <string name="change_telephone_vente_aide">سيرسل الصرّاف فرنكاتك إلى هذا الرقم. 8 أرقام.</string>
+    <string name="change_telephone_vente_aide">8 أرقام.</string>
     <string name="change_otp_titre">أكّد رقمك (مستحسن)</string>
-    <string name="change_otp_aide">أرسل «%1$s» برسالة نصية إلى %2$s. سيرى الصراف أن هذا الرقم رقمك فعلاً قبل إرسال المال. رسالة واحدة، من الرقم الذي تريد استلام المال عليه.</string>
+    <string name="change_otp_aide">أرسل «%1$s» برسالة نصية إلى %2$s، من الرقم الذي تريد استلام المال عليه. رسالة واحدة.</string>
     <string name="change_transmettre">تأكيد التحويل</string>
     <string name="change_transmettre_verifie">تم التحقق من التحويل — تأكيد</string>
     <string name="change_verif_recherche">جارٍ البحث عن تحويلك…</string>
@@ -1155,7 +1154,7 @@
     <string name="change_verif_quand">الوقت</string>
     <string name="change_verif_pas_mine">ظاهر على الشبكة، لم يُدرَج في كتلة بعد. سينتظر الصرّاف تأكيدًا واحدًا.</string>
     <string name="change_verif_absent">غير ظاهر على السلسلة بعد</string>
-    <string name="change_verif_absent_detail">بحث المُرحِّل %1$d مرة دون أن يجد تحويلك. إذا أرسلت من منصة تداول، فقد يستغرق سحبها ساعة. يمكنك الانتظار، أو لصق الـ hash إن كان بحوزتك، أو الإرسال على أي حال: سيتحقق الصرّاف بنفسه.</string>
+    <string name="change_verif_absent_detail">لا شيء بعد %1$d محاولات. قد يستغرق السحب من منصة تداول ساعة.</string>
     <string name="change_verif_deja_servi">هذا التحويل استُخدم بالفعل</string>
     <string name="change_verif_deja_servi_detail">السلسلة تُظهر هذا التحويل، لكنه سدّد طلبًا آخر بالفعل. راجع طلباتك الأخيرة: إذا كان هذا هو، فقد وصل إلى الصرّاف ولا شيء لتعيده.</string>
     <string name="change_verif_impossible">التحقق التلقائي غير ممكن</string>
@@ -1180,11 +1179,10 @@
     <string name="change_verif_achat_impossible_detail_raison">لا يستطيع المُرحِّل قراءة مقبوضات الصرّاف: %1$s. لا شيء مُثبت ولا مَنفي: يمكنك الإرسال، وسيتحقق هو من كشفه.</string>
     <string name="change_transmis_verifie">استلم الصرّاف طلبك مع تأكيد السلسلة. ولا شيء آخر يطلبه منك.</string>
     <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق الصرّاف من محفظته قبل الدفع: احتفظ بمرجعك.</string>
-    <string name="change_copier_adresse">نسخ عنوان الصرّاف</string>
     <string name="change_tu_donnes">تُعطي</string>
     <string name="change_tu_recois">تستلم</string>
     <string name="change_ussd_bouton">الدفع عبر %1$s</string>
-    <string name="change_montant_exact_note">أرسل هذا المبلغ بالضبط، بما في ذلك الكسور العشرية. هو ما يربط التحويل بطلبك — المبلغ المقرَّب لن يُعترف به.</string>
+    <string name="change_montant_exact_note">أرسل هذا المبلغ بالضبط، بكسوره العشرية — مقرَّبًا لن يُعترف به.</string>
     <string name="change_inverser">عكس الشراء والبيع</string>
     <string name="change_solde">الرصيد: %1$s</string>
     <string name="change_tout_valeur">الكل: %1$s</string>

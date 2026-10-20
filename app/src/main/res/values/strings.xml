@@ -1169,11 +1169,10 @@
     <string name="change_copier_reference">Copier la référence</string>
     <string name="change_historique_titre">Mes dernières demandes</string>
     <string name="change_historique_note">Cette liste est celle de tes demandes, enregistrée sur ton téléphone. Elle ne prouve pas un paiement — elle te permet de citer une référence exacte si tu dois réclamer.</string>
-    <string name="change_vente_coordonnees">Où recevoir tes francs</string>
     <string name="change_telephone_vente">Numéro Mobile Money où recevoir</string>
-    <string name="change_telephone_vente_aide">Le changeur enverra tes francs sur ce numéro. 8 chiffres.</string>
+    <string name="change_telephone_vente_aide">8 chiffres.</string>
     <string name="change_otp_titre">Confirme ton numéro (conseillé)</string>
-    <string name="change_otp_aide">Envoie « %1$s » par SMS au %2$s. Le changeur verra que ce numéro est bien le tien avant de t\'envoyer l\'argent. Un seul SMS, depuis le numéro où tu veux être payé.</string>
+    <string name="change_otp_aide">Envoie « %1$s » par SMS au %2$s, depuis le numéro où tu veux être payé. Un seul SMS.</string>
     <string name="change_transmettre">Confirmer l\'envoi</string>
     <string name="change_transmettre_verifie">Versement vérifié — confirmer</string>
     <string name="change_verif_recherche">Recherche de ton versement…</string>
@@ -1184,7 +1183,7 @@
     <string name="change_verif_quand">Horodaté</string>
     <string name="change_verif_pas_mine">Vu sur le réseau, pas encore inscrit dans un bloc. Le changeur attendra une confirmation.</string>
     <string name="change_verif_absent">Pas encore visible sur la chaîne</string>
-    <string name="change_verif_absent_detail">Le relais a regardé %1$d fois, sans trouver ton versement. Si tu as envoyé depuis une plateforme d\'échange, son retrait peut mettre une heure. Tu peux attendre, coller le hash si tu l\'as, ou transmettre quand même : le changeur vérifiera lui-même.</string>
+    <string name="change_verif_absent_detail">Rien trouvé après %1$d essais. Un retrait depuis une plateforme d\'échange peut mettre une heure.</string>
     <string name="change_verif_deja_servi">Ce versement a déjà servi</string>
     <string name="change_verif_deja_servi_detail">La chaîne montre bien ce transfert, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
     <string name="change_verif_impossible">Vérification automatique impossible</string>
@@ -1209,11 +1208,10 @@
     <string name="change_verif_achat_impossible_detail_raison">Le relais ne peut pas lire les encaissements du changeur : %1$s. Rien n\'est prouvé ni infirmé : tu peux transmettre, et il vérifiera dans son relevé.</string>
     <string name="change_transmis_verifie">Le changeur a reçu ta demande avec la confirmation de la chaîne. Il n\'a rien à te demander de plus.</string>
     <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. Le changeur vérifiera son portefeuille avant de payer : garde ta référence.</string>
-    <string name="change_copier_adresse">Copier l\'adresse du changeur</string>
     <string name="change_tu_donnes">Tu donnes</string>
     <string name="change_tu_recois">Tu reçois</string>
     <string name="change_ussd_bouton">Payer avec %1$s</string>
-    <string name="change_montant_exact_note">Envoie EXACTEMENT ce montant, décimales comprises. C\'est lui qui rattache le versement à ta demande — un montant arrondi ne sera pas reconnu.</string>
+    <string name="change_montant_exact_note">Envoie EXACTEMENT ce montant, décimales comprises : arrondi, il ne sera pas reconnu.</string>
     <string name="change_inverser">Inverser acheter et vendre</string>
     <string name="change_solde">Solde : %1$s</string>
     <string name="change_tout_valeur">Tout : %1$s</string>
