@@ -1703,10 +1703,29 @@ private fun ColumnScope.EtapePaiement(
             Spacer(Modifier.width(10.dp))
         }
         /*
-        LE BOUTON DIT CE QU'IL ENVOIE. « J'ai paye » est juste pour un
-        achat ; sur une vente verifiee, « Transmettre — versement verifie »
-        dit a l'utilisateur ce que le changeur va lire, et c'est la
-        derniere chose a lui apprendre avant qu'il appuie.
+        LE BOUTON DIT CE QU'IL ENVOIE, et dans les deux sens il dit la
+        meme chose : « confirmer ». A l'achat on confirme un PAIEMENT, a
+        la vente un ENVOI — c'est le geste que l'utilisateur vient de
+        faire, et c'est ce qu'il atteste en appuyant.
+
+        Quand la chaine ou le releve l'a deja confirme, le libelle le dit
+        avant qu'il appuie : c'est la derniere chose utile a lui
+        apprendre.
+
+        ─── POURQUOI PLUS « TRANSMETTRE » ────────────────────────────
+
+        Le mot est administratif, et personne ne l'emploie en parlant. Il
+        avait un merite — il se distinguait d'« envoyer », qui dans toute
+        l'application veut dire deplacer de l'argent — et « confirmer » le
+        garde : on ne confirme pas des fonds, on confirme un fait.
+
+        « Transmettre quand meme », juste a cote, suit : deux boutons
+        voisins qui nomment differemment la meme action feraient chercher
+        une difference qui n'existe pas.
+
+        Les TEXTES explicatifs, eux, gardent « transmettre ». La ils ne
+        nomment pas une commande, ils decrivent ce qui se passe — et la
+        demande part bien chez quelqu'un.
         */
         Text(
             stringResource(
