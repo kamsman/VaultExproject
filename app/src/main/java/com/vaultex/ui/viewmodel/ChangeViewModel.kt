@@ -27,6 +27,49 @@ import javax.inject.Inject
 
 enum class SensChange { ACHAT, VENTE }
 
+/**
+ * Une consigne obtenue AVANT que l'utilisateur appuie sur « Continuer ».
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI ON PEUT LA PREPARER
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Le relais derive le montant a envoyer ainsi :
+ *
+ *     a_envoyer = floor(montant tape) + HMAC(reference) / 1000
+ *
+ * Il ne depend donc que de DEUX choses : la reference, et la PARTIE
+ * ENTIERE du montant. Les deux sont connues des que la frappe s'arrete.
+ *
+ * On peut donc poser la question pendant que l'utilisateur relit son
+ * ecran, au lieu d'attendre qu'il appuie — et sur un reseau mobile
+ * burkinabe, cet aller-retour prend trois a cinq secondes pendant
+ * lesquelles il regarde un bouton qui tourne.
+ *
+ * ─── CE QU'ON NE PREPARE PAS ─────────────────────────────────────────
+ *
+ * Rien n'est engage : aucune demande n'est transmise au changeur, aucun
+ * fonds ne bouge. Le relais note seulement qu'une reference existe et
+ * quand elle est nee.
+ *
+ * ─── D'OU LA DUREE DE VALIDITE ───────────────────────────────────────
+ *
+ * Cette naissance sert a l'anteriorite : un versement arrive AVANT elle
+ * ne compte pas pour cette demande. Preparer tot la recule d'autant, ce
+ * qui elargit la fenetre. Deux minutes est le prix qu'on accepte de
+ * payer ; au-dela on redemande, et la naissance redevient celle du
+ * moment ou l'on confirme.
+ */
+data class ConsignePreparee(
+    val reference: String,
+    val monnaie: String,
+    /** La partie entiere du montant tape, seule chose dont depend le calcul. */
+    val socle: Long,
+    /** Le montant exact a envoyer, tel que le relais l'a rendu. */
+    val exact: String,
+    val quand: Long
+)
+
 /** Les trois temps de l'opération, dans l'ordre. */
 enum class EtapeChange { CALCUL, PAIEMENT, TRANSMIS }
 
@@ -125,7 +168,9 @@ data class ChangeState(
      * demande le laisserait avec de la crypto envoyee et rien chez le
      * changeur. On freine, on n'interdit pas.
      */
-    val forcer: Boolean = false
+    val forcer: Boolean = false,
+    /** La consigne obtenue d'avance, quand la frappe s'est arretee. */
+    val consignePrete: ConsignePreparee? = null
 ) {
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -145,6 +190,14 @@ data class ChangeState(
     ═══════════════════════════════════════════════════════════════════════
     */
     private val saisi: Double? get() = SaisieMontant.valeur(saisie)
+
+    /**
+     * La partie entiere du montant tape — la seule chose, avec la
+     * reference, dont depende le montant marque. Taper 2,9 ou 2,0 donne
+     * le meme socle, donc la meme consigne.
+     */
+    val socleVente: Long?
+        get() = saisi?.takeIf { it > 0.0 }?.let { kotlin.math.floor(it).toLong() }
 
     /** Montant en francs de l'opération, quel que soit le sens de la saisie. */
     val montantFcfa: Double?
@@ -789,9 +842,12 @@ class ChangeViewModel @Inject constructor(
             ?.let { it.priceUsd to it.priceXof }
     } catch (_: Exception) { null }
 
-    fun onSens(sens: SensChange) = _state.update {
+    fun onSens(sens: SensChange) {
+        _state.update {
         // La saisie change d'unité avec le sens : la garder tromperait.
         it.copy(sens = sens, saisie = "", erreur = null)
+        }
+        preparerConsigne()
     }
 
     /**
@@ -827,6 +883,7 @@ class ChangeViewModel @Inject constructor(
             )
         }
         recalculer()
+        preparerConsigne()
     }
 
     /*
@@ -852,11 +909,14 @@ class ChangeViewModel @Inject constructor(
     l'opération qui le dit, donc il se calcule ici et nulle part ailleurs.
     ═══════════════════════════════════════════════════════════════════════
     */
-    fun onSaisie(valeur: String) = _state.update { etat ->
-        val decimalesMax =
-            if (etat.sens == SensChange.ACHAT) 0
-            else TauxFcfa.decimalesAffichage(etat.monnaie)
-        etat.copy(saisie = SaisieMontant.filtrer(valeur, decimalesMax), erreur = null)
+    fun onSaisie(valeur: String) {
+        _state.update { etat ->
+            val decimalesMax =
+                if (etat.sens == SensChange.ACHAT) 0
+                else TauxFcfa.decimalesAffichage(etat.monnaie)
+            etat.copy(saisie = SaisieMontant.filtrer(valeur, decimalesMax), erreur = null)
+        }
+        preparerConsigne()
     }
 
     /**
@@ -868,8 +928,11 @@ class ChangeViewModel @Inject constructor(
      * echangent reellement — et elles rappellent au passage l'ordre de
      * grandeur attendu a celui qui ouvre l'ecran pour la premiere fois.
      */
-    fun onMontantRapide(valeur: Double) = _state.update {
+    fun onMontantRapide(valeur: Double) {
+        _state.update {
         it.copy(saisie = montantTexte(valeur), erreur = null)
+        }
+        preparerConsigne()
     }
 
     /**
@@ -920,11 +983,14 @@ class ChangeViewModel @Inject constructor(
     aurait rendu 2 et perdu une unite vendable pour rien.
     ═══════════════════════════════════════════════════════════════════════
     */
-    fun onToutVendre() = _state.update { etat ->
+    fun onToutVendre() {
+        _state.update { etat ->
         val solde = etat.solde ?: return@update etat
         val vendable = etat.plusGrandMontantVendable(solde)
         if (vendable <= 0.0) return@update etat
         etat.copy(saisie = montantTexte(vendable), erreur = null)
+        }
+        preparerConsigne()
     }
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -1011,6 +1077,92 @@ class ChangeViewModel @Inject constructor(
      * qui engage.
      * ═══════════════════════════════════════════════════════════════════
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON DEMANDE LA CONSIGNE PENDANT QU'IL REGARDE, PAS QUAND IL APPUIE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Mesure a l'usage : sur une vente, « Continuer » prenait trois a cinq
+    secondes avant de changer d'ecran. Le bouton tournait, donc l'ecran
+    ne paraissait pas casse — mais c'est trois a cinq secondes passees a
+    attendre, a chaque vente, sur un reseau mobile.
+
+    Ce que cet aller-retour rapporte ne peut pas etre supprime : le
+    montant marque vient d'un secret du serveur, et il faut le connaitre
+    AVANT que quelqu'un parte envoyer sa crypto.
+
+    Mais il n'a pas a etre demande au dernier moment. Il ne depend que de
+    la reference et de la partie entiere du montant, toutes deux connues
+    des que la frappe s'arrete. On le demande donc la, pendant que
+    l'utilisateur relit ses chiffres — et au moment ou il appuie, la
+    reponse est deja posee.
+
+    ─── CE QU'ON NE PREPARE PAS ────────────────────────────────────────
+
+    Rien n'est engage : aucune demande ne part chez le changeur, aucun
+    fonds ne bouge, et le solde n'est verifie qu'a la confirmation. Une
+    preparation abandonnee ne laisse qu'une reference nee pour rien.
+
+    ─── ON NE PREPARE QUE CE QUI PEUT ABOUTIR ──────────────────────────
+
+    Seulement une VENTE, seulement a l'etape du calcul, et seulement
+    quand rien ne bloque. Preparer sur un montant hors bornes ou sans
+    cours ferait naitre des references pour des ventes impossibles.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private var preparationJob: kotlinx.coroutines.Job? = null
+
+    private fun preparerConsigne() {
+        preparationJob?.cancel()
+        val depart = _state.value
+        if (depart.sens != SensChange.VENTE || depart.etape != EtapeChange.CALCUL) return
+        if (depart.blocage() != null) return
+        val socle = depart.socleVente ?: return
+
+        // Deja prete pour ce socle et cette monnaie : rien a redemander.
+        val prete = depart.consignePrete
+        if (prete != null && prete.monnaie == depart.monnaie && prete.socle == socle &&
+            System.currentTimeMillis() - prete.quand < VALIDITE_PREPARATION
+        ) return
+
+        preparationJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(ATTENTE_PREPARATION)
+            // L'etat a pu bouger pendant l'attente : on ne prepare que ce
+            // qui est encore a l'ecran.
+            val avant = _state.value
+            if (avant.sens != SensChange.VENTE || avant.etape != EtapeChange.CALCUL) return@launch
+            if (avant.blocage() != null || avant.socleVente != socle) return@launch
+            if (avant.monnaie != depart.monnaie) return@launch
+
+            val reference = OrdreChange.nouvelleReference()
+            val exact = withContext(Dispatchers.IO) {
+                service.consigne(avant.monnaie, avant.saisie, reference)
+            } ?: return@launch
+
+            /*
+            ON NE POSE QUE SI RIEN N'A BOUGE. Entre la requete et sa
+            reponse, l'utilisateur a pu changer de montant ou de monnaie.
+            Poser quand meme donnerait une consigne qui ne decrit plus ce
+            qu'il voit — et `confirmer` l'ecarterait, donc l'attente
+            reviendrait sans qu'on sache pourquoi.
+            */
+            _state.update {
+                if (it.sens != SensChange.VENTE || it.etape != EtapeChange.CALCUL ||
+                    it.monnaie != avant.monnaie || it.socleVente != socle
+                ) it
+                else it.copy(
+                    consignePrete = ConsignePreparee(
+                        reference = reference,
+                        monnaie = avant.monnaie,
+                        socle = socle,
+                        exact = exact,
+                        quand = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
     fun confirmer() {
         val s = _state.value
         if (s.blocage() != null) return
@@ -1047,6 +1199,40 @@ class ChangeViewModel @Inject constructor(
             return
         }
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LA CONSIGNE EST PEUT-ETRE DEJA LA
+        ═══════════════════════════════════════════════════════════════════
+
+        `preparerConsigne` l'a demandee une seconde apres la fin de la
+        frappe, pendant que l'utilisateur relisait son ecran. Quand elle
+        correspond encore — meme monnaie, meme partie entiere, moins de
+        deux minutes — l'ecran change immediatement.
+
+        ON REPREND SA REFERENCE, et c'est obligatoire : le montant marque
+        derive d'ELLE. Confirmer avec une reference neuve rendrait le
+        chiffre prepare faux, et l'utilisateur enverrait un montant que le
+        relais ne rattacherait a rien.
+
+        Elle est consommee au passage. Deux demandes qui partageraient une
+        reference seraient refusees par le dedoublonnage du relais, et la
+        seconde le serait sans qu'on comprenne pourquoi.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val prete = s.consignePrete?.takeIf {
+            it.monnaie == s.monnaie &&
+                it.socle == s.socleVente &&
+                System.currentTimeMillis() - it.quand < VALIDITE_PREPARATION
+        }
+        if (prete != null) {
+            _state.update { it.copy(consignePrete = null, erreur = null) }
+            if (soldeSuffitApresMarquage(prete.exact, s)) {
+                poserEtapePaiement(_state.value, prix, prete.reference, prete.exact)
+                demarrerVerification()
+            }
+            return
+        }
+
         _state.update { it.copy(envoiEnCours = true, erreur = null) }
         viewModelScope.launch {
             val exact = withContext(Dispatchers.IO) {
@@ -1062,63 +1248,9 @@ class ChangeViewModel @Inject constructor(
                 }
                 return@launch
             }
-            /*
-            ═══════════════════════════════════════════════════════════════
-            LE MONTANT MARQUE PEUT DEPASSER LE SOLDE
-            ═══════════════════════════════════════════════════════════════
-
-            Le marquage s'AJOUTE : il occupe les trois decimales au-dessus
-            de la partie entiere, donc le montant a envoyer est toujours
-            superieur a celui qui a ete tape, d'au plus 0,999.
-
-            Quelqu'un qui detient 17,4 USDT et tape 17 se verrait demander
-            17,472 — qu'il ne peut pas envoyer. Et il ne l'apprendrait
-            qu'au moment de l'envoi, apres avoir quitte cette application,
-            sur un ecran qui ne sait rien de cette demande.
-
-            C'est ICI qu'il faut le dire, parce que c'est ici qu'on connait
-            le solde : le relais, lui, ne le connait pas.
-
-            ─── ON PROPOSE LE MONTANT QUI MARCHE ────────────────────────
-
-            Un refus sec laisserait chercher combien retirer. Le message
-            donne le chiffre : une unite de moins suffit toujours, puisque
-            le marquage ne depasse jamais 0,999.
-            ═══════════════════════════════════════════════════════════════
-            */
-            val exactNombre = exact.replace(',', '.').toDoubleOrNull()
-            val soldeConnu = _state.value.solde
-            if (exactNombre != null && soldeConnu != null && exactNombre > soldeConnu) {
-                /*
-                LE MEME CHIFFRE QUE CELUI QU'ECRIT « TOUT ».
-
-                C'etait `floor(solde) - 1`. Juste, mais trop prudent d'une
-                unite sur un solde decimal — sur 3,999 il proposait 2 quand
-                3 passe — et surtout DIFFERENT de ce que le bouton « Tout »
-                ecrit. L'ecran aurait propose un montant que son propre
-                bouton refusait d'inscrire.
-
-                Une seule definition, `plusGrandMontantVendable`, pour les
-                deux. Elle rend 0 quand aucune vente n'est possible, et
-                c'est ce cas-la que la seconde phrase traite.
-                */
-                val propose = _state.value.plusGrandMontantVendable(soldeConnu).toInt()
-                _state.update {
-                    it.copy(
-                        envoiEnCours = false,
-                        erreur = if (propose >= 1) {
-                            "Avec sa marque, le montant à envoyer serait de " +
-                                "$exact ${s.monnaie}, or tu n'en détiens que " +
-                                "${decimal(soldeConnu, s.monnaie)}. Réessaie avec " +
-                                "$propose ou moins."
-                        } else {
-                            "Avec sa marque, le montant à envoyer serait de " +
-                                "$exact ${s.monnaie}, or tu n'en détiens que " +
-                                "${decimal(soldeConnu, s.monnaie)}. Ce solde ne " +
-                                "suffit pas pour une vente."
-                        }
-                    )
-                }
+            // Le meme controle que sur la voie rapide, ecrit une fois.
+            if (!soldeSuffitApresMarquage(exact, s)) {
+                _state.update { it.copy(envoiEnCours = false) }
                 return@launch
             }
 
@@ -1134,6 +1266,63 @@ class ChangeViewModel @Inject constructor(
             poserEtapePaiement(_state.value, prix, reference, exact)
             demarrerVerification()
         }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MONTANT MARQUE PEUT DEPASSER LE SOLDE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le marquage s'AJOUTE : il occupe les trois decimales au-dessus de la
+    partie entiere, donc le montant a envoyer est toujours superieur a
+    celui qui a ete tape, d'au plus 0,999.
+
+    Quelqu'un qui detient 17,4 USDT et tape 17 se verrait demander 17,472
+    — qu'il ne peut pas envoyer. Et il ne l'apprendrait qu'au moment de
+    l'envoi, apres avoir quitte cette application, sur un ecran qui ne
+    sait rien de cette demande.
+
+    C'est ICI qu'il faut le dire, parce que c'est ici qu'on connait le
+    solde : le relais, lui, ne le connait pas.
+
+    ─── ON PROPOSE LE MONTANT QUI MARCHE ────────────────────────────────
+
+    Un refus sec laisserait chercher combien retirer. Le message donne le
+    chiffre, et c'est exactement celui qu'ecrit le bouton « Tout » : une
+    seule definition, `plusGrandMontantVendable`, sinon l'ecran proposerait
+    un montant que son propre bouton refuse d'inscrire.
+
+    ─── POURQUOI C'EST UNE FONCTION ─────────────────────────────────────
+
+    Depuis que la consigne peut arriver d'avance, deux chemins menent ici
+    — celui qui attend le reseau et celui qui trouve la reponse deja
+    prete. Le controle ecrit deux fois aurait fini par ne valoir que sur
+    un seul, et ce serait le rapide, donc le plus frequent, qui l'aurait
+    perdu.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun soldeSuffitApresMarquage(exact: String, s: ChangeState): Boolean {
+        val exactNombre = exact.replace(',', '.').toDoubleOrNull() ?: return true
+        val soldeConnu = _state.value.solde ?: return true
+        if (exactNombre <= soldeConnu) return true
+
+        val propose = _state.value.plusGrandMontantVendable(soldeConnu).toInt()
+        _state.update {
+            it.copy(
+                erreur = if (propose >= 1) {
+                    "Avec sa marque, le montant à envoyer serait de " +
+                        "$exact ${s.monnaie}, or tu n'en détiens que " +
+                        "${decimal(soldeConnu, s.monnaie)}. Réessaie avec " +
+                        "$propose ou moins."
+                } else {
+                    "Avec sa marque, le montant à envoyer serait de " +
+                        "$exact ${s.monnaie}, or tu n'en détiens que " +
+                        "${decimal(soldeConnu, s.monnaie)}. Ce solde ne " +
+                        "suffit pas pour une vente."
+                }
+            )
+        }
+        return false
     }
 
     /** Fige le prix, ecrit la trace, et passe a l'etape de paiement. */
@@ -1677,6 +1866,28 @@ class ChangeViewModel @Inject constructor(
          * qui clignote en rouge pendant qu'on ecrit correctement.
          */
         const val ATTENTE_FRAPPE = 1_200L
+
+        /**
+         * Le temps de silence avant de preparer la consigne d'une vente.
+         *
+         * Plus court que l'attente de la verification : ici une requete
+         * de trop ne fait clignoter aucun verdict, elle coute seulement
+         * un aller-retour. Mais preparer a chaque frappe de « 1500 »
+         * poserait quatre references pour une seule vente.
+         */
+        const val ATTENTE_PREPARATION = 900L
+
+        /**
+         * Au-dela, la consigne preparee est jetee et redemandee.
+         *
+         * La preparation fait naitre la demande cote relais, et cette
+         * naissance sert a l'anteriorite : un versement arrive avant elle
+         * ne compte pas. Preparer tot la recule, donc elargit la fenetre
+         * d'autant. Deux minutes est l'elargissement qu'on accepte ; au
+         * dela on redemande, et la naissance redevient celle du moment ou
+         * l'on confirme.
+         */
+        const val VALIDITE_PREPARATION = 2 * 60 * 1000L
     }
 
     /**
