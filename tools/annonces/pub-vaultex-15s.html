@@ -117,8 +117,8 @@ body {
 }
 .sc.mid { align-items: center; text-align: center; }
 
-.mark { width: 190px; height: 190px; }
-.word { width: 430px; height: auto; }
+.mark { width: 300px; height: 300px; }
+.word { width: 620px; height: auto; }
 
 h1 {
   margin: 0;
@@ -135,7 +135,7 @@ h1 em { font-style: normal; color: var(--blue); }
   margin: 0;
   font-family: var(--body);
   font-weight: 600;
-  font-size: 30px;
+  font-size: 38px;
   letter-spacing: .22em;
   text-transform: uppercase;
   color: var(--blue);
@@ -144,16 +144,16 @@ h1 em { font-style: normal; color: var(--blue); }
   margin: 0;
   font-family: var(--body);
   font-weight: 500;
-  font-size: 36px;
+  font-size: 46px;
   letter-spacing: .02em;
   color: var(--mute);
 }
-.sub { margin: 0; font-size: 42px; line-height: 1.35; color: var(--mute); max-width: 780px; }
-.fine { margin: 0; font-size: 26px; color: #64748B; }
+.sub { margin: 0; font-size: 54px; line-height: 1.32; color: var(--mute); max-width: 850px; }
+.fine { margin: 0; font-size: 30px; color: #64748B; }
 
 /* ─── Scène 1 : la marque ────────────────────────────────────────────── */
 
-.s1 { gap: 46px; }
+.s1 { gap: 54px; }
 .s1 { animation: sc1 15s linear infinite both; }
 .s1 .mark { animation: pop1 15s linear infinite both; }
 .s1 .word { animation: rise1 15s linear infinite both; }
@@ -181,7 +181,7 @@ h1 em { font-style: normal; color: var(--blue); }
 
 /* ─── Scène 2 : acheter en FCFA ──────────────────────────────────────── */
 
-.s2 { gap: 38px; animation: sc2 15s linear infinite both; }
+.s2 { gap: 46px; animation: sc2 15s linear infinite both; }
 .s2 .eyebrow { animation: rise2a 15s linear infinite both; }
 .s2 h1 { animation: rise2b 15s linear infinite both; }
 .s2 .convert { animation: rise2c 15s linear infinite both; }
@@ -192,60 +192,60 @@ h1 em { font-style: normal; color: var(--blue); }
 }
 @keyframes rise2a {
   0%, 17% { transform: translateY(18px); opacity: 0 }
-  20% { transform: translateY(0); opacity: 1 }
+  19.5% { transform: translateY(0); opacity: 1 }
   100% { transform: translateY(0); opacity: 1 }
 }
 @keyframes rise2b {
   0%, 18% { transform: translateY(30px); opacity: 0 }
-  22% { transform: translateY(0); opacity: 1 }
+  21% { transform: translateY(0); opacity: 1 }
   100% { transform: translateY(0); opacity: 1 }
 }
 @keyframes rise2c {
-  0%, 21% { transform: translateY(30px); opacity: 0 }
-  25% { transform: translateY(0); opacity: 1 }
+  0%, 20.5% { transform: translateY(30px); opacity: 0 }
+  23.5% { transform: translateY(0); opacity: 1 }
   100% { transform: translateY(0); opacity: 1 }
 }
 @keyframes rise2d {
-  0%, 26% { transform: translateY(22px); opacity: 0 }
-  30% { transform: translateY(0); opacity: 1 }
+  0%, 24% { transform: translateY(22px); opacity: 0 }
+  27% { transform: translateY(0); opacity: 1 }
   100% { transform: translateY(0); opacity: 1 }
 }
 
 .convert {
   width: 100%;
   border: 2px solid var(--line);
-  border-radius: 28px;
+  border-radius: 34px;
   background: rgba(17, 26, 46, .82);
-  padding: 38px 40px;
+  padding: 50px 52px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 32px;
 }
 .row { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
-.row .k { font-size: 28px; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
+.row .k { font-size: 34px; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
 .row .v {
   font-family: var(--figure);
   font-weight: 600;
-  font-size: 58px;
+  font-size: 76px;
   font-variant-numeric: tabular-nums;
 }
 .row.out .v { color: var(--green); }
 .chip {
   display: inline-flex; align-items: center; gap: 14px;
   align-self: flex-start;
-  padding: 12px 22px;
+  padding: 16px 28px;
   border-radius: 999px;
   background: rgba(255, 121, 0, .14);
   border: 2px solid rgba(255, 121, 0, .55);
   color: var(--om);
-  font-size: 27px; font-weight: 600;
+  font-size: 34px; font-weight: 600;
 }
-.chip i { width: 18px; height: 18px; border-radius: 50%; background: var(--om); display: block; }
+.chip i { width: 22px; height: 22px; border-radius: 50%; background: var(--om); display: block; }
 .rule { height: 2px; background: var(--line); }
 
 /* ─── Scène 3 : les clés ─────────────────────────────────────────────── */
 
-.s3 { gap: 44px; animation: sc3 15s linear infinite both; }
+.s3 { gap: 52px; animation: sc3 15s linear infinite both; }
 .s3 .keyart { animation: keypulse 15s linear infinite both; }
 .s3 h1 { animation: rise3a 15s linear infinite both; }
 .s3 .sub { animation: rise3b 15s linear infinite both; }
@@ -270,11 +270,11 @@ h1 em { font-style: normal; color: var(--blue); }
   51% { transform: translateY(0); opacity: 1 }
   100% { transform: translateY(0); opacity: 1 }
 }
-.keyart { width: 150px; height: 150px; }
+.keyart { width: 250px; height: 250px; }
 
 /* ─── Scène 4 : trois promesses ──────────────────────────────────────── */
 
-.s4 { gap: 36px; animation: sc4 15s linear infinite both; }
+.s4 { gap: 52px; animation: sc4 15s linear infinite both; }
 .s4 .eyebrow { animation: rise4e 15s linear infinite both; }
 .s4 li:nth-child(1) { animation: rise4a 15s linear infinite both; }
 .s4 li:nth-child(2) { animation: rise4b 15s linear infinite both; }
@@ -304,23 +304,23 @@ h1 em { font-style: normal; color: var(--blue); }
   100% { transform: translateX(0); opacity: 1 }
 }
 
-.promesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 34px; }
+.promesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 52px; }
 .promesses li {
-  display: flex; align-items: center; gap: 28px;
-  font-size: 52px; font-weight: 500; line-height: 1.15;
+  display: flex; align-items: center; gap: 30px;
+  font-size: 58px; font-weight: 500; line-height: 1.14;
 }
 .promesses .tick {
   flex: 0 0 auto;
-  width: 60px; height: 60px; border-radius: 50%;
+  width: 70px; height: 70px; border-radius: 50%;
   background: rgba(34, 197, 94, .16);
   border: 2px solid rgba(34, 197, 94, .6);
   display: grid; place-items: center;
 }
-.promesses .tick svg { width: 30px; height: 30px; }
+.promesses .tick svg { width: 34px; height: 34px; }
 
 /* ─── Scène 5 : l'appel ──────────────────────────────────────────────── */
 
-.s5 { gap: 40px; animation: sc5 15s linear infinite both; }
+.s5 { gap: 46px; animation: sc5 15s linear infinite both; }
 .s5 .mark { animation: pop5 15s linear infinite both; }
 .s5 .word { animation: rise5a 15s linear infinite both; }
 .s5 .tag { animation: rise5b 15s linear infinite both; }
@@ -351,8 +351,8 @@ h1 em { font-style: normal; color: var(--blue); }
 }
 
 .contacts {
-  display: flex; flex-direction: column; gap: 16px;
-  font-family: var(--figure); font-size: 32px; color: var(--mute);
+  display: flex; flex-direction: column; gap: 20px;
+  font-family: var(--figure); font-size: 40px; color: var(--mute);
   font-variant-numeric: tabular-nums;
 }
 .contacts b { color: var(--text); font-weight: 600; }
@@ -445,11 +445,11 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
           </li>
           <li>
             <span class="tick"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7" stroke="#22C55E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            Paiement par Mobile Money
+            Paiement Mobile Money
           </li>
           <li>
             <span class="tick"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 7" stroke="#22C55E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            Tes douze mots, ton portefeuille
+            Douze mots, et c’est à toi
           </li>
         </ul>
       </section>
