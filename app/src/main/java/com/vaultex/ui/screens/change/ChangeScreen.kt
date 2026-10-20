@@ -141,8 +141,41 @@ fun ChangeScreen(navController: NavController) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE TITRE DIT LEQUEL DES DEUX, PAS « LES DEUX »
+                    ═══════════════════════════════════════════════════════
+
+                    Il affichait « Acheter / Vendre » en permanence. Le
+                    nom du MENU, pas celui de ce qu'on est en train de
+                    faire — et sur l'etape de paiement, c'etait le seul
+                    endroit de l'ecran a pouvoir le dire.
+
+                    Car les onglets ne vivent qu'au temps 1. Au temps 2,
+                    il reste « Envoie le paiement » ou « Envoie la
+                    crypto », qui disent le GESTE sans nommer l'operation.
+                    Quelqu'un qui revient d'Orange Money vingt minutes
+                    plus tard, ou qui retrouve l'ecran apres qu'Android a
+                    ferme l'application, n'avait rien pour verifier d'un
+                    coup d'oeil qu'il est bien du bon cote.
+
+                    Et se tromper de sens coute ici une operation entiere,
+                    dans un sens irreversible.
+
+                    ─── POURQUOI PAS SIMPLEMENT « ACHETER » ─────────────
+
+                    Parce qu'au temps 1, l'onglet choisi porte deja ce mot
+                    exact, en gras, a deux centimetres en dessous. Deux
+                    fois le meme mot l'un sous l'autre ne se lit plus. En
+                    nommant l'objet — « Acheter de la crypto » — le titre
+                    dit quelque chose que l'onglet ne dit pas.
+                    ═══════════════════════════════════════════════════════
+                    */
                     Text(
-                        stringResource(R.string.change_titre),
+                        stringResource(
+                            if (state.sens == SensChange.ACHAT) R.string.change_titre_achat
+                            else R.string.change_titre_vente
+                        ),
                         fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
                     )
                 },

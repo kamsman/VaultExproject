@@ -1123,7 +1123,8 @@
     <string name="pi_envoi_reussi_compte_cree">Pi envoyés, et le compte du destinataire a été créé. La transaction est inscrite sur le réseau Pi.</string>
     <string name="pi_compte_a_creer">Cette adresse doit encore être CRÉÉE sur la chaîne Pi, et très peu d\'applications savent le faire. Le Pi Wallet officiel refuse (« l\'adresse du destinataire n\'existe pas »), MEXC aussi (« adresse pas encore activée »), OKX aussi (« adresse incorrecte ») — l\'adresse est pourtant bonne. Il faut un premier versement d\'au moins %1$s Pi venu d\'une application qui sait CRÉER un compte : un autre VaultEx le peut. Une seule fois : ensuite tout le monde l\'accepte.</string>
     <string name="pi_memo_quelconque">Si la plateforme EXIGE un mémo pour cet envoi, mets une valeur quelconque — %1$s par exemple. Un mémo sert à une plateforme pour savoir quel client créditer sur une adresse partagée. Celle-ci n\'appartient qu\'à toi : le réseau le transporte et l\'ignore.</string>
-    <string name="change_titre">Acheter / Vendre</string>
+    <string name="change_titre_achat">Acheter de la crypto</string>
+    <string name="change_titre_vente">Vendre de la crypto</string>
     <string name="change_chargement">Lecture des conditions du jour…</string>
     <string name="change_indisponible">Service indisponible pour le moment. Réessaie dans un instant.</string>
     <string name="change_hors_ligne">Impossible de joindre VaultEx. Vérifie tes données mobiles ou ton Wi-Fi, puis réessaie.</string>
