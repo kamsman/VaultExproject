@@ -139,6 +139,7 @@ if (typeof sante?.version !== 'number') {
 
 console.log(`En ligne   : version ${sante.version}`)
 console.log(`Memoire    : ${sante.memoire ?? '(non dit)'}`)
+console.log(`Marquage   : ${sante.marquage ?? '(non dit — relais anterieur a la v52)'}`)
 console.log('')
 
 let probleme = 0
@@ -185,10 +186,43 @@ if (typeof sante.memoire === 'string' && !sante.memoire.startsWith('KV')) {
   probleme += 1
 }
 
+/*
+LE MARQUAGE EST VERIFIE ICI POUR LA MEME RAISON QUE LA MEMOIRE : il
+s'eteint sans bruit.
+
+Il ne s'active que si CHANGE_MARQUAGE existe et fait seize caracteres.
+Absente ou trop courte, le relais cherche le montant ROND au lieu du
+montant marque — et l'adresse du changeur, qui est publique et montree a
+chaque vendeur, redevient surveillable : on voit arriver le versement de
+quelqu'un, on depose une demande du meme montant, on se fait payer a sa
+place.
+
+Les ventes continuent de fonctionner pendant ce temps. C'est ce qui rend
+ce defaut-la plus dangereux qu'une panne.
+*/
+if (typeof sante.marquage === 'string' && !sante.marquage.startsWith('actif')) {
+  console.log('')
+  console.log(`❌ LE MARQUAGE DES MONTANTS EST ETEINT : ${sante.marquage}`)
+  console.log("   Le relais cherche le montant rond. L'adresse du changeur")
+  console.log('   est publique : un versement vu sur la chaine peut etre')
+  console.log("   reclame par quelqu'un d'autre, avec une demande du meme")
+  console.log('   montant. Les ventes marchent quand meme — rien ne le dit.')
+  console.log('')
+  console.log('   Workers & Pages → le Worker → Settings → Variables')
+  console.log('   → Add → CHANGE_MARQUAGE, en SECRET, 16 caracteres au moins.')
+  console.log('   Un secret plus court se retrouve hors ligne : la reference')
+  console.log('   est affichee a l\'utilisateur et le montant est sur la chaine,')
+  console.log('   donc un seul couple observe suffit.')
+  probleme += 1
+}
+
 console.log('')
 if (probleme > 0) {
   process.exitCode = 1
 } else {
-  console.log(`✅ En ligne et a jour : version ${attendue}, memoire ${sante.memoire}.`)
+  console.log(
+    `✅ En ligne et a jour : version ${attendue}, memoire ${sante.memoire},` +
+    ` marquage ${sante.marquage ?? '(non dit)'}.`
+  )
 }
 console.log('')

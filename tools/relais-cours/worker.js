@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 51
+const VERSION = 52
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -460,6 +460,32 @@ export default {
         de s'en apercevoir autrement que par une vente perdue.
         */
         memoire: MEMOIRE ? 'KV (durable)' : 'cache (FRAGILE — lie un espace KV nomme MEMOIRE)',
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE MARQUAGE SE TAIT QUAND IL S'ETEINT, ET C'EST LE PROBLEME
+        ═══════════════════════════════════════════════════════════════
+
+        Il ne s'active que si CHANGE_MARQUAGE existe et fait seize
+        caracteres. Absente ou trop courte, le relais retombe sur le
+        montant rond — les ventes continuent de fonctionner, rien ne
+        s'affiche nulle part, et l'adresse du changeur redevient
+        surveillable : on voit arriver le versement de quelqu'un, on
+        depose une demande du meme montant, on se fait payer a sa place.
+
+        C'est exactement le raisonnement qui a mis `memoire` sur cette
+        sonde. Une protection qui disparait sans bruit doit etre lisible
+        la ou l'on regarde apres chaque deploiement — et on ne regarde
+        qu'ici. `/diag/pourquoi` le disait deja, mais il demande une
+        monnaie et une reference, donc on ne l'ouvre jamais.
+
+        ON NE REND QUE L'ETAT. Ni la valeur, ni sa longueur : la sonde
+        est publique, et la longueur d'un secret est deja un
+        renseignement sur lui.
+        ═══════════════════════════════════════════════════════════════
+        */
+        marquage: marquageActif(env)
+          ? 'actif'
+          : 'INACTIF — regle CHANGE_MARQUAGE (16 caracteres au moins)',
       })
     }
 
