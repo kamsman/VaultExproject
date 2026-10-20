@@ -181,9 +181,10 @@ data class ChangeState(
      * ici : il n'y a pas eu de paiement Mobile Money, c'est le changeur
      * qui va en faire un.
      *
-     * Un achat, lui, garde son exigence : rien d'automatique ne peut lire
-     * un relevé Orange Money, donc la reference que l'utilisateur recopie
-     * reste le seul fil entre son paiement et sa demande.
+     * Un achat, lui, exige de quoi RATTACHER le paiement a la demande :
+     * la reference recopiee depuis le SMS de l'operateur, ou le numero
+     * qui a paye. L'un des deux, jamais rien — c'est exactement ce que
+     * la recherche demande de son cote.
      * ═══════════════════════════════════════════════════════════════════
      */
     fun peutTransmettre(): Boolean = when {
@@ -218,7 +219,42 @@ data class ChangeState(
         ═══════════════════════════════════════════════════════════════
         */
         sens == SensChange.ACHAT -> when {
-            referencePaiement.isBlank() -> false
+            /*
+            ═══════════════════════════════════════════════════════════
+            LA REFERENCE *OU* LE NUMERO, LE MEME CRITERE QUE LA
+            RECHERCHE
+            ═══════════════════════════════════════════════════════════
+
+            C'etait « referencePaiement.isBlank() -> false » : la
+            reference, et rien d'autre.
+
+            Or la recherche, elle, accepte les deux. `boucleVerification`
+            ne s'arrete que si la reference ET le numero manquent, et
+            `relancerVerificationAchat` repart sur une modification du
+            numero seul. Le commentaire qui l'explique dit meme pourquoi :
+            le numero est « le chemin de ceux qui n'ont rien recopie,
+            c'est-a-dire la plupart ».
+
+            Les deux moities se contredisaient donc, et le resultat est
+            le pire qui soit : quelqu'un qui tape seulement son numero
+            voit le relais retrouver son paiement, lit « paiement recu »
+            en vert — et le bouton reste eteint. Son argent est parti, et
+            l'ecran lui affirme que tout va bien en lui refusant le seul
+            geste qui depose sa demande.
+
+            Un seul critere, ecrit une fois : il faut de quoi rattacher
+            le paiement a la demande, et ce lien est la reference de
+            l'operateur OU le numero qui a paye. Jamais rien.
+
+            ─── SI LA REFERENCE DOIT RESTER OBLIGATOIRE ────────────────
+
+            Alors c'est l'autre moitie qu'il faut corriger : cesser de
+            chercher sur le numero seul, pour ne plus jamais afficher un
+            verdict vert qu'on refuse ensuite d'honorer. Ce qui ne peut
+            pas tenir, c'est que les deux regles different.
+            ═══════════════════════════════════════════════════════════
+            */
+            referencePaiement.isBlank() && !telephoneValide -> false
             verification?.estVert == true -> true
             forcer -> true
             // Un sondage est en vol : la réponse arrive dans l'instant,
