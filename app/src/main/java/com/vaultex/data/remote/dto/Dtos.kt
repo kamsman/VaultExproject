@@ -640,7 +640,23 @@ data class TourAssistance(
 )
 
 data class DemandeAssistance(
-    val messages: List<TourAssistance>
+    val messages: List<TourAssistance>,
+    /**
+     * La langue CHOISIE dans l'application — « fr », « en », « ar ».
+     *
+     * L'assistance repond dans la langue de la question ; ce champ sert
+     * quand la question ne la dit pas. « combien ? », « ok », un montant
+     * seul : ces messages-la n'ont pas de langue, et c'est pourtant le
+     * genre qu'on tape le plus souvent.
+     *
+     * C'est la langue de l'application et non celle du systeme : les deux
+     * different des que quelqu'un l'a changee dans les reglages, et c'est
+     * celle qu'il a choisie qui dit dans quelle langue il veut lire.
+     *
+     * Un relais plus ancien l'ignore simplement, et continue a repondre
+     * comme avant.
+     */
+    val langue: String
 )
 
 data class ReponseAssistance(
