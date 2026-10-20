@@ -922,7 +922,7 @@ class ChangeViewModel @Inject constructor(
     */
     fun onToutVendre() = _state.update { etat ->
         val solde = etat.solde ?: return@update etat
-        val vendable = plusGrandMontantVendable(solde)
+        val vendable = etat.plusGrandMontantVendable(solde)
         if (vendable <= 0.0) return@update etat
         etat.copy(saisie = montantTexte(vendable), erreur = null)
     }
