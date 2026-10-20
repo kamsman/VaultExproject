@@ -1140,11 +1140,10 @@
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
-    <string name="change_vente_coordonnees">Where to receive your francs</string>
     <string name="change_telephone_vente">Mobile Money number to receive on</string>
-    <string name="change_telephone_vente_aide">The exchanger will send your francs to this number. 8 digits.</string>
+    <string name="change_telephone_vente_aide">8 digits.</string>
     <string name="change_otp_titre">Confirm your number (recommended)</string>
-    <string name="change_otp_aide">Text “%1$s” to %2$s. The changer will see that this number is really yours before sending the money. One SMS, from the number you want to be paid on.</string>
+    <string name="change_otp_aide">Text “%1$s” to %2$s, from the number you want to be paid on. One SMS.</string>
     <string name="change_transmettre">Confirm transfer</string>
     <string name="change_transmettre_verifie">Transfer verified — confirm</string>
     <string name="change_verif_recherche">Looking for your transfer…</string>
@@ -1155,7 +1154,7 @@
     <string name="change_verif_quand">Timestamp</string>
     <string name="change_verif_pas_mine">Seen on the network, not yet in a block. The exchanger will wait for one confirmation.</string>
     <string name="change_verif_absent">Not visible on the chain yet</string>
-    <string name="change_verif_absent_detail">The relay looked %1$d times without finding your transfer. If you sent from an exchange, its withdrawal can take an hour. You can wait, paste the hash if you have it, or send anyway: the exchanger will check for himself.</string>
+    <string name="change_verif_absent_detail">Nothing found after %1$d tries. A withdrawal from an exchange can take an hour.</string>
     <string name="change_verif_deja_servi">This transfer has already been used</string>
     <string name="change_verif_deja_servi_detail">The chain does show this transfer, but it already settled another request. Check your recent requests: if this is the one, it already reached the exchanger and there is nothing to redo.</string>
     <string name="change_verif_impossible">Automatic verification impossible</string>
@@ -1180,11 +1179,10 @@
     <string name="change_verif_achat_impossible_detail_raison">The relay cannot read the changer\'s incoming payments: %1$s. Nothing is proven or disproven: you can send, and he will check his statement.</string>
     <string name="change_transmis_verifie">The exchanger received your request together with the chain\'s confirmation. He has nothing more to ask you.</string>
     <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. The exchanger will check his wallet before paying: keep your reference.</string>
-    <string name="change_copier_adresse">Copy the exchanger\'s address</string>
     <string name="change_tu_donnes">You give</string>
     <string name="change_tu_recois">You receive</string>
     <string name="change_ussd_bouton">Pay with %1$s</string>
-    <string name="change_montant_exact_note">Send EXACTLY this amount, decimals included. It is what ties the transfer to your request — a rounded amount will not be recognised.</string>
+    <string name="change_montant_exact_note">Send EXACTLY this amount, decimals included — rounded, it will not be recognised.</string>
     <string name="change_inverser">Swap buy and sell</string>
     <string name="change_solde">Balance: %1$s</string>
     <string name="change_tout_valeur">All: %1$s</string>

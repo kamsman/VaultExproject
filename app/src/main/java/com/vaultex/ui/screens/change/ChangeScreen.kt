@@ -1205,22 +1205,18 @@ private fun ColumnScope.EtapePaiement(
             qu'on demandait a tenir SANS DEFILEMENT. Un bouton qu'on peut
             supprimer sans perdre une action est le premier a partir.
 
-            SUR UNE VENTE IL RESTE. Ce qu'on y copie est une ADRESSE de
-            chaine — quarante caracteres qu'on ne retape pas, et dont la
-            copie est le geste central de l'ecran. Elle merite une cible
-            large, pas une icone de seize points.
+            SUR UNE VENTE IL EST PARTI AUSSI. L'argument qui le gardait
+            — une adresse de quarante caracteres merite une cible large —
+            etait juste, et il ne tenait pas compte du fait que la ligne
+            « Adresse de destination » porte elle aussi sa propre icone
+            de copie, a trois centimetres. Deux boutons pour un geste.
+
+            La cible reste donc correcte autrement : l'icone passe de
+            trente-deux a quarante points. On garde le geste facile sans
+            garder soixante points de hauteur sur un ecran qui en demande
+            deux pleins pour se lire.
             ═══════════════════════════════════════════════════════════
             */
-            if (!achat) {
-                OutlinedButton(
-                    onClick = { copier(aCopier) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.change_copier_adresse))
-                }
-            }
         }
     }
 
@@ -1448,16 +1444,15 @@ private fun ColumnScope.EtapePaiement(
     paiement », et ils sont sous le bouton de paiement. Quand les lire est
     deja evident, le dire coute une ligne pour rien.
 
-    Sur une VENTE il reste. La, les champs demandent des COORDONNEES — ou
-    le changeur doit envoyer les francs — et rien dans leur libelle ne dit
-    que c'est de l'argent qui va arriver. Le titre y fait un vrai travail.
+    SUR UNE VENTE IL EST PARTI AUSSI, et pour la meme raison qu'a
+    l'achat : le champ qu'il annonce porte « Numero Mobile Money OU
+    RECEVOIR ». Le titre disait « Ou recevoir tes francs » — les memes
+    mots, trois centimetres plus haut.
+
+    Il avait un sens quand le libelle du champ ne disait que « Numero
+    Mobile Money ». Il l'a perdu le jour ou ce libelle a ete precise, et
+    il est reste.
     */
-    if (!achat) {
-        Text(
-            stringResource(R.string.change_vente_coordonnees),
-            fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextPrimary
-        )
-    }
 
     /*
     LA REFERENCE MOBILE MONEY N'A DE SENS QUE SUR UN ACHAT.
@@ -3077,7 +3072,7 @@ private fun LigneACopier(
     if (valeur.length <= VALEUR_COURTE) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { Ligne(libelle, valeur, icone = icone, fort = true) }
-            IconButton(onClick = onCopier, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
                 Icon(
                     Icons.Default.ContentCopy, stringResource(R.string.copy),
                     tint = AccentBlue, modifier = Modifier.size(16.dp)
@@ -3090,7 +3085,7 @@ private fun LigneACopier(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-            IconButton(onClick = onCopier, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
                 Icon(
                     Icons.Default.ContentCopy, stringResource(R.string.copy),
                     tint = AccentBlue, modifier = Modifier.size(16.dp)
