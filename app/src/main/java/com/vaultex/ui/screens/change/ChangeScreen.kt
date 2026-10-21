@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
@@ -458,6 +459,27 @@ private fun ColumnScope.EtapeCalcul(
 
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_donnes),
+        mention = stringResource(
+            R.string.change_mention_montant,
+            if (donneFcfa) "FCFA" else state.monnaie
+        ),
+        /*
+        LES BORNES ENTRENT DANS LA CARTE. Elles decrivent le champ qui est
+        juste au-dessus ; posees dehors, entre deux cartes, elles
+        n'appartenaient a rien.
+        */
+        piedDePage = {
+            BornesChange(
+                minFcfa = p.minimumPour(state.monnaie),
+                maxFcfa = p.plafondFcfa,
+                enFcfa = donneFcfa,
+                monnaie = state.monnaie,
+                prix = state.prix,
+                // A la vente, c'est le solde qui plafonne, et il a deja son
+                // bouton « Tout » en haut de la carte.
+                onMax = if (donneFcfa) ({ vm.onMontantRapide(p.plafondFcfa) }) else null
+            )
+        },
         solde = if (donneFcfa) null else state.solde,
         onTout = if (donneFcfa) null else vm::onToutVendre,
         toutValeur = if (donneFcfa) null else state.solde
@@ -513,13 +535,6 @@ private fun ColumnScope.EtapeCalcul(
     ne plus être lus ni l'un ni l'autre.
     ═══════════════════════════════════════════════════════════════════════
     */
-    BornesChange(
-        minFcfa = p.minimumPour(state.monnaie),
-        maxFcfa = p.plafondFcfa,
-        enFcfa = donneFcfa,
-        monnaie = state.monnaie,
-        prix = state.prix
-    )
 
     /*
     UN TRAIT QUI SÉPARE, ET LE BOUTON POSÉ DESSUS.
@@ -556,6 +571,7 @@ private fun ColumnScope.EtapeCalcul(
 
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_recois),
+        mention = stringResource(R.string.change_mention_estime),
         /*
         « — » PLUTÔT QUE « 0 », et c'est la même leçon que sur le Swap.
 
@@ -2614,7 +2630,9 @@ private fun BornesChange(
     maxFcfa: Double,
     enFcfa: Boolean,
     monnaie: String,
-    prix: com.vaultex.domain.fiat.PrixFcfa?
+    prix: com.vaultex.domain.fiat.PrixFcfa?,
+    /** Ecrit le plafond dans le champ, ou null pour ne rien proposer. */
+    onMax: (() -> Unit)? = null
 ) {
     // Un plafond au-dessous du minimum ne borne rien : c'est un réglage
     // incohérent, et l'annoncer ferait lire une règle impossible à tenir.
@@ -2674,16 +2692,49 @@ private fun BornesChange(
         )
     }
 
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    /*
+    ─── ELLES SONT DANS UNE BOITE, AVEC UN « i » ET UN RACCOURCI ────────
+
+    Posees a nu entre deux cartes, elles n'appartenaient a rien : ni au
+    champ qu'elles decrivent, ni a la carte du dessous. Dans la carte,
+    sous les pastilles, elles se lisent pour ce qu'elles sont — la regle
+    du champ juste au-dessus.
+
+    LE « MAX » EST LA PARCE QUE LE PLAFOND EST LA. Donner le chiffre et
+    laisser le taper est une demi-mesure : la borne haute est aussi un
+    montant qu'on veut parfois choisir, et elle est deja sous les yeux.
+    Il n'apparait qu'a l'achat — a la vente, c'est le solde qui plafonne,
+    et son propre bouton « Tout » est en haut de la carte.
+    */
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = BgTertiary.copy(alpha = 0.6f),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Icon(
-            Icons.Default.SwapHoriz, null,
-            tint = TextSecondary, modifier = Modifier.size(14.dp)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(texte, fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Info, null,
+                tint = AccentBlue, modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                texte,
+                fontSize = 12.sp, color = TextSecondary,
+                maxLines = 1, modifier = Modifier.weight(1f)
+            )
+            onMax?.let { max ->
+                Text(
+                    stringResource(R.string.change_max),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentBlue,
+                    modifier = Modifier.clickable { max() }
+                )
+            }
+        }
     }
 }
 
@@ -2748,6 +2799,26 @@ private fun CarteMontantChange(
     libelle: String,
     montant: String,
     unite: String,
+    /**
+     * La mention grise a droite du libelle — « Montant en FCFA »,
+     * « Montant estime ».
+     *
+     * ELLE DIT CE QUE LE CHIFFRE EST, pas ce qu'il vaut. « Tu recois »
+     * seul laisse croire a un engagement ; « Montant estime » rappelle
+     * que le cours bouge, a l'endroit meme ou on lit le nombre.
+     *
+     * Elle cede la place au solde sur la carte d'une vente : les deux
+     * occupent le meme coin, et le solde est l'information qui decide.
+     */
+    mention: String? = null,
+    /**
+     * Ce qui se pose SOUS les pastilles, dans la carte.
+     *
+     * Les bornes y vivent desormais. Dehors, elles flottaient entre deux
+     * cartes sans appartenir a aucune, alors qu'elles decrivent le champ
+     * juste au-dessus.
+     */
+    piedDePage: (@Composable () -> Unit)? = null,
     /** Solde detenu, pour la carte qu'on remplit lors d'une vente. */
     solde: Double? = null,
     /** « Tout », qui ecrit le plus grand montant vendable dans le champ. */
@@ -2844,7 +2915,16 @@ private fun CarteMontantChange(
             verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                Text(
+                    libelle,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                if (solde == null) mention?.let {
+                    Text(it, fontSize = 12.sp, color = TextSecondary, maxLines = 1)
+                }
                 /*
                 LE SOLDE, SUR LA CARTE QU'ON REMPLIT, ET SEULEMENT POUR
                 UNE VENTE.
@@ -3154,10 +3234,13 @@ private fun CarteMontantChange(
                         ) {
                             Text(
                                 fcfa(v),
-                                modifier = Modifier.padding(vertical = 6.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary,
+                                modifier = Modifier.padding(vertical = 9.dp),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                // EN BLEU : ce sont des commandes, pas des
+                                // valeurs. Du texte sombre les faisait lire
+                                // comme trois nombres poses la.
+                                color = AccentBlue,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 maxLines = 1
                             )
@@ -3165,6 +3248,7 @@ private fun CarteMontantChange(
                     }
                 }
             }
+            piedDePage?.invoke()
         }
       }
     }
