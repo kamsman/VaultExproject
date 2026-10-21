@@ -3396,8 +3396,27 @@ private fun ChampChange(
     erreur: String? = null
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        /*
+        ─── LES COTES VIENNENT DE LA MAQUETTE, MESUREES ─────────────────
+
+        Elle a ete fournie en capture pleine largeur, donc a l'echelle
+        exacte de l'ecran : un pixel de l'image vaut 411/841 point. Les
+        valeurs ci-dessous en sortent, elles ne sont pas estimees a
+        l'oeil.
+
+            case          132 px  ->  64,5 dp de haut
+            pastille       86 px  ->  42 dp
+            marge gauche   17 px  ->  8,3 dp
+            libelle        25 px de capitale  ->  ~17 sp
+            exemple        23 px               ->  ~16 sp
+
+        La hauteur de la case n'est pas imposee : elle tombe toute seule
+        a 64 points avec une pastille de 42 et onze points de marge
+        verticale. L'imposer figerait la case si quelqu'un grossit les
+        polices de son telephone.
+        */
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             color = SurfaceColor,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp, if (erreur != null) AccentRed else BgTertiary
@@ -3405,22 +3424,22 @@ private fun ChampChange(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    Modifier.size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                    Modifier.size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(AccentBlue.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         libelle,
-                        fontSize = 13.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary,
                         maxLines = 1
@@ -3430,7 +3449,7 @@ private fun ChampChange(
                         onValueChange = onValeur,
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             color = TextPrimary
                         ),
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
@@ -3443,7 +3462,7 @@ private fun ChampChange(
                                 if (valeur.isEmpty()) {
                                     Text(
                                         exemple,
-                                        fontSize = 15.sp,
+                                        fontSize = 16.sp,
                                         color = TextSecondary.copy(alpha = 0.75f),
                                         maxLines = 1
                                     )
