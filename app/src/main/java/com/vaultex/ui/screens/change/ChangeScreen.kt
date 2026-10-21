@@ -103,6 +103,14 @@ fun ChangeScreen(navController: NavController) {
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
     /*
+    CENT SOIXANTE-DIX POINTS : la barre d'etat et la barre de titre, plus
+    de quoi s'eteindre sans arete visible. Au-dela, c'est la page.
+    */
+    val finDuBandeau = with(androidx.compose.ui.platform.LocalDensity.current) {
+        170.dp.toPx()
+    }
+
+    /*
     ═══════════════════════════════════════════════════════════════════════
     LE BOUTON RETOUR DU TELEPHONE RAMENE AU FORMULAIRE, PAS A L'ACCUEIL
     ═══════════════════════════════════════════════════════════════════════
@@ -212,6 +220,19 @@ fun ChangeScreen(navController: NavController) {
                 s'interromprait net sous elle. Dessine en fond du
                 `Scaffold`, il passe sous la barre d'etat du systeme et
                 s'eteint dans la page.
+
+                ─── IL S'ARRETE A UNE HAUTEUR FIXE, PAS A UNE FRACTION ──
+
+                C'etait « 42 % de la hauteur », et vu sur un vrai
+                telephone c'est un tiers d'ecran en bleu : les onglets y
+                baignaient, et celui qui est choisi — bleu plein — s'y
+                confondait presque.
+
+                Une fraction depend de la taille de l'ecran. Ce qu'on veut
+                teinter n'en depend pas : c'est la barre d'etat plus la
+                barre de titre, et elles mesurent ce qu'elles mesurent. On
+                donne donc une FIN EN POINTS, et `TileMode.Clamp` rend la
+                couleur de la page partout en dessous.
                 ═══════════════════════════════════════════════════════════
                 */
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -223,9 +244,10 @@ fun ChangeScreen(navController: NavController) {
         modifier = Modifier.background(
             androidx.compose.ui.graphics.Brush.verticalGradient(
                 0f to AccentBlueDark,
-                0.18f to AccentBlue,
-                0.42f to BgPrimary,
-                1f to BgPrimary
+                0.38f to AccentBlue,
+                1f to BgPrimary,
+                startY = 0f,
+                endY = finDuBandeau
             )
         )
     ) { padding ->
