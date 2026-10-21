@@ -1143,6 +1143,7 @@
     <string name="change_solde_insuffisant">Tu n\'en détiens pas assez pour cette vente. Réduis le montant, ou dépose d\'abord sur ton portefeuille.</string>
     <string name="change_montant_invalide">Saisis un montant.</string>
     <string name="change_payer_titre">Envoie le paiement</string>
+    <string name="change_paiement_securise">Paiement sécurisé</string>
     <string name="change_envoyer_titre">Envoie la crypto</string>
     <string name="change_numero">Numéro à créditer</string>
     <string name="change_adresse">Adresse de destination</string>

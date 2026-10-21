@@ -1114,6 +1114,7 @@
     <string name="change_solde_insuffisant">You don\'t hold enough for this sale. Lower the amount, or deposit into your wallet first.</string>
     <string name="change_montant_invalide">Enter an amount.</string>
     <string name="change_payer_titre">Send the payment</string>
+    <string name="change_paiement_securise">Secure payment</string>
     <string name="change_envoyer_titre">Send the crypto</string>
     <string name="change_numero">Number to credit</string>
     <string name="change_adresse">Destination address</string>
