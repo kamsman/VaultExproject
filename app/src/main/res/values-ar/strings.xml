@@ -1124,7 +1124,8 @@
     <string name="change_motif">ضع مرجعك في خانة السبب إن وُجدت — وإلا فالمبلغ الدقيق ورقمك يكفيان لربط الدفعة.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>
-    <string name="change_ref_paiement_aide">مثال: MP251008123456 — رقم العملية الوارد في الرسالة.</string>
+    <string name="change_ref_paiement_aide">رقم المعاملة الذي وصلك برسالة نصية.</string>
+    <string name="change_ref_paiement_exemple">مثال MP251008123456</string>
     <string name="change_ref_probleme_demande">هذا هو مرجع طلبك، الذي تضعه كسبب للدفع. هنا نحتاج مرجع دفعتك من رسالة المشغل — مثال MP251008123456.</string>
     <string name="change_ref_probleme_courte">قصير جدًا ليكون رقم معاملة. انسخه كاملًا من رسالتك.</string>
     <string name="change_ref_probleme_longue">طويل جدًا ليكون رقم معاملة. انسخ المرجع فقط، لا الرسالة كلها.</string>
@@ -1137,12 +1138,14 @@
     <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="action_acheter">شراء</string>
-    <string name="change_telephone_aide">مثال: 70 12 34 56 — الرقم الذي نفّذ الدفع.</string>
+    <string name="change_telephone_aide">الرقم الذي دفع.</string>
+    <string name="change_telephone_exemple">مثال 70 12 34 56</string>
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
     <string name="change_historique_note">هذه قائمة طلباتك، محفوظة على هاتفك. هي لا تُثبت الدفع — لكنها تتيح لك ذكر مرجع دقيق إذا احتجت إلى المطالبة.</string>
     <string name="change_telephone_vente">رقم Mobile Money للاستلام</string>
     <string name="change_telephone_vente_aide">8 أرقام.</string>
+    <string name="change_telephone_vente_exemple">مثال 70 12 34 56</string>
     <string name="change_otp_titre">أكّد رقمك (مستحسن)</string>
     <string name="change_otp_aide">أرسل «%1$s» برسالة نصية إلى %2$s، من الرقم الذي تريد استلام المال عليه. رسالة واحدة.</string>
     <string name="change_transmettre">تأكيد التحويل</string>
