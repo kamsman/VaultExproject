@@ -702,29 +702,44 @@ fun DashboardScreen(navController: NavHostController) {
                     ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
                         TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                     /*
-                    LE SIGNE MONÉTAIRE, ET RIEN D'AUTRE.
+                    ═══════════════════════════════════════════════════════
+                    UN PLUS, ET UNE TUILE PLEINE
+                    ═══════════════════════════════════════════════════════
 
-                    Un panier disait « acheter des choses » ; un billet,
-                    plus juste, restait un dessin — trois traits, un cadre,
-                    un rond — qui se brouille à vingt-six points sur un
-                    écran bon marché.
+                    C'ETAIT UN « $ », et le commentaire qui le defendait
+                    disait vrai sur un point : une seule forme se lit a
+                    n'importe quelle taille, la ou un billet dessine se
+                    brouille a vingt-six points.
 
-                    Un « $ » est une seule forme. Il se lit à n'importe
-                    quelle taille, et il ne ressemble à aucune des trois
-                    flèches voisines.
+                    Mais le « $ » nomme une MONNAIE, et ce n'est pas
+                    celle-ci. On achete ici en francs CFA ; le signe du
+                    dollar sur l'accueil d'une application burkinabe
+                    annonce la mauvaise unite avant meme qu'on entre.
 
-                    ET IL EST BLEU, lui seul. La tuile garde le fond et le
-                    contour des autres — un fond teinté les faisait toutes
-                    se disputer le regard. Un signe différent dans la
-                    couleur de l'application suffit à dire « celle-ci n'est
-                    pas un transfert de plus », sans crier.
+                    Le « + » ne nomme aucune monnaie. Il dit ce que le
+                    geste fait — ajouter a ce qu'on detient — et c'est le
+                    signe que toutes les applications de ce genre emploient
+                    pour la meme chose.
 
-                    C'est ce qui justifie que `tint` existe : trois tuiles
-                    en blanc, une en bleu, et le paramètre sert enfin à
-                    quelque chose.
+                    ─── ET ELLE PORTE UN FOND, PLUS SEULEMENT UNE TEINTE ──
+
+                    L'ancien commentaire refusait le fond au motif qu'il
+                    ferait « se disputer le regard ». L'argument valait
+                    pour QUATRE fonds teintes ; il ne vaut pas pour UN
+                    fond plein parmi trois tuiles vides.
+
+                    Recevoir, echanger et acheter ne sont pas trois gestes
+                    de meme rang : les deux premiers deplacent ce qu'on a
+                    deja, le troisieme fait entrer de l'argent. Une tuile
+                    pleine le dit sans un mot, et c'est le meme traitement
+                    que l'onglet choisi de l'ecran de change.
+                    ═══════════════════════════════════════════════════════
                     */
-                    ActionTile(stringResource(R.string.action_acheter), Icons.Default.AttachMoney,
-                        AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.CHANGE) }
+                    ActionTile(
+                        stringResource(R.string.action_acheter), Icons.Default.Add,
+                        androidx.compose.ui.graphics.Color.White, Modifier.weight(1f),
+                        fond = AccentBlue
+                    ) { navController.navigate(Routes.CHANGE) }
                 }
             }
 
@@ -1716,13 +1731,23 @@ private fun ActionTile(
     icon: ImageVector,
     tint: Color,
     modifier: Modifier,
+    /**
+     * Le fond de la tuile, ou null pour celui des autres.
+     *
+     * Une tuile pleine n'a pas de contour : le trait servait a la
+     * detacher d'un fond de page presque blanc, et il n'a plus rien a
+     * separer des qu'elle porte sa propre couleur. Garde, il dessinerait
+     * une bordure plus claire a l'interieur du bleu.
+     */
+    fond: Color? = null,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        color = fond ?: com.vaultex.ui.theme.Surface,
+        border = if (fond != null) null
+                 else androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = modifier
     ) {
         Column(
@@ -1731,7 +1756,15 @@ private fun ActionTile(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text(
+                label,
+                fontSize = 14.sp,
+                // Sur un fond plein, le libelle prend la couleur de
+                // l'icone : `TextPrimary` y serait du texte sombre sur du
+                // bleu, illisible — et invisible en theme sombre.
+                fontWeight = if (fond != null) FontWeight.Bold else FontWeight.Medium,
+                color = if (fond != null) tint else TextPrimary
+            )
         }
     }
 }

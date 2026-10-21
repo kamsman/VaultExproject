@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
@@ -27,7 +28,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Sms
@@ -327,10 +327,12 @@ private fun ColumnScope.EtapeCalcul(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OngletSens(
             texte = stringResource(R.string.change_acheter),
-            // Le meme signe que la tuile de l'accueil : deux icones
-            // differentes pour le meme geste font hesiter sur l'endroit
-            // ou l'on vient d'arriver.
-            icone = Icons.Default.AttachMoney,
+            // LE MEME SIGNE QUE LA TUILE DE L'ACCUEIL, et c'est une regle
+            // et non une coincidence : deux icones differentes pour le
+            // meme geste font hesiter sur l'endroit ou l'on vient
+            // d'arriver. Le « $ » est parti des deux cotes — il nomme une
+            // monnaie, et ce n'est pas celle d'ici.
+            icone = Icons.Default.Add,
             choisi = state.sens == SensChange.ACHAT,
             modifier = Modifier.weight(1f)
         ) { vm.onSens(SensChange.ACHAT) }
