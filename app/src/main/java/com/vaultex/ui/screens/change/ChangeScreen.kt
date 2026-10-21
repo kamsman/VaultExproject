@@ -1310,14 +1310,23 @@ private fun ColumnScope.EtapePaiement(
                 `Image` et non `Icon` : `Icon` teinte ce qu'on lui donne
                 d'une seule couleur, ce qui effacerait le logo.
 
-                ─── CE QU'IL FAUT SAVOIR SUR CETTE TAILLE ─────────────
+                ─── LE FICHIER NE GARDE QUE LA MARQUE ────────────────
 
-                Le fichier fourni est un bloc carre qui porte la marque
-                ET le mot « Orange Money ». A vingt-quatre points, les
-                deux fleches se reconnaissent ; le mot, lui, devient une
-                texture. Ce n'est pas grave — le bouton l'ecrit en toutes
-                lettres juste a cote — mais une version SANS texte
-                rendrait mieux, et c'est la seule chose qui manque ici.
+                Celui qui a ete fourni portait la marque ET le mot
+                « Orange Money », sur un carre de 148 points. A
+                vingt-quatre, le mot devenait une texture — et il
+                doublait celui que le bouton ecrit en toutes lettres a
+                trois centimetres.
+
+                Il est donc recadre sur les deux fleches seules, mesurees
+                dans l'image : elles occupent les colonnes 16 a 75, le mot
+                commence a 82. Le carre s'arrete avant, puis remonte a 144
+                points pour rester net jusqu'en xxxhdpi.
+
+                LE FOND NOIR EST GARDE, et ce n'est pas un oubli : une des
+                deux fleches est orange, et elle disparaitrait sur
+                l'orange du bouton. Le noir est le contenant prevu par la
+                marque, et il fait ici office de pastille.
                 ═══════════════════════════════════════════════════════
                 */
                 androidx.compose.foundation.Image(
