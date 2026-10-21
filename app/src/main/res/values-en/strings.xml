@@ -1124,7 +1124,8 @@
     <string name="change_motif">Put your reference in the reason field if your payment has one — otherwise the exact amount and your number are enough to link it.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
-    <string name="change_ref_paiement_aide">E.g. MP251008123456 — the transaction number from your SMS.</string>
+    <string name="change_ref_paiement_aide">The transaction number you got by SMS.</string>
+    <string name="change_ref_paiement_exemple">e.g. MP251008123456</string>
     <string name="change_ref_probleme_demande">That is your REQUEST reference, the one you put as the payment reason. Here we need your payment\'s reference, from the operator\'s SMS — e.g. MP251008123456.</string>
     <string name="change_ref_probleme_courte">Too short for a transaction number. Copy it in full from your SMS.</string>
     <string name="change_ref_probleme_longue">Too long for a transaction number. Copy only the reference, not the whole SMS.</string>
@@ -1137,12 +1138,14 @@
     <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
-    <string name="change_telephone_aide">E.g. 70 12 34 56 — the number that made the payment.</string>
+    <string name="change_telephone_aide">The number that made the payment.</string>
+    <string name="change_telephone_exemple">e.g. 70 12 34 56</string>
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
     <string name="change_telephone_vente">Mobile Money number to receive on</string>
     <string name="change_telephone_vente_aide">8 digits.</string>
+    <string name="change_telephone_vente_exemple">e.g. 70 12 34 56</string>
     <string name="change_otp_titre">Confirm your number (recommended)</string>
     <string name="change_otp_aide">Text “%1$s” to %2$s, from the number you want to be paid on. One SMS.</string>
     <string name="change_transmettre">Confirm transfer</string>

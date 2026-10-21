@@ -1066,7 +1066,32 @@ private fun ColumnScope.EtapePaiement(
     val achat = state.sens == SensChange.ACHAT
     val aCopier = if (achat) p.numeroMobileMoney else p.adresses[state.monnaie].orEmpty()
 
-    Surface(shape = RoundedCornerShape(14.dp), color = AccentBlue.copy(alpha = 0.08f)) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ELLE EST BLANCHE ET OPAQUE, PAS BLEU TRANSLUCIDE
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'etait `AccentBlue` a huit pour cent. Sur un fond de page presque
+    blanc, cette teinte suffisait a poser une carte ; depuis que le haut
+    de l'ecran porte un bandeau bleu, elle ne pose plus rien — le degrade
+    passe AU TRAVERS, et la carte n'a de bord que la ou le fond change.
+
+    Une carte doit avoir sa propre couleur, pas une nuance de celle qui
+    est derriere : c'est ce qui la fait exister au-dessus du bandeau au
+    lieu de s'y fondre.
+
+    L'OMBRE REMPLACE LE CONTOUR. Un trait suffisait quand la carte et la
+    page ne se distinguaient que par une nuance. Pose sur du bleu, il
+    dessinerait un liseré ; l'ombre, elle, dit la meme chose dans les deux
+    cas — ce bloc est devant.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = SurfaceColor,
+        shadowElevation = 3.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1496,22 +1521,42 @@ private fun ColumnScope.EtapePaiement(
             Une raison d'etre qu'on ne peut pas suivre n'en est pas une.
             Le bouton de copie fait tenir la promesse du commentaire.
             */
-            Row(
-                Modifier.align(Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
+            /*
+            LE CODE A SON PROPRE BLOC, ET IL EST BLEU.
+
+            Il etait pose a nu, en gris, entre le bouton orange et
+            l'encadre bleu de la note — c'est-a-dire dans le seul
+            intervalle de l'ecran ou rien n'etait dessine. Il y avait
+            l'air d'une legende du bouton, alors que c'est une valeur
+            qu'on copie.
+
+            Le meme fond que la note qui suit, et la couleur de ce qui
+            s'actionne. Il se lit maintenant comme ce qu'il est.
+            */
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = AccentBlue.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    code,
-                    fontSize = 13.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    color = TextSecondary
-                )
-                Spacer(Modifier.width(4.dp))
-                IconButton(onClick = { copier(code) }, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.ContentCopy, stringResource(R.string.copy),
-                        tint = AccentBlue, modifier = Modifier.size(15.dp)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        code,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = AccentBlue
                     )
+                    Spacer(Modifier.width(6.dp))
+                    IconButton(onClick = { copier(code) }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.ContentCopy, stringResource(R.string.copy),
+                            tint = AccentBlue, modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
             }
             /*
@@ -1646,69 +1691,15 @@ private fun ColumnScope.EtapePaiement(
             "sans_chiffre" -> R.string.change_ref_probleme_sans_chiffre
             else -> null
         }
-        OutlinedTextField(
-            value = state.referencePaiement,
-            onValueChange = vm::onReferencePaiement,
-            label = { Text(stringResource(R.string.change_ref_paiement)) },
-            /*
-            ═══════════════════════════════════════════════════════════════
-            L'EXEMPLE EST DANS L'AIDE, PLUS DANS LE PLACEHOLDER
-            ═══════════════════════════════════════════════════════════════
-
-            Il y etait, et il ne se voyait pas. Avec un OutlinedTextField,
-            le LIBELLE occupe la case tant que le champ est vide et non
-            touche : le placeholder n'apparait qu'au focus — c'est-a-dire
-            une fois qu'on a deja decide quoi taper.
-
-            Le commentaire que ces lignes remplacent disait « un exemple
-            plutot qu'une description ». L'intention etait juste ; c'est
-            la description qu'on voyait.
-
-            « Ex. MP251008123456 » vit donc dans l'aide, toujours
-            affichee, et se reconnait d'un coup d'oeil dans le SMS qu'on a
-            sous les yeux.
-            ═══════════════════════════════════════════════════════════════
-            */
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Description, null,
-                    tint = AccentBlue, modifier = Modifier.size(18.dp)
-                )
-            },
-            /*
-            ═══════════════════════════════════════════════════════════════
-            LA FAUTE DE SAISIE PREND LA PLACE DE L'AIDE, ELLE NE S'Y AJOUTE
-            PAS
-            ═══════════════════════════════════════════════════════════════
-
-            Les deux repondent a la meme question — « qu'est-ce que je
-            mets ici » — et les empiler donnerait deux lignes sous un
-            champ, sur un ecran qu'on demande a tenir sans defilement.
-
-            Tant que rien ne cloche, l'exemple. Des qu'une faute se
-            reconnait, elle seule, en rouge : elle contient l'aide, et
-            elle dit en plus ce qui ne va pas.
-
-            CE N'EST PAS LE VERDICT DU RELAIS. Celui-la est en dessous,
-            dans sa carte, et il porte sur le PAIEMENT. Celui-ci porte sur
-            le CHAMP, et c'est tout l'interet de les separer : jusqu'ici
-            une reference mal tapee rendait « aucun encaissement ne porte
-            cette reference », ce qui fait lire a quelqu'un qui vient de
-            payer que son argent n'est pas arrive.
-            ═══════════════════════════════════════════════════════════════
-            */
-            isError = probleme != null,
-            supportingText = {
-                Text(
-                    if (probleme != null) stringResource(probleme)
-                    else stringResource(R.string.change_ref_paiement_aide),
-                    fontSize = 11.sp,
-                    color = if (probleme != null) AccentRed else TextSecondary
-                )
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+        ChampChange(
+            valeur = state.referencePaiement,
+            onValeur = vm::onReferencePaiement,
+            libelle = stringResource(R.string.change_ref_paiement),
+            exemple = stringResource(R.string.change_ref_paiement_exemple),
+            aide = stringResource(R.string.change_ref_paiement_aide),
+            icone = Icons.Default.Description,
+            clavier = androidx.compose.ui.text.input.KeyboardType.Text,
+            erreur = probleme?.let { stringResource(it) }
         )
     }
 
@@ -1728,48 +1719,31 @@ private fun ColumnScope.EtapePaiement(
     accessoire dans le sens ou il est indispensable.
     ═══════════════════════════════════════════════════════════════════════
     */
-    OutlinedTextField(
-        value = state.telephone,
-        onValueChange = vm::onTelephone,
-        label = {
-            Text(
-                stringResource(
-                    if (achat) R.string.change_telephone else R.string.change_telephone_vente
-                )
-            )
-        },
-        /*
-        MEME RAISON QUE CI-DESSUS : l'exemple est passe dans l'aide, qui
-        est toujours visible, au lieu du placeholder qui ne l'est qu'au
-        focus.
-        */
-        leadingIcon = {
-            Icon(
-                Icons.Default.Smartphone, null,
-                tint = AccentBlue, modifier = Modifier.size(18.dp)
-            )
-        },
-        supportingText = {
-            Text(
-                stringResource(
-                    if (achat) R.string.change_telephone_aide
-                    else R.string.change_telephone_vente_aide
-                ),
-                fontSize = 11.sp,
-                // Sur une vente, un numero incomplet eteint le bouton : la
-                // raison doit se voir a l'endroit ou on la corrige.
-                color = if (!achat && state.telephone.isNotBlank() && !state.telephoneValide) {
-                    AccentRed
-                } else TextSecondary
-            )
-        },
-        isError = !achat && state.telephone.isNotBlank() && !state.telephoneValide,
-        singleLine = true,
-        shape = RoundedCornerShape(12.dp),
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+    ChampChange(
+        valeur = state.telephone,
+        onValeur = vm::onTelephone,
+        libelle = stringResource(
+            if (achat) R.string.change_telephone else R.string.change_telephone_vente
         ),
-        modifier = Modifier.fillMaxWidth()
+        exemple = stringResource(
+            if (achat) R.string.change_telephone_exemple
+            else R.string.change_telephone_vente_exemple
+        ),
+        aide = stringResource(
+            if (achat) R.string.change_telephone_aide
+            else R.string.change_telephone_vente_aide
+        ),
+        icone = Icons.Default.Smartphone,
+        clavier = androidx.compose.ui.text.input.KeyboardType.Phone,
+        /*
+        SUR UNE VENTE, UN NUMERO INCOMPLET ETEINT LE BOUTON : la raison
+        doit se voir a l'endroit ou on la corrige. Sur un achat il ne
+        bloque rien tant qu'une reference est donnee, donc on ne l'accuse
+        pas.
+        */
+        erreur = if (!achat && state.telephone.isNotBlank() && !state.telephoneValide) {
+            stringResource(R.string.change_telephone_vente_aide)
+        } else null
     )
 
     /*
@@ -3381,6 +3355,110 @@ private fun LigneACopier(
             color = TextPrimary,
             lineHeight = 20.sp,
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+    }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN CHAMP OU LE LIBELLE ET L'EXEMPLE TIENNENT ENSEMBLE
+═══════════════════════════════════════════════════════════════════════════
+
+C'etait un `OutlinedTextField`, et il ne pouvait pas donner ce dessin.
+Son LIBELLE occupe la case tant que le champ est vide et non touche ;
+l'exemple n'apparait qu'au focus, c'est-a-dire une fois qu'on a deja
+decide quoi taper. On avait contourne en mettant l'exemple dans l'aide,
+sous la case — lisible, mais pas ce qui etait demande.
+
+Ici les deux coexistent, parce qu'ils ne disent pas la meme chose : le
+libelle nomme CE QU'ON DEMANDE, l'exemple montre A QUOI CA RESSEMBLE.
+Quelqu'un qui cherche dans ses SMS a besoin des deux en meme temps.
+
+LA PASTILLE DE L'ICONE EST CELLE DES LIGNES DE DETAIL, plus haut sur le
+meme ecran. Trois formes d'icones dans un meme parcours donnent
+l'impression d'ecrans assembles a la hate.
+
+L'AIDE RESTE SOUS LA CASE, et c'est la qu'elle porte aussi le message
+d'erreur : un seul endroit sous le champ pour tout ce qui le commente,
+plutot qu'une ligne qui apparait et repousse les autres.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun ChampChange(
+    valeur: String,
+    onValeur: (String) -> Unit,
+    libelle: String,
+    exemple: String,
+    aide: String,
+    icone: androidx.compose.ui.graphics.vector.ImageVector,
+    clavier: androidx.compose.ui.text.input.KeyboardType,
+    /** Ce qui cloche, ou null. Remplace l'aide et colore la bordure. */
+    erreur: String? = null
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceColor,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp, if (erreur != null) AccentRed else BgTertiary
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        libelle,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary,
+                        maxLines = 1
+                    )
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = valeur,
+                        onValueChange = onValeur,
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 15.sp,
+                            color = TextPrimary
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = clavier
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { interieur ->
+                            Box(contentAlignment = Alignment.CenterStart) {
+                                if (valeur.isEmpty()) {
+                                    Text(
+                                        exemple,
+                                        fontSize = 15.sp,
+                                        color = TextSecondary.copy(alpha = 0.75f),
+                                        maxLines = 1
+                                    )
+                                }
+                                interieur()
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        Text(
+            erreur ?: aide,
+            fontSize = 11.sp,
+            color = if (erreur != null) AccentRed else TextSecondary
         )
     }
 }
