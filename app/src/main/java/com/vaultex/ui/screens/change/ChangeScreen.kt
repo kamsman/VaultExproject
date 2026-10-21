@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Person
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
@@ -49,6 +51,7 @@ import com.vaultex.R
 import com.vaultex.domain.fiat.TauxFcfa
 // Imports nommes : com.vaultex.ui.theme.Surface est une COULEUR.
 import com.vaultex.ui.theme.AccentBlue
+import com.vaultex.ui.theme.AccentBlueDark
 import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
@@ -177,18 +180,54 @@ fun ChangeScreen(navController: NavController) {
                             if (state.sens == SensChange.ACHAT) R.string.change_titre_achat
                             else R.string.change_titre_vente
                         ),
-                        fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
+                        fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                        color = androidx.compose.ui.graphics.Color.White
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
+                        Icon(
+                            Icons.Default.ArrowBack, stringResource(R.string.back),
+                            tint = androidx.compose.ui.graphics.Color.White
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
+                /*
+                ═══════════════════════════════════════════════════════════
+                UN BANDEAU BLEU, ET LA PAGE QUI EN SORT
+                ═══════════════════════════════════════════════════════════
+
+                La barre portait le fond de la page. Elle ne separait donc
+                rien : le titre flottait au-dessus des cartes, a la meme
+                hauteur de couleur qu'elles, et l'ecran commencait sans
+                qu'on sache ou.
+
+                Le degrade descend du bleu profond vers celui de
+                l'application. Il donne un haut a la page — les cartes
+                blanches s'en detachent au lieu d'y flotter — et il fait ce
+                que fait une barre d'application : dire ou l'on est.
+
+                TRANSPARENTE, ET LE DEGRADE DERRIERE. Peindre la barre
+                elle-meme l'arreterait a sa propre hauteur, et la bande
+                s'interromprait net sous elle. Dessine en fond du
+                `Scaffold`, il passe sous la barre d'etat du systeme et
+                s'eteint dans la page.
+                ═══════════════════════════════════════════════════════════
+                */
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                )
             )
         },
-        containerColor = BgPrimary
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.background(
+            androidx.compose.ui.graphics.Brush.verticalGradient(
+                0f to AccentBlueDark,
+                0.18f to AccentBlue,
+                0.42f to BgPrimary,
+                1f to BgPrimary
+            )
+        )
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
@@ -1010,12 +1049,75 @@ private fun ColumnScope.EtapePaiement(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(
-                stringResource(
-                    if (achat) R.string.change_payer_titre else R.string.change_envoyer_titre
-                ),
-                fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
-            )
+            /*
+            ═══════════════════════════════════════════════════════════
+            LE TITRE PORTE SON RANG, ET LA CARTE SON CACHET
+            ═══════════════════════════════════════════════════════════
+
+            LE « 1 ». Cet ecran est un passage : payer, puis declarer.
+            Rien ne le disait, et on y arrivait sans savoir combien il
+            restait a faire. Un chiffre en tete de la premiere carte
+            repond a « ou j'en suis » avant qu'on pose la question.
+
+            Il n'y a pas de « 2 » dessine plus bas, et c'est voulu : la
+            seconde etape, c'est le bouton de confirmation — on ne
+            numerote pas un bouton.
+
+            « PAIEMENT SECURISE ». Quelqu'un s'apprete a envoyer de
+            l'argent a un numero qu'il ne connait pas, depuis une
+            application qu'il vient d'installer. La mention ne prouve
+            rien par elle-meme ; elle dit que le sujet a ete traite, a
+            l'endroit exact ou l'inquietude se presente.
+
+            Elle est discrete — un cadenas et deux mots sur un fond
+            pale. Ecrite en gros, elle ferait l'effet inverse : on ne
+            rassure pas en insistant.
+            ═══════════════════════════════════════════════════════════
+            */
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = AccentBlue.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        "1",
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentBlue
+                    )
+                }
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    stringResource(
+                        if (achat) R.string.change_payer_titre else R.string.change_envoyer_titre
+                    ),
+                    fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    shape = RoundedCornerShape(99.dp),
+                    color = AccentBlue.copy(alpha = 0.10f)
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Lock, null,
+                            tint = AccentBlue, modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            stringResource(R.string.change_paiement_securise),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentBlue,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
             /*
             L'OPERATEUR EST DANS LE LIBELLE, et ce n'est pas decoratif : il
             dit QUELLE application ouvrir. « Numero a crediter » seul laisse
@@ -1339,7 +1441,16 @@ private fun ColumnScope.EtapePaiement(
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.change_ussd_bouton, p.operateur),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                // IL DIT QUE L'ON SORT DE L'APPLICATION. Ce bouton ouvre le
+                // composeur du telephone : le chevron annonce un depart, la
+                // ou un bouton nu laisse croire qu'on reste.
+                Icon(
+                    Icons.Default.ChevronRight, null,
+                    modifier = Modifier.size(20.dp)
                 )
             }
             /*
@@ -1814,10 +1925,25 @@ private fun ColumnScope.EtapePaiement(
             ),
             fontWeight = FontWeight.Bold
         )
+        // MEME SIGNE QUE SUR « CONTINUER » ET SUR LE BOUTON DE PAIEMENT :
+        // les trois font avancer, et trois chevrons identiques se lisent
+        // comme un seul geste repris d'ecran en ecran.
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
     }
 
+    /*
+    LE RETOUR EST UN LIEN, DONC IL EST BLEU.
+
+    Il etait gris, de la couleur des notes et des libelles — c'est-a-dire
+    de ce qui se lit et ne se touche pas. Seul element actif de l'ecran a
+    ne pas porter la couleur de l'action, il se trouvait en le cherchant.
+    */
     TextButton(onClick = vm::retourAuCalcul, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-        Text(stringResource(R.string.change_retour), color = TextSecondary, fontSize = 13.sp)
+        Text(
+            stringResource(R.string.change_retour),
+            color = AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -3167,11 +3293,27 @@ private fun LigneACopier(
     if (valeur.length <= VALEUR_COURTE) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { Ligne(libelle, valeur, icone = icone, fort = true) }
+            /*
+            LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
+
+            Posee a nu, elle ne se distinguait pas des icones de tete des
+            lignes voisines — meme taille, meme bleu — alors que celle-ci
+            SE TOUCHE et les autres non. Un fond teinte dit qu'il y a
+            quelque chose a appuyer, ce qu'aucune icone ne dit par
+            elle-meme.
+            */
             IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    Icons.Default.ContentCopy, stringResource(R.string.copy),
-                    tint = AccentBlue, modifier = Modifier.size(16.dp)
-                )
+                Box(
+                    Modifier.size(30.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy, stringResource(R.string.copy),
+                        tint = AccentBlue, modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
         return
@@ -3180,11 +3322,27 @@ private fun LigneACopier(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+            /*
+            LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
+
+            Posee a nu, elle ne se distinguait pas des icones de tete des
+            lignes voisines — meme taille, meme bleu — alors que celle-ci
+            SE TOUCHE et les autres non. Un fond teinte dit qu'il y a
+            quelque chose a appuyer, ce qu'aucune icone ne dit par
+            elle-meme.
+            */
             IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    Icons.Default.ContentCopy, stringResource(R.string.copy),
-                    tint = AccentBlue, modifier = Modifier.size(16.dp)
-                )
+                Box(
+                    Modifier.size(30.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy, stringResource(R.string.copy),
+                        tint = AccentBlue, modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
         /*

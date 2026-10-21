@@ -1114,6 +1114,7 @@
     <string name="change_solde_insuffisant">رصيدك لا يكفي لهذا البيع. قلّل المبلغ، أو أودِع في محفظتك أولًا.</string>
     <string name="change_montant_invalide">أدخل مبلغًا.</string>
     <string name="change_payer_titre">أرسل الدفعة</string>
+    <string name="change_paiement_securise">دفع آمن</string>
     <string name="change_envoyer_titre">أرسل العملة</string>
     <string name="change_numero">الرقم المستفيد</string>
     <string name="change_adresse">عنوان الوجهة</string>
