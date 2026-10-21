@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Smartphone
@@ -1297,7 +1296,37 @@ private fun ColumnScope.EtapePaiement(
                 ),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-                Icon(Icons.Default.Dialpad, null, modifier = Modifier.size(18.dp))
+                /*
+                ═══════════════════════════════════════════════════════
+                LE VRAI LOGO, ET NON UN PAVE NUMERIQUE
+                ═══════════════════════════════════════════════════════
+
+                C'etait l'icone « clavier ». Elle decrivait le MOYEN —
+                un code a composer — la ou il faut dire QUELLE
+                application va s'ouvrir. Quelqu'un debout dans la rue
+                cherche la marque qu'il connait, pas la description du
+                mecanisme.
+
+                `Image` et non `Icon` : `Icon` teinte ce qu'on lui donne
+                d'une seule couleur, ce qui effacerait le logo.
+
+                ─── CE QU'IL FAUT SAVOIR SUR CETTE TAILLE ─────────────
+
+                Le fichier fourni est un bloc carre qui porte la marque
+                ET le mot « Orange Money ». A vingt-quatre points, les
+                deux fleches se reconnaissent ; le mot, lui, devient une
+                texture. Ce n'est pas grave — le bouton l'ecrit en toutes
+                lettres juste a cote — mais une version SANS texte
+                rendrait mieux, et c'est la seule chose qui manque ici.
+                ═══════════════════════════════════════════════════════
+                */
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(
+                        R.drawable.logo_orange_money
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+                )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.change_ussd_bouton, p.operateur),
