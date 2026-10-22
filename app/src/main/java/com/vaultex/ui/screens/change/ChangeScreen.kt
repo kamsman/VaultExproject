@@ -1420,171 +1420,6 @@ private fun ColumnScope.EtapePaiement(
     réglé enverrait quelqu'un valider un transfert vers un numéro tronqué.
     ═══════════════════════════════════════════════════════════════════════
     */
-    /*
-    ═══════════════════════════════════════════════════════════
-    ENVOYER DEPUIS VAULTEX, AU LIEU DE SORTIR ET DE REVENIR
-    ═══════════════════════════════════════════════════════════
-
-    « Copie l'adresse et va envoyer » suppose que la crypto est
-    AILLEURS — sur un exchange, dans un autre portefeuille. Quand
-    elle est deja dans VaultEx, on demandait a quelqu'un de sortir
-    de l'application pour y revenir.
-
-    Ce bouton ouvre l'envoi avec tout de pose : l'adresse du
-    changeur, la chaine, et le montant marque au millieme. Il
-    supprime la faute la plus couteuse de cet ecran — recopier
-    « 2,004731 » a la main dans une autre application.
-
-    ─── IL N'APPARAIT QUE S'IL PEUT ABOUTIR ───────────────────
-
-    Seulement quand le solde VaultEx couvre le montant marque.
-    Sinon la crypto est ailleurs, et proposer un envoi qui
-    echouera remplace un aller-retour par une impasse.
-
-    ─── IL NOMME L'OPERATION, PAS LE MECANISME ────────────────
-
-    Deux libelles ont precede celui-ci, et chacun disait la mauvaise
-    chose.
-
-    « Envoyer depuis VaultEx » datait du temps ou il y avait DEUX
-    chemins — envoyer d'ici, ou copier l'adresse et envoyer depuis
-    un exchange. Il fallait alors dire d'OU part l'envoi. Depuis
-    qu'il n'y en a plus qu'un, nommer l'origine suggere un choix qui
-    n'existe pas — et on est deja dans VaultEx.
-
-    « Envoyer la crypto » decrivait le MECANISME. Or celui qui est
-    sur cet ecran ne vient pas envoyer : il vient VENDRE. Le
-    transfert est ce que l'operation exige, pas ce qu'il a demande.
-
-    La carte au-dessus, elle, garde « Envoie la crypto » : elle
-    decrit ce qui va se passer, et il faut qu'il sache que sa crypto
-    part. Le titre dit le mecanisme, le bouton nomme l'intention.
-
-    ─── ET IL NE S'AFFICHAIT PAS ──────────────────────────────
-
-    Ce bloc etait ecrit DANS le `if (achat)` du code USSD, donc
-    sous la condition `achat && !achat`. Il n'a jamais pu
-    apparaitre. Vu sur capture, avec la bonne question : « rien
-    n'a ete, on n'avance pas » — et pour cause, il ne restait
-    aucun chemin. « Confirmer l'envoi » attend, lui, que la chaine
-    montre le versement, ce qui ne peut pas arriver tant que
-    personne n'a envoye.
-
-    ─── CE QUI SE PASSE AU RETOUR ─────────────────────────────
-
-    L'envoi note sa reference et son hash sur le disque, cet ecran
-    les relit a l'ouverture et depose la demande tout seul. Plus
-    d'attente de la chaine, plus de bouton de confirmation :
-    l'authentification de l'envoi EST la confirmation.
-    ═══════════════════════════════════════════════════════════
-    */
-    if (!achat) {
-        val marque = com.vaultex.domain.fiat.SaisieMontant.valeur(state.saisie)
-        val detenu = state.solde
-        /*
-        ═══════════════════════════════════════════════════════════════════
-        UNE FOIS LA CRYPTO PARTIE, IL DISPARAIT
-        ═══════════════════════════════════════════════════════════════════
-
-        `txidSaisi` ne porte un hash que si un envoi a REUSSI. S'il est
-        la, c'est que la crypto est diffusee et que seul le depot de la
-        demande reste a faire.
-
-        Laisser le bouton proposerait d'envoyer une SECONDE FOIS le meme
-        montant, a la meme adresse — et rien ne le rattraperait : le
-        relais ne reconnaitrait qu'un versement, et l'autre serait perdu.
-
-        C'est le pire geste que cet ecran puisse offrir, et il ne le
-        pouvait que depuis que le depot peut echouer apres un envoi
-        reussi. Le rattrapage est le bouton de confirmation, plus bas.
-        ═══════════════════════════════════════════════════════════════════
-        */
-        if (state.txidSaisi.isNotBlank()) {
-            Note(stringResource(R.string.change_crypto_partie), AccentGreen)
-        } else if (marque != null && detenu != null && detenu >= marque) {
-            /*
-            ═══════════════════════════════════════════════════════════
-            C'EST LUI, L'ACTION PRINCIPALE
-            ═══════════════════════════════════════════════════════════
-
-            Il etait en contour, discret, au-dessus d'un « Confirmer
-            l'envoi » pleine largeur et gris. Le gris occupait la place ou
-            l'on cherche le bouton qui fait avancer, et il est eteint
-            puisque rien n'a ete envoye.
-
-            Signale sur capture, deux fois : « on n'avance toujours pas ».
-            On regardait le mauvais bouton, et l'ecran le designait.
-
-            Celui-ci est donc PLEIN et bleu — c'est le geste de cet ecran.
-            L'autre descend au rang qu'il occupe vraiment : un recours,
-            pour qui a envoye depuis ailleurs.
-            */
-            Button(
-                /*
-                ETEINT TANT QUE LE NUMERO N'EST PAS DONNE ET CONFIRME.
-
-                La crypto part de facon irreversible ; sans numero, le
-                message au changeur dit « envoyer 1 527 FCFA au numero du
-                client » sans numero. L'exiger AVANT est la seule place
-                qui tienne : apres, les fonds sont partis.
-                */
-                enabled = state.telephonePret,
-                onClick = {
-                    /*
-                    ═══════════════════════════════════════════════════
-                    UNE NAVIGATION QUI ECHOUE NE DOIT PAS FERMER
-                    L'APPLICATION
-                    ═══════════════════════════════════════════════════
-
-                    Signale sur capture : « je clique sur vendre, l'app se
-                    ferme ». Un `navigate` qui ne resout pas sa route leve,
-                    et rien ne l'attrape — l'application disparait, et il ne
-                    reste RIEN a lire : ni a celui qui vend, ni a celui qui
-                    cherche la cause.
-
-                    Ce n'est pas masquer le defaut. C'est le rendre
-                    lisible : le message nomme l'exception, s'affiche sous
-                    le bouton, et l'ecran reste ouvert avec la demande
-                    intacte — le prix est encore garanti, on peut
-                    reessayer.
-
-                    Et la demande n'est pas perdue : la trace est sur le
-                    disque depuis la confirmation.
-                    */
-                    runCatching {
-                        navController.navigate(
-                            Routes.sendPourVente(
-                                adresse = aCopier,
-                                // LE MONTANT EXACT, avec un POINT : c'est
-                                // celui que lira la couche reseau, pas
-                                // celui qu'on affiche.
-                                montant = state.saisie.replace(',', '.'),
-                                jeton = state.monnaie,
-                                reference = state.reference
-                            )
-                        )
-                    }.onFailure { e ->
-                        vm.signalerErreur(
-                            "Impossible d'ouvrir l'écran d'envoi : " +
-                                (e.message ?: e::class.java.simpleName)
-                        )
-                    }
-                },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.change_vendre_maintenant),
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
-            }
-        }
-    }
 
     if (achat) {
         val code = com.vaultex.domain.fiat.CodeUssd.composer(
@@ -2039,6 +1874,172 @@ private fun ColumnScope.EtapePaiement(
             } else null
         )
     }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════
+    ENVOYER DEPUIS VAULTEX, AU LIEU DE SORTIR ET DE REVENIR
+    ═══════════════════════════════════════════════════════════
+
+    « Copie l'adresse et va envoyer » suppose que la crypto est
+    AILLEURS — sur un exchange, dans un autre portefeuille. Quand
+    elle est deja dans VaultEx, on demandait a quelqu'un de sortir
+    de l'application pour y revenir.
+
+    Ce bouton ouvre l'envoi avec tout de pose : l'adresse du
+    changeur, la chaine, et le montant marque au millieme. Il
+    supprime la faute la plus couteuse de cet ecran — recopier
+    « 2,004731 » a la main dans une autre application.
+
+    ─── IL N'APPARAIT QUE S'IL PEUT ABOUTIR ───────────────────
+
+    Seulement quand le solde VaultEx couvre le montant marque.
+    Sinon la crypto est ailleurs, et proposer un envoi qui
+    echouera remplace un aller-retour par une impasse.
+
+    ─── IL NOMME L'OPERATION, PAS LE MECANISME ────────────────
+
+    Deux libelles ont precede celui-ci, et chacun disait la mauvaise
+    chose.
+
+    « Envoyer depuis VaultEx » datait du temps ou il y avait DEUX
+    chemins — envoyer d'ici, ou copier l'adresse et envoyer depuis
+    un exchange. Il fallait alors dire d'OU part l'envoi. Depuis
+    qu'il n'y en a plus qu'un, nommer l'origine suggere un choix qui
+    n'existe pas — et on est deja dans VaultEx.
+
+    « Envoyer la crypto » decrivait le MECANISME. Or celui qui est
+    sur cet ecran ne vient pas envoyer : il vient VENDRE. Le
+    transfert est ce que l'operation exige, pas ce qu'il a demande.
+
+    La carte au-dessus, elle, garde « Envoie la crypto » : elle
+    decrit ce qui va se passer, et il faut qu'il sache que sa crypto
+    part. Le titre dit le mecanisme, le bouton nomme l'intention.
+
+    ─── ET IL NE S'AFFICHAIT PAS ──────────────────────────────
+
+    Ce bloc etait ecrit DANS le `if (achat)` du code USSD, donc
+    sous la condition `achat && !achat`. Il n'a jamais pu
+    apparaitre. Vu sur capture, avec la bonne question : « rien
+    n'a ete, on n'avance pas » — et pour cause, il ne restait
+    aucun chemin. « Confirmer l'envoi » attend, lui, que la chaine
+    montre le versement, ce qui ne peut pas arriver tant que
+    personne n'a envoye.
+
+    ─── CE QUI SE PASSE AU RETOUR ─────────────────────────────
+
+    L'envoi note sa reference et son hash sur le disque, cet ecran
+    les relit a l'ouverture et depose la demande tout seul. Plus
+    d'attente de la chaine, plus de bouton de confirmation :
+    l'authentification de l'envoi EST la confirmation.
+    ═══════════════════════════════════════════════════════════
+    */
+    if (!achat) {
+        val marque = com.vaultex.domain.fiat.SaisieMontant.valeur(state.saisie)
+        val detenu = state.solde
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UNE FOIS LA CRYPTO PARTIE, IL DISPARAIT
+        ═══════════════════════════════════════════════════════════════════
+
+        `txidSaisi` ne porte un hash que si un envoi a REUSSI. S'il est
+        la, c'est que la crypto est diffusee et que seul le depot de la
+        demande reste a faire.
+
+        Laisser le bouton proposerait d'envoyer une SECONDE FOIS le meme
+        montant, a la meme adresse — et rien ne le rattraperait : le
+        relais ne reconnaitrait qu'un versement, et l'autre serait perdu.
+
+        C'est le pire geste que cet ecran puisse offrir, et il ne le
+        pouvait que depuis que le depot peut echouer apres un envoi
+        reussi. Le rattrapage est le bouton de confirmation, plus bas.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (state.txidSaisi.isNotBlank()) {
+            Note(stringResource(R.string.change_crypto_partie), AccentGreen)
+        } else if (marque != null && detenu != null && detenu >= marque) {
+            /*
+            ═══════════════════════════════════════════════════════════
+            C'EST LUI, L'ACTION PRINCIPALE
+            ═══════════════════════════════════════════════════════════
+
+            Il etait en contour, discret, au-dessus d'un « Confirmer
+            l'envoi » pleine largeur et gris. Le gris occupait la place ou
+            l'on cherche le bouton qui fait avancer, et il est eteint
+            puisque rien n'a ete envoye.
+
+            Signale sur capture, deux fois : « on n'avance toujours pas ».
+            On regardait le mauvais bouton, et l'ecran le designait.
+
+            Celui-ci est donc PLEIN et bleu — c'est le geste de cet ecran.
+            L'autre descend au rang qu'il occupe vraiment : un recours,
+            pour qui a envoye depuis ailleurs.
+            */
+            Button(
+                /*
+                ETEINT TANT QUE LE NUMERO N'EST PAS DONNE ET CONFIRME.
+
+                La crypto part de facon irreversible ; sans numero, le
+                message au changeur dit « envoyer 1 527 FCFA au numero du
+                client » sans numero. L'exiger AVANT est la seule place
+                qui tienne : apres, les fonds sont partis.
+                */
+                enabled = state.telephonePret,
+                onClick = {
+                    /*
+                    ═══════════════════════════════════════════════════
+                    UNE NAVIGATION QUI ECHOUE NE DOIT PAS FERMER
+                    L'APPLICATION
+                    ═══════════════════════════════════════════════════
+
+                    Signale sur capture : « je clique sur vendre, l'app se
+                    ferme ». Un `navigate` qui ne resout pas sa route leve,
+                    et rien ne l'attrape — l'application disparait, et il ne
+                    reste RIEN a lire : ni a celui qui vend, ni a celui qui
+                    cherche la cause.
+
+                    Ce n'est pas masquer le defaut. C'est le rendre
+                    lisible : le message nomme l'exception, s'affiche sous
+                    le bouton, et l'ecran reste ouvert avec la demande
+                    intacte — le prix est encore garanti, on peut
+                    reessayer.
+
+                    Et la demande n'est pas perdue : la trace est sur le
+                    disque depuis la confirmation.
+                    */
+                    runCatching {
+                        navController.navigate(
+                            Routes.sendPourVente(
+                                adresse = aCopier,
+                                // LE MONTANT EXACT, avec un POINT : c'est
+                                // celui que lira la couche reseau, pas
+                                // celui qu'on affiche.
+                                montant = state.saisie.replace(',', '.'),
+                                jeton = state.monnaie,
+                                reference = state.reference
+                            )
+                        )
+                    }.onFailure { e ->
+                        vm.signalerErreur(
+                            "Impossible d'ouvrir l'écran d'envoi : " +
+                                (e.message ?: e::class.java.simpleName)
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.change_vendre_maintenant),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
+            }
+        }
     }
 
     /*
