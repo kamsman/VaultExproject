@@ -2437,11 +2437,66 @@ vérifié. Les deux sorties apparaissent, et il peut avancer.
 */
 private enum class AffichageVerif { RECHERCHE, VERT, ABSENT, DEJA_SERVI, IMPOSSIBLE }
 
+/**
+ * Le temps laisse a quelqu'un pour envoyer sa crypto avant qu'on dise
+ * n'avoir rien trouve. Voir [affichageVerification].
+ */
+private const val GRACE_VENTE_MS = 3 * 60 * 1000L
+
 private fun affichageVerification(
     state: com.vaultex.ui.viewmodel.ChangeState
 ): AffichageVerif {
     val v = state.verification
     if (state.rechercheEnCours) return AffichageVerif.RECHERCHE
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, ON N'ACCUSE PAS AVANT D'AVOIR LAISSE LE TEMPS D'ENVOYER
+    ═══════════════════════════════════════════════════════════════════════
+
+    Signale sur capture, et c'est exact : trente secondes apres l'arrivee
+    sur l'ecran, la carte passait en orange — « Pas encore visible sur la
+    chaine, rien trouve apres 2 essais » — avec « Reessayer » et
+    « Confirmer quand meme ».
+
+    A cet instant l'utilisateur n'a rien envoye. Il vient de lire une
+    adresse de quarante caracteres et un montant a six decimales. Il lui
+    reste a sortir de l'application, ouvrir son portefeuille ou son
+    exchange, coller, verifier, confirmer, et attendre un bloc.
+
+    La recherche, elle, part des la premiere seconde — et c'est juste :
+    quelqu'un peut avoir envoye avant d'arriver ici, ou revenir d'un
+    envoi fait entre-temps. Ce qui est faux, c'est de RENDRE COMPTE de
+    son echec avant que l'echec ait un sens.
+
+    Le code pose deja cette regle pour l'achat, deux fonctions plus haut :
+    « une accusation gratuite doublee d'un mensonge : on n'a pas essaye ».
+    Elle manquait ici.
+
+    ─── TROIS MINUTES, ET POURQUOI PAS DEUX NI DIX ──────────────────────
+
+    Le prix est garanti dix minutes. En passer trois dans un etat neutre
+    laisse sept minutes ou l'orange dit quelque chose d'utile — assez pour
+    qu'on puisse encore coller un hash ou passer outre avant l'expiration.
+
+    En dessous, on retombe dans le cas qu'on corrige. Au-dela, quelqu'un
+    qui a vraiment un probleme — mauvaise chaine, montant arrondi —
+    l'apprendrait trop tard pour le rattraper dans la fenetre du prix.
+
+    ─── CE QUI RECOMPOSE L'ECRAN ────────────────────────────────────────
+
+    `essais`, qui avance a chaque sondage. L'horloge ne reveille pas
+    Compose toute seule ; le compteur, si, et il bat toutes les quinze
+    secondes. Le passage a l'orange a donc lieu au premier sondage qui
+    suit la troisieme minute, pas a la seconde pres — ce qui est
+    exactement la precision que ce seuil merite.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (state.sens == SensChange.VENTE && v?.etat == com.vaultex.domain.fiat.EtatVerification.ABSENT) {
+        val depuis = System.currentTimeMillis() - state.confirmeA
+        if (state.confirmeA > 0L && depuis < GRACE_VENTE_MS) return AffichageVerif.RECHERCHE
+    }
+
     if (v == null) {
         // Aucune réponse et aucun sondage en vol : soit la boucle n'a
         // jamais démarré, soit elle est morte. Dans les deux cas rien n'a
