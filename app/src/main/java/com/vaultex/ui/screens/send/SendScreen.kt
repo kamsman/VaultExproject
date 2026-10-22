@@ -241,7 +241,8 @@ fun SendScreen(navController: NavController) {
         feeFiat = feeFiat,
         totalToken = formatTokenAmount(totalToken) + " " + coinShort,
         totalFiat = totalFiat,
-        isNewRecipient = state.newRecipient
+        isNewRecipient = state.newRecipient,
+        numeroPaiement = if (state.verrouParChange) state.numeroPaiement else ""
     )
 
     /*
@@ -1299,6 +1300,20 @@ private fun coinLabel(sym: String): String = when (sym) {
 // ══════════════════════════════════════════════════════════════════════
 
 /** Détails d'une transaction d'envoi, partagés par les 3 écrans de statut. */
+/**
+ * « 70123456 » devient « 70 12 34 56 ».
+ *
+ * Les operateurs l'ecrivent ainsi et les gens le dictent ainsi. C'est la
+ * seule forme ou un chiffre de travers se remarque : huit chiffres colles
+ * se survolent, quatre paires se comptent.
+ *
+ * Ce qui n'est pas un chiffre est retire d'abord : la saisie peut deja
+ * contenir des espaces, et les regrouper par-dessus donnerait un
+ * decoupage faux.
+ */
+private fun numeroGroupe(numero: String): String =
+    numero.filter { it.isDigit() }.chunked(2).joinToString(" ")
+
 internal data class SendDetail(
     val coinShort: String,
     val coinName: String,
@@ -1311,7 +1326,29 @@ internal data class SendDetail(
     val totalToken: String,
     val totalFiat: String?,
     /** Aucun envoi passé ni contact enregistré vers cette adresse. */
-    val isNewRecipient: Boolean = false
+    val isNewRecipient: Boolean = false,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE NUMERO OU L'ON SERA PAYE, SUR UNE VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Vide sur un envoi ordinaire.
+
+    POURQUOI IL EST ICI ET PAS SEULEMENT DANS LE CHAMP. Retaper son numero
+    attrape une faute de FRAPPE : deux saisies independantes ne se trompent
+    pas au meme endroit. Mais ca n'attrape pas une faute de MEMOIRE —
+    quelqu'un qui croit son numero different de ce qu'il est le tapera faux
+    deux fois, et les deux champs seront d'accord.
+
+    Ce qui attrape celle-la, c'est de le RELIRE. Pas de le retaper : de le
+    voir, en gros, groupe par deux, a l'endroit ou l'on s'arrete avant le
+    geste irreversible.
+
+    C'est donc le dernier ecran avant le PIN qui le porte, a cote de ce qui
+    part et vers qui.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val numeroPaiement: String = ""
 )
 
 private fun coinFullName(chain: String, custom: CustomTokenLite?): String = when {
@@ -1789,6 +1826,38 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             isNew = detail.isNewRecipient,
             onCopy = { copier(detail.toAddress) }
         )
+        /*
+        ─── LE NUMERO, EN GROS, GROUPE PAR DEUX ────────────────────────
+
+        « 70123456 » se survole ; « 70 12 34 56 » se lit. Les operateurs
+        l'ecrivent ainsi, les gens le dictent ainsi, et c'est la seule
+        forme ou un chiffre de travers se remarque.
+
+        Il est en vert : c'est ce qu'on RECOIT, la seule entree d'argent
+        d'un ecran qui ne parle que de sorties.
+        */
+        if (detail.numeroPaiement.isNotBlank()) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = AccentGreen.copy(alpha = 0.10f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(R.string.change_telephone_vente),
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                    Text(
+                        numeroGroupe(detail.numeroPaiement),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentGreen,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+        }
         /*
         HIÉRARCHIE DE L'ÉCRAN. L'utilisateur décide sur trois choses : combien
         part, vers qui, et combien au total lui sera débité. Ces trois-là
