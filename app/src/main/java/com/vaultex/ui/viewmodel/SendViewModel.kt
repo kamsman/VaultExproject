@@ -120,8 +120,6 @@ data class SendState(
     Vide sur un envoi ordinaire, ou il n'aurait aucun sens.
     */
     val numeroPaiement: String = "",
-    /** Le meme, retape. Voir [confirmationDemandee]. */
-    val numeroConfirmation: String = "",
     /**
      * Le numero retenu de la derniere vente, s'il y en a eu une.
      *
@@ -136,44 +134,29 @@ data class SendState(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    ON NE FAIT RETAPER QUE CE QUI N'A JAMAIS ETE CONFIRME
+    ICI, « PRET » VEUT DIRE « CONNU » — RIEN DE PLUS
     ═══════════════════════════════════════════════════════════════════════
 
-    Retaper son numero protege d'un chiffre de travers — et sur une
-    vente, un chiffre de travers envoie les francs chez un inconnu, sans
-    recours.
+    Cet ecran ne DEMANDE plus le numero : il est saisi et confirme sur
+    l'ecran de vente, qui en a besoin et qui ne depend d'aucun autre pour
+    s'ouvrir. Ici, il est seulement relu et affiche avant le PIN.
 
-    MAIS LE REDEMANDER A CHAQUE VENTE NE PROTEGE DE RIEN. Le numero est
-    pre-rempli depuis la derniere fois ; le confirmer, c'est recopier un
-    chiffre qu'on a sous les yeux, et au troisieme passage on le fait sans
-    regarder. Une verification qu'on execute machinalement ne verifie
-    plus : elle fatigue, et elle fait accepter plus vite.
+    IL EXIGEAIT POURTANT UNE CONFIRMATION, et c'est ce qui a eteint le
+    bouton pour toujours. La regle disait « retape si le numero est
+    nouveau » ; elle est devenue « retape toujours » le jour ou on ne la
+    trouvait pas a l'ecran ; puis le champ de confirmation a quitte cet
+    ecran-ci. Il attendait donc une saisie qu'il n'avait plus aucun moyen
+    de recevoir.
 
-    Le risque est a la PREMIERE saisie, et a elle seule. La confirmation
-    y est donc, et nulle part ailleurs — ainsi que le jour ou l'on change
-    de numero, qui est une premiere saisie deguisee.
+    Trois changements justes pris un a un, et faux ensemble. La regle de
+    confirmation vit maintenant d'un seul cote — celui qui porte les deux
+    champs — et ce qui reste ici n'est qu'un FILET : un numero valide doit
+    etre connu avant que la crypto parte, sinon le changeur n'a nulle part
+    ou payer.
     ═══════════════════════════════════════════════════════════════════════
     */
-    val confirmationDemandee: Boolean
-        /*
-        TOUJOURS, DES QUE LE PREMIER EST COMPLET. Elle ne dependait que
-        d'un numero nouveau ; on l'a cherchee deux fois sans la trouver,
-        et une protection qu'on ne voit jamais ne rassure personne.
-
-        Pas des la premiere touche : le second champ demanderait alors de
-        confirmer un numero qu'on est encore en train d'ecrire.
-        */
-        get() = numeroPaiementValide
-
     val numeroPret: Boolean
-        get() = numeroPaiementValide &&
-            (!confirmationDemandee || numeroConfirmation == numeroPaiement)
-
-    /** Les deux saisies different, et la seconde est commencee. */
-    val numerosDifferents: Boolean
-        get() = confirmationDemandee &&
-            numeroConfirmation.isNotBlank() &&
-            numeroConfirmation != numeroPaiement
+        get() = numeroPaiementValide
 }
 
 @HiltViewModel
@@ -773,32 +756,6 @@ class SendViewModel @Inject constructor(
     viennent de le remplir.
     ═══════════════════════════════════════════════════════════════════════
     */
-    /**
-     * Le numero ou le changeur enverra les francs.
-     *
-     * RETENU DES QU'IL EST COMPLET, pour n'etre tape qu'une fois dans la
-     * vie de l'application. Une saisie en cours — « 70 12 » — ne l'est
-     * pas : la pre-remplir a moitie la fois suivante ferait corriger un
-     * debut de numero au lieu d'en taper un.
-     */
-    fun setNumeroPaiement(v: String) {
-        _state.update { it.copy(numeroPaiement = v) }
-        /*
-        ON N'ENREGISTRE QU'UN NUMERO CONFIRME. Le garder des qu'il fait
-        huit chiffres rendrait la confirmation inutile : la saisie fautive
-        serait memorisee, et la vente suivante la pre-remplirait sans plus
-        rien demander.
-        */
-        if (_state.value.numeroPret) secureStorage.saveNumeroChange(v)
-    }
-
-    fun setNumeroConfirmation(v: String) {
-        _state.update { it.copy(numeroConfirmation = v) }
-        if (_state.value.numeroPret) {
-            secureStorage.saveNumeroChange(_state.value.numeroPaiement)
-        }
-    }
-
     private fun appliquerVenteChange(handle: SavedStateHandle) {
         val adresse = handle.get<String>(CHANGE_ADRESSE).orEmpty()
         val montant = handle.get<String>(CHANGE_MONTANT).orEmpty()
