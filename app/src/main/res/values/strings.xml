@@ -1216,11 +1216,12 @@
     <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. Le changeur vérifiera son portefeuille avant de payer : garde ta référence.</string>
     <string name="change_tu_donnes">Tu donnes</string>
     <string name="change_tu_recois">Tu reçois</string>
+    <string name="change_tu_recevras">Tu recevras</string>
     <string name="change_mention_montant">Montant en %1$s</string>
     <string name="change_mention_estime">Montant estimé</string>
     <string name="change_max">Max</string>
     <string name="change_ussd_bouton">Payer avec %1$s</string>
-    <string name="change_montant_exact_note">Envoie EXACTEMENT ce montant, décimales comprises : arrondi, il ne sera pas reconnu.</string>
+    <string name="change_montant_exact_note">Ce montant a été ajusté à partir du tien : ses décimales identifient TON versement. Envoie-le exactement — arrondi, il ne sera pas reconnu.</string>
     <string name="change_inverser">Inverser acheter et vendre</string>
     <string name="change_solde">Solde : %1$s</string>
     <string name="change_tout_valeur">Tout : %1$s</string>
