@@ -1894,6 +1894,38 @@ private fun ColumnScope.EtapePaiement(
     accessoire dans le sens ou il est indispensable.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, LE NUMERO N'EST PLUS DEMANDE ICI
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il l'etait aux DEUX etapes : sur cet ecran, et sur l'ecran d'envoi.
+    Dans le parcours normal, celui-ci ne servait a rien — c'est le numero
+    tape sur l'ecran d'envoi qui est retenu, et cet ecran-ci le relit pour
+    deposer la demande.
+
+    Deux champs pour une seule information, dont un inutile neuf fois sur
+    dix. Il reste donc UN champ dans toute la vente, la ou l'on appuie.
+
+    ─── IL REVIENT QUAND IL MANQUE VRAIMENT ────────────────────────────
+
+    Un cas le demande encore : quelque chose a ete envoye — le relais a
+    trouve un versement, ou un envoi a reussi dont le depot a echoue — et
+    aucun numero n'est connu. Ca arrive si l'envoi est parti avant qu'on
+    arrive ici.
+
+    Sans ce champ, le bouton de depot resterait eteint sans rien a
+    remplir : des fonds partis, et aucun moyen de prevenir qui que ce
+    soit. Il n'apparait donc que la, et il disparait des qu'il est
+    rempli.
+
+    SUR UN ACHAT IL RESTE TOUJOURS. Il n'y a pas d'ecran d'envoi : c'est
+    le seul endroit ou declarer le numero qui a paye.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val envoiConstate = state.txidSaisi.isNotBlank() || state.verification?.estVert == true
+    val numeroADemander = achat || (envoiConstate && !state.telephonePret)
+    if (numeroADemander) {
     ChampChange(
         valeur = state.telephone,
         onValeur = vm::onTelephone,
@@ -1949,6 +1981,7 @@ private fun ColumnScope.EtapePaiement(
                 stringResource(R.string.change_numero_different)
             } else null
         )
+    }
     }
 
     /*
