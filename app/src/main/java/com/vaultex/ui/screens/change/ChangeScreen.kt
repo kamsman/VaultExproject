@@ -1849,90 +1849,29 @@ private fun ColumnScope.EtapePaiement(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
-    CONFIRMER SON NUMERO PAR SMS — SUR UNE VENTE SEULEMENT
+    LA CONFIRMATION DU NUMERO PAR SMS A ETE RETIREE
     ═══════════════════════════════════════════════════════════════════════
 
-    Le changeur va envoyer des francs sur ce numéro. Un chiffre de travers
-    et l'argent part chez un inconnu, sans recours. Rien n'empêchait ça.
+    Elle faisait envoyer sa reference par SMS au numero du changeur, qui
+    lisait alors « ✔ confirme par SMS » sur la ligne du numero. Ce qu'elle
+    protegeait est reel : un chiffre de travers dans son propre numero
+    envoie les francs chez un inconnu, sans recours.
 
-    En envoyant sa référence par SMS au numéro du changeur, le client fait
-    lire son numéro PAR L'OPÉRATEUR plutôt que par ce formulaire. Le
-    message qui arrive chez le changeur porte alors « ✔ confirmé par SMS »
-    sur la ligne du numéro — là où il recopie les huit chiffres.
+    MAIS ELLE ETAIT FACULTATIVE ET PAYANTE. Un SMS coute, et presque
+    personne ne l'envoyait — le bloc occupait donc l'ecran pour une
+    protection que peu de gens prenaient.
 
-    ─── C'EST UNE INVITATION, PAS UNE OBLIGATION ────────────────────────
+    ─── CE QUI LA REMPLACE, ET QUI VAUT MIEUX ──────────────────────────
 
-    Le bouton reste actif sans ça, et le changeur décide. Bloquer la vente
-    sur un SMS que le client paie, et qui peut ne pas arriver, fermerait
-    le service à ceux qui n'ont plus de crédit — pour une protection dont
-    ils n'ont peut-être pas besoin s'ils ont tapé juste.
+    Le numero est RETENU d'une operation a l'autre. On le tape une fois,
+    il est pre-rempli ensuite. Le risque de faute de frappe tombe a la
+    premiere vente au lieu de revenir a chacune — et ca retire un bloc au
+    lieu d'en ajouter un.
 
-    ─── ET ELLE NE S'AFFICHE QUE SI ELLE PEUT SERVIR ────────────────────
-
-    Sans numéro de changeur réglé, il n'y a nulle part où envoyer. Sans
-    référence, il n'y a rien à envoyer. Dans les deux cas on se tait,
-    plutôt que d'afficher une consigne qu'on ne peut pas suivre.
+    Si le SMS doit revenir un jour, c'est `/change/otp` cote relais qui le
+    porte, et il n'a pas ete touche.
     ═══════════════════════════════════════════════════════════════════════
     */
-    /*
-    ─── ELLE EST REPLIEE, ET SON TITRE EST LA COMMANDE ──────────────────
-
-    Signale sur capture : cet ecran demandait deux pleines pages. Les
-    textes raccourcis n'y ont pas suffi — il fallait retirer de la
-    HAUTEUR, pas des mots.
-
-    Ce bloc est le candidat evident : c'est une invitation, pas une
-    obligation, et la vente aboutit sans lui. Replie, il ne coute qu'une
-    ligne ; deplie, il dit exactement ce qu'il disait.
-
-    Le titre porte deja « conseille » et le chevron dit qu'il y a
-    quelque chose dessous. Rien n'est cache : ce qui etait lu est encore
-    atteignable d'un appui, et ce qui ne l'etait pas ne prend plus la
-    place de ce qui l'est.
-    */
-    if (!achat && p.numeroMobileMoney.isNotBlank() && state.reference.isNotBlank()) {
-        var smsOuvert by remember { mutableStateOf(false) }
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = AccentBlue.copy(alpha = 0.10f),
-            modifier = Modifier.fillMaxWidth().clickable { smsOuvert = !smsOuvert }
-        ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Sms, null,
-                        tint = AccentBlue, modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.change_otp_titre),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        if (smsOuvert) Icons.Default.ExpandLess
-                        else Icons.Default.ExpandMore,
-                        null,
-                        tint = AccentBlue, modifier = Modifier.size(18.dp)
-                    )
-                }
-                if (smsOuvert) {
-                    Text(
-                        stringResource(
-                            R.string.change_otp_aide,
-                            state.reference,
-                            p.numeroMobileMoney
-                        ),
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                }
-            }
-        }
-    }
-
     /*
     ═══════════════════════════════════════════════════════════════════════
     SUR UN ACHAT, LA VÉRIFICATION VIENT APRÈS LES CHAMPS
@@ -2212,8 +2151,6 @@ private fun ColumnScope.CarteVerification(
         else -> AccentOrange
     }
 
-    var hashOuvert by remember { mutableStateOf(false) }
-
     Surface(shape = RoundedCornerShape(14.dp), color = couleur.copy(alpha = 0.10f)) {
         Column(
             Modifier.fillMaxWidth().padding(14.dp),
@@ -2394,62 +2331,31 @@ private fun ColumnScope.CarteVerification(
             pas.
             */
             /*
-            ─── ET IL EST DERRIERE UN LIEN, PAS A L'ECRAN ───────────────
+            ═══════════════════════════════════════════════════════════
+            LE CHAMP DU HASH A ETE RETIRE
+            ═══════════════════════════════════════════════════════════
 
-            Le champ et sa ligne d'aide prennent une centaine de points
-            pour un geste que presque personne ne fait : le relais trouve
-            sans, et celui qui a son hash sous la main est l'exception.
+            Il acceleratait une recherche qui aboutit SEULE : le relais
+            trouve le versement sur la chaine par son montant marque, et
+            le hash ne faisait que lui epargner de chercher.
 
-            Un champ de soixante-quatre caracteres affiche en permanence
-            demande a tout le monde de decider s'il le concerne. Une
-            ligne demande la meme chose en dix fois moins de place, et
-            ouvre le champ pour ceux que ca concerne.
+            Il coutait plus qu'il ne rapportait. Il introduisait un mot —
+            « hash » — que la plupart des vendeurs n'ont jamais vu, pour
+            un gain de quinze secondes sur une operation qui en prend six
+            cents. Et il demandait soixante-quatre caracteres hexadecimaux
+            qu'on recopie mal une fois sur deux.
 
-            IL RESTE OUVERT UNE FOIS QU'ON A TAPE DEDANS : le replier
-            sous les yeux de quelqu'un qui vient d'y coller un hash
-            donnerait l'impression de l'avoir perdu.
+            CE QU'ON PERD. Quand le relais ne peut pas lire la chaine, le
+            hash tape a la main partait quand meme dans le message du
+            changeur, qui pouvait verifier lui-meme. Ce cas existe encore,
+            et il se traite comme avant : « Confirmer quand meme », puis
+            le changeur regarde son portefeuille.
+
+            `onTxid` et le champ `txidSaisi` restent dans le modele : le
+            relais sait toujours lire un hash, et `transmettre` l'envoie
+            encore s'il y en a un. Seule la SAISIE disparait.
+            ═══════════════════════════════════════════════════════════
             */
-            if (avecSorties && !achat && !hashOuvert && state.txidSaisi.isBlank()) {
-                TextButton(
-                    onClick = { hashOuvert = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        stringResource(R.string.change_verif_txid_lien),
-                        fontSize = 12.sp, color = AccentBlue, maxLines = 1
-                    )
-                }
-            }
-            if (avecSorties && !achat && (hashOuvert || state.txidSaisi.isNotBlank())) {
-                OutlinedTextField(
-                    value = state.txidSaisi,
-                    onValueChange = vm::onTxid,
-                    label = { Text(stringResource(R.string.change_verif_txid)) },
-                    /*
-                    LA MEME FORME QUE LES DEUX CHAMPS DE L'ACHAT : une
-                    icone de tete, des coins arrondis. Trois champs de
-                    saisie dans le meme parcours qui ne se ressemblent pas
-                    donnent l'impression d'ecrans assembles a la hate.
-                    */
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Description, null,
-                            tint = AccentBlue, modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    supportingText = {
-                        Text(stringResource(R.string.change_verif_txid_aide), fontSize = 11.sp)
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        fontSize = 12.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        color = TextPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
         }
     }
 }

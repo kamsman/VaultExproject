@@ -1176,8 +1176,6 @@
     <string name="change_telephone_vente">Numéro Mobile Money où recevoir</string>
     <string name="change_telephone_vente_aide">8 chiffres.</string>
     <string name="change_telephone_vente_exemple">Ex. 70 12 34 56</string>
-    <string name="change_otp_titre">Confirme ton numéro (conseillé)</string>
-    <string name="change_otp_aide">Envoie « %1$s » par SMS au %2$s, depuis le numéro où tu veux être payé. Un seul SMS.</string>
     <string name="change_transmettre">Confirmer l\'envoi</string>
     <string name="change_transmettre_verifie">Versement vérifié — confirmer</string>
     <string name="change_verif_recherche">Recherche de ton versement…</string>
@@ -1196,9 +1194,6 @@
     <string name="change_verif_impossible_detail_raison">Le relais n\'a pas pu lire la chaîne : %1$s. Rien n\'est prouvé ni infirmé : tu peux transmettre, et le changeur vérifiera comme avant.</string>
     <string name="change_verif_reessayer">Réessayer</string>
     <string name="change_verif_quand_meme">Confirmer quand même</string>
-    <string name="change_verif_txid">Hash de la transaction (facultatif)</string>
-    <string name="change_verif_txid_aide">Si tu l\'as sous la main, colle-le : la recherche devient immédiate.</string>
-    <string name="change_verif_txid_lien">J\'ai le hash de la transaction</string>
     <string name="change_verif_achat_recherche">Recherche de ton paiement…</string>
     <string name="change_verif_achat_recherche_detail">Le relais cherche l\'encaissement Orange Money qui correspond. Dès que l\'opérateur l\'a signalé au changeur, il s\'affiche ici.</string>
     <string name="change_verif_achat_trouve">Paiement vérifié</string>

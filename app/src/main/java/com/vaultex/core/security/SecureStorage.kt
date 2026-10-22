@@ -457,6 +457,42 @@ class SecureStorage @Inject constructor(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
+    LE NUMERO OU L'ON VEUT ETRE PAYE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Huit chiffres, retapes a chaque operation. C'est le seul champ d'une
+    vente que le changeur ne peut deviner d'aucune facon : une adresse de
+    chaine ne dit rien d'un numero Orange Money.
+
+    ET C'EST LE SEUL DONT UNE FAUTE DE FRAPPE EST TOTALE. Un chiffre de
+    travers, et les francs partent chez un inconnu, sans recours — le
+    changeur n'a aucun moyen de voir que le numero n'est pas le bon.
+
+    Le retenir reduit ce risque a la PREMIERE operation au lieu de le
+    rejouer a chacune. C'est une meilleure protection que la confirmation
+    par SMS qu'il remplace : celle-ci etait facultative et payante, donc
+    rarement prise.
+
+    AUCUN SECRET ICI. Un numero de telephone n'est pas une clef ; il est
+    range avec le reste parce que ce fichier est deja chiffre, pas parce
+    qu'il le faudrait.
+
+    Il reste MODIFIABLE : pre-rempli n'est pas impose, et quelqu'un peut
+    vouloir etre paye ailleurs — sur le telephone d'un proche, sur un
+    second numero.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun saveNumeroChange(numero: String?) {
+        prefs.edit().apply {
+            if (numero.isNullOrBlank()) remove(KEY_NUMERO_CHANGE)
+            else putString(KEY_NUMERO_CHANGE, numero)
+        }.apply()
+    }
+
+    fun getNumeroChange(): String = prefs.getString(KEY_NUMERO_CHANGE, "") ?: ""
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
     LES DEMANDES DE CHANGE DÉJÀ TRANSMISES
     ═══════════════════════════════════════════════════════════════════════
 
@@ -649,6 +685,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_PENDING_TXS = "pending_txs"
         private const val KEY_PI_ENVOI_EN_COURS = "pi_envoi_en_cours"
         private const val KEY_CHANGE_EN_COURS = "change_en_cours"
+        private const val KEY_NUMERO_CHANGE = "change_numero_paiement"
         private const val KEY_HISTORIQUE_CHANGE = "historique_change"
         private const val KEY_PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_PIN_LOCKED_UNTIL = "pin_locked_until"

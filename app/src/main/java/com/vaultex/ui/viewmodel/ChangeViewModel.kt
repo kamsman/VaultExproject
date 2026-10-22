@@ -561,7 +561,17 @@ class ChangeViewModel @Inject constructor(
         qu'il attend sa crypto depuis vingt minutes — la voit tout de suite,
         meme si le relais ne repond pas.
         */
-        _state.update { it.copy(historique = historique.lire()) }
+        /*
+        LE NUMERO DE LA DERNIERE OPERATION. Il se tape une fois, pas a
+        chaque vente — c'est le seul champ qu'aucun calcul ne peut
+        deviner, et le seul dont une faute de frappe est totale.
+        */
+        _state.update {
+            it.copy(
+                historique = historique.lire(),
+                telephone = secureStorage.getNumeroChange()
+            )
+        }
         charger()
     }
 
@@ -1047,6 +1057,13 @@ class ChangeViewModel @Inject constructor(
 
     fun onTelephone(v: String) {
         _state.update { it.copy(telephone = v) }
+        /*
+        RETENU DES QU'IL EST COMPLET, et seulement alors. Garder une
+        saisie en cours — « 70 12 » — le pre-remplirait a moitie la fois
+        suivante, ce qui est pire que vide : on corrige un debut de numero
+        au lieu d'en taper un.
+        */
+        if (_state.value.telephoneValide) secureStorage.saveNumeroChange(v)
         sauverTrace()
         relancerVerificationAchat()
     }

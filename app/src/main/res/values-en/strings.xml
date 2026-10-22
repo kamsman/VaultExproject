@@ -1147,8 +1147,6 @@
     <string name="change_telephone_vente">Mobile Money number to receive on</string>
     <string name="change_telephone_vente_aide">8 digits.</string>
     <string name="change_telephone_vente_exemple">e.g. 70 12 34 56</string>
-    <string name="change_otp_titre">Confirm your number (recommended)</string>
-    <string name="change_otp_aide">Text “%1$s” to %2$s, from the number you want to be paid on. One SMS.</string>
     <string name="change_transmettre">Confirm transfer</string>
     <string name="change_transmettre_verifie">Transfer verified — confirm</string>
     <string name="change_verif_recherche">Looking for your transfer…</string>
@@ -1167,9 +1165,6 @@
     <string name="change_verif_impossible_detail_raison">The relay could not read the chain: %1$s. Nothing is proven or disproven: you can send, and the exchanger will check as before.</string>
     <string name="change_verif_reessayer">Retry</string>
     <string name="change_verif_quand_meme">Confirm anyway</string>
-    <string name="change_verif_txid">Transaction hash (optional)</string>
-    <string name="change_verif_txid_aide">If you have it at hand, paste it: the search becomes immediate.</string>
-    <string name="change_verif_txid_lien">I have the transaction hash</string>
     <string name="change_verif_achat_recherche">Looking for your payment…</string>
     <string name="change_verif_achat_recherche_detail">The relay is looking for the matching Orange Money payment. As soon as the operator reports it to the changer, it shows up here.</string>
     <string name="change_verif_achat_trouve">Payment verified</string>
