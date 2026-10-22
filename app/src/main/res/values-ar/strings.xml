@@ -1148,6 +1148,7 @@
     <string name="change_telephone_vente_aide">8 أرقام.</string>
     <string name="change_telephone_vente_exemple">مثال 70 12 34 56</string>
     <string name="change_numero_confirme">أعد كتابة الرقم نفسه، للتأكد.</string>
+    <string name="change_numero_confirme_libelle">أكِّد الرقم</string>
     <string name="change_numero_different">الرقمان غير متطابقين.</string>
     <string name="change_transmettre">تأكيد التحويل</string>
     <string name="change_transmettre_verifie">تم التحقق من التحويل — تأكيد</string>

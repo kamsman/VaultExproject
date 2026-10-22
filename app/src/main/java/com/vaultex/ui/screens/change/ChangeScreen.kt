@@ -1759,7 +1759,42 @@ private fun ColumnScope.EtapePaiement(
     parti ». Il vient d'envoyer de la crypto, c'est irreversible, et il
     attend. La reponse doit etre la premiere chose qu'il lit.
     */
-    if (!achat) CarteVerification(vm, state)
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ELLE N'APPARAIT PAS AVANT D'AVOIR QUELQUE CHOSE A DIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Signale sur capture : « c'est quoi ce recherche de versement
+    encore ». La question est juste. On arrive sur cet ecran, on n'a rien
+    envoye, et une carte annonce qu'elle cherche — avec un indicateur qui
+    tourne.
+
+    Elle decrit un travail reel : le relais interroge la chaine des la
+    premiere seconde, au cas ou le versement serait parti avant. Mais ce
+    travail ne regarde personne tant qu'il n'a rien trouve ET qu'il est
+    trop tot pour que ce soit un signe.
+
+    C'est la meme regle que le delai de grace, un cran plus loin : celui-ci
+    empechait d'ACCUSER trop tot, celle-ci empeche de PARLER trop tot.
+
+    ─── CE QUI LA FAIT APPARAITRE ──────────────────────────────────────
+
+    Un verdict qui dit quelque chose — versement trouve, ou deja servi —
+    ou les trois minutes passees, au terme desquelles son silence devient
+    une information.
+
+    Le bouton « Envoyer depuis VaultEx », lui, ne depend pas d'elle : il
+    ouvre l'envoi, le hash revient, et la demande part sans que cette
+    carte ait eu besoin de dire un mot.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (!achat) {
+        val verdictUtile = state.verification?.estVert == true ||
+            affichageVerification(state) != AffichageVerif.RECHERCHE
+        val assezAttendu = state.confirmeA > 0L &&
+            System.currentTimeMillis() - state.confirmeA >= GRACE_VENTE_MS
+        if (verdictUtile || assezAttendu) CarteVerification(vm, state)
+    }
 
     /*
     « UNE FOIS LE PAIEMENT ENVOYE » PART, SUR UN ACHAT.
@@ -1852,6 +1887,36 @@ private fun ColumnScope.EtapePaiement(
             stringResource(R.string.change_telephone_vente_aide)
         } else null
     )
+
+    /*
+    ─── ET SA CONFIRMATION, QUAND IL EST NOUVEAU ───────────────────────
+
+    La meme regle que sur l'ecran d'envoi : elle n'apparait qu'a la
+    premiere saisie, ou le jour ou l'on change de numero. Pre-rempli
+    depuis la derniere vente, il ne redemande rien.
+
+    Les deux chemins — envoyer depuis VaultEx, ou copier l'adresse et
+    envoyer d'ailleurs — demandent le meme numero. Un seul des deux qui
+    le fasse confirmer serait le genre d'incoherence qu'on remarque sans
+    savoir la nommer.
+    */
+    if (!achat && state.confirmationNumeroDemandee) {
+        ChampChange(
+            valeur = state.telephoneConfirmation,
+            onValeur = vm::onTelephoneConfirmation,
+            libelle = stringResource(R.string.change_numero_confirme_libelle),
+            exemple = stringResource(R.string.change_telephone_vente_exemple),
+            aide = stringResource(
+                if (state.numerosDifferents) R.string.change_numero_different
+                else R.string.change_numero_confirme
+            ),
+            icone = Icons.Default.Smartphone,
+            clavier = androidx.compose.ui.text.input.KeyboardType.Phone,
+            erreur = if (state.numerosDifferents) {
+                stringResource(R.string.change_numero_different)
+            } else null
+        )
+    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════

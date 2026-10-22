@@ -1177,6 +1177,7 @@
     <string name="change_telephone_vente_aide">8 chiffres.</string>
     <string name="change_telephone_vente_exemple">Ex. 70 12 34 56</string>
     <string name="change_numero_confirme">Retape le même numéro, pour être sûr.</string>
+    <string name="change_numero_confirme_libelle">Confirme le numéro</string>
     <string name="change_numero_different">Les deux numéros ne sont pas identiques.</string>
     <string name="change_transmettre">Confirmer l\'envoi</string>
     <string name="change_transmettre_verifie">Versement vérifié — confirmer</string>
