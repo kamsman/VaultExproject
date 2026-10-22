@@ -1235,6 +1235,8 @@
     <string name="change_replier">Replier le détail</string>
     <string name="change_prix_garanti">Prix garanti encore</string>
     <string name="change_prix_expire">Le prix affiché n\'est plus garanti — reviens au calcul si tu n\'as pas encore envoyé.</string>
+    <string name="change_vente_partie_titre">Ta vente est partie</string>
+    <string name="change_vente_partie_detail">Le changeur t\'enverra tes francs au %1$s. Appuie sur Terminé pour lui transmettre ta demande.</string>
     <string name="assistance_titre">Assistance</string>
     <string name="assistance_statut_actif">Réponses automatiques et immédiates</string>
     <string name="assistance_statut_muet">Service injoignable pour le moment</string>

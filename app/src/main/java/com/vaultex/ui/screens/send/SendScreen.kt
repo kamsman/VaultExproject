@@ -1992,6 +1992,56 @@ internal fun SendSuccessScreen(
             AccentGreen,
             pastilleBlanche = true
         )
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        SUR UNE VENTE, LE RECU DOIT PARLER DE LA VENTE
+        ═══════════════════════════════════════════════════════════════════
+
+        Il n'en disait pas un mot. Quelqu'un venait de vendre contre des
+        francs, et l'ecran lui montrait « Envoi USDT », un hash et un lien
+        vers un explorateur de chaine. Juste, et etranger a ce qu'il a
+        demande.
+
+        Pire : il ne disait pas non plus qu'il RESTE quelque chose. La
+        demande part chez le changeur au moment ou l'on appuie sur
+        « Termine » — c'est ce bouton qui ramene a l'ecran de change, et
+        c'est en y arrivant qu'elle est deposee. Rien ne le laissait
+        deviner.
+
+        Ce bloc dit les deux : ou l'argent va arriver, et qu'il reste un
+        appui. Le numero est groupe par deux — c'est la derniere occasion
+        de voir un chiffre de travers, et il n'est plus modifiable apres.
+
+        VIDE SUR UN ENVOI ORDINAIRE, ou il n'y a ni vente ni numero.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (detail.numeroPaiement.isNotBlank()) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = AccentGreen.copy(alpha = 0.10f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.change_vente_partie_titre),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        stringResource(
+                            R.string.change_vente_partie_detail,
+                            numeroGroupe(detail.numeroPaiement)
+                        ),
+                        fontSize = 13.sp,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
         // Pastille de statut : ambre tant que la blockchain n'a pas tranché,
         // verte ensuite. Elle bascule toute seule si la confirmation tombe
         // pendant que l'écran est ouvert.
