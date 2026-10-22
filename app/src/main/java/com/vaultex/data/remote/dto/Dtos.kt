@@ -493,7 +493,9 @@ data class ParametresChangeDto(
      */
     val minimumsParMonnaie: Map<String, Double>? = null,
     /** Plafond par monnaie, EN DOLLARS — le general, lui, est en francs. */
-    val plafondsUsdParMonnaie: Map<String, Double>? = null
+    val plafondsUsdParMonnaie: Map<String, Double>? = null,
+    /** Minimum par monnaie, EN DOLLARS — symetrique du plafond. */
+    val minimumsUsdParMonnaie: Map<String, Double>? = null
 )
 
 /**

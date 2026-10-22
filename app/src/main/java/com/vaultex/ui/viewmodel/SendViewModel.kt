@@ -154,10 +154,15 @@ data class SendState(
     ═══════════════════════════════════════════════════════════════════════
     */
     val confirmationDemandee: Boolean
-        // ET SEULEMENT UNE FOIS LE PREMIER COMPLET : apparu des la
-        // premiere touche, le second champ demanderait de confirmer un
-        // numero qu'on est encore en train d'ecrire.
-        get() = numeroPaiementValide && numeroPaiement != numeroMemorise
+        /*
+        TOUJOURS, DES QUE LE PREMIER EST COMPLET. Elle ne dependait que
+        d'un numero nouveau ; on l'a cherchee deux fois sans la trouver,
+        et une protection qu'on ne voit jamais ne rassure personne.
+
+        Pas des la premiere touche : le second champ demanderait alors de
+        confirmer un numero qu'on est encore en train d'ecrire.
+        */
+        get() = numeroPaiementValide
 
     val numeroPret: Boolean
         get() = numeroPaiementValide &&

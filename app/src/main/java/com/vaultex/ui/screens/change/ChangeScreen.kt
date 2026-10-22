@@ -436,7 +436,7 @@ private fun ColumnScope.EtapeCalcul(
         */
         piedDePage = {
             BornesChange(
-                minFcfa = p.minimumPour(state.monnaie),
+                minFcfa = p.minimumPour(state.monnaie, state.fcfaParDollar),
                 maxFcfa = p.plafondPour(state.monnaie, state.fcfaParDollar),
                 enFcfa = donneFcfa,
                 monnaie = state.monnaie,
@@ -3478,7 +3478,7 @@ private fun montantsRapides(
 ): List<Double> {
     // PAR MONNAIE : TRON et BNB Chain n'ont pas le même seuil, parce
     // qu'elles n'ont pas les mêmes frais de réseau.
-    val min = p.minimumPour(monnaie)
+    val min = p.minimumPour(monnaie, fcfaParDollar)
     val max = p.plafondPour(monnaie, fcfaParDollar)
     if (max <= min) return emptyList()
     val milieu = kotlin.math.round((min + max) / 2000.0) * 1000.0
@@ -3875,7 +3875,10 @@ private fun messageBlocage(
     quelqu'un retaper un montant qui sera refuse une seconde fois. C'est
     exactement le genre de message qui fait fermer l'application.
     */
-    "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumPour(monnaie)))
+    "minimum" -> stringResource(
+        R.string.change_sous_minimum,
+        fcfa(p.minimumPour(monnaie, fcfaParDollar))
+    )
     /*
     MEME RAISON QUE POUR LE MINIMUM, un cran plus haut dans ce when :
     montrer le plafond general pendant qu'un autre s'applique enverrait

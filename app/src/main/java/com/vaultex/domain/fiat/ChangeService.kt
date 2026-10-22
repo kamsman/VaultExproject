@@ -86,7 +86,16 @@ data class ParametresChange(
     dollar, converti au cours du jour.
     ═══════════════════════════════════════════════════════════════════════
     */
-    val plafondsUsdParMonnaie: Map<String, Double> = emptyMap()
+    val plafondsUsdParMonnaie: Map<String, Double> = emptyMap(),
+    /**
+     * Le minimum par monnaie, en dollars — symetrique du plafond.
+     *
+     * `minimumsParMonnaie` est en francs : le seuil sous lequel une
+     * operation ne vaut pas la peine d'etre traitee, et il suit le cout
+     * local. Celui-ci est en dollars : le seuil sous lequel une quantite
+     * de crypto n'a pas de sens, frais de reseau compris.
+     */
+    val minimumsUsdParMonnaie: Map<String, Double> = emptyMap()
 ) {
 
     /**
@@ -136,8 +145,25 @@ data class ParametresChange(
         return minOf(plafondFcfa, usd * taux)
     }
 
-    fun minimumPour(monnaie: String): Double =
-        minimumsParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 } ?: minimumFcfa
+    /**
+     * Le minimum applicable, en francs.
+     *
+     * LE PLUS HAUT DES DEUX GAGNE, la ou [plafondPour] prend le plus bas.
+     * Les deux bornes se resserrent ; aucune des deux ne doit pouvoir
+     * ouvrir ce que l'autre ferme.
+     *
+     * SANS COURS, LE SEUIL EN DOLLARS NE S'APPLIQUE PAS : le convertir
+     * sans taux donnerait un chiffre invente, et c'est sur lui qu'une
+     * operation serait refusee.
+     */
+    fun minimumPour(monnaie: String, fcfaParDollar: Double? = null): Double {
+        val enFrancs = minimumsParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
+            ?: minimumFcfa
+        val usd = minimumsUsdParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
+        val taux = fcfaParDollar?.takeIf { it > 0.0 }
+        if (usd == null || taux == null) return enFrancs
+        return maxOf(enFrancs, usd * taux)
+    }
 
     /**
      * Un service annoncé actif mais sans numéro n'est pas utilisable.
@@ -405,6 +431,10 @@ class ChangeService @Inject constructor(
                 // Meme nettoyage que les minimums : clefs en capitales, et
                 // une valeur nulle ou negative n'est pas un plafond.
                 plafondsUsdParMonnaie = dto.plafondsUsdParMonnaie
+                    ?.mapKeys { (k, _) -> k.uppercase() }
+                    ?.filterValues { v -> v > 0.0 }
+                    .orEmpty(),
+                minimumsUsdParMonnaie = dto.minimumsUsdParMonnaie
                     ?.mapKeys { (k, _) -> k.uppercase() }
                     ?.filterValues { v -> v > 0.0 }
                     .orEmpty()
