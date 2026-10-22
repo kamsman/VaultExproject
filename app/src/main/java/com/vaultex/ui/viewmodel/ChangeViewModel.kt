@@ -486,7 +486,33 @@ data class ChangeState(
      * rien proposer dans ce cas plutot que d'ecrire zero.
      */
     fun plusGrandMontantVendable(solde: Double): Double {
-        val v = kotlin.math.floor(solde - 0.999)
+        var v = kotlin.math.floor(solde - 0.999)
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE PLAFOND COMPTE AUSSI, ET IL MANQUAIT
+        ═══════════════════════════════════════════════════════════════════
+
+        Cette fonction ne regardait que le solde. Avec un solde superieur
+        au plafond — ce qui arrive des qu'une monnaie porte le sien, comme
+        le BNB borne a dix dollars — « Tout » ecrivait un montant que
+        `blocage` refusait a la ligne suivante.
+
+        Un bouton qui propose un montant refuse est le defaut qu'on vient
+        de corriger deux fois sur cet ecran. Il se referme ici pour de
+        bon : « Tout » rend le plus petit des deux, ce qu'on detient et ce
+        qu'on a le droit de vendre.
+
+        SANS COURS, ON NE BORNE PAS. Le plafond se lit en francs et la
+        saisie en crypto : sans le taux, la conversion donnerait un
+        chiffre invente, et c'est sur lui qu'on ecrirait le montant.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val p = parametres
+        val venteFcfa = prix?.venteFcfa
+        if (p != null && venteFcfa != null && venteFcfa > 0.0) {
+            val plafondCrypto = p.plafondPour(monnaie, fcfaParDollar) / venteFcfa
+            v = minOf(v, kotlin.math.floor(plafondCrypto))
+        }
         return if (v >= 1.0) v else 0.0
     }
 
