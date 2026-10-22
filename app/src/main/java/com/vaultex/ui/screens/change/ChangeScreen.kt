@@ -1462,7 +1462,27 @@ private fun ColumnScope.EtapePaiement(
     if (!achat) {
         val marque = com.vaultex.domain.fiat.SaisieMontant.valeur(state.saisie)
         val detenu = state.solde
-        if (marque != null && detenu != null && detenu >= marque) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UNE FOIS LA CRYPTO PARTIE, IL DISPARAIT
+        ═══════════════════════════════════════════════════════════════════
+
+        `txidSaisi` ne porte un hash que si un envoi a REUSSI. S'il est
+        la, c'est que la crypto est diffusee et que seul le depot de la
+        demande reste a faire.
+
+        Laisser le bouton proposerait d'envoyer une SECONDE FOIS le meme
+        montant, a la meme adresse — et rien ne le rattraperait : le
+        relais ne reconnaitrait qu'un versement, et l'autre serait perdu.
+
+        C'est le pire geste que cet ecran puisse offrir, et il ne le
+        pouvait que depuis que le depot peut echouer apres un envoi
+        reussi. Le rattrapage est le bouton de confirmation, plus bas.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (state.txidSaisi.isNotBlank()) {
+            Note(stringResource(R.string.change_crypto_partie), AccentGreen)
+        } else if (marque != null && detenu != null && detenu >= marque) {
             /*
             ═══════════════════════════════════════════════════════════
             C'EST LUI, L'ACTION PRINCIPALE
@@ -1771,40 +1791,29 @@ private fun ColumnScope.EtapePaiement(
     */
     /*
     ═══════════════════════════════════════════════════════════════════════
-    ELLE N'APPARAIT PAS AVANT D'AVOIR QUELQUE CHOSE A DIRE
+    LA CARTE DE RECHERCHE A ETE RETIREE DE LA VENTE
     ═══════════════════════════════════════════════════════════════════════
 
-    Signale sur capture : « c'est quoi ce recherche de versement
-    encore ». La question est juste. On arrive sur cet ecran, on n'a rien
-    envoye, et une carte annonce qu'elle cherche — avec un indicateur qui
-    tourne.
+    Elle existait pour un parcours qui n'existe plus : copier l'adresse,
+    sortir, envoyer depuis un exchange, revenir, et attendre que le relais
+    voie le versement apparaitre sur la chaine. D'ou ses mots — « un
+    retrait depuis une plateforme d'echange peut mettre une heure » — et
+    ses deux sorties, « Reessayer » et « Confirmer quand meme ».
 
-    Elle decrit un travail reel : le relais interroge la chaine des la
-    premiere seconde, au cas ou le versement serait parti avant. Mais ce
-    travail ne regarde personne tant qu'il n'a rien trouve ET qu'il est
-    trop tot pour que ce soit un signe.
+    TOUT SE PASSE DANS VAULTEX MAINTENANT. La crypto part d'ici, son hash
+    est connu a la seconde ou elle est diffusee, et la demande arrive chez
+    le changeur sans que personne attende quoi que ce soit.
 
-    C'est la meme regle que le delai de grace, un cran plus loin : celui-ci
-    empechait d'ACCUSER trop tot, celle-ci empeche de PARLER trop tot.
+    Une carte qui annonce une recherche, propose de reessayer et parle
+    d'une autre plateforme ne decrit plus rien de ce qui se passe. Elle
+    inquiete, et elle invite a un geste — « Confirmer quand meme » — qui
+    n'a plus d'objet.
 
-    ─── CE QUI LA FAIT APPARAITRE ──────────────────────────────────────
-
-    Un verdict qui dit quelque chose — versement trouve, ou deja servi —
-    ou les trois minutes passees, au terme desquelles son silence devient
-    une information.
-
-    Le bouton « Envoyer depuis VaultEx », lui, ne depend pas d'elle : il
-    ouvre l'envoi, le hash revient, et la demande part sans que cette
-    carte ait eu besoin de dire un mot.
+    LA RECHERCHE, ELLE, CONTINUE EN SILENCE. Elle sert encore : si elle
+    trouve le versement, le bouton de depot s'allume. Mais elle ne rend
+    plus compte de son attente.
     ═══════════════════════════════════════════════════════════════════════
     */
-    if (!achat) {
-        val verdictUtile = state.verification?.estVert == true ||
-            affichageVerification(state) != AffichageVerif.RECHERCHE
-        val assezAttendu = state.confirmeA > 0L &&
-            System.currentTimeMillis() - state.confirmeA >= GRACE_VENTE_MS
-        if (verdictUtile || assezAttendu) CarteVerification(vm, state)
-    }
 
     /*
     « UNE FOIS LE PAIEMENT ENVOYE » PART, SUR UN ACHAT.
@@ -2015,11 +2024,32 @@ private fun ColumnScope.EtapePaiement(
     il n'y a pas d'autre chemin a designer.
     ═══════════════════════════════════════════════════════════════════════
     */
-    val verdictUtile = state.verification?.estVert == true ||
-        affichageVerification(state) != AffichageVerif.RECHERCHE
-    val assezAttendu = state.confirmeA > 0L &&
-        System.currentTimeMillis() - state.confirmeA >= GRACE_VENTE_MS
-    if (achat || verdictUtile || assezAttendu) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, IL NE SERT QUE DE RATTRAPAGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le chemin normal ne passe plus par lui : on appuie sur « Envoyer
+    depuis VaultEx », la crypto part, et la demande arrive chez le
+    changeur toute seule au retour. Ce bouton n'a alors rien a faire.
+
+    IL RESTE POUR DEUX CAS, ET ILS COMPTENT TOUS LES DEUX.
+
+    Le depot a echoue — le reseau a coupe entre la diffusion et l'appel
+    au relais. La crypto est partie, son hash est en main, et il faut
+    pouvoir reessayer. Sans ce bouton, quelqu'un resterait avec ses fonds
+    envoyes et aucun moyen de prevenir qui que ce soit.
+
+    Le relais a trouve le versement par lui-meme. Ca arrive si l'envoi a
+    ete fait avant d'arriver ici, ou depuis ailleurs malgre tout.
+
+    DANS LES DEUX CAS, QUELQUE CHOSE A ETE ENVOYE. C'est la condition :
+    un hash en main, ou un versement confirme. Jamais « au cas ou ».
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val rattrapageVente = state.txidSaisi.isNotBlank() ||
+        state.verification?.estVert == true
+    if (achat || rattrapageVente) {
     Button(
         onClick = vm::transmettre,
         enabled = state.peutTransmettre(),
