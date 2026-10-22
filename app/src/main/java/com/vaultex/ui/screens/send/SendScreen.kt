@@ -519,7 +519,17 @@ fun SendScreen(navController: NavController) {
                 shape = RoundedCornerShape(16.dp),
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                /*
+                SOUS VERROU, ELLE NE S'OUVRE PLUS. L'envoi vient d'une
+                vente : la monnaie est celle de la demande, et en changer
+                enverrait a l'adresse du changeur un jeton qu'il n'attend
+                pas — sur une chaine ou il n'a peut-etre meme pas de clef.
+
+                On retire le geste au lieu de l'ignorer : une carte qui
+                reagit au toucher sans rien faire passe pour cassee.
+                */
                 onClick = {
+                    if (state.verrouParChange) return@Surface
                     // Revenir à l'écran de sélection de monnaie (réseau + liste).
                     if (!navController.popBackStack(Routes.SEND_SELECT, false)) showCoinPicker = true
                 },
@@ -599,6 +609,12 @@ fun SendScreen(navController: NavController) {
                     SendField(
                         value = state.toAddress,
                         onValueChange = { viewModel.setToAddress(it) },
+                        // SOUS VERROU, ON NE TAPE PAS DEDANS. Le champ garde
+                        // sa forme — c'est toujours l'adresse de destination,
+                        // et la cacher ferait envoyer a l'aveugle — mais il
+                        // ne prend plus le clavier : un champ ou l'on tape
+                        // sans que rien ne change passe pour casse.
+                        enabled = !state.verrouParChange,
                         placeholder = when (state.selectedChain) {
                             "BTC"          -> stringResource(R.string.send_address_placeholder_btc)
                             "ETH", "BNB"   -> "0x..."
@@ -738,6 +754,7 @@ fun SendScreen(navController: NavController) {
                     SendField(
                         value = state.amount,
                         onValueChange = { viewModel.setAmount(it) },
+                        enabled = !state.verrouParChange,
                         placeholder = "0.00",
                         keyboardType = KeyboardType.Decimal,
                         modifier = Modifier.weight(1f),
@@ -751,14 +768,19 @@ fun SendScreen(navController: NavController) {
                     // Sa pastille bleue tombe avec les autres fonds : entre
                     // deux traits, dans la couleur d'action, il se désigne
                     // déjà comme touchable sans avoir besoin d'un aplat.
-                    Text(
-                        stringResource(R.string.max_label),
-                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { viewModel.onMaxClicked() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
+                    // PAS DE « MAX » SOUS VERROU : le montant porte un
+                    // marquage derive de la reference de la demande, et tout
+                    // autre montant rend le versement orphelin.
+                    if (!state.verrouParChange) {
+                        Text(
+                            stringResource(R.string.max_label),
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { viewModel.onMaxClicked() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
                     // Trait vertical : la monnaie qui suit n'est pas un bouton,
                     // elle rappelle seulement l'unité du montant saisi.
                     Box(Modifier.height(22.dp).width(1.dp).background(BorderColor))

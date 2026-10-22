@@ -193,7 +193,17 @@ fun VaultExNavGraph(navController: NavHostController) {
             com.vaultex.ui.screens.recovery.SeedIllisibleScreen(navController)
         }
 
-        composable(Routes.SEND) {
+        composable(
+            route = Routes.SEND_PARAMETRE,
+            // Tous facultatifs : « send » tout court correspond encore, et
+            // l'envoi ouvert depuis l'accueil n'a pas change.
+            arguments = listOf(
+                navArgument("change_adresse") { type = NavType.StringType; defaultValue = "" },
+                navArgument("change_montant") { type = NavType.StringType; defaultValue = "" },
+                navArgument("change_jeton") { type = NavType.StringType; defaultValue = "" },
+                navArgument("change_reference") { type = NavType.StringType; defaultValue = "" }
+            )
+        ) {
             SendScreen(navController)
         }
 

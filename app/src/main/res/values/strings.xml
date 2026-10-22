@@ -1145,6 +1145,7 @@
     <string name="change_payer_titre">Envoie le paiement</string>
     <string name="change_paiement_securise">Paiement sécurisé</string>
     <string name="change_envoyer_titre">Envoie la crypto</string>
+    <string name="change_envoyer_depuis_vaultex">Envoyer depuis VaultEx</string>
     <string name="change_numero">Numéro à créditer</string>
     <string name="change_adresse">Adresse de destination</string>
     <string name="change_beneficiaire">Bénéficiaire</string>
