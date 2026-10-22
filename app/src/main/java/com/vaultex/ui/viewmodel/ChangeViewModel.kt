@@ -176,6 +176,31 @@ data class ChangeState(
     val rechercheEnCours: Boolean = false,
     /** Combien de fois on a demande : affiche pour que l'attente soit lisible. */
     val essais: Int = 0,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    COMBIEN DE SONDAGES AVANT DE DEPOSER TOUT SEUL
+    ═══════════════════════════════════════════════════════════════════════
+
+    Zero veut dire « personne n'attend » : le depot se fait a la main.
+
+    Au-dessus de zero, c'est une vente partie de l'ecran d'envoi. La crypto
+    est diffusee, son hash est connu, et la demande DOIT arriver chez le
+    changeur — mais pas a la seconde ou elle est diffusee.
+
+    Car a cette seconde-la, aucune chaine ne la montre encore. Le relais
+    regarderait, ne trouverait rien, et le message dirait au changeur
+    « ❌ AUCUN VERSEMENT TROUVE — N'ENVOIE RIEN ». Sur un versement
+    parfaitement reel, et sans que rien ne revienne jamais corriger ce
+    verdict : le depot ne se fait qu'une fois.
+
+    On laisse donc quelques tours a la chaine. Le compteur descend a chaque
+    sondage ; la demande part des que le verdict tombe, ou quand il atteint
+    zero — parce qu'alors attendre plus longtemps devient le risque
+    inverse, celui d'une crypto envoyee dont le changeur n'a jamais
+    entendu parler.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val depotAutoRestant: Int = 0,
     /**
      * Hash de la transaction, si l'utilisateur l'a sous la main.
      *
@@ -714,6 +739,19 @@ class ChangeViewModel @Inject constructor(
         */
         val referencePaiement: String = "",
         val telephone: String = "",
+        /*
+        LE HASH FAIT PARTIE DE LA TRACE, et il y manquait.
+
+        Sur une vente partie de l'ecran d'envoi, c'est la SEULE piece qui
+        rattache la crypto diffusee a la demande. Elle n'etait qu'en
+        memoire : Android fermant l'application pendant l'attente de la
+        chaine, l'utilisateur revenait sur son ecran de paiement avec sa
+        crypto partie et plus rien pour le dire.
+
+        Il reste alors le bouton « Confirmer l'envoi », qui s'allume
+        justement parce que ce hash est la.
+        */
+        val txid: String = "",
         val horodatage: Long = 0L
     )
 
@@ -743,6 +781,7 @@ class ChangeViewModel @Inject constructor(
         fcfaParDollar = s.fcfaParDollar ?: 0.0,
         referencePaiement = s.referencePaiement,
         telephone = s.telephone,
+        txid = s.txidSaisi,
         horodatage = horodatage
     )
 
@@ -807,7 +846,9 @@ class ChangeViewModel @Inject constructor(
                 // Sur un achat, les criteres de recherche. Vides sur une
                 // vente, qui se lit sur la chaine et n'en a pas besoin.
                 referencePaiement = trace.referencePaiement,
-                telephone = trace.telephone
+                telephone = trace.telephone,
+                // Le hash d'une vente deja diffusee, s'il y en a un.
+                txidSaisi = trace.txid
             )
         }
         /*
@@ -835,13 +876,17 @@ class ChangeViewModel @Inject constructor(
         ═══════════════════════════════════════════════════════════════════
 
         Quand la vente est partie de l'ecran d'envoi, la crypto est DEJA
-        diffusee et son hash est connu. Il ne reste rien a decider : ni a
-        attendre que la chaine la montre, ni a appuyer sur un bouton de
-        confirmation. La demande part.
+        diffusee et son hash est connu. Il ne reste rien a DECIDER : aucun
+        bouton de confirmation a chercher, aucune reference a recopier. La
+        demande part d'elle-meme.
 
         C'est le formulaire sans retour : un montant, un numero, une
-        authentification — et le changeur est prevenu au moment ou la
-        transaction passe.
+        authentification — et le changeur est prevenu.
+
+        MAIS PAS A LA SECONDE DE LA DIFFUSION. On laisse d'abord la chaine
+        parler, quelques tours de sondage, sinon le changeur recoit un
+        « aucun versement trouve » sur une vente parfaitement reelle. Le
+        detail est dans le bloc qui pose `depotAutoRestant`, plus bas.
 
         ─── ON NE DEPOSE QUE SI L'ON SAIT OU PAYER ─────────────────────
 
@@ -872,9 +917,45 @@ class ChangeViewModel @Inject constructor(
                 )
             }
             if (_state.value.telephoneValide) {
-                transmettre()
+                /*
+                ═══════════════════════════════════════════════════════════
+                ON NE DEPOSE PAS A LA SECONDE DE LA DIFFUSION
+                ═══════════════════════════════════════════════════════════
+
+                C'est ce que faisait la ligne precedente : `transmettre()`,
+                ici, tout de suite. Or « ici » est une ou deux secondes
+                apres que la transaction a ete diffusee — avant qu'aucun
+                bloc ne la porte.
+
+                Le relais regardait donc une chaine qui ne montrait rien
+                encore, et le changeur recevait, en haut du message et en
+                lettres capitales :
+
+                    ❌ AUCUN VERSEMENT TROUVE SUR LA CHAINE
+                    N'ENVOIE RIEN MAINTENANT
+
+                Sur une vente parfaitement reelle. Et definitivement : le
+                depot a lieu une seule fois, le sondage s'arrete avec lui,
+                rien ne revient corriger ce verdict. Le travail du marquage
+                et de la verification on-chain ne servait a rien ici : le
+                chemin le plus courant du produit etait celui qui arrivait
+                toujours trop tot.
+
+                On laisse donc la chaine parler d'abord. Le hash est en
+                place, la boucle part, et le depot suit le verdict. La trace
+                reste sur le disque jusqu'au depot reussi, et elle porte
+                maintenant le hash : si Android ferme l'application pendant
+                l'attente, on revient ici avec de quoi reessayer.
+                ═══════════════════════════════════════════════════════════
+                */
+                _state.update { it.copy(depotAutoRestant = DEPOT_AUTO_ESSAIS) }
+                sauverTrace()
+                demarrerVerification()
                 return
             }
+            // Sans numero valide, il n'y a pas ou payer : on garde le hash
+            // et l'ecran de paiement demande ce qui manque.
+            sauverTrace()
         }
 
         val reprise = _state.value
@@ -1829,6 +1910,44 @@ class ChangeViewModel @Inject constructor(
             }
             _state.update { it.copy(verification = v, rechercheEnCours = false) }
 
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LA VENTE PARTIE DE VAULTEX SE DEPOSE TOUTE SEULE, ICI
+            ═══════════════════════════════════════════════════════════════
+
+            C'est le seul endroit du fichier ou l'on tient un verdict frais
+            sur un versement dont on sait qu'il a ete diffuse. Le depot
+            devait donc se brancher la, et pas a l'ouverture de l'ecran.
+
+            TROIS SORTIES, ET AUCUNE NE LAISSE TOMBER LA DEMANDE :
+
+            — vert : la chaine confirme, le message portera un ✅ et la
+              consigne « ENVOYER tant de FCFA ». C'est le cas normal, et
+              il arrive en general au premier ou au deuxieme tour.
+
+            — sans espoir : le relais ne peut pas lire cette chaine, ou le
+              transfert a deja servi. Insister ne changera rien, et le
+              changeur doit le savoir maintenant.
+
+            — compteur a zero : la chaine ne dit toujours rien. On depose
+              quand meme, avec le verdict reel. Attendre plus longtemps
+              ferait courir le risque inverse — l'utilisateur ferme
+              l'application, et sa crypto est partie sans que personne ne
+              soit prevenu.
+
+            `transmettre` annule cette boucle en partant ; le `return` qui
+            suit n'est donc pas une precaution, c'est la sortie.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (_state.value.depotAutoRestant > 0) {
+                val reste = _state.value.depotAutoRestant - 1
+                _state.update { it.copy(depotAutoRestant = reste) }
+                if (v.estVert || v.sansEspoir || reste == 0) {
+                    transmettre()
+                    return
+                }
+            }
+
             if (v.estVert || v.sansEspoir) return
             kotlinx.coroutines.delay(INTERVALLE_VERIFICATION)
         }
@@ -1850,6 +1969,10 @@ class ChangeViewModel @Inject constructor(
         */
         val nu = valeur.trim().removePrefix("0x").removePrefix("0X")
         if (nu.length == 64 && nu.all { c -> c.isDigit() || c in 'a'..'f' || c in 'A'..'F' }) {
+            // Un hash complet s'ecrit aussi sur le disque : c'est la seule
+            // piece qui rattache la crypto partie a la demande, et la
+            // perdre a la fermeture de l'application la perd pour de bon.
+            sauverTrace()
             demarrerVerification()
         }
     }
@@ -2101,6 +2224,33 @@ class ChangeViewModel @Inject constructor(
          * meme chose.
          */
         const val ESSAIS_MAX = 40
+
+        /**
+         * Combien de sondages avant qu'une vente partie de VaultEx se
+         * depose sans attendre davantage.
+         *
+         * QUATRE, soit zero, quinze, trente et quarante-cinq secondes : le
+         * premier part des l'arrivee sur l'ecran, les autres a l'intervalle
+         * habituel.
+         *
+         * C'EST UN ARBITRAGE ENTRE DEUX RISQUES, et les deux sont reels.
+         *
+         * Deposer trop tot fait dire au changeur « aucun versement trouve,
+         * n'envoie rien » sur une vente parfaitement valide — et rien ne
+         * revient corriger ce verdict.
+         *
+         * Attendre trop longtemps laisse l'utilisateur devant un ecran qui
+         * cherche, avec sa crypto deja partie. S'il ferme l'application,
+         * personne n'est prevenu. Il lui reste la trace et le bouton de
+         * rattrapage, mais compter sur un rattrapage est deja une defaite.
+         *
+         * Quarante-cinq secondes suffisent largement a BNB, TRON et Solana,
+         * dont les blocs tombent en quelques secondes. Elles ne suffisent
+         * pas a Bitcoin — rien ne suffit a Bitcoin — et dans ce cas la
+         * demande part avec le verdict honnete, qui dit au changeur de
+         * regarder dans un quart d'heure.
+         */
+        const val DEPOT_AUTO_ESSAIS = 4
 
         /**
          * Le temps qu'on laisse a la frappe avant de chercher.
