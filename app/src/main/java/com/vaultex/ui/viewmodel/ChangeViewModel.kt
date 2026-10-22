@@ -917,10 +917,33 @@ class ChangeViewModel @Inject constructor(
     */
     fun onSaisie(valeur: String) {
         _state.update { etat ->
-            val decimalesMax =
-                if (etat.sens == SensChange.ACHAT) 0
-                else TauxFcfa.decimalesAffichage(etat.monnaie)
-            etat.copy(saisie = SaisieMontant.filtrer(valeur, decimalesMax), erreur = null)
+            /*
+            ═══════════════════════════════════════════════════════════════
+            AUCUNE DECIMALE, DANS LES DEUX SENS
+            ═══════════════════════════════════════════════════════════════
+
+            A L'ACHAT, parce que le franc CFA n'a pas de centimes. C'etait
+            deja le cas.
+
+            A LA VENTE, parce que LE MARQUAGE LES JETTE. Le relais calcule
+            floor(montant tape) plus un marquage : taper 2,432 fait envoyer
+            2,708, et non 2,432 plus quelque chose. Les decimales ne sont
+            pas arrondies, elles sont remplacees.
+
+            Un champ qui accepte 2,432 pour en faire 2,708 demande une
+            explication a chaque fois — et on l'a vu sur capture, trois
+            fois, sans que personne comprenne. N'acceptant que des entiers,
+            le marquage se lit enfin pour ce qu'il est : une fraction
+            ajoutee a un nombre rond.
+
+            CE QU'ON PERD. Vendre 2,5 USDT devient impossible ; on vend 2.
+            Sur les montants echanges ici — le minimum tourne autour d'une
+            unite — c'est une perte reelle mais faible, et elle achete la
+            seule chose qui comptait : que le chiffre affiche ensuite ne
+            surprenne personne.
+            ═══════════════════════════════════════════════════════════════
+            */
+            etat.copy(saisie = SaisieMontant.filtrer(valeur, 0), erreur = null)
         }
         preparerConsigne()
     }

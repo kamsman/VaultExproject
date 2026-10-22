@@ -470,8 +470,11 @@ private fun ColumnScope.EtapeCalcul(
         monnaies = if (donneFcfa) emptyList() else p.monnaies,
         onMonnaie = vm::onMonnaie,
         onMontant = vm::onSaisie,
-        // Des francs à l'achat, de la crypto à la vente : le clavier suit.
-        decimalesMax = if (donneFcfa) 0 else TauxFcfa.decimalesAffichage(state.monnaie)
+        // AUCUNE DECIMALE DANS LES DEUX SENS : le franc n'a pas de
+        // centimes, et a la vente le marquage remplace les decimales
+        // tapees. Le clavier ne propose donc pas de virgule — ce que le
+        // filtre refuserait de toute facon.
+        decimalesMax = 0
     )
 
     /*
@@ -2813,19 +2816,28 @@ private fun BornesChange(
         on se ferait reprendre par la regle qu'on vient de lire.
         ═══════════════════════════════════════════════════════════════
         */
-        val cent = 100.0
-        val bas = kotlin.math.ceil(minFcfa / v * cent) / cent
-        val haut = kotlin.math.floor(maxFcfa / v * cent) / cent
-        if (haut <= bas) return
-        val deuxDecimales = java.text.NumberFormat
+        /*
+        ─── DES ENTIERS, PARCE QUE C'EST TOUT CE QU'ON PEUT TAPER ───────
+
+        Le champ n'accepte plus de decimales a la vente. Annoncer
+        « entre ≈ 1,08 et ≈ 89,44 » designerait donc deux montants qu'on
+        ne peut PAS saisir — et le bas serait refuse si on tapait 1.
+
+        Le minimum monte a l'entier superieur, le plafond descend a
+        l'inferieur : les deux bornes deviennent des valeurs qu'on peut
+        reellement ecrire, et qui passent.
+        */
+        val bas = kotlin.math.ceil(minFcfa / v)
+        val haut = kotlin.math.floor(maxFcfa / v)
+        if (haut < bas) return
+        val entier = java.text.NumberFormat
             .getNumberInstance(java.util.Locale.FRANCE).apply {
-                maximumFractionDigits = 2
-                minimumFractionDigits = 0
+                maximumFractionDigits = 0
             }
         stringResource(
             R.string.change_bornes_approx,
-            "${deuxDecimales.format(bas)} $monnaie",
-            "${deuxDecimales.format(haut)} $monnaie"
+            "${entier.format(bas)} $monnaie",
+            "${entier.format(haut)} $monnaie"
         )
     }
 
