@@ -101,8 +101,29 @@ data class SendState(
     */
     val verrouParChange: Boolean = false,
     /** La reference de la demande, affichee pour qu'on sache d'ou l'on vient. */
-    val referenceChange: String = ""
-)
+    val referenceChange: String = "",
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE NUMERO OU L'ON VEUT RECEVOIR SES FRANCS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le seul champ que l'utilisateur remplisse quand l'envoi vient d'une
+    vente. Tout le reste — adresse, montant, chaine — est impose par la
+    demande.
+
+    IL EST ICI PARCE QUE C'EST ICI QU'ON APPUIE. L'envoi de la crypto est
+    irreversible ; demander ce numero apres coup laisserait quelqu'un avec
+    ses fonds partis et aucun endroit ou etre paye. Il est donc exige
+    AVANT, au meme endroit que le geste.
+
+    Vide sur un envoi ordinaire, ou il n'aurait aucun sens.
+    */
+    val numeroPaiement: String = ""
+) {
+    /** Huit chiffres, la longueur d'un numero au Burkina Faso. */
+    val numeroPaiementValide: Boolean
+        get() = numeroPaiement.count { it.isDigit() } == 8
+}
 
 @HiltViewModel
 class SendViewModel @Inject constructor(
@@ -671,6 +692,19 @@ class SendViewModel @Inject constructor(
     viennent de le remplir.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /**
+     * Le numero ou le changeur enverra les francs.
+     *
+     * RETENU DES QU'IL EST COMPLET, pour n'etre tape qu'une fois dans la
+     * vie de l'application. Une saisie en cours — « 70 12 » — ne l'est
+     * pas : la pre-remplir a moitie la fois suivante ferait corriger un
+     * debut de numero au lieu d'en taper un.
+     */
+    fun setNumeroPaiement(v: String) {
+        _state.update { it.copy(numeroPaiement = v) }
+        if (_state.value.numeroPaiementValide) secureStorage.saveNumeroChange(v)
+    }
+
     private fun appliquerVenteChange(handle: SavedStateHandle) {
         val adresse = handle.get<String>(CHANGE_ADRESSE).orEmpty()
         val montant = handle.get<String>(CHANGE_MONTANT).orEmpty()
@@ -683,7 +717,10 @@ class SendViewModel @Inject constructor(
         _state.update {
             it.copy(
                 verrouParChange = true,
-                referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty()
+                referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty(),
+                // Celui de la derniere vente, s'il y en a eu une. Le champ
+                // reste modifiable : on peut vouloir etre paye ailleurs.
+                numeroPaiement = secureStorage.getNumeroChange()
             )
         }
     }
@@ -1492,6 +1529,39 @@ class SendViewModel @Inject constructor(
                             )
                         )
                     } catch (_: Exception) { }
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    UNE VENTE : ON NOTE L'ENVOI AVANT TOUT LE RESTE
+                    ═══════════════════════════════════════════════════════
+
+                    La crypto est partie, et elle ne revient pas. A partir
+                    de cette ligne, le seul risque qui compte est que la
+                    demande n'atteigne jamais le changeur — auquel cas
+                    quelqu'un a paye et personne ne le sait.
+
+                    On ecrit donc le lien sur le DISQUE, avant les toasts,
+                    les notifications et la navigation. Android peut fermer
+                    l'application a cet instant : on vient de passer par
+                    une authentification, l'ecran s'est mis au repos, et
+                    c'est exactement quand le systeme reprend de la
+                    memoire. La navigation n'y survit pas ; le disque, si.
+
+                    L'ecran de change le relira a l'ouverture et deposera
+                    la demande tout seul.
+
+                    DANS UN `try` : un echec d'ecriture ne doit pas faire
+                    passer l'envoi pour rate alors que la transaction est
+                    DEJA DIFFUSEE. On perdrait alors le pire des deux —
+                    les fonds partis, et l'ecran qui dit le contraire.
+                    */
+                    if (s.verrouParChange && s.referenceChange.isNotBlank()) {
+                        try {
+                            secureStorage.saveEnvoiDeChange(
+                                "{\"reference\":\"${s.referenceChange}\"," +
+                                    "\"hash\":\"${result.txHash}\"}"
+                            )
+                        } catch (_: Exception) { }
+                    }
                     _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                     // Toast maison : logo de la crypto + confirmation de l'envoi.
                     val sym = s.selectedChain.substringBefore("-")

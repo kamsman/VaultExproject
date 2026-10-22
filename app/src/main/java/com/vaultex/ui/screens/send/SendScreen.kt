@@ -312,9 +312,24 @@ fun SendScreen(navController: NavController) {
                 La remise à zéro vient après : à cet instant l'écran a déjà
                 quitté la composition, elle ne peut plus rien faire paraître.
                 */
-                val parti = navController.popBackStack(Routes.DASHBOARD, false)
+                /*
+                ═══════════════════════════════════════════════════════════
+                UNE VENTE REVIENT AU CHANGE, PAS A L'ACCUEIL
+                ═══════════════════════════════════════════════════════════
+
+                Parce que la demande n'est pas encore deposee. La crypto
+                est partie ; il reste a prevenir le changeur, et c'est
+                l'ecran de change qui le fait — tout seul, en relisant ce
+                que l'envoi vient d'ecrire sur le disque.
+
+                Ramener a l'accueil laisserait quelqu'un avec ses fonds
+                envoyes et une demande en attente dont rien ne signale
+                qu'elle attend.
+                */
+                val cible = if (state.verrouParChange) Routes.CHANGE else Routes.DASHBOARD
+                val parti = navController.popBackStack(cible, false)
                 if (!parti) {
-                    navController.navigate(Routes.DASHBOARD) {
+                    navController.navigate(cible) {
                         popUpTo(Routes.DASHBOARD) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
@@ -480,13 +495,60 @@ fun SendScreen(navController: NavController) {
                         }
                     }
                 }
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE SEUL CHAMP D'UNE VENTE : OU RECEVOIR LES FRANCS
+                ═══════════════════════════════════════════════════════════
+
+                Tout le reste de cet ecran est impose par la demande —
+                adresse, montant, chaine. Celui-ci ne l'est pas, et il ne
+                peut pas l'etre : une adresse de chaine ne dit rien d'un
+                numero Orange Money.
+
+                IL EST ICI, AVANT LE BOUTON, parce que l'envoi est
+                irreversible. Le demander apres laisserait quelqu'un avec
+                ses fonds partis et aucun endroit ou etre paye.
+
+                Et il ETEINT LE BOUTON tant qu'il n'est pas complet. Huit
+                chiffres : la meme regle que l'ecran de change, et pour la
+                meme raison — un chiffre de travers envoie les francs chez
+                un inconnu, sans recours.
+                */
+                if (state.verrouParChange) {
+                    SendCard(fond = false) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SendField(
+                                value = state.numeroPaiement,
+                                onValueChange = { viewModel.setNumeroPaiement(it) },
+                                placeholder = stringResource(R.string.change_telephone_vente_exemple),
+                                keyboardType = KeyboardType.Phone,
+                                modifier = Modifier.weight(1f),
+                                fond = false,
+                                isError = state.numeroPaiement.isNotBlank() &&
+                                    !state.numeroPaiementValide
+                            )
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.change_telephone_vente),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
                 Button(
                     onClick = {
                         vibrer()
                         showConfirm = true
                     },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
-                    enabled = state.isAddressValid && state.amount.isNotEmpty() && !state.isLoading,
+                    enabled = state.isAddressValid && state.amount.isNotEmpty() &&
+                        !state.isLoading &&
+                        (!state.verrouParChange || state.numeroPaiementValide),
                     shape = RoundedCornerShape(14.dp),
                     // Violet : c'est la couleur d'action de l'application. Le
                     // vert annonçait un succès avant que quoi que ce soit ne

@@ -738,6 +738,54 @@ class ChangeViewModel @Inject constructor(
         recopiee, `boucleVerification` s'arrete immediatement — on ne lance
         pas une boucle pour qu'elle reparte aussitot.
         */
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        L'ENVOI FAIT DEPUIS VAULTEX DEPOSE LA DEMANDE TOUT SEUL
+        ═══════════════════════════════════════════════════════════════════
+
+        Quand la vente est partie de l'ecran d'envoi, la crypto est DEJA
+        diffusee et son hash est connu. Il ne reste rien a decider : ni a
+        attendre que la chaine la montre, ni a appuyer sur un bouton de
+        confirmation. La demande part.
+
+        C'est le formulaire sans retour : un montant, un numero, une
+        authentification — et le changeur est prevenu au moment ou la
+        transaction passe.
+
+        ─── ON NE DEPOSE QUE SI L'ON SAIT OU PAYER ─────────────────────
+
+        Sans numero valide, le message dirait « envoyer 1 513 FCFA au
+        numero du client » sans numero. On pose alors le hash et on laisse
+        l'ecran de paiement demander ce qui manque ; le bouton s'allumera,
+        puisque le versement est verifiable.
+
+        ─── LA TRACE DE L'ENVOI EST EFFACEE AVANT L'APPEL ──────────────
+
+        Si le depot echoue, l'utilisateur retrouve son ecran de paiement
+        avec le hash en place et peut reessayer a la main. La rejouer a
+        chaque ouverture deposerait la meme demande en boucle.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val envoi = try {
+            secureStorage.getEnvoiDeChange()
+                ?.let { gson.fromJson(it, EnvoiDeChange::class.java) }
+        } catch (_: Exception) { null }
+
+        if (envoi != null && envoi.reference == trace.reference && envoi.hash.isNotBlank()) {
+            secureStorage.saveEnvoiDeChange(null)
+            _state.update {
+                it.copy(
+                    txidSaisi = envoi.hash,
+                    // Le numero tape sur l'ecran d'envoi.
+                    telephone = it.telephone.ifBlank { secureStorage.getNumeroChange() }
+                )
+            }
+            if (_state.value.telephoneValide) {
+                transmettre()
+                return
+            }
+        }
+
         val reprise = _state.value
         if (reprise.sens == SensChange.VENTE ||
             reprise.referencePaiementUtile.isNotBlank() || reprise.telephoneValide
@@ -745,6 +793,12 @@ class ChangeViewModel @Inject constructor(
             demarrerVerification()
         }
     }
+
+    /** Ce que l'ecran d'envoi laisse derriere lui apres une vente. */
+    private data class EnvoiDeChange(
+        val reference: String = "",
+        val hash: String = ""
+    )
 
     fun charger() {
         viewModelScope.launch {
