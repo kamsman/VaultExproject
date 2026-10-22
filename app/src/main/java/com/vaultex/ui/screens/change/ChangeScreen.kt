@@ -1441,6 +1441,20 @@ private fun ColumnScope.EtapePaiement(
     Sinon la crypto est ailleurs, et proposer un envoi qui
     echouera remplace un aller-retour par une impasse.
 
+    ─── IL NE DIT PLUS « DEPUIS VAULTEX » ─────────────────────
+
+    Ce libelle a ete ecrit quand il y avait DEUX chemins : envoyer
+    d'ici, ou copier l'adresse et envoyer depuis un exchange. Il
+    fallait alors dire d'OU part l'envoi.
+
+    Depuis qu'il n'y en a plus qu'un, nommer l'origine ne distingue
+    plus rien — et ca suggere un choix qui n'existe pas. On est
+    deja dans VaultEx ; le lui dire est absurde.
+
+    « Envoyer la crypto » nomme ce que le bouton fait, et reprend
+    le titre de la carte au-dessus. Ce n'est pas un doublon : le
+    titre enonce la tache, le bouton l'execute.
+
     ─── ET IL NE S'AFFICHAIT PAS ──────────────────────────────
 
     Ce bloc etait ecrit DANS le `if (achat)` du code USSD, donc
@@ -1520,7 +1534,7 @@ private fun ColumnScope.EtapePaiement(
                 Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    stringResource(R.string.change_envoyer_depuis_vaultex),
+                    stringResource(R.string.change_envoyer_crypto),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1880,6 +1894,38 @@ private fun ColumnScope.EtapePaiement(
     accessoire dans le sens ou il est indispensable.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, LE NUMERO N'EST PLUS DEMANDE ICI
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il l'etait aux DEUX etapes : sur cet ecran, et sur l'ecran d'envoi.
+    Dans le parcours normal, celui-ci ne servait a rien — c'est le numero
+    tape sur l'ecran d'envoi qui est retenu, et cet ecran-ci le relit pour
+    deposer la demande.
+
+    Deux champs pour une seule information, dont un inutile neuf fois sur
+    dix. Il reste donc UN champ dans toute la vente, la ou l'on appuie.
+
+    ─── IL REVIENT QUAND IL MANQUE VRAIMENT ────────────────────────────
+
+    Un cas le demande encore : quelque chose a ete envoye — le relais a
+    trouve un versement, ou un envoi a reussi dont le depot a echoue — et
+    aucun numero n'est connu. Ca arrive si l'envoi est parti avant qu'on
+    arrive ici.
+
+    Sans ce champ, le bouton de depot resterait eteint sans rien a
+    remplir : des fonds partis, et aucun moyen de prevenir qui que ce
+    soit. Il n'apparait donc que la, et il disparait des qu'il est
+    rempli.
+
+    SUR UN ACHAT IL RESTE TOUJOURS. Il n'y a pas d'ecran d'envoi : c'est
+    le seul endroit ou declarer le numero qui a paye.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val envoiConstate = state.txidSaisi.isNotBlank() || state.verification?.estVert == true
+    val numeroADemander = achat || (envoiConstate && !state.telephonePret)
+    if (numeroADemander) {
     ChampChange(
         valeur = state.telephone,
         onValeur = vm::onTelephone,
@@ -1935,6 +1981,7 @@ private fun ColumnScope.EtapePaiement(
                 stringResource(R.string.change_numero_different)
             } else null
         )
+    }
     }
 
     /*
