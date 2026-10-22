@@ -26,6 +26,16 @@ data class CustomTokenLite(
     val blockchain: String   // "ETH" ou "BNB"
 )
 
+/*
+Les clefs de l'envoi pre-rempli par une vente. Elles vivent ici, a cote
+de qui les lit, et non dans Routes : le graphe les ecrit, ce fichier les
+interprete, et c'est lui qui sait ce qu'elles signifient.
+*/
+const val CHANGE_ADRESSE = "change_adresse"
+const val CHANGE_MONTANT = "change_montant"
+const val CHANGE_JETON = "change_jeton"
+const val CHANGE_REFERENCE = "change_reference"
+
 data class SendState(
     val selectedChain: String = "USDT",
     val toAddress: String = "",
@@ -66,7 +76,32 @@ data class SendState(
      * déblocage n'est possible : il faut alors en recevoir de l'extérieur, et
      * autant mener directement à l'adresse où la recevoir.
      */
-    val natifRequis: String? = null
+    val natifRequis: String? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ENVOI VERROUILLE PAR UNE VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Vrai quand cet envoi a ete ouvert depuis une vente de l'ecran de
+    change. Le destinataire, le montant et la chaine viennent de la
+    demande ; ils ne se modifient pas ici.
+
+    POURQUOI VERROUILLER PLUTOT QUE PRE-REMPLIR. Le montant porte un
+    MARQUAGE — « 2,004731 » et non « 2 » — derive de la reference de la
+    demande par un secret du relais. C'est lui qui rattache le versement
+    a son auteur ; change d'un milleme, le versement devient celui de
+    personne, et il est irreversible.
+
+    Un champ pre-rempli mais modifiable invite a l'arrondir. « 2,004731,
+    sans doute une erreur d'affichage, je mets 2 » est exactement le
+    raisonnement qu'on veut rendre impossible.
+
+    L'adresse suit la meme regle : c'est celle du changeur, et elle n'a
+    pas a etre retouchee dans un parcours qui l'a fournie.
+    */
+    val verrouParChange: Boolean = false,
+    /** La reference de la demande, affichee pour qu'on sache d'ou l'on vient. */
+    val referenceChange: String = ""
 )
 
 @HiltViewModel
@@ -260,6 +295,8 @@ class SendViewModel @Inject constructor(
         fetchFee(_state.value.selectedChain)
         // Scan venu de l'accueil : choisit la chaine AVANT le premier affichage.
         appliquerAdresseScannee(savedStateHandle)
+        // Vente venue de l'ecran de change : meme moment, meme raison.
+        appliquerVenteChange(savedStateHandle)
         viewModelScope.launch {
             _customTokens.value = try {
                 tokenRepository.getCustom().map {
@@ -321,6 +358,17 @@ class SendViewModel @Inject constructor(
      * (la monnaie est déjà dans _customTokens quand on sélectionne la chaîne).
      */
     fun selectAsset(symbol: String) {
+        /*
+        RIEN NE BOUGE SOUS VERROU. Le montant porte un marquage derive de
+        la reference de la demande ; l'adresse est celle du changeur. Les
+        deux viennent d'ailleurs et ne se retouchent pas ici.
+
+        Le refus est SILENCIEUX parce que l'ecran ne propose deja plus le
+        geste : ces lignes ferment le chemin que l'interface a retire, pas
+        un bouton qu'on voit. Un message servirait a expliquer un refus
+        que personne ne peut provoquer.
+        */
+        if (_state.value.verrouParChange) return
         viewModelScope.launch {
             if (symbol in NATIVE_CHAINS) { setChain(symbol); return@launch }
             // Token personnalisé DÉJÀ enregistré (ex. résolu depuis la fiche
@@ -342,6 +390,17 @@ class SendViewModel @Inject constructor(
     }
 
     fun setChain(chain: String) {
+        /*
+        RIEN NE BOUGE SOUS VERROU. Le montant porte un marquage derive de
+        la reference de la demande ; l'adresse est celle du changeur. Les
+        deux viennent d'ailleurs et ne se retouchent pas ici.
+
+        Le refus est SILENCIEUX parce que l'ecran ne propose deja plus le
+        geste : ces lignes ferment le chemin que l'interface a retire, pas
+        un bouton qu'on voit. Un message servirait a expliquer un refus
+        que personne ne peut provoquer.
+        */
+        if (_state.value.verrouParChange) return
         // Un token personnalisé est identifié par son symbole (chip). On le
         // reconnaît seulement s'il ne porte pas le nom d'une chaîne native.
         val custom = if (chain in NATIVE_CHAINS) null
@@ -492,6 +551,17 @@ class SendViewModel @Inject constructor(
             .toPlainString()
 
     fun setToAddress(address: String) {
+        /*
+        RIEN NE BOUGE SOUS VERROU. Le montant porte un marquage derive de
+        la reference de la demande ; l'adresse est celle du changeur. Les
+        deux viennent d'ailleurs et ne se retouchent pas ici.
+
+        Le refus est SILENCIEUX parce que l'ecran ne propose deja plus le
+        geste : ces lignes ferment le chemin que l'interface a retire, pas
+        un bouton qu'on voit. Un message servirait a expliquer un refus
+        que personne ne peut provoquer.
+        */
+        if (_state.value.verrouParChange) return
         val s = _state.value
         // Token personnalisé → adresse EVM (0x…) ; sinon validation par chaîne.
         val valid = if (s.customToken != null) AddressValidator.isValidEvm(address)
@@ -569,6 +639,55 @@ class SendViewModel @Inject constructor(
      * s'en charge. Il rappellera `setToAddress` avec la même adresse, ce qui
      * ne change rien — la chaîne, elle, aura déjà été fixée.
      */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ENVOI PRE-REMPLI PAR UNE VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'ecran de change dit « copie l'adresse et va envoyer ». Cette phrase
+    suppose que la crypto est AILLEURS — sur un exchange, dans un autre
+    portefeuille. Quand elle est deja dans VaultEx, on demandait a
+    quelqu'un de sortir de l'application pour y revenir.
+
+    Il arrive donc ici avec tout de pose : l'adresse du changeur, la
+    chaine, et le montant marque au millieme pres. Il lui reste le geste
+    qui compte — relire et confirmer.
+
+    ─── CE QUE CA SUPPRIME ──────────────────────────────────────────────
+
+    La faute la plus couteuse de cet ecran : recopier « 2,004731 » a la
+    main dans une autre application. Un chiffre de travers, et le
+    versement n'est rattache a personne.
+
+    ─── ON PASSE PAR LE MEME CHEMIN QUE TOUT LE MONDE ───────────────────
+
+    `selectAsset` et `setToAddress` et non une ecriture directe dans
+    l'etat : ce sont eux qui choisissent la chaine, valident l'adresse,
+    declenchent le calcul des frais et arment la detection des adresses
+    sosies. Court-circuiter aurait donne un envoi sans ces controles —
+    et c'est precisement l'envoi le plus important.
+
+    Le verrou est pose EN DERNIER, pour ne pas bloquer les appels qui
+    viennent de le remplir.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun appliquerVenteChange(handle: SavedStateHandle) {
+        val adresse = handle.get<String>(CHANGE_ADRESSE).orEmpty()
+        val montant = handle.get<String>(CHANGE_MONTANT).orEmpty()
+        val jeton = handle.get<String>(CHANGE_JETON).orEmpty()
+        if (adresse.isBlank() || montant.isBlank() || jeton.isBlank()) return
+
+        selectAsset(jeton)
+        setToAddress(adresse)
+        setAmount(montant)
+        _state.update {
+            it.copy(
+                verrouParChange = true,
+                referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty()
+            )
+        }
+    }
+
     private fun appliquerAdresseScannee(handle: SavedStateHandle) {
         val adresse = handle.get<String>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY)
         if (!adresse.isNullOrBlank()) setScannedAddress(adresse)
@@ -622,6 +741,17 @@ class SendViewModel @Inject constructor(
     }
 
     fun setAmount(amount: String) {
+        /*
+        RIEN NE BOUGE SOUS VERROU. Le montant porte un marquage derive de
+        la reference de la demande ; l'adresse est celle du changeur. Les
+        deux viennent d'ailleurs et ne se retouchent pas ici.
+
+        Le refus est SILENCIEUX parce que l'ecran ne propose deja plus le
+        geste : ces lignes ferment le chemin que l'interface a retire, pas
+        un bouton qu'on voit. Un message servirait a expliquer un refus
+        que personne ne peut provoquer.
+        */
+        if (_state.value.verrouParChange) return
         // Clavier français : normaliser la virgule décimale en point partout
         // (l'état sert directement aux couches réseau).
         val normalized = amount.replace(',', '.')
@@ -672,6 +802,17 @@ class SendViewModel @Inject constructor(
      * peut envoyer tout le solde. Si aucun solde connu, message explicite.
      */
     fun onMaxClicked() {
+        /*
+        RIEN NE BOUGE SOUS VERROU. Le montant porte un marquage derive de
+        la reference de la demande ; l'adresse est celle du changeur. Les
+        deux viennent d'ailleurs et ne se retouchent pas ici.
+
+        Le refus est SILENCIEUX parce que l'ecran ne propose deja plus le
+        geste : ces lignes ferment le chemin que l'interface a retire, pas
+        un bouton qu'on voit. Un message servirait a expliquer un refus
+        que personne ne peut provoquer.
+        */
+        if (_state.value.verrouParChange) return
         val chain = _state.value.selectedChain
         val balance = availableFor(chain)?.toBigDecimalOrNull()
         if (balance == null || balance.signum() <= 0) {

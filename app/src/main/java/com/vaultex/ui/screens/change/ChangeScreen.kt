@@ -2,6 +2,7 @@ package com.vaultex.ui.screens.change
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vaultex.ui.navigation.Routes
 import com.vaultex.R
 import com.vaultex.domain.fiat.TauxFcfa
 // Imports nommes : com.vaultex.ui.theme.Surface est une COULEUR.
@@ -280,7 +282,8 @@ fun ChangeScreen(navController: NavController) {
                     vm.recommencer()
                 }
 
-                state.etape == EtapeChange.PAIEMENT -> EtapePaiement(vm, state, copier)
+                state.etape == EtapeChange.PAIEMENT ->
+                    EtapePaiement(vm, state, copier, navController)
 
                 else -> EtapeCalcul(vm, state, copier)
             }
@@ -1076,7 +1079,8 @@ private fun dateCourte(horodatage: Long): String =
 private fun ColumnScope.EtapePaiement(
     vm: ChangeViewModel,
     state: com.vaultex.ui.viewmodel.ChangeState,
-    copier: (String) -> Unit
+    copier: (String) -> Unit,
+    navController: NavController
 ) {
     val p = state.parametres ?: return
     val achat = state.sens == SensChange.ACHAT
@@ -1537,6 +1541,80 @@ private fun ColumnScope.EtapePaiement(
             Une raison d'etre qu'on ne peut pas suivre n'en est pas une.
             Le bouton de copie fait tenir la promesse du commentaire.
             */
+            /*
+            ═══════════════════════════════════════════════════════════
+            ENVOYER DEPUIS VAULTEX, AU LIEU DE SORTIR ET DE REVENIR
+            ═══════════════════════════════════════════════════════════
+
+            « Copie l'adresse et va envoyer » suppose que la crypto est
+            AILLEURS — sur un exchange, dans un autre portefeuille. Quand
+            elle est deja dans VaultEx, on demandait a quelqu'un de sortir
+            de l'application pour y revenir.
+
+            Ce bouton ouvre l'envoi avec tout de pose : l'adresse du
+            changeur, la chaine, et le montant marque au millieme. Il
+            supprime la faute la plus couteuse de cet ecran — recopier
+            « 2,004731 » a la main dans une autre application.
+
+            ─── IL N'APPARAIT QUE S'IL PEUT ABOUTIR ───────────────────
+
+            Seulement quand le solde VaultEx couvre le montant marque.
+            Sinon la crypto est ailleurs, et proposer un envoi qui
+            echouera remplace un aller-retour par une impasse.
+
+            ─── ON NE RAMENE PAS LE HASH, ET CE N'EST PAS UN OUBLI ────
+
+            La boucle de verification cherche le versement SUR LA CHAINE,
+            par son montant marque. Elle le trouve seule, en quinze
+            secondes, que l'envoi soit parti d'ici ou d'ailleurs. Le hash
+            n'est qu'un raccourci.
+
+            Le faire revenir demanderait de toucher au chemin de succes de
+            l'envoi — mille neuf cents lignes qui marchent — pour gagner
+            quinze secondes sur une operation qui en prend six cents.
+            ═══════════════════════════════════════════════════════════
+            */
+            if (!achat) {
+                val marque = com.vaultex.domain.fiat.SaisieMontant.valeur(state.saisie)
+                val detenu = state.solde
+                if (marque != null && detenu != null && detenu >= marque) {
+                    OutlinedButton(
+                        onClick = {
+                            navController.navigate(
+                                Routes.sendPourVente(
+                                    adresse = aCopier,
+                                    // LE MONTANT EXACT, avec un POINT : c'est
+                                    // celui que lira la couche reseau, pas
+                                    // celui qu'on affiche.
+                                    montant = state.saisie.replace(',', '.'),
+                                    jeton = state.monnaie,
+                                    reference = state.reference
+                                )
+                            )
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Send, null,
+                            tint = AccentBlue, modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            stringResource(R.string.change_envoyer_depuis_vaultex),
+                            fontWeight = FontWeight.Bold,
+                            color = AccentBlue,
+                            modifier = Modifier.weight(1f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Icon(
+                            Icons.Default.ChevronRight, null,
+                            tint = AccentBlue, modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
             /*
             LE CODE A SON PROPRE BLOC, ET IL EST BLEU.
 

@@ -54,6 +54,42 @@ object Routes {
 
     const val SEND = "send"
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE MEME ECRAN D'ENVOI, OUVERT PAR UNE VENTE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Quatre arguments FACULTATIFS sur la route d'envoi. Tous ont une valeur
+    par defaut vide, donc `SEND` continue de correspondre : ouvrir l'envoi
+    depuis l'accueil n'a pas change.
+
+    LEURS NOMS SONT CEUX QUE LIT `SendViewModel`. La navigation depose les
+    arguments dans le `SavedStateHandle` sous le nom declare ici ; les
+    renommer d'un cote sans l'autre ferait un envoi vide, sans erreur.
+
+    POURQUOI PAS UN ECRAN A PART. Parce que c'est le meme envoi : memes
+    frais, meme detection d'adresse sosie, meme confirmation. Un second
+    ecran aurait fini par diverger du premier, et c'est celui qui porte
+    une vente qui aurait pris du retard.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    const val SEND_PARAMETRE =
+        "send?change_adresse={change_adresse}&change_montant={change_montant}" +
+            "&change_jeton={change_jeton}&change_reference={change_reference}"
+
+    fun sendPourVente(
+        adresse: String,
+        montant: String,
+        jeton: String,
+        reference: String
+    ): String {
+        // Encode : un symbole de jeton porte un tiret, un montant un point,
+        // et rien ne garantit qu'un reglage futur n'y mette pas pire.
+        fun e(x: String) = android.net.Uri.encode(x)
+        return "send?change_adresse=${e(adresse)}&change_montant=${e(montant)}" +
+            "&change_jeton=${e(jeton)}&change_reference=${e(reference)}"
+    }
+
     // Sélection de la monnaie à envoyer (réseau + liste) AVANT le formulaire.
     const val SEND_SELECT = "sendSelect"
 
