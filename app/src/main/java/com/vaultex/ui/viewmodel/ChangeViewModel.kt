@@ -123,6 +123,31 @@ data class ChangeState(
     /** Ce que l'utilisateur déclare après avoir payé. */
     val referencePaiement: String = "",
     val telephone: String = "",
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE NUMERO SE RETAPE, MAIS UNE FOIS SEULEMENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un chiffre de travers envoie les francs chez un inconnu, sans
+    recours. Le retaper attrape cette faute — c'est la seule verification
+    possible sur un nombre qu'aucun calcul ne peut recouper.
+
+    MAIS LE REDEMANDER A CHAQUE VENTE NE PROTEGE DE RIEN. Le numero est
+    pre-rempli depuis la derniere fois ; le confirmer reviendrait a
+    recopier un chiffre qu'on a sous les yeux, et au troisieme passage on
+    le ferait sans regarder.
+
+    La confirmation est donc la ou le risque est : premiere saisie, ou
+    changement de numero — qui est une premiere saisie deguisee.
+
+    LA MEME REGLE QUE L'ECRAN D'ENVOI, parce que les deux chemins
+    demandent le meme numero. Un seul des deux qui le fasse confirmer
+    serait le genre d'incoherence qu'on remarque sans savoir la nommer.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val telephoneConfirmation: String = "",
+    /** Le numero retenu de la derniere vente, pour savoir s'il est connu. */
+    val telephoneMemorise: String = "",
     val envoiEnCours: Boolean = false,
     val erreur: String? = null,
     /** Les demandes deja transmises, de la plus recente a la plus ancienne. */
@@ -359,7 +384,9 @@ data class ChangeState(
         est justement ce que la verification a rendu lisible.
         ═══════════════════════════════════════════════════════════════
         */
-        !telephoneValide -> false
+        // PRET, et non seulement valide : sur une vente, un numero neuf
+        // doit avoir ete retape. Voir `telephoneConfirmation`.
+        !telephonePret -> false
         verification?.estVert == true -> true
         else -> forcer
     }
@@ -373,6 +400,21 @@ data class ChangeState(
      */
     val telephoneValide: Boolean
         get() = telephone.count { it.isDigit() } == 8
+
+    /** Voir [telephoneConfirmation]. N'apparait qu'une fois le premier complet. */
+    val confirmationNumeroDemandee: Boolean
+        get() = telephoneValide && telephone != telephoneMemorise
+
+    /** Le numero est utilisable : complet, et confirme s'il est nouveau. */
+    val telephonePret: Boolean
+        get() = telephoneValide &&
+            (!confirmationNumeroDemandee || telephoneConfirmation == telephone)
+
+    /** Les deux saisies different, et la seconde est commencee. */
+    val numerosDifferents: Boolean
+        get() = confirmationNumeroDemandee &&
+            telephoneConfirmation.isNotBlank() &&
+            telephoneConfirmation != telephone
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -587,7 +629,15 @@ class ChangeViewModel @Inject constructor(
         qu'il attend sa crypto depuis vingt minutes — la voit tout de suite,
         meme si le relais ne repond pas.
         */
-        _state.update { it.copy(historique = historique.lire()) }
+        _state.update {
+            it.copy(
+                historique = historique.lire(),
+                // Seulement la MEMOIRE, pas le champ : sur un achat le
+                // numero signifie « qui a paye », et pre-remplir une
+                // declaration la fait signer a la place de quelqu'un.
+                telephoneMemorise = secureStorage.getNumeroChange()
+            )
+        }
         charger()
     }
 
@@ -1125,6 +1175,14 @@ class ChangeViewModel @Inject constructor(
         relancerVerificationAchat()
     }
 
+    fun onTelephoneConfirmation(v: String) {
+        _state.update { it.copy(telephoneConfirmation = v) }
+        val etat = _state.value
+        if (etat.sens == SensChange.VENTE && etat.telephonePret) {
+            secureStorage.saveNumeroChange(etat.telephone)
+        }
+    }
+
     fun onTelephone(v: String) {
         _state.update { it.copy(telephone = v) }
         /*
@@ -1153,7 +1211,12 @@ class ChangeViewModel @Inject constructor(
         au lieu d'en taper un.
         */
         val etat = _state.value
-        if (etat.sens == SensChange.VENTE && etat.telephoneValide) {
+        /*
+        PRET, ET NON VALIDE. Le garder des huit chiffres rendrait la
+        confirmation inutile : la saisie fautive serait memorisee, et la
+        vente suivante la pre-remplirait sans plus rien demander.
+        */
+        if (etat.sens == SensChange.VENTE && etat.telephonePret) {
             secureStorage.saveNumeroChange(v)
         }
         sauverTrace()
