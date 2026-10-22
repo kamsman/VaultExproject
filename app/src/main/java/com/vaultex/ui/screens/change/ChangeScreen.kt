@@ -1441,6 +1441,20 @@ private fun ColumnScope.EtapePaiement(
     Sinon la crypto est ailleurs, et proposer un envoi qui
     echouera remplace un aller-retour par une impasse.
 
+    ─── IL NE DIT PLUS « DEPUIS VAULTEX » ─────────────────────
+
+    Ce libelle a ete ecrit quand il y avait DEUX chemins : envoyer
+    d'ici, ou copier l'adresse et envoyer depuis un exchange. Il
+    fallait alors dire d'OU part l'envoi.
+
+    Depuis qu'il n'y en a plus qu'un, nommer l'origine ne distingue
+    plus rien — et ca suggere un choix qui n'existe pas. On est
+    deja dans VaultEx ; le lui dire est absurde.
+
+    « Envoyer la crypto » nomme ce que le bouton fait, et reprend
+    le titre de la carte au-dessus. Ce n'est pas un doublon : le
+    titre enonce la tache, le bouton l'execute.
+
     ─── ET IL NE S'AFFICHAIT PAS ──────────────────────────────
 
     Ce bloc etait ecrit DANS le `if (achat)` du code USSD, donc
@@ -1520,7 +1534,7 @@ private fun ColumnScope.EtapePaiement(
                 Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    stringResource(R.string.change_envoyer_depuis_vaultex),
+                    stringResource(R.string.change_envoyer_crypto),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
