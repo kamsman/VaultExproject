@@ -437,13 +437,15 @@ private fun ColumnScope.EtapeCalcul(
         piedDePage = {
             BornesChange(
                 minFcfa = p.minimumPour(state.monnaie),
-                maxFcfa = p.plafondFcfa,
+                maxFcfa = p.plafondPour(state.monnaie, state.fcfaParDollar),
                 enFcfa = donneFcfa,
                 monnaie = state.monnaie,
                 prix = state.prix,
                 // A la vente, c'est le solde qui plafonne, et il a deja son
                 // bouton « Tout » en haut de la carte.
-                onMax = if (donneFcfa) ({ vm.onMontantRapide(p.plafondFcfa) }) else null
+                onMax = if (donneFcfa) ({
+                    vm.onMontantRapide(p.plafondPour(state.monnaie, state.fcfaParDollar))
+                }) else null
             )
         },
         solde = if (donneFcfa) null else state.solde,
@@ -452,7 +454,8 @@ private fun ColumnScope.EtapeCalcul(
             ?.let { state.plusGrandMontantVendable(it) }
             ?.takeIf { it > 0.0 }
             ?.let { crypto(it, state.monnaie) },
-        rapides = if (donneFcfa) montantsRapides(p, state.monnaie) else emptyList(),
+        rapides = if (donneFcfa) montantsRapides(p, state.monnaie, state.fcfaParDollar)
+                  else emptyList(),
         onRapide = vm::onMontantRapide,
         /*
         LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
@@ -803,7 +806,10 @@ private fun ColumnScope.EtapeCalcul(
     */
     val blocage = state.blocage()
     blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
-        NoteEnDeuxTemps(messageBlocage(it, p, state.monnaie), AccentRed)
+        NoteEnDeuxTemps(
+            messageBlocage(it, p, state.monnaie, state.fcfaParDollar),
+            AccentRed
+        )
     }
 
     /*
@@ -3348,12 +3354,14 @@ private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
  */
 private fun montantsRapides(
     p: com.vaultex.domain.fiat.ParametresChange,
-    monnaie: String
+    monnaie: String,
+    /** Sert au plafond par monnaie, qui est exprime en dollars. */
+    fcfaParDollar: Double?
 ): List<Double> {
     // PAR MONNAIE : TRON et BNB Chain n'ont pas le même seuil, parce
     // qu'elles n'ont pas les mêmes frais de réseau.
     val min = p.minimumPour(monnaie)
-    val max = p.plafondFcfa
+    val max = p.plafondPour(monnaie, fcfaParDollar)
     if (max <= min) return emptyList()
     val milieu = kotlin.math.round((min + max) / 2000.0) * 1000.0
     return listOf(min, milieu, max)
@@ -3735,7 +3743,9 @@ private fun Note(texte: String, couleur: androidx.compose.ui.graphics.Color) {
 private fun messageBlocage(
     code: String,
     p: com.vaultex.domain.fiat.ParametresChange,
-    monnaie: String
+    monnaie: String,
+    /** Le plafond annonce doit etre CELUI QUI S'APPLIQUE. Voir plus bas. */
+    fcfaParDollar: Double?
 ): String = when (code) {
     "ferme" -> stringResource(R.string.change_ferme)
     "pas_de_rachat" -> stringResource(R.string.change_pas_de_rachat)
@@ -3748,7 +3758,15 @@ private fun messageBlocage(
     exactement le genre de message qui fait fermer l'application.
     */
     "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumPour(monnaie)))
-    "plafond" -> stringResource(R.string.change_sur_plafond, fcfa(p.plafondFcfa))
+    /*
+    MEME RAISON QUE POUR LE MINIMUM, un cran plus haut dans ce when :
+    montrer le plafond general pendant qu'un autre s'applique enverrait
+    quelqu'un retaper un montant qui sera refuse une seconde fois.
+    */
+    "plafond" -> stringResource(
+        R.string.change_sur_plafond,
+        fcfa(p.plafondPour(monnaie, fcfaParDollar))
+    )
     "solde" -> stringResource(R.string.change_solde_insuffisant)
     else -> stringResource(R.string.change_montant_invalide)
 }
