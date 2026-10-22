@@ -561,17 +561,7 @@ class ChangeViewModel @Inject constructor(
         qu'il attend sa crypto depuis vingt minutes — la voit tout de suite,
         meme si le relais ne repond pas.
         */
-        /*
-        LE NUMERO DE LA DERNIERE OPERATION. Il se tape une fois, pas a
-        chaque vente — c'est le seul champ qu'aucun calcul ne peut
-        deviner, et le seul dont une faute de frappe est totale.
-        */
-        _state.update {
-            it.copy(
-                historique = historique.lire(),
-                telephone = secureStorage.getNumeroChange()
-            )
-        }
+        _state.update { it.copy(historique = historique.lire()) }
         charger()
     }
 
@@ -1058,12 +1048,34 @@ class ChangeViewModel @Inject constructor(
     fun onTelephone(v: String) {
         _state.update { it.copy(telephone = v) }
         /*
+        ═══════════════════════════════════════════════════════════════════
+        ON NE RETIENT QUE LE NUMERO D'UNE VENTE
+        ═══════════════════════════════════════════════════════════════════
+
+        Le champ est partage par les deux sens, et il n'y veut pas dire la
+        meme chose.
+
+        A LA VENTE, c'est celui qui doit ETRE PAYE : une preference, qui
+        ne change pas d'une operation a l'autre. La retenir a du sens.
+
+        A L'ACHAT, c'est celui qui A PAYE : une declaration sur un fait
+        passe. Elle appartient a cette operation-la et a aucune autre.
+
+        LES CONFONDRE COUTE L'ARGENT DE QUELQU'UN. Le code anticipe
+        explicitement qu'on paie depuis le telephone d'un proche — le
+        message au changeur porte « ⚠️ Ce numero n'est PAS celui declare ».
+        Retenir ce numero-la ferait pre-remplir la vente suivante avec
+        celui du proche, et les francs partiraient chez lui.
+
         RETENU DES QU'IL EST COMPLET, et seulement alors. Garder une
         saisie en cours — « 70 12 » — le pre-remplirait a moitie la fois
         suivante, ce qui est pire que vide : on corrige un debut de numero
         au lieu d'en taper un.
         */
-        if (_state.value.telephoneValide) secureStorage.saveNumeroChange(v)
+        val etat = _state.value
+        if (etat.sens == SensChange.VENTE && etat.telephoneValide) {
+            secureStorage.saveNumeroChange(v)
+        }
         sauverTrace()
         relancerVerificationAchat()
     }
@@ -1414,6 +1426,23 @@ class ChangeViewModel @Inject constructor(
                 saisie = saisie,
                 confirmeA = maintenant,
                 referencePaiement = "",
+                /*
+                LE NUMERO RETENU REVIENT ICI, ET NULLE PART AILLEURS.
+
+                C'est le seul moment ou il sert, et le seul ou l'on sait
+                de quel sens il s'agit. Le poser au demarrage de l'ecran
+                le ferait apparaitre aussi sur un achat, ou il signifie
+                autre chose — « qui a paye » et non « qui doit etre
+                paye ».
+
+                ET SEULEMENT S'IL EST VIDE : quelqu'un qui vient de taper
+                un autre numero pour cette vente-ci a voulu etre paye
+                ailleurs. L'ecraser par le precedent reprendrait une
+                decision qu'il vient de prendre.
+                */
+                telephone = if (s.sens == SensChange.VENTE && s.telephone.isBlank()) {
+                    secureStorage.getNumeroChange()
+                } else s.telephone,
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
