@@ -1266,6 +1266,41 @@ private fun ColumnScope.EtapePaiement(
                 une unité collée avec ferait refuser la saisie.
                 */
                 Note(stringResource(R.string.change_montant_exact_note), AccentOrange)
+                /*
+                ═══════════════════════════════════════════════════════
+                CE QU'ON VA RECEVOIR, PARCE QU'IL A CHANGE
+                ═══════════════════════════════════════════════════════
+
+                Signale sur capture, et c'etait le defaut le plus
+                incomprehensible de l'ecran.
+
+                Le marquage NE S'AJOUTE PAS au montant tape : il repart de
+                sa PARTIE ENTIERE et remplace ses decimales. Quelqu'un qui
+                tape 2,432 se voit demander 2,708 — pas 2,432 plus
+                quelque chose. Ses decimales ont disparu.
+
+                Et l'ecran precedent annoncait « 1 359 FCFA » pendant que
+                celui-ci n'affichait plus aucun franc. On perdait donc les
+                deux chiffres a la fois : son montant, et ce qu'il
+                rapporte. Devant un ecran qui demande d'envoyer de
+                l'argent, c'est le moment ou l'on ferme l'application.
+
+                La somme en francs est recalculee sur le montant REEL —
+                2,708 et non 2,432 — donc elle est plus elevee qu'annonce.
+                C'est une bonne nouvelle, et elle etait cachee.
+
+                EN VERT ET EN VEDETTE : c'est ce qu'on recoit, et c'est la
+                seule sortie d'argent de cet ecran qui n'en soit pas une.
+                ═══════════════════════════════════════════════════════
+                */
+                state.montantFcfa?.let { recu ->
+                    Ligne(
+                        stringResource(R.string.change_tu_recevras),
+                        "${fcfa(recu)} FCFA",
+                        icone = Icons.Default.Payments,
+                        vedette = true
+                    )
+                }
             }
             /*
             LA RÉFÉRENCE EST CE QUI RATTACHE UN PAIEMENT À UNE DEMANDE.

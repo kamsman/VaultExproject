@@ -1187,11 +1187,12 @@
     <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق الصرّاف من محفظته قبل الدفع: احتفظ بمرجعك.</string>
     <string name="change_tu_donnes">تُعطي</string>
     <string name="change_tu_recois">تستلم</string>
+    <string name="change_tu_recevras">ستستلم</string>
     <string name="change_mention_montant">المبلغ بـ %1$s</string>
     <string name="change_mention_estime">المبلغ التقديري</string>
     <string name="change_max">الحد الأقصى</string>
     <string name="change_ussd_bouton">الدفع عبر %1$s</string>
-    <string name="change_montant_exact_note">أرسل هذا المبلغ بالضبط، بكسوره العشرية — مقرَّبًا لن يُعترف به.</string>
+    <string name="change_montant_exact_note">عُدِّل هذا المبلغ انطلاقًا من مبلغك: كسوره العشرية تُعرِّف تحويلك أنت. أرسله بالضبط — مقرَّبًا لن يُعترف به.</string>
     <string name="change_inverser">عكس الشراء والبيع</string>
     <string name="change_solde">الرصيد: %1$s</string>
     <string name="change_tout_valeur">الكل: %1$s</string>

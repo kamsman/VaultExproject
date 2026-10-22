@@ -1187,11 +1187,12 @@
     <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. The exchanger will check his wallet before paying: keep your reference.</string>
     <string name="change_tu_donnes">You give</string>
     <string name="change_tu_recois">You receive</string>
+    <string name="change_tu_recevras">You will receive</string>
     <string name="change_mention_montant">Amount in %1$s</string>
     <string name="change_mention_estime">Estimated amount</string>
     <string name="change_max">Max</string>
     <string name="change_ussd_bouton">Pay with %1$s</string>
-    <string name="change_montant_exact_note">Send EXACTLY this amount, decimals included — rounded, it will not be recognised.</string>
+    <string name="change_montant_exact_note">This amount was adjusted from yours: its decimals identify YOUR transfer. Send it exactly — rounded, it will not be recognised.</string>
     <string name="change_inverser">Swap buy and sell</string>
     <string name="change_solde">Balance: %1$s</string>
     <string name="change_tout_valeur">All: %1$s</string>
