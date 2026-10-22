@@ -1441,19 +1441,24 @@ private fun ColumnScope.EtapePaiement(
     Sinon la crypto est ailleurs, et proposer un envoi qui
     echouera remplace un aller-retour par une impasse.
 
-    ─── IL NE DIT PLUS « DEPUIS VAULTEX » ─────────────────────
+    ─── IL NOMME L'OPERATION, PAS LE MECANISME ────────────────
 
-    Ce libelle a ete ecrit quand il y avait DEUX chemins : envoyer
-    d'ici, ou copier l'adresse et envoyer depuis un exchange. Il
-    fallait alors dire d'OU part l'envoi.
+    Deux libelles ont precede celui-ci, et chacun disait la mauvaise
+    chose.
 
-    Depuis qu'il n'y en a plus qu'un, nommer l'origine ne distingue
-    plus rien — et ca suggere un choix qui n'existe pas. On est
-    deja dans VaultEx ; le lui dire est absurde.
+    « Envoyer depuis VaultEx » datait du temps ou il y avait DEUX
+    chemins — envoyer d'ici, ou copier l'adresse et envoyer depuis
+    un exchange. Il fallait alors dire d'OU part l'envoi. Depuis
+    qu'il n'y en a plus qu'un, nommer l'origine suggere un choix qui
+    n'existe pas — et on est deja dans VaultEx.
 
-    « Envoyer la crypto » nomme ce que le bouton fait, et reprend
-    le titre de la carte au-dessus. Ce n'est pas un doublon : le
-    titre enonce la tache, le bouton l'execute.
+    « Envoyer la crypto » decrivait le MECANISME. Or celui qui est
+    sur cet ecran ne vient pas envoyer : il vient VENDRE. Le
+    transfert est ce que l'operation exige, pas ce qu'il a demande.
+
+    La carte au-dessus, elle, garde « Envoie la crypto » : elle
+    decrit ce qui va se passer, et il faut qu'il sache que sa crypto
+    part. Le titre dit le mecanisme, le bouton nomme l'intention.
 
     ─── ET IL NE S'AFFICHAIT PAS ──────────────────────────────
 
@@ -1534,7 +1539,7 @@ private fun ColumnScope.EtapePaiement(
                 Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    stringResource(R.string.change_envoyer_crypto),
+                    stringResource(R.string.change_vendre_maintenant),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

@@ -1116,7 +1116,7 @@
     <string name="change_payer_titre">Send the payment</string>
     <string name="change_paiement_securise">Secure payment</string>
     <string name="change_envoyer_titre">Send the crypto</string>
-    <string name="change_envoyer_crypto">Send the crypto</string>
+    <string name="change_vendre_maintenant">Sell now</string>
     <string name="change_crypto_partie">Your crypto is on its way. Only the exchanger still needs telling — confirm below.</string>
     <string name="change_numero">Number to credit</string>
     <string name="change_adresse">Destination address</string>
