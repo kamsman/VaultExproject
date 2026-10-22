@@ -1463,7 +1463,24 @@ private fun ColumnScope.EtapePaiement(
         val marque = com.vaultex.domain.fiat.SaisieMontant.valeur(state.saisie)
         val detenu = state.solde
         if (marque != null && detenu != null && detenu >= marque) {
-            OutlinedButton(
+            /*
+            ═══════════════════════════════════════════════════════════
+            C'EST LUI, L'ACTION PRINCIPALE
+            ═══════════════════════════════════════════════════════════
+
+            Il etait en contour, discret, au-dessus d'un « Confirmer
+            l'envoi » pleine largeur et gris. Le gris occupait la place ou
+            l'on cherche le bouton qui fait avancer, et il est eteint
+            puisque rien n'a ete envoye.
+
+            Signale sur capture, deux fois : « on n'avance toujours pas ».
+            On regardait le mauvais bouton, et l'ecran le designait.
+
+            Celui-ci est donc PLEIN et bleu — c'est le geste de cet ecran.
+            L'autre descend au rang qu'il occupe vraiment : un recours,
+            pour qui a envoye depuis ailleurs.
+            */
+            Button(
                 onClick = {
                     navController.navigate(
                         Routes.sendPourVente(
@@ -1478,24 +1495,17 @@ private fun ColumnScope.EtapePaiement(
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                Icon(
-                    Icons.Default.Send, null,
-                    tint = AccentBlue, modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.change_envoyer_depuis_vaultex),
                     fontWeight = FontWeight.Bold,
-                    color = AccentBlue,
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                Icon(
-                    Icons.Default.ChevronRight, null,
-                    tint = AccentBlue, modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -1982,6 +1992,34 @@ private fun ColumnScope.EtapePaiement(
 
     state.erreur?.let { Text(it, fontSize = 12.sp, color = AccentRed) }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, IL N'APPARAIT QUE QUAND IL PEUT SERVIR
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il etait toujours la, pleine largeur et gris, a la place ou l'on
+    cherche le bouton qui fait avancer. Eteint, puisqu'il attend que la
+    chaine montre un versement que personne n'a encore fait.
+
+    Signale deux fois sur capture : « on n'avance toujours pas ». La
+    reponse etait au-dessus — « Envoyer depuis VaultEx » — mais le gros
+    bouton gris disait le contraire.
+
+    Il suit donc la meme regle que la carte de verification : il apparait
+    sur un verdict qui dit quelque chose, ou au bout des trois minutes,
+    quand quelqu'un a pu envoyer depuis ailleurs. Avant cela, il n'a rien
+    a confirmer.
+
+    SUR UN ACHAT IL RESTE TOUJOURS LA. Le paiement se fait hors de
+    l'application, par Orange Money, et c'est ce bouton qui le declare :
+    il n'y a pas d'autre chemin a designer.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val verdictUtile = state.verification?.estVert == true ||
+        affichageVerification(state) != AffichageVerif.RECHERCHE
+    val assezAttendu = state.confirmeA > 0L &&
+        System.currentTimeMillis() - state.confirmeA >= GRACE_VENTE_MS
+    if (achat || verdictUtile || assezAttendu) {
     Button(
         onClick = vm::transmettre,
         enabled = state.peutTransmettre(),
@@ -2037,6 +2075,7 @@ private fun ColumnScope.EtapePaiement(
         // comme un seul geste repris d'ecran en ecran.
         Spacer(Modifier.width(8.dp))
         Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
+    }
     }
 
     /*
