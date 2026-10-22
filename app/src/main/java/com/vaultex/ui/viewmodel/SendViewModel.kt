@@ -118,11 +118,56 @@ data class SendState(
 
     Vide sur un envoi ordinaire, ou il n'aurait aucun sens.
     */
-    val numeroPaiement: String = ""
+    val numeroPaiement: String = "",
+    /** Le meme, retape. Voir [confirmationDemandee]. */
+    val numeroConfirmation: String = "",
+    /**
+     * Le numero retenu de la derniere vente, s'il y en a eu une.
+     *
+     * Garde pour savoir si celui qui est affiche a DEJA ETE CONFIRME une
+     * fois. C'est ce qui decide si l'on redemande ou non.
+     */
+    val numeroMemorise: String = ""
 ) {
     /** Huit chiffres, la longueur d'un numero au Burkina Faso. */
     val numeroPaiementValide: Boolean
         get() = numeroPaiement.count { it.isDigit() } == 8
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON NE FAIT RETAPER QUE CE QUI N'A JAMAIS ETE CONFIRME
+    ═══════════════════════════════════════════════════════════════════════
+
+    Retaper son numero protege d'un chiffre de travers — et sur une
+    vente, un chiffre de travers envoie les francs chez un inconnu, sans
+    recours.
+
+    MAIS LE REDEMANDER A CHAQUE VENTE NE PROTEGE DE RIEN. Le numero est
+    pre-rempli depuis la derniere fois ; le confirmer, c'est recopier un
+    chiffre qu'on a sous les yeux, et au troisieme passage on le fait sans
+    regarder. Une verification qu'on execute machinalement ne verifie
+    plus : elle fatigue, et elle fait accepter plus vite.
+
+    Le risque est a la PREMIERE saisie, et a elle seule. La confirmation
+    y est donc, et nulle part ailleurs — ainsi que le jour ou l'on change
+    de numero, qui est une premiere saisie deguisee.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val confirmationDemandee: Boolean
+        // ET SEULEMENT UNE FOIS LE PREMIER COMPLET : apparu des la
+        // premiere touche, le second champ demanderait de confirmer un
+        // numero qu'on est encore en train d'ecrire.
+        get() = numeroPaiementValide && numeroPaiement != numeroMemorise
+
+    val numeroPret: Boolean
+        get() = numeroPaiementValide &&
+            (!confirmationDemandee || numeroConfirmation == numeroPaiement)
+
+    /** Les deux saisies different, et la seconde est commencee. */
+    val numerosDifferents: Boolean
+        get() = confirmationDemandee &&
+            numeroConfirmation.isNotBlank() &&
+            numeroConfirmation != numeroPaiement
 }
 
 @HiltViewModel
@@ -702,7 +747,20 @@ class SendViewModel @Inject constructor(
      */
     fun setNumeroPaiement(v: String) {
         _state.update { it.copy(numeroPaiement = v) }
-        if (_state.value.numeroPaiementValide) secureStorage.saveNumeroChange(v)
+        /*
+        ON N'ENREGISTRE QU'UN NUMERO CONFIRME. Le garder des qu'il fait
+        huit chiffres rendrait la confirmation inutile : la saisie fautive
+        serait memorisee, et la vente suivante la pre-remplirait sans plus
+        rien demander.
+        */
+        if (_state.value.numeroPret) secureStorage.saveNumeroChange(v)
+    }
+
+    fun setNumeroConfirmation(v: String) {
+        _state.update { it.copy(numeroConfirmation = v) }
+        if (_state.value.numeroPret) {
+            secureStorage.saveNumeroChange(_state.value.numeroPaiement)
+        }
     }
 
     private fun appliquerVenteChange(handle: SavedStateHandle) {
@@ -720,7 +778,8 @@ class SendViewModel @Inject constructor(
                 referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty(),
                 // Celui de la derniere vente, s'il y en a eu une. Le champ
                 // reste modifiable : on peut vouloir etre paye ailleurs.
-                numeroPaiement = secureStorage.getNumeroChange()
+                numeroPaiement = secureStorage.getNumeroChange(),
+                numeroMemorise = secureStorage.getNumeroChange()
             )
         }
     }
