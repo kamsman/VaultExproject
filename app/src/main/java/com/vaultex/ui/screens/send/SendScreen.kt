@@ -538,6 +538,51 @@ fun SendScreen(navController: NavController) {
                         fontWeight = FontWeight.SemiBold,
                         color = TextSecondary
                     )
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LA CONFIRMATION, QUAND LE NUMERO EST NOUVEAU
+                    ═══════════════════════════════════════════════════════
+
+                    Elle n'apparait pas quand le numero vient de la derniere
+                    vente : le confirmer serait recopier un chiffre qu'on a
+                    sous les yeux, et au troisieme passage on le ferait sans
+                    regarder. Une verification qu'on execute machinalement
+                    ne verifie plus.
+
+                    Elle apparait a la PREMIERE saisie, et le jour ou l'on
+                    change de numero — qui est une premiere saisie deguisee.
+                    C'est la que le risque est.
+                    */
+                    if (state.confirmationDemandee) {
+                        Spacer(Modifier.height(10.dp))
+                        SendCard(fond = false) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SendField(
+                                    value = state.numeroConfirmation,
+                                    onValueChange = { viewModel.setNumeroConfirmation(it) },
+                                    placeholder = stringResource(
+                                        R.string.change_telephone_vente_exemple
+                                    ),
+                                    keyboardType = KeyboardType.Phone,
+                                    modifier = Modifier.weight(1f),
+                                    fond = false,
+                                    isError = state.numerosDifferents
+                                )
+                            }
+                        }
+                        Text(
+                            stringResource(
+                                if (state.numerosDifferents) R.string.change_numero_different
+                                else R.string.change_numero_confirme
+                            ),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (state.numerosDifferents) AccentRed else TextSecondary
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
                 }
                 Button(
@@ -548,7 +593,7 @@ fun SendScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     enabled = state.isAddressValid && state.amount.isNotEmpty() &&
                         !state.isLoading &&
-                        (!state.verrouParChange || state.numeroPaiementValide),
+                        (!state.verrouParChange || state.numeroPret),
                     shape = RoundedCornerShape(14.dp),
                     // Violet : c'est la couleur d'action de l'application. Le
                     // vert annonçait un succès avant que quoi que ce soit ne
