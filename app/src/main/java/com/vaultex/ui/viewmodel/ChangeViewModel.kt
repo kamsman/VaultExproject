@@ -738,6 +738,54 @@ class ChangeViewModel @Inject constructor(
         recopiee, `boucleVerification` s'arrete immediatement — on ne lance
         pas une boucle pour qu'elle reparte aussitot.
         */
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        L'ENVOI FAIT DEPUIS VAULTEX DEPOSE LA DEMANDE TOUT SEUL
+        ═══════════════════════════════════════════════════════════════════
+
+        Quand la vente est partie de l'ecran d'envoi, la crypto est DEJA
+        diffusee et son hash est connu. Il ne reste rien a decider : ni a
+        attendre que la chaine la montre, ni a appuyer sur un bouton de
+        confirmation. La demande part.
+
+        C'est le formulaire sans retour : un montant, un numero, une
+        authentification — et le changeur est prevenu au moment ou la
+        transaction passe.
+
+        ─── ON NE DEPOSE QUE SI L'ON SAIT OU PAYER ─────────────────────
+
+        Sans numero valide, le message dirait « envoyer 1 513 FCFA au
+        numero du client » sans numero. On pose alors le hash et on laisse
+        l'ecran de paiement demander ce qui manque ; le bouton s'allumera,
+        puisque le versement est verifiable.
+
+        ─── LA TRACE DE L'ENVOI EST EFFACEE AVANT L'APPEL ──────────────
+
+        Si le depot echoue, l'utilisateur retrouve son ecran de paiement
+        avec le hash en place et peut reessayer a la main. La rejouer a
+        chaque ouverture deposerait la meme demande en boucle.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val envoi = try {
+            secureStorage.getEnvoiDeChange()
+                ?.let { gson.fromJson(it, EnvoiDeChange::class.java) }
+        } catch (_: Exception) { null }
+
+        if (envoi != null && envoi.reference == trace.reference && envoi.hash.isNotBlank()) {
+            secureStorage.saveEnvoiDeChange(null)
+            _state.update {
+                it.copy(
+                    txidSaisi = envoi.hash,
+                    // Le numero tape sur l'ecran d'envoi.
+                    telephone = it.telephone.ifBlank { secureStorage.getNumeroChange() }
+                )
+            }
+            if (_state.value.telephoneValide) {
+                transmettre()
+                return
+            }
+        }
+
         val reprise = _state.value
         if (reprise.sens == SensChange.VENTE ||
             reprise.referencePaiementUtile.isNotBlank() || reprise.telephoneValide
@@ -745,6 +793,12 @@ class ChangeViewModel @Inject constructor(
             demarrerVerification()
         }
     }
+
+    /** Ce que l'ecran d'envoi laisse derriere lui apres une vente. */
+    private data class EnvoiDeChange(
+        val reference: String = "",
+        val hash: String = ""
+    )
 
     fun charger() {
         viewModelScope.launch {
@@ -1047,6 +1101,35 @@ class ChangeViewModel @Inject constructor(
 
     fun onTelephone(v: String) {
         _state.update { it.copy(telephone = v) }
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        ON NE RETIENT QUE LE NUMERO D'UNE VENTE
+        ═══════════════════════════════════════════════════════════════════
+
+        Le champ est partage par les deux sens, et il n'y veut pas dire la
+        meme chose.
+
+        A LA VENTE, c'est celui qui doit ETRE PAYE : une preference, qui
+        ne change pas d'une operation a l'autre. La retenir a du sens.
+
+        A L'ACHAT, c'est celui qui A PAYE : une declaration sur un fait
+        passe. Elle appartient a cette operation-la et a aucune autre.
+
+        LES CONFONDRE COUTE L'ARGENT DE QUELQU'UN. Le code anticipe
+        explicitement qu'on paie depuis le telephone d'un proche — le
+        message au changeur porte « ⚠️ Ce numero n'est PAS celui declare ».
+        Retenir ce numero-la ferait pre-remplir la vente suivante avec
+        celui du proche, et les francs partiraient chez lui.
+
+        RETENU DES QU'IL EST COMPLET, et seulement alors. Garder une
+        saisie en cours — « 70 12 » — le pre-remplirait a moitie la fois
+        suivante, ce qui est pire que vide : on corrige un debut de numero
+        au lieu d'en taper un.
+        */
+        val etat = _state.value
+        if (etat.sens == SensChange.VENTE && etat.telephoneValide) {
+            secureStorage.saveNumeroChange(v)
+        }
         sauverTrace()
         relancerVerificationAchat()
     }
@@ -1397,6 +1480,23 @@ class ChangeViewModel @Inject constructor(
                 saisie = saisie,
                 confirmeA = maintenant,
                 referencePaiement = "",
+                /*
+                LE NUMERO RETENU REVIENT ICI, ET NULLE PART AILLEURS.
+
+                C'est le seul moment ou il sert, et le seul ou l'on sait
+                de quel sens il s'agit. Le poser au demarrage de l'ecran
+                le ferait apparaitre aussi sur un achat, ou il signifie
+                autre chose — « qui a paye » et non « qui doit etre
+                paye ».
+
+                ET SEULEMENT S'IL EST VIDE : quelqu'un qui vient de taper
+                un autre numero pour cette vente-ci a voulu etre paye
+                ailleurs. L'ecraser par le precedent reprendrait une
+                decision qu'il vient de prendre.
+                */
+                telephone = if (s.sens == SensChange.VENTE && s.telephone.isBlank()) {
+                    secureStorage.getNumeroChange()
+                } else s.telephone,
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
