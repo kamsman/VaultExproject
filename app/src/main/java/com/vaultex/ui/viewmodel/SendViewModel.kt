@@ -289,6 +289,36 @@ class SendViewModel @Inject constructor(
     private val _state = MutableStateFlow(SendState())
     val state: StateFlow<SendState> = _state.asStateFlow()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DECLARE ICI, ET NON MILLE LIGNES PLUS BAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Il l'etait apres le bloc `init`. En Kotlin, les initialiseurs de
+    proprietes et les blocs `init` s'executent DANS L'ORDRE DU FICHIER :
+    pendant `init`, cette propriete valait donc encore `null`.
+
+    Ca n'avait jamais gene, parce qu'aucun chemin n'appelait depuis `init`
+    une fonction qui y touche. L'ouverture de l'ecran d'envoi par une vente
+    en a cree un : `appliquerVenteChange` appelle `setAmount`, qui appelle
+    `oublierDeblocage`, qui ecrit ici.
+
+        NullPointerException : MutableStateFlow.setValue
+        sur une reference nulle
+        oublierDeblocage:1288 <- setAmount:935 <- appliquerVenteChange
+
+    Remonter la declaration ferme la classe entiere de defauts, et pas
+    seulement ce chemin-la : n'importe quel appel futur depuis `init`
+    trouvera desormais un flux construit.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private val _deblocage =
+        MutableStateFlow<com.vaultex.core.session.PropositionDeblocage?>(null)
+    val deblocage: StateFlow<com.vaultex.core.session.PropositionDeblocage?> =
+        _deblocage.asStateFlow()
+
+    private var jobDeblocage: kotlinx.coroutines.Job? = null
+
     /** Ressources dans la langue CHOISIE dans l'app (pas celle du système). */
     private fun locStr(id: Int, vararg args: Any): String =
         com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
@@ -807,6 +837,24 @@ class SendViewModel @Inject constructor(
         */
         selectAsset(jeton)
         viewModelScope.launch {
+            /*
+            ON SORT DE `init` AVANT DE TOUCHER QUOI QUE CE SOIT.
+
+            `viewModelScope` utilise `Dispatchers.Main.immediate` : lance
+            depuis le fil principal, ce bloc s'execute AUSSITOT, sans
+            dispatch, jusqu'a sa premiere suspension. Et `_state.first`
+            ne suspend pas quand la valeur courante satisfait deja le
+            predicat.
+
+            Le corps pouvait donc tourner a l'interieur de `init`, ou les
+            proprietes declarees plus bas dans le fichier ne sont pas
+            encore construites. C'est exactement ce qui est arrive.
+
+            `yield()` rend la main au repartiteur : la construction de
+            l'objet s'acheve, puis on reprend. Un seul mot, et plus aucun
+            appel ne part d'un objet a moitie bati.
+            */
+            kotlinx.coroutines.yield()
             kotlinx.coroutines.withTimeoutOrNull(2_000) {
                 _state.first { e ->
                     e.selectedChain.equals(jeton, ignoreCase = true) ||
@@ -1199,10 +1247,6 @@ class SendViewModel @Inject constructor(
     /** Monnaie native manquante, renseignée par preflightError. */
     private var natifManquant: String? = null
 
-    private val _deblocage = MutableStateFlow<com.vaultex.core.session.PropositionDeblocage?>(null)
-    val deblocage: StateFlow<com.vaultex.core.session.PropositionDeblocage?> = _deblocage.asStateFlow()
-
-    private var jobDeblocage: kotlinx.coroutines.Job? = null
 
     /**
      * Cherche de quoi payer les frais manquants de [natifManquant].
