@@ -401,9 +401,24 @@ data class ChangeState(
     val telephoneValide: Boolean
         get() = telephone.count { it.isDigit() } == 8
 
-    /** Voir [telephoneConfirmation]. N'apparait qu'une fois le premier complet. */
+    /*
+    ELLE EST TOUJOURS LA, SUR UNE VENTE.
+
+    Elle n'apparaissait qu'a la premiere saisie ou au changement de
+    numero — le raisonnement etait qu'un numero deja confirme n'a pas a
+    l'etre a nouveau, et qu'une verification machinale ne verifie plus.
+
+    Il tenait en theorie. En pratique on l'a cherchee deux fois sans la
+    trouver, et une protection qu'on ne voit jamais ne rassure personne.
+    Sur un geste irreversible, la retaper coute huit chiffres ; se
+    tromper coute tout ce qu'on vend.
+
+    Elle reste conditionnee au numero COMPLET : affichee des la premiere
+    touche, elle demanderait de confirmer un numero qu'on est encore en
+    train d'ecrire.
+    */
     val confirmationNumeroDemandee: Boolean
-        get() = telephoneValide && telephone != telephoneMemorise
+        get() = telephoneValide
 
     /** Le numero est utilisable : complet, et confirme s'il est nouveau. */
     val telephonePret: Boolean
@@ -566,7 +581,7 @@ data class ChangeState(
         val fcfa = montantFcfa ?: return "montant"
         // Par monnaie : TRON coute 13 a 27 TRX par transfert, BNB Chain
         // vingt centimes. Un seuil unique ferait du plus cher un piege.
-        if (fcfa < p.minimumPour(monnaie)) return "minimum"
+        if (fcfa < p.minimumPour(monnaie, fcfaParDollar)) return "minimum"
         /*
         LE PLAFOND EFFECTIF, PAS LE GENERAL. Certaines monnaies portent
         le leur, en dollars — le BNB ne sert qu'a payer le gaz, et dix

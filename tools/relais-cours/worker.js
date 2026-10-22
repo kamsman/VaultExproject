@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 53
+const VERSION = 54
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2015,6 +2015,8 @@ function parametresChange(env) {
       toute la duree du cache des parametres.
       */
       plafondsUsdParMonnaie: plafondsUsdChange(env),
+      // Et son symetrique : le minimum par monnaie, en dollars lui aussi.
+      minimumsUsdParMonnaie: minimumsUsdChange(env),
     },
     TTL_PARAMETRES_CHANGE
   )
@@ -2118,6 +2120,44 @@ la même quelle que soit la chaîne qu'il emploie.
 Deux grandeurs différentes, deux réglages différents.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE MINIMUM PAR MONNAIE, EN DOLLARS
+═══════════════════════════════════════════════════════════════════════════
+
+Symetrique de `plafondsUsdChange`, et pour la meme raison : certaines
+bornes decrivent une CAISSE et se pensent en francs, d'autres decrivent
+la VALEUR D'UN BIEN et se pensent en dollars.
+
+`CHANGE_MINIMUMS` est en francs — c'est le seuil en dessous duquel une
+operation ne vaut pas la peine d'etre traitee, et il suit le cout local.
+Celui-ci est en dollars : c'est le seuil en dessous duquel une quantite
+de crypto n'a pas de sens, frais de reseau compris.
+
+LE PLUS HAUT DES DEUX GAGNE, la ou le plafond prend le plus bas. Les
+deux bornes se resserrent, jamais elles ne s'ouvrent.
+
+Format : {"BNB": 10}. Illisible ou nul, c'est `CHANGE_MINIMUMS` qui
+s'applique seul.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function minimumsUsdChange(env) {
+  const brut = env?.CHANGE_MINIMUMS_USD
+  if (!brut) return {}
+  try {
+    const o = JSON.parse(String(brut))
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
+    const sortie = {}
+    for (const [cle, valeur] of Object.entries(o)) {
+      const n = Number(valeur)
+      if (Number.isFinite(n) && n > 0) sortie[String(cle).trim().toUpperCase()] = n
+    }
+    return sortie
+  } catch (_) {
+    return {}
+  }
+}
+
 /*
 ═══════════════════════════════════════════════════════════════════════════
 LE PLAFOND PAR MONNAIE, EN DOLLARS
