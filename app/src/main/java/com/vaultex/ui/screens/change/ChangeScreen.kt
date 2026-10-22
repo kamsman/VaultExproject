@@ -1520,6 +1520,15 @@ private fun ColumnScope.EtapePaiement(
             pour qui a envoye depuis ailleurs.
             */
             Button(
+                /*
+                ETEINT TANT QUE LE NUMERO N'EST PAS DONNE ET CONFIRME.
+
+                La crypto part de facon irreversible ; sans numero, le
+                message au changeur dit « envoyer 1 527 FCFA au numero du
+                client » sans numero. L'exiger AVANT est la seule place
+                qui tienne : apres, les fonds sont partis.
+                */
+                enabled = state.telephonePret,
                 onClick = {
                     /*
                     ═══════════════════════════════════════════════════
@@ -1956,9 +1965,24 @@ private fun ColumnScope.EtapePaiement(
     le seul endroit ou declarer le numero qui a paye.
     ═══════════════════════════════════════════════════════════════════════
     */
-    val envoiConstate = state.txidSaisi.isNotBlank() || state.verification?.estVert == true
-    val numeroADemander = achat || (envoiConstate && !state.telephonePret)
-    if (numeroADemander) {
+    /*
+    ─── IL EST REVENU, ET IL NE REPARTIRA PAS ──────────────────────────
+
+    Je l'avais retire d'ici pour ne le demander qu'une fois, sur l'ecran
+    d'envoi. C'etait elegant et c'etait fragile : le SEUL endroit ou
+    donner son numero se trouvait derriere un ecran qui peut ne pas
+    s'ouvrir — et quand il ne s'est pas ouvert, il n'y avait plus aucun
+    moyen de dire ou l'on veut etre paye.
+
+    CE NUMERO APPARTIENT A LA VENTE, pas a l'envoi. Il dit ou le changeur
+    doit payer ; l'envoi, lui, ne fait que deplacer de la crypto. Le
+    collecter dans le parcours qui en a besoin, avant d'en sortir, c'est
+    aussi la seule facon de ne jamais partir sans lui.
+
+    L'ecran d'envoi le relit et l'affiche avant le PIN — en gros, groupe
+    par deux — mais ne le demande plus.
+    */
+    if (true) {
     ChampChange(
         valeur = state.telephone,
         onValeur = vm::onTelephone,
