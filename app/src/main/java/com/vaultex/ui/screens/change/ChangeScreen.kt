@@ -2100,7 +2100,26 @@ private fun ColumnScope.EtapePaiement(
     moment où elle a un verdict à rendre.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ─── ET SUR UNE VENTE, DES QU'UN HASH EST EN MAIN ────────────────────
+
+    Elle n'existait pas du tout a la vente, et l'objection ci-dessus
+    expliquait pourquoi : sur un formulaire vide, elle accuserait sans
+    avoir cherche.
+
+    Mais un hash en main n'est pas un formulaire vide. C'est une
+    transaction diffusee, et le relais la cherche vraiment — pendant les
+    quarante-cinq secondes ou la demande attend que la chaine parle avant
+    de partir chez le changeur.
+
+    Sans cette carte, ces quarante-cinq secondes etaient un ecran immobile
+    juste apres un code PIN. Rien ne tournait, rien ne disait qu'on
+    attendait quelque chose, et le reflexe est alors de rappuyer ou de
+    fermer — exactement au moment ou il ne faut faire ni l'un ni l'autre.
+    */
     if (achat && (state.referencePaiementUtile.isNotBlank() || state.telephoneValide)) {
+        CarteVerification(vm, state)
+    } else if (!achat && state.txidSaisi.isNotBlank()) {
         CarteVerification(vm, state)
     }
 
