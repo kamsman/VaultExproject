@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 52
+const VERSION = 53
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2009,6 +2009,12 @@ function parametresChange(env) {
       crypto. Le freiner avant vaut mieux que l'arrêter après.
       */
       minimumsParMonnaie: minimumsChange(env),
+      /*
+      LES PLAFONDS PAR MONNAIE, EN DOLLARS. L'application les convertit au
+      cours qu'elle affiche deja — convertir ici figerait le chiffre pour
+      toute la duree du cache des parametres.
+      */
+      plafondsUsdParMonnaie: plafondsUsdChange(env),
     },
     TTL_PARAMETRES_CHANGE
   )
@@ -2112,6 +2118,48 @@ la même quelle que soit la chaîne qu'il emploie.
 Deux grandeurs différentes, deux réglages différents.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE PLAFOND PAR MONNAIE, EN DOLLARS
+═══════════════════════════════════════════════════════════════════════════
+
+Le plafond general, `CHANGE_MAX`, est en francs. Celui-ci est en DOLLARS,
+et ce n'est pas une incoherence : il repond a une autre question.
+
+`CHANGE_MAX` borne ce que le changeur accepte d'encaisser — c'est une
+limite de tresorerie, et elle se pense en francs.
+
+Celui-ci borne ce qu'il est RAISONNABLE d'acheter d'une monnaie donnee.
+Le BNB ne sert qu'a payer le gaz d'une chaine : dix dollars en couvrent
+des centaines de transferts, et personne n'en a besoin de plus. Cette
+limite-la suit la valeur du bien, pas la caisse — donc le dollar.
+
+L'APPLICATION CONVERTIT, au cours du jour qu'elle affiche deja. Convertir
+ici figerait le chiffre au moment ou les parametres sont mis en cache,
+et il vieillirait pendant toute la duree du cache.
+
+Format : {"BNB": 10}. Une valeur nulle ou illisible n'impose rien, et
+c'est `CHANGE_MAX` qui s'applique seul — on echoue du cote qui laisse le
+service ouvert, puisque le plafond general protege deja la caisse.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function plafondsUsdChange(env) {
+  const brut = env?.CHANGE_PLAFONDS_USD
+  if (!brut) return {}
+  try {
+    const o = JSON.parse(String(brut))
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
+    const sortie = {}
+    for (const [cle, valeur] of Object.entries(o)) {
+      const n = Number(valeur)
+      if (Number.isFinite(n) && n > 0) sortie[String(cle).trim().toUpperCase()] = n
+    }
+    return sortie
+  } catch (_) {
+    return {}
+  }
+}
+
 function minimumsChange(env) {
   const brut = env?.CHANGE_MINIMUMS
   if (!brut) return {}

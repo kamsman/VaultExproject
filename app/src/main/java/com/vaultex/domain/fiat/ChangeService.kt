@@ -70,7 +70,23 @@ data class ParametresChange(
      */
     val ussdModele: String = "",
     /** Minimum par monnaie. Voir [minimumPour]. */
-    val minimumsParMonnaie: Map<String, Double> = emptyMap()
+    val minimumsParMonnaie: Map<String, Double> = emptyMap(),
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE PLAFOND PAR MONNAIE, EN DOLLARS
+    ═══════════════════════════════════════════════════════════════════════
+
+    `plafondFcfa` borne ce que le changeur accepte d'encaisser : une
+    limite de tresorerie, qui se pense en francs.
+
+    Celui-ci borne ce qu'il est RAISONNABLE d'acheter d'une monnaie
+    donnee. Le BNB ne sert qu'a payer le gaz d'une chaine ; dix dollars
+    en couvrent des centaines de transferts, et personne n'en a besoin de
+    plus. Cette limite suit la valeur du bien, pas la caisse — donc le
+    dollar, converti au cours du jour.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val plafondsUsdParMonnaie: Map<String, Double> = emptyMap()
 ) {
 
     /**
@@ -100,6 +116,26 @@ data class ParametresChange(
      * comportement d'avant.
      * ═══════════════════════════════════════════════════════════════════
      */
+    /**
+     * Le plafond applicable, en francs.
+     *
+     * LE PLUS BAS DES DEUX gagne. Le plafond general protege la caisse du
+     * changeur ; celui par monnaie dit ce qu'il est raisonnable d'acheter
+     * de cette monnaie-la. Prendre le plus eleve viderait l'un des deux de
+     * son sens, et on ne saurait plus lequel.
+     *
+     * SANS COURS, LE PLAFOND PAR MONNAIE NE S'APPLIQUE PAS. Il est en
+     * dollars : sans le taux, le convertir donnerait un chiffre invente,
+     * et c'est sur ce chiffre qu'un achat serait refuse. Mieux vaut ne
+     * freiner que sur le plafond general, qui est deja en francs.
+     */
+    fun plafondPour(monnaie: String, fcfaParDollar: Double?): Double {
+        val usd = plafondsUsdParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
+        val taux = fcfaParDollar?.takeIf { it > 0.0 }
+        if (usd == null || taux == null) return plafondFcfa
+        return minOf(plafondFcfa, usd * taux)
+    }
+
     fun minimumPour(monnaie: String): Double =
         minimumsParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 } ?: minimumFcfa
 
@@ -363,6 +399,12 @@ class ChangeService @Inject constructor(
                 adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty(),
                 ussdModele = dto.ussdModele.orEmpty(),
                 minimumsParMonnaie = dto.minimumsParMonnaie
+                    ?.mapKeys { (k, _) -> k.uppercase() }
+                    ?.filterValues { v -> v > 0.0 }
+                    .orEmpty(),
+                // Meme nettoyage que les minimums : clefs en capitales, et
+                // une valeur nulle ou negative n'est pas un plafond.
+                plafondsUsdParMonnaie = dto.plafondsUsdParMonnaie
                     ?.mapKeys { (k, _) -> k.uppercase() }
                     ?.filterValues { v -> v > 0.0 }
                     .orEmpty()

@@ -54,7 +54,6 @@ import com.vaultex.R
 import com.vaultex.domain.fiat.TauxFcfa
 // Imports nommes : com.vaultex.ui.theme.Surface est une COULEUR.
 import com.vaultex.ui.theme.AccentBlue
-import com.vaultex.ui.theme.AccentBlueDark
 import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
@@ -105,13 +104,6 @@ fun ChangeScreen(navController: NavController) {
     val state by vm.state.collectAsState()
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
-    /*
-    CENT SOIXANTE-DIX POINTS : la barre d'etat et la barre de titre, plus
-    de quoi s'eteindre sans arete visible. Au-dela, c'est la page.
-    */
-    val finDuBandeau = with(androidx.compose.ui.platform.LocalDensity.current) {
-        170.dp.toPx()
-    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -192,67 +184,38 @@ fun ChangeScreen(navController: NavController) {
                             else R.string.change_titre_vente
                         ),
                         fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                        color = androidx.compose.ui.graphics.Color.White
+                        color = TextPrimary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.Default.ArrowBack, stringResource(R.string.back),
-                            tint = androidx.compose.ui.graphics.Color.White
+                            tint = AccentBlue
                         )
                     }
                 },
                 /*
-                ═══════════════════════════════════════════════════════════
-                UN BANDEAU BLEU, ET LA PAGE QUI EN SORT
-                ═══════════════════════════════════════════════════════════
+                LE BANDEAU BLEU A ETE RETIRE.
 
-                La barre portait le fond de la page. Elle ne separait donc
-                rien : le titre flottait au-dessus des cartes, a la meme
-                hauteur de couleur qu'elles, et l'ecran commencait sans
-                qu'on sache ou.
+                Il donnait un haut a la page, et c'etait vrai. Mais il
+                colorait aussi tout ce qui s'en approchait : les onglets y
+                baignaient, et la carte du paiement — bleu translucide a
+                l'epoque — laissait le degrade passer au travers. Deux
+                correctifs ont suivi, un pour la hauteur et un pour
+                l'opacite de la carte, avant qu'il soit plus simple de
+                constater que la page se tient sans lui.
 
-                Le degrade descend du bleu profond vers celui de
-                l'application. Il donne un haut a la page — les cartes
-                blanches s'en detachent au lieu d'y flotter — et il fait ce
-                que fait une barre d'application : dire ou l'on est.
-
-                TRANSPARENTE, ET LE DEGRADE DERRIERE. Peindre la barre
-                elle-meme l'arreterait a sa propre hauteur, et la bande
-                s'interromprait net sous elle. Dessine en fond du
-                `Scaffold`, il passe sous la barre d'etat du systeme et
-                s'eteint dans la page.
-
-                ─── IL S'ARRETE A UNE HAUTEUR FIXE, PAS A UNE FRACTION ──
-
-                C'etait « 42 % de la hauteur », et vu sur un vrai
-                telephone c'est un tiers d'ecran en bleu : les onglets y
-                baignaient, et celui qui est choisi — bleu plein — s'y
-                confondait presque.
-
-                Une fraction depend de la taille de l'ecran. Ce qu'on veut
-                teinter n'en depend pas : c'est la barre d'etat plus la
-                barre de titre, et elles mesurent ce qu'elles mesurent. On
-                donne donc une FIN EN POINTS, et `TileMode.Clamp` rend la
-                couleur de la page partout en dessous.
-                ═══════════════════════════════════════════════════════════
+                La barre reprend donc le fond de la page. Ce qui separe le
+                haut de l'ecran du reste, ce sont les cartes blanches et
+                leur ombre — ce qui suffit, et ne teinte rien.
                 */
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                    containerColor = BgPrimary
                 )
             )
         },
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        modifier = Modifier.background(
-            androidx.compose.ui.graphics.Brush.verticalGradient(
-                0f to AccentBlueDark,
-                0.38f to AccentBlue,
-                1f to BgPrimary,
-                startY = 0f,
-                endY = finDuBandeau
-            )
-        )
+        containerColor = BgPrimary
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
@@ -474,13 +437,15 @@ private fun ColumnScope.EtapeCalcul(
         piedDePage = {
             BornesChange(
                 minFcfa = p.minimumPour(state.monnaie),
-                maxFcfa = p.plafondFcfa,
+                maxFcfa = p.plafondPour(state.monnaie, state.fcfaParDollar),
                 enFcfa = donneFcfa,
                 monnaie = state.monnaie,
                 prix = state.prix,
                 // A la vente, c'est le solde qui plafonne, et il a deja son
                 // bouton « Tout » en haut de la carte.
-                onMax = if (donneFcfa) ({ vm.onMontantRapide(p.plafondFcfa) }) else null
+                onMax = if (donneFcfa) ({
+                    vm.onMontantRapide(p.plafondPour(state.monnaie, state.fcfaParDollar))
+                }) else null
             )
         },
         solde = if (donneFcfa) null else state.solde,
@@ -489,7 +454,8 @@ private fun ColumnScope.EtapeCalcul(
             ?.let { state.plusGrandMontantVendable(it) }
             ?.takeIf { it > 0.0 }
             ?.let { crypto(it, state.monnaie) },
-        rapides = if (donneFcfa) montantsRapides(p, state.monnaie) else emptyList(),
+        rapides = if (donneFcfa) montantsRapides(p, state.monnaie, state.fcfaParDollar)
+                  else emptyList(),
         onRapide = vm::onMontantRapide,
         /*
         LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
@@ -840,7 +806,10 @@ private fun ColumnScope.EtapeCalcul(
     */
     val blocage = state.blocage()
     blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
-        NoteEnDeuxTemps(messageBlocage(it, p, state.monnaie), AccentRed)
+        NoteEnDeuxTemps(
+            messageBlocage(it, p, state.monnaie, state.fcfaParDollar),
+            AccentRed
+        )
     }
 
     /*
@@ -3385,12 +3354,14 @@ private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
  */
 private fun montantsRapides(
     p: com.vaultex.domain.fiat.ParametresChange,
-    monnaie: String
+    monnaie: String,
+    /** Sert au plafond par monnaie, qui est exprime en dollars. */
+    fcfaParDollar: Double?
 ): List<Double> {
     // PAR MONNAIE : TRON et BNB Chain n'ont pas le même seuil, parce
     // qu'elles n'ont pas les mêmes frais de réseau.
     val min = p.minimumPour(monnaie)
-    val max = p.plafondFcfa
+    val max = p.plafondPour(monnaie, fcfaParDollar)
     if (max <= min) return emptyList()
     val milieu = kotlin.math.round((min + max) / 2000.0) * 1000.0
     return listOf(min, milieu, max)
@@ -3772,7 +3743,9 @@ private fun Note(texte: String, couleur: androidx.compose.ui.graphics.Color) {
 private fun messageBlocage(
     code: String,
     p: com.vaultex.domain.fiat.ParametresChange,
-    monnaie: String
+    monnaie: String,
+    /** Le plafond annonce doit etre CELUI QUI S'APPLIQUE. Voir plus bas. */
+    fcfaParDollar: Double?
 ): String = when (code) {
     "ferme" -> stringResource(R.string.change_ferme)
     "pas_de_rachat" -> stringResource(R.string.change_pas_de_rachat)
@@ -3785,7 +3758,15 @@ private fun messageBlocage(
     exactement le genre de message qui fait fermer l'application.
     */
     "minimum" -> stringResource(R.string.change_sous_minimum, fcfa(p.minimumPour(monnaie)))
-    "plafond" -> stringResource(R.string.change_sur_plafond, fcfa(p.plafondFcfa))
+    /*
+    MEME RAISON QUE POUR LE MINIMUM, un cran plus haut dans ce when :
+    montrer le plafond general pendant qu'un autre s'applique enverrait
+    quelqu'un retaper un montant qui sera refuse une seconde fois.
+    */
+    "plafond" -> stringResource(
+        R.string.change_sur_plafond,
+        fcfa(p.plafondPour(monnaie, fcfaParDollar))
+    )
     "solde" -> stringResource(R.string.change_solde_insuffisant)
     else -> stringResource(R.string.change_montant_invalide)
 }

@@ -491,7 +491,9 @@ data class ParametresChangeDto(
      *
      * Une monnaie absente de cette table retombe sur [minimumFcfa].
      */
-    val minimumsParMonnaie: Map<String, Double>? = null
+    val minimumsParMonnaie: Map<String, Double>? = null,
+    /** Plafond par monnaie, EN DOLLARS — le general, lui, est en francs. */
+    val plafondsUsdParMonnaie: Map<String, Double>? = null
 )
 
 /**

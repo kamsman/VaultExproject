@@ -499,7 +499,13 @@ data class ChangeState(
         // Par monnaie : TRON coute 13 a 27 TRX par transfert, BNB Chain
         // vingt centimes. Un seuil unique ferait du plus cher un piege.
         if (fcfa < p.minimumPour(monnaie)) return "minimum"
-        if (fcfa > p.plafondFcfa) return "plafond"
+        /*
+        LE PLAFOND EFFECTIF, PAS LE GENERAL. Certaines monnaies portent
+        le leur, en dollars — le BNB ne sert qu'a payer le gaz, et dix
+        dollars en couvrent des centaines de transferts. `plafondPour`
+        rend le plus bas des deux.
+        */
+        if (fcfa > p.plafondPour(monnaie, fcfaParDollar)) return "plafond"
         /*
         ═══════════════════════════════════════════════════════════════
         ON NE PEUT PAS VENDRE CE QU'ON N'A PAS
