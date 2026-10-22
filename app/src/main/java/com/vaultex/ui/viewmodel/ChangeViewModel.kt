@@ -1613,6 +1613,18 @@ class ChangeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Pose un message d'erreur sous le bouton, depuis l'ecran.
+     *
+     * UN ECRAN QUI N'ARRIVE PAS A OUVRIR LE SUIVANT DOIT LE DIRE. Sans
+     * ca, une navigation qui echoue laisse l'application se fermer, et il
+     * ne reste rien a lire — ni a l'utilisateur, ni a qui cherche la
+     * cause.
+     */
+    fun signalerErreur(texte: String) {
+        _state.update { it.copy(erreur = texte) }
+    }
+
     fun retourAuCalcul() {
         secureStorage.saveChangeEnCours(null)
         arreterVerification()

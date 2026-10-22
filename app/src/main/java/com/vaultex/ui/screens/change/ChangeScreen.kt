@@ -1521,17 +1521,45 @@ private fun ColumnScope.EtapePaiement(
             */
             Button(
                 onClick = {
-                    navController.navigate(
-                        Routes.sendPourVente(
-                            adresse = aCopier,
-                            // LE MONTANT EXACT, avec un POINT : c'est
-                            // celui que lira la couche reseau, pas
-                            // celui qu'on affiche.
-                            montant = state.saisie.replace(',', '.'),
-                            jeton = state.monnaie,
-                            reference = state.reference
+                    /*
+                    ═══════════════════════════════════════════════════
+                    UNE NAVIGATION QUI ECHOUE NE DOIT PAS FERMER
+                    L'APPLICATION
+                    ═══════════════════════════════════════════════════
+
+                    Signale sur capture : « je clique sur vendre, l'app se
+                    ferme ». Un `navigate` qui ne resout pas sa route leve,
+                    et rien ne l'attrape — l'application disparait, et il ne
+                    reste RIEN a lire : ni a celui qui vend, ni a celui qui
+                    cherche la cause.
+
+                    Ce n'est pas masquer le defaut. C'est le rendre
+                    lisible : le message nomme l'exception, s'affiche sous
+                    le bouton, et l'ecran reste ouvert avec la demande
+                    intacte — le prix est encore garanti, on peut
+                    reessayer.
+
+                    Et la demande n'est pas perdue : la trace est sur le
+                    disque depuis la confirmation.
+                    */
+                    runCatching {
+                        navController.navigate(
+                            Routes.sendPourVente(
+                                adresse = aCopier,
+                                // LE MONTANT EXACT, avec un POINT : c'est
+                                // celui que lira la couche reseau, pas
+                                // celui qu'on affiche.
+                                montant = state.saisie.replace(',', '.'),
+                                jeton = state.monnaie,
+                                reference = state.reference
+                            )
                         )
-                    )
+                    }.onFailure { e ->
+                        vm.signalerErreur(
+                            "Impossible d'ouvrir l'écran d'envoi : " +
+                                (e.message ?: e::class.java.simpleName)
+                        )
+                    }
                 },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
