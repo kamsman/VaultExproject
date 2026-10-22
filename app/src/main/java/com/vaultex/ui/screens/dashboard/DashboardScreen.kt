@@ -192,7 +192,13 @@ fun DashboardScreen(navController: NavHostController) {
                         .remove<String>(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY)
                     runCatching {
                         navController.navigate(Routes.SEND)
-                        navController.getBackStackEntry(Routes.SEND).savedStateHandle
+                        // LA ROUTE DECLAREE, PAS CELLE QU'ON NAVIGUE. L'ecran
+                        // d'envoi est enregistre sous `SEND_PARAMETRE` depuis
+                        // qu'il accepte les arguments d'une vente ;
+                        // `getBackStackEntry("send")` ne le trouve plus et
+                        // leve — ici sous `runCatching`, donc en silence :
+                        // l'adresse scannee se perdait sans un mot.
+                        navController.getBackStackEntry(Routes.SEND_PARAMETRE).savedStateHandle
                             .set(com.vaultex.ui.screens.scanner.SCANNED_ADDRESS_KEY, adresse)
                     }
                 }

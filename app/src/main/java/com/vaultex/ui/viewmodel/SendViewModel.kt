@@ -14,6 +14,7 @@ import com.vaultex.domain.usecase.SendCryptoUseCase
 import com.vaultex.service.PendingSendWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -774,18 +775,57 @@ class SendViewModel @Inject constructor(
         val jeton = handle.get<String>(CHANGE_JETON).orEmpty()
         if (adresse.isBlank() || montant.isBlank() || jeton.isBlank()) return
 
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        TOUT DANS UN SEUL FIL, ET LE VERROU EN DERNIER
+        ═══════════════════════════════════════════════════════════════════
+
+        `selectAsset` est ASYNCHRONE : il lance une coroutine qui va
+        chercher le jeton dans le registre, l'enregistre au besoin, puis
+        appelle `setChain`. Appele tel quel, il ne fait rien dans
+        l'instant.
+
+        Ecrit a la suite, le reste s'executait donc AVANT que la chaine
+        soit choisie :
+
+          · `setToAddress` validait une adresse EVM contre la chaine par
+            defaut — Tron — et la declarait invalide ;
+          · le verrou se posait ; et quand la coroutine de `selectAsset`
+            arrivait enfin a `setChain`, celui-ci REFUSAIT, puisque le
+            verrou interdit de changer de chaine.
+
+        Resultat : un ecran d'envoi sur la mauvaise chaine, avec une
+        adresse marquee invalide, et aucun moyen d'en sortir — les
+        commandes qui auraient pu corriger sont precisement celles que le
+        verrou ferme.
+
+        On attend donc que la chaine soit REELLEMENT posee avant de
+        continuer. Deux secondes au plus : au-dela, quelque chose ne
+        repond pas, et mieux vaut un ecran ordinaire qu'un ecran
+        verrouille sur un etat faux.
+        ═══════════════════════════════════════════════════════════════════
+        */
         selectAsset(jeton)
-        setToAddress(adresse)
-        setAmount(montant)
-        _state.update {
-            it.copy(
-                verrouParChange = true,
-                referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty(),
-                // Celui de la derniere vente, s'il y en a eu une. Le champ
-                // reste modifiable : on peut vouloir etre paye ailleurs.
-                numeroPaiement = secureStorage.getNumeroChange(),
-                numeroMemorise = secureStorage.getNumeroChange()
-            )
+        viewModelScope.launch {
+            kotlinx.coroutines.withTimeoutOrNull(2_000) {
+                _state.first { e ->
+                    e.selectedChain.equals(jeton, ignoreCase = true) ||
+                        e.customToken?.symbol.equals(jeton, ignoreCase = true)
+                }
+            } ?: return@launch
+            setToAddress(adresse)
+            setAmount(montant)
+            _state.update {
+                it.copy(
+                    verrouParChange = true,
+                    referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty(),
+                    // Celui de la derniere vente, s'il y en a eu une. Le
+                    // champ reste modifiable : on peut vouloir etre paye
+                    // ailleurs.
+                    numeroPaiement = secureStorage.getNumeroChange(),
+                    numeroMemorise = secureStorage.getNumeroChange()
+                )
+            }
         }
     }
 
