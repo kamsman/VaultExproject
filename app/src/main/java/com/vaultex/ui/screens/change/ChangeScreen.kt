@@ -54,7 +54,6 @@ import com.vaultex.R
 import com.vaultex.domain.fiat.TauxFcfa
 // Imports nommes : com.vaultex.ui.theme.Surface est une COULEUR.
 import com.vaultex.ui.theme.AccentBlue
-import com.vaultex.ui.theme.AccentBlueDark
 import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.AccentRed
@@ -105,13 +104,6 @@ fun ChangeScreen(navController: NavController) {
     val state by vm.state.collectAsState()
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
-    /*
-    CENT SOIXANTE-DIX POINTS : la barre d'etat et la barre de titre, plus
-    de quoi s'eteindre sans arete visible. Au-dela, c'est la page.
-    */
-    val finDuBandeau = with(androidx.compose.ui.platform.LocalDensity.current) {
-        170.dp.toPx()
-    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -192,67 +184,38 @@ fun ChangeScreen(navController: NavController) {
                             else R.string.change_titre_vente
                         ),
                         fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                        color = androidx.compose.ui.graphics.Color.White
+                        color = TextPrimary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.Default.ArrowBack, stringResource(R.string.back),
-                            tint = androidx.compose.ui.graphics.Color.White
+                            tint = AccentBlue
                         )
                     }
                 },
                 /*
-                ═══════════════════════════════════════════════════════════
-                UN BANDEAU BLEU, ET LA PAGE QUI EN SORT
-                ═══════════════════════════════════════════════════════════
+                LE BANDEAU BLEU A ETE RETIRE.
 
-                La barre portait le fond de la page. Elle ne separait donc
-                rien : le titre flottait au-dessus des cartes, a la meme
-                hauteur de couleur qu'elles, et l'ecran commencait sans
-                qu'on sache ou.
+                Il donnait un haut a la page, et c'etait vrai. Mais il
+                colorait aussi tout ce qui s'en approchait : les onglets y
+                baignaient, et la carte du paiement — bleu translucide a
+                l'epoque — laissait le degrade passer au travers. Deux
+                correctifs ont suivi, un pour la hauteur et un pour
+                l'opacite de la carte, avant qu'il soit plus simple de
+                constater que la page se tient sans lui.
 
-                Le degrade descend du bleu profond vers celui de
-                l'application. Il donne un haut a la page — les cartes
-                blanches s'en detachent au lieu d'y flotter — et il fait ce
-                que fait une barre d'application : dire ou l'on est.
-
-                TRANSPARENTE, ET LE DEGRADE DERRIERE. Peindre la barre
-                elle-meme l'arreterait a sa propre hauteur, et la bande
-                s'interromprait net sous elle. Dessine en fond du
-                `Scaffold`, il passe sous la barre d'etat du systeme et
-                s'eteint dans la page.
-
-                ─── IL S'ARRETE A UNE HAUTEUR FIXE, PAS A UNE FRACTION ──
-
-                C'etait « 42 % de la hauteur », et vu sur un vrai
-                telephone c'est un tiers d'ecran en bleu : les onglets y
-                baignaient, et celui qui est choisi — bleu plein — s'y
-                confondait presque.
-
-                Une fraction depend de la taille de l'ecran. Ce qu'on veut
-                teinter n'en depend pas : c'est la barre d'etat plus la
-                barre de titre, et elles mesurent ce qu'elles mesurent. On
-                donne donc une FIN EN POINTS, et `TileMode.Clamp` rend la
-                couleur de la page partout en dessous.
-                ═══════════════════════════════════════════════════════════
+                La barre reprend donc le fond de la page. Ce qui separe le
+                haut de l'ecran du reste, ce sont les cartes blanches et
+                leur ombre — ce qui suffit, et ne teinte rien.
                 */
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                    containerColor = BgPrimary
                 )
             )
         },
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        modifier = Modifier.background(
-            androidx.compose.ui.graphics.Brush.verticalGradient(
-                0f to AccentBlueDark,
-                0.38f to AccentBlue,
-                1f to BgPrimary,
-                startY = 0f,
-                endY = finDuBandeau
-            )
-        )
+        containerColor = BgPrimary
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
