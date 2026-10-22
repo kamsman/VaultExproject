@@ -498,94 +498,25 @@ fun SendScreen(navController: NavController) {
                 }
                 /*
                 ═══════════════════════════════════════════════════════════
-                LE SEUL CHAMP D'UNE VENTE : OU RECEVOIR LES FRANCS
+                LE NUMERO N'EST PLUS DEMANDE ICI
                 ═══════════════════════════════════════════════════════════
 
-                Tout le reste de cet ecran est impose par la demande —
-                adresse, montant, chaine. Celui-ci ne l'est pas, et il ne
-                peut pas l'etre : une adresse de chaine ne dit rien d'un
-                numero Orange Money.
+                Il l'etait, et c'etait une erreur de place. Le seul endroit
+                ou donner son numero se trouvait derriere cet ecran — qui
+                peut ne pas s'ouvrir. Quand il ne s'est pas ouvert, il ne
+                restait plus aucun moyen de dire ou l'on veut etre paye.
 
-                IL EST ICI, AVANT LE BOUTON, parce que l'envoi est
-                irreversible. Le demander apres laisserait quelqu'un avec
-                ses fonds partis et aucun endroit ou etre paye.
+                Le numero appartient a la VENTE : il dit ou le changeur
+                doit payer. L'envoi, lui, ne fait que deplacer de la
+                crypto. Il est donc collecte dans le parcours qui en a
+                besoin, et le bouton de vente reste eteint tant qu'il
+                manque — ainsi on ne part jamais sans lui.
 
-                Et il ETEINT LE BOUTON tant qu'il n'est pas complet. Huit
-                chiffres : la meme regle que l'ecran de change, et pour la
-                meme raison — un chiffre de travers envoie les francs chez
-                un inconnu, sans recours.
+                IL RESTE LU ET AFFICHE ICI. L'ecran de confirmation le
+                montre en gros, groupe par deux, juste avant le PIN :
+                c'est le dernier endroit ou une erreur de memoire peut
+                encore etre vue.
                 */
-                if (state.verrouParChange) {
-                    SendCard(fond = false) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SendField(
-                                value = state.numeroPaiement,
-                                onValueChange = { viewModel.setNumeroPaiement(it) },
-                                placeholder = stringResource(R.string.change_telephone_vente_exemple),
-                                keyboardType = KeyboardType.Phone,
-                                modifier = Modifier.weight(1f),
-                                fond = false,
-                                isError = state.numeroPaiement.isNotBlank() &&
-                                    !state.numeroPaiementValide
-                            )
-                        }
-                    }
-                    Text(
-                        stringResource(R.string.change_telephone_vente),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextSecondary
-                    )
-                    /*
-                    ═══════════════════════════════════════════════════════
-                    LA CONFIRMATION, QUAND LE NUMERO EST NOUVEAU
-                    ═══════════════════════════════════════════════════════
-
-                    Elle n'apparait pas quand le numero vient de la derniere
-                    vente : le confirmer serait recopier un chiffre qu'on a
-                    sous les yeux, et au troisieme passage on le ferait sans
-                    regarder. Une verification qu'on execute machinalement
-                    ne verifie plus.
-
-                    Elle apparait a la PREMIERE saisie, et le jour ou l'on
-                    change de numero — qui est une premiere saisie deguisee.
-                    C'est la que le risque est.
-                    */
-                    if (state.confirmationDemandee) {
-                        Spacer(Modifier.height(10.dp))
-                        SendCard(fond = false) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                SendField(
-                                    value = state.numeroConfirmation,
-                                    onValueChange = { viewModel.setNumeroConfirmation(it) },
-                                    placeholder = stringResource(
-                                        R.string.change_telephone_vente_exemple
-                                    ),
-                                    keyboardType = KeyboardType.Phone,
-                                    modifier = Modifier.weight(1f),
-                                    fond = false,
-                                    isError = state.numerosDifferents
-                                )
-                            }
-                        }
-                        Text(
-                            stringResource(
-                                if (state.numerosDifferents) R.string.change_numero_different
-                                else R.string.change_numero_confirme
-                            ),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (state.numerosDifferents) AccentRed else TextSecondary
-                        )
-                    }
-                    Spacer(Modifier.height(10.dp))
-                }
                 Button(
                     onClick = {
                         vibrer()
