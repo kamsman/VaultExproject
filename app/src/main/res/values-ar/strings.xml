@@ -1206,6 +1206,8 @@
     <string name="change_replier">إخفاء التفاصيل</string>
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
     <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
+    <string name="change_vente_partie_titre">بيعك في طريقه</string>
+    <string name="change_vente_partie_detail">سيرسل الصرّاف فرنكاتك إلى %1$s. اضغط «تم» لإحالة طلبك إليه.</string>
     <string name="assistance_titre">المساعدة</string>
     <string name="assistance_statut_actif">إجابات آلية وفورية</string>
     <string name="assistance_statut_muet">الخدمة غير متاحة حاليًا</string>
