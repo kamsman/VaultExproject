@@ -252,8 +252,36 @@ fun ChangeScreen(navController: NavController) {
         },
         containerColor = BgPrimary
     ) { padding ->
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE CLAVIER RECOUVRAIT LE CHAMP QU'ON VENAIT D'OUVRIR
+        ═══════════════════════════════════════════════════════════════
+
+        Signale sur capture : en touchant « Numéro Mobile Money où
+        recevoir », le clavier montait et le champ restait dessous. On
+        tapait huit chiffres sans les voir.
+
+        LE MANIFESTE DIT POURTANT `adjustResize`. Il ne suffit plus : à
+        partir d'Android 15, un `targetSdk` de 35 ou plus impose le bord à
+        bord, et la fenêtre n'est PLUS redimensionnée par le système. C'est
+        à la composition de réserver la place, et rien ne le faisait ici.
+
+        `imePadding` est posé AVANT `verticalScroll` : il réduit alors la
+        fenêtre de défilement elle-même. Le champ qui prend le focus se
+        ramène tout seul dans cette fenêtre — c'est le système de focus de
+        Compose qui s'en charge, à condition que la fenêtre connaisse sa
+        vraie hauteur. Posé après, il n'aurait rogné que le contenu, et le
+        défilement aurait continué de croire disposer de tout l'écran.
+
+        Six autres écrans de l'application l'emploient déjà — l'assistance,
+        l'import de phrase, la feuille d'options. Celui-ci avait été oublié,
+        et il est le seul où l'on saisisse un numéro qui décide d'un
+        paiement.
+        ═══════════════════════════════════════════════════════════════
+        */
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().padding(padding).imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             /*
             DIX POINTS ET NON QUATORZE.
@@ -1303,7 +1331,28 @@ private fun ColumnScope.EtapePaiement(
                 C'est ce qu'on colle dans le champ Montant d'un exchange, et
                 une unité collée avec ferait refuser la saisie.
                 */
-                Note(stringResource(R.string.change_montant_exact_note), AccentOrange)
+                /*
+                ═══════════════════════════════════════════════════════
+                LA NOTE SUR LE MONTANT AJUSTE EST RETIREE
+                ═══════════════════════════════════════════════════════
+
+                Elle disait : « Ce montant a ete ajuste a partir du tien :
+                ses decimales identifient TON versement. Envoie-le
+                exactement — arrondi, il ne sera pas reconnu. »
+
+                Retiree sur demande, et je dois dire ce qu'elle protegeait :
+                c'etait la seule phrase qui disait de NE PAS ARRONDIR. Le
+                libelle « Montant exact » le sous-entend ; cette note
+                l'enoncait, avec la consequence.
+
+                Ce qui reste pour tenir ce role : le libelle, le bouton de
+                copie a cote du chiffre — qui est la bonne facon de le
+                reporter, et la seule qui ne perde aucune decimale — et le
+                fait que le relais cherche precisement ce montant-la. Un
+                versement arrondi n'est pas perdu, mais il n'est pas trouve
+                tout seul : il faudra coller le hash a la main.
+                ═══════════════════════════════════════════════════════
+                */
                 /*
                 ═══════════════════════════════════════════════════════
                 CE QU'ON VA RECEVOIR, PARCE QU'IL A CHANGE
@@ -2983,6 +3032,33 @@ private fun BornesChange(
     // incohérent, et l'annoncer ferait lire une règle impossible à tenir.
     if (maxFcfa <= minFcfa) return
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    PLUS DE BORNES A LA VENTE
+    ═══════════════════════════════════════════════════════════════════
+
+    « Entre ≈ 1 USDT-BNB et ≈ 89 USDT-BNB » occupait une ligne entiere
+    sous le champ pour dire ce que le champ dit deja mieux.
+
+    Le solde est affiche en haut de la carte, avec son bouton « Tout » qui
+    donne le plus grand montant vendable — donc la borne haute est la,
+    sous forme de valeur a toucher plutot que de nombre a lire. Et la
+    borne basse se decouvre en une seconde : si le montant est trop petit,
+    le message rouge le dit avec le chiffre exact.
+
+    Une regle annoncee d'avance pour un champ ou l'on tape un entier entre
+    un et quatre-vingt-neuf n'informe personne. Elle remplissait surtout
+    l'espace entre le champ et le resultat.
+
+    A L'ACHAT, ELLE RESTE. Les bornes y sont en francs — « Entre 500 FCFA
+    et 50 000 FCFA » — et la ligne porte le raccourci « MAX », qui ecrit
+    le plafond dans le champ. Il n'y a pas de solde a l'achat, donc pas de
+    bouton « Tout » : cette ligne est le seul endroit ou le plafond se
+    lise et se saisisse.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (!enFcfa) return
+
     val texte = if (enFcfa) {
         stringResource(R.string.change_bornes, "${fcfa(minFcfa)} FCFA", "${fcfa(maxFcfa)} FCFA")
     } else {
@@ -3616,34 +3692,34 @@ private fun CarteMontantChange(
                                     et `fillMaxWidth` remplit cette borne-la au
                                     lieu de l'ecran.
                                     */
-                                    .widthIn(max = 300.dp)
+                                    .widthIn(max = 250.dp)
                                     .fillMaxWidth()
                                     .background(
                                         if (actuelle) AccentBlue.copy(alpha = 0.08f)
                                         else Color.Transparent
                                     )
                                     .clickable { onMonnaie(m); listeOuverte = false }
-                                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(9.dp)
                             ) {
                                 coil.compose.AsyncImage(
                                     model = com.vaultex.ui.components.CryptoIcon.url(m),
                                     contentDescription = null,
-                                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                                    modifier = Modifier.size(32.dp).clip(CircleShape)
                                 )
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         m,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
+                                        fontSize = 16.sp,
                                         color = TextPrimary,
                                         maxLines = 1
                                     )
                                     reseauDe(m)?.let { r ->
                                         Text(
                                             r,
-                                            fontSize = 13.sp,
+                                            fontSize = 10.sp,
                                             color = AccentOrange,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
@@ -3654,7 +3730,7 @@ private fun CarteMontantChange(
                                     coil.compose.AsyncImage(
                                         model = com.vaultex.ui.components.CryptoIcon.url(c),
                                         contentDescription = null,
-                                        modifier = Modifier.size(26.dp).clip(CircleShape)
+                                        modifier = Modifier.size(20.dp).clip(CircleShape)
                                     )
                                 }
                                 if (actuelle) {
@@ -3662,12 +3738,12 @@ private fun CarteMontantChange(
                                         Icons.Default.CheckCircle,
                                         null,
                                         tint = AccentBlue,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 } else {
                                     Box(
                                         Modifier
-                                            .size(24.dp)
+                                            .size(22.dp)
                                             .clip(CircleShape)
                                             .border(
                                                 2.dp,
