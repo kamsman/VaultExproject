@@ -104,6 +104,39 @@ fun ChangeScreen(navController: NavController) {
     val state by vm.state.collectAsState()
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ON RELIT LE DISQUE A CHAQUE FOIS QUE CET ECRAN REVIENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'EST LA LIGNE QUI MANQUAIT, et son absence suffisait a ce qu'aucune
+    vente n'arrive jamais chez le changeur.
+
+    L'ecran d'envoi ecrit le hash sur le disque, puis « Termine » fait
+    `popBackStack(Routes.CHANGE, false)`. On REVIENT sur l'entree de pile
+    existante : le ViewModel, lui, est attache a cette entree et survit.
+    Son `init` ne rejoue pas, `charger()` ne rejoue pas, `reprendre()` non
+    plus — et c'etait le seul endroit qui allait lire ce hash.
+
+    Resultat : le hash restait sur le disque, la demande ne partait pas, et
+    RIEN NE LE SIGNALAIT. Pas de message d'erreur, pas d'ecran en attente.
+    Seul le canal Telegram du changeur, vide, le disait.
+
+    Le composable, lui, QUITTE la composition quand on part vers l'ecran
+    d'envoi et y REVIENT au retour — le NavHost ne compose que la
+    destination courante. Un `LaunchedEffect(Unit)` rejoue donc exactement
+    aux deux moments ou il faut relire : la premiere ouverture, et chaque
+    retour.
+
+    A la premiere ouverture, `charger()` est encore en vol et la reference
+    est vide : le ramassage ne trouve rien et rend faux, sans effet. C'est
+    `reprendre()`, a la fin de `charger()`, qui s'en charge dans ce cas-la.
+    Les deux chemins ne se marchent pas dessus — la marque est consommee
+    des qu'elle est lue.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    LaunchedEffect(Unit) { vm.ramasserEnvoi() }
+
 
     /*
     ═══════════════════════════════════════════════════════════════════════
