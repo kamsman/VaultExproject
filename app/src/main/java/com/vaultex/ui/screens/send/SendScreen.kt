@@ -639,10 +639,41 @@ fun SendScreen(navController: NavController) {
             qu'ils sont : la structure de l'écran. On voit d'un coup d'œil
             qu'il y a deux choses à renseigner.
             */
-            Text(
-                stringResource(R.string.send_recipient_label),
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
-            )
+            /*
+            ═══════════════════════════════════════════════════════════════
+            SOUS VERROU, LA MOITIE DE CET ECRAN NE SERT PLUS A RIEN
+            ═══════════════════════════════════════════════════════════════
+
+            Quatre elements disparaissent quand l'ecran est ouvert par une
+            vente : le titre « Destinataire », le scanner de QR, le carnet
+            d'adresses et le rappel « Vérifiez l'adresse ».
+
+            ILS NE SONT PAS SEULEMENT INUTILES, ILS MENTENT. L'adresse est
+            celle du changeur, elle est deja posee, et le champ est en
+            lecture seule — c'est tout l'interet du verrou. Un bouton de
+            scan et un lien vers le carnet promettent de la REMPLACER, ce
+            que l'ecran refusera. On propose un geste qu'on empeche.
+
+            « Vérifiez l'adresse » est du meme ordre : verifier par rapport
+            a quoi ? Personne ne l'a tapee, personne ne l'a collee. Elle
+            vient du relais, sur une demande dont la reference est deja
+            emise. La consigne ne designe aucune action possible.
+
+            Et « Destinataire » nomme une section qui n'en est plus une :
+            il ne reste qu'une adresse a lire, dans une carte.
+
+            SUR UN ENVOI ORDINAIRE, TOUT RESTE. Le carnet est le seul
+            raccourci qui evite de retaper une adresse a la main, et
+            retaper une adresse est exactement ce qui fait perdre des
+            fonds. Le scanner et la consigne de reseau avec lui.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (!state.verrouParChange) {
+                Text(
+                    stringResource(R.string.send_recipient_label),
+                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+                )
+            }
             SendCard(fond = false) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SendField(
@@ -668,23 +699,28 @@ fun SendScreen(navController: NavController) {
                     // Trait vertical : sans fond ni contour propre, plus rien
                     // ne séparait la zone de saisie du scanner. Le trait fait
                     // ce travail avec une frontière au lieu de deux.
-                    Box(Modifier.height(26.dp).width(1.dp).background(BorderColor))
-                    // Le pavé gris derrière le scanner disparaît : le champ et
-                    // lui sont déjà dans la même carte, deux fonds emboîtés
-                    // n'ajoutaient qu'une frontière de plus à lire.
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { navController.navigate(Routes.SCANNER) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.QrCodeScanner,
-                            contentDescription = stringResource(R.string.qr_label),
-                            tint = AccentBlue,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    //
+                    // IL PART AVEC LE SCANNER : un trait qui ne separe plus
+                    // rien n'est qu'une barre au milieu d'une carte.
+                    if (!state.verrouParChange) {
+                        Box(Modifier.height(26.dp).width(1.dp).background(BorderColor))
+                        // Le pavé gris derrière le scanner disparaît : le champ
+                        // et lui sont déjà dans la même carte, deux fonds
+                        // emboîtés n'ajoutaient qu'une frontière de plus à lire.
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { navController.navigate(Routes.SCANNER) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.QrCodeScanner,
+                                contentDescription = stringResource(R.string.qr_label),
+                                tint = AccentBlue,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
                 if (state.toAddress.isNotEmpty() && !state.isAddressValid) {
@@ -720,19 +756,21 @@ fun SendScreen(navController: NavController) {
                 L'émoji cède la place à une icône, et le vert au violet : ce
                 lien ouvre un écran, il ne confirme rien.
                 */
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { navController.navigate(Routes.ADDRESS_BOOK) }
-                ) {
-                    Icon(Icons.Default.Contacts, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.address_book),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AccentBlue
-                    )
+                if (!state.verrouParChange) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { navController.navigate(Routes.ADDRESS_BOOK) }
+                    ) {
+                        Icon(Icons.Default.Contacts, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.address_book),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentBlue
+                        )
+                    }
                 }
             }
             /*
@@ -765,23 +803,25 @@ fun SendScreen(navController: NavController) {
             Pas de maxLines = 1 : sur un très petit écran ou avec une police
             système agrandie, la phrase se replie plutôt que d'être coupée.
             */
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.VerifiedUser, null,
-                    tint = AccentBlue.copy(alpha = 0.7f),
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.send_address_network_note, netFull),
-                    fontSize = 11.sp,
-                    color = TextSecondary.copy(alpha = 0.8f),
-                    lineHeight = 14.sp
-                )
-                // L'avertissement « le destinataire doit accepter le réseau… »
-                // a été retiré : le bandeau vert ci-dessus porte déjà la même
-                // consigne de vérification du réseau. Deux alertes qui disent
-                // la même chose n'en font lire aucune.
+            if (!state.verrouParChange) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.VerifiedUser, null,
+                        tint = AccentBlue.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.send_address_network_note, netFull),
+                        fontSize = 11.sp,
+                        color = TextSecondary.copy(alpha = 0.8f),
+                        lineHeight = 14.sp
+                    )
+                    // L'avertissement « le destinataire doit accepter le réseau… »
+                    // a été retiré : le bandeau vert ci-dessus porte déjà la même
+                    // consigne de vérification du réseau. Deux alertes qui disent
+                    // la même chose n'en font lire aucune.
+                }
             }
 
             Text(
