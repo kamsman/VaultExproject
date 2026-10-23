@@ -1115,7 +1115,7 @@
     <string name="change_montant_invalide">أدخل مبلغًا.</string>
     <string name="change_payer_titre">أرسل الدفعة</string>
     <string name="change_paiement_securise">دفع آمن</string>
-    <string name="change_envoyer_titre">أرسل العملة</string>
+    <string name="change_envoyer_titre">معاملة العملة الرقمية</string>
     <string name="change_vendre_maintenant">البيع الآن</string>
     <string name="change_crypto_partie">عملتك في طريقها. بقي إبلاغ الصرّاف — أكِّد أدناه.</string>
     <string name="change_numero">الرقم المستفيد</string>

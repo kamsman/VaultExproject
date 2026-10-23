@@ -1144,7 +1144,7 @@
     <string name="change_montant_invalide">Saisis un montant.</string>
     <string name="change_payer_titre">Envoie le paiement</string>
     <string name="change_paiement_securise">Paiement sécurisé</string>
-    <string name="change_envoyer_titre">Envoie la crypto</string>
+    <string name="change_envoyer_titre">Transaction crypto</string>
     <string name="change_vendre_maintenant">Vendre maintenant</string>
     <string name="change_crypto_partie">Ta crypto est partie. Il reste à prévenir le changeur — confirme ci-dessous.</string>
     <string name="change_numero">Numéro à créditer</string>
