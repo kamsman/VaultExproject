@@ -907,6 +907,7 @@
     <string name="send_confirm_irreversible">Check every detail carefully. Transactions are irreversible.</string>
     <string name="send_confirm_secured">Your transaction is secured and encrypted</string>
     <string name="send_processing_appbar">Sending %1$s</string>
+    <string name="send_appbar_vente">Sale %1$s</string>
     <string name="send_processing_title">Transaction in progress</string>
     <string name="send_processing_subtitle">Your transaction is being broadcast to the network.</string>
     <string name="send_processing_broadcasting">Broadcasting to the network…</string>
