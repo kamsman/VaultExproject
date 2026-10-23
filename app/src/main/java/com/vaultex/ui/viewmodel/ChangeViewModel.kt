@@ -902,12 +902,63 @@ class ChangeViewModel @Inject constructor(
         chaque ouverture deposerait la meme demande en boucle.
         ═══════════════════════════════════════════════════════════════════
         */
+        if (ramasserEnvoi(trace.reference)) return
+
+        val reprise = _state.value
+        if (reprise.sens == SensChange.VENTE ||
+            reprise.referencePaiementUtile.isNotBlank() || reprise.telephoneValide
+        ) {
+            demarrerVerification()
+        }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE RETOUR DE L'ECRAN D'ENVOI N'OUVRE PAS UN NOUVEL ECRAN DE CHANGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Et c'est pour ca que RIEN N'ARRIVAIT CHEZ LE CHANGEUR.
+
+    « Termine » fait `popBackStack(Routes.CHANGE, false)` — et c'est le bon
+    geste : l'ecran de change est SOUS nous dans la pile, il n'y a rien a
+    creer, seulement a revenir. Mais revenir sur une entree existante rend
+    le MEME ViewModel. `init` ne rejoue pas, `charger()` ne rejoue pas,
+    donc `reprendre()` non plus.
+
+    Le hash etait ecrit sur le disque, correctement, par l'ecran d'envoi.
+    Personne ne venait jamais le lire. La demande ne partait pas — pas
+    « avec un mauvais verdict », pas du tout. Aucun message, aucune erreur,
+    rien a l'ecran : la seule facon de s'en apercevoir etait de regarder le
+    canal du changeur et de n'y rien trouver.
+
+    Le commentaire de `onDone` disait pourtant exactement ce qui devait se
+    passer : l'ecran de change previent le changeur « tout seul, en
+    relisant ce que l'envoi vient d'ecrire sur le disque ». Il decrivait
+    une intention, pas le code — rien ne declenchait cette relecture.
+
+    Le ramassage est donc sorti de `reprendre()` pour etre appelable des
+    deux endroits : a la creation du ViewModel (application fermee puis
+    rouverte par Android) et au RETOUR SUR L'ECRAN (le cas courant, celui
+    de quelqu'un qui appuie sur « Termine »).
+
+    ─── APPELABLE AUTANT DE FOIS QU'ON VEUT ─────────────────────────────
+
+    La marque est consommee des qu'elle est lue, donc le second appel ne
+    trouve plus rien. Et un depot en cours ou deja fait est de toute facon
+    refuse par `transmettre`, qui sort sur `envoiEnCours`.
+
+    Rend vrai quand il a pris la main : l'appelant n'a alors plus a lancer
+    de recherche, elle vient de partir.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun ramasserEnvoi(reference: String = _state.value.reference): Boolean {
+        if (reference.isBlank()) return false
         val envoi = try {
             secureStorage.getEnvoiDeChange()
                 ?.let { gson.fromJson(it, EnvoiDeChange::class.java) }
         } catch (_: Exception) { null }
 
-        if (envoi != null && envoi.reference == trace.reference && envoi.hash.isNotBlank()) {
+        if (envoi != null && envoi.reference == reference && envoi.hash.isNotBlank()) {
             secureStorage.saveEnvoiDeChange(null)
             _state.update {
                 it.copy(
@@ -951,19 +1002,13 @@ class ChangeViewModel @Inject constructor(
                 _state.update { it.copy(depotAutoRestant = DEPOT_AUTO_ESSAIS) }
                 sauverTrace()
                 demarrerVerification()
-                return
+                return true
             }
             // Sans numero valide, il n'y a pas ou payer : on garde le hash
             // et l'ecran de paiement demande ce qui manque.
             sauverTrace()
         }
-
-        val reprise = _state.value
-        if (reprise.sens == SensChange.VENTE ||
-            reprise.referencePaiementUtile.isNotBlank() || reprise.telephoneValide
-        ) {
-            demarrerVerification()
-        }
+        return false
     }
 
     /** Ce que l'ecran d'envoi laisse derriere lui apres une vente. */
