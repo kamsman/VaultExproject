@@ -906,6 +906,8 @@
     <string name="send_confirm_title">تأكيد المعاملة</string>
     <string name="send_confirm_irreversible">تحقّق جيداً من كل التفاصيل. المعاملات غير قابلة للإلغاء.</string>
     <string name="send_confirm_secured">معاملتك مؤمّنة ومشفّرة</string>
+    <string name="send_confirm_subtitle">تحقّق من المعلومات قبل الإرسال</string>
+    <string name="send_confirm_noncustodial">تبقى أموالك تحت سيطرتك (غير وصائية)</string>
     <string name="send_processing_appbar">إرسال %1$s</string>
     <string name="send_appbar_vente">بيع %1$s</string>
     <string name="send_processing_title">المعاملة قيد التنفيذ</string>
