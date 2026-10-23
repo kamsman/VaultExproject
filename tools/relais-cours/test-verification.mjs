@@ -523,7 +523,21 @@ verifie('nombreFrancais : vide rend zero', nombreFrancais('') === 0)
 verifie('nombreFrancais : negatif rend zero', nombreFrancais('-3') === 0)
 
 verifie('formatMontant : retire les zeros de fin', formatMontant(8) === '8')
-verifie('formatMontant : garde les decimales utiles', formatMontant(0.00012345) === '0.00012345')
+verifie('formatMontant : garde les decimales utiles', formatMontant(0.00012345) === '0,00012345')
+/*
+LA VIRGULE, ET LES MILLIERS GROUPES.
+
+Vu sur un vrai message : « Crypto : 2,021 USDT-BNB » puis « Recu : 2.021
+USDT-BNB » — le meme nombre ecrit de deux facons, sur les deux lignes
+mêmes qui existent pour comparer l'annonce au versement. Sur deux USDT
+l'absurdite saute aux yeux ; sur « 1.132 » contre « 1 132 », non, et ici
+le point est un separateur de milliers.
+
+Tout le reste du message vient du telephone, deja a la francaise. Cette
+fonction est la seule du Worker qui mette un nombre en forme.
+*/
+verifie('formatMontant : virgule decimale', formatMontant(2.021) === '2,021')
+verifie('formatMontant : milliers groupes', formatMontant(1234567.89) === '1 234 567,89')
 
 verifie('dateCourteUtc : jour et heure', dateCourteUtc(1_760_000_000_000).length === 11, dateCourteUtc(1_760_000_000_000))
 verifie('dateCourteUtc : illisible rend vide', dateCourteUtc('x') === '')
@@ -564,7 +578,7 @@ const ordreType = {
   )
   const texte = l.join('\n')
   verifie('MESSAGE : un recu inferieur est signale', texte.includes('MOINS'), texte)
-  verifie('MESSAGE : le montant de la chaine est affiche', texte.includes('0.8'), texte)
+  verifie('MESSAGE : le montant de la chaine est affiche', texte.includes('0,8'), texte)
 }
 
 {
