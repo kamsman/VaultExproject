@@ -1177,6 +1177,7 @@
     <string name="change_telephone_vente">Numéro %1$s</string>
     <string name="change_telephone_vente_aide">8 chiffres.</string>
     <string name="change_numero_recevra">Numéro qui recevra tes francs</string>
+    <string name="change_vider">Effacer le numéro</string>
     <string name="change_telephone_vente_exemple">Ex. 70 12 34 56</string>
     <string name="change_numero_confirme">Retape le même numéro, pour être sûr.</string>
     <string name="change_numero_confirme_libelle">Confirme le numéro</string>

@@ -1148,6 +1148,7 @@
     <string name="change_telephone_vente">رقم %1$s</string>
     <string name="change_telephone_vente_aide">8 أرقام.</string>
     <string name="change_numero_recevra">الرقم الذي سيستلم فرنكاتك</string>
+    <string name="change_vider">مسح الرقم</string>
     <string name="change_telephone_vente_exemple">مثال 70 12 34 56</string>
     <string name="change_numero_confirme">أعد كتابة الرقم نفسه، للتأكد.</string>
     <string name="change_numero_confirme_libelle">أكِّد الرقم</string>
