@@ -1957,7 +1957,19 @@ private fun ColumnScope.EtapePaiement(
         */
         erreur = if (!achat && state.telephone.isNotBlank() && !state.telephoneValide) {
             stringResource(R.string.change_telephone_vente_aide)
-        } else null
+        } else null,
+        /*
+        LA CONSIGNE PORTE LE NOM DE L'OPERATEUR, comme le titre, et pour la
+        meme raison : il vient des parametres du relais, jamais de la
+        chaine. « Entrez votre numéro Orange Money » aujourd'hui, Moov le
+        jour ou le changeur en change.
+        */
+        sousTitre = if (achat) null else stringResource(
+            R.string.change_telephone_vente_consigne,
+            state.parametres?.operateur ?: "Mobile Money"
+        ),
+        marque = if (achat) null else R.drawable.logo_orange_money,
+        logoPastille = if (achat) null else R.drawable.logo_orange_money
     )
 
     /*
@@ -1986,7 +1998,28 @@ private fun ColumnScope.EtapePaiement(
             clavier = androidx.compose.ui.text.input.KeyboardType.Phone,
             erreur = if (state.numerosDifferents) {
                 stringResource(R.string.change_numero_different)
-            } else null
+            } else null,
+            /*
+            LA CONSIGNE MONTE SOUS LE TITRE. « Retape le même numéro, pour
+            être sûr » etait SOUS la case — c'est-a-dire apres l'avoir
+            remplie. Une consigne qu'on lit une fois le geste fait n'est
+            plus une consigne, c'est un commentaire.
+
+            L'aide sous la case ne la repete pas : `ChampChange` l'ecarte
+            quand elle est deja en sous-titre, et garde la place pour
+            l'erreur — « Les deux numéros ne sont pas identiques », qui
+            est la seule chose qui doive encore apparaitre la.
+            */
+            sousTitre = stringResource(R.string.change_numero_confirme),
+            /*
+            LA MARQUE DANS LA CASE, MAIS PAS EN PASTILLE. Ce champ ne
+            demande pas un numero d'operateur, il demande de REPETER celui
+            du dessus : son telephone bleu dit « meme chose qu'au-dessus »
+            la ou un second logo Orange Money ferait croire a un second
+            numero a fournir. Dans la case, en revanche, c'est bien le
+            meme numero Orange Money qu'on retape.
+            */
+            marque = R.drawable.logo_orange_money
         )
     }
     }
@@ -4155,7 +4188,59 @@ private fun ChampChange(
     icone: androidx.compose.ui.graphics.vector.ImageVector,
     clavier: androidx.compose.ui.text.input.KeyboardType,
     /** Ce qui cloche, ou null. Remplace l'aide et colore la bordure. */
-    erreur: String? = null
+    erreur: String? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UNE SECONDE LIGNE SOUS LE TITRE
+    ═══════════════════════════════════════════════════════════════════
+
+    Le titre NOMME le champ — « Numéro Orange Money ». Deux mots, et pour
+    qui decouvre l'ecran ils ne disent pas ce qu'on attend de lui : est-ce
+    le numero du changeur ? le mien ? celui qui a paye ?
+
+    La seconde ligne le dit a l'imperatif : « Entrez votre numéro Orange
+    Money ». C'est la meme difference qu'entre une etiquette et une
+    consigne, et c'est la consigne qui fait agir.
+
+    Elle remplace l'aide sous la case quand celle-ci ne servait qu'a ca —
+    la confirmation disait « Retape le même numéro, pour être sûr » SOUS
+    le champ, c'est-a-dire apres l'avoir rempli. Au-dessus, elle est lue
+    avant.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    sousTitre: String? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA MARQUE DANS LA CASE, PAS SEULEMENT DANS LE TITRE
+    ═══════════════════════════════════════════════════════════════════
+
+    Huit chiffres nus ne disent pas de quel reseau ils sont. Le logo pose
+    en tete de case, suivi d'un filet, repond avant qu'on ait lu le titre —
+    et c'est la seule information qui compte si l'on se trompe : un numero
+    Moov tape ici n'arrivera jamais.
+
+    C'est aussi la forme que prend le meme logo sur le bouton USSD, plus
+    bas : meme image, meme pastille noire. La marque demande ce fond noir
+    parce qu'une de ses deux fleches est orange et disparaitrait autrement.
+
+    FACULTATIF : les champs qui ne portent pas de numero d'operateur — une
+    reference de paiement, par exemple — n'ont aucune marque a montrer.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    marque: Int? = null,
+    /*
+    LA PASTILLE DE TETE PORTE LA MARQUE PLUTOT QU'UN PICTOGRAMME.
+
+    Un telephone bleu dit « ici on tape un numero », ce que le titre dit
+    deja. Le logo de l'operateur dit DE QUEL numero il s'agit, et c'est la
+    seule chose que le pictogramme ne pouvait pas dire.
+
+    Independant de `marque` : la confirmation garde son telephone en tete —
+    elle ne demande pas un numero d'operateur, elle demande de REPETER
+    celui du dessus — tout en portant la marque dans sa case, puisque c'est
+    le meme numero qu'on y retape.
+    */
+    logoPastille: Int? = null
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         /*
@@ -4213,29 +4298,53 @@ private fun ChampChange(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AccentBlue.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+            if (logoPastille != null) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(logoPastille),
+                    contentDescription = null,
+                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                )
+            } else {
+                Box(
+                    Modifier.size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                }
             }
             Spacer(Modifier.width(12.dp))
-            Text(
-                libelle,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                maxLines = 1
-            )
+            Column {
+                Text(
+                    libelle,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    maxLines = 1
+                )
+                sousTitre?.let {
+                    Text(it, fontSize = 13.sp, color = TextSecondary, maxLines = 1)
+                }
+            }
         }
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = BgTertiary.copy(alpha = 0.6f),
-            border = if (erreur != null) {
-                androidx.compose.foundation.BorderStroke(1.dp, AccentRed)
-            } else null,
+            /*
+            UN CONTOUR PERMANENT, ET NON SEULEMENT EN CAS D'ERREUR.
+
+            La case n'avait qu'un fond gris leger. Sur le fond gris leger
+            de la carte, la frontiere tenait a une nuance — et c'est la
+            zone ou il faut appuyer. La maquette lui donne un trait fin.
+
+            Rouge quand quelque chose cloche : le meme trait, une autre
+            couleur, donc rien ne bouge dans la mise en page au moment ou
+            l'erreur apparait.
+            */
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp, if (erreur != null) AccentRed else BgTertiary
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -4244,6 +4353,19 @@ private fun ChampChange(
                     .padding(start = 14.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                marque?.let { image ->
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(image),
+                        contentDescription = null,
+                        modifier = Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        Modifier.height(24.dp).width(1.dp)
+                            .background(BgTertiary)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
                 androidx.compose.foundation.text.BasicTextField(
                     value = valeur,
                     onValueChange = onValeur,
@@ -4286,11 +4408,23 @@ private fun ChampChange(
                 }
             }
         }
-        Text(
-            erreur ?: aide,
-            fontSize = 11.sp,
-            color = if (erreur != null) AccentRed else TextSecondary
-        )
+        /*
+        L'AIDE NE S'AFFICHE PLUS DEUX FOIS. Quand elle est passee en
+        sous-titre, la repeter sous la case ferait lire la meme phrase a
+        dix points d'intervalle.
+
+        L'ERREUR, ELLE, RESTE TOUJOURS LA. C'est le seul endroit sous le
+        champ ou quelque chose apparaisse, et elle doit pouvoir y
+        apparaitre meme quand l'aide est partie en haut.
+        */
+        val sousLaCase = erreur ?: aide.takeIf { it.isNotBlank() && it != sousTitre }
+        sousLaCase?.let {
+            Text(
+                it,
+                fontSize = 11.sp,
+                color = if (erreur != null) AccentRed else TextSecondary
+            )
+        }
     }
 }
 

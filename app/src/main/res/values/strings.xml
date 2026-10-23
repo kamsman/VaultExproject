@@ -1179,6 +1179,7 @@
     <string name="change_historique_note">Cette liste est celle de tes demandes, enregistrée sur ton téléphone. Elle ne prouve pas un paiement — elle te permet de citer une référence exacte si tu dois réclamer.</string>
     <string name="change_telephone_vente">Numéro %1$s</string>
     <string name="change_telephone_vente_aide">8 chiffres.</string>
+    <string name="change_telephone_vente_consigne">Entrez votre numéro %1$s</string>
     <string name="change_numero_recevra">Numéro qui recevra tes francs</string>
     <string name="change_vider">Effacer le numéro</string>
     <string name="change_telephone_vente_exemple">Ex. 70 12 34 56</string>

@@ -1150,6 +1150,7 @@
     <string name="change_historique_note">هذه قائمة طلباتك، محفوظة على هاتفك. هي لا تُثبت الدفع — لكنها تتيح لك ذكر مرجع دقيق إذا احتجت إلى المطالبة.</string>
     <string name="change_telephone_vente">رقم %1$s</string>
     <string name="change_telephone_vente_aide">8 أرقام.</string>
+    <string name="change_telephone_vente_consigne">أدخل رقم %1$s الخاص بك</string>
     <string name="change_numero_recevra">الرقم الذي سيستلم فرنكاتك</string>
     <string name="change_vider">مسح الرقم</string>
     <string name="change_telephone_vente_exemple">مثال 70 12 34 56</string>
