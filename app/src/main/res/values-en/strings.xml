@@ -1119,7 +1119,7 @@
     <string name="change_vendre_maintenant">Sell now</string>
     <string name="change_crypto_partie">Your crypto is on its way. Only the exchanger still needs telling — confirm below.</string>
     <string name="change_numero">Number to credit</string>
-    <string name="change_adresse">Destination address</string>
+    <string name="change_adresse">Address</string>
     <string name="change_beneficiaire">Recipient</string>
     <string name="change_montant_exact">Exact amount</string>
     <string name="change_reference">Your reference</string>
@@ -1145,8 +1145,9 @@
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
-    <string name="change_telephone_vente">Mobile Money number to receive on</string>
+    <string name="change_telephone_vente">%1$s number</string>
     <string name="change_telephone_vente_aide">8 digits.</string>
+    <string name="change_numero_recevra">Number that will receive your francs</string>
     <string name="change_telephone_vente_exemple">e.g. 70 12 34 56</string>
     <string name="change_numero_confirme">Type the same number again, to be sure.</string>
     <string name="change_numero_confirme_libelle">Confirm the number</string>

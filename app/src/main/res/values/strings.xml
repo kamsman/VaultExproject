@@ -1148,7 +1148,7 @@
     <string name="change_vendre_maintenant">Vendre maintenant</string>
     <string name="change_crypto_partie">Ta crypto est partie. Il reste à prévenir le changeur — confirme ci-dessous.</string>
     <string name="change_numero">Numéro à créditer</string>
-    <string name="change_adresse">Adresse de destination</string>
+    <string name="change_adresse">Adresse</string>
     <string name="change_beneficiaire">Bénéficiaire</string>
     <string name="change_montant_exact">Montant exact</string>
     <string name="change_reference">Ta référence</string>
@@ -1174,8 +1174,9 @@
     <string name="change_copier_reference">Copier la référence</string>
     <string name="change_historique_titre">Mes dernières demandes</string>
     <string name="change_historique_note">Cette liste est celle de tes demandes, enregistrée sur ton téléphone. Elle ne prouve pas un paiement — elle te permet de citer une référence exacte si tu dois réclamer.</string>
-    <string name="change_telephone_vente">Numéro Mobile Money où recevoir</string>
+    <string name="change_telephone_vente">Numéro %1$s</string>
     <string name="change_telephone_vente_aide">8 chiffres.</string>
+    <string name="change_numero_recevra">Numéro qui recevra tes francs</string>
     <string name="change_telephone_vente_exemple">Ex. 70 12 34 56</string>
     <string name="change_numero_confirme">Retape le même numéro, pour être sûr.</string>
     <string name="change_numero_confirme_libelle">Confirme le numéro</string>
