@@ -1212,6 +1212,7 @@
     <string name="change_prix_garanti">Price guaranteed for</string>
     <string name="change_prix_expire">The displayed price is no longer guaranteed — go back to the calculation if you have not sent yet.</string>
     <string name="change_vente_partie_titre">Your sale is on its way</string>
+    <string name="change_vente_preparation">Preparing your sale…</string>
     <string name="change_vente_partie_detail">The exchanger will send your francs to %1$s. Tap Done to pass your request on to him.</string>
     <string name="assistance_titre">Support</string>
     <string name="assistance_statut_actif">Automatic, instant answers</string>

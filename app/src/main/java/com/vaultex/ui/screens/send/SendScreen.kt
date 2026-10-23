@@ -348,11 +348,56 @@ fun SendScreen(navController: NavController) {
         return
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, LE FORMULAIRE ET LA CONFIRMATION N'EN FONT PLUS QU'UN
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'etaient deux ecrans pour lire DEUX FOIS LA MEME CHOSE.
+
+    Le formulaire d'envoi ne demandait plus rien : plus de scanner, plus de
+    carnet, plus de saisie — l'adresse, le montant et le numero viennent
+    tous de l'ecran de change, et les champs sont en lecture seule. Il
+    montrait l'adresse, le montant, les frais, le total, puis
+    « Continuer ». L'ecran suivant montrait l'adresse, le montant, les
+    frais, le total, puis « Confirmer ».
+
+    Un bouton entre deux lectures identiques n'est pas une securite, c'est
+    un pas de plus. Et chaque pas de plus sur un parcours d'argent est un
+    endroit ou quelqu'un s'arrete.
+
+    La confirmation est celui des deux qui reste : c'est lui qui porte le
+    numero Orange Money en gros, l'ecusson, la mention non-custodial et le
+    couple Annuler / Confirmer. Le formulaire n'avait que « Continuer ».
+
+    ─── ON N'Y ENTRE QUE QUAND TOUT EST PRET ───────────────────────────
+
+    `venteChange` dit « une vente arrive », des la premiere image.
+    `verrouParChange` dit « l'adresse et le montant sont poses ». Entre les
+    deux, les frais se calculent. Afficher la confirmation avant la fin
+    ferait lire un total faux, et pire : la rendrait confirmable.
+
+    La condition est exactement celle qui allumait « Continuer » sur le
+    formulaire — meme exigence, meme garde-fou, un ecran de moins.
+
+    ─── ET « ANNULER » RAMENE AU CHANGE ────────────────────────────────
+
+    Il remettait `showConfirm` a faux, c'est-a-dire qu'il revenait au
+    formulaire. Celui-ci n'existe plus sur une vente : on sort de l'ecran.
+    La demande n'est pas perdue — sa trace est sur le disque depuis la
+    confirmation du prix, et l'ecran de change la reprend.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val ventePrete = state.venteChange && state.verrouParChange &&
+        state.isAddressValid && state.amount.isNotEmpty() && state.numeroPret
+
     // ── ÉCRAN CONFIRMATION (plein écran) ──
-    if (showConfirm) {
+    if (showConfirm || ventePrete) {
         SendConfirmScreen(
             detail = detail,
-            onCancel = { showConfirm = false },
+            onCancel = {
+                if (state.venteChange) navController.popBackStack() else showConfirm = false
+            },
             onConfirm = {
                 showConfirm = false
                 vibrer()
@@ -375,6 +420,48 @@ fun SendScreen(navController: NavController) {
                 }
             }
         )
+        return
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE TEMPS QUE LA VENTE SE PREPARE, ON NE MONTRE PAS LE FORMULAIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Entre l'arrivee sur l'ecran et `ventePrete`, il se passe quelques
+    centaines de millisecondes : la chaine se choisit, l'adresse se valide,
+    le montant se pose, les frais se calculent. Sans ce garde, le
+    formulaire d'envoi s'afficherait pendant ce temps avant de ceder la
+    place a la confirmation — un ecran qui apparait et disparait se lit
+    comme un bug, et sur un ecran d'argent ca suffit a faire reculer.
+
+    SI LA PREPARATION ECHOUE, ON RESTE ICI. C'est un choix : le cas est
+    celui ou `appliquerVenteChange` abandonne apres deux secondes d'attente
+    — la chaine n'a pas pu etre posee. Rendre la main au formulaire
+    laisserait alors quelqu'un envoyer a la main, sans verrou, un montant
+    qu'il aurait pu arrondir : c'est exactement le versement que le relais
+    ne reconnaitra pas. Mieux vaut un ecran qui attend, et un retour.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (state.venteChange) {
+        SendStatusScaffold(
+            title = "${stringResource(R.string.change_vendre)} $coinTitle",
+            onRetour = { navController.popBackStack() }
+        ) {
+            Spacer(Modifier.height(60.dp))
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
+                Text(
+                    stringResource(R.string.change_vente_preparation),
+                    fontSize = 14.sp,
+                    color = TextSecondary
+                )
+            }
+        }
         return
     }
 
