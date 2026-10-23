@@ -1120,7 +1120,7 @@
     <string name="change_paiement_securise">دفع آمن</string>
     <string name="change_envoyer_titre">معاملة العملة الرقمية</string>
     <string name="change_vendre_maintenant">البيع الآن</string>
-    <string name="change_crypto_partie">عملتك في طريقها. بقي إبلاغ الصرّاف — أكِّد أدناه.</string>
+    <string name="change_crypto_partie">عملتك في طريقها. بقي إبلاغ VaultEx — أكِّد أدناه.</string>
     <string name="change_numero">الرقم المستفيد</string>
     <string name="change_adresse">العنوان</string>
     <string name="change_beneficiaire">المستفيد</string>
@@ -1140,7 +1140,7 @@
     <string name="change_jai_paye_verifie">تم التحقق من الدفعة — تأكيد</string>
     <string name="change_retour">العودة إلى الحساب</string>
     <string name="change_transmis_titre">تم إرسال الطلب</string>
-    <string name="change_transmis_detail">وصل طلبك %1$s إلى الصرّاف. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
+    <string name="change_transmis_detail">خرج طلبك %1$s. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="action_acheter">شراء</string>
     <string name="change_telephone_aide">الرقم الذي دفع.</string>
@@ -1188,8 +1188,8 @@
     <string name="change_verif_achat_impossible">التحقق التلقائي غير متاح</string>
     <string name="change_verif_achat_impossible_detail">لا يستطيع المُرحِّل قراءة مقبوضات الصرّاف. لا شيء مُثبت ولا مَنفي: يمكنك الإرسال، وسيتحقق هو من كشفه.</string>
     <string name="change_verif_achat_impossible_detail_raison">لا يستطيع المُرحِّل قراءة مقبوضات الصرّاف: %1$s. لا شيء مُثبت ولا مَنفي: يمكنك الإرسال، وسيتحقق هو من كشفه.</string>
-    <string name="change_transmis_verifie">استلم الصرّاف طلبك مع تأكيد السلسلة. ولا شيء آخر يطلبه منك.</string>
-    <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق الصرّاف من محفظته قبل الدفع: احتفظ بمرجعك.</string>
+    <string name="change_transmis_verifie">استلم VaultEx طلبك مع تأكيد السلسلة. ولا شيء آخر سيُطلب منك.</string>
+    <string name="change_transmis_non_verifie">خرج طلبك دون تأكيد من السلسلة. سيتحقق VaultEx من التحويل قبل الدفع: احتفظ بمرجعك.</string>
     <string name="change_tu_donnes">تُعطي</string>
     <string name="change_tu_recois">تستلم</string>
     <string name="change_tu_recevras">ستستلم</string>
@@ -1215,12 +1215,12 @@
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
     <string name="vente_traitement_titre">بيعك في طريق الإرسال</string>
-    <string name="vente_traitement_sous">يتم إرسال عملتك إلى الصرّاف.</string>
+    <string name="vente_traitement_sous">يتم إرسال عملتك إلى VaultEx.</string>
     <string name="vente_traitement_etape">جارٍ إرسال العملة…</string>
-    <string name="vente_traitement_ne_ferme_pas">يُرسَل طلبك إلى الصرّاف مباشرة بعد ذلك. ابقَ هنا بضع ثوانٍ.</string>
+    <string name="vente_traitement_ne_ferme_pas">يُرسَل طلبك مباشرة بعد ذلك. ابقَ هنا بضع ثوانٍ.</string>
     <string name="vente_recu_titre">تم إرسال العملة</string>
     <string name="vente_recu_francs">%1$s فرنك</string>
-    <string name="change_vente_partie_detail">سيرسل الصرّاف فرنكاتك إلى %1$s. اضغط «تم» لإحالة طلبك إليه.</string>
+    <string name="change_vente_partie_detail">سيرسل VaultEx فرنكاتك إلى %1$s. اضغط «تم» لإرسال طلبك.</string>
     <string name="assistance_titre">المساعدة</string>
     <string name="assistance_statut_actif">إجابات آلية وفورية</string>
     <string name="assistance_statut_muet">الخدمة غير متاحة حاليًا</string>

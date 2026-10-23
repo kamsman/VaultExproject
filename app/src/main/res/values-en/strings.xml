@@ -1120,7 +1120,7 @@
     <string name="change_paiement_securise">Secure payment</string>
     <string name="change_envoyer_titre">Crypto transaction</string>
     <string name="change_vendre_maintenant">Sell now</string>
-    <string name="change_crypto_partie">Your crypto is on its way. Only the exchanger still needs telling — confirm below.</string>
+    <string name="change_crypto_partie">Your crypto is on its way. VaultEx still needs telling — confirm below.</string>
     <string name="change_numero">Number to credit</string>
     <string name="change_adresse">Address</string>
     <string name="change_beneficiaire">Recipient</string>
@@ -1140,7 +1140,7 @@
     <string name="change_jai_paye_verifie">Payment verified — confirm</string>
     <string name="change_retour">Back to the quote</string>
     <string name="change_transmis_titre">Request sent</string>
-    <string name="change_transmis_detail">Your request %1$s reached the exchanger. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
+    <string name="change_transmis_detail">Your request %1$s has gone out. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="action_acheter">Buy</string>
     <string name="change_telephone_aide">The number that made the payment.</string>
@@ -1188,8 +1188,8 @@
     <string name="change_verif_achat_impossible">Automatic check unavailable</string>
     <string name="change_verif_achat_impossible_detail">The relay cannot read the changer\'s incoming payments. Nothing is proven or disproven: you can send, and he will check his statement.</string>
     <string name="change_verif_achat_impossible_detail_raison">The relay cannot read the changer\'s incoming payments: %1$s. Nothing is proven or disproven: you can send, and he will check his statement.</string>
-    <string name="change_transmis_verifie">The exchanger received your request together with the chain\'s confirmation. He has nothing more to ask you.</string>
-    <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. The exchanger will check his wallet before paying: keep your reference.</string>
+    <string name="change_transmis_verifie">VaultEx received your request together with the chain\'s confirmation. Nothing more will be asked of you.</string>
+    <string name="change_transmis_non_verifie">Your request went out without the chain\'s confirmation. VaultEx will check the transfer before paying: keep your reference.</string>
     <string name="change_tu_donnes">You give</string>
     <string name="change_tu_recois">You receive</string>
     <string name="change_tu_recevras">You will receive</string>
@@ -1215,12 +1215,12 @@
     <string name="change_vente_partie_titre">Your sale is on its way</string>
     <string name="change_vente_preparation">Preparing your sale…</string>
     <string name="vente_traitement_titre">Your sale is going out</string>
-    <string name="vente_traitement_sous">Your crypto is being sent to the exchanger.</string>
+    <string name="vente_traitement_sous">Your crypto is being sent to VaultEx.</string>
     <string name="vente_traitement_etape">Sending the crypto…</string>
-    <string name="vente_traitement_ne_ferme_pas">Your request goes to the exchanger right after. Stay here a few seconds.</string>
+    <string name="vente_traitement_ne_ferme_pas">Your request goes out right after. Stay here a few seconds.</string>
     <string name="vente_recu_titre">Crypto sent</string>
     <string name="vente_recu_francs">%1$s FCFA</string>
-    <string name="change_vente_partie_detail">The exchanger will send your francs to %1$s. Tap Done to pass your request on to him.</string>
+    <string name="change_vente_partie_detail">VaultEx will send your francs to %1$s. Tap Done to send your request.</string>
     <string name="assistance_titre">Support</string>
     <string name="assistance_statut_actif">Automatic, instant answers</string>
     <string name="assistance_statut_muet">Service unreachable right now</string>

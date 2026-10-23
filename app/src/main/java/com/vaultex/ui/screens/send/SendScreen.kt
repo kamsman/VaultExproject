@@ -2582,34 +2582,78 @@ internal fun SendSuccessScreen(
                     detail.amountFiat?.let { Text(it, fontSize = 12.sp, color = TextSecondary) }
                 }
             }
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Send, stringResource(R.string.send_recipient_label),
-                shorten(detail.toAddress),
-                onCopy = { copier(detail.toAddress) }
-            )
-            if (estJeton) {
+            /*
+            ═══════════════════════════════════════════════════════════
+            SUR UNE VENTE, LE RECU TIENT DANS L'ECRAN
+            ═══════════════════════════════════════════════════════════
+
+            Il fallait faire defiler, et c'est le pire endroit pour ca : le
+            bloc qui dit « appuie sur Terminé pour transmettre ta demande »
+            est en haut, le bouton « Terminé » est en bas, et six lignes de
+            detail les separaient. On lisait la consigne, on cherchait le
+            bouton, et entre les deux on traversait des informations dont
+            aucune n'appelait de decision.
+
+            QUATRE LIGNES PARTENT, ET AUCUNE NE MANQUE :
+
+            — DESTINATAIRE. C'est l'adresse du changeur. La personne ne l'a
+              ni tapee, ni choisie, ni meme lue — elle lui a ete posee par
+              le relais. Elle ne peut rien en faire.
+
+            — RESEAU. « BEP20 · BNB Chain » etait un garde-fou du temps ou
+              l'on collait une adresse a la main : il fallait verifier
+              qu'on n'envoyait pas un BEP-20 sur Tron. Ici la chaine vient
+              de la demande, et la verifier n'a plus de sens.
+
+            — DATE. C'est l'instant ou l'on regarde l'ecran. Elle prend tout
+              son sens dans l'historique, dans une semaine ; pas la.
+
+            — ID DE TRANSACTION. Le bouton « Voir sur BscScan », juste en
+              dessous, EST ce hash. Et le rattrapage du changeur le relit
+              sur le disque, donc personne n'a plus a le recopier a la
+              main — c'etait sa derniere utilite.
+
+            RESTENT LE MONTANT ET LES FRAIS : ce qui est sorti du
+            portefeuille, et ce que ca a coute. Les deux seules lignes qui
+            repondent a « combien ai-je paye pour cette vente ».
+
+            SUR UN ENVOI ORDINAIRE, TOUT RESTE. L'adresse y a ete choisie,
+            le reseau verifie, et le hash est la seule trace qu'on ait a
+            donner si quelque chose cloche.
+            ═══════════════════════════════════════════════════════════
+            */
+            if (!vente) {
                 HorizontalDivider(color = BorderColor)
                 StatusRow(
-                    Icons.Default.Hub, stringResource(R.string.send_summary_network),
-                    detail.netFull
+                    Icons.Default.Send, stringResource(R.string.send_recipient_label),
+                    shorten(detail.toAddress),
+                    onCopy = { copier(detail.toAddress) }
                 )
+                if (estJeton) {
+                    HorizontalDivider(color = BorderColor)
+                    StatusRow(
+                        Icons.Default.Hub, stringResource(R.string.send_summary_network),
+                        detail.netFull
+                    )
+                }
             }
             HorizontalDivider(color = BorderColor)
             StatusRow(
                 Icons.Default.AccountBalanceWallet, stringResource(R.string.send_summary_fee),
                 detail.feeNative.ifEmpty { "…" }, detail.feeFiat
             )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Schedule, stringResource(R.string.send_success_date), sentAt
-            )
-            HorizontalDivider(color = BorderColor)
-            StatusRow(
-                Icons.Default.Receipt, stringResource(R.string.send_success_txid),
-                shorten(txHash),
-                onCopy = { copier(txHash) }
-            )
+            if (!vente) {
+                HorizontalDivider(color = BorderColor)
+                StatusRow(
+                    Icons.Default.Schedule, stringResource(R.string.send_success_date), sentAt
+                )
+                HorizontalDivider(color = BorderColor)
+                StatusRow(
+                    Icons.Default.Receipt, stringResource(R.string.send_success_txid),
+                    shorten(txHash),
+                    onCopy = { copier(txHash) }
+                )
+            }
         }
     }
 }
