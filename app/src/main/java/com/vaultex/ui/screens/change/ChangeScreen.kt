@@ -1905,9 +1905,34 @@ private fun ColumnScope.EtapePaiement(
     ChampChange(
         valeur = state.telephone,
         onValeur = vm::onTelephone,
-        libelle = stringResource(
-            if (achat) R.string.change_telephone else R.string.change_telephone_vente
-        ),
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE LIBELLE NOMME L'OPERATEUR, ET NE L'ECRIT PAS EN DUR
+        ═══════════════════════════════════════════════════════════════
+
+        C'etait « Numéro Mobile Money où recevoir ». Demande : « Numéro
+        Orange Money ». Plus court et plus juste — personne a Ouagadougou
+        ne dit « Mobile Money », on dit Orange Money ou Moov Money.
+
+        MAIS ON NE L'ECRIT PAS DANS LA CHAINE. Le relais donne deja le nom
+        de l'operateur dans ses parametres, et c'est lui qui apparait sur
+        le bouton USSD trois cents lignes plus bas. Le figer ici ferait
+        afficher « Orange Money » le jour ou le changeur passe a Moov —
+        c'est-a-dire envoyer des gens vers le mauvais operateur depuis un
+        libelle qu'aucun reglage ne corrige.
+
+        Le repli est « Mobile Money », pose par ChangeService quand le
+        relais ne dit rien : on perd en precision, jamais en justesse.
+        ═══════════════════════════════════════════════════════════════
+        */
+        libelle = if (achat) {
+            stringResource(R.string.change_telephone)
+        } else {
+            stringResource(
+                R.string.change_telephone_vente,
+                state.parametres?.operateur ?: "Mobile Money"
+            )
+        },
         exemple = stringResource(
             if (achat) R.string.change_telephone_exemple
             else R.string.change_telephone_vente_exemple

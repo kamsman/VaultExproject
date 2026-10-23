@@ -1775,7 +1775,21 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        stringResource(R.string.change_telephone_vente),
+                        /*
+                        PLUS « Numéro Mobile Money où recevoir » : ce
+                        libellé décrivait un CHAMP À REMPLIR, et il n'y a
+                        plus rien à remplir ici — le numéro est déjà pris,
+                        on le relit une dernière fois avant le PIN.
+
+                        Et il nomme désormais l'opérateur sur l'écran de
+                        change, ce que cet écran-ci ne peut pas faire : il
+                        ne reçoit pas les paramètres du relais, seulement le
+                        numéro. Plutôt qu'un « Mobile Money » générique —
+                        le terme que personne n'emploie ici — il dit ce que
+                        ce numéro VA FAIRE, qui est la seule chose à
+                        vérifier à cet instant.
+                        */
+                        stringResource(R.string.change_numero_recevra),
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
