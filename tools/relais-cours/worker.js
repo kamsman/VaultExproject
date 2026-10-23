@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 55
+const VERSION = 56
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2137,8 +2137,17 @@ de crypto n'a pas de sens, frais de reseau compris.
 LE PLUS HAUT DES DEUX GAGNE, la ou le plafond prend le plus bas. Les
 deux bornes se resserrent, jamais elles ne s'ouvrent.
 
-Format : {"BNB": 10}. Illisible ou nul, c'est `CHANGE_MINIMUMS` qui
-s'applique seul.
+Format : {"USDT": 10, "USDT-BNB": 10, "USDT-ETH": 10}. Illisible ou nul,
+c'est `CHANGE_MINIMUMS` qui s'applique seul.
+
+LA CLE EST LA MONNAIE ENTIERE, PAS SA CHAINE. « BNB » ne borne pas
+« USDT-BNB » : la recherche est une egalite exacte, des deux cotes. Un
+reglage de {"BNB": 10} sur un service qui ne propose que des USDT ne borne
+donc RIEN — il a ete en place des semaines sans effet, et c'est le genre de
+reglage inerte qu'on croit avoir pose.
+
+APPLIQUE ICI ET DANS L'APPLICATION. Voir le bloc des bornes dans
+`ordreChange` : le telephone l'affiche, le relais le refuse.
 ═══════════════════════════════════════════════════════════════════════════
 */
 function minimumsUsdChange(env) {
@@ -2425,6 +2434,66 @@ async function ordreChange(requete, env) {
   }
   if (fcfa > plafond) {
     return json({ ok: false, raison: `plafond ${plafond} FCFA` }, 0, 400)
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES BORNES EN DOLLARS VIVAIENT UNIQUEMENT DANS LE TÉLÉPHONE
+  ═══════════════════════════════════════════════════════════════════════
+
+  `CHANGE_MINIMUMS_USD` et `CHANGE_PLAFONDS_USD` étaient servis par
+  /change/parametres et appliqués par `ChangeState.blocage()`, qui éteint
+  le bouton. Rien ne les appliquait ICI.
+
+  C'est exactement le défaut que les trente lignes ci-dessus décrivent pour
+  le minimum en francs, et qu'elles ont fermé : « un réglage qui n'est
+  appliqué que par le client n'est pas un réglage, c'est une suggestion ».
+  Les bornes en dollars sont arrivées APRÈS cette correction, et personne
+  ne leur a appliqué sa conclusion. Un APK modifié, ou une requête postée
+  à la main sur cette adresse publique, passait sous le minimum.
+
+  ─── ON NE REJETTE PAS CE QU'ON N'A PAS PU MESURER ───────────────────
+
+  Le prix vient de Binance. S'il ne répond pas, `prixUsdDeMonnaie` rend
+  zéro — et zéro veut dire « je n'ai pas pu regarder », pas « ça ne vaut
+  rien ». Refuser alors ferait échouer toutes les demandes chaque fois
+  qu'un hôte tousse, sur une borne qui n'est pas là pour ça.
+
+  Pour les USDT, la question ne se pose pas : `prixUsdDeMonnaie` rend un
+  sans appeler personne, l'USDT valant un dollar par définition. Les trois
+  variantes — TRC20, BEP20, ERC20 — sont donc bornées sans aucun réseau.
+
+  ─── UN POUR MILLE DE JEU, ET IL EST NÉCESSAIRE ──────────────────────
+
+  L'application calcule la crypto depuis les francs et arrondit le prix
+  unitaire au franc. Une demande qu'elle a montrée comme valide peut donc
+  arriver ici à 9,998 pour un minimum de 10. Refuser au franc près ferait
+  échouer, après l'envoi de la crypto, une demande que l'écran venait
+  d'accepter — et c'est le pire moment pour un refus.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const crypto = nombreFrancais(ordre.montantCrypto)
+  const minUsd = minimumsUsdChange(env)[String(ordre.monnaie).trim().toUpperCase()]
+  const maxUsd = plafondsUsdChange(env)[String(ordre.monnaie).trim().toUpperCase()]
+  if (crypto > 0 && (minUsd > 0 || maxUsd > 0)) {
+    const prixUsd = await prixUsdDeMonnaie(ordre.monnaie)
+    if (prixUsd > 0) {
+      const valeurUsd = crypto * prixUsd
+      if (minUsd > 0 && valeurUsd < minUsd * 0.999) {
+        return json(
+          { ok: false, raison: `minimum ${minUsd} $ pour ${ordre.monnaie}` },
+          0,
+          400
+        )
+      }
+      if (maxUsd > 0 && valeurUsd > maxUsd * 1.001) {
+        return json(
+          { ok: false, raison: `plafond ${maxUsd} $ pour ${ordre.monnaie}` },
+          0,
+          400
+        )
+      }
+    }
   }
 
   const numero = numeroComparable(ordre.telephone)
@@ -5660,6 +5729,8 @@ export {
   fenetreVente,
   minimumsChange,
   minimumPourMonnaie,
+  minimumsUsdChange,
+  plafondsUsdChange,
   trierAdresses,
   txidValide,
   poserMemoire,
