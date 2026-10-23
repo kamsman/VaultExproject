@@ -1149,7 +1149,7 @@
     <string name="change_paiement_securise">Paiement sécurisé</string>
     <string name="change_envoyer_titre">Transaction crypto</string>
     <string name="change_vendre_maintenant">Vendre maintenant</string>
-    <string name="change_crypto_partie">Ta crypto est partie. Il reste à prévenir le changeur — confirme ci-dessous.</string>
+    <string name="change_crypto_partie">Ta crypto est partie. Il reste à prévenir VaultEx — confirme ci-dessous.</string>
     <string name="change_numero">Numéro à créditer</string>
     <string name="change_adresse">Adresse</string>
     <string name="change_beneficiaire">Bénéficiaire</string>
@@ -1169,7 +1169,7 @@
     <string name="change_jai_paye_verifie">Paiement vérifié — confirmer</string>
     <string name="change_retour">Revenir au calcul</string>
     <string name="change_transmis_titre">Demande transmise</string>
-    <string name="change_transmis_detail">Ta demande %1$s est partie chez le changeur. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
+    <string name="change_transmis_detail">Ta demande %1$s est partie. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="action_acheter">Acheter</string>
     <string name="change_telephone_aide">Le numéro qui a fait le paiement.</string>
@@ -1217,8 +1217,8 @@
     <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>
     <string name="change_verif_achat_impossible_detail">Le relais ne peut pas lire les encaissements du changeur. Rien n\'est prouvé ni infirmé : tu peux transmettre, et il vérifiera dans son relevé.</string>
     <string name="change_verif_achat_impossible_detail_raison">Le relais ne peut pas lire les encaissements du changeur : %1$s. Rien n\'est prouvé ni infirmé : tu peux transmettre, et il vérifiera dans son relevé.</string>
-    <string name="change_transmis_verifie">Le changeur a reçu ta demande avec la confirmation de la chaîne. Il n\'a rien à te demander de plus.</string>
-    <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. Le changeur vérifiera son portefeuille avant de payer : garde ta référence.</string>
+    <string name="change_transmis_verifie">VaultEx a reçu ta demande avec la confirmation de la chaîne. Rien ne te sera demandé de plus.</string>
+    <string name="change_transmis_non_verifie">Ta demande est partie sans confirmation de la chaîne. VaultEx vérifiera le versement avant de payer : garde ta référence.</string>
     <string name="change_tu_donnes">Tu donnes</string>
     <string name="change_tu_recois">Tu reçois</string>
     <string name="change_tu_recevras">Tu recevras</string>
@@ -1244,12 +1244,12 @@
     <string name="change_vente_partie_titre">Ta vente est partie</string>
     <string name="change_vente_preparation">Préparation de ta vente…</string>
     <string name="vente_traitement_titre">Ta vente part</string>
-    <string name="vente_traitement_sous">Ta crypto est envoyée au changeur.</string>
+    <string name="vente_traitement_sous">Ta crypto est envoyée à VaultEx.</string>
     <string name="vente_traitement_etape">Envoi de la crypto…</string>
-    <string name="vente_traitement_ne_ferme_pas">Ta demande part chez le changeur juste après. Reste ici quelques secondes.</string>
+    <string name="vente_traitement_ne_ferme_pas">Ta demande part juste après. Reste ici quelques secondes.</string>
     <string name="vente_recu_titre">Crypto envoyée</string>
     <string name="vente_recu_francs">%1$s FCFA</string>
-    <string name="change_vente_partie_detail">Le changeur t\'enverra tes francs au %1$s. Appuie sur Terminé pour lui transmettre ta demande.</string>
+    <string name="change_vente_partie_detail">VaultEx t\'enverra tes francs au %1$s. Appuie sur Terminé pour envoyer ta demande.</string>
     <string name="assistance_titre">Assistance</string>
     <string name="assistance_statut_actif">Réponses automatiques et immédiates</string>
     <string name="assistance_statut_muet">Service injoignable pour le moment</string>
