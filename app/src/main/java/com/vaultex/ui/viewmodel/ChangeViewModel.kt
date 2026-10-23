@@ -1711,22 +1711,36 @@ class ChangeViewModel @Inject constructor(
                 confirmeA = maintenant,
                 referencePaiement = "",
                 /*
-                LE NUMERO RETENU REVIENT ICI, ET NULLE PART AILLEURS.
+                ═══════════════════════════════════════════════════════
+                LE NUMERO NE SE PRE-REMPLIT PLUS
+                ═══════════════════════════════════════════════════════
 
-                C'est le seul moment ou il sert, et le seul ou l'on sait
-                de quel sens il s'agit. Le poser au demarrage de l'ecran
-                le ferait apparaitre aussi sur un achat, ou il signifie
-                autre chose — « qui a paye » et non « qui doit etre
-                paye ».
+                Il reprenait celui de la derniere vente. L'intention etait
+                d'epargner huit chiffres a quelqu'un qui vend chaque
+                semaine au meme numero — et elle se retourne contre lui.
 
-                ET SEULEMENT S'IL EST VIDE : quelqu'un qui vient de taper
-                un autre numero pour cette vente-ci a voulu etre paye
-                ailleurs. L'ecraser par le precedent reprendrait une
-                decision qu'il vient de prendre.
+                Parce que ce champ a un champ de CONFIRMATION en dessous,
+                et que la confirmation ne vaut que si elle confirme une
+                saisie. Pre-remplir le premier revient a faire recopier un
+                chiffre qu'on n'a pas choisi : on relit ce que l'ecran
+                propose au lieu de verifier ce qu'on a tape, et c'est
+                exactement le controle qu'on croyait avoir.
+
+                Pire, le numero memorise peut etre celui d'il y a un mois,
+                d'une autre puce, ou d'un depannage pour un tiers. Il
+                s'affiche alors comme une evidence, et il faut le remarquer
+                pour le corriger.
+
+                Huit chiffres tapes deux fois coutent vingt secondes. Un
+                paiement envoye au mauvais numero ne revient pas.
+
+                `telephoneMemorise` reste dans l'etat : c'est lui qui
+                servait a cet affichage, et plus rien ne le lit — mais il
+                reste la memoire du numero, que l'ecran d'envoi utilise
+                encore pour son propre champ.
+                ═══════════════════════════════════════════════════════
                 */
-                telephone = if (s.sens == SensChange.VENTE && s.telephone.isBlank()) {
-                    secureStorage.getNumeroChange()
-                } else s.telephone,
+                telephone = s.telephone,
                 // Une nouvelle operation ne garde rien de la precedente :
                 // ni son verdict, ni son hash, ni la permission de passer
                 // outre. Reconduire « forcer » ferait sauter le garde-fou
