@@ -717,7 +717,12 @@ dans son portefeuille.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { minimumsChange, minimumPourMonnaie } from './worker.js'
+import {
+  minimumsChange,
+  minimumPourMonnaie,
+  minimumsUsdChange,
+  plafondsUsdChange,
+} from './worker.js'
 
 const MINIMUMS = JSON.stringify({ USDT: 20000, 'USDT-BNB': 2000, 'USDT-ETH': 50000 })
 
@@ -786,6 +791,104 @@ verifie('MINIMUM : un tableau n est pas une table', Object.keys(minimumsChange('
   verifie('MINIMUM : une vente ETH sous son seuil est refusee', r.statut === 400, r)
   verifie('MINIMUM : la raison nomme la monnaie', String(r.corps.raison).includes('USDT-ETH'), r.corps)
   verifie('MINIMUM : et rien ne part', envois.length === 0, envois.length)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES BORNES EN DOLLARS, ET LE PIEGE DE LA CLE
+═══════════════════════════════════════════════════════════════════════════
+
+Celui-ci n'est pas theorique : le service a tourne des semaines avec
+CHANGE_MINIMUMS_USD = {"BNB": 10} pendant que ses monnaies etaient
+USDT-BNB et USDT. La recherche est une egalite EXACTE — « BNB » n'a jamais
+rencontre « USDT-BNB » — donc la borne ne s'appliquait a rien, et personne
+ne pouvait le deviner en lisant la variable : elle a l'air juste.
+
+Le reste verifie que ces bornes sont appliquees PAR LE RELAIS. C'est la
+meme lecon que pour le minimum en francs, et elles sont arrivees apres :
+elles ne vivaient que dans le telephone.
+═══════════════════════════════════════════════════════════════════════════
+*/
+verifie(
+  'USD : la cle est la monnaie entiere, pas sa chaine',
+  minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"BNB":10}' })['USDT-BNB'] === undefined &&
+    minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"USDT-BNB":10}' })['USDT-BNB'] === 10
+)
+
+verifie(
+  'USD : la casse et les espaces ne comptent pas',
+  minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{" usdt-bnb ":10}' })['USDT-BNB'] === 10 &&
+    plafondsUsdChange({ CHANGE_PLAFONDS_USD: '{" usdt-eth ":50}' })['USDT-ETH'] === 50
+)
+
+verifie(
+  'USD : un JSON casse ou nul n ouvre rien de plus',
+  Object.keys(minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"USDT":}' })).length === 0 &&
+    minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"USDT":0}' })['USDT'] === undefined
+)
+
+{
+  /*
+  DIX DOLLARS SUR LES TROIS USDT. L'USDT vaut un dollar par definition, donc
+  le relais tranche sans appeler Binance — c'est ce qui rend ce test
+  possible hors reseau, et c'est aussi ce qui le rend fiable en production.
+  */
+  const USD = JSON.stringify({ USDT: 10, 'USDT-BNB': 10, 'USDT-ETH': 10 })
+  const r = await poster(
+    demande({ monnaie: 'USDT-BNB', montantFcfa: '3 000', montantCrypto: '5' }),
+    { CHANGE_MIN: '500', CHANGE_MINIMUMS_USD: USD },
+    faireCache()
+  )
+  verifie('USD : 5 USDT sous un minimum de 10 $ est refuse', r.statut === 400, r)
+  verifie('USD : la raison dit les dollars', String(r.corps.raison).includes('10 $'), r.corps)
+  verifie('USD : et rien ne part', envois.length === 0, envois.length)
+}
+
+{
+  // Juste au-dessus : elle passe les bornes. Le reste de la demande peut
+  // echouer plus loin, mais pas ICI, et c'est tout ce qu'on mesure.
+  const USD = JSON.stringify({ 'USDT-BNB': 10 })
+  const r = await poster(
+    demande({ monnaie: 'USDT-BNB', montantFcfa: '6 000', montantCrypto: '10' }),
+    { CHANGE_MIN: '500', CHANGE_MINIMUMS_USD: USD },
+    faireCache()
+  )
+  verifie(
+    'USD : 10 USDT pour un minimum de 10 $ n est pas refuse par la borne',
+    !String(r.corps?.raison ?? '').includes('minimum 10 $'),
+    r.corps
+  )
+}
+
+{
+  /*
+  LE JEU D'UN POUR MILLE. L'application calcule la crypto depuis les francs
+  et arrondit le prix unitaire au franc : une demande qu'elle a montree
+  comme valide peut arriver a 9,998. Refuser au franc pres ferait echouer,
+  APRES l'envoi de la crypto, une demande que l'ecran venait d'accepter.
+  */
+  const USD = JSON.stringify({ 'USDT-BNB': 10 })
+  const r = await poster(
+    demande({ monnaie: 'USDT-BNB', montantFcfa: '6 000', montantCrypto: '9,998' }),
+    { CHANGE_MIN: '500', CHANGE_MINIMUMS_USD: USD },
+    faireCache()
+  )
+  verifie(
+    'USD : 9,998 passe, l arrondi de l application ne doit pas couter une vente',
+    !String(r.corps?.raison ?? '').includes('minimum 10 $'),
+    r.corps
+  )
+}
+
+{
+  // Le plafond en dollars, meme regle, autre sens.
+  const r = await poster(
+    demande({ monnaie: 'USDT-BNB', montantFcfa: '30 000', montantCrypto: '50' }),
+    { CHANGE_MIN: '500', CHANGE_PLAFONDS_USD: '{"USDT-BNB":20}' },
+    faireCache()
+  )
+  verifie('USD : 50 USDT au-dessus d un plafond de 20 $ est refuse', r.statut === 400, r)
+  verifie('USD : la raison dit le plafond', String(r.corps.raison).includes('plafond 20 $'), r.corps)
 }
 
 {
