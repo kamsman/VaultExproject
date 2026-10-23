@@ -381,7 +381,34 @@ fun SendScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("${stringResource(R.string.send_title)} $coinTitle", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
+                /*
+                ═══════════════════════════════════════════════════════
+                SOUS VERROU, L'ECRAN NE FAIT PLUS UN ENVOI
+                ═══════════════════════════════════════════════════════
+
+                Il en EXECUTE un, techniquement : une transaction part
+                vers une adresse. Mais ce que la personne fait, elle, c'est
+                VENDRE — elle a tape un montant sur l'ecran de change,
+                choisi son numero Orange Money, et arrive ici pour
+                confirmer. « Envoyer USDT (BEP20) » la place devant le
+                mecanisme au lieu de son operation.
+
+                Et ca comptait plus qu'un mot : l'ecran de change parle de
+                vente du debut a la fin, puis le dernier pas, celui ou l'on
+                tape son code PIN, s'intitulait « Envoyer ». Juste assez
+                pour se demander si on est encore dans la meme operation.
+                ═══════════════════════════════════════════════════════
+                */
+                title = {
+                    Text(
+                        if (state.verrouParChange) {
+                            "${stringResource(R.string.change_vendre)} $coinTitle"
+                        } else {
+                            "${stringResource(R.string.send_title)} $coinTitle"
+                        },
+                        fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
@@ -1880,7 +1907,19 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
 
 @Composable
 internal fun SendProcessingScreen(detail: SendDetail) {
-    SendStatusScaffold(stringResource(R.string.send_processing_appbar, detail.coinShort)) {
+    /*
+    LE MEME MOT QUE L'ECRAN PRECEDENT. `numeroPaiement` n'est renseigne que
+    sur une vente — c'est le numero qui recevra les francs — donc il sert
+    ici de signal du verrou, que ces ecrans de statut ne connaissent pas
+    autrement : ils ne recoivent qu'un `SendDetail`.
+    */
+    SendStatusScaffold(
+        if (detail.numeroPaiement.isNotBlank()) {
+            stringResource(R.string.send_appbar_vente, detail.coinShort)
+        } else {
+            stringResource(R.string.send_processing_appbar, detail.coinShort)
+        }
+    ) {
         StatusHeader(
             Icons.Default.HourglassEmpty, AccentBlue,
             stringResource(R.string.send_processing_title),
@@ -1982,7 +2021,11 @@ internal fun SendSuccessScreen(
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
     }
     SendStatusScaffold(
-        stringResource(R.string.send_processing_appbar, detail.coinShort),
+        if (detail.numeroPaiement.isNotBlank()) {
+            stringResource(R.string.send_appbar_vente, detail.coinShort)
+        } else {
+            stringResource(R.string.send_processing_appbar, detail.coinShort)
+        },
         actions = {
             /*
             LES DEUX BOUTONS CÔTE À CÔTE, comme sur la maquette.

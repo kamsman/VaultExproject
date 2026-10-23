@@ -485,6 +485,7 @@
     <string name="send_confirm_irreversible">Vérifiez bien tous les détails. Les transactions sont irréversibles.</string>
     <string name="send_confirm_secured">Votre transaction est sécurisée et chiffrée</string>
     <string name="send_processing_appbar">Envoi %1$s</string>
+    <string name="send_appbar_vente">Vente %1$s</string>
     <string name="send_processing_title">Transaction en cours</string>
     <string name="send_processing_subtitle">Votre transaction est diffusée sur le réseau.</string>
     <string name="send_processing_broadcasting">Diffusion sur le réseau…</string>
