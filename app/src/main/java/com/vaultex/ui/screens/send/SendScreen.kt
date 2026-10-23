@@ -1500,6 +1500,36 @@ private fun SendStatusScaffold(
     title: String,
     /*
     ═══════════════════════════════════════════════════════════════════════
+    UN SOUS-TITRE, UN RETOUR ET UN ECUSSON — POUR L'ECRAN DE CONFIRMATION
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les trois viennent de la maquette, et chacun repond a une question que
+    l'ecran posait sans y repondre.
+
+    LE SOUS-TITRE dit ce qu'on attend de la personne. « Confirmer la
+    transaction » nomme l'ecran ; « Vérifiez les informations avant
+    d'envoyer » dit quoi FAIRE pendant les quelques secondes ou on le
+    regarde. Sans lui, on cherche le bouton.
+
+    LA FLECHE DE RETOUR double « Annuler », et ce n'est pas une redite : le
+    geste de revenir se fait en haut a gauche dans toute l'application, et
+    cet ecran-ci etait le seul a ne l'offrir qu'en bas. On y arrivait en
+    cherchant comment sortir.
+
+    L'ECUSSON est decoratif, et il assume de l'etre : il repete en image ce
+    que la ligne du bas dit en mots — c'est un ecran sur lequel on engage
+    des fonds, et il est chiffre.
+
+    LES TROIS SONT FACULTATIFS : les ecrans de traitement et de recu
+    gardent leur barre nue, ou il n'y a ni choix a faire ni retour a
+    proposer.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    sousTitre: String? = null,
+    onRetour: (() -> Unit)? = null,
+    ecusson: Boolean = false,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
     LES BOUTONS D'ACTION NE DÉFILENT PAS
     ═══════════════════════════════════════════════════════════════════════
 
@@ -1522,7 +1552,40 @@ private fun SendStatusScaffold(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
+                title = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
+                        sousTitre?.let {
+                            Text(it, fontSize = 12.sp, color = TextSecondary, maxLines = 1)
+                        }
+                    }
+                },
+                navigationIcon = {
+                    onRetour?.let { retour ->
+                        IconButton(onClick = retour) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                                tint = AccentBlue
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (ecusson) {
+                        Box(
+                            Modifier.padding(end = 8.dp).size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(AccentBlue.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Lock, null,
+                                tint = AccentBlue, modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
             )
         },
@@ -1714,7 +1777,39 @@ private fun ConfirmRowRight(
  * à une longue chaîne continue.
  */
 @Composable
-private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> Unit) {
+private fun RecipientAddressCard(
+    address: String,
+    isNew: Boolean,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    SUR UNE VENTE, L'EN-TETE ET L'ALERTE TOMBENT
+    ═══════════════════════════════════════════════════════════════════
+
+    « Destinataire / Adresse du portefeuille » nomme ce qu'on regarde. Sur
+    un envoi ordinaire c'est utile : il y a plusieurs choses sur l'ecran et
+    il faut savoir laquelle est l'adresse. Sur une vente il n'y a qu'une
+    adresse, elle vient du relais, et la carte ne contient rien d'autre.
+
+    « Premier envoi vers cette adresse : comparez-la caractere par
+    caractere avec celle que vous a communique le destinataire » est plus
+    serieux que du bavardage — et c'est justement pourquoi il ne doit pas
+    s'afficher ici. Personne ne « vous a communique » cette adresse : elle
+    arrive du relais avec une reference deja emise, et aucun destinataire
+    n'existe a qui la comparer. La consigne ne designe aucune action.
+
+    Pire, elle se declenchait a CHAQUE premiere vente — l'adresse du
+    changeur est forcement inconnue du carnet la premiere fois. Une alerte
+    ambre qui apparait systematiquement sur le chemin normal est une alerte
+    qu'on apprend a ignorer, et elle emmene les vraies avec elle.
+
+    SUR UN ENVOI ORDINAIRE, LES DEUX RESTENT. L'alerte y protege contre
+    l'« address poisoning » : un premier envoi est le seul moment ou une
+    substitution passe inapercue, puisqu'aucun historique ne la contredit.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    vente: Boolean,
+    onCopy: () -> Unit
+) {
     // Adresse affichée TELLE QUELLE, d'un seul tenant. Le découpage en blocs
     // de 4 essayé précédemment rendait l'adresse illisible et faussait même la
     // lecture (« 0xf1 7f18 » pour une adresse qui commence par 0xf17f) —
@@ -1727,31 +1822,66 @@ private fun RecipientAddressCard(address: String, isNew: Boolean, onCopy: () -> 
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ConfirmIconCircle(Icons.Default.Person, false)
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    stringResource(R.string.send_recipient_label),
-                    fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    Icons.Default.ContentCopy, null, tint = AccentBlue,
-                    modifier = Modifier.size(20.dp).clickable { onCopy() }
-                )
+            if (!vente) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ConfirmIconCircle(Icons.Default.Person, false)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        stringResource(R.string.send_recipient_label),
+                        fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Default.ContentCopy, null, tint = AccentBlue,
+                        modifier = Modifier.size(20.dp).clickable { onCopy() }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                address,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                color = TextPrimary
-            )
+            /*
+            ─── L'ADRESSE DANS SA PROPRE BOITE ──────────────────────────
+
+            Elle etait posee a nu dans la carte. Trente-quatre caracteres
+            de chasse fixe sans cadre se lisent comme un bloc de texte, et
+            rien ne dit ou ils commencent ni finissent — c'est pourtant la
+            seule chose de cet ecran qu'on est cense comparer.
+
+            Un fond gris leger la delimite, exactement comme la case du
+            numero sur l'ecran precedent. Meme grammaire : ce qui se lit
+            caractere par caractere a son propre contour.
+
+            SOUS VERROU, LA COPIE PASSE ICI. L'en-tete qui la portait n'est
+            plus affiche, et le geste reste utile : on peut vouloir
+            verifier l'adresse dans un explorateur.
+            */
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = BgTertiary.copy(alpha = 0.6f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        address,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = TextPrimary
+                    )
+                }
+                if (vente) {
+                    Spacer(Modifier.width(10.dp))
+                    Icon(
+                        Icons.Default.ContentCopy, stringResource(R.string.copy),
+                        tint = AccentBlue,
+                        modifier = Modifier.size(20.dp).clickable { onCopy() }
+                    )
+                }
+            }
             // Premier envoi vers cette adresse : c'est le seul moment où une
             // substitution (presse-papiers détourné, adresse empoisonnée) peut
             // passer inaperçue — aucun historique ne permet de la contredire.
-            if (isNew) {
+            if (isNew && !vente) {
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.WarningAmber, null, tint = Color(0xFFE6AC00), modifier = Modifier.size(16.dp))
@@ -1772,6 +1902,9 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
     val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
     SendStatusScaffold(
         stringResource(R.string.send_confirm_title),
+        sousTitre = stringResource(R.string.send_confirm_subtitle),
+        onRetour = onCancel,
+        ecusson = true,
         actions = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
@@ -1780,20 +1913,54 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
                     shape = RoundedCornerShape(14.dp),
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderColor)
                 ) { Text(stringResource(R.string.cancel), color = TextPrimary, fontWeight = FontWeight.SemiBold) }
+                /*
+                ═══════════════════════════════════════════════════════
+                BLEU, ET « CONFIRMER » TOUT COURT
+                ═══════════════════════════════════════════════════════
+
+                Il etait vert. Le vert de cette application dit « ce que tu
+                recois » — le solde, le montant en francs d'une vente, le
+                rond du recu. Ici on ENGAGE des fonds, et le bleu est la
+                couleur de l'action partout ailleurs : « Continuer »,
+                « Vendre maintenant », les liens. Un bouton vert au bout
+                d'un parcours bleu se lit comme un autre genre de bouton.
+
+                « Confirmer l'envoi » devient « Confirmer » : le titre
+                juste au-dessus dit deja « Confirmer la transaction », et
+                sur une vente le mot « envoi » contredisait l'en-tete, qui
+                dit maintenant « Vendre ».
+                */
                 Button(
                     onClick = onConfirm,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
-                ) { Text(stringResource(R.string.send_confirm_cta), color = Color.White, fontWeight = FontWeight.Bold) }
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) { Text(stringResource(R.string.confirm), color = Color.White, fontWeight = FontWeight.Bold) }
             }
             // La mention de sécurité suit les boutons : elle les qualifie, et
             // n'a aucun sens séparée d'eux par un défilement.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.VerifiedUser, null, tint = AccentGreen, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.send_confirm_secured), fontSize = 11.sp, color = TextSecondary)
             }
+            /*
+            LA SECONDE LIGNE DIT CE QUE LA PREMIERE NE DIT PAS.
+
+            « Sécurisée et chiffrée » est vrai de n'importe quelle
+            application bancaire. Ce qui distingue celle-ci, et que la
+            maquette met sous le bouton, c'est que les cles ne sont nulle
+            part ailleurs que sur ce telephone — donc que personne, VaultEx
+            compris, ne peut toucher a ces fonds.
+
+            C'est l'endroit ou le dire : juste avant d'engager une somme,
+            pas dans un ecran d'accueil qu'on traverse.
+            */
+            Text(
+                stringResource(R.string.send_confirm_noncustodial),
+                fontSize = 10.sp,
+                color = TextSecondary.copy(alpha = 0.8f)
+            )
         }
     ) {
         // Carte monnaie + montant (verte, mise en avant)
@@ -1822,6 +1989,9 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         RecipientAddressCard(
             address = detail.toAddress,
             isNew = detail.isNewRecipient,
+            // `numeroPaiement` n'existe que sur une vente : c'est le numero
+            // qui recevra les francs, et il sert ici de signal.
+            vente = detail.numeroPaiement.isNotBlank(),
             onCopy = { copier(detail.toAddress) }
         )
         /*
@@ -1831,16 +2001,39 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         l'ecrivent ainsi, les gens le dictent ainsi, et c'est la seule
         forme ou un chiffre de travers se remarque.
 
-        Il est en vert : c'est ce qu'on RECOIT, la seule entree d'argent
-        d'un ecran qui ne parle que de sorties.
+        ─── BLEU, ET AVEC SA PASTILLE ──────────────────────────────────
+
+        Il etait vert, sur un fond vert, trois centimetres au-dessus de
+        « Total déduit » qui est vert aussi. Deux blocs verts a la suite ne
+        se distinguent plus, et le vert ne disait rien ici : ce numero
+        n'est pas un montant recu, c'est une DESTINATION — l'endroit ou les
+        francs arriveront.
+
+        Le bleu le range avec le reste des informations a verifier, et la
+        pastille lui donne la meme silhouette qu'aux autres lignes de
+        l'ecran. La carte du total garde le vert pour elle seule, ce qui
+        est tout l'interet d'une couleur reservee.
         */
         if (detail.numeroPaiement.isNotBlank()) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = AccentGreen.copy(alpha = 0.10f),
+                color = SurfaceColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Smartphone, null,
+                        tint = AccentBlue, modifier = Modifier.size(21.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         /*
                         PLUS « Numéro Mobile Money où recevoir » : ce
@@ -1857,16 +2050,17 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
                         vérifier à cet instant.
                         */
                         stringResource(R.string.change_numero_recevra),
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = TextSecondary
                     )
                     Text(
                         numeroGroupe(detail.numeroPaiement),
-                        fontSize = 22.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AccentGreen,
+                        color = AccentBlue,
                         letterSpacing = 1.sp
                     )
+                }
                 }
             }
         }
