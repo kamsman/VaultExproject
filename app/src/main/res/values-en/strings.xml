@@ -1213,6 +1213,12 @@
     <string name="change_prix_expire">The displayed price is no longer guaranteed — go back to the calculation if you have not sent yet.</string>
     <string name="change_vente_partie_titre">Your sale is on its way</string>
     <string name="change_vente_preparation">Preparing your sale…</string>
+    <string name="vente_traitement_titre">Your sale is going out</string>
+    <string name="vente_traitement_sous">Your crypto is being sent to the exchanger.</string>
+    <string name="vente_traitement_etape">Sending the crypto…</string>
+    <string name="vente_traitement_ne_ferme_pas">Your request goes to the exchanger right after. Stay here a few seconds.</string>
+    <string name="vente_recu_titre">Crypto sent</string>
+    <string name="vente_recu_francs">%1$s FCFA</string>
     <string name="change_vente_partie_detail">The exchanger will send your francs to %1$s. Tap Done to pass your request on to him.</string>
     <string name="assistance_titre">Support</string>
     <string name="assistance_statut_actif">Automatic, instant answers</string>

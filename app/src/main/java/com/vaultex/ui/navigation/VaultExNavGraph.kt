@@ -201,7 +201,8 @@ fun VaultExNavGraph(navController: NavHostController) {
                 navArgument("change_adresse") { type = NavType.StringType; defaultValue = "" },
                 navArgument("change_montant") { type = NavType.StringType; defaultValue = "" },
                 navArgument("change_jeton") { type = NavType.StringType; defaultValue = "" },
-                navArgument("change_reference") { type = NavType.StringType; defaultValue = "" }
+                navArgument("change_reference") { type = NavType.StringType; defaultValue = "" },
+                navArgument("change_fcfa") { type = NavType.StringType; defaultValue = "" }
             )
         ) {
             SendScreen(navController)
