@@ -1586,7 +1586,23 @@ async function posterOtp(reference, numero, cache, jeton) {
   plus etre lu — et emousserait celui qui compte.
   */
   verifie('OTP : inactif n ecrit rien', marqueOtp('inactif') === '')
-  verifie('OTP : non confirme se dit sans accuser', marqueOtp('non').includes('non confirme'))
+  /*
+  « NON CONFIRME » NE SE DIT PLUS NON PLUS, et ce test a change de sens.
+
+  Il verifiait que l'absence de confirmation s'annonce. C'etait juste tant
+  qu'une confirmation etait possible : le client envoyait sa reference par
+  SMS au numero du changeur, ce qui prouvait qu'il detenait la ligne.
+
+  L'application ne l'envoie plus. La mention s'imprimait donc sur CHAQUE
+  message, pour toujours, et demandait au changeur une verification que
+  personne ne pouvait plus fournir — sous une ligne « ✅ VERSEMENT
+  VERIFIE SUR LA CHAINE », qu'elle venait contredire.
+
+  On dit ce qui est prouve, on ne commente pas ce qui ne l'est pas. Le cas
+  'oui' reste : si le robot revient, une confirmation reelle a de la
+  valeur.
+  */
+  verifie('OTP : non confirme ne dit plus rien', marqueOtp('non') === '')
   verifie('OTP : confirme porte une coche', marqueOtp('oui').includes('✔'))
 }
 

@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 56
+const VERSION = 57
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2906,8 +2906,39 @@ function marqueOtp(otp) {
       return '  ✔ confirme par SMS'
     case 'autre':
       return '  ⚠ UN AUTRE NUMERO a confirme cette reference'
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    « NON CONFIRME » NE SE DIT PLUS, PARCE QUE RIEN NE PEUT PLUS LE
+    CONFIRMER
+    ═══════════════════════════════════════════════════════════════════
+
+    Vu sur un vrai message : « Telephone : 64646464 (non confirme par
+    SMS) » sous une ligne « ✅ VERSEMENT VERIFIE SUR LA CHAINE ».
+
+    La confirmation par SMS a ete RETIREE DE L'APPLICATION — le client
+    envoyait sa reference par SMS au numero du changeur, ce qui prouvait
+    qu'il detenait la ligne. Plus rien ne l'envoie. Cette mention
+    s'imprimait donc sur CHAQUE message, pour toujours, et elle disait au
+    changeur qu'il manque une verification que personne ne peut plus
+    fournir.
+
+    C'est le pire genre de bruit : pas une information fausse, une
+    information qui demande une action impossible. Sur une vente verifiee
+    on-chain, elle vient en plus contredire la ligne du dessus.
+
+    ─── CE QUI PROTEGE LE NUMERO MAINTENANT ──────────────────────────
+
+    Il se tape DEUX FOIS dans l'application, dans deux champs distincts,
+    et le bouton reste eteint tant qu'ils different. C'est plus faible
+    qu'un SMS — ca prouve l'attention, pas la possession — mais c'est ce
+    qu'il y a, et le dire a moitie ne l'ameliore pas.
+
+    LE CAS 'oui' RESTE. Si le robot SMS revient un jour, une confirmation
+    reelle a de la valeur et s'affiche. On dit ce qui est prouve, on ne
+    commente pas ce qui ne l'est pas.
+    ═══════════════════════════════════════════════════════════════════
+    */
     case 'non':
-      return '  (non confirme par SMS)'
     default:
       return ''
   }
@@ -3284,7 +3315,34 @@ function formatMontant(v) {
   Sans ça, un versement rond s'afficherait avec une traîne de zéros qui
   fait hésiter sur l'unité.
   */
-  return String(parseFloat(n.toFixed(8)))
+  const brut = String(parseFloat(n.toFixed(8)))
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE VIRGULE, COMME TOUS LES AUTRES CHIFFRES DU MESSAGE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Vu sur un vrai message, deux lignes l'une sous l'autre :
+
+      Crypto : 2,021 USDT-BNB      ← mis en forme par l'application
+      Recu   : 2.021 USDT-BNB      ← mis en forme ici, par String()
+
+  Le meme nombre, ecrit de deux facons, dans le seul endroit du message ou
+  l'on compare ce qui a ete ANNONCE a ce qui est ARRIVE. Sur 2 USDT
+  l'absurdite saute aux yeux ; sur « 1.132 » contre « 1 132 », non — et
+  au Burkina le point est un separateur de milliers.
+
+  Le changeur devait donc decider lequel des deux chiffres croire, sur la
+  ligne meme qui existe pour qu'il n'ait pas a le faire.
+
+  La partie entiere prend ses espaces, les decimales leur virgule. Le
+  reste du message etant deja mis en forme par le telephone, c'est la
+  seule fonction du Worker qui ait a le faire.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const [entiere, decimales] = brut.split('.')
+  const groupee = groupeMilliers(entiere)
+  return decimales ? `${groupee},${decimales}` : groupee
 }
 
 /**
