@@ -1148,6 +1148,7 @@
     <string name="change_telephone_vente">%1$s number</string>
     <string name="change_telephone_vente_aide">8 digits.</string>
     <string name="change_numero_recevra">Number that will receive your francs</string>
+    <string name="change_vider">Clear the number</string>
     <string name="change_telephone_vente_exemple">e.g. 70 12 34 56</string>
     <string name="change_numero_confirme">Type the same number again, to be sure.</string>
     <string name="change_numero_confirme_libelle">Confirm the number</string>

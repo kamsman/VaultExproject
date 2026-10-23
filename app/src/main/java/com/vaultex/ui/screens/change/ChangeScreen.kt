@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
@@ -1264,7 +1265,8 @@ private fun ColumnScope.EtapePaiement(
                 Ligne(
                     stringResource(R.string.change_beneficiaire),
                     p.nomChangeur,
-                    icone = Icons.Default.Person
+                    icone = Icons.Default.Person,
+                    separateur = true
                 )
             }
             /*
@@ -1307,7 +1309,8 @@ private fun ColumnScope.EtapePaiement(
                     "${fcfa(state.montantFcfa ?: 0.0)} FCFA",
                     icone = Icons.Default.Payments,
                     vedette = true,
-                    teinte = AccentBlue
+                    teinte = AccentBlue,
+                    separateur = true
                 )
             } else {
                 val montantTexte = crypto(state.montantCrypto ?: 0.0, state.monnaie)
@@ -1324,6 +1327,7 @@ private fun ColumnScope.EtapePaiement(
                     libelle = stringResource(R.string.change_montant_exact),
                     valeur = "$montantTexte ${state.monnaie}",
                     icone = Icons.Default.Payments,
+                    separateur = true,
                     onCopier = { copier(montantTexte) }
                 )
                 /*
@@ -1385,7 +1389,8 @@ private fun ColumnScope.EtapePaiement(
                         stringResource(R.string.change_tu_recevras),
                         "${fcfa(recu)} FCFA",
                         icone = Icons.Default.Payments,
-                        vedette = true
+                        vedette = true,
+                        separateur = true
                     )
                 }
             }
@@ -1405,6 +1410,7 @@ private fun ColumnScope.EtapePaiement(
                 libelle = stringResource(R.string.change_reference),
                 valeur = state.reference,
                 icone = Icons.Default.Description,
+                separateur = true,
                 onCopier = { copier(state.reference) }
             )
             /*
@@ -2425,14 +2431,38 @@ private fun CompteARebours(confirmeA: Long, delaiMinutes: Int) {
         else -> AccentOrange
     }
 
+    androidx.compose.material3.HorizontalDivider(
+        color = BgTertiary.copy(alpha = 0.7f),
+        thickness = 1.dp
+    )
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.Schedule, null, tint = couleur, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.width(8.dp))
+        /*
+        LA MEME PASTILLE QUE LES AUTRES LIGNES, A SA COULEUR.
+
+        L'horloge etait posee a nu, a quinze points, quand les quatre
+        lignes au-dessus portent une pastille de quarante. C'etait la
+        derniere ligne de la carte, et elle avait l'air d'une note de bas
+        de page plutot que d'une information de meme rang.
+
+        Sa teinte suit le compte a rebours — ambre, puis rouge sous deux
+        minutes — donc la pastille change de couleur avec le chiffre. Ce
+        n'est pas un ornement : c'est la seule ligne de cet ecran dont la
+        valeur se perime.
+        */
+        Box(
+            Modifier.size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(couleur.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Schedule, null, tint = couleur, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
         Text(
             stringResource(
                 if (fini) R.string.change_prix_expire else R.string.change_prix_garanti
             ),
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             color = TextSecondary,
             modifier = Modifier.weight(1f)
         )
@@ -2441,7 +2471,7 @@ private fun CompteARebours(confirmeA: Long, delaiMinutes: Int) {
             val sec = (restant % 60_000L) / 1_000L
             Text(
                 "%d:%02d".format(m, sec),
-                fontSize = 14.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = couleur,
                 // Chasse fixe : sans elle, les chiffres changent de largeur
@@ -3973,11 +4003,14 @@ private fun LigneACopier(
     libelle: String,
     valeur: String,
     icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    separateur: Boolean = false,
     onCopier: () -> Unit
 ) {
     if (valeur.length <= VALEUR_COURTE) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { Ligne(libelle, valeur, icone = icone, fort = true) }
+            Box(Modifier.weight(1f)) {
+                Ligne(libelle, valeur, icone = icone, fort = true, separateur = separateur)
+            }
             /*
             LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
 
@@ -4004,47 +4037,83 @@ private fun LigneACopier(
         return
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-            /*
-            LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ADRESSE AVAIT PERDU SA PASTILLE, ET ELLE ETAIT LA SEULE
+    ═══════════════════════════════════════════════════════════════════
 
-            Posee a nu, elle ne se distinguait pas des icones de tete des
-            lignes voisines — meme taille, meme bleu — alors que celle-ci
-            SE TOUCHE et les autres non. Un fond teinte dit qu'il y a
-            quelque chose a appuyer, ce qu'aucune icone ne dit par
-            elle-meme.
-            */
-            IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
-                Box(
-                    Modifier.size(30.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(AccentBlue.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.ContentCopy, stringResource(R.string.copy),
-                        tint = AccentBlue, modifier = Modifier.size(16.dp)
-                    )
-                }
+    Cette branche sert aux valeurs trop longues pour tenir a cote de leur
+    libelle — en pratique, l'adresse du changeur et elle seule. Elle etait
+    ecrite sans l'icone : le libelle montait en haut a gauche, la valeur
+    passait dessous sur toute la largeur, et le parametre `icone` arrivait
+    ici pour n'etre jamais utilise.
+
+    Resultat visible sur la maquette : quatre lignes a pastille et une
+    sans, et c'est la PREMIERE de la carte. La colonne d'icones commencait
+    a la deuxieme ligne, ce qui se lit comme un defaut d'alignement.
+
+    La pastille est donc posee a gauche, et le libelle avec son adresse
+    tiennent dans la colonne de droite — la meme disposition que les
+    autres lignes, avec deux etages au lieu d'un.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (separateur) {
+        androidx.compose.material3.HorizontalDivider(
+            color = BgTertiary.copy(alpha = 0.7f),
+            thickness = 1.dp
+        )
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        icone?.let {
+            Box(
+                Modifier.size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AccentBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(it, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
             }
+            Spacer(Modifier.width(12.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(libelle, fontSize = 14.sp, color = TextSecondary)
+            /*
+            EN CHASSE FIXE, comme le txid de la carte de vérification.
+
+            Tous les caractères y ont la même largeur, donc les groupes se
+            comparent à l'oeil — c'est ce qui permet de contrôler le début
+            et la fin d'une adresse sans la lire en entier.
+            */
+            Text(
+                valeur,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                lineHeight = 21.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
         }
         /*
-        EN CHASSE FIXE, comme le txid de la carte de vérification.
+        LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
 
-        Tous les caractères y ont la même largeur, donc les groupes se
-        comparent à l'oeil — c'est ce qui permet de contrôler le début et
-        la fin d'une adresse sans la lire en entier.
+        Posee a nu, elle ne se distinguait pas des icones de tete des
+        lignes voisines — meme taille, meme bleu — alors que celle-ci
+        SE TOUCHE et les autres non. Un fond teinte dit qu'il y a quelque
+        chose a appuyer, ce qu'aucune icone ne dit par elle-meme.
         */
-        Text(
-            valeur,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            lineHeight = 20.sp,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-        )
+        IconButton(onClick = onCopier, modifier = Modifier.size(40.dp)) {
+            Box(
+                Modifier.size(30.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(AccentBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy, stringResource(R.string.copy),
+                    tint = AccentBlue, modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
@@ -4104,62 +4173,112 @@ private fun ChampChange(
         verticale. L'imposer figerait la case si quelqu'un grossit les
         polices de son telephone.
         */
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LA MAQUETTE SEPARE LE NOM DE LA CASE, ET ELLE A RAISON
+        ═══════════════════════════════════════════════════════════════
+
+        Le libelle et le champ de saisie etaient EMPILES DANS LA CASE, a
+        droite de la pastille : « Numéro Orange Money » sur la premiere
+        ligne, les chiffres tapes juste dessous, le tout dans un seul
+        cadre borde.
+
+        Ca marche et ca se lit mal. Les deux ne sont pas de meme nature —
+        l'un NOMME ce qu'on demande, l'autre RECOIT ce qu'on tape — et
+        dans un cadre unique ils se disputent le meme espace : le libelle
+        a l'air d'etre la valeur du dessus, et la zone ou appuyer n'est
+        pas delimitee. On touche le libelle en croyant ouvrir le champ.
+
+        La maquette les separe : la pastille et le nom en titre de carte,
+        puis la case grise en dessous, sur toute la largeur. Le titre se
+        lit comme un titre, la case se voit comme une case, et la surface
+        a toucher triple.
+
+        ─── ET UNE CROIX POUR EFFACER ────────────────────────────────
+
+        Huit chiffres mal tapes se corrigent au clavier, chiffre par
+        chiffre. La croix remet a zero d'un geste, et c'est exactement ce
+        qu'on veut quand on s'apercoit qu'on a saisi l'ancien numero :
+        recommencer, pas rafistoler.
+
+        Elle n'apparait que s'il y a quelque chose a effacer — une croix
+        devant un champ vide n'est qu'un bouton qui ne fait rien.
+        ═══════════════════════════════════════════════════════════════
+        */
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AccentBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                libelle,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                maxLines = 1
+            )
+        }
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = SurfaceColor,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp, if (erreur != null) AccentRed else BgTertiary
-            ),
+            shape = RoundedCornerShape(12.dp),
+            color = BgTertiary.copy(alpha = 0.6f),
+            border = if (erreur != null) {
+                androidx.compose.foundation.BorderStroke(1.dp, AccentRed)
+            } else null,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 11.dp),
+                Modifier.fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .padding(start = 14.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    Modifier.size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(AccentBlue.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        libelle,
+                androidx.compose.foundation.text.BasicTextField(
+                    value = valeur,
+                    onValueChange = onValeur,
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
                         fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
-                        maxLines = 1
-                    )
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = valeur,
-                        onValueChange = onValeur,
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 16.sp,
-                            color = TextPrimary
-                        ),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = clavier
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        decorationBox = { interieur ->
-                            Box(contentAlignment = Alignment.CenterStart) {
-                                if (valeur.isEmpty()) {
-                                    Text(
-                                        exemple,
-                                        fontSize = 16.sp,
-                                        color = TextSecondary.copy(alpha = 0.75f),
-                                        maxLines = 1
-                                    )
-                                }
-                                interieur()
+                        color = TextPrimary
+                    ),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = clavier
+                    ),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { interieur ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (valeur.isEmpty()) {
+                                Text(
+                                    exemple,
+                                    fontSize = 17.sp,
+                                    color = TextSecondary.copy(alpha = 0.75f),
+                                    maxLines = 1
+                                )
                             }
+                            interieur()
                         }
-                    )
+                    }
+                )
+                if (valeur.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onValeur("") },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Cancel,
+                            stringResource(R.string.change_vider),
+                            tint = TextSecondary.copy(alpha = 0.55f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
@@ -4205,8 +4324,30 @@ private fun Ligne(
     Le bleu est la couleur de l'action dans toute l'application, et payer
     est une action.
     */
-    teinte: Color? = null
+    teinte: Color? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UN FILET AU-DESSUS, PARCE QUE LA MAQUETTE EN MET UN
+    ═══════════════════════════════════════════════════════════════════
+
+    Cinq lignes separees par du vide seul forment un bloc : l'oeil ne sait
+    pas ou l'une finit et ou la suivante commence, et il relit. Un filet
+    d'un point les decoupe en cinq, et c'est ce qui permet de viser
+    directement « Tu recevras » sans parcourir les autres.
+
+    IL EST AU-DESSUS, ET NON EN DESSOUS. La premiere ligne n'en porte donc
+    pas — un filet sous le titre de la carte la detacherait de son numero
+    et de son cadenas, qui forment un tout avec elle.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    separateur: Boolean = false
 ) {
+    if (separateur) {
+        androidx.compose.material3.HorizontalDivider(
+            color = BgTertiary.copy(alpha = 0.7f),
+            thickness = 1.dp
+        )
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         icone?.let {
             /*
@@ -4217,21 +4358,30 @@ private fun Ligne(
             ce qu'on lui demande : permettre de retrouver « ce que je
             recois » sans relire les quatre lignes.
             */
+            /*
+            QUARANTE POINTS, ET NON VINGT-HUIT.
+
+            La maquette donne aux pastilles des lignes de detail la MEME
+            taille qu'a celle du champ de saisie, plus bas sur le meme
+            ecran. A vingt-huit elles paraissaient etre d'un autre
+            inventaire — deux familles d'icones dans une colonne, et le
+            regard bute dessus avant de lire quoi que ce soit.
+            */
             val couleurIcone = teinte ?: if (vedette) AccentGreen else AccentBlue
             Box(
-                Modifier.size(28.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                Modifier.size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(couleurIcone.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(it, null, tint = couleurIcone, modifier = Modifier.size(15.dp))
+                Icon(it, null, tint = couleurIcone, modifier = Modifier.size(20.dp))
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
         }
-        Text(libelle, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Text(libelle, fontSize = 14.sp, color = TextSecondary, modifier = Modifier.weight(1f))
         Text(
             valeur,
-            fontSize = if (vedette) 18.sp else if (fort) 14.sp else 12.sp,
+            fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
             fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
             color = teinte ?: if (vedette) AccentGreen else TextPrimary
         )
