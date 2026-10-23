@@ -1150,7 +1150,7 @@
     <string name="change_historique_note">This list holds your own requests, stored on your phone. It does not prove a payment — it lets you quote an exact reference if you need to follow up.</string>
     <string name="change_telephone_vente">%1$s number</string>
     <string name="change_telephone_vente_aide">8 digits.</string>
-    <string name="change_telephone_vente_consigne">Enter your %1$s number</string>
+    <string name="change_telephone_vente_consigne">Your number, to receive your francs</string>
     <string name="change_numero_recevra">Number that will receive your francs</string>
     <string name="change_vider">Clear the number</string>
     <string name="change_telephone_vente_exemple">e.g. 70 12 34 56</string>

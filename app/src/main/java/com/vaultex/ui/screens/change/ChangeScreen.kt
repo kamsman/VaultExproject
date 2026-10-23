@@ -1959,15 +1959,37 @@ private fun ColumnScope.EtapePaiement(
             stringResource(R.string.change_telephone_vente_aide)
         } else null,
         /*
-        LA CONSIGNE PORTE LE NOM DE L'OPERATEUR, comme le titre, et pour la
-        meme raison : il vient des parametres du relais, jamais de la
-        chaine. « Entrez votre numéro Orange Money » aujourd'hui, Moov le
-        jour ou le changeur en change.
+        ═══════════════════════════════════════════════════════════════
+        A QUI EST CE NUMERO, ET POUR QUOI FAIRE
+        ═══════════════════════════════════════════════════════════════
+
+        « Entrez votre numéro Orange Money » disait a qui il est, et rien
+        de ce qu'il fait. Sur un ecran ou le changeur a lui aussi un numero
+        — il est sur la carte du dessus, a l'achat — ca laisse la question
+        ouverte : lequel des deux ? Et surtout : pourquoi ?
+
+        « Ton numéro, pour recevoir tes francs » repond aux deux en six
+        mots. C'est le seul endroit du parcours ou la personne donne une
+        information sur ELLE, et la seule chose qui compte est que l'argent
+        y arrive.
+
+        ─── ET EN TUTOYANT, COMME LE RESTE DE L'ECRAN ────────────────
+
+        « Entrez votre » etait de moi, et c'etait un corps etranger : cet
+        ecran dit « Tu reçois », « Ta référence », « Ta vente est partie ».
+        Une seule phrase au vouvoiement au milieu se lit comme un texte
+        colle d'ailleurs — et sur un ecran d'argent, ce qui a l'air colle
+        d'ailleurs fait douter du reste.
+
+        Le nom de l'operateur n'est plus dans cette phrase : le titre,
+        juste au-dessus, le porte deja et le tient du relais. Le repeter a
+        dix points d'intervalle coutait la place qui sert maintenant a dire
+        a quoi sert le champ.
+        ═══════════════════════════════════════════════════════════════
         */
-        sousTitre = if (achat) null else stringResource(
-            R.string.change_telephone_vente_consigne,
-            state.parametres?.operateur ?: "Mobile Money"
-        ),
+        sousTitre = if (achat) null else {
+            stringResource(R.string.change_telephone_vente_consigne)
+        },
         marque = if (achat) null else R.drawable.logo_orange_money,
         logoPastille = if (achat) null else R.drawable.logo_orange_money
     )
@@ -4323,8 +4345,14 @@ private fun ChampChange(
                     color = TextPrimary,
                     maxLines = 1
                 )
+                /*
+                PAS DE `maxLines = 1` : sur un petit ecran ou avec une
+                police systeme agrandie, la phrase se replie plutot que
+                d'etre coupee en plein milieu. Un titre tronque reste
+                reconnaissable ; une consigne tronquee ne dit plus rien.
+                */
                 sousTitre?.let {
-                    Text(it, fontSize = 13.sp, color = TextSecondary, maxLines = 1)
+                    Text(it, fontSize = 13.sp, color = TextSecondary, lineHeight = 17.sp)
                 }
             }
         }
