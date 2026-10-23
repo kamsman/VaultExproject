@@ -1171,6 +1171,7 @@
     <string name="change_transmis_titre">Demande transmise</string>
     <string name="change_transmis_detail">Ta demande %1$s est partie. Garde cette référence : c\'est elle qui identifie ton opération. Tu recevras tes fonds une fois le paiement vérifié.</string>
     <string name="change_nouvelle">Nouvelle opération</string>
+    <string name="change_retour_accueil">Retour à l\'accueil</string>
     <string name="action_acheter">Acheter</string>
     <string name="change_telephone_aide">Le numéro qui a fait le paiement.</string>
     <string name="change_telephone_exemple">Ex. 70 12 34 56</string>

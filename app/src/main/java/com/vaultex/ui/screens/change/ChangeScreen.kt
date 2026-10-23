@@ -305,9 +305,33 @@ fun ChangeScreen(navController: NavController) {
                 !p.utilisable ->
                     Note(stringResource(R.string.change_ferme), AccentOrange)
 
-                state.etape == EtapeChange.TRANSMIS -> EtapeTransmis(state) {
-                    vm.recommencer()
-                }
+                state.etape == EtapeChange.TRANSMIS -> EtapeTransmis(
+                    state = state,
+                    onRecommencer = { vm.recommencer() },
+                    onAccueil = {
+                        /*
+                        ON DEPILE PLUTOT QUE DE NAVIGUER. L'accueil est SOUS
+                        nous dans la pile : il n'y a rien a creer, seulement
+                        a revenir. Et `popBackStack` rend un booleen, la ou
+                        `navigate` peut etre ignore en silence — c'est le
+                        meme choix que sur le recu d'envoi.
+
+                        L'etat est remis a zero AVANT, pour que la pile,
+                        si elle garde cette entree, n'y laisse pas une
+                        demande deja transmise.
+                        */
+                        vm.recommencer()
+                        if (!navController.popBackStack(Routes.DASHBOARD, false)) {
+                            runCatching {
+                                navController.navigate(Routes.DASHBOARD) {
+                                    popUpTo(Routes.DASHBOARD) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        }
+                    }
+                )
 
                 state.etape == EtapeChange.PAIEMENT ->
                     EtapePaiement(vm, state, copier, navController)
@@ -2991,7 +3015,34 @@ private fun detailVerification(
 @Composable
 private fun ColumnScope.EtapeTransmis(
     state: com.vaultex.ui.viewmodel.ChangeState,
-    onRecommencer: () -> Unit
+    onRecommencer: () -> Unit,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    IL N'Y AVAIT AUCUNE SORTIE
+    ═══════════════════════════════════════════════════════════════════
+
+    Cet ecran est le dernier du parcours : la demande est partie, il n'y a
+    plus rien a faire. Et il ne proposait qu'une chose, « Nouvelle
+    demande », c'est-a-dire recommencer.
+
+    Celui qui vient de vendre ne veut, neuf fois sur dix, ni recommencer
+    ni rester la. Il lui restait le bouton retour du telephone — qui ne
+    dit nulle part ou il mene — et la barre du bas si elle est visible.
+
+    Un ecran terminal doit nommer sa sortie. C'est la meme regle que sur
+    le recu d'envoi, dont le bouton principal est « Terminé » : une
+    operation finie se ferme, elle ne se relance pas par defaut.
+
+    ─── EN SECOND, PAS EN PREMIER ────────────────────────────────────
+
+    « Nouvelle demande » garde le bouton plein. Quelqu'un qui est encore
+    sur cet ecran y est reste pour une raison, et la plus courante est
+    d'en relancer une — sinon il serait deja parti. L'accueil est en
+    texte, comme « Revenir au calcul » deux etapes plus tot : une sortie
+    qui ne se cherche pas, mais qui ne reclame pas le regard.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    onAccueil: () -> Unit
 ) {
     Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3064,6 +3115,13 @@ private fun ColumnScope.EtapeTransmis(
         modifier = Modifier.fillMaxWidth().height(48.dp)
     ) {
         Text(stringResource(R.string.change_nouvelle), fontWeight = FontWeight.Bold)
+    }
+    TextButton(onClick = onAccueil, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.change_retour_accueil),
+            fontWeight = FontWeight.SemiBold,
+            color = AccentBlue
+        )
     }
 }
 
