@@ -101,6 +101,29 @@ data class SendState(
     pas a etre retouchee dans un parcours qui l'a fournie.
     */
     val verrouParChange: Boolean = false,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « CET ECRAN A ETE OUVERT PAR UNE VENTE » — SU DES LA PREMIERE IMAGE
+    ═══════════════════════════════════════════════════════════════════════
+
+    `verrouParChange` ne devient vrai qu'au BOUT de `appliquerVenteChange` :
+    il faut d'abord attendre que la chaine soit posee, puis l'adresse, puis
+    le montant. Quelques centaines de millisecondes, et c'est normal — le
+    verrou se pose en dernier pour ne pas bloquer les appels qui le
+    remplissent.
+
+    Mais l'ecran, lui, doit savoir TOUT DE SUITE : sans quoi il affiche le
+    formulaire d'envoi pendant ce temps, puis bascule. Un formulaire qui
+    apparait et disparait se lit comme un bug, et sur un ecran d'argent ca
+    suffit a faire reculer.
+
+    Celui-ci est pose des la premiere ligne, avant toute coroutine, sur la
+    seule foi des arguments de navigation. Il ne dit pas « tout est pret »
+    — c'est le role de `verrouParChange` — il dit « n'affiche pas le
+    formulaire, une vente arrive ».
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val venteChange: Boolean = false,
     /** La reference de la demande, affichee pour qu'on sache d'ou l'on vient. */
     val referenceChange: String = "",
     /*
@@ -761,6 +784,10 @@ class SendViewModel @Inject constructor(
         val montant = handle.get<String>(CHANGE_MONTANT).orEmpty()
         val jeton = handle.get<String>(CHANGE_JETON).orEmpty()
         if (adresse.isBlank() || montant.isBlank() || jeton.isBlank()) return
+
+        // Pose AVANT toute coroutine : l'ecran ne doit pas montrer le
+        // formulaire pendant que la chaine se choisit. Voir `venteChange`.
+        _state.update { it.copy(venteChange = true) }
 
         /*
         ═══════════════════════════════════════════════════════════════════
