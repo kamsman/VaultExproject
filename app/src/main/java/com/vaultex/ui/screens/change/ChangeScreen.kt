@@ -1,7 +1,9 @@
 package com.vaultex.ui.screens.change
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.ui.draw.clip
@@ -3544,15 +3546,137 @@ private fun CarteMontantChange(
                             }
                         }
                     }
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LA LISTE RESSEMBLE ENFIN A CE QU'ELLE CHOISIT
+                    ═══════════════════════════════════════════════════════
+
+                    C'etait `DropdownMenuItem(text = { Text(m) })` : trois
+                    lignes de texte nu — « USDT-BNB », « USDT », « USDT-ETH »
+                    — dans une application ou chaque autre liste porte le
+                    logo de sa monnaie.
+
+                    LE PROBLEME N'EST PAS L'ELEGANCE. La pastille fermee, au-
+                    dessus, affiche DEJA le logo et le reseau en toutes
+                    lettres ; c'est la liste qui les perdait, au moment precis
+                    ou l'on choisit. On lisait le reseau pour verifier son
+                    choix, puis on ouvrait une liste qui ne le disait plus.
+
+                    Et trois caracteres separent « USDT » de « USDT-BNB ». Le
+                    commentaire du reseau en toutes lettres, trente lignes
+                    plus haut, dit ce que coute cette confusion : un BEP-20
+                    envoye a une adresse TRON est perdu definitivement.
+
+                    ─── CE QUE PORTE CHAQUE LIGNE ────────────────────────
+
+                    Le logo de la monnaie a gauche, de la MEME source que
+                    partout ailleurs. Le symbole, le reseau en toutes lettres
+                    dessous. Puis, a droite, le logo de la CHAINE — le rouge
+                    de TRON, le losange d'Ethereum : la monnaie se ressemble
+                    d'une chaine a l'autre, c'est la chaine qui differe, et
+                    c'est elle qu'on doit reconnaitre sans lire.
+
+                    Enfin la marque de selection. Elle est sur TOUTES les
+                    lignes, pleine sur celle qui est choisie et vide sur les
+                    autres : une marque qui n'apparait que sur un element se
+                    lit comme une decoration, deux etats se lisent comme un
+                    choix.
+
+                    ─── DES LIGNES CONSTRUITES, PAS DES DropdownMenuItem ──
+
+                    `DropdownMenuItem` impose sa hauteur et ses marges. A
+                    cinquante-six points il serre le logo de quarante contre
+                    les bords, et le reseau passe sous la ligne. Les lignes
+                    sont donc posees a la main dans le menu.
+                    ═══════════════════════════════════════════════════════
+                    */
                     DropdownMenu(
                         expanded = listeOuverte,
                         onDismissRequest = { listeOuverte = false }
                     ) {
                         monnaies.forEach { m ->
-                            DropdownMenuItem(
-                                text = { Text(m) },
-                                onClick = { onMonnaie(m); listeOuverte = false }
-                            )
+                            val actuelle = m.equals(unite, ignoreCase = true)
+                            Row(
+                                Modifier
+                                    /*
+                                    LA LARGEUR EST BORNEE, ET `fillMaxWidth`
+                                    RESTE NECESSAIRE.
+
+                                    Sans `fillMaxWidth`, la ligne epouse son
+                                    contenu — et dans un Row de largeur libre,
+                                    un enfant en `weight(1f)` recoit ZERO : la
+                                    colonne du symbole disparaitrait. C'est le
+                                    piege classique du poids dans un parent non
+                                    borne.
+
+                                    Avec lui seul, le menu s'etale sur toute la
+                                    largeur de l'ecran. `widthIn` tranche :
+                                    trois cents points suffisent au logo, au
+                                    symbole, au reseau et aux deux pastilles,
+                                    et `fillMaxWidth` remplit cette borne-la au
+                                    lieu de l'ecran.
+                                    */
+                                    .widthIn(max = 300.dp)
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (actuelle) AccentBlue.copy(alpha = 0.08f)
+                                        else Color.Transparent
+                                    )
+                                    .clickable { onMonnaie(m); listeOuverte = false }
+                                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                coil.compose.AsyncImage(
+                                    model = com.vaultex.ui.components.CryptoIcon.url(m),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        m,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        color = TextPrimary,
+                                        maxLines = 1
+                                    )
+                                    reseauDe(m)?.let { r ->
+                                        Text(
+                                            r,
+                                            fontSize = 13.sp,
+                                            color = AccentOrange,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                                chaineDe(m)?.let { c ->
+                                    coil.compose.AsyncImage(
+                                        model = com.vaultex.ui.components.CryptoIcon.url(c),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(26.dp).clip(CircleShape)
+                                    )
+                                }
+                                if (actuelle) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        null,
+                                        tint = AccentBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Box(
+                                        Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .border(
+                                                2.dp,
+                                                TextSecondary.copy(alpha = 0.35f),
+                                                CircleShape
+                                            )
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -3627,6 +3751,32 @@ private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
     "BTC" -> "Bitcoin"
     "SOL" -> "Solana"
     "PI" -> "Pi Network"
+    else -> null
+}
+
+/**
+ * Le symbole de la CHAINE qui porte cette monnaie, pour en afficher le logo.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI UN LOGO DE CHAINE A COTE D'UN LOGO DE MONNAIE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Les trois USDT portent le MEME logo — le jeton vert de Tether — parce
+ * que c'est la meme monnaie. Trois lignes identiques a l'oeil, que seuls
+ * trois caracteres de suffixe distinguent.
+ *
+ * Ce qui differe, et qui coute tout quand on se trompe, c'est la CHAINE.
+ * Son logo est la seule chose qui rende les trois lignes reconnaissables
+ * sans les lire : le rouge de TRON, le losange d'Ethereum, le jaune de BNB.
+ *
+ * Null pour une monnaie native — son propre logo EST deja celui de sa
+ * chaine, et le repeter a droite n'ajouterait rien qu'une redite.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+private fun chaineDe(monnaie: String): String? = when (monnaie.uppercase()) {
+    "USDT", "USDT-TRX" -> "TRX"
+    "USDT-BNB" -> "BNB"
+    "USDT-ETH" -> "ETH"
     else -> null
 }
 
