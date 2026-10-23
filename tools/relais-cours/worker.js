@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 54
+const VERSION = 55
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2896,14 +2896,61 @@ function messageOrdre(ordre, verif, coherence, otp) {
   const etat = verif ? verif.etat : 'indisponible'
   const rienVu = etat === 'absent' || etat === 'deja_servi'
   const verseVraiment = (etat === 'confirme' || (achat && !rienVu)) && !prixDouteux
+
+  /*
+  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+  CE QU'IL FAUT PAYER SE CALCULE SUR CE QUI EST ARRIV\u00C9
+  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+  La consigne reprenait `ordre.montantFcfa` \u2014 le chiffre ANNONC\u00C9 par le
+  t\u00E9l\u00E9phone. Tant que la cha\u00EEne montre exactement le montant annonc\u00E9, les
+  deux co\u00EFncident et personne ne voit la diff\u00E9rence.
+
+  Quand ils diff\u00E8rent, non. La recherche tol\u00E8re un pour cent, donc un
+  versement de 2,85 passe pour une demande de 2,87 : le changeur lisait
+  \u00AB ENVOYER 1 740 FCFA \u00BB pour une crypto qu'il n'a pas enti\u00E8rement re\u00E7ue.
+  Il restait une ligne \u26A0\uFE0F plus bas disant \u00AB paie au prorata \u00BB \u2014 sans
+  donner le prorata. Calculer de t\u00EAte une r\u00E8gle de trois \u00E0 six d\u00E9cimales,
+  le soir, sur un t\u00E9l\u00E9phone, est exactement ce qu'on ne doit demander \u00E0
+  personne.
+
+  Le prix \u00E0 l'unit\u00E9 vient de la demande elle-m\u00EAme \u2014 montant en francs
+  divis\u00E9 par montant en crypto \u2014 et non du march\u00E9. C'est le taux SUR
+  LEQUEL LE CLIENT S'EST ENGAG\u00C9, affich\u00E9 et garanti dix minutes ; le cours
+  a pu bouger depuis, et recalculer au march\u00E9 reviendrait \u00E0 changer le
+  prix apr\u00E8s coup.
+
+  Si la cha\u00EEne n'a rien montr\u00E9, il n'y a rien \u00E0 recalculer : on garde le
+  montant annonc\u00E9, et de toute fa\u00E7on la consigne dit alors d'attendre.
+  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+  */
+  const cryptoAnnonce = nombreFrancais(ordre.montantCrypto)
+  const fcfaAnnonce = nombreFrancais(ordre.montantFcfa)
+  const lu = !achat && verif && verif.etat === 'confirme' ? Number(verif.montant) : 0
+  const fcfaAPayer =
+    lu > 0 && cryptoAnnonce > 0 && fcfaAnnonce > 0
+      ? Math.round((fcfaAnnonce / cryptoAnnonce) * lu)
+      : 0
+  const fcfaConsigne = fcfaAPayer > 0 ? groupeMilliers(fcfaAPayer) : ordre.montantFcfa
+
   const aFaire = verseVraiment
     ? achat
       ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
-      : `ENVOYER ${ordre.montantFcfa} FCFA au ${ordre.telephone || 'numero du client'}`
+      : `ENVOYER ${fcfaConsigne} FCFA par Orange Money au ` +
+        `${ordre.telephone || 'numero du client'}`
     : `NE RIEN ENVOYER POUR L'INSTANT - lis les lignes du bas`
 
   const lignes = [
-    `\u{1F4B1} DEMANDE DE CHANGE \u00b7 ${ordre.reference}`,
+    /*
+    LE SENS EST DANS LE TITRE, et il y manquait.
+
+    \u00AB DEMANDE DE CHANGE \u00BB est vrai des deux sens et ne distingue rien. Le
+    sens n'\u00E9tait dit qu'\u00E0 la ligne suivante, en minuscules, dans une
+    phrase \u2014 l\u00E0 o\u00F9 l'\u0153il ne va pas quand il balaie une liste de messages.
+    Or c'est l'information qui d\u00E9cide de tout le reste : ce qu'on envoie,
+    par quel r\u00E9seau, et dans quel sens lire les deux montants.
+    */
+    `\u{1F4B1} ${achat ? 'ACHAT' : 'VENTE'} \u00b7 ${ordre.reference}`,
     achat ? 'Le client paie en FCFA, tu envoies la crypto'
           : 'Le client envoie la crypto, tu paies en FCFA',
     '',
@@ -2916,11 +2963,36 @@ function messageOrdre(ordre, verif, coherence, otp) {
     ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
     ordre.telephone ? `Telephone : ${ordre.telephone}${marqueOtp(otp)}` : null,
     ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
-    ...lignesVerification(verif, coherence, ordre),
-    '',
-    '\u26A0\uFE0F N\u2019ENVOIE RIEN AVANT D\u2019AVOIR VU L\u2019ARGENT SUR TON',
-    'PROPRE COMPTE. Une capture d\u2019\u00e9cran se fabrique en cinq minutes ;',
-    'une r\u00e9f\u00e9rence se recopie. Seul ton relev\u00e9 fait foi.',
+    ...lignesVerification(verif, coherence, ordre, fcfaAPayer),
+    /*
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    L'AVERTISSEMENT RESTE A L'ACHAT, ET PART A LA VENTE
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+    \u00ab N'envoie rien avant d'avoir vu l'argent sur ton propre compte \u00bb a
+    \u00e9t\u00e9 \u00e9crit quand rien n'\u00e9tait v\u00e9rifi\u00e9 : le client affirmait avoir pay\u00e9,
+    et seule la parole du changeur comptait.
+
+    SUR UNE VENTE, CE N'EST PLUS LE CAS. Le message porte un txid et un
+    lien d'explorateur \u2014 la preuve est publique, v\u00e9rifiable par n'importe
+    qui, et elle ne vient pas du client. Garder l'avertissement sous une
+    ligne \u00ab VERSEMENT VERIFIE SUR LA CHAINE \u00bb revient \u00e0 d\u00e9mentir ce qu'on
+    vient d'affirmer, et un message qui se contredit finit par ne plus
+    \u00eatre lu du tout \u2014 y compris ses lignes \ud83d\udea8.
+
+    SUR UN ACHAT, IL RESTE, ET IL EST ESSENTIEL. Les francs arrivent par
+    Orange Money : aucun registre public ne les porte. Quand le robot SMS
+    est install\u00e9, le message dit \u00ab encaissement confirm\u00e9 par le SMS de
+    l'op\u00e9rateur \u00bb \u2014 c'est fort, mais un identifiant d'exp\u00e9diteur se
+    falsifie l\u00e0 o\u00f9 un bloc ne se falsifie pas. Et sans robot, il ne reste
+    rien du tout. Le relev\u00e9 du changeur est alors la seule chose qui
+    fasse foi, et il faut le lui dire.
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    */
+    achat ? '' : null,
+    achat ? '\u26A0\uFE0F N\u2019ENVOIE RIEN AVANT D\u2019AVOIR VU L\u2019ARGENT SUR TON' : null,
+    achat ? 'PROPRE COMPTE. Une capture d\u2019\u00e9cran se fabrique en cinq minutes ;' : null,
+    achat ? 'une r\u00e9f\u00e9rence se recopie. Seul ton relev\u00e9 fait foi.' : null,
   ].filter((l) => l !== null)
 
   return lignes
@@ -2944,7 +3016,7 @@ function messageOrdre(ordre, verif, coherence, otp) {
  * précision, le changeur croirait relire le chiffre du client.
  * ═══════════════════════════════════════════════════════════════════════
  */
-function lignesVerification(verif, coherence, ordre) {
+function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
   const lignes = []
 
   /*
@@ -3047,8 +3119,27 @@ function lignesVerification(verif, coherence, ordre) {
     if (annonce > 0 && verif.montant > 0 && verif.montant < annonce * 0.999) {
       lignes.push(
         `\u26A0\uFE0F Recu MOINS qu'annonce (${formatMontant(verif.montant)} au lieu de ` +
-          `${ordre.montantCrypto}) - paie au prorata`
+          `${ordre.montantCrypto})`
       )
+      /*
+      ON DONNE LE PRORATA, ON NE LE DEMANDE PAS.
+
+      La ligne disait \u00AB paie au prorata \u00BB et s'arr\u00EAtait l\u00E0. Calculer une
+      r\u00E8gle de trois sur six d\u00E9cimales, de t\u00EAte, un soir de forte
+      activit\u00E9, c'est la demande la plus s\u00FBre de se tromper de tout ce
+      message \u2014 et l'erreur se fait en francs, sur le compte de quelqu'un.
+
+      Le chiffre est celui de la consigne en haut, qui est d\u00E9j\u00E0 recalcul\u00E9e
+      sur le montant lu. Cette ligne ne fait que dire d'o\u00F9 il vient, pour
+      qu'on ne croie pas \u00E0 une coquille en le comparant au montant annonc\u00E9
+      deux lignes plus haut.
+      */
+      if (fcfaAPayer > 0) {
+        lignes.push(
+          `\u2192 A payer : ${groupeMilliers(fcfaAPayer)} FCFA ` +
+            `(et non ${ordre.montantFcfa}) - deja corrige dans A FAIRE`
+        )
+      }
     }
     return lignes
   }
