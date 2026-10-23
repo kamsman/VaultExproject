@@ -1142,6 +1142,7 @@
     <string name="change_transmis_titre">تم إرسال الطلب</string>
     <string name="change_transmis_detail">خرج طلبك %1$s. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
     <string name="change_nouvelle">عملية جديدة</string>
+    <string name="change_retour_accueil">العودة إلى الرئيسية</string>
     <string name="action_acheter">شراء</string>
     <string name="change_telephone_aide">الرقم الذي دفع.</string>
     <string name="change_telephone_exemple">مثال 70 12 34 56</string>
