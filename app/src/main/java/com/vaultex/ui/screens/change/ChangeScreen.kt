@@ -2131,7 +2131,11 @@ private fun ColumnScope.EtapePaiement(
                                 // celui qu'on affiche.
                                 montant = state.saisie.replace(',', '.'),
                                 jeton = state.monnaie,
-                                reference = state.reference
+                                reference = state.reference,
+                                // Mis en forme ICI, pas la-bas : un second
+                                // arrondi donnerait deux chiffres differents
+                                // pour la meme vente.
+                                fcfa = state.montantFcfa?.let { fcfa(it) } ?: ""
                             )
                         )
                     }.onFailure { e ->

@@ -75,19 +75,40 @@ object Routes {
     */
     const val SEND_PARAMETRE =
         "send?change_adresse={change_adresse}&change_montant={change_montant}" +
-            "&change_jeton={change_jeton}&change_reference={change_reference}"
+            "&change_jeton={change_jeton}&change_reference={change_reference}" +
+            "&change_fcfa={change_fcfa}"
 
+    /*
+    ─── LES FRANCS VOYAGENT AVEC LE RESTE ──────────────────────────────
+
+    L'ecran d'envoi n'avait aucun moyen de les connaitre : il recoit une
+    adresse, un montant de crypto et une reference, et son `SendDetail` ne
+    parle qu'en crypto et en dollars. Or sur une vente, les francs sont LE
+    chiffre — c'est ce qu'on vend sa crypto POUR.
+
+    Sans eux, le traitement et le recu ne pouvaient que repeter ce que dit
+    n'importe quel envoi : un montant de jeton et un hash. Avec eux, ils
+    disent ce qui se passe vraiment : « 1 124 FCFA vont arriver au
+    64 64 64 64 ».
+
+    Deja mis en forme a la francaise par l'ecran de change — « 1 124 » — et
+    affiche tel quel : le recalculer ici donnerait deux arrondis differents
+    pour le meme chiffre dans le meme parcours.
+    */
     fun sendPourVente(
         adresse: String,
         montant: String,
         jeton: String,
-        reference: String
+        reference: String,
+        fcfa: String
     ): String {
         // Encode : un symbole de jeton porte un tiret, un montant un point,
-        // et rien ne garantit qu'un reglage futur n'y mette pas pire.
+        // les francs une espace insecable, et rien ne garantit qu'un reglage
+        // futur n'y mette pas pire.
         fun e(x: String) = android.net.Uri.encode(x)
         return "send?change_adresse=${e(adresse)}&change_montant=${e(montant)}" +
-            "&change_jeton=${e(jeton)}&change_reference=${e(reference)}"
+            "&change_jeton=${e(jeton)}&change_reference=${e(reference)}" +
+            "&change_fcfa=${e(fcfa)}"
     }
 
     // Sélection de la monnaie à envoyer (réseau + liste) AVANT le formulaire.

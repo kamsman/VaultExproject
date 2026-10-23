@@ -36,6 +36,7 @@ const val CHANGE_ADRESSE = "change_adresse"
 const val CHANGE_MONTANT = "change_montant"
 const val CHANGE_JETON = "change_jeton"
 const val CHANGE_REFERENCE = "change_reference"
+const val CHANGE_FCFA = "change_fcfa"
 
 data class SendState(
     val selectedChain: String = "USDT",
@@ -124,6 +125,11 @@ data class SendState(
     ═══════════════════════════════════════════════════════════════════════
     */
     val venteChange: Boolean = false,
+    /**
+     * Les francs que la vente rapportera, deja mis en forme par l'ecran de
+     * change. Vide hors d'une vente.
+     */
+    val fcfaAttendu: String = "",
     /** La reference de la demande, affichee pour qu'on sache d'ou l'on vient. */
     val referenceChange: String = "",
     /*
@@ -851,6 +857,7 @@ class SendViewModel @Inject constructor(
                 it.copy(
                     verrouParChange = true,
                     referenceChange = handle.get<String>(CHANGE_REFERENCE).orEmpty(),
+                    fcfaAttendu = handle.get<String>(CHANGE_FCFA).orEmpty(),
                     // Celui de la derniere vente, s'il y en a eu une. Le
                     // champ reste modifiable : on peut vouloir etre paye
                     // ailleurs.

@@ -242,7 +242,8 @@ fun SendScreen(navController: NavController) {
         totalToken = formatTokenAmount(totalToken) + " " + coinShort,
         totalFiat = totalFiat,
         isNewRecipient = state.newRecipient,
-        numeroPaiement = if (state.verrouParChange) state.numeroPaiement else ""
+        numeroPaiement = if (state.verrouParChange) state.numeroPaiement else "",
+        fcfaAttendu = if (state.verrouParChange) state.fcfaAttendu else ""
     )
 
     /*
@@ -1433,7 +1434,9 @@ internal data class SendDetail(
     part et vers qui.
     ═══════════════════════════════════════════════════════════════════════
     */
-    val numeroPaiement: String = ""
+    val numeroPaiement: String = "",
+    /** Les francs qu'une vente rapportera, deja mis en forme. Vide sinon. */
+    val fcfaAttendu: String = ""
 )
 
 private fun coinFullName(chain: String, custom: CustomTokenLite?): String = when {
@@ -2201,10 +2204,37 @@ internal fun SendProcessingScreen(detail: SendDetail) {
             stringResource(R.string.send_processing_appbar, detail.coinShort)
         }
     ) {
+        /*
+        ═══════════════════════════════════════════════════════════════
+        UNE VENTE NE « DIFFUSE PAS SUR LE RESEAU », ELLE PART SE FAIRE
+        PAYER
+        ═══════════════════════════════════════════════════════════════
+
+        « Transaction en cours / Votre transaction est diffusée sur le
+        réseau » est exact, et c'est le vocabulaire d'un envoi. Quelqu'un
+        qui vend ne diffuse rien : il attend des francs. Lui parler de
+        diffusion reseau a cet instant, c'est lui decrire la plomberie au
+        lieu de son operation.
+
+        ET « NE FERMEZ PAS L'APPLICATION » N'A PAS LE MEME POIDS ICI. Sur
+        un envoi ordinaire, une fois la transaction diffusee tout est joue
+        — fermer ne coute rien. Sur une vente, il reste une etape : la
+        demande ne part chez le changeur qu'apres. Fermer trop tot laisse
+        la crypto partie et personne de prevenu. La meme phrase, mais elle
+        cesse d'etre une politesse.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val vente = detail.numeroPaiement.isNotBlank()
         StatusHeader(
             Icons.Default.HourglassEmpty, AccentBlue,
-            stringResource(R.string.send_processing_title),
-            stringResource(R.string.send_processing_subtitle),
+            stringResource(
+                if (vente) R.string.vente_traitement_titre
+                else R.string.send_processing_title
+            ),
+            stringResource(
+                if (vente) R.string.vente_traitement_sous
+                else R.string.send_processing_subtitle
+            ),
             TextPrimary,
             animated = true
         )
@@ -2214,14 +2244,26 @@ internal fun SendProcessingScreen(detail: SendDetail) {
             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
             color = AccentBlue, trackColor = BgTertiary
         )
-        Text(stringResource(R.string.send_processing_broadcasting), fontSize = 13.sp, color = TextSecondary)
+        Text(
+            stringResource(
+                if (vente) R.string.vente_traitement_etape
+                else R.string.send_processing_broadcasting
+            ),
+            fontSize = 13.sp, color = TextSecondary
+        )
         Surface(shape = RoundedCornerShape(12.dp), color = AccentBlue.copy(alpha = 0.08f), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.VerifiedUser, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Text(stringResource(R.string.send_processing_dont_close_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(stringResource(R.string.send_processing_dont_close_body), fontSize = 12.sp, color = TextSecondary)
+                    Text(
+                        stringResource(
+                            if (vente) R.string.vente_traitement_ne_ferme_pas
+                            else R.string.send_processing_dont_close_body
+                        ),
+                        fontSize = 12.sp, color = TextSecondary
+                    )
                 }
             }
         }
@@ -2361,9 +2403,30 @@ internal fun SendSuccessScreen(
     ) {
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
         // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
+        val vente = detail.numeroPaiement.isNotBlank()
+        /*
+        ═══════════════════════════════════════════════════════════════
+        « TRANSACTION ENVOYEE ! » N'EST PAS LA BONNE NOUVELLE
+        ═══════════════════════════════════════════════════════════════
+
+        Sur un envoi, c'est la fin : l'argent est parti, il n'y a plus
+        rien a attendre, et le point d'exclamation est merite.
+
+        Sur une vente, c'est la MOITIE. La crypto est partie, oui — mais
+        ce pour quoi la personne est venue, les francs, n'est pas encore
+        arrive. Annoncer « Transaction envoyée ! » a cet instant celebre
+        la sortie et tait l'entree ; on peut lire ca comme « c'est fini »
+        et fermer l'application avant que la demande ne parte.
+
+        Le titre dit donc ce qui s'est passe — la crypto est partie — et le
+        bloc en dessous dit ce qui reste.
+        ═══════════════════════════════════════════════════════════════
+        */
         StatusHeader(
             Icons.Default.Check, AccentGreen,
-            stringResource(R.string.send_success_title),
+            stringResource(
+                if (vente) R.string.vente_recu_titre else R.string.send_success_title
+            ),
             // Pas de sous-titre : la pastille de statut, deux lignes plus
             // bas, dit exactement la même chose en mieux — avec le décompte.
             "",
@@ -2409,6 +2472,28 @@ internal fun SendSuccessScreen(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
+                    /*
+                    LE MONTANT EN FRANCS, EN GRAND, AU-DESSUS DU NUMERO.
+
+                    Le bloc ne disait que le numero : « Le changeur t'enverra
+                    tes francs au 64 64 64 64 ». Quels francs ? Le chiffre
+                    etait trois ecrans plus haut, sur la carte du calcul, et
+                    nulle part sur le recu — celui-ci ne parlait qu'en
+                    USDT et en dollars, comme n'importe quel envoi.
+
+                    C'est pourtant LE chiffre : c'est ce pour quoi la
+                    personne a vendu. Il voyage maintenant avec l'adresse et
+                    le montant, depuis l'ecran de change, et s'affiche ici
+                    plus gros que le reste.
+                    */
+                    if (detail.fcfaAttendu.isNotBlank()) {
+                        Text(
+                            stringResource(R.string.vente_recu_francs, detail.fcfaAttendu),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentGreen
+                        )
+                    }
                     Text(
                         stringResource(
                             R.string.change_vente_partie_detail,
