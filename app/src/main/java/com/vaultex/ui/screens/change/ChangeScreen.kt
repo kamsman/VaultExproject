@@ -1990,8 +1990,7 @@ private fun ColumnScope.EtapePaiement(
         sousTitre = if (achat) null else {
             stringResource(R.string.change_telephone_vente_consigne)
         },
-        marque = if (achat) null else R.drawable.logo_orange_money,
-        logoPastille = if (achat) null else R.drawable.logo_orange_money
+        marque = if (achat) null else R.drawable.logo_orange_money
     )
 
     /*
@@ -4249,20 +4248,20 @@ private fun ChampChange(
     reference de paiement, par exemple — n'ont aucune marque a montrer.
     ═══════════════════════════════════════════════════════════════════
     */
-    marque: Int? = null,
     /*
-    LA PASTILLE DE TETE PORTE LA MARQUE PLUTOT QU'UN PICTOGRAMME.
+    ─── UNE SEULE FOIS, ET DANS LA CASE ─────────────────────────────
 
-    Un telephone bleu dit « ici on tape un numero », ce que le titre dit
-    deja. Le logo de l'operateur dit DE QUEL numero il s'agit, et c'est la
-    seule chose que le pictogramme ne pouvait pas dire.
+    Le logo a d'abord ete pose AUSSI en pastille de tete, en quarante-deux
+    points. Deux fois la meme marque a trois centimetres d'ecart, dont une
+    en grand : le logo prenait le pas sur le titre et sur la consigne,
+    c'est-a-dire sur les deux seules choses que quelqu'un doit lire la.
 
-    Independant de `marque` : la confirmation garde son telephone en tete —
-    elle ne demande pas un numero d'operateur, elle demande de REPETER
-    celui du dessus — tout en portant la marque dans sa case, puisque c'est
-    le meme numero qu'on y retape.
+    Il ne reste que celui de la case. C'est la qu'il travaille — il dit de
+    quel reseau sont les chiffres qu'on tape, juste a cote d'eux — et la
+    pastille de tete reprend son pictogramme, qui s'efface derriere le
+    texte au lieu de lui disputer la place.
     */
-    logoPastille: Int? = null
+    marque: Int? = null
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         /*
@@ -4320,21 +4319,13 @@ private fun ChampChange(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (logoPastille != null) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(logoPastille),
-                    contentDescription = null,
-                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
-                )
-            } else {
-                Box(
-                    Modifier.size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(AccentBlue.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
-                }
+            Box(
+                Modifier.size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AccentBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icone, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
