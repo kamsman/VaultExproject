@@ -88,6 +88,32 @@ const cas = [
     { etat: 'indisponible', raison: 'trongrid HTTP 503' },
     { etat: 'indisponible' },
   ],
+  /*
+  CELUI-CI EXISTE PARCE QUE LE CHANGEUR DEVAIT CALCULER DE TETE.
+
+  La chaine montre 7,2 USDT pour une demande de 8 : la recherche l'accepte
+  (la tolerance est d'un pour cent... elle ne l'accepterait pas ici, mais
+  un versement de 7,95 oui, et le principe est le meme). Le message disait
+  alors « paie au prorata » et s'arretait la.
+
+  On verifie ici que les deux chiffres du message concordent : la consigne
+  du haut et la ligne de rattrapage doivent dire le MEME montant, sinon on
+  a remplace une question par une contradiction.
+  */
+  [
+    'RECU MOINS QU ANNONCE — 7,2 USDT pour une demande de 8',
+    venteType,
+    {
+      etat: 'confirme',
+      txid: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+      montant: 7.2,
+      quand: MAINTENANT - 6 * 60 * 1000,
+      confirme: true,
+      de: 'TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9',
+      explorateur: '',
+    },
+    { etat: 'coherent', attendu: 4500, ecartPourcent: 0.1 },
+  ],
   [
     'ECART DE PRIX — transfert reel, ordre absurde : 8 USDT contre 500 000 FCFA',
     { ...venteType, montantFcfa: '500 000' },
