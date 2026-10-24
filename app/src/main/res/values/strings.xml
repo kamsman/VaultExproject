@@ -1249,6 +1249,8 @@
     <string name="change_reprendre_prix">Reprendre un prix à jour</string>
     <string name="change_vente_partie_titre">Ta vente est partie</string>
     <string name="change_depot_en_cours">On prévient VaultEx…</string>
+    <string name="change_depot_achat">On transmet ta demande à VaultEx…</string>
+    <string name="change_depot_ne_ferme_pas">Ne ferme pas l\'application. Reste ici quelques secondes.</string>
     <string name="change_vente_preparation">Préparation de ta vente…</string>
     <string name="vente_traitement_etape">Envoi de la crypto…</string>
     <string name="vente_traitement_ne_ferme_pas">Ta demande part juste après. Reste ici quelques secondes.</string>

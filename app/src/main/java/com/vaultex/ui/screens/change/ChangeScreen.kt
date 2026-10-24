@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Lock
@@ -372,7 +374,36 @@ fun ChangeScreen(navController: NavController) {
                 state.etape == EtapeChange.PAIEMENT &&
                     state.sens == SensChange.VENTE &&
                     (state.depotAutoRestant > 0 || state.envoiEnCours) ->
-                    EtapeDepotAuto()
+                    EtapeDepotAuto(
+                        titre = stringResource(R.string.change_vente_partie_titre),
+                        sousTitre = stringResource(R.string.change_depot_en_cours)
+                    )
+
+                /*
+                ═══════════════════════════════════════════════════════════
+                L'ACHAT ATTEND LUI AUSSI, ET IL NE LE DISAIT PAS
+                ═══════════════════════════════════════════════════════════
+
+                « Confirmer le paiement » gardait son rond DANS le bouton
+                pendant que la demande partait au relais. Une seconde ou
+                trois ou l'ecran reste entier — ses deux champs, sa carte de
+                verification, ses boutons — et rien ne dit que quelque chose
+                se passe.
+
+                Sur un ecran ou l'on vient de payer de l'argent reel, cette
+                seconde d'incertitude se solde par un second appui. Le
+                relais le rattrape — la meme reference ne passe qu'une fois
+                par heure — mais c'est un garde-fou qui travaille pour
+                masquer un silence qu'on peut simplement cesser de faire.
+                ═══════════════════════════════════════════════════════════
+                */
+                state.etape == EtapeChange.PAIEMENT &&
+                    state.sens == SensChange.ACHAT &&
+                    state.envoiEnCours ->
+                    EtapeDepotAuto(
+                        titre = stringResource(R.string.send_processing_title),
+                        sousTitre = stringResource(R.string.change_depot_achat)
+                    )
 
                 state.etape == EtapeChange.PAIEMENT ->
                     EtapePaiement(vm, state, copier, navController)
@@ -3179,26 +3210,92 @@ private fun detailVerification(
  * n'a aucune raison de proposer pour quelques secondes d'attente.
  */
 @Composable
-private fun ColumnScope.EtapeDepotAuto() {
-    Spacer(Modifier.height(48.dp))
+private fun ColumnScope.EtapeDepotAuto(
+    titre: String,
+    sousTitre: String
+) {
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA MEME ATTENTE QUE SUR L'ECRAN D'ENVOI
+    ═══════════════════════════════════════════════════════════════════
+
+    C'etait un simple rond qui tourne. Celui de l'ecran d'envoi porte un
+    grand sablier dans un cercle, une barre de progression et la consigne
+    « Ne fermez pas l'application » — et ce sont deux attentes du MEME
+    parcours, a quelques secondes d'intervalle.
+
+    Deux formes differentes pour la meme chose se lisent comme deux
+    applications. Celle-ci reprend donc la silhouette de l'autre.
+
+    ─── ET ELLE SERT MAINTENANT AUSSI A L'ACHAT ──────────────────────
+
+    L'achat n'avait aucune attente : « Confirmer le paiement » gardait son
+    rond DANS le bouton pendant que la demande partait au relais. Une
+    seconde ou trois ou l'ecran reste entier, avec ses champs et ses
+    boutons, et rien ne dit que quelque chose se passe — on rappuie.
+
+    Les deux textes sont donnes par l'appelant : une vente dit « Ta vente
+    est partie / On prévient VaultEx », un achat dit « Transaction en
+    cours / On transmet ta demande ». La forme est commune, les mots sont
+    propres a chacun.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    Spacer(Modifier.height(32.dp))
     Column(
         Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
+        Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(112.dp).clip(CircleShape)
+                    .background(AccentBlue.copy(alpha = 0.07f))
+            )
+            Box(
+                Modifier.size(82.dp).clip(CircleShape).background(AccentBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.HourglassEmpty, null,
+                    tint = Color.White, modifier = Modifier.size(40.dp)
+                )
+            }
+        }
         Text(
-            stringResource(R.string.change_vente_partie_titre),
-            fontSize = 17.sp,
+            titre,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = TextPrimary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        LinearProgressIndicator(
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = AccentBlue,
+            trackColor = BgTertiary
         )
         Text(
-            stringResource(R.string.change_depot_en_cours),
+            sousTitre,
             fontSize = 14.sp,
             color = TextSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = AccentBlue.copy(alpha = 0.08f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.VerifiedUser, null,
+                    tint = AccentBlue, modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.change_depot_ne_ferme_pas),
+                    fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
+                )
+            }
+        }
     }
 }
 
