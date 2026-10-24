@@ -124,6 +124,15 @@ function demande(extra) {
     marge: '25 FCFA/$',
     telephone: '70123456',
     referencePaiement: `MP${compteurRef}`,
+    /*
+    L'ADRESSE EST DANS LA DEMANDE PAR DEFAUT, parce que le defaut de ce
+    fixture est un ACHAT — et qu'un achat sans adresse est desormais
+    refuse : le changeur n'aurait nulle part ou envoyer.
+
+    Les cas qui veulent eprouver ce refus la retirent explicitement, ce
+    qui se lit mieux qu'une absence qu'il faut deviner.
+    */
+    adresse: 'TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM',
     ...(extra || {}),
   }
 }
@@ -777,6 +786,38 @@ verifie(
 )
 
 verifie('MINIMUM : un tableau n est pas une table', Object.keys(minimumsChange('[1,2]')).length === 0)
+
+{
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UN ACHAT SANS ADRESSE N'A NULLE PART OU ALLER
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le symetrique du numero exige sur une vente. Sans adresse, le message
+  disait « ENVOYER 2,15 USDT-BNB a l'adresse ci-dessous » et la ligne
+  d'adresse etait simplement omise : le client avait paye, le changeur
+  n'avait nulle part ou envoyer, et c'est lui qui le decouvrait.
+
+  Deux causes reelles, toutes deux dans le telephone : une phrase secrete
+  devenue illisible, ou une monnaie absente de la table de derivation.
+  L'ecran les attrape ; celui-ci attrape ce que l'ecran laisse passer.
+  */
+  const r = await poster(demande({ adresse: '' }), {}, faireCache())
+  verifie('ACHAT : sans adresse de reception, c est refuse', r.statut === 400, r)
+  verifie('ACHAT : la raison nomme l adresse',
+    String(r.corps.raison).includes('adresse'), r.corps)
+  verifie('ACHAT : et rien ne part', envois.length === 0, envois.length)
+}
+
+{
+  // Une VENTE n'a pas d'adresse a fournir : c'est le client qui envoie.
+  const r = await poster(
+    demande({ sens: 'vente', adresse: '', montantCrypto: '16' }),
+    {}, faireCache()
+  )
+  verifie('VENTE : l absence d adresse ne la bloque pas',
+    !String(r.corps?.raison ?? '').includes('adresse'), r.corps)
+}
 
 {
   /*

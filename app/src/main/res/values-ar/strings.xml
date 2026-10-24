@@ -1117,6 +1117,7 @@
     <string name="change_sur_plafond">الحد الأقصى: %1$s فرنك لكل عملية.</string>
     <string name="change_solde_insuffisant">رصيدك لا يكفي لهذا البيع. قلّل المبلغ، أو أودِع في محفظتك أولًا.</string>
     <string name="change_pas_de_gaz">تحتاج إلى بعض %1$s لدفع رسوم الشبكة. استلم أو اشترِ قليلاً من %1$s ثم عُد للبيع.</string>
+    <string name="change_sans_adresse">لا يملك VaultEx عنوان %1$s لاستلام شرائك. افتح شاشة الاستلام لهذه العملة ثم عُد.</string>
     <string name="change_montant_invalide">أدخل مبلغًا.</string>
     <string name="change_payer_titre">أرسل الدفعة</string>
     <string name="change_paiement_securise">دفع آمن</string>
