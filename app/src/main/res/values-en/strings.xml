@@ -1115,6 +1115,7 @@
     <string name="change_sous_minimum">Minimum: %1$s FCFA.</string>
     <string name="change_sur_plafond">Maximum: %1$s FCFA per transaction.</string>
     <string name="change_solde_insuffisant">You don\'t hold enough for this sale. Lower the amount, or deposit into your wallet first.</string>
+    <string name="change_pas_de_gaz">You need some %1$s to pay the network fee. Receive or buy a little %1$s, then come back to sell.</string>
     <string name="change_montant_invalide">Enter an amount.</string>
     <string name="change_payer_titre">Send the payment</string>
     <string name="change_paiement_securise">Secure payment</string>

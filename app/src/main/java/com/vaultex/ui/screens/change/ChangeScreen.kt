@@ -936,9 +936,18 @@ private fun ColumnScope.EtapeCalcul(
     sait deja ou regarder.
     */
     val blocage = state.blocage()
-    blocage?.takeIf { state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" }?.let {
+    /*
+    LE MANQUE DE GAZ S'ANNONCE SANS ATTENDRE UN MONTANT, comme « ferme » et
+    « pas de rachat ». Les autres refus parlent du CHIFFRE qu'on vient de
+    taper — les annoncer sur un champ vide serait un reproche gratuit.
+    Celui-ci parle du portefeuille : il est vrai avant la premiere frappe,
+    et le dire tout de suite epargne de taper un montant pour rien.
+    */
+    blocage?.takeIf {
+        state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" || it == "gaz"
+    }?.let {
         NoteEnDeuxTemps(
-            messageBlocage(it, p, state.monnaie, state.fcfaParDollar),
+            messageBlocage(it, p, state.monnaie, state.fcfaParDollar, state.jetonGaz),
             AccentRed
         )
     }
@@ -4897,8 +4906,16 @@ private fun messageBlocage(
     p: com.vaultex.domain.fiat.ParametresChange,
     monnaie: String,
     /** Le plafond annonce doit etre CELUI QUI S'APPLIQUE. Voir plus bas. */
-    fcfaParDollar: Double?
+    fcfaParDollar: Double?,
+    /** Le jeton qui paie le gaz, pour le nommer dans le message. */
+    jetonGaz: String
 ): String = when (code) {
+    /*
+    LE MESSAGE NOMME LE JETON ET DIT QUOI FAIRE. « Frais insuffisants »
+    laisse chercher : insuffisants de quoi, et ou en trouver ? Le nom du
+    jeton et le geste suivant tiennent dans la meme phrase.
+    */
+    "gaz" -> stringResource(R.string.change_pas_de_gaz, jetonGaz)
     "ferme" -> stringResource(R.string.change_ferme)
     "pas_de_rachat" -> stringResource(R.string.change_pas_de_rachat)
     "sans_cours" -> stringResource(R.string.change_sans_cours)

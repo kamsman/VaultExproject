@@ -1144,6 +1144,7 @@
     <string name="change_sous_minimum">Minimum : %1$s FCFA.</string>
     <string name="change_sur_plafond">Maximum : %1$s FCFA par opération.</string>
     <string name="change_solde_insuffisant">Tu n\'en détiens pas assez pour cette vente. Réduis le montant, ou dépose d\'abord sur ton portefeuille.</string>
+    <string name="change_pas_de_gaz">Il te faut du %1$s pour payer les frais de réseau. Reçois ou achète un peu de %1$s, puis reviens vendre.</string>
     <string name="change_montant_invalide">Saisis un montant.</string>
     <string name="change_payer_titre">Envoie le paiement</string>
     <string name="change_paiement_securise">Paiement sécurisé</string>

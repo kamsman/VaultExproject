@@ -154,6 +154,27 @@ data class ChangeState(
     val historique: List<DemandeChange> = emptyList(),
     /** Solde detenu de la monnaie choisie, pour la vente. */
     val solde: Double? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE JETON QUI PAIE LE GAZ, ET CE QU'ON EN DETIENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Un USDT ne paie pas ses propres frais. Envoyer un BEP-20 coute du BNB,
+    un TRC-20 coute du TRX, un ERC-20 coute de l'ETH — et un portefeuille
+    peut etre plein d'USDT et vide de BNB.
+
+    C'ETAIT LE SEUL BLOCAGE QUI ARRIVAIT APRES COUP. Tout l'ecran disait
+    oui : le montant passe les bornes, le solde suffit, le prix est fige,
+    la reference est emise, le numero est saisi deux fois. Et c'est la
+    diffusion qui echouait, sur un ecran d'envoi, avec un message de
+    chaine — apres avoir traverse six ecrans et tape un code PIN.
+
+    Vide pour une monnaie native : le BNB paie ses propres frais, et c'est
+    `plusGrandMontantVendable` qui garde la marge.
+    */
+    val jetonGaz: String = "",
+    /** Ce qu'on detient de [jetonGaz]. Null = on n'a pas regarde. */
+    val soldeGaz: Double? = null,
     /**
      * Instant ou le prix a ete fige, en millisecondes.
      *
@@ -644,6 +665,29 @@ data class ChangeState(
             val detenu = solde
             val demande = saisi
             if (detenu != null && demande != null && demande > detenu) return "solde"
+            /*
+            ═══════════════════════════════════════════════════════════════
+            ET DE QUOI PAYER LE GAZ
+            ═══════════════════════════════════════════════════════════════
+
+            ZERO SEULEMENT, PAS UN SEUIL. On refuse quand le portefeuille
+            ne detient RIEN du jeton de gaz — le cas reel, celui de
+            quelqu'un qui a recu des USDT et jamais de BNB.
+
+            On ne compare pas a un montant de frais : il n'est pas connu
+            ici, il depend du prix du gaz a la seconde pres, et un seuil
+            invente bloquerait des gens qui ont de quoi payer. Mieux vaut
+            attraper le cas franc que de deviner la limite.
+
+            NULL NE BLOQUE PAS. L'instantane peut ne rien savoir de ce
+            jeton — monnaie jamais affichee, instantane ancien. « On n'a
+            pas regarde » n'est pas « il n'y a rien », et refuser sur une
+            ignorance serait pire que le defaut qu'on corrige.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (jetonGaz.isNotBlank() && soldeGaz != null && soldeGaz <= 0.0) {
+                return "gaz"
+            }
         }
         return null
     }
@@ -1071,7 +1115,16 @@ class ChangeViewModel @Inject constructor(
         val taux = TauxFcfa.fcfaParDollar(cours.second, cours.first)
         val prix = taux?.let { TauxFcfa.prix(cours.second, p.margeFcfaParDollar, it) }
         val solde = soldeDe(s.monnaie)
-        _state.update { it.copy(prix = prix, fcfaParDollar = taux, solde = solde) }
+        val gaz = jetonDeGaz(s.monnaie)
+        _state.update {
+            it.copy(
+                prix = prix,
+                fcfaParDollar = taux,
+                solde = solde,
+                jetonGaz = gaz.orEmpty(),
+                soldeGaz = gaz?.let { j -> soldeDe(j) }
+            )
+        }
     }
 
     /** Solde detenu de cette monnaie, ou null si l'instantane ne le dit pas. */
@@ -1103,6 +1156,21 @@ class ChangeViewModel @Inject constructor(
     present est un zero.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /**
+     * Le jeton natif qui paie les frais de cette monnaie, ou null si la
+     * monnaie EST son propre jeton de gaz.
+     *
+     * Les memes correspondances que `reseauDe` cote ecran, et c'est voulu :
+     * ce sont les trois chaines que le change traite. Une monnaie inconnue
+     * rend null — on ne bloque pas sur ce qu'on ne sait pas nommer.
+     */
+    private fun jetonDeGaz(monnaie: String): String? = when (monnaie.uppercase()) {
+        "USDT", "USDT-TRX" -> "TRX"
+        "USDT-BNB" -> "BNB"
+        "USDT-ETH" -> "ETH"
+        else -> null
+    }
+
     private fun soldeDe(symbole: String): Double? = try {
         val json = secureStorage.getPortfolioSnapshot()
         val snap = json?.let { gson.fromJson(it, SnapLiteChange::class.java) }
