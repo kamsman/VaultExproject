@@ -2249,16 +2249,35 @@ internal fun SendProcessingScreen(detail: SendDetail) {
         ═══════════════════════════════════════════════════════════════
         */
         val vente = detail.numeroPaiement.isNotBlank()
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE TITRE REDEVIENT CELUI DE TOUT LE MONDE, ET LE SOUS-TITRE PART
+        ═══════════════════════════════════════════════════════════════
+
+        J'avais ecrit « Ta vente part » et « Ta crypto est envoyée à
+        VaultEx », pour que cet ecran ne parle pas comme un envoi. Le
+        raisonnement tenait ; le resultat, non.
+
+        « Ta vente part » DECRIT CE QUI SE PASSE AILLEURS — dans le
+        reseau, chez VaultEx — alors que l'ecran, lui, ne fait qu'une
+        chose : attendre. Et « Transaction en cours » dit exactement cela,
+        sans rien promettre de la suite.
+
+        Le sous-titre, lui, repetait la barre de progression qui est juste
+        dessous : « Ta crypto est envoyée à VaultEx » et « Envoi de la
+        crypto… » sont la meme phrase, a dix points d'ecart. Deux lignes
+        pour une information, sur un ecran qui dure cinq secondes.
+
+        CE QUI RESTE PROPRE A LA VENTE : « Envoi de la crypto… » sous la
+        barre, et surtout « Ta demande part juste après. Reste ici
+        quelques secondes. » — la seule phrase de l'ecran qui dise quelque
+        chose qu'un envoi ordinaire ne dirait pas.
+        ═══════════════════════════════════════════════════════════════
+        */
         StatusHeader(
             Icons.Default.HourglassEmpty, AccentBlue,
-            stringResource(
-                if (vente) R.string.vente_traitement_titre
-                else R.string.send_processing_title
-            ),
-            stringResource(
-                if (vente) R.string.vente_traitement_sous
-                else R.string.send_processing_subtitle
-            ),
+            stringResource(R.string.send_processing_title),
+            if (vente) "" else stringResource(R.string.send_processing_subtitle),
             TextPrimary,
             animated = true
         )

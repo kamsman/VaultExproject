@@ -1245,8 +1245,6 @@
     <string name="change_vente_partie_titre">Ta vente est partie</string>
     <string name="change_depot_en_cours">On prévient VaultEx…</string>
     <string name="change_vente_preparation">Préparation de ta vente…</string>
-    <string name="vente_traitement_titre">Ta vente part</string>
-    <string name="vente_traitement_sous">Ta crypto est envoyée à VaultEx.</string>
     <string name="vente_traitement_etape">Envoi de la crypto…</string>
     <string name="vente_traitement_ne_ferme_pas">Ta demande part juste après. Reste ici quelques secondes.</string>
     <string name="vente_recu_titre">Transaction confirmée</string>
