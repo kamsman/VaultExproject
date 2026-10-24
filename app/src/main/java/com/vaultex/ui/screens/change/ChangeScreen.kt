@@ -333,6 +333,43 @@ fun ChangeScreen(navController: NavController) {
                     }
                 )
 
+                /*
+                ═══════════════════════════════════════════════════════════
+                LE DEPOT AUTOMATIQUE N'EST PAS UN FORMULAIRE
+                ═══════════════════════════════════════════════════════════
+
+                Apres « Terminé », on revenait sur l'etape de paiement
+                complete : les deux champs de numero, la carte de
+                verification, et un bouton « Versement vérifié — confirmer »
+                grise avec un rond qui tourne.
+
+                C'est-a-dire un ecran qui a TOUT L'AIR de demander quelque
+                chose, juste apres un ecran qui vient de dire « Ta vente est
+                partie ». On vient de finir, et on retombe devant des champs
+                a remplir et un bouton a appuyer — qui ne se laisse pas
+                appuyer. Le reflexe est de chercher ce qu'on a rate.
+
+                Or il n'y a rien a faire : le hash est sur le disque, la
+                boucle interroge la chaine, et la demande partira d'elle-meme
+                des que le verdict tombe. Quelques secondes, pendant
+                lesquelles la seule chose honnete a montrer est qu'on
+                travaille.
+
+                ─── CE QUI RAMENE AU FORMULAIRE ──────────────────────────
+
+                L'echec. Si le depot ne passe pas — reseau coupe entre la
+                diffusion et le relais — `depotAutoRestant` retombe a zero
+                et `envoiEnCours` a faux : l'etape de paiement reapparait,
+                avec le hash en place et son bouton de rattrapage. C'est le
+                seul cas ou quelqu'un a de nouveau quelque chose a faire, et
+                c'est alors qu'il faut le lui montrer.
+                ═══════════════════════════════════════════════════════════
+                */
+                state.etape == EtapeChange.PAIEMENT &&
+                    state.sens == SensChange.VENTE &&
+                    (state.depotAutoRestant > 0 || state.envoiEnCours) ->
+                    EtapeDepotAuto()
+
                 state.etape == EtapeChange.PAIEMENT ->
                     EtapePaiement(vm, state, copier, navController)
 
@@ -3007,6 +3044,46 @@ private fun detailVerification(
             } else {
                 stringResource(R.string.change_verif_impossible_detail)
             }
+    }
+}
+
+// ─── Temps 2 bis : le depot part tout seul ──────────────────────────
+
+/**
+ * Ce qu'on montre pendant que la demande se depose.
+ *
+ * TROIS ELEMENTS, ET AUCUN BOUTON. Un rond qui tourne, ce qui vient de se
+ * passer, et ce qui est en train de se faire. Rien a toucher : il n'y a
+ * rien a decider, et le moindre bouton relancerait la question « qu'est-ce
+ * qu'on attend de moi ».
+ *
+ * PAS DE SORTIE NON PLUS, et c'est volontaire. Partir d'ici tue le
+ * ViewModel et interrompt le depot. Ce n'est pas perdu — la trace et le
+ * hash restent sur le disque, et rouvrir l'ecran ramene l'etape de
+ * paiement avec son bouton de rattrapage — mais ce serait un detour qu'on
+ * n'a aucune raison de proposer pour quelques secondes d'attente.
+ */
+@Composable
+private fun ColumnScope.EtapeDepotAuto() {
+    Spacer(Modifier.height(48.dp))
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
+        Text(
+            stringResource(R.string.change_vente_partie_titre),
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+        Text(
+            stringResource(R.string.change_depot_en_cours),
+            fontSize = 14.sp,
+            color = TextSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 

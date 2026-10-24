@@ -1214,14 +1214,15 @@
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
     <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
+    <string name="change_depot_en_cours">جارٍ إبلاغ VaultEx…</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
     <string name="vente_traitement_titre">بيعك في طريق الإرسال</string>
     <string name="vente_traitement_sous">يتم إرسال عملتك إلى VaultEx.</string>
     <string name="vente_traitement_etape">جارٍ إرسال العملة…</string>
     <string name="vente_traitement_ne_ferme_pas">يُرسَل طلبك مباشرة بعد ذلك. ابقَ هنا بضع ثوانٍ.</string>
-    <string name="vente_recu_titre">تم إرسال العملة</string>
+    <string name="vente_recu_titre">تم تأكيد المعاملة</string>
     <string name="vente_recu_francs">%1$s فرنك</string>
-    <string name="change_vente_partie_detail">سيرسل VaultEx فرنكاتك إلى %1$s. اضغط «تم» لإرسال طلبك.</string>
+    <string name="change_vente_partie_detail">ستستلم بعدها هذا المبلغ على %1$s. اضغط «تم».</string>
     <string name="assistance_titre">المساعدة</string>
     <string name="assistance_statut_actif">إجابات آلية وفورية</string>
     <string name="assistance_statut_muet">الخدمة غير متاحة حاليًا</string>

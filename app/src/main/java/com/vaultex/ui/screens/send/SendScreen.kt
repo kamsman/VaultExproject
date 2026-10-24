@@ -2361,6 +2361,10 @@ internal fun SendSuccessScreen(
     val context = LocalContext.current
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val orange = Color(0xFFF59E0B)
+    // `numeroPaiement` n'existe que sur une vente : c'est le numero qui
+    // recevra les francs. Il sert de signal dans toute cette fonction, y
+    // compris sous les boutons, ou la suite se joue.
+    val vente = detail.numeroPaiement.isNotBlank()
     val sentAt = remember {
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
     }
@@ -2412,8 +2416,28 @@ internal fun SendSuccessScreen(
                         fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
                 }
             }
-            // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
-            if (!confirmed) {
+            /*
+            ═══════════════════════════════════════════════════════════════
+            « VOUS POUVEZ QUITTER CET ECRAN » EST FAUX SUR UNE VENTE
+            ═══════════════════════════════════════════════════════════════
+
+            Sur un envoi, c'est exact et rassurant : la transaction est
+            diffusee, le bloc viendra tout seul, et l'application previendra.
+            Partir ne coute rien.
+
+            Sur une vente, partir coute TOUT. La demande ne part chez VaultEx
+            qu'au moment ou l'on appuie sur « Terminé » — c'est ce bouton qui
+            ramene a l'ecran de change, et c'est en y arrivant qu'elle est
+            deposee. Quitter avant, c'est de la crypto envoyee et personne de
+            prevenu.
+
+            La ligne se trouvait en plus a dix points sous un bloc qui dit
+            « Appuie sur Terminé ». Deux consignes opposees dans le meme
+            regard : l'une dit de rester, l'autre dit qu'on peut partir. Un
+            ecran qui se contredit ne se fait plus croire sur rien.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (!confirmed && !vente) {
                 Text(
                     stringResource(R.string.send_status_leave_hint),
                     fontSize = 11.sp, color = TextSecondary,
@@ -2424,7 +2448,6 @@ internal fun SendSuccessScreen(
     ) {
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
         // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
-        val vente = detail.numeroPaiement.isNotBlank()
         /*
         ═══════════════════════════════════════════════════════════════
         « TRANSACTION ENVOYEE ! » N'EST PAS LA BONNE NOUVELLE
@@ -2526,35 +2549,63 @@ internal fun SendSuccessScreen(
                 }
             }
         }
-        // Pastille de statut : ambre tant que la blockchain n'a pas tranché,
-        // verte ensuite. Elle bascule toute seule si la confirmation tombe
-        // pendant que l'écran est ouvert.
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = (if (confirmed) AccentGreen else orange).copy(alpha = 0.14f)
-        ) {
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LA PASTILLE DE CONFIRMATION NE S'AFFICHE PLUS SUR UNE VENTE
+        ═══════════════════════════════════════════════════════════════
+
+        Elle disait « En attente de confirmation (0/15) » en ambre, deux
+        lignes sous un titre qui dit « Transaction confirmée » et sous un
+        grand rond vert. Le meme ecran annoncait donc une confirmation et
+        son absence, a trois centimetres d'ecart.
+
+        LES DEUX SONT VRAIS, ET C'EST BIEN LE PROBLEME. Ce ne sont pas les
+        memes confirmations : le titre parle de l'operation — elle est
+        signee, diffusee, elle ne reviendra pas — la pastille parle des
+        BLOCS, qui mettent quelques secondes a s'empiler. Rien sur l'ecran
+        ne permettait de le deviner, et un lecteur presse n'a aucune raison
+        de faire la difference.
+
+        ─── ET ELLE N'APPELAIT AUCUNE ACTION ────────────────────────
+
+        Sur un envoi ordinaire, le compte des blocs est ce qu'on surveille :
+        c'est lui qui dit quand le destinataire a recu. Celui qui vend, lui,
+        n'a rien a surveiller — c'est le relais qui lit la chaine, et c'est
+        son verdict qui part chez VaultEx. Le compte de blocs sur cet
+        ecran-la etait une inquietude sans objet.
+
+        SUR UN ENVOI, ELLE RESTE, et elle y bascule toute seule au vert si
+        la confirmation tombe pendant qu'on regarde.
+        ═══════════════════════════════════════════════════════════════
+        */
+        if (!vente) {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = (if (confirmed) AccentGreen else orange).copy(alpha = 0.14f)
             ) {
-                Icon(
-                    if (confirmed) Icons.Default.CheckCircle else Icons.Default.Schedule,
-                    null,
-                    tint = if (confirmed) AccentGreen else orange,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (confirmed) stringResource(R.string.send_status_confirmed)
-                    else if (target > 0) stringResource(R.string.send_status_awaiting_count, confirmations, target)
-                    else stringResource(R.string.send_status_awaiting),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (confirmed) AccentGreen else orange
-                )
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (confirmed) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                        null,
+                        tint = if (confirmed) AccentGreen else orange,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (confirmed) stringResource(R.string.send_status_confirmed)
+                        else if (target > 0) stringResource(R.string.send_status_awaiting_count, confirmations, target)
+                        else stringResource(R.string.send_status_awaiting),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (confirmed) AccentGreen else orange
+                    )
+                }
             }
+            Spacer(Modifier.height(4.dp))
         }
-        Spacer(Modifier.height(4.dp))
         /*
         L'encadre « statut : confirmee » a ete retire : le grand rond vert et
         le titre le disent deja. Restent deux cartes — la transaction, puis sa

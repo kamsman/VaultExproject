@@ -2190,7 +2190,30 @@ class ChangeViewModel @Inject constructor(
                     }
                 }
                 is ResultatOrdre.Echec -> _state.update {
-                    it.copy(envoiEnCours = false, erreur = res.raison)
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    L'ECHEC REND LA MAIN, ET IL DOIT ETEINDRE LE COMPTEUR
+                    ═══════════════════════════════════════════════════════
+
+                    `depotAutoRestant` peut valoir encore trois ou deux : le
+                    depot a ete declenche par un verdict vert avant la fin
+                    des quatre tours. Laisse a cette valeur, il garde l'ecran
+                    sur l'attente « On prévient VaultEx… » — un rond qui
+                    tourne devant une boucle morte, pour toujours, avec un
+                    message d'erreur invisible dessous.
+
+                    A zero, l'etape de paiement reapparait : le hash y est,
+                    le bouton de rattrapage s'allume, et l'erreur s'affiche
+                    la ou on peut agir dessus. C'est le seul cas de ce
+                    parcours ou quelqu'un a de nouveau quelque chose a
+                    faire, et il doit le voir.
+                    ═══════════════════════════════════════════════════════
+                    */
+                    it.copy(
+                        envoiEnCours = false,
+                        depotAutoRestant = 0,
+                        erreur = res.raison
+                    )
                 }
             }
         }
