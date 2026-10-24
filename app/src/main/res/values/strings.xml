@@ -486,6 +486,7 @@
     <string name="send_confirm_secured">Votre transaction est sécurisée et chiffrée</string>
     <string name="send_confirm_subtitle">Vérifiez les informations avant d\'envoyer</string>
     <string name="send_confirm_noncustodial">Vos fonds restent sous votre contrôle (non-custodial)</string>
+    <string name="send_adresse_portefeuille">Adresse du portefeuille</string>
     <string name="send_processing_appbar">Envoi %1$s</string>
     <string name="send_appbar_vente">Vente %1$s</string>
     <string name="send_processing_title">Transaction en cours</string>
