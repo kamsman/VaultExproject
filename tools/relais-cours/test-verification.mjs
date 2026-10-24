@@ -649,8 +649,34 @@ const venteBrute = {
   telephone: '69008549',
 }
 const confirme = { etat: 'confirme', txid: 'ab'.repeat(32), montant: 8, quand: MAINTENANT, confirme: true }
-const consigne = (ordre, verif, coherence) =>
+/*
+LES ASSERTIONS PORTENT SUR LE SENS, PAS SUR LE BALISAGE.
+
+Depuis la v58 le message part en HTML : la consigne s'ecrit « ENVOYER
+<b>5 000 FCFA</b> par Orange Money au <code>69008549</code> ». Un test qui
+cherche « ENVOYER 5 000 FCFA » echoue alors sur une difference de mise en
+forme, pas sur une difference de comportement — et l'echec apprend a
+desapprendre le test au lieu de le lire.
+
+Les balises sont donc retirees ici. Celles qui comptent ont leurs propres
+assertions, juste en dessous : on verifie qu'elles sont la, une fois,
+explicitement — pas en les laissant polluer vingt comparaisons.
+*/
+const sansBalises = (t) => String(t).replace(/<\/?(b|i|u|s|code|pre)>/g, '')
+const ligneBrute = (ordre, verif, coherence) =>
   messageOrdre(ordre, verif, coherence).find((l) => typeof l === 'string' && l.includes('A FAIRE')) || ''
+const consigne = (ordre, verif, coherence) => sansBalises(ligneBrute(ordre, verif, coherence))
+
+{
+  /*
+  LE BALISAGE N'EST PAS DECORATIF : le gras porte le chiffre qui decide,
+  et le `code` rend le numero copiable d'un appui — c'est lui qui supprime
+  la seule retranscription a la main du parcours du changeur.
+  */
+  const brute = ligneBrute(venteBrute, confirme, { etat: 'coherent' })
+  verifie('HTML : le montant a payer est en gras', brute.includes('<b>5 000 FCFA</b>'), brute)
+  verifie('HTML : le numero se copie d un appui', brute.includes('<code>69008549</code>'), brute)
+}
 
 {
   const l = consigne(venteBrute, confirme, { etat: 'coherent' })

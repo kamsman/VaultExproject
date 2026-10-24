@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 57
+const VERSION = 58
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2759,7 +2759,52 @@ async function ordreChange(requete, env) {
   const lignes = messageOrdre(ordre, verif, coherence, otp)
 
   try {
-    const corpsTg = new URLSearchParams({ chat_id: chat, text: lignes.join('\n') })
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE MESSAGE PART EN HTML, AVEC UN BOUTON
+    ═══════════════════════════════════════════════════════════════════
+
+    `parse_mode: HTML` donne les trois choses qui manquaient : le gras sur
+    le chiffre a payer, et surtout le `code` sur le numero, l'adresse, la
+    reference et le txid — qui se COPIENT d'un appui dans Telegram.
+
+    C'est ce qui remplace le bouton « Copier » d'une maquette : pas un
+    bouton de plus, un geste que le client connait deja. Et ca supprime la
+    seule retranscription a la main du parcours du changeur.
+
+    ─── LE BOUTON D'EXPLORATEUR ──────────────────────────────────────
+
+    Un clavier en ligne, avec une seule touche : l'adresse BscScan de la
+    transaction. Elle est deja dans le texte — c'est elle qui fait
+    l'apercu — mais une adresse de soixante-dix caracteres ne se vise pas
+    du pouce. Le bouton, si.
+
+    Il n'apparait QUE s'il y a une adresse d'explorateur : un versement
+    introuvable n'en a pas, et Telegram refuse un bouton dont l'URL est
+    vide — ce qui ferait echouer tout le message, donc perdre la demande.
+
+    ─── ET SI LE BALISAGE ECHOUE ? ───────────────────────────────────
+
+    Telegram rend 400 sur du HTML mal forme, et `ordreChange` traite deja
+    ce cas : il rend la raison exacte de Telegram au telephone. Toutes les
+    valeurs interpolees passent par `echapper`, et les seules balises sont
+    ecrites ici.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    const corpsTg = new URLSearchParams({
+      chat_id: chat,
+      text: lignes.join('\n'),
+      parse_mode: 'HTML',
+    })
+    const lien = verif && verif.explorateur ? String(verif.explorateur) : ''
+    if (lien.startsWith('https://')) {
+      corpsTg.set(
+        'reply_markup',
+        JSON.stringify({
+          inline_keyboard: [[{ text: '\u{1F50E} Voir la transaction', url: lien }]],
+        })
+      )
+    }
     const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -3033,11 +3078,28 @@ function messageOrdre(ordre, verif, coherence, otp) {
       : 0
   const fcfaConsigne = fcfaAPayer > 0 ? groupeMilliers(fcfaAPayer) : ordre.montantFcfa
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE CHIFFRE EN GRAS, LE NUMERO COPIABLE
+  ═══════════════════════════════════════════════════════════════════════
+
+  C'est la ligne que le changeur lit en premier et la seule qui lui dise
+  quoi faire. En texte nu, elle avait exactement le poids des six lignes
+  de detail en dessous.
+
+  Le numero passe en `code` : dans Telegram, un appui dessus le COPIE. Ca
+  remplace le bouton « Copier » d'une maquette par un geste qui existe
+  deja dans le client, et ca supprime la seule retranscription a la main
+  du parcours du changeur — huit chiffres recopies vers Orange Money,
+  c'est-a-dire l'endroit exact ou un paiement part au mauvais numero.
+  ═══════════════════════════════════════════════════════════════════════
+  */
   const aFaire = verseVraiment
     ? achat
-      ? `ENVOYER ${ordre.montantCrypto} ${ordre.monnaie} a l'adresse ci-dessous`
-      : `ENVOYER ${fcfaConsigne} FCFA par Orange Money au ` +
-        `${ordre.telephone || 'numero du client'}`
+      ? `ENVOYER <b>${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}</b> ` +
+        `a l'adresse ci-dessous`
+      : `ENVOYER <b>${echapper(fcfaConsigne)} FCFA</b> par Orange Money au\n` +
+        `${ordre.telephone ? aCopier(ordre.telephone) : 'numero du client'}`
     : `NE RIEN ENVOYER POUR L'INSTANT - lis les lignes du bas`
 
   const lignes = [
@@ -3050,19 +3112,34 @@ function messageOrdre(ordre, verif, coherence, otp) {
     Or c'est l'information qui d\u00E9cide de tout le reste : ce qu'on envoie,
     par quel r\u00E9seau, et dans quel sens lire les deux montants.
     */
-    `\u{1F4B1} ${achat ? 'ACHAT' : 'VENTE'} \u00b7 ${ordre.reference}`,
+    `\u{1F4B1} <b>${achat ? 'ACHAT' : 'VENTE'}</b> \u00b7 ${aCopier(ordre.reference)}`,
     achat ? 'Le client paie en FCFA, tu envoies la crypto'
           : 'Le client envoie la crypto, tu paies en FCFA',
     '',
     `\u27A1\uFE0F A FAIRE : ${aFaire}`,
     '',
-    `Montant   : ${ordre.montantFcfa} FCFA`,
-    `Crypto    : ${ordre.montantCrypto} ${ordre.monnaie}`,
-    `Taux      : ${ordre.taux}`,
-    `Marge     : ${ordre.marge}`,
-    ordre.adresse ? `Adresse   : ${ordre.adresse}` : null,
-    ordre.telephone ? `Telephone : ${ordre.telephone}${marqueOtp(otp)}` : null,
-    ordre.referencePaiement ? `Ref. paiement : ${ordre.referencePaiement}` : null,
+    /*
+    CE QUI SE COPIE PORTE DU `code`, LE RESTE NON.
+
+    L'adresse, le numero, la reference de paiement : trois valeurs qu'on
+    reporte ailleurs — dans un portefeuille, dans Orange Money, dans un
+    releve. Ce sont celles qui doivent se copier d'un appui.
+
+    Le montant, le taux et la marge se LISENT. Les rendre copiables ne
+    servirait a rien et banaliserait la marque : si tout est en `code`,
+    plus rien ne signale ce qui se copie.
+    */
+    `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`,
+    `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
+    `Taux      : ${echapper(ordre.taux)}`,
+    `Marge     : ${echapper(ordre.marge)}`,
+    ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null,
+    ordre.telephone
+      ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
+      : null,
+    ordre.referencePaiement
+      ? `Ref. paiement : ${aCopier(ordre.referencePaiement)}`
+      : null,
     ...lignesVerification(verif, coherence, ordre, fcfaAPayer),
     /*
     \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -3130,10 +3207,10 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
   if (coherence && coherence.etat === 'ecart') {
     lignes.push('')
     lignes.push('\u{1F6A8} ECART DE PRIX - NE PAIE PAS SANS RECALCULER')
-    lignes.push(`Annonce : ${ordre.montantFcfa} FCFA`)
+    lignes.push(`Annonce : ${echapper(ordre.montantFcfa)} FCFA`)
     lignes.push(
-      `Marche  : ~${groupeMilliers(coherence.attendu)} FCFA  ` +
-        `(ecart ${coherence.ecartPourcent} %)`
+      `Marche  : ~${echapper(groupeMilliers(coherence.attendu))} FCFA  ` +
+        `(ecart ${echapper(coherence.ecartPourcent)} %)`
     )
   }
 
@@ -3167,8 +3244,9 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
     )
     lignes.push(
       achat
-        ? `Recu      : ${formatMontant(verif.montant)} FCFA  (lu dans le SMS)`
-        : `Recu      : ${formatMontant(verif.montant)} ${ordre.monnaie}  (lu sur la chaine)`
+        ? `Recu      : <b>${echapper(formatMontant(verif.montant))} FCFA</b>  (lu dans le SMS)`
+        : `Recu      : <b>${echapper(formatMontant(verif.montant))} ` +
+          `${echapper(ordre.monnaie)}</b>  (lu sur la chaine)`
     )
     /*
     L'EXPÉDITEUR EST LA SEULE LIGNE QUI PERMETTE DE DIRE « CE N'EST PAS LUI ».
@@ -3191,7 +3269,7 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
     const memeNumero =
       achat && verif.de && verif.de.includes(numeroComparable(ordre.telephone))
     if (verif.de && !memeNumero) {
-      lignes.push(`${achat ? 'Paye depuis' : 'Envoye par'}: ${verif.de}`)
+      lignes.push(`${achat ? 'Paye depuis' : 'Envoye par'}: ${aCopier(verif.de)}`)
     }
     if (achat && verif.de && !memeNumero) {
       lignes.push('\u26A0\uFE0F Ce numero n\u2019est PAS celui declare dans la demande.')
@@ -3200,14 +3278,24 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
       // Dire COMMENT le rapprochement a été fait : par référence, c'est
       // net ; par montant et numéro, deux paiements identiques dans
       // l'heure pourraient se confondre, et il vaut mieux le savoir.
-      lignes.push(`Rapproche : par ${verif.rapproche}`)
+      lignes.push(`Rapproche : par ${echapper(verif.rapproche)}`)
     }
     if (verif.quand) lignes.push(`Horodate  : ${dateCourteUtc(verif.quand)}`)
     if (verif.confirme === false) {
       lignes.push('Bloc      : PAS ENCORE MINE - attends une confirmation')
     }
-    if (verif.txid) lignes.push(`Txid      : ${verif.txid}`)
-    if (verif.explorateur) lignes.push(`Voir      : ${verif.explorateur}`)
+    if (verif.txid) lignes.push(`Txid      : ${aCopier(verif.txid)}`)
+    /*
+    L'ADRESSE DE L'EXPLORATEUR RESTE EN CLAIR DANS LE TEXTE, et ce n'est
+    pas un oubli : c'est elle qui fait apparaitre l'apercu BscScan sous le
+    message — « Transfer 2,37 BSC-USD to 0xbDE1… | Success ». Cet apercu
+    est une confirmation INDEPENDANTE du relais, lue chez l'explorateur,
+    et c'est ce qui en fait sa valeur.
+
+    Le bouton sous le message double ce lien. Redondant a la lecture, pas
+    a l'usage : le bouton se touche, la ligne se survole.
+    */
+    if (verif.explorateur) lignes.push(`Voir      : ${echapper(verif.explorateur)}`)
     /*
     LE MONTANT LU CONTRE LE MONTANT ANNONCÉ.
 
@@ -3218,8 +3306,8 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
     const annonce = nombreFrancais(ordre.montantCrypto)
     if (annonce > 0 && verif.montant > 0 && verif.montant < annonce * 0.999) {
       lignes.push(
-        `\u26A0\uFE0F Recu MOINS qu'annonce (${formatMontant(verif.montant)} au lieu de ` +
-          `${ordre.montantCrypto})`
+        `\u26A0\uFE0F Recu MOINS qu'annonce (${echapper(formatMontant(verif.montant))} au lieu de ` +
+          `${echapper(ordre.montantCrypto)})`
       )
       /*
       ON DONNE LE PRORATA, ON NE LE DEMANDE PAS.
@@ -3236,8 +3324,8 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
       */
       if (fcfaAPayer > 0) {
         lignes.push(
-          `\u2192 A payer : ${groupeMilliers(fcfaAPayer)} FCFA ` +
-            `(et non ${ordre.montantFcfa}) - deja corrige dans A FAIRE`
+          `\u2192 A payer : <b>${echapper(groupeMilliers(fcfaAPayer))} FCFA</b> ` +
+            `(et non ${echapper(ordre.montantFcfa)}) - deja corrige dans A FAIRE`
         )
       }
     }
@@ -3251,7 +3339,7 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
         ? '\u{1F6A8} CET ENCAISSEMENT A DEJA SERVI UNE AUTRE DEMANDE'
         : '\u{1F6A8} CE TRANSFERT A DEJA SERVI UNE AUTRE DEMANDE'
     )
-    lignes.push(`Txid : ${verif.txid || 'inconnu'}`)
+    lignes.push(`Txid : ${verif.txid ? aCopier(verif.txid) : 'inconnu'}`)
     lignes.push('N\u2019ENVOIE RIEN. Cherche ce txid dans les demandes recentes :')
     lignes.push('soit c\u2019est un doublon, soit quelqu\u2019un reutilise un vrai')
     lignes.push('versement pour se faire payer deux fois.')
@@ -3262,13 +3350,13 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
     lignes.push('')
     if (achat) {
       lignes.push('\u274C AUCUN ENCAISSEMENT CORRESPONDANT')
-      lignes.push(`Le relais a cherche dans tes SMS : ${verif.raison}.`)
+      lignes.push(`Le relais a cherche dans tes SMS : ${echapper(verif.raison)}.`)
       lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Regarde ton solde Orange')
       lignes.push('Money toi-meme : soit le SMS tarde, soit le montant ne')
       lignes.push('correspond pas, soit le client n\u2019a rien paye.')
     } else {
       lignes.push('\u274C AUCUN VERSEMENT TROUVE SUR LA CHAINE')
-      lignes.push(`Le relais a regarde ton adresse ${ordre.monnaie} : ${verif.raison}.`)
+      lignes.push(`Le relais a regarde ton adresse ${echapper(ordre.monnaie)} : ${echapper(verif.raison)}.`)
       lignes.push('N\u2019ENVOIE RIEN MAINTENANT. Deux causes possibles, et une')
       lignes.push('seule demande d\u2019agir : le retrait du client est encore en')
       lignes.push('file chez son exchange (ca arrive, regarde dans 15 min), ou')
@@ -3282,7 +3370,7 @@ function lignesVerification(verif, coherence, ordre, fcfaAPayer = 0) {
   // ce qu'il faisait avant — mais il sait qu'il doit la faire.
   lignes.push('')
   lignes.push('\u26A0\uFE0F VERIFICATION AUTOMATIQUE IMPOSSIBLE')
-  lignes.push(`Raison : ${verif.raison || 'inconnue'}.`)
+  lignes.push(`Raison : ${echapper(verif.raison || 'inconnue')}.`)
   lignes.push('Rien n\u2019est prouve ici. Verifie ton portefeuille comme avant.')
   return lignes
 }
@@ -3303,6 +3391,38 @@ function groupeMilliers(v) {
   return String(Math.abs(n))
     .replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
     .replace(/^/, n < 0 ? '-' : '')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+TOUT CE QUI VIENT D'AILLEURS EST ÉCHAPPÉ
+═══════════════════════════════════════════════════════════════════════════
+
+Le message part maintenant en `parse_mode: HTML`, ce qui veut dire que
+Telegram LIT les chevrons. Une seule valeur contenant « <b> » ou un
+« & » nu, et le message entier est refusé — Telegram rend 400 sur du HTML
+mal formé, et la demande n'arrive pas.
+
+Or presque tout ce message vient d'ailleurs : le montant et le numéro
+viennent du téléphone, la raison d'un échec vient d'un nœud RPC, le nom
+du jeton d'un réglage. Aucune de ces sources n'est hostile aujourd'hui, et
+aucune n'est contrôlée par ce fichier.
+
+C'est la règle habituelle du balisage : on balise ce qu'on écrit, on
+échappe ce qu'on reçoit. Les trois caractères suffisent — Telegram ne
+traite que `<`, `>` et `&`.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function echapper(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/** Une valeur qu'on copie d'un appui dans Telegram. */
+function aCopier(v) {
+  return `<code>${echapper(v)}</code>`
 }
 
 /** Un montant lisible : assez de décimales pour être exact, pas plus. */
