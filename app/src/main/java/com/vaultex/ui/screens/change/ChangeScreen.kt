@@ -36,8 +36,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
@@ -3121,16 +3124,89 @@ private fun ColumnScope.EtapeTransmis(
     */
     onAccueil: () -> Unit
 ) {
-    Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.change_transmis_titre),
-                    fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UNE CARTE BLANCHE, ET LE ROND AU MILIEU
+    ═══════════════════════════════════════════════════════════════════
+
+    C'etait un aplat vert pale avec une coche de vingt points a gauche
+    d'un titre : la forme d'une NOTE, celle qu'on emploie dans cet ecran
+    pour un avertissement ou une precision. Or c'est le dernier ecran du
+    parcours, celui qui annonce que tout est fini. Il se lisait comme un
+    encadre au milieu d'un formulaire.
+
+    La carte blanche et le grand rond bleu lui donnent le poids d'une
+    conclusion — la meme grammaire que le recu d'envoi, qui porte lui
+    aussi son rond coche au centre. Deux ecrans de fin, deux fois la meme
+    silhouette.
+
+    ─── LE HALO ET LES QUATRE POINTS ─────────────────────────────────
+
+    Decoratifs, et ils le restent : ils ne portent aucune information.
+    Mais ce sont eux qui font la difference entre une coche posee sur un
+    fond et un ecran qui CELEBRE quelque chose — et quelqu'un qui vient de
+    confier de l'argent merite que la fin le dise.
+
+    ─── BLEU, PAS VERT, ET PAS DE DEGRADE ────────────────────────────
+
+    Le bleu est la couleur d'action de l'application ; le vert y dit « ce
+    que tu recois », et on ne recoit rien a cet instant precis — les
+    francs viennent apres. La coche verte reste plus bas, sur la ligne qui
+    parle du versement, ou elle est a sa place.
+
+    La maquette montre un bouton en degrade. Il est pose en aplat : les
+    degrades ont ete retires de cet ecran a la demande, et en reintroduire
+    un ici ferait revenir par la fenetre ce qu'on a sorti par la porte.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = SurfaceColor,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(112.dp).clip(CircleShape)
+                        .background(AccentBlue.copy(alpha = 0.07f))
+                )
+                Box(
+                    Modifier.size(82.dp).clip(CircleShape).background(AccentBlue),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check, null,
+                        tint = Color.White, modifier = Modifier.size(42.dp)
+                    )
+                }
+                // Les quatre points, poses a la main : une poignee de
+                // pixels qui transforment une coche en evenement.
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(x = (-14).dp, y = 16.dp)
+                        .size(9.dp).clip(CircleShape).background(AccentBlue)
+                )
+                Box(
+                    Modifier.align(Alignment.TopStart).offset(x = 18.dp, y = 30.dp)
+                        .size(7.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.55f))
+                )
+                Box(
+                    Modifier.align(Alignment.CenterStart).offset(x = 8.dp, y = 18.dp)
+                        .size(6.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.45f))
+                )
+                Box(
+                    Modifier.align(Alignment.CenterEnd).offset(x = (-6).dp, y = 10.dp)
+                        .size(8.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.7f))
                 )
             }
+            Text(
+                stringResource(R.string.change_transmis_titre),
+                fontWeight = FontWeight.Bold, fontSize = 24.sp, color = TextPrimary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
             /*
             ═══════════════════════════════════════════════════════════════
             UNE PHRASE QUI RASSURE, AU LIEU D'UN PARAGRAPHE QUI INSTRUIT
@@ -3161,7 +3237,8 @@ private fun ColumnScope.EtapeTransmis(
             */
             Text(
                 stringResource(R.string.change_transmis_detail),
-                fontSize = 13.sp, color = TextPrimary, lineHeight = 18.sp
+                fontSize = 15.sp, color = TextSecondary, lineHeight = 21.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             /*
             ═══════════════════════════════════════════════════════════════
@@ -3188,14 +3265,22 @@ private fun ColumnScope.EtapeTransmis(
                 HorizontalDivider(color = BgPrimary)
                 if (v.estVert) {
                     Row(verticalAlignment = Alignment.Top) {
-                        Icon(
-                            Icons.Default.CheckCircle, null,
-                            tint = AccentGreen, modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
+                        // La coche DANS une pastille, comme la maquette : a
+                        // quinze points nus elle se perdait contre le texte.
+                        Box(
+                            Modifier.size(28.dp).clip(CircleShape)
+                                .background(AccentGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Check, null,
+                                tint = AccentGreen, modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             stringResource(R.string.change_transmis_verifie),
-                            fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+                            fontSize = 13.sp, color = TextSecondary, lineHeight = 19.sp
                         )
                     }
                 } else {
@@ -3214,17 +3299,48 @@ private fun ColumnScope.EtapeTransmis(
             }
         }
     }
+    /*
+    DEUX BOUTONS DE MEME TAILLE, ET LA HIERARCHIE PASSE PAR LE REMPLISSAGE.
+
+    « Retour à l'accueil » etait un simple texte. A cote d'un bouton plein,
+    un texte se lit comme un lien secondaire — ce qu'il est — mais sur un
+    ecran ou il n'y a QUE deux sorties, il devenait difficile a viser : pas
+    de contour, pas de surface, une ligne au milieu du vide.
+
+    Il prend le meme gabarit, en contour. L'un est plein, l'autre creux :
+    la hierarchie reste lisible, et les deux se touchent aussi facilement.
+    */
     Button(
         onClick = onRecommencer,
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth().height(48.dp)
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().height(54.dp)
     ) {
-        Text(stringResource(R.string.change_nouvelle), fontWeight = FontWeight.Bold)
+        Icon(Icons.Default.AddCircleOutline, null, modifier = Modifier.size(20.dp))
+        Text(
+            stringResource(R.string.change_nouvelle),
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            modifier = Modifier.weight(1f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
     }
-    TextButton(onClick = onAccueil, modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+        onClick = onAccueil,
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BgTertiary),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = SurfaceColor),
+        modifier = Modifier.fillMaxWidth().height(54.dp)
+    ) {
+        Icon(
+            Icons.Default.Home, null,
+            tint = AccentBlue, modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(10.dp))
         Text(
             stringResource(R.string.change_retour_accueil),
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
             color = AccentBlue
         )
     }
