@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 58
+const VERSION = 59
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3131,7 +3131,31 @@ function messageOrdre(ordre, verif, coherence, otp) {
     */
     `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`,
     `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
-    `Taux      : ${echapper(ordre.taux)}`,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UN TAUX SANS UNITE NE DIT RIEN
+    ═══════════════════════════════════════════════════════════════════
+
+    « Taux : 561 FCFA ». Cinq cent soixante et un francs DE QUOI ? Le
+    changeur le sait, et c'est precisement pourquoi la ligne peut passer
+    des mois sans qu'on la corrige : celui qui l'a ecrite et celui qui la
+    lit ont la reponse en tete.
+
+    Mais c'est la ligne qu'on relit a la cinquantieme demande d'un soir
+    pour verifier qu'on n'a pas inverse un sens — et c'est exactement le
+    moment ou le sous-entendu lache. « 561 FCFA / USDT-BNB » le dit en
+    trois caracteres.
+
+    La monnaie vient de l'ordre, pas d'une constante : la ligne reste
+    juste le jour ou le change ouvre une monnaie dont le prix unitaire se
+    compte en centaines de milliers de francs.
+
+    SI L'UN DES DEUX MANQUE, on n'ecrit rien de plus : « Taux :  /
+    USDT-BNB » serait moins lisible que le defaut qu'on corrige.
+    */
+    ordre.taux && ordre.monnaie
+      ? `Taux      : ${echapper(ordre.taux)} / ${echapper(ordre.monnaie)}`
+      : `Taux      : ${echapper(ordre.taux)}`,
     `Marge     : ${echapper(ordre.marge)}`,
     ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null,
     ordre.telephone

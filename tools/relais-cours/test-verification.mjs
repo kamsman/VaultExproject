@@ -669,6 +669,20 @@ const consigne = (ordre, verif, coherence) => sansBalises(ligneBrute(ordre, veri
 
 {
   /*
+  LE TAUX PORTE SON UNITE. « 561 FCFA » ne dit pas de quoi ; c'est la
+  ligne qu'on relit pour verifier qu'on n'a pas inverse un sens, et c'est
+  la qu'un sous-entendu lache.
+  */
+  const t = messageOrdre(venteBrute, confirme, { etat: 'coherent' })
+    .find((l) => typeof l === 'string' && l.startsWith('Taux')) || ''
+  verifie('TAUX : la monnaie suit le chiffre', t.includes('625 FCFA / USDT'), t)
+  const nu = messageOrdre({ ...venteBrute, monnaie: '' }, confirme, { etat: 'coherent' })
+    .find((l) => typeof l === 'string' && l.startsWith('Taux')) || ''
+  verifie('TAUX : sans monnaie, pas de barre orpheline', !nu.includes('/'), nu)
+}
+
+{
+  /*
   LE BALISAGE N'EST PAS DECORATIF : le gras porte le chiffre qui decide,
   et le `code` rend le numero copiable d'un appui — c'est lui qui supprime
   la seule retranscription a la main du parcours du changeur.
