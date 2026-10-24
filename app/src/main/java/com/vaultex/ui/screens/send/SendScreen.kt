@@ -2238,7 +2238,28 @@ internal fun SendProcessingScreen(detail: SendDetail) {
             TextPrimary,
             animated = true
         )
-        SendDetailCard(detail, showTotal = true)
+        /*
+        ═══════════════════════════════════════════════════════════════
+        SUR UNE VENTE, LE RECAPITULATIF EST UNE TROISIEME LECTURE
+        ═══════════════════════════════════════════════════════════════
+
+        Montant, destinataire, reseau, frais, total : les cinq memes
+        lignes venaient d'etre lues sur l'ecran de confirmation, juste
+        avant le code PIN. Et sur l'ecran de change avant lui.
+
+        A cet instant precis, il n'y a plus rien a verifier : la
+        transaction est signee et diffusee, personne ne peut plus la
+        changer. Un recapitulatif sur lequel on ne peut plus agir ne sert
+        qu'a remplir l'ecran — et il poussait « Ne fermez pas
+        l'application » hors de vue, qui est la SEULE chose a lire ici.
+
+        SUR UN ENVOI ORDINAIRE, IL RESTE. Le parcours y est plus court —
+        formulaire, confirmation — et le detail n'a ete lu qu'une fois.
+        ═══════════════════════════════════════════════════════════════
+        */
+        if (!vente) {
+            SendDetailCard(detail, showTotal = true)
+        }
         Spacer(Modifier.height(4.dp))
         LinearProgressIndicator(
             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
