@@ -1172,7 +1172,7 @@
     <string name="change_verif_quand">Timestamp</string>
     <string name="change_verif_pas_mine">Seen on the network, not yet in a block. The exchanger will wait for one confirmation.</string>
     <string name="change_verif_absent">Not visible on the chain yet</string>
-    <string name="change_verif_absent_detail">Nothing found after %1$d tries. A withdrawal from an exchange can take an hour.</string>
+    <string name="change_verif_absent_detail">Your crypto is not lost. Until it is written into a block, the chain does not show it — a withdrawal from an exchange can take an hour.</string>
     <string name="change_verif_deja_servi">This transfer has already been used</string>
     <string name="change_verif_deja_servi_detail">The chain does show this transfer, but it already settled another request. Check your recent requests: if this is the one, it already reached the exchanger and there is nothing to redo.</string>
     <string name="change_verif_impossible">Automatic verification impossible</string>
@@ -1187,7 +1187,7 @@
     <string name="change_verif_achat_recu">Received (read in the operator\'s SMS)</string>
     <string name="change_verif_achat_de">Paid from</string>
     <string name="change_verif_achat_absent">No matching payment</string>
-    <string name="change_verif_achat_absent_detail">Nothing found after %1$d attempts. Check your reference and your number. If you have just paid, wait a few seconds.</string>
+    <string name="change_verif_achat_absent_detail">Your money is not lost. VaultEx only sees your payment through the Orange Money SMS, which can be delayed. Check your reference and your number: a typo is the most common cause.</string>
     <string name="change_verif_achat_deja_servi">This payment has already been used</string>
     <string name="change_verif_achat_deja_servi_detail">The payment exists, but it has already settled another request. Check your recent requests: if this is the one, it is already with the changer and there is nothing to redo.</string>
     <string name="change_verif_achat_impossible">Automatic check unavailable</string>

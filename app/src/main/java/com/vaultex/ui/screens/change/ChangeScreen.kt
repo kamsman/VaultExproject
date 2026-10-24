@@ -3134,7 +3134,7 @@ private fun detailVerification(
             relire, et il l'a sous les yeux dans le SMS de l'opérateur.
             */
             AffichageVerif.ABSENT ->
-                stringResource(R.string.change_verif_achat_absent_detail, state.essais)
+                stringResource(R.string.change_verif_achat_absent_detail)
             AffichageVerif.DEJA_SERVI ->
                 stringResource(R.string.change_verif_achat_deja_servi_detail)
             AffichageVerif.IMPOSSIBLE ->
@@ -3151,7 +3151,7 @@ private fun detailVerification(
             stringResource(R.string.change_verif_recherche_detail, state.monnaie)
         AffichageVerif.VERT -> stringResource(R.string.change_verif_trouve_detail)
         AffichageVerif.ABSENT ->
-            stringResource(R.string.change_verif_absent_detail, state.essais)
+            stringResource(R.string.change_verif_absent_detail)
         AffichageVerif.DEJA_SERVI -> stringResource(R.string.change_verif_deja_servi_detail)
         AffichageVerif.IMPOSSIBLE ->
             if (raison.isNotBlank()) {
