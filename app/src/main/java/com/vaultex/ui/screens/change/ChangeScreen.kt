@@ -2588,7 +2588,6 @@ pas : ses fonds sont peut-être déjà partis, et lui retirer son écran à
 cet instant précis serait le pire moment pour le faire.
 ═══════════════════════════════════════════════════════════════════════════
 */
-@Composable
 /**
  * Vrai quand le prix garanti a expire, et il bascule TOUT SEUL.
  *
