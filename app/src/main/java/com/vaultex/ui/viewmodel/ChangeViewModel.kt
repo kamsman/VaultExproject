@@ -1839,6 +1839,33 @@ class ChangeViewModel @Inject constructor(
         _state.update {
             it.copy(
                 etape = EtapeChange.CALCUL,
+                /*
+                ═══════════════════════════════════════════════════════
+                ON REND LE MONTANT TAPE, PAS LE MONTANT MARQUE
+                ═══════════════════════════════════════════════════════
+
+                `saisie` a ete REMPLACEE a la confirmation par le montant
+                exact — « 2,004731 » — pour que les francs annonces
+                correspondent a ce qui part vraiment.
+
+                En revenant au calcul, ce chiffre se retrouvait dans un
+                champ qui n'accepte que des entiers a la vente. Il
+                fonctionne — le marquage repart de la partie entiere, donc
+                un nouveau Continuer redonne le bon resultat — mais il
+                s'affiche comme une saisie impossible, sur l'ecran meme ou
+                l'on vient corriger quelque chose.
+
+                On rend donc le nombre que la personne avait tape. C'est
+                ce qu'elle reconnait, et c'est ce qu'elle va retaper si on
+                ne le lui rend pas.
+
+                A L'ACHAT, RIEN A FAIRE : la saisie y est en francs et
+                n'est jamais marquee.
+                ═══════════════════════════════════════════════════════
+                */
+                saisie = if (it.sens == SensChange.VENTE) {
+                    it.socleVente?.toString() ?: it.saisie
+                } else it.saisie,
                 reference = "",
                 erreur = null,
                 verification = null,

@@ -2197,8 +2197,73 @@ private fun ColumnScope.EtapePaiement(
         reussi. Le rattrapage est le bouton de confirmation, plus bas.
         ═══════════════════════════════════════════════════════════════════
         */
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE PRIX EXPIRE ETEINT LE BOUTON — CE QU'IL NE POUVAIT PAS FAIRE AVANT
+        ═══════════════════════════════════════════════════════════════════════
+
+        Le compte a rebours disait « Le prix affiché n'est plus garanti » et
+        le bouton restait allume. On pouvait vendre sur un prix vieux de
+        vingt minutes, et la perte etait pour le changeur : le client a
+        envoye sa crypto au prix d'il y a vingt minutes, et il faut payer ce
+        prix-la.
+
+        ─── POURQUOI IL ETAIT RESTE ALLUME, ET POURQUOI CA A CHANGE ───────
+
+        Dans l'ancien parcours, on copiait l'adresse, on SORTAIT envoyer sa
+        crypto ailleurs, puis on revenait. Eteindre le bouton a ce
+        moment-la aurait piege quelqu'un qui avait DEJA ENVOYE : crypto
+        partie, demande impossible a deposer. C'etait la bonne decision pour
+        ce parcours.
+
+        Ce n'est plus le parcours. « Vendre maintenant » est aujourd'hui
+        presse AVANT que quoi que ce soit ne parte — il ouvre l'ecran
+        d'envoi, et la crypto ne bouge qu'apres le code PIN. L'eteindre ne
+        piege donc plus personne : on revient au calcul, on reprend un prix
+        frais, trente secondes.
+
+        ─── ET LE RATTRAPAGE, LUI, RESTE VIVANT ──────────────────────────
+
+        « Confirmer l'envoi », plus bas, sert a qui a deja envoye. Il n'est
+        pas touche : c'est exactement le cas que l'ancienne decision
+        protegeait, et il a maintenant son propre bouton. Les deux
+        situations sont enfin separees.
+
+        LE RELAIS RESTE LE VRAI GARDE-FOU. Il recalcule le prix du marche au
+        depot et refuse au-dela de trois pour cent d'ecart. Ceci ne le
+        remplace pas : ca evite d'y arriver.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val expire = prixExpire(state.confirmeA, p.delaiMinutes)
         if (state.txidSaisi.isNotBlank()) {
             Note(stringResource(R.string.change_crypto_partie), AccentGreen)
+        } else if (expire) {
+            /*
+            ─── PAS UN BOUTON GRIS, LE BOUTON QUI DEBLOQUE ────────────────
+
+            Eteindre « Vendre maintenant » aurait laisse un rectangle gris
+            au milieu de l'ecran, et la question qui va avec — deja posee
+            sur une capture : « le bouton confirmer est gris pourquoi ».
+
+            La ligne rouge du dessus dit la cause, mais elle est au-dessus
+            des deux champs de numero : on la lit avant, on bute apres.
+
+            Le bouton devient donc l'action qui sort de la situation.
+            Reprendre un prix coute trente secondes : le montant est garde,
+            seul le cours est refait.
+            */
+            Button(
+                onClick = vm::retourAuCalcul,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Icon(Icons.Default.Calculate, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.change_reprendre_prix),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         } else if (marque != null && detenu != null && detenu >= marque) {
             /*
             ═══════════════════════════════════════════════════════════
@@ -2522,6 +2587,43 @@ pas : ses fonds sont peut-être déjà partis, et lui retirer son écran à
 cet instant précis serait le pire moment pour le faire.
 ═══════════════════════════════════════════════════════════════════════════
 */
+@Composable
+/**
+ * Vrai quand le prix garanti a expire, et il bascule TOUT SEUL.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI UNE HORLOGE PLUTOT QU'UNE SIMPLE COMPARAISON
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * `System.currentTimeMillis() > fin` suffirait — a la premiere lecture. Mais
+ * Compose ne recompose pas parce que l'heure avance : l'ecran resterait fige
+ * sur la reponse calculee a l'ouverture, et le bouton resterait allume une
+ * heure apres l'expiration.
+ *
+ * Le compte a rebours, lui, bat deja a la seconde. Il le fait pour lui-meme,
+ * dans son propre composable, et rien de cet etat ne sortait. Cette fonction
+ * tient la meme horloge et la rend lisible ailleurs.
+ *
+ * ELLE S'ARRETE A L'EXPIRATION. Une boucle qui continue de battre apres coup
+ * reveille l'ecran chaque seconde pour redire la meme chose, sur des
+ * telephones qui sont la cible.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+@Composable
+private fun prixExpire(confirmeA: Long, delaiMinutes: Int): Boolean {
+    if (confirmeA <= 0L) return false
+    val fin = confirmeA + delaiMinutes * 60_000L
+    var maintenant by remember(fin) { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(fin) {
+        while (System.currentTimeMillis() < fin) {
+            kotlinx.coroutines.delay(1_000)
+            maintenant = System.currentTimeMillis()
+        }
+        maintenant = System.currentTimeMillis()
+    }
+    return maintenant >= fin
+}
+
 @Composable
 private fun CompteARebours(confirmeA: Long, delaiMinutes: Int) {
     if (confirmeA <= 0L) return
