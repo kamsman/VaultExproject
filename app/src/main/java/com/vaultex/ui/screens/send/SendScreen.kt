@@ -396,6 +396,7 @@ fun SendScreen(navController: NavController) {
     if (showConfirm || ventePrete) {
         SendConfirmScreen(
             detail = detail,
+            erreur = state.error,
             onCancel = {
                 if (state.venteChange) navController.popBackStack() else showConfirm = false
             },
@@ -2040,7 +2041,30 @@ private fun RecipientAddressCard(
 }
 
 @Composable
-internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
+internal fun SendConfirmScreen(
+    detail: SendDetail,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ECHEC D'ENVOI N'AVAIT PLUS D'ENDROIT OU S'AFFICHER
+    ═══════════════════════════════════════════════════════════════════
+
+    Le message d'erreur vivait sous le bouton « Continuer », dans la barre
+    basse du FORMULAIRE. Sur une vente, ce formulaire n'existe plus : il a
+    ete fusionne avec cet ecran-ci.
+
+    Resultat : un envoi refuse — fonds insuffisants pour le gaz, noeud qui
+    coupe, nonce en conflit — ramenait ici en silence. On appuyait sur
+    « Confirmer », l'ecran de diffusion passait, et on revenait au meme
+    ecran sans un mot. Le reflexe est de rappuyer, indefiniment.
+
+    L'erreur se pose donc au-dessus des boutons, la ou l'on regarde apres
+    avoir appuye.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    erreur: String? = null,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit
+) {
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
     // `numeroPaiement` n'existe que sur une vente : il sert de signal dans
@@ -2052,6 +2076,22 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         onRetour = onCancel,
         ecusson = true,
         actions = {
+            erreur?.let {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AccentRed.copy(alpha = 0.10f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                        Icon(
+                            Icons.Default.ErrorOutline, null,
+                            tint = AccentRed, modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(it, fontSize = 13.sp, color = AccentRed, lineHeight = 18.sp)
+                    }
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
                     onClick = onCancel,
