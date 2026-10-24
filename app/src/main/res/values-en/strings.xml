@@ -1214,7 +1214,8 @@
     <string name="change_deplier">Show details</string>
     <string name="change_replier">Hide details</string>
     <string name="change_prix_garanti">Price guaranteed for</string>
-    <string name="change_prix_expire">The displayed price is no longer guaranteed — go back to the calculation if you have not sent yet.</string>
+    <string name="change_prix_expire">The price is no longer guaranteed. Get a fresh one to continue.</string>
+    <string name="change_reprendre_prix">Get an up-to-date price</string>
     <string name="change_vente_partie_titre">Your sale is on its way</string>
     <string name="change_depot_en_cours">Telling VaultEx…</string>
     <string name="change_vente_preparation">Preparing your sale…</string>

@@ -1214,7 +1214,8 @@
     <string name="change_deplier">عرض التفاصيل</string>
     <string name="change_replier">إخفاء التفاصيل</string>
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
-    <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
+    <string name="change_prix_expire">لم يعد السعر مضمونًا. احصل على سعر محدَّث للمتابعة.</string>
+    <string name="change_reprendre_prix">الحصول على سعر محدَّث</string>
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
     <string name="change_depot_en_cours">جارٍ إبلاغ VaultEx…</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
