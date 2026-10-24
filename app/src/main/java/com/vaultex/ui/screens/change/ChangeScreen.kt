@@ -945,7 +945,8 @@ private fun ColumnScope.EtapeCalcul(
     et le dire tout de suite epargne de taper un montant pour rien.
     */
     blocage?.takeIf {
-        state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" || it == "gaz"
+        state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" ||
+            it == "gaz" || it == "sans_adresse"
     }?.let {
         NoteEnDeuxTemps(
             messageBlocage(it, p, state.monnaie, state.fcfaParDollar, state.jetonGaz),
@@ -5112,6 +5113,12 @@ private fun messageBlocage(
     jeton et le geste suivant tiennent dans la meme phrase.
     */
     "gaz" -> stringResource(R.string.change_pas_de_gaz, jetonGaz)
+    /*
+    MEME FAMILLE QUE LE GAZ : un refus qui ne vient pas du chiffre tape,
+    mais de l'etat du portefeuille. Il nomme la monnaie et le geste
+    suivant — ouvrir l'ecran Recevoir la derive et la met en cache.
+    */
+    "sans_adresse" -> stringResource(R.string.change_sans_adresse, monnaie)
     "ferme" -> stringResource(R.string.change_ferme)
     "pas_de_rachat" -> stringResource(R.string.change_pas_de_rachat)
     "sans_cours" -> stringResource(R.string.change_sans_cours)

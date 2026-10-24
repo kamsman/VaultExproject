@@ -175,6 +175,29 @@ data class ChangeState(
     val jetonGaz: String = "",
     /** Ce qu'on detient de [jetonGaz]. Null = on n'a pas regarde. */
     val soldeGaz: Double? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ADRESSE OU LE CHANGEUR ENVERRA LA CRYPTO ACHETEE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Elle est derivee de la phrase secrete, et elle peut manquer : phrase
+    illisible — le Keystore Android perd sa cle plus souvent qu'on ne le
+    croit — ou monnaie absente de la table de derivation.
+
+    SANS ELLE, LA DEMANDE PARTAIT QUAND MEME. Le message du changeur disait
+    « ENVOYER 2,15 USDT-BNB a l'adresse ci-dessous » et il n'y avait pas
+    d'adresse ci-dessous : la ligne est simplement omise quand le champ est
+    vide. Le client avait paye, et le changeur n'avait nulle part ou
+    envoyer.
+
+    NULL VEUT DIRE « PAS ENCORE CALCULE », pas « absente ». La derivation
+    coute une centaine de millisecondes — c'est du PBKDF2 — donc elle se
+    fait hors du fil principal, et l'ecran ne doit pas accuser pendant ce
+    temps. Vide, en revanche, veut dire qu'on a regarde et qu'il n'y a
+    rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val adresseReception: String? = null,
     /**
      * Instant ou le prix a ete fige, en millisecondes.
      *
@@ -689,6 +712,23 @@ data class ChangeState(
                 return "gaz"
             }
         }
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        ET A L'ACHAT, DE QUOI RECEVOIR
+        ═══════════════════════════════════════════════════════════════════
+
+        Meme famille que le gaz : un refus que l'ecran peut voir, et que
+        personne ne voyait avant le message du changeur.
+
+        `null` ne bloque pas — la derivation n'a pas encore rendu. Vide
+        bloque : on a regarde, il n'y a pas d'adresse, et laisser partir la
+        demande ferait payer quelqu'un pour une crypto qui n'a nulle part
+        ou aller.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (sens == SensChange.ACHAT && adresseReception != null && adresseReception.isBlank()) {
+            return "sans_adresse"
+        }
         return null
     }
 }
@@ -1124,6 +1164,24 @@ class ChangeViewModel @Inject constructor(
                 jetonGaz = gaz.orEmpty(),
                 soldeGaz = gaz?.let { j -> soldeDe(j) }
             )
+        }
+        /*
+        LA DERIVATION EST HORS DU FIL PRINCIPAL, et il le faut : elle fait
+        du PBKDF2 sur deux mille tours. Appelee ici telle quelle, elle
+        figerait l'ecran a chaque changement de monnaie — sur les
+        telephones vises, ca se voit.
+
+        LE RESULTAT N'EST ECRIT QUE S'IL CONCERNE ENCORE LA MONNAIE
+        AFFICHEE. Deux changements rapides lancent deux derivations, et
+        rien ne garantit leur ordre d'arrivee : sans ce garde, la plus
+        lente ecraserait la bonne.
+        */
+        val monnaieDemandee = s.monnaie
+        viewModelScope.launch(Dispatchers.Default) {
+            val a = adresseDeReception(monnaieDemandee)
+            _state.update {
+                if (it.monnaie == monnaieDemandee) it.copy(adresseReception = a) else it
+            }
         }
     }
 
@@ -2337,12 +2395,26 @@ class ChangeViewModel @Inject constructor(
         recalculer()
     }
 
+    /*
+    LA DERIVATION EST FAITE UNE FOIS, PAS A CHAQUE MONNAIE.
+
+    `deriveAddresses` rend TOUTES les adresses d'un coup, pour le prix d'un
+    seul PBKDF2. Les recalculer a chaque changement de monnaie paierait ce
+    prix a chaque fois, pour un resultat identique.
+
+    Le cache vit aussi longtemps que le ViewModel, c'est-a-dire l'ecran. Il
+    ne survit pas a un changement de portefeuille, puisqu'on en sort.
+    */
+    @Volatile private var adressesDerivees:
+        com.vaultex.core.crypto.WalletManager.WalletAddresses? = null
+
     /** Adresse du portefeuille où le changeur enverra la crypto achetée. */
     private fun adresseDeReception(monnaie: String): String = try {
         val m = secureStorage.getMnemonic() ?: ""
         if (m.isBlank()) "" else {
-            val a = com.vaultex.core.crypto.WalletManager
+            val a = adressesDerivees ?: com.vaultex.core.crypto.WalletManager
                 .deriveAddresses(m, secureStorage.getPassphrase())
+                .also { adressesDerivees = it }
             when (monnaie.uppercase()) {
                 "BTC" -> a.btc
                 "ETH", "USDT-ETH" -> a.eth

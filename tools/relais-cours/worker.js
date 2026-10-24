@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 60
+const VERSION = 61
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2557,6 +2557,30 @@ async function ordreChange(requete, env) {
   */
   if (ordre.sens !== 'achat' && numero.length < 8) {
     return json({ ok: false, raison: 'numero de telephone manquant' }, 0, 400)
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UN ACHAT SANS ADRESSE N'A NULLE PART OU ALLER
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le symetrique exact du controle ci-dessus. Sur une vente, il faut un
+  numero pour payer ; sur un achat, il faut une adresse pour envoyer.
+
+  Sans elle, le message disait « ENVOYER 2,15 USDT-BNB a l'adresse
+  ci-dessous » — et il n'y avait pas d'adresse ci-dessous : la ligne est
+  omise quand le champ est vide. Le client avait paye, le changeur n'avait
+  nulle part ou envoyer, et c'est lui qui le decouvrait.
+
+  L'ECRAN L'EXIGE DEJA. On l'exige ici aussi, pour la raison ecrite trente
+  lignes plus haut : l'ecran est la partie qu'on ne controle pas. Une
+  adresse peut manquer parce que la phrase secrete est devenue illisible
+  ou parce qu'une monnaie n'est pas dans la table de derivation — deux
+  causes qui vivent dans le telephone, pas ici.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  if (ordre.sens === 'achat' && !String(ordre.adresse ?? '').trim()) {
+    return json({ ok: false, raison: 'adresse de reception manquante' }, 0, 400)
   }
 
   /*
