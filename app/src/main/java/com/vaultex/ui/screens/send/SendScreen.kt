@@ -1791,13 +1791,17 @@ private fun composeColor(hex: String, fallback: Long = 0xFF3B82F6): Color =
 
 /** Cercle d'icône (gris, ou vert si mis en avant). */
 @Composable
-private fun ConfirmIconCircle(icon: androidx.compose.ui.graphics.vector.ImageVector, highlight: Boolean) {
+private fun ConfirmIconCircle(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    highlight: Boolean,
+    teinte: Color = AccentGreen
+) {
     Box(
         Modifier.size(38.dp).clip(CircleShape)
-            .background(if (highlight) AccentGreen.copy(alpha = 0.15f) else BgTertiary),
+            .background(if (highlight) teinte.copy(alpha = 0.15f) else BgTertiary),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = if (highlight) AccentGreen else TextSecondary, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = if (highlight) teinte else TextSecondary, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -1834,18 +1838,38 @@ private fun ConfirmRowLeft(
 @Composable
 private fun ConfirmRowRight(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String, value: String, sub: String? = null, highlight: Boolean = false
+    label: String, value: String, sub: String? = null, highlight: Boolean = false,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA TEINTE DE LA MISE EN AVANT
+    ═══════════════════════════════════════════════════════════════════
+
+    `highlight` cablait le vert. C'etait juste tant que cet ecran ne
+    servait qu'a envoyer : le vert y disait « voici le total ».
+
+    Sur une VENTE il ne l'est plus. Le vert, dans cette application, dit
+    « ce que tu recois » — le solde, les francs qu'on va toucher, le rond
+    du recu. Or « Total déduit » est ce qui SORT du portefeuille, et il
+    sort a l'instant ou l'on appuie. L'annoncer en vert est un contresens
+    sur l'ecran meme ou l'on engage les fonds.
+
+    Le bleu est la couleur d'action de l'application, et payer est une
+    action. Le vert reste pour l'ecran suivant, celui qui dit ce qui va
+    arriver.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    teinte: Color = AccentGreen
 ) {
     Surface(shape = RoundedCornerShape(14.dp),
-        color = if (highlight) AccentGreen.copy(alpha = 0.10f) else SurfaceColor,
+        color = if (highlight) teinte.copy(alpha = 0.10f) else SurfaceColor,
         border = if (highlight) null else androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            ConfirmIconCircle(icon, highlight)
+            ConfirmIconCircle(icon, highlight, teinte)
             Spacer(Modifier.width(12.dp))
             Text(label, fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End) {
-                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (highlight) AccentGreen else TextPrimary)
+                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (highlight) teinte else TextPrimary)
                 sub?.let { Text(it, fontSize = 11.sp, color = TextSecondary) }
             }
         }
@@ -1943,6 +1967,35 @@ private fun RecipientAddressCard(
             plus affiche, et le geste reste utile : on peut vouloir
             verifier l'adresse dans un explorateur.
             */
+            /*
+            ═══════════════════════════════════════════════════════════
+            LA CASE REPREND SON LIBELLE, MAIS PAS SON TITRE
+            ═══════════════════════════════════════════════════════════
+
+            J'avais retire les DEUX : le titre « Destinataire » et le
+            sous-titre « Adresse du portefeuille ». Le titre devait partir
+            — il nommait une section qui n'en est plus une, il n'y a qu'une
+            adresse sur l'ecran.
+
+            Le sous-titre, non. Sans lui, la case grise arrive nue entre la
+            carte du jeton et celle du numero : trois blocs, et le seul qui
+            ne dise pas ce qu'il contient est celui dont le contenu est
+            quarante-deux caracteres illisibles. On sait que c'est une
+            adresse parce qu'on reconnait la forme, pas parce que l'ecran
+            le dit.
+
+            Il revient donc seul, en gris, au-dessus de la case — la place
+            que lui donne la maquette.
+            ═══════════════════════════════════════════════════════════
+            */
+            if (vente) {
+                Text(
+                    stringResource(R.string.send_adresse_portefeuille),
+                    fontSize = 13.sp,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(8.dp))
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -1990,6 +2043,9 @@ private fun RecipientAddressCard(
 internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val badge = if (detail.netFull.contains("·")) detail.netFull.substringBefore("·").trim() else null
+    // `numeroPaiement` n'existe que sur une vente : il sert de signal dans
+    // tout cet ecran, y compris pour la couleur.
+    val vente = detail.numeroPaiement.isNotBlank()
     SendStatusScaffold(
         stringResource(R.string.send_confirm_title),
         sousTitre = stringResource(R.string.send_confirm_subtitle),
@@ -2054,7 +2110,27 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         }
     ) {
         // Carte monnaie + montant (verte, mise en avant)
-        Surface(shape = RoundedCornerShape(14.dp), color = AccentGreen.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
+        /*
+        ═══════════════════════════════════════════════════════════════
+        PLUS DE VERT SUR CET ECRAN, SUR UNE VENTE
+        ═══════════════════════════════════════════════════════════════
+
+        La carte du jeton etait verte, le total etait vert. Or rien n'est
+        recu ici : on est sur l'ecran ou l'on ENGAGE des fonds, juste avant
+        le code PIN. Le vert de cette application dit « ce que tu recois »,
+        et il est reserve a ca — le solde, les francs qu'on va toucher, le
+        rond du recu.
+
+        Tout passe au bleu, qui est la couleur de l'action. Le vert revient
+        a l'ecran suivant, celui qui annonce ce qui va arriver — et il y
+        garde son sens, au lieu de l'avoir use ici.
+
+        SUR UN ENVOI ORDINAIRE, LE VERT RESTE. Il n'y a pas d'ecran suivant
+        qui le reclame, et c'est la couleur de cet ecran depuis le debut.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val teinteCarte = if (vente) AccentBlue else AccentGreen
+        Surface(shape = RoundedCornerShape(14.dp), color = teinteCarte.copy(alpha = 0.10f), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(42.dp).clip(CircleShape).background(composeColor(coinColorHex(detail.coinShort))), contentAlignment = Alignment.Center) {
                     coil.compose.AsyncImage(model = com.vaultex.ui.components.CryptoIcon.url(detail.coinShort),
@@ -2064,8 +2140,8 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(detail.coinShort, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                        if (badge != null) Surface(shape = RoundedCornerShape(5.dp), color = AccentGreen.copy(alpha = 0.14f)) {
-                            Text(badge, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp), fontSize = 10.sp, color = AccentGreen, fontWeight = FontWeight.SemiBold)
+                        if (badge != null) Surface(shape = RoundedCornerShape(5.dp), color = teinteCarte.copy(alpha = 0.14f)) {
+                            Text(badge, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp), fontSize = 10.sp, color = teinteCarte, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     Text(detail.coinName, fontSize = 12.sp, color = TextSecondary)
@@ -2191,7 +2267,8 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
         ConfirmRowRight(
             Icons.Default.AccountBalanceWallet,
             stringResource(R.string.send_confirm_total_deducted),
-            detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true
+            detail.totalToken, detail.totalFiat?.let { "≈ $it" }, highlight = true,
+            teinte = if (vente) AccentBlue else AccentGreen
         )
         ExpandableDetails(
             accent = AccentBlue,

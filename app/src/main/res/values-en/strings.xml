@@ -908,6 +908,7 @@
     <string name="send_confirm_secured">Your transaction is secured and encrypted</string>
     <string name="send_confirm_subtitle">Check the details before sending</string>
     <string name="send_confirm_noncustodial">Your funds stay under your control (non-custodial)</string>
+    <string name="send_adresse_portefeuille">Wallet address</string>
     <string name="send_processing_appbar">Sending %1$s</string>
     <string name="send_appbar_vente">Sale %1$s</string>
     <string name="send_processing_title">Transaction in progress</string>
