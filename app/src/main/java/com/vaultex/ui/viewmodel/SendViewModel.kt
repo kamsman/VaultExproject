@@ -1668,14 +1668,74 @@ class SendViewModel @Inject constructor(
 
         // Le verrou est deja pose plus haut, pour les deux chemins.
         viewModelScope.launch {
-            val result = sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount, s.serviceFeeAmount)
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UNE EXCEPTION ICI FIGEAIT L'ECRAN POUR TOUJOURS
+            ═══════════════════════════════════════════════════════════════
+
+            Signale sur capture : « Transaction en cours » qui ne mene nulle
+            part. Et la cause est structurelle.
+
+            `sendByChain` rend un `Result` — Success ou Error — et les deux
+            eteignent `isLoading`. Mais il peut aussi LEVER : un noeud qui
+            coupe, une reponse RPC qu'on n'arrive pas a lire, une
+            serialisation qui echoue. Rien ne l'attrapait : la coroutine
+            mourait en silence, `isLoading` restait vrai, et l'ecran de
+            diffusion s'installait a demeure.
+
+            SUR UNE VENTE, C'EST LE PIRE DES ETATS. Il n'y a plus de
+            formulaire derriere — il a ete fusionne avec la confirmation —
+            donc aucune sortie, et surtout aucune reponse a la seule
+            question qui compte : est-ce que ma crypto est partie ?
+
+            Le resultat est donc pris dans un `try`. Un echec devient un
+            echec affiche, comme un `Result.Error`, avec le meme signalement
+            au bot d'administration : une exception qui se repete sur un
+            modele d'appareil doit se voir.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val result = try {
+                sendCryptoUseCase.sendByChain(effective, s.toAddress, s.amount, s.serviceFeeAmount)
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = friendlyError(e.message)) }
+                com.vaultex.core.monitoring.AdminBot.sendFailed(
+                    s.selectedChain.substringBefore("-"),
+                    // Le nom de la classe EN PLUS du message : une exception
+                    // sans message — il y en a — ne dirait rien du tout.
+                    "${e.javaClass.simpleName} ${e.message.orEmpty()}".trim()
+                )
+                return@launch
+            }
             when (result) {
                 is SendCryptoUseCase.Result.Success -> {
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    APRES LA DIFFUSION, PLUS RIEN N'A LE DROIT DE LEVER
+                    ═══════════════════════════════════════════════════════
+
+                    A partir d'ici le hash existe : la crypto EST partie, et
+                    elle ne revient pas. Tout ce qui suit est de la
+                    comptabilite — rafraichir un solde, suivre des
+                    confirmations, ecrire une ligne d'historique.
+
+                    Aucune de ces ecritures ne doit pouvoir empecher
+                    l'affichage du recu. `pendingTxManager.track` levait sans
+                    filet : une base verrouillee, et l'ecran restait sur
+                    « Transaction en cours » avec les fonds deja envoyes.
+                    L'utilisateur aurait alors toutes les raisons de croire
+                    que son envoi a echoue, et de recommencer.
+
+                    Le suivi perdu coute un badge et une notification. Le
+                    recu perdu coute la confiance.
+                    ═══════════════════════════════════════════════════════
+                    */
                     // Demande à l'accueil de rafraîchir vite le solde après l'envoi.
-                    com.vaultex.core.session.BalanceRefreshSignal.signalTxSent()
+                    runCatching { com.vaultex.core.session.BalanceRefreshSignal.signalTxSent() }
                     // Suivi de confirmation (badge dashboard + écran « En attente X/Y »).
                     val nativeChain = nativeUnit(effective)
-                    pendingTxManager.track(s.selectedChain, nativeChain, result.txHash)
+                    runCatching {
+                        pendingTxManager.track(s.selectedChain, nativeChain, result.txHash)
+                    }
                     // Entrée LOCALE immédiate dans « Récent » (Dashboard) : sans
                     // ceci, la cloche notifiait à l'instant mais « Récent » restait
                     // vide jusqu'à la prochaine synchro d'Historique (déclenchée
