@@ -310,6 +310,7 @@ fun ChangeScreen(navController: NavController) {
 
                 state.etape == EtapeChange.TRANSMIS -> EtapeTransmis(
                     state = state,
+                    copier = copier,
                     onRecommencer = { vm.recommencer() },
                     onAccueil = {
                         /*
@@ -3201,11 +3202,51 @@ private fun ColumnScope.EtapeDepotAuto() {
     }
 }
 
+/**
+ * Une ligne du recu : le libelle a gauche, la valeur a droite.
+ *
+ * PAS `Ligne`, ET C'EST VOULU. Celle-ci porte une pastille de quarante
+ * points par ligne — juste, sur la carte de paiement ou cinq lignes se
+ * ressemblent et ou l'oeil a besoin de reperes. Ici il y en a trois, dans
+ * une carte deja dominee par un grand rond vert : trois pastilles de plus
+ * feraient un inventaire la ou il faut un recu.
+ */
+@Composable
+private fun LigneRecu(
+    libelle: String,
+    valeur: String,
+    vedette: Boolean = false,
+    onCopier: (() -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(libelle, fontSize = 14.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Text(
+            valeur,
+            fontSize = if (vedette) 18.sp else 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (vedette) AccentGreen else TextPrimary
+        )
+        onCopier?.let {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Default.ContentCopy, stringResource(R.string.copy),
+                tint = AccentBlue,
+                modifier = Modifier.size(18.dp).clickable { it() }
+            )
+        }
+    }
+}
+
 // ─── Temps 3 : transmis ─────────────────────────────────────────────
 
 @Composable
 private fun ColumnScope.EtapeTransmis(
     state: com.vaultex.ui.viewmodel.ChangeState,
+    /** Pour copier la reference du recu d'achat. */
+    copier: (String) -> Unit,
     onRecommencer: () -> Unit,
     /*
     ═══════════════════════════════════════════════════════════════════
@@ -3361,6 +3402,60 @@ private fun ColumnScope.EtapeTransmis(
                 fontSize = 15.sp, color = TextSecondary, lineHeight = 21.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UN RECU POUR L'ACHAT, PARCE QU'IL N'EN AVAIT AUCUN
+            ═══════════════════════════════════════════════════════════════
+
+            La vente en a un : apres le code PIN, l'ecran dit « Ta vente est
+            partie », avec les francs en grand et le numero qui les recevra.
+
+            L'achat n'avait rien. On venait de payer de l'argent reel par
+            Orange Money, et l'ecran final disait « Demande transmise. Tu
+            recevras tes fonds dans un instant. » Pas un chiffre. Ni ce
+            qu'on a paye, ni ce qu'on va recevoir, ni sous quelle
+            reference — alors que c'est l'ecran qu'on regarde en se
+            demandant si on a bien fait.
+
+            TROIS LIGNES, ET CHACUNE REPOND A UNE QUESTION :
+
+              — ce qu'on va RECEVOIR, en vert et en vedette : c'est ce
+                qu'on est venu chercher, et le seul chiffre qui decide ;
+              — ce qu'on a PAYE, pour le rapprocher du SMS d'Orange Money
+                qui vient d'arriver ;
+              — la REFERENCE, avec sa copie. Je l'avais retiree du texte
+                au-dessus en disant qu'elle est dans « Mes dernières
+                demandes ». C'est vrai, et ca suffit pour une vente —
+                verifiee sur la chaine, dont rien ne depend d'un humain.
+                Pas pour un achat : la seule chose qui rattache un
+                paiement Orange Money a cette demande, c'est elle, et
+                c'est elle qu'on donnera si rien n'arrive.
+
+            SUR UNE VENTE, RIEN DE TOUT CA. Elle a deja eu son recu deux
+            ecrans plus tot, avec les memes chiffres. Les redire ici en
+            ferait une troisieme lecture.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (state.sens == SensChange.ACHAT) {
+                HorizontalDivider(color = BgPrimary)
+                state.montantCrypto?.let { recu ->
+                    LigneRecu(
+                        stringResource(R.string.change_tu_recevras),
+                        "${crypto(recu, state.monnaie)} ${state.monnaie}",
+                        vedette = true
+                    )
+                }
+                state.montantFcfa?.let { paye ->
+                    LigneRecu(stringResource(R.string.change_paye), "${fcfa(paye)} FCFA")
+                }
+                if (state.reference.isNotBlank()) {
+                    LigneRecu(
+                        stringResource(R.string.change_reference),
+                        state.reference,
+                        onCopier = { copier(state.reference) }
+                    )
+                }
+            }
             /*
             ═══════════════════════════════════════════════════════════════
             DIRE DANS QUEL ETAT LA DEMANDE EST PARTIE
