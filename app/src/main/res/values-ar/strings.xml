@@ -1140,7 +1140,7 @@
     <string name="change_jai_paye_verifie">تم التحقق من الدفعة — تأكيد</string>
     <string name="change_retour">العودة إلى الحساب</string>
     <string name="change_transmis_titre">تم إرسال الطلب</string>
-    <string name="change_transmis_detail">خرج طلبك %1$s. احتفظ بهذا المرجع: هو الذي يحدد عمليتك. ستستلم أموالك بعد التحقق من الدفع.</string>
+    <string name="change_transmis_detail">ستستلم أموالك بعد لحظات.</string>
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="change_retour_accueil">العودة إلى الرئيسية</string>
     <string name="action_acheter">شراء</string>
