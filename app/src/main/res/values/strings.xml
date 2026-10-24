@@ -1215,7 +1215,7 @@
     <string name="change_verif_achat_recu">Encaissé (lu dans le SMS de l\'opérateur)</string>
     <string name="change_verif_achat_de">Payé depuis</string>
     <string name="change_verif_achat_absent">Aucun paiement ne correspond</string>
-    <string name="change_verif_achat_absent_detail">Le relais a regardé %1$d fois sans trouver ton paiement. Relis la référence que tu as recopiée et ton numéro, caractère par caractère : c\'est la cause la plus fréquente. Si tu viens de payer, laisse quelques secondes au SMS de l\'opérateur. Tu peux aussi transmettre quand même : le changeur vérifiera dans son relevé.</string>
+    <string name="change_verif_achat_absent_detail">Rien trouvé après %1$d essais. Relis ta référence et ton numéro. Si tu viens de payer, attends quelques secondes.</string>
     <string name="change_verif_achat_deja_servi">Ce paiement a déjà servi</string>
     <string name="change_verif_achat_deja_servi_detail">L\'encaissement existe, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
     <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>

@@ -1186,7 +1186,7 @@
     <string name="change_verif_achat_recu">Received (read in the operator\'s SMS)</string>
     <string name="change_verif_achat_de">Paid from</string>
     <string name="change_verif_achat_absent">No matching payment</string>
-    <string name="change_verif_achat_absent_detail">The relay looked %1$d times without finding your payment. Check the reference you copied and your number, character by character: that is the most common cause. If you have just paid, give the operator\'s SMS a few seconds. You can also send anyway: the changer will check his own statement.</string>
+    <string name="change_verif_achat_absent_detail">Nothing found after %1$d attempts. Check your reference and your number. If you have just paid, wait a few seconds.</string>
     <string name="change_verif_achat_deja_servi">This payment has already been used</string>
     <string name="change_verif_achat_deja_servi_detail">The payment exists, but it has already settled another request. Check your recent requests: if this is the one, it is already with the changer and there is nothing to redo.</string>
     <string name="change_verif_achat_impossible">Automatic check unavailable</string>
