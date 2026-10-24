@@ -331,6 +331,9 @@ class SendViewModel @Inject constructor(
 
     private var jobDeblocage: kotlinx.coroutines.Job? = null
 
+    /** Quand la diffusion a commence — voir DUREE_MIN_DIFFUSION_MS. */
+    private var diffusionCommenceeA = 0L
+
     /** Ressources dans la langue CHOISIE dans l'app (pas celle du système). */
     private fun locStr(id: Int, vararg args: Any): String =
         com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
@@ -1396,6 +1399,22 @@ class SendViewModel @Inject constructor(
     )
 
     companion object {
+        /**
+         * Le temps que l'ecran « Ta vente part » reste visible, au moins.
+         *
+         * CINQ SECONDES, ET C'EST UN PLANCHER. Sur BNB Chain la diffusion
+         * rend la main en une seconde ou deux : l'ecran apparaissait et
+         * disparaissait presque aussitot, entre le code PIN et le recu, sans
+         * laisser le temps de lire « Ne ferme pas l'application » — la seule
+         * consigne du parcours.
+         *
+         * Ce n'est pas un faux delai : la transaction se propage pendant ce
+         * temps, et l'ecran dit exactement cela. Si la diffusion prend plus
+         * longtemps, l'ecran dure plus longtemps ; rien ici ne va plus vite
+         * que le reseau.
+         */
+        const val DUREE_MIN_DIFFUSION_MS = 5_000L
+
         // Chaînes natives connues : un symbole hors de cette liste qui correspond
         // à un token enregistré est traité comme un token personnalisé.
         /**
@@ -1585,6 +1604,7 @@ class SendViewModel @Inject constructor(
         ═══════════════════════════════════════════════════════════════════
          */
         _state.update { it.copy(isLoading = true, error = null) }
+        diffusionCommenceeA = System.currentTimeMillis()
 
         // Hors-ligne : on met l'INTENTION en file. Elle sera signée (avec un
         // nonce/blockhash frais) et diffusée automatiquement, une seule fois,
@@ -1700,6 +1720,43 @@ class SendViewModel @Inject constructor(
                                     "\"hash\":\"${result.txHash}\"}"
                             )
                         } catch (_: Exception) { }
+                    }
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    L'ECRAN DE DIFFUSION TIENT CINQ SECONDES AU MOINS
+                    ═══════════════════════════════════════════════════════
+
+                    Sur BNB Chain, la diffusion rend la main en une seconde
+                    ou deux. L'ecran « Ta vente part » apparaissait donc et
+                    disparaissait presque aussitot : on voyait un
+                    clignotement entre le code PIN et le recu, sans avoir le
+                    temps de lire ce qu'il disait — y compris « Ne ferme pas
+                    l'application », qui est la seule consigne du parcours.
+
+                    Cinq secondes au moins, donc. Pas un faux delai : la
+                    transaction EST en train de se propager pendant ce
+                    temps, et l'ecran dit exactement ca.
+
+                    ─── UN MINIMUM, PAS UN MAXIMUM ──────────────────────
+
+                    Si la diffusion prend douze secondes — noeud lent,
+                    reseau mobile — l'ecran dure douze secondes. On ne peut
+                    pas montrer un recu pour une transaction qui n'est pas
+                    partie, et rien ici ne permet d'aller plus vite que le
+                    reseau.
+
+                    ─── SEULEMENT SUR UNE VENTE ─────────────────────────
+
+                    Un envoi ordinaire n'a rien a faire attendre : son recu
+                    est la fin, et le voir arriver vite est une bonne
+                    nouvelle. Ici le recu porte une consigne — appuyer sur
+                    Termine pour que la demande parte — et on ne lit pas une
+                    consigne qui surgit.
+                    */
+                    if (s.verrouParChange) {
+                        val ecoule = System.currentTimeMillis() - diffusionCommenceeA
+                        val reste = DUREE_MIN_DIFFUSION_MS - ecoule
+                        if (reste > 0) kotlinx.coroutines.delay(reste)
                     }
                     _state.update { it.copy(isLoading = false, txHash = result.txHash) }
                     // Toast maison : logo de la crypto + confirmation de l'envoi.
