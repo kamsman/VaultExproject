@@ -129,8 +129,28 @@ const cas = [
   ],
 ]
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+ON IMPRIME LE MESSAGE TEL QUE TELEGRAM LE MONTRE, PAS TEL QU'IL PART
+═══════════════════════════════════════════════════════════════════════════
+
+Le message part en HTML depuis la v58 : gras sur les chiffres qui
+decident, `code` sur ce qui se copie. Laisser les balises ici rendrait ce
+script illisible — or il n'existe que pour etre lu, et c'est en le lisant
+qu'on a vu « A FAIRE : ENVOYER 500 000 FCFA » sur un ordre absurde.
+
+Les balises sont donc retirees A L'AFFICHAGE seulement : ce qui est
+mesure et compare reste la vraie sortie.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const sansBalises = (t) =>
+  t.replace(/<\/?(b|i|u|s|code|pre)>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+
 for (const [titre, ordre, verif, coherence] of cas) {
-  const texte = messageOrdre(ordre, verif, coherence).join('\n')
+  const texte = sansBalises(messageOrdre(ordre, verif, coherence).join('\n'))
   console.log('\n' + '═'.repeat(68))
   console.log(titre)
   console.log('═'.repeat(68))
