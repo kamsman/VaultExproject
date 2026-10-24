@@ -669,6 +669,23 @@ const consigne = (ordre, verif, coherence) => sansBalises(ligneBrute(ordre, veri
 
 {
   /*
+  LE ROND DIT LA DECISION, EN COULEUR.
+
+  Telegram n'a pas de texte colore : un emoji est la seule couleur
+  disponible, et celle-ci porte la seule decision du message. Elle doit
+  suivre le verdict, sinon elle ment — et un signal qui ment une fois
+  cesse d'etre lu.
+  */
+  const vert = ligneBrute(venteBrute, confirme, { etat: 'coherent' })
+  verifie('COULEUR : verifie -> rond vert', vert.startsWith('\u{1F7E2}'), vert)
+  const rouge = ligneBrute(venteBrute, { etat: 'absent', raison: 'rien' }, { etat: 'coherent' })
+  verifie('COULEUR : introuvable -> rond rouge', rouge.startsWith('\u{1F534}'), rouge)
+  const ecart = ligneBrute(venteBrute, confirme, { etat: 'ecart', attendu: 5000, ecartPourcent: 99 })
+  verifie('COULEUR : ecart de prix -> rond rouge', ecart.startsWith('\u{1F534}'), ecart)
+}
+
+{
+  /*
   LE TAUX PORTE SON UNITE. « 561 FCFA » ne dit pas de quoi ; c'est la
   ligne qu'on relit pour verifier qu'on n'a pas inverse un sens, et c'est
   la qu'un sous-entendu lache.

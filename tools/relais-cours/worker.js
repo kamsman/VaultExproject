@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 59
+const VERSION = 60
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3116,7 +3116,36 @@ function messageOrdre(ordre, verif, coherence, otp) {
     achat ? 'Le client paie en FCFA, tu envoies la crypto'
           : 'Le client envoie la crypto, tu paies en FCFA',
     '',
-    `\u27A1\uFE0F A FAIRE : ${aFaire}`,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA SEULE COULEUR QUE TELEGRAM AUTORISE
+    ═══════════════════════════════════════════════════════════════════
+
+    Un message Telegram n'a pas de texte colore : gras, italique, `code`,
+    rien d'autre. Demande du changeur : de la couleur sur le montant,
+    « pour ne pas se fatiguer ». C'est la bonne demande — il lit des
+    dizaines de messages dans une soiree, et il cherche chaque fois la
+    meme chose : dois-je payer, et combien.
+
+    Un emoji EST colore, et c'est tout ce qui reste. La fleche bleue ➡️
+    etait decorative : elle disait « voici une ligne », ce que la mise en
+    page disait deja. Remplacee par un rond VERT quand il faut payer et
+    ROUGE quand il ne faut pas, elle porte enfin la seule decision de ce
+    message — et elle la porte en couleur, a cote du chiffre.
+
+    Elle apparait aussi dans l'apercu de la liste des conversations, ou
+    Telegram montre le debut du message : le changeur voit la couleur
+    avant meme d'ouvrir.
+
+    ─── LE MEME SIGNAL, DEUX FOIS, ET C'EST VOULU ────────────────────
+
+    Le bloc de verification plus bas porte deja ✅ ou ❌. Mais il est a
+    quinze lignes, sous les montants et les adresses : on l'atteint apres
+    avoir lu. Ce rond-ci est sur la premiere ligne qui compte. L'un
+    annonce, l'autre justifie.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    `${verseVraiment ? '\u{1F7E2}' : '\u{1F534}'} A FAIRE : ${aFaire}`,
     '',
     /*
     CE QUI SE COPIE PORTE DU `code`, LE RESTE NON.
