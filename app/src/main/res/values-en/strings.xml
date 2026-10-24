@@ -1128,6 +1128,7 @@
     <string name="change_beneficiaire">Recipient</string>
     <string name="change_montant_exact">Exact amount</string>
     <string name="change_reference">Your reference</string>
+    <string name="change_paye">Paid</string>
     <string name="change_motif">Put your reference in the reason field if your payment has one — otherwise the exact amount and your number are enough to link it.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>

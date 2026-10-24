@@ -1157,6 +1157,7 @@
     <string name="change_beneficiaire">Bénéficiaire</string>
     <string name="change_montant_exact">Montant exact</string>
     <string name="change_reference">Ta référence</string>
+    <string name="change_paye">Payé</string>
     <string name="change_motif">Mets ta référence en motif si ton paiement en propose un — sinon, le montant exact et ton numéro suffisent à le rattacher.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
