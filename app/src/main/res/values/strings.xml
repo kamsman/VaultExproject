@@ -1243,6 +1243,7 @@
     <string name="change_prix_garanti">Prix garanti encore</string>
     <string name="change_prix_expire">Le prix affiché n\'est plus garanti — reviens au calcul si tu n\'as pas encore envoyé.</string>
     <string name="change_vente_partie_titre">Ta vente est partie</string>
+    <string name="change_depot_en_cours">On prévient VaultEx…</string>
     <string name="change_vente_preparation">Préparation de ta vente…</string>
     <string name="vente_traitement_titre">Ta vente part</string>
     <string name="vente_traitement_sous">Ta crypto est envoyée à VaultEx.</string>

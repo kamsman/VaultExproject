@@ -1214,6 +1214,7 @@
     <string name="change_prix_garanti">السعر مضمون لمدة</string>
     <string name="change_prix_expire">السعر المعروض لم يعد مضمونًا — عُد إلى الحساب إن لم ترسل بعد.</string>
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
+    <string name="change_depot_en_cours">جارٍ إبلاغ VaultEx…</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
     <string name="vente_traitement_titre">بيعك في طريق الإرسال</string>
     <string name="vente_traitement_sous">يتم إرسال عملتك إلى VaultEx.</string>
