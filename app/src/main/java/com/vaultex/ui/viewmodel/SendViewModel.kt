@@ -1402,7 +1402,7 @@ class SendViewModel @Inject constructor(
         /**
          * Le temps que l'ecran « Ta vente part » reste visible, au moins.
          *
-         * CINQ SECONDES, ET C'EST UN PLANCHER. Sur BNB Chain la diffusion
+         * TROIS SECONDES, ET C'EST UN PLANCHER. Sur BNB Chain la diffusion
          * rend la main en une seconde ou deux : l'ecran apparaissait et
          * disparaissait presque aussitot, entre le code PIN et le recu, sans
          * laisser le temps de lire « Ne ferme pas l'application » — la seule
@@ -1412,8 +1412,23 @@ class SendViewModel @Inject constructor(
          * temps, et l'ecran dit exactement cela. Si la diffusion prend plus
          * longtemps, l'ecran dure plus longtemps ; rien ici ne va plus vite
          * que le reseau.
+         *
+         * ─── CINQ D'ABORD, PUIS TROIS ───────────────────────────────────
+         *
+         * Le plancher etait a cinq quand cet ecran portait encore le
+         * recapitulatif — montant, destinataire, reseau, frais, total. Il y
+         * avait de quoi occuper le regard.
+         *
+         * Ce recapitulatif a ete retire : il repetait une troisieme fois ce
+         * qu'on venait de lire deux fois. L'ecran est desormais nu — un
+         * rond, un titre, une barre, une phrase — et cinq secondes de
+         * presque-vide se comptent.
+         *
+         * Trois suffisent a lire une phrase courte, et c'est tout ce qu'on
+         * demande ici. En dessous, on revient au clignotement qu'on voulait
+         * eviter.
          */
-        const val DUREE_MIN_DIFFUSION_MS = 5_000L
+        const val DUREE_MIN_DIFFUSION_MS = 3_000L
 
         // Chaînes natives connues : un symbole hors de cette liste qui correspond
         // à un token enregistré est traité comme un token personnalisé.
