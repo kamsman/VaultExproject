@@ -2549,35 +2549,63 @@ internal fun SendSuccessScreen(
                 }
             }
         }
-        // Pastille de statut : ambre tant que la blockchain n'a pas tranché,
-        // verte ensuite. Elle bascule toute seule si la confirmation tombe
-        // pendant que l'écran est ouvert.
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = (if (confirmed) AccentGreen else orange).copy(alpha = 0.14f)
-        ) {
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LA PASTILLE DE CONFIRMATION NE S'AFFICHE PLUS SUR UNE VENTE
+        ═══════════════════════════════════════════════════════════════
+
+        Elle disait « En attente de confirmation (0/15) » en ambre, deux
+        lignes sous un titre qui dit « Transaction confirmée » et sous un
+        grand rond vert. Le meme ecran annoncait donc une confirmation et
+        son absence, a trois centimetres d'ecart.
+
+        LES DEUX SONT VRAIS, ET C'EST BIEN LE PROBLEME. Ce ne sont pas les
+        memes confirmations : le titre parle de l'operation — elle est
+        signee, diffusee, elle ne reviendra pas — la pastille parle des
+        BLOCS, qui mettent quelques secondes a s'empiler. Rien sur l'ecran
+        ne permettait de le deviner, et un lecteur presse n'a aucune raison
+        de faire la difference.
+
+        ─── ET ELLE N'APPELAIT AUCUNE ACTION ────────────────────────
+
+        Sur un envoi ordinaire, le compte des blocs est ce qu'on surveille :
+        c'est lui qui dit quand le destinataire a recu. Celui qui vend, lui,
+        n'a rien a surveiller — c'est le relais qui lit la chaine, et c'est
+        son verdict qui part chez VaultEx. Le compte de blocs sur cet
+        ecran-la etait une inquietude sans objet.
+
+        SUR UN ENVOI, ELLE RESTE, et elle y bascule toute seule au vert si
+        la confirmation tombe pendant qu'on regarde.
+        ═══════════════════════════════════════════════════════════════
+        */
+        if (!vente) {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = (if (confirmed) AccentGreen else orange).copy(alpha = 0.14f)
             ) {
-                Icon(
-                    if (confirmed) Icons.Default.CheckCircle else Icons.Default.Schedule,
-                    null,
-                    tint = if (confirmed) AccentGreen else orange,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (confirmed) stringResource(R.string.send_status_confirmed)
-                    else if (target > 0) stringResource(R.string.send_status_awaiting_count, confirmations, target)
-                    else stringResource(R.string.send_status_awaiting),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (confirmed) AccentGreen else orange
-                )
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (confirmed) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                        null,
+                        tint = if (confirmed) AccentGreen else orange,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (confirmed) stringResource(R.string.send_status_confirmed)
+                        else if (target > 0) stringResource(R.string.send_status_awaiting_count, confirmations, target)
+                        else stringResource(R.string.send_status_awaiting),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (confirmed) AccentGreen else orange
+                    )
+                }
             }
+            Spacer(Modifier.height(4.dp))
         }
-        Spacer(Modifier.height(4.dp))
         /*
         L'encadre « statut : confirmee » a ete retire : le grand rond vert et
         le titre le disent deja. Restent deux cartes — la transaction, puis sa
