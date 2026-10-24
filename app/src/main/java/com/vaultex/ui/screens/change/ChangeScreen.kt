@@ -3131,8 +3131,36 @@ private fun ColumnScope.EtapeTransmis(
                     fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary
                 )
             }
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UNE PHRASE QUI RASSURE, AU LIEU D'UN PARAGRAPHE QUI INSTRUIT
+            ═══════════════════════════════════════════════════════════════
+
+            C'etait : « Ta demande VX-4N7SVT2D est partie. Garde cette
+            référence : c'est elle qui identifie ton opération. Tu recevras
+            tes fonds une fois le paiement vérifié. »
+
+            Trois phrases, dont deux consignes, sur l'ecran qui annonce que
+            tout est fini. On venait de confier de l'argent : la seule chose
+            qu'on cherche a cet instant est de savoir qu'il va revenir, et
+            il fallait lire jusqu'au bout de la troisieme phrase pour le
+            trouver.
+
+            « Garde cette référence » demandait en plus un geste que
+            personne ne fait — on ne recopie pas huit caracteres sur un
+            ecran qu'on va quitter. Et c'est inutile : la reference est dans
+            « Mes dernières demandes », sur l'ecran de change, avec son
+            montant et sa date. Elle n'etait pas gardee la, elle y est
+            rangee.
+
+            Reste ce qui compte : « Tu recevras tes fonds dans un instant. »
+            Le format de la chaine ne prend plus la reference — elle n'y a
+            plus sa place, et la passer quand meme ferait trainer un
+            argument que personne ne lit.
+            ═══════════════════════════════════════════════════════════════
+            */
             Text(
-                stringResource(R.string.change_transmis_detail, state.reference),
+                stringResource(R.string.change_transmis_detail),
                 fontSize = 13.sp, color = TextPrimary, lineHeight = 18.sp
             )
             /*

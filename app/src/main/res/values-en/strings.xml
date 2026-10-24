@@ -1140,7 +1140,7 @@
     <string name="change_jai_paye_verifie">Payment verified — confirm</string>
     <string name="change_retour">Back to the quote</string>
     <string name="change_transmis_titre">Request sent</string>
-    <string name="change_transmis_detail">Your request %1$s has gone out. Keep this reference: it identifies your transaction. You will receive your funds once the payment is verified.</string>
+    <string name="change_transmis_detail">You will receive your funds in a moment.</string>
     <string name="change_nouvelle">New transaction</string>
     <string name="change_retour_accueil">Back to home</string>
     <string name="action_acheter">Buy</string>
