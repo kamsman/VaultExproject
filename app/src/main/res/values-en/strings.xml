@@ -1219,9 +1219,9 @@
     <string name="vente_traitement_sous">Your crypto is being sent to VaultEx.</string>
     <string name="vente_traitement_etape">Sending the crypto…</string>
     <string name="vente_traitement_ne_ferme_pas">Your request goes out right after. Stay here a few seconds.</string>
-    <string name="vente_recu_titre">Crypto sent</string>
+    <string name="vente_recu_titre">Transaction confirmed</string>
     <string name="vente_recu_francs">%1$s FCFA</string>
-    <string name="change_vente_partie_detail">VaultEx will send your francs to %1$s. Tap Done to send your request.</string>
+    <string name="change_vente_partie_detail">You will then receive this amount at %1$s. Tap Done.</string>
     <string name="assistance_titre">Support</string>
     <string name="assistance_statut_actif">Automatic, instant answers</string>
     <string name="assistance_statut_muet">Service unreachable right now</string>

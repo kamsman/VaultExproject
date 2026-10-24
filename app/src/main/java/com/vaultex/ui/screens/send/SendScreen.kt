@@ -2361,6 +2361,10 @@ internal fun SendSuccessScreen(
     val context = LocalContext.current
     val copier = com.vaultex.ui.components.rememberCopieAvecVibration()
     val orange = Color(0xFFF59E0B)
+    // `numeroPaiement` n'existe que sur une vente : c'est le numero qui
+    // recevra les francs. Il sert de signal dans toute cette fonction, y
+    // compris sous les boutons, ou la suite se joue.
+    val vente = detail.numeroPaiement.isNotBlank()
     val sentAt = remember {
         java.text.SimpleDateFormat("d MMM yyyy • HH:mm", com.vaultex.core.session.LocaleManager.appLocale()).format(java.util.Date())
     }
@@ -2412,8 +2416,28 @@ internal fun SendSuccessScreen(
                         fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
                 }
             }
-            // Rassure sur le fait qu'on peut partir : c'est l'app qui reviendra.
-            if (!confirmed) {
+            /*
+            ═══════════════════════════════════════════════════════════════
+            « VOUS POUVEZ QUITTER CET ECRAN » EST FAUX SUR UNE VENTE
+            ═══════════════════════════════════════════════════════════════
+
+            Sur un envoi, c'est exact et rassurant : la transaction est
+            diffusee, le bloc viendra tout seul, et l'application previendra.
+            Partir ne coute rien.
+
+            Sur une vente, partir coute TOUT. La demande ne part chez VaultEx
+            qu'au moment ou l'on appuie sur « Terminé » — c'est ce bouton qui
+            ramene a l'ecran de change, et c'est en y arrivant qu'elle est
+            deposee. Quitter avant, c'est de la crypto envoyee et personne de
+            prevenu.
+
+            La ligne se trouvait en plus a dix points sous un bloc qui dit
+            « Appuie sur Terminé ». Deux consignes opposees dans le meme
+            regard : l'une dit de rester, l'autre dit qu'on peut partir. Un
+            ecran qui se contredit ne se fait plus croire sur rien.
+            ═══════════════════════════════════════════════════════════════
+            */
+            if (!confirmed && !vente) {
                 Text(
                     stringResource(R.string.send_status_leave_hint),
                     fontSize = 11.sp, color = TextSecondary,
@@ -2424,7 +2448,6 @@ internal fun SendSuccessScreen(
     ) {
         // Le titre reste « envoyée » dans les deux cas : c'est un fait acquis
         // dès que le réseau a accepté la transaction. Seul le STATUT évolue.
-        val vente = detail.numeroPaiement.isNotBlank()
         /*
         ═══════════════════════════════════════════════════════════════
         « TRANSACTION ENVOYEE ! » N'EST PAS LA BONNE NOUVELLE

@@ -1248,9 +1248,9 @@
     <string name="vente_traitement_sous">Ta crypto est envoyée à VaultEx.</string>
     <string name="vente_traitement_etape">Envoi de la crypto…</string>
     <string name="vente_traitement_ne_ferme_pas">Ta demande part juste après. Reste ici quelques secondes.</string>
-    <string name="vente_recu_titre">Crypto envoyée</string>
+    <string name="vente_recu_titre">Transaction confirmée</string>
     <string name="vente_recu_francs">%1$s FCFA</string>
-    <string name="change_vente_partie_detail">VaultEx t\'enverra tes francs au %1$s. Appuie sur Terminé pour envoyer ta demande.</string>
+    <string name="change_vente_partie_detail">Tu recevras ensuite ce montant au %1$s. Appuie sur Terminé.</string>
     <string name="assistance_titre">Assistance</string>
     <string name="assistance_statut_actif">Réponses automatiques et immédiates</string>
     <string name="assistance_statut_muet">Service injoignable pour le moment</string>
