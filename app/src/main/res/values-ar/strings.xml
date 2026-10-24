@@ -1172,7 +1172,7 @@
     <string name="change_verif_quand">الوقت</string>
     <string name="change_verif_pas_mine">ظاهر على الشبكة، لم يُدرَج في كتلة بعد. سينتظر الصرّاف تأكيدًا واحدًا.</string>
     <string name="change_verif_absent">غير ظاهر على السلسلة بعد</string>
-    <string name="change_verif_absent_detail">لا شيء بعد %1$d محاولات. قد يستغرق السحب من منصة تداول ساعة.</string>
+    <string name="change_verif_absent_detail">عملتك ليست ضائعة. ما لم تُسجَّل في كتلة، لا تُظهرها السلسلة — وقد يستغرق السحب من منصة تداول ساعة.</string>
     <string name="change_verif_deja_servi">هذا التحويل استُخدم بالفعل</string>
     <string name="change_verif_deja_servi_detail">السلسلة تُظهر هذا التحويل، لكنه سدّد طلبًا آخر بالفعل. راجع طلباتك الأخيرة: إذا كان هذا هو، فقد وصل إلى الصرّاف ولا شيء لتعيده.</string>
     <string name="change_verif_impossible">التحقق التلقائي غير ممكن</string>
@@ -1187,7 +1187,7 @@
     <string name="change_verif_achat_recu">المبلغ المُستلم (من رسالة المُشغّل)</string>
     <string name="change_verif_achat_de">دُفع من</string>
     <string name="change_verif_achat_absent">لا توجد دفعة مطابقة</string>
-    <string name="change_verif_achat_absent_detail">لم يُعثر على شيء بعد %1$d محاولات. راجع مرجعك ورقمك. إن كنت قد دفعت للتو، فانتظر بضع ثوانٍ.</string>
+    <string name="change_verif_achat_absent_detail">أموالك ليست ضائعة. لا يرى VaultEx دفعتك إلا عبر رسالة Orange Money، وقد تتأخر. راجع مرجعك ورقمك: الخطأ المطبعي هو السبب الأكثر شيوعًا.</string>
     <string name="change_verif_achat_deja_servi">هذه الدفعة استُخدمت من قبل</string>
     <string name="change_verif_achat_deja_servi_detail">الدفعة موجودة، لكنها سوَّت طلبًا آخر بالفعل. راجع طلباتك الأخيرة: إن كان هذا هو الطلب، فهو عند الصرّاف ولا شيء عليك إعادته.</string>
     <string name="change_verif_achat_impossible">التحقق التلقائي غير متاح</string>

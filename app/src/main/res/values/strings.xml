@@ -1201,7 +1201,7 @@
     <string name="change_verif_quand">Horodaté</string>
     <string name="change_verif_pas_mine">Vu sur le réseau, pas encore inscrit dans un bloc. Le changeur attendra une confirmation.</string>
     <string name="change_verif_absent">Pas encore visible sur la chaîne</string>
-    <string name="change_verif_absent_detail">Rien trouvé après %1$d essais. Un retrait depuis une plateforme d\'échange peut mettre une heure.</string>
+    <string name="change_verif_absent_detail">Ta crypto n\'est pas perdue. Tant qu\'elle n\'est pas inscrite dans un bloc, la chaîne ne la montre pas — un retrait depuis une plateforme d\'échange peut mettre une heure.</string>
     <string name="change_verif_deja_servi">Ce versement a déjà servi</string>
     <string name="change_verif_deja_servi_detail">La chaîne montre bien ce transfert, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
     <string name="change_verif_impossible">Vérification automatique impossible</string>
@@ -1216,7 +1216,7 @@
     <string name="change_verif_achat_recu">Encaissé (lu dans le SMS de l\'opérateur)</string>
     <string name="change_verif_achat_de">Payé depuis</string>
     <string name="change_verif_achat_absent">Aucun paiement ne correspond</string>
-    <string name="change_verif_achat_absent_detail">Rien trouvé après %1$d essais. Relis ta référence et ton numéro. Si tu viens de payer, attends quelques secondes.</string>
+    <string name="change_verif_achat_absent_detail">Ton argent n\'est pas perdu. VaultEx ne voit ton paiement que par le SMS d\'Orange Money, qui peut tarder. Relis ta référence et ton numéro : une faute de frappe est la cause la plus fréquente.</string>
     <string name="change_verif_achat_deja_servi">Ce paiement a déjà servi</string>
     <string name="change_verif_achat_deja_servi_detail">L\'encaissement existe, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
     <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>
