@@ -66,14 +66,40 @@ class SecureStorage @Inject constructor(
      * part au diagnostic administrateur, sans jamais transporter la donnée
      * elle-même.
      */
-    private fun dec(b64: String?): String? {
+    private fun dec(b64: String?, quoi: String = "?"): String? {
         if (b64 == null) return null
         return try {
             String(keystoreManager.decrypt(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
         } catch (e: Exception) {
+            /*
+            ═══════════════════════════════════════════════════════════════
+            L'ALERTE DIT LAQUELLE, PARCE QUE LA REPONSE N'EST PAS LA MEME
+            ═══════════════════════════════════════════════════════════════
+
+            Recue telle quelle : « Service indisponible : dechiffrement du
+            magasin securise / InvalidKeyException ». Impossible d'en tirer
+            quoi que ce soit.
+
+            Car `dec` ne sert qu'a DEUX valeurs, et aucune n'est anodine :
+            une PHRASE SECRETE ou une PASSPHRASE. Dans les deux cas le
+            portefeuille devient illisible pour l'application — les fonds
+            restent sur la chaine, et le proprietaire les retrouve avec ses
+            douze mots sur papier, mais il faut le lui DIRE.
+
+            Et surtout : SUR QUEL PORTEFEUILLE. Un echec sur un portefeuille
+            secondaire, pendant que l'actif fonctionne, n'est pas le meme
+            incident qu'un echec sur celui qu'on utilise tous les jours.
+
+            `quoi` porte donc le NOM DE LA CLE, jamais sa valeur —
+            « mnemonic_a3f… », « passphrase_a3f… ». Un identifiant de
+            portefeuille n'est pas un secret : il ne derive rien, il
+            n'ouvre rien, et sans lui on ne peut pas savoir ce qui est
+            arrive, ni a qui.
+            ═══════════════════════════════════════════════════════════════
+            */
             com.vaultex.core.monitoring.AdminBot.serviceFailed(
                 "dechiffrement du magasin securise",
-                e.javaClass.simpleName   // JAMAIS le message : il pourrait porter la donnée
+                "${e.javaClass.simpleName} sur $quoi"   // JAMAIS le message : il pourrait porter la donnée
             )
             null
         }
@@ -91,8 +117,10 @@ class SecureStorage @Inject constructor(
         if (passphrase.isEmpty()) e.remove(psKey(walletId)) else e.putString(psKey(walletId), enc(passphrase))
         e.apply()
     }
-    fun getMnemonicFor(walletId: String): String? = dec(prefs.getString(mnKey(walletId), null))
-    fun getPassphraseFor(walletId: String): String = dec(prefs.getString(psKey(walletId), null)) ?: ""
+    fun getMnemonicFor(walletId: String): String? =
+        dec(prefs.getString(mnKey(walletId), null), mnKey(walletId))
+    fun getPassphraseFor(walletId: String): String =
+        dec(prefs.getString(psKey(walletId), null), psKey(walletId)) ?: ""
     fun hasWalletSecrets(walletId: String): Boolean = prefs.contains(mnKey(walletId))
 
     /**
