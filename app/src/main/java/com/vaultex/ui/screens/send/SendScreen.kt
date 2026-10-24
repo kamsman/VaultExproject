@@ -2112,16 +2112,40 @@ internal fun SendConfirmScreen(detail: SendDetail, onCancel: () -> Unit, onConfi
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
-                        .background(AccentBlue.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Smartphone, null,
-                        tint = AccentBlue, modifier = Modifier.size(21.dp)
-                    )
-                }
+                /*
+                ═══════════════════════════════════════════════════════
+                LE LOGO DE L'OPERATEUR, PAS UN TELEPHONE
+                ═══════════════════════════════════════════════════════
+
+                Un telephone bleu dit « ici il y a un numero », ce que les
+                huit chiffres en gros disent deja mieux. Le logo dit DE
+                QUEL reseau ce numero est — la seule chose qu'on ne peut
+                pas deviner en le lisant, et la seule qui coute quelque
+                chose si elle est fausse.
+
+                C'est le dernier ecran avant le code PIN, donc la derniere
+                fois que ce numero se regarde avant d'etre fige.
+
+                ─── ET ICI IL EST SEUL ────────────────────────────────
+
+                Sur l'ecran de change, ce meme logo avait ete pose a la
+                fois en pastille et dans la case de saisie : deux fois la
+                meme marque a trois centimetres, dont une en grand, et le
+                logo prenait le pas sur le texte. Il n'en restait qu'un,
+                dans la case.
+
+                Ici il n'y a pas de case — rien a saisir, le numero est
+                deja pris — donc la pastille est le seul endroit ou la
+                marque puisse se montrer. Une fois, au bon endroit.
+                ═══════════════════════════════════════════════════════
+                */
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(
+                        R.drawable.logo_orange_money
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
