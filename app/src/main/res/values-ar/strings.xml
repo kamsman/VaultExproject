@@ -1220,6 +1220,8 @@
     <string name="change_reprendre_prix">الحصول على سعر محدَّث</string>
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
     <string name="change_depot_en_cours">جارٍ إبلاغ VaultEx…</string>
+    <string name="change_depot_achat">جارٍ إرسال طلبك إلى VaultEx…</string>
+    <string name="change_depot_ne_ferme_pas">لا تُغلق التطبيق. ابقَ هنا بضع ثوانٍ.</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
     <string name="vente_traitement_etape">جارٍ إرسال العملة…</string>
     <string name="vente_traitement_ne_ferme_pas">يُرسَل طلبك مباشرة بعد ذلك. ابقَ هنا بضع ثوانٍ.</string>
