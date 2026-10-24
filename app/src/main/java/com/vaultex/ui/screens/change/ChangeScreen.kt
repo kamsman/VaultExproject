@@ -3147,12 +3147,22 @@ private fun ColumnScope.EtapeTransmis(
     fond et un ecran qui CELEBRE quelque chose — et quelqu'un qui vient de
     confier de l'argent merite que la fin le dise.
 
-    ─── BLEU, PAS VERT, ET PAS DE DEGRADE ────────────────────────────
+    ─── VERT, COMME LE RECU D'ENVOI ──────────────────────────────────
 
-    Le bleu est la couleur d'action de l'application ; le vert y dit « ce
-    que tu recois », et on ne recoit rien a cet instant precis — les
-    francs viennent apres. La coche verte reste plus bas, sur la ligne qui
-    parle du versement, ou elle est a sa place.
+    Je l'avais mis en bleu, en raisonnant que le vert dit « ce que tu
+    recois » et qu'on ne recoit rien a cet instant precis. C'etait vrai de
+    la couleur prise isolement, et faux de l'ecran.
+
+    Parce que le recu d'envoi, deux ecrans plus tot, porte exactement le
+    meme grand rond coche, en vert. Deux ecrans de fin a trente secondes
+    d'intervalle, dans le meme parcours, avec la meme silhouette et deux
+    couleurs : on ne lit pas « l'un recoit et l'autre non », on lit deux
+    applications differentes.
+
+    La coherence d'un parcours passe avant la logique d'une couleur prise
+    seule. Vert aux deux bouts.
+
+    ─── MAIS PAS DE DEGRADE ──────────────────────────────────────────
 
     La maquette montre un bouton en degrade. Il est pose en aplat : les
     degrades ont ete retires de cet ecran a la demande, et en reintroduire
@@ -3172,10 +3182,10 @@ private fun ColumnScope.EtapeTransmis(
             Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
                 Box(
                     Modifier.size(112.dp).clip(CircleShape)
-                        .background(AccentBlue.copy(alpha = 0.07f))
+                        .background(AccentGreen.copy(alpha = 0.10f))
                 )
                 Box(
-                    Modifier.size(82.dp).clip(CircleShape).background(AccentBlue),
+                    Modifier.size(82.dp).clip(CircleShape).background(AccentGreen),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -3187,19 +3197,19 @@ private fun ColumnScope.EtapeTransmis(
                 // pixels qui transforment une coche en evenement.
                 Box(
                     Modifier.align(Alignment.TopEnd).offset(x = (-14).dp, y = 16.dp)
-                        .size(9.dp).clip(CircleShape).background(AccentBlue)
+                        .size(9.dp).clip(CircleShape).background(AccentGreen)
                 )
                 Box(
                     Modifier.align(Alignment.TopStart).offset(x = 18.dp, y = 30.dp)
-                        .size(7.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.55f))
+                        .size(7.dp).clip(CircleShape).background(AccentGreen.copy(alpha = 0.55f))
                 )
                 Box(
                     Modifier.align(Alignment.CenterStart).offset(x = 8.dp, y = 18.dp)
-                        .size(6.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.45f))
+                        .size(6.dp).clip(CircleShape).background(AccentGreen.copy(alpha = 0.45f))
                 )
                 Box(
                     Modifier.align(Alignment.CenterEnd).offset(x = (-6).dp, y = 10.dp)
-                        .size(8.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.7f))
+                        .size(8.dp).clip(CircleShape).background(AccentGreen.copy(alpha = 0.7f))
                 )
             }
             Text(
