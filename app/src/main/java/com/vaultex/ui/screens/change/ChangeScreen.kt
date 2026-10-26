@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
@@ -583,40 +582,48 @@ private fun ColumnScope.EtapeCalcul(
     // le reste de cet ecran ne depend que de ce booleen.
     val donneFcfa = state.sens == SensChange.ACHAT
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DEUX CARTES, UN BOUTON, ET RIEN D'AUTRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cet ecran portait, entre la saisie et le bouton : la mention « Montant
+    en FCFA », trois pastilles de montants courants, la ligne des bornes,
+    la mention « Montant estime », l'arrondi « ≈ », une carte de detail
+    repliable, et le delai annonce. Huit elements autour de deux nombres.
+
+    Ils etaient tous defendables un par un — et c'est exactement comme ca
+    qu'un ecran se remplit. Pris ensemble, ils repoussaient le bouton sous
+    la ligne de flottaison, pour une question qui en tient deux : je donne
+    combien, je recois combien.
+
+    ─── CE QUI DISPARAIT N'EST PAS PERDU ────────────────────────────────
+
+    Les BORNES se disaient en permanence ; elles se disent maintenant au
+    moment du refus, et le message nomme le seuil qui s'applique.
+
+    Le DELAI reapparait sur l'ecran de paiement, la ou l'on attend.
+
+    La COMMISSION descend elle aussi sur l'ecran de paiement, au-dessus du
+    bouton qui engage. Elle n'a pas ete supprimee, et elle ne doit jamais
+    l'etre : un echange qui cache ce qu'il prend se fait fermer une fois.
+
+    Les MENTIONS et l'ARRONDI, eux, ne reviennent nulle part. « Montant en
+    FCFA » repetait la pastille posee juste a cote, et « ≈ 3,28 » repetait
+    le chiffre pose juste au-dessus.
+
+    Ce qui reste n'est pas moins d'information : c'est la meme, la ou elle
+    sert.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_donnes),
-        mention = stringResource(
-            R.string.change_mention_montant,
-            if (donneFcfa) "FCFA" else state.monnaie
-        ),
-        /*
-        LES BORNES ENTRENT DANS LA CARTE. Elles decrivent le champ qui est
-        juste au-dessus ; posees dehors, entre deux cartes, elles
-        n'appartenaient a rien.
-        */
-        piedDePage = {
-            BornesChange(
-                minFcfa = p.minimumPour(state.monnaie, state.fcfaParDollar),
-                maxFcfa = p.plafondPour(state.monnaie, state.fcfaParDollar),
-                enFcfa = donneFcfa,
-                monnaie = state.monnaie,
-                prix = state.prix,
-                // A la vente, c'est le solde qui plafonne, et il a deja son
-                // bouton « Tout » en haut de la carte.
-                onMax = if (donneFcfa) ({
-                    vm.onMontantRapide(p.plafondPour(state.monnaie, state.fcfaParDollar))
-                }) else null
-            )
-        },
         solde = if (donneFcfa) null else state.solde,
         onTout = if (donneFcfa) null else vm::onToutVendre,
         toutValeur = if (donneFcfa) null else state.solde
             ?.let { state.plusGrandMontantVendable(it) }
             ?.takeIf { it > 0.0 }
             ?.let { crypto(it, state.monnaie) },
-        rapides = if (donneFcfa) montantsRapides(p, state.monnaie, state.fcfaParDollar)
-                  else emptyList(),
-        onRapide = vm::onMontantRapide,
         /*
         LE MONTANT DONNÉ EST CELUI QU'ON TAPE, TEL QU'ON LE TAPE.
 
@@ -636,37 +643,6 @@ private fun ColumnScope.EtapeCalcul(
         // filtre refuserait de toute facon.
         decimalesMax = 0
     )
-
-    /*
-    ═══════════════════════════════════════════════════════════════════════
-    LES BORNES, AVANT DE TAPER — ET SURTOUT POUR LA VENTE
-    ═══════════════════════════════════════════════════════════════════════
-
-    Le minimum et le plafond existaient déjà, mais ne se découvraient
-    QU'APRÈS avoir tapé un montant refusé. Or un refus est le pire moment
-    pour annoncer une règle : la personne a fait l'effort, et on le lui
-    rend en lui disant qu'il ne valait rien.
-
-    ─── POURQUOI C'ÉTAIT PIRE À LA VENTE ────────────────────────────────
-
-    À l'achat, les trois pastilles de montants courants commencent par le
-    minimum : il se voit, même sans être nommé. À la vente, il n'y a pas de
-    pastilles — on tape de la crypto, pas des francs — et le seuil est
-    exprimé en FRANCS. Quelqu'un qui tape « 5 USDT » n'a aucun moyen de
-    savoir si ça passe, parce que la réponse dépend d'un cours.
-
-    On convertit donc les bornes dans l'unité où la personne tape. C'est
-    approximatif par nature, puisque le cours bouge, et le « ≈ » le dit
-    plutôt que de le cacher.
-
-    ─── CE QUE CETTE LIGNE N'EST PAS ────────────────────────────────────
-
-    Un message d'erreur. Elle reste grise et au même endroit, qu'on soit
-    dans les clous ou non ; c'est `NoteEnDeuxTemps`, plus bas, qui parle
-    quand ça bloque. Deux éléments qui crient la même chose finiraient par
-    ne plus être lus ni l'un ni l'autre.
-    ═══════════════════════════════════════════════════════════════════════
-    */
 
     /*
     UN TRAIT QUI SÉPARE, ET LE BOUTON POSÉ DESSUS.
@@ -703,7 +679,6 @@ private fun ColumnScope.EtapeCalcul(
 
     CarteMontantChange(
         libelle = stringResource(R.string.change_tu_recois),
-        mention = stringResource(R.string.change_mention_estime),
         /*
         « — » PLUTÔT QUE « 0 », et c'est la même leçon que sur le Swap.
 
@@ -721,28 +696,6 @@ private fun ColumnScope.EtapeCalcul(
         onMontant = null,
         /*
         ═══════════════════════════════════════════════════════════════════
-        L'APPROXIMATION DISAIT « ≈ 0 » SOUS UN CHIFFRE QUI N'EST PAS ZERO
-        ═══════════════════════════════════════════════════════════════════
-
-        Elle existe pour les GRANDS nombres : « 1,609509 USDT » est juste
-        et illisible, « ≈ 1,61 » donne l'ordre de grandeur d'un coup d'oeil.
-
-        En dessous d'un centieme, deux decimales n'arrondissent plus, elles
-        effacent. L'ecran affichait « 0,0032 » en vert et « ≈ 0 USDT-BNB »
-        juste dessous — deux chiffres qui se contredisent, dont l'un dit a
-        quelqu'un qu'il ne recevra rien.
-
-        Elle ne s'affiche donc qu'a partir d'un centieme, la ou arrondir
-        veut encore dire quelque chose.
-        ═══════════════════════════════════════════════════════════════════
-        */
-        approx = if (donneFcfa) state.montantCrypto?.takeIf { it >= 0.01 }?.let { c ->
-            java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
-                maximumFractionDigits = 2
-            }.format(c) + " " + state.monnaie
-        } else null,
-        /*
-        ═══════════════════════════════════════════════════════════════════
         SEULS LES REFUS QUI PARLENT DU CHIFFRE ETEIGNENT LE CHIFFRE
         ═══════════════════════════════════════════════════════════════════
 
@@ -758,226 +711,6 @@ private fun ColumnScope.EtapeCalcul(
         */
         horsBornes = state.blocage() in setOf("minimum", "plafond", "solde")
     )
-
-    /*
-    ═══════════════════════════════════════════════════════════════════════
-    UNE SEULE CARTE DE DÉTAIL, ET LE PRIX DU MARCHÉ DEDANS
-    ═══════════════════════════════════════════════════════════════════════
-
-    Il y en avait deux : les détails, puis un récapitulatif. Les deux
-    affichaient les frais — exactement la redondance que j'avais reprochée
-    aux montants quand ils étaient à la fois dans les cartes et dans les
-    détails. Deux endroits qui affichent la même somme finissent par ne
-    plus l'afficher pareil.
-
-    ─── LE PRIX DU MARCHÉ *ET* LE TAUX APPLIQUÉ ─────────────────────────
-
-    Une seule ligne annonçait « Prix d'un USDT : 636 FCFA » — le cours
-    majoré de la marge. C'est le chiffre qui s'applique, mais ce n'est pas
-    un prix de marché, et rien ne le disait.
-
-    Les deux sont là maintenant, et ils répondent à deux questions
-    différentes : le cours réel permet de COMPARER à un concurrent, le taux
-    appliqué dit ce qu'on obtient ici. L'écart entre eux cesse d'être
-    invisible — ce que « 636 » tout seul ne permettait pas.
-
-    C'est la même exigence que depuis le début, poussée d'un cran : rien ne
-    doit se découvrir après, y compris ce qu'on gagne.
-    ═══════════════════════════════════════════════════════════════════════
-    */
-    val prix = state.prix
-    val taux = state.fcfaParDollar
-    if (prix != null && taux != null) {
-        val envoye = if (donneFcfa) state.montantFcfa else state.montantCrypto
-        val recu = if (donneFcfa) state.montantCrypto else state.montantFcfa
-        val fraisFcfa = state.montantCrypto?.let { c ->
-            c * kotlin.math.abs(
-                (if (donneFcfa) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa
-            )
-        }
-        val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
-            ?.let { "%.2f".format(it) }
-
-        /*
-        ═══════════════════════════════════════════════════════════════════
-        LE DÉTAIL SE REPLIE, MAIS LES FRAIS NE SE CACHENT JAMAIS
-        ═══════════════════════════════════════════════════════════════════
-
-        Quatre lignes de calcul sous deux montants déjà lisibles, c'est de
-        l'encombrement pour les neuf utilisateurs sur dix qui veulent juste
-        « combien je reçois ». Elles se replient donc.
-
-        ─── MAIS PAS LES FRAIS, ET C'EST TOUTE LA NUANCE ─────────────────
-
-        J'avais proposé de glisser cette carte SOUS le bouton. C'était une
-        faute, et elle venait de regarder la maquette plutôt que la règle :
-        un repli sous le bouton permet d'appuyer sans avoir vu la
-        commission. Dans un marché où la confiance se gagne lentement,
-        c'est exactement ce qui fait fermer une application.
-
-        La carte reste donc AVANT le bouton, et sa ligne toujours visible
-        porte les frais — le seul chiffre qu'on pourrait être tenté de
-        cacher. Ce qui se replie, c'est le prix du marché, le taux appliqué
-        et le récapitulatif : de quoi vérifier, pas de quoi décider.
-        ═══════════════════════════════════════════════════════════════════
-        */
-        var detailOuvert by remember { mutableStateOf(false) }
-
-        Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
-            Column(
-                Modifier.fillMaxWidth().padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().clickable { detailOuvert = !detailOuvert },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.weight(1f)) {
-                        Ligne(
-                            stringResource(R.string.change_marge),
-                            /*
-                            ═══════════════════════════════════════════════
-                            « 0 FCFA (4,27 %) » SE CONTREDIT TOUT SEUL
-                            ═══════════════════════════════════════════════
-
-                            `fcfa` arrondit au franc — c'est juste pour les
-                            montants de cet ecran, qui se comptent en
-                            milliers. Sur une saisie minuscule, les frais
-                            tombent a 0,085 franc et s'affichent « 0 ».
-
-                            Une commission annoncee nulle A COTE de son
-                            pourcentage est la pire des deux : elle a l'air
-                            d'une erreur, et sur la seule ligne de l'ecran
-                            qu'on ne cache jamais.
-
-                            « < 1 FCFA » est vrai, lisible, et ne promet
-                            pas la gratuite.
-                            ═══════════════════════════════════════════════
-                            */
-                            fraisFcfa?.let { f ->
-                                val montant =
-                                    if (f > 0.0 && f < 1.0) "< 1 FCFA" else "${fcfa(f)} FCFA"
-                                montant + (pourcent?.let { " ($it %)" } ?: "")
-                            } ?: "—",
-                            icone = Icons.Default.Payments
-                        )
-                    }
-                    Icon(
-                        if (detailOuvert) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        stringResource(
-                            if (detailOuvert) R.string.change_replier else R.string.change_deplier
-                        ),
-                        tint = TextSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                if (!detailOuvert) return@Column
-
-                HorizontalDivider(color = BgPrimary)
-
-                Ligne(
-                    stringResource(R.string.change_prix_marche, state.monnaie),
-                    "${fcfa(prix.baseFcfa)} FCFA",
-                    icone = Icons.Default.ShowChart
-                )
-
-                /*
-                ═════════════════════════════════════════════════════════
-                LE TAUX RÉELLEMENT APPLIQUÉ
-                ═════════════════════════════════════════════════════════
-
-                Ce chiffre était calculé, et il partait sur Telegram dans
-                le champ `taux` de l'ordre — mais l'utilisateur ne l'avait
-                jamais vu. Le changeur connaissait donc un nombre que le
-                client ne connaissait pas, alors que c'est LE nombre de
-                l'opération.
-
-                On montrait le prix du marché et la marge séparément, en se
-                disant que la soustraction se fait. Elle ne se fait pas :
-                personne ne soustrait une marge affichée en francs par
-                dollar pendant qu'il regarde un prix en francs par USDT.
-
-                ─── POURQUOI PAS À LA PLACE DU PRIX DU MARCHÉ ───────────
-
-                Parce que les deux ne répondent pas à la même question. Le
-                prix du marché permet de COMPARER à un concurrent ; le taux
-                appliqué dit ce qu'on obtient ici. Garder les deux rend
-                l'écart visible, ce qui est tout l'objet de cette carte.
-                ═════════════════════════════════════════════════════════
-                */
-                Ligne(
-                    stringResource(R.string.change_taux_applique, state.monnaie),
-                    "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
-                    icone = Icons.Default.Calculate
-                )
-
-                /*
-                LE RESTE N'APPARAÎT QU'AVEC UN MONTANT SAISI.
-
-                Sans montant, il n'y a ni somme envoyée ni frais à
-                annoncer : seul le cours est connu. Afficher des lignes
-                vides, ou pire des zéros, ferait croire à une opération
-                qui ne rendrait rien.
-                */
-                if (envoye != null && recu != null && fraisFcfa != null) {
-                    Ligne(
-                        stringResource(R.string.change_recap_envoye),
-                        if (donneFcfa) "${fcfa(envoye)} FCFA"
-                        else "${crypto(envoye, state.monnaie)} ${state.monnaie}",
-                        icone = Icons.Default.NorthEast
-                    )
-                    /*
-                    LES FRAIS NE SONT PLUS ICI : ils sont remontés dans
-                    l'en-tête, qui reste visible quand la carte est repliée.
-                    Les laisser aussi en bas les afficherait deux fois une
-                    fois dépliée — et deux endroits qui portent la même
-                    somme finissent par ne plus la porter pareil.
-
-                    Le pourcentage les accompagne là-haut : c'est la seule
-                    unité comparable à un échangeur en ligne. « 25 FCFA/$ »
-                    est une unité, pas un montant, et quelqu'un qui la lit
-                    comme un total se trompe d'un facteur cent.
-                    */
-                    HorizontalDivider(color = BgPrimary)
-                    Ligne(
-                        stringResource(R.string.change_recevra),
-                        if (donneFcfa) "${crypto(recu, state.monnaie)} ${state.monnaie}"
-                        else "${fcfa(recu)} FCFA",
-                        icone = Icons.Default.AccountBalanceWallet,
-                        vedette = true
-                    )
-                }
-            }
-        }
-    }
-
-    /*
-    LE DELAI EST DEHORS, ET C'EST SA PLACE.
-
-    Il n'est pas un prix : le mettre dans la carte des montants le ferait
-    lire comme une ligne de calcul. Dehors, discret, il repond a la seule
-    question qui reste quand les chiffres sont lus — combien de temps.
-
-    Il reapparait sur l'ecran de paiement, et ce n'est pas un doublon : on
-    ne voit jamais les deux a la fois, et c'est au moment d'attendre qu'on
-    a le plus besoin de le savoir.
-    */
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Default.Schedule, null, tint = TextSecondary, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(
-            stringResource(R.string.change_delai),
-            fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f)
-        )
-        Text(
-            "${p.delaiMinutes} min",
-            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
-        )
-    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -1109,6 +842,122 @@ private fun ColumnScope.EtapeCalcul(
     quand on cherche quelque chose qu'on sait etre la.
     */
     HistoriqueDemandes(state.historique, copier)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE QUE L'ÉCHANGE PREND, ET À QUEL COURS
+═══════════════════════════════════════════════════════════════════════════
+
+Cette carte vivait sur l'écran de calcul, entre les montants et le bouton
+« Continuer ». Elle en est descendue avec la simplification : cet écran-là
+ne porte plus que deux nombres et un bouton.
+
+ELLE N'A PAS ÉTÉ SUPPRIMÉE, ET ELLE NE DOIT PAS L'ÊTRE. Un échange qui
+n'affiche nulle part ce qu'il prend se fait fermer une fois, et ne se
+rouvre pas. Elle s'est déplacée vers l'écran où l'on va payer — plus près
+du moment qui engage, pas plus loin.
+
+─── CE QUI RESTE VISIBLE, ET CE QUI SE REPLIE ─────────────────────────────
+
+La COMMISSION ne se replie jamais : c'est le seul chiffre qu'on pourrait
+être tenté de cacher, donc c'est celui qui reste.
+
+Le PRIX DU MARCHÉ et le TAUX APPLIQUÉ se replient. Ils ne servent pas à
+décider, ils servent à vérifier — et ils répondent à deux questions
+différentes : le cours réel permet de COMPARER à un concurrent, le taux
+appliqué dit ce qu'on obtient ici. L'écart entre les deux cesse d'être
+invisible, ce qu'une seule des deux lignes ne permettait pas.
+
+Le RÉCAPITULATIF, lui, n'est pas descendu : l'écran de paiement affiche
+déjà le montant exact à envoyer et ce qu'on recevra. Deux endroits qui
+portent la même somme finissent par ne plus la porter pareil.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun CarteDetailChange(
+    state: com.vaultex.ui.viewmodel.ChangeState,
+    p: com.vaultex.domain.fiat.ParametresChange,
+    donneFcfa: Boolean
+) {
+    val prix = state.prix ?: return
+    val taux = state.fcfaParDollar ?: return
+
+    val fraisFcfa = state.montantCrypto?.let { c ->
+        c * kotlin.math.abs(
+            (if (donneFcfa) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa
+        )
+    }
+    val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
+        ?.let { "%.2f".format(it) }
+
+    var detailOuvert by remember { mutableStateOf(false) }
+
+    Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().clickable { detailOuvert = !detailOuvert },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.weight(1f)) {
+                    Ligne(
+                        stringResource(R.string.change_marge),
+                        /*
+                        ═══════════════════════════════════════════════
+                        « 0 FCFA (4,27 %) » SE CONTREDIT TOUT SEUL
+                        ═══════════════════════════════════════════════
+
+                        `fcfa` arrondit au franc — c'est juste pour les
+                        montants de cet ecran, qui se comptent en
+                        milliers. Sur une saisie minuscule, les frais
+                        tombent a 0,085 franc et s'affichent « 0 ».
+
+                        Une commission annoncee nulle A COTE de son
+                        pourcentage est la pire des deux : elle a l'air
+                        d'une erreur, et sur la seule ligne de la carte
+                        qu'on ne replie jamais.
+
+                        « < 1 FCFA » est vrai, lisible, et ne promet
+                        pas la gratuite.
+                        ═══════════════════════════════════════════════
+                        */
+                        fraisFcfa?.let { f ->
+                            val montant =
+                                if (f > 0.0 && f < 1.0) "< 1 FCFA" else "${fcfa(f)} FCFA"
+                            montant + (pourcent?.let { " ($it %)" } ?: "")
+                        } ?: "—",
+                        icone = Icons.Default.Payments
+                    )
+                }
+                Icon(
+                    if (detailOuvert) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    stringResource(
+                        if (detailOuvert) R.string.change_replier else R.string.change_deplier
+                    ),
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            if (!detailOuvert) return@Column
+
+            HorizontalDivider(color = BgPrimary)
+
+            Ligne(
+                stringResource(R.string.change_prix_marche, state.monnaie),
+                "${fcfa(prix.baseFcfa)} FCFA",
+                icone = Icons.Default.ShowChart
+            )
+            Ligne(
+                stringResource(R.string.change_taux_applique, state.monnaie),
+                "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
+                icone = Icons.Default.Calculate
+            )
+        }
+    }
 }
 
 // ─── L'historique ───────────────────────────────────────────────────
@@ -1639,6 +1488,15 @@ private fun ColumnScope.EtapePaiement(
             */
         }
     }
+
+    /*
+    LA COMMISSION EST ICI, ET PLUS SUR L'ECRAN PRECEDENT.
+
+    Celui-la ne porte plus que deux nombres et un bouton. Celui-ci est le
+    dernier avant qu'on sorte de l'argent — c'est donc ici que doit se
+    lire ce que l'echange prend, pas un ecran plus tot.
+    */
+    CarteDetailChange(state, p, donneFcfa = achat)
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -3833,168 +3691,6 @@ private fun OngletSens(
     }
 }
 
-/**
- * Les bornes de l'opération, dans l'unité où l'on tape.
- *
- * EN FRANCS À L'ACHAT, EN CRYPTO À LA VENTE. Les deux chiffres sont réglés
- * par le changeur en francs ; les montrer tels quels à quelqu'un qui tape
- * des USDT lui demanderait de faire la conversion de tête, avec un cours
- * qu'il n'a pas.
- *
- * N'AFFICHE RIEN plutôt qu'une ligne fausse quand le cours manque. Une
- * borne en crypto sans cours serait un chiffre inventé, et celui-ci
- * servirait à décider d'un montant à envoyer.
- */
-@Composable
-private fun BornesChange(
-    minFcfa: Double,
-    maxFcfa: Double,
-    enFcfa: Boolean,
-    monnaie: String,
-    prix: com.vaultex.domain.fiat.PrixFcfa?,
-    /** Ecrit le plafond dans le champ, ou null pour ne rien proposer. */
-    onMax: (() -> Unit)? = null
-) {
-    // Un plafond au-dessous du minimum ne borne rien : c'est un réglage
-    // incohérent, et l'annoncer ferait lire une règle impossible à tenir.
-    if (maxFcfa <= minFcfa) return
-
-    /*
-    ═══════════════════════════════════════════════════════════════════
-    PLUS DE BORNES A LA VENTE
-    ═══════════════════════════════════════════════════════════════════
-
-    « Entre ≈ 1 USDT-BNB et ≈ 89 USDT-BNB » occupait une ligne entiere
-    sous le champ pour dire ce que le champ dit deja mieux.
-
-    Le solde est affiche en haut de la carte, avec son bouton « Tout » qui
-    donne le plus grand montant vendable — donc la borne haute est la,
-    sous forme de valeur a toucher plutot que de nombre a lire. Et la
-    borne basse se decouvre en une seconde : si le montant est trop petit,
-    le message rouge le dit avec le chiffre exact.
-
-    Une regle annoncee d'avance pour un champ ou l'on tape un entier entre
-    un et quatre-vingt-neuf n'informe personne. Elle remplissait surtout
-    l'espace entre le champ et le resultat.
-
-    A L'ACHAT, ELLE RESTE. Les bornes y sont en francs — « Entre 500 FCFA
-    et 50 000 FCFA » — et la ligne porte le raccourci « MAX », qui ecrit
-    le plafond dans le champ. Il n'y a pas de solde a l'achat, donc pas de
-    bouton « Tout » : cette ligne est le seul endroit ou le plafond se
-    lise et se saisisse.
-    ═══════════════════════════════════════════════════════════════════
-    */
-    if (!enFcfa) return
-
-    val texte = if (enFcfa) {
-        stringResource(R.string.change_bornes, "${fcfa(minFcfa)} FCFA", "${fcfa(maxFcfa)} FCFA")
-    } else {
-        /*
-        À LA VENTE, LA CONVERSION PASSE PAR LE PRIX DE VENTE — le même que
-        celui qui calcule ce qu'on recevra. Prendre le prix d'achat
-        donnerait une borne qui ne correspond pas à celle qu'on appliquera,
-        et l'écart serait exactement la marge : quelqu'un se verrait refusé
-        juste au-dessus d'un seuil qu'on lui a montré.
-        */
-        val v = prix?.venteFcfa ?: return
-        if (v <= 0.0) return
-        /*
-        ═══════════════════════════════════════════════════════════════
-        DEUX DECIMALES, PAS SIX
-        ═══════════════════════════════════════════════════════════════
-
-        `crypto` rend la precision d'AFFICHAGE d'un solde — six
-        decimales pour l'USDT. Vu sur un vrai ecran, cette ligne
-        donnait :
-
-            Entre ≈ 1,075269 USDT-BNB et ≈ 89,605735 USDT-BNB
-
-        Quatorze caracteres de nombre pour une borne, sur une ligne de
-        onze points qui doit tenir sans couper. Et surtout : le « ≈ »
-        annonce une approximation, les six decimales en promettent une
-        exactitude. Les deux ne peuvent pas etre vrais en meme temps.
-
-        Ces chiffres ne servent qu'a situer un ordre de grandeur avant
-        de taper — et le cours dont ils derivent bouge de plus que leur
-        sixieme decimale entre deux rafraichissements.
-
-        LE MINIMUM EST ARRONDI VERS LE HAUT, le plafond vers le BAS.
-        Arrondir le minimum a 1,07 quand il vaut 1,075269 afficherait
-        une borne que le controle refuse — on taperait le chiffre lu, et
-        on se ferait reprendre par la regle qu'on vient de lire.
-        ═══════════════════════════════════════════════════════════════
-        */
-        /*
-        ─── DES ENTIERS, PARCE QUE C'EST TOUT CE QU'ON PEUT TAPER ───────
-
-        Le champ n'accepte plus de decimales a la vente. Annoncer
-        « entre ≈ 1,08 et ≈ 89,44 » designerait donc deux montants qu'on
-        ne peut PAS saisir — et le bas serait refuse si on tapait 1.
-
-        Le minimum monte a l'entier superieur, le plafond descend a
-        l'inferieur : les deux bornes deviennent des valeurs qu'on peut
-        reellement ecrire, et qui passent.
-        */
-        val bas = kotlin.math.ceil(minFcfa / v)
-        val haut = kotlin.math.floor(maxFcfa / v)
-        if (haut < bas) return
-        val entier = java.text.NumberFormat
-            .getNumberInstance(java.util.Locale.FRANCE).apply {
-                maximumFractionDigits = 0
-            }
-        stringResource(
-            R.string.change_bornes_approx,
-            "${entier.format(bas)} $monnaie",
-            "${entier.format(haut)} $monnaie"
-        )
-    }
-
-    /*
-    ─── ELLES SONT DANS UNE BOITE, AVEC UN « i » ET UN RACCOURCI ────────
-
-    Posees a nu entre deux cartes, elles n'appartenaient a rien : ni au
-    champ qu'elles decrivent, ni a la carte du dessous. Dans la carte,
-    sous les pastilles, elles se lisent pour ce qu'elles sont — la regle
-    du champ juste au-dessus.
-
-    LE « MAX » EST LA PARCE QUE LE PLAFOND EST LA. Donner le chiffre et
-    laisser le taper est une demi-mesure : la borne haute est aussi un
-    montant qu'on veut parfois choisir, et elle est deja sous les yeux.
-    Il n'apparait qu'a l'achat — a la vente, c'est le solde qui plafonne,
-    et son propre bouton « Tout » est en haut de la carte.
-    */
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = BgTertiary.copy(alpha = 0.6f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Info, null,
-                tint = AccentBlue, modifier = Modifier.size(15.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                texte,
-                fontSize = 12.sp, color = TextSecondary,
-                maxLines = 1, modifier = Modifier.weight(1f)
-            )
-            onMax?.let { max ->
-                Text(
-                    stringResource(R.string.change_max),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AccentBlue,
-                    modifier = Modifier.clickable { max() }
-                )
-            }
-        }
-    }
-}
-
 // ─── Les deux cartes de montant ─────────────────────────────────────
 
 /*
@@ -4056,26 +3752,6 @@ private fun CarteMontantChange(
     libelle: String,
     montant: String,
     unite: String,
-    /**
-     * La mention grise a droite du libelle — « Montant en FCFA »,
-     * « Montant estime ».
-     *
-     * ELLE DIT CE QUE LE CHIFFRE EST, pas ce qu'il vaut. « Tu recois »
-     * seul laisse croire a un engagement ; « Montant estime » rappelle
-     * que le cours bouge, a l'endroit meme ou on lit le nombre.
-     *
-     * Elle cede la place au solde sur la carte d'une vente : les deux
-     * occupent le meme coin, et le solde est l'information qui decide.
-     */
-    mention: String? = null,
-    /**
-     * Ce qui se pose SOUS les pastilles, dans la carte.
-     *
-     * Les bornes y vivent desormais. Dehors, elles flottaient entre deux
-     * cartes sans appartenir a aucune, alors qu'elles decrivent le champ
-     * juste au-dessus.
-     */
-    piedDePage: (@Composable () -> Unit)? = null,
     /** Solde detenu, pour la carte qu'on remplit lors d'une vente. */
     solde: Double? = null,
     /** « Tout », qui ecrit le plus grand montant vendable dans le champ. */
@@ -4088,9 +3764,6 @@ private fun CarteMontantChange(
      * elle depend du marquage, et cette carte ne sait rien de lui.
      */
     toutValeur: String? = null,
-    /** Montants courants proposes en pastilles. Vide pour n'en proposer aucun. */
-    rapides: List<Double> = emptyList(),
-    onRapide: (Double) -> Unit = {},
     /** Le logo de la monnaie : sur la carte crypto, jamais sur celle en francs. */
     avecLogo: Boolean,
     /**
@@ -4187,9 +3860,6 @@ private fun CarteMontantChange(
                     color = TextPrimary,
                     modifier = Modifier.weight(1f)
                 )
-                if (solde == null) mention?.let {
-                    Text(it, fontSize = 12.sp, color = TextSecondary, maxLines = 1)
-                }
                 /*
                 LE SOLDE, SUR LA CARTE QU'ON REMPLIT, ET SEULEMENT POUR
                 UNE VENTE.
@@ -4629,49 +4299,6 @@ private fun CarteMontantChange(
                 }
             }
             }
-
-            /*
-            LES MONTANTS COURANTS, SOUS LE CHAMP.
-
-            « 5 000 » se tape en quatre frappes sur un téléphone qu'on
-            tient d'une main, dans la rue. Les pastilles suppriment ces
-            frappes pour les sommes que les gens échangent réellement.
-
-            Et elles disent autre chose, sans un mot : l'ordre de grandeur
-            attendu. Quelqu'un qui ouvre cet écran pour la première fois ne
-            sait pas s'il s'échange ici des centaines ou des millions. Trois
-            chiffres le lui apprennent mieux qu'une phrase.
-            */
-            if (rapides.isNotEmpty()) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rapides.forEach { v ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            // BLANC SUR BLANC DEPUIS QUE LA CARTE EXISTE :
-                            // la pastille prend la teinte du champ.
-                            color = BgTertiary,
-                            modifier = Modifier.weight(1f).clickable { onRapide(v) }
-                        ) {
-                            Text(
-                                fcfa(v),
-                                modifier = Modifier.padding(vertical = 9.dp),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                // EN BLEU : ce sont des commandes, pas des
-                                // valeurs. Du texte sombre les faisait lire
-                                // comme trois nombres poses la.
-                                color = AccentBlue,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
-            piedDePage?.invoke()
         }
       }
     }
@@ -4725,52 +4352,6 @@ private fun chaineDe(monnaie: String): String? = when (monnaie.uppercase()) {
     "USDT-BNB" -> "BNB"
     "USDT-ETH" -> "ETH"
     else -> null
-}
-
-/**
- * Trois montants courants, déduits des bornes du changeur.
- *
- * DÉDUITS PLUTÔT QUE CODÉS. Le minimum et le plafond sont réglables à
- * distance, et par monnaie ; des pastilles figées finiraient par proposer
- * des sommes refusées — ce qui est exactement le contraire de leur but.
- *
- * ═══════════════════════════════════════════════════════════════════════
- * LE MINIMUM N'EST PAS ARRONDI, ET IL A FALLU UNE CAPTURE POUR LE VOIR
- * ═══════════════════════════════════════════════════════════════════════
- *
- * Il y avait trois pastilles dans le code et deux à l'écran. Cause :
- * `kotlin.math.round` arrondit les demis VERS LE PAIR, pas vers le haut.
- * Sur un minimum de 500, `round(500 / 1000.0)` rend 0 — pas 1 — donc la
- * pastille valait zéro, sortait des bornes, et disparaissait en silence.
- *
- * Le piège est que l'arrondi « naturel » qu'on a en tête est celui de
- * l'école, et que celui de la bibliothèque est celui des statisticiens.
- * Les deux ne diffèrent que sur les demis exacts — donc presque jamais,
- * donc jamais quand on teste.
- *
- * Le minimum est maintenant rendu TEL QUEL. C'est un chiffre qui a du
- * sens en lui-même : la plus petite somme acceptée. L'arrondir pour faire
- * joli la rendrait fausse dans un sens ou dans l'autre — en dessous elle
- * serait refusée, au-dessus elle cacherait ce qui est permis.
- * ═══════════════════════════════════════════════════════════════════════
- */
-private fun montantsRapides(
-    p: com.vaultex.domain.fiat.ParametresChange,
-    monnaie: String,
-    /** Sert au plafond par monnaie, qui est exprime en dollars. */
-    fcfaParDollar: Double?
-): List<Double> {
-    // PAR MONNAIE : TRON et BNB Chain n'ont pas le même seuil, parce
-    // qu'elles n'ont pas les mêmes frais de réseau.
-    val min = p.minimumPour(monnaie, fcfaParDollar)
-    val max = p.plafondPour(monnaie, fcfaParDollar)
-    if (max <= min) return emptyList()
-    val milieu = kotlin.math.round((min + max) / 2000.0) * 1000.0
-    return listOf(min, milieu, max)
-        .map { kotlin.math.round(it) }
-        .distinct()
-        .map { it.toDouble() }
-        .filter { it in min..max }
 }
 
 /*
