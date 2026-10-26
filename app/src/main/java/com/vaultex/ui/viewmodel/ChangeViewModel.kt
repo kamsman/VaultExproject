@@ -2443,7 +2443,7 @@ class ChangeViewModel @Inject constructor(
         java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
             maximumFractionDigits = TauxFcfa.decimalesAffichage(monnaie)
             minimumFractionDigits = 0
-        }.format(v)
+        }.format(TauxFcfa.plancher(v, monnaie))
 
     private companion object {
         /**

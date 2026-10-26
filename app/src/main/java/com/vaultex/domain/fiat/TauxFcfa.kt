@@ -211,4 +211,47 @@ object TauxFcfa {
         "PI" -> 7
         else -> 6
     }
+
+    /**
+     * Le montant ramené aux décimales de la monnaie, VERS LE BAS.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * ON ARRONDIT TOUJOURS DANS LE SENS QUI NE PROMET RIEN DE TROP
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * `decimalesAffichage` dit COMBIEN de chiffres garder. Elle ne disait
+     * pas DANS QUEL SENS couper, et le formateur par défaut de Java
+     * arrondit au plus proche : un montant reçu pouvait donc être affiché
+     * au-dessus de sa valeur réelle.
+     *
+     * L'écart est d'un millionième, et il ne coûte rien à personne tant
+     * que le chiffre affiché est aussi celui qui part chez le changeur —
+     * c'est le cas ici. Mais il y a un endroit où il se voit : le SOLDE.
+     *
+     * Un portefeuille qui détient 1,9999996 USDT affichait « Solde : 2 ».
+     * Quelqu'un tape alors 2, et l'écran lui répond que son solde ne
+     * suffit pas — en montrant juste au-dessus un solde de 2. Les deux
+     * chiffres venaient du même nombre ; seul l'arrondi les séparait.
+     *
+     * ─── POURQUOI PASSER PAR BIGDECIMAL ────────────────────────────────
+     *
+     * Parce qu'un `double` ne vaut pas ce qu'il montre. 2,9 y vaut
+     * 2,899999999999999911, et le tronquer à six décimales rendrait
+     * « 2,899999 » — on aurait remplacé une fausseté d'un millionième par
+     * une laideur visible à l'oeil nu.
+     *
+     * On efface donc d'abord le bruit de représentation trois décimales
+     * plus loin, PUIS on coupe. Ce qui reste ne doit sa valeur qu'au
+     * nombre, plus au binaire qui le porte.
+     *
+     * Les montants d'ici sont positifs : tronquer vers zéro et tronquer
+     * vers le bas sont la même opération.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun plancher(v: Double, monnaie: String): java.math.BigDecimal {
+        val d = decimalesAffichage(monnaie)
+        return java.math.BigDecimal(v)
+            .setScale(d + 3, java.math.RoundingMode.HALF_UP)
+            .setScale(d, java.math.RoundingMode.DOWN)
+    }
 }
