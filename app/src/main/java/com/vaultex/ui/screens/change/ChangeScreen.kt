@@ -1365,16 +1365,9 @@ private fun ColumnScope.EtapePaiement(
                 else stringResource(R.string.change_adresse),
                 valeur = aCopier,
                 icone = if (achat) Icons.Default.Smartphone else Icons.Default.AccountBalanceWallet,
+                sous = if (achat) p.nomChangeur.takeIf { it.isNotBlank() } else null,
                 onCopier = { copier(aCopier) }
             )
-            if (achat && p.nomChangeur.isNotBlank()) {
-                Ligne(
-                    stringResource(R.string.change_beneficiaire),
-                    p.nomChangeur,
-                    icone = Icons.Default.Person,
-                    separateur = true
-                )
-            }
             /*
             ═══════════════════════════════════════════════════════════
             SUR UNE VENTE, LE MONTANT EXACT EST AUSSI IMPORTANT QUE
@@ -1757,32 +1750,38 @@ private fun ColumnScope.EtapePaiement(
             Le meme fond que la note qui suit, et la couleur de ce qui
             s'actionne. Il se lit maintenant comme ce qu'il est.
             */
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = AccentBlue.copy(alpha = 0.08f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        code,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        color = AccentBlue
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    IconButton(onClick = { copier(code) }, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Default.ContentCopy, stringResource(R.string.copy),
-                            tint = AccentBlue, modifier = Modifier.size(15.dp)
-                        )
-                    }
-                }
-            }
+            /*
+            ═══════════════════════════════════════════════════════════
+            LE CODE PERD SON BLOC, PAS SA RAISON D'ETRE
+            ═══════════════════════════════════════════════════════════
+
+            Il occupait un encadre bleu pleine largeur avec son bouton de
+            copie : deux fois la hauteur d'une ligne, pour un repli — celui
+            du composeur qui s'ouvre vide sur certaines surcouches
+            constructeur.
+
+            Un repli ne merite pas la place d'une action principale. Il
+            devient une ligne, sous le bouton qui le compose deja, et c'est
+            le TEXTE ENTIER qui se touche pour le copier — plus besoin d'une
+            icone a cote.
+
+            Il reste lisible avant d'etre envoye, ce qui etait sa seconde
+            raison d'etre et la plus importante : on voit ce qu'on va
+            valider sur une operation irreversible.
+            */
+            Text(
+                code,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                color = AccentBlue,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { copier(code) }
+                    .padding(vertical = 6.dp)
+            )
             /*
             ═══════════════════════════════════════════════════════════
             LA NOTE SOUS LE BOUTON A ETE RETIREE
@@ -1939,10 +1938,26 @@ private fun ColumnScope.EtapePaiement(
             "sans_chiffre" -> R.string.change_ref_probleme_sans_chiffre
             else -> null
         }
+        /*
+        L'AIDE MONTE EN SOUS-TITRE, ET C'EST UNE LIGNE GAGNEE PAR CHAMP.
+
+        Elle etait SOUS la case : le titre occupait une ligne a cote d'une
+        pastille de quarante points — qui en laissait vingt vides — et
+        l'aide en prenait une autre, entiere, plus bas.
+
+        En sous-titre elle se loge dans la place deja reservee par la
+        pastille. L'ecran d'achat demande deja beaucoup de defilement ; ces
+        lignes-la ne coutaient rien a deplacer.
+
+        Et elle se lit AVANT la case, ce qui est sa raison d'etre : « le
+        numero de transaction recu par SMS » dit quoi chercher, pas quoi
+        penser de ce qu'on vient de taper.
+        */
         ChampChange(
             valeur = state.referencePaiement,
             onValeur = vm::onReferencePaiement,
             libelle = stringResource(R.string.change_ref_paiement),
+            sousTitre = stringResource(R.string.change_ref_paiement_aide),
             exemple = stringResource(R.string.change_ref_paiement_exemple),
             aide = stringResource(R.string.change_ref_paiement_aide),
             icone = Icons.Default.Description,
@@ -2093,7 +2108,12 @@ private fun ColumnScope.EtapePaiement(
         a quoi sert le champ.
         ═══════════════════════════════════════════════════════════════
         */
-        sousTitre = if (achat) null else {
+        sousTitre = if (achat) {
+            // Meme gain qu'au-dessus : « Le numero qui a fait le paiement »
+            // se loge a cote de la pastille au lieu d'occuper sa propre
+            // ligne sous la case.
+            stringResource(R.string.change_telephone_aide)
+        } else {
             stringResource(R.string.change_telephone_vente_consigne)
         },
         marque = if (achat) null else R.drawable.logo_orange_money,
@@ -4656,12 +4676,35 @@ private fun LigneACopier(
     valeur: String,
     icone: androidx.compose.ui.graphics.vector.ImageVector? = null,
     separateur: Boolean = false,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE BENEFICIAIRE SOUS LE NUMERO, PAS SUR SA PROPRE LIGNE
+    ═══════════════════════════════════════════════════════════════════
+
+    « Numéro à créditer : 64088910 » et « Bénéficiaire : KOANDA MOUMOUNI »
+    occupaient deux lignes completes, pastille comprise, pour une seule
+    information : A QUI on envoie.
+
+    Et le nom ne vaut que RAPPORTE AU NUMERO — on le lit pour verifier
+    qu'Orange Money affiche bien celui-la apres avoir compose celui-ci.
+    Separes par un filet, ils se lisaient comme deux verifications
+    independantes.
+
+    Sous la valeur, en petit, le nom devient ce qu'il est : la confirmation
+    du numero juste au-dessus. Une ligne gagnee sur un ecran qui en demande
+    trop.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    sous: String? = null,
     onCopier: () -> Unit
 ) {
     if (valeur.length <= VALEUR_COURTE) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
-                Ligne(libelle, valeur, icone = icone, fort = true, separateur = separateur)
+                Ligne(
+                    libelle, valeur, icone = icone, fort = true,
+                    separateur = separateur, sous = sous
+                )
             }
             /*
             LA PASTILLE AUTOUR DE L'ICONE DE COPIE.
@@ -5131,7 +5174,9 @@ private fun Ligne(
     et de son cadenas, qui forment un tout avec elle.
     ═══════════════════════════════════════════════════════════════════
     */
-    separateur: Boolean = false
+    separateur: Boolean = false,
+    /** Une precision sous la valeur, en petit. Voir [LigneACopier]. */
+    sous: String? = null
 ) {
     if (separateur) {
         androidx.compose.material3.HorizontalDivider(
@@ -5170,12 +5215,17 @@ private fun Ligne(
             Spacer(Modifier.width(12.dp))
         }
         Text(libelle, fontSize = 14.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Text(
-            valeur,
-            fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
-            fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
-            color = teinte ?: if (vedette) AccentGreen else TextPrimary
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                valeur,
+                fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
+                fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
+                color = teinte ?: if (vedette) AccentGreen else TextPrimary
+            )
+            sous?.let {
+                Text(it, fontSize = 12.sp, color = TextSecondary, maxLines = 1)
+            }
+        }
     }
 }
 
