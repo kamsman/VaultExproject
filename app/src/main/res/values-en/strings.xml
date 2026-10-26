@@ -1215,8 +1215,9 @@
     <string name="change_prix_expire">The price is no longer guaranteed. Get a fresh one to continue.</string>
     <string name="change_reprendre_prix">Get an up-to-date price</string>
     <string name="change_vente_partie_titre">Your sale is on its way</string>
-    <string name="change_depot_en_cours">Telling VaultEx…</string>
-    <string name="change_depot_achat">Sending your request to VaultEx…</string>
+    <string name="change_depot_vente_titre">Notifying VaultEx</string>
+    <string name="change_depot_achat_titre">Sending your request</string>
+    <string name="change_depot_patiente">A few more seconds.</string>
     <string name="change_depot_ne_ferme_pas">Do not close the app. Stay here a few seconds.</string>
     <string name="change_vente_preparation">Preparing your sale…</string>
     <string name="vente_traitement_etape">Sending the crypto…</string>
