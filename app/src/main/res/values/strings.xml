@@ -1216,7 +1216,7 @@
     <string name="change_verif_achat_recu">Encaissé (lu dans le SMS de l\'opérateur)</string>
     <string name="change_verif_achat_de">Payé depuis</string>
     <string name="change_verif_achat_absent">Aucun paiement ne correspond</string>
-    <string name="change_verif_achat_absent_detail">Ton argent n\'est pas perdu. VaultEx ne voit ton paiement que par le SMS d\'Orange Money, qui peut tarder. Relis ta référence et ton numéro : une faute de frappe est la cause la plus fréquente.</string>
+    <string name="change_verif_achat_absent_detail">VaultEx ne voit ton paiement que par le SMS d\'Orange Money, qui peut tarder. Relis ta référence et ton numéro : une faute de frappe est la cause la plus fréquente.</string>
     <string name="change_verif_achat_deja_servi">Ce paiement a déjà servi</string>
     <string name="change_verif_achat_deja_servi_detail">L\'encaissement existe, mais il a déjà réglé une autre demande. Regarde tes dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et tu n\'as rien à refaire.</string>
     <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>
