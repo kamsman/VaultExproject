@@ -719,11 +719,44 @@ private fun ColumnScope.EtapeCalcul(
         monnaies = if (donneFcfa) p.monnaies else emptyList(),
         onMonnaie = vm::onMonnaie,
         onMontant = null,
-        approx = if (donneFcfa) state.montantCrypto?.let { c ->
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        L'APPROXIMATION DISAIT « ≈ 0 » SOUS UN CHIFFRE QUI N'EST PAS ZERO
+        ═══════════════════════════════════════════════════════════════════
+
+        Elle existe pour les GRANDS nombres : « 1,609509 USDT » est juste
+        et illisible, « ≈ 1,61 » donne l'ordre de grandeur d'un coup d'oeil.
+
+        En dessous d'un centieme, deux decimales n'arrondissent plus, elles
+        effacent. L'ecran affichait « 0,0032 » en vert et « ≈ 0 USDT-BNB »
+        juste dessous — deux chiffres qui se contredisent, dont l'un dit a
+        quelqu'un qu'il ne recevra rien.
+
+        Elle ne s'affiche donc qu'a partir d'un centieme, la ou arrondir
+        veut encore dire quelque chose.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        approx = if (donneFcfa) state.montantCrypto?.takeIf { it >= 0.01 }?.let { c ->
             java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
                 maximumFractionDigits = 2
             }.format(c) + " " + state.monnaie
-        } else null
+        } else null,
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        SEULS LES REFUS QUI PARLENT DU CHIFFRE ETEIGNENT LE CHIFFRE
+        ═══════════════════════════════════════════════════════════════════
+
+        Minimum, plafond, solde : dans ces trois cas la conversion est
+        juste, mais elle ne se produira pas — le gris le dit.
+
+        « gaz », « sans_adresse », « ferme », « pas_de_rachat » ne sont PAS
+        de cette famille. Ils bloquent l'operation pour une raison qui n'a
+        rien a voir avec le montant tape, et eteindre le resultat
+        laisserait croire qu'on s'est trompe de nombre. Le message rouge
+        dit deja ce qui manque ; le calcul, lui, reste bon.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        horsBornes = state.blocage() in setOf("minimum", "plafond", "solde")
     )
 
     /*
@@ -802,8 +835,29 @@ private fun ColumnScope.EtapeCalcul(
                     Box(Modifier.weight(1f)) {
                         Ligne(
                             stringResource(R.string.change_marge),
+                            /*
+                            ═══════════════════════════════════════════════
+                            « 0 FCFA (4,27 %) » SE CONTREDIT TOUT SEUL
+                            ═══════════════════════════════════════════════
+
+                            `fcfa` arrondit au franc — c'est juste pour les
+                            montants de cet ecran, qui se comptent en
+                            milliers. Sur une saisie minuscule, les frais
+                            tombent a 0,085 franc et s'affichent « 0 ».
+
+                            Une commission annoncee nulle A COTE de son
+                            pourcentage est la pire des deux : elle a l'air
+                            d'une erreur, et sur la seule ligne de l'ecran
+                            qu'on ne cache jamais.
+
+                            « < 1 FCFA » est vrai, lisible, et ne promet
+                            pas la gratuite.
+                            ═══════════════════════════════════════════════
+                            */
                             fraisFcfa?.let { f ->
-                                "${fcfa(f)} FCFA" + (pourcent?.let { " ($it %)" } ?: "")
+                                val montant =
+                                    if (f > 0.0 && f < 1.0) "< 1 FCFA" else "${fcfa(f)} FCFA"
+                                montant + (pourcent?.let { " ($it %)" } ?: "")
                             } ?: "—",
                             icone = Icons.Default.Payments
                         )
@@ -4069,7 +4123,15 @@ private fun CarteMontantChange(
      */
     decimalesMax: Int = 0,
     /** Le même montant, arrondi, affiché en dessous s'il diffère. */
-    approx: String? = null
+    approx: String? = null,
+    /**
+     * Vrai quand le montant saisi ne peut pas passer — sous le minimum,
+     * au-dessus du plafond, au-dessus du solde.
+     *
+     * NE CHANGE QUE LA COULEUR, jamais le chiffre. Voir plus bas pourquoi
+     * on l'eteint plutot que de l'effacer.
+     */
+    horsBornes: Boolean = false
 ) {
     var listeOuverte by remember { mutableStateOf(false) }
     val choix = monnaies.size > 1
@@ -4206,7 +4268,11 @@ private fun CarteMontantChange(
                 shape = RoundedCornerShape(14.dp),
                 // Teinte bleue sur ce qu'on remplit, verte sur ce qu'on
                 // lit : la meme distinction que porte deja le chiffre.
+                // Grise quand le montant ne passe pas : le vert est la
+                // couleur de ce qu'on va recevoir, et on ne va rien
+                // recevoir de cette saisie-la.
                 color = if (onMontant != null) BgTertiary
+                        else if (horsBornes) TextSecondary.copy(alpha = 0.08f)
                         else AccentGreen.copy(alpha = 0.10f),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -4278,10 +4344,42 @@ private fun CarteMontantChange(
                                 montant.ifEmpty { "—" },
                                 fontSize = tailleMontant(montant.ifEmpty { "—" }),
                                 fontWeight = FontWeight.Bold,
-                                // Le montant reçu en vert : c'est le seul chiffre
-                                // qui décide, et il garde la couleur qu'il avait
-                                // quand il était la ligne vedette des détails.
-                                color = if (montant.isEmpty()) TextSecondary else AccentGreen,
+                                /*
+                                ═══════════════════════════════════════════
+                                LE VERT EST UNE PROMESSE, ET ELLE S'ETEINT
+                                ═══════════════════════════════════════════
+
+                                Le montant recu en vert : c'est le seul
+                                chiffre qui decide, et il garde la couleur
+                                qu'il avait quand il etait la ligne vedette
+                                des details.
+
+                                MAIS LE VERT DIT « VOILA CE QUE TU AURAS ».
+                                Sous le minimum, l'ecran affichait ce vert
+                                sous une saisie refusee : un chiffre qui a
+                                l'air d'un resultat, au-dessus d'un bouton
+                                eteint et d'un message rouge. Trois signaux,
+                                dont un qui contredit les deux autres.
+
+                                ─── POURQUOI L'ETEINDRE ET NON L'EFFACER ──
+
+                                Parce que le chiffre RENSEIGNE encore. « 1
+                                000 FCFA donneraient 1,57 USDT » dit de
+                                combien on est loin du seuil, et c'est ce
+                                qui permet de corriger du premier coup. Le
+                                masquer rendrait la carte vide a chaque
+                                frappe intermediaire — on tape « 1 », puis
+                                « 10 », puis « 100 » : trois etats sous le
+                                minimum avant le bon.
+
+                                Le gris retire la promesse sans retirer
+                                l'information. C'est exactement ce que fait
+                                deja le bouton a cote : il reste la, il ne
+                                repond plus.
+                                ═══════════════════════════════════════════
+                                */
+                                color = if (montant.isEmpty() || horsBornes) TextSecondary
+                                        else AccentGreen,
                                 maxLines = 1
                             )
                             /*
@@ -5391,8 +5489,11 @@ private fun fcfa(v: Double): String =
  * qui n'existent pas sur un jeton à six décimales, et que personne ne peut
  * donc recevoir. Voir TauxFcfa.decimalesAffichage.
  */
+// VERS LE BAS, TOUJOURS : `TauxFcfa.plancher` dit pourquoi. Le formateur
+// ne garde ici que la virgule francaise et les milliers espaces — la
+// precision, elle, est deja fixee.
 private fun crypto(v: Double, monnaie: String): String =
     java.text.NumberFormat.getNumberInstance(java.util.Locale.FRANCE).apply {
         maximumFractionDigits = TauxFcfa.decimalesAffichage(monnaie)
         minimumFractionDigits = 0
-    }.format(v)
+    }.format(TauxFcfa.plancher(v, monnaie))
