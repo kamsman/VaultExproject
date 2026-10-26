@@ -1187,7 +1187,7 @@
     <string name="change_verif_achat_recu">المبلغ المُستلم (من رسالة المُشغّل)</string>
     <string name="change_verif_achat_de">دُفع من</string>
     <string name="change_verif_achat_absent">لا توجد دفعة مطابقة</string>
-    <string name="change_verif_achat_absent_detail">لا يرى VaultEx دفعتك إلا عبر رسالة Orange Money، وقد تتأخر. راجع مرجعك ورقمك: الخطأ المطبعي هو السبب الأكثر شيوعًا.</string>
+    <string name="change_verif_achat_absent_detail">تحقّق جيدًا من مرجع الدفع، المأخوذ من رسالة Orange Money. الخطأ المطبعي هو السبب الأكثر شيوعًا.</string>
     <string name="change_verif_achat_deja_servi">هذه الدفعة استُخدمت من قبل</string>
     <string name="change_verif_achat_deja_servi_detail">الدفعة موجودة، لكنها سوَّت طلبًا آخر بالفعل. راجع طلباتك الأخيرة: إن كان هذا هو الطلب، فهو عند الصرّاف ولا شيء عليك إعادته.</string>
     <string name="change_verif_achat_impossible">التحقق التلقائي غير متاح</string>
