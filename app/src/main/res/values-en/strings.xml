@@ -1187,7 +1187,7 @@
     <string name="change_verif_achat_recu">Received (read in the operator\'s SMS)</string>
     <string name="change_verif_achat_de">Paid from</string>
     <string name="change_verif_achat_absent">No matching payment</string>
-    <string name="change_verif_achat_absent_detail">VaultEx only sees your payment through the Orange Money SMS, which can be delayed. Check your reference and your number: a typo is the most common cause.</string>
+    <string name="change_verif_achat_absent_detail">Check your payment reference carefully — the one from the Orange Money SMS. A typo is the most common cause.</string>
     <string name="change_verif_achat_deja_servi">This payment has already been used</string>
     <string name="change_verif_achat_deja_servi_detail">The payment exists, but it has already settled another request. Check your recent requests: if this is the one, it is already with the changer and there is nothing to redo.</string>
     <string name="change_verif_achat_impossible">Automatic check unavailable</string>
