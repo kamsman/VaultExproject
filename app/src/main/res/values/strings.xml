@@ -1159,6 +1159,7 @@
     <string name="change_montant_exact">Montant exact</string>
     <string name="change_reference">Ta référence</string>
     <string name="change_paye">Payé</string>
+    <string name="change_adresse_reception">Adresse de réception</string>
     <string name="change_motif">Mets ta référence en motif si ton paiement le permet.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>

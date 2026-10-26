@@ -3330,6 +3330,17 @@ private fun ColumnScope.EtapeDepotAuto(
  * une carte deja dominee par un grand rond vert : trois pastilles de plus
  * feraient un inventaire la ou il faut un recu.
  */
+/**
+ * « 0xbde137a9…5831e327e » — assez pour reconnaitre, pas assez pour noyer.
+ *
+ * Six caracteres de chaque cote : la forme reste identifiable d'un coup
+ * d'oeil, et la valeur entiere reste a un appui sur l'icone de copie. En
+ * dessous de vingt caracteres, on affiche tout : une adresse courte
+ * abregee serait plus longue a lire que l'originale.
+ */
+private fun abregerAdresse(a: String): String =
+    if (a.length <= 20) a else "${a.take(8)}…${a.takeLast(6)}"
+
 @Composable
 private fun LigneRecu(
     libelle: String,
@@ -3572,6 +3583,41 @@ private fun ColumnScope.EtapeTransmis(
                         stringResource(R.string.change_reference),
                         state.reference,
                         onCopier = { copier(state.reference) }
+                    )
+                }
+                /*
+                ═══════════════════════════════════════════════════════════
+                OU LA CRYPTO VA ARRIVER
+                ═══════════════════════════════════════════════════════════
+
+                C'est le seul moment du parcours ou quelque chose de
+                l'utilisateur part sans qu'il l'ait vu : l'application
+                derive son adresse et la glisse dans la demande, en
+                silence. Sur une vente, il voit l'adresse du changeur avant
+                d'envoyer ; ici, rien.
+
+                Le recu ferme la boucle — voila ou ca arrivera — et donne
+                la reponse a la premiere question d'un depannage : « sur
+                quelle adresse ? ».
+
+                ─── RACCOURCIE, ET C'EST SANS RISQUE ICI ─────────────────
+
+                Quarante-deux caracteres transformeraient ce recu en mur.
+                Et l'avertissement contre l'« address poisoning », ecrit
+                ailleurs dans ce projet, ne s'applique pas : il vaut pour
+                une adresse VERS LAQUELLE on envoie, ou un attaquant peut
+                en glisser une qui se ressemble. Celle-ci est la sienne,
+                derivee de sa phrase — personne ne peut la substituer sans
+                deja tout controler.
+
+                Le bouton de copie rend la valeur entiere.
+                ═══════════════════════════════════════════════════════════
+                */
+                state.adresseReception?.takeIf { it.isNotBlank() }?.let { adr ->
+                    LigneRecu(
+                        stringResource(R.string.change_adresse_reception),
+                        abregerAdresse(adr),
+                        onCopier = { copier(adr) }
                     )
                 }
             }
