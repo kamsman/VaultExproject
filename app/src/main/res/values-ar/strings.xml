@@ -1130,6 +1130,7 @@
     <string name="change_montant_exact">المبلغ بالضبط</string>
     <string name="change_reference">مرجعك</string>
     <string name="change_paye">المدفوع</string>
+    <string name="change_adresse_reception">عنوان الاستلام</string>
     <string name="change_motif">ضع مرجعك في خانة السبب إن سمح الدفع بذلك.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
     <string name="change_ref_paiement">مرجع الدفع</string>

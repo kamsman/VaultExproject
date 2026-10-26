@@ -241,7 +241,7 @@ class PiEnvoiUseCase @Inject constructor(
             return if (inscrite.successful == false)
                 ResultatEnvoiPi.Refuse(
                     "L'envoi a été inscrit mais a échoué. Les Pi n'ont pas quitté " +
-                        "ton compte ; seuls les frais ont été prélevés.",
+                        "votre compte ; seuls les frais ont été prélevés.",
                     fraisPreleves = true
                 )
             else ResultatEnvoiPi.Reussi(trace.empreinte, compteCree = false)
@@ -315,13 +315,13 @@ class PiEnvoiUseCase @Inject constructor(
         */
         if (cible.equals(paire.adresse, ignoreCase = true))
             return@withLock ResultatEnvoiPi.Invalide(
-                "C'est ta propre adresse Pi. Rien ne serait déplacé, et les frais " +
+                "C'est votre propre adresse Pi. Rien ne serait déplacé, et les frais " +
                     "seraient quand même prélevés."
             )
 
         val params = reseau.parametres()
             ?: return@withLock ResultatEnvoiPi.Refuse(
-                "Impossible de joindre le réseau Pi. Vérifie ta connexion et " +
+                "Impossible de joindre le réseau Pi. Vérifiez votre connexion et " +
                     "réessaie — aucun Pi n'a bougé."
             )
 
@@ -333,7 +333,7 @@ class PiEnvoiUseCase @Inject constructor(
                     "envoyer."
             )
             EtatComptePi.Indetermine -> return@withLock ResultatEnvoiPi.Refuse(
-                "Impossible de lire ton solde Pi. Réessaie — aucun Pi n'a bougé."
+                "Impossible de lire votre solde Pi. Réessayez — aucun Pi n'a bougé."
             )
         }
 
@@ -494,7 +494,7 @@ class PiEnvoiUseCase @Inject constructor(
             if (rep.successful == false) RetourTentative.Fini(
                 ResultatEnvoiPi.Refuse(
                     "L'envoi a été inscrit mais a échoué. Les Pi n'ont pas quitté " +
-                        "ton compte ; seuls les frais ont été prélevés.",
+                        "votre compte ; seuls les frais ont été prélevés.",
                     fraisPreleves = true
                 )
             )

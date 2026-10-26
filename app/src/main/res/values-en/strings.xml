@@ -1130,6 +1130,7 @@
     <string name="change_montant_exact">Exact amount</string>
     <string name="change_reference">Your reference</string>
     <string name="change_paye">Paid</string>
+    <string name="change_adresse_reception">Receiving address</string>
     <string name="change_motif">Put your reference in the reason field if your payment allows it.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
     <string name="change_ref_paiement">Payment reference</string>
