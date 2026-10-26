@@ -1143,6 +1143,8 @@
     <string name="change_sans_cours">Cours indisponible : impossible de calculer un prix honnête. Ouvrez l\'accueil pour rafraîchir, puis revenez.</string>
     <string name="change_sous_minimum">Minimum : %1$s FCFA.</string>
     <string name="change_sur_plafond">Maximum : %1$s FCFA par opération.</string>
+    <string name="change_sous_minimum_crypto">Minimum : %1$s %2$s.</string>
+    <string name="change_sur_plafond_crypto">Maximum : %1$s %2$s par opération.</string>
     <string name="change_solde_insuffisant">Vous n\'en détenez pas assez pour cette vente. Réduisez le montant, ou déposez d\'abord sur votre portefeuille.</string>
     <string name="change_pas_de_gaz">Il vous faut du %1$s pour payer les frais de réseau. Recevez ou achetez un peu de %1$s, puis revenez vendre.</string>
     <string name="change_sans_adresse">VaultEx n\'a pas d\'adresse %1$s pour recevoir votre achat. Ouvrez l\'écran Recevoir pour cette monnaie, puis revenez.</string>

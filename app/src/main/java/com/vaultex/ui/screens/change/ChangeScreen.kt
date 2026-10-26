@@ -767,7 +767,10 @@ private fun ColumnScope.EtapeCalcul(
             it == "gaz" || it == "sans_adresse"
     }?.let {
         NoteEnDeuxTemps(
-            messageBlocage(it, p, state.monnaie, state.fcfaParDollar, state.jetonGaz),
+            messageBlocage(
+                it, p, state.monnaie, state.fcfaParDollar, state.jetonGaz,
+                state.prix, donneFcfa
+            ),
             AccentRed
         )
     }
@@ -5019,7 +5022,14 @@ private fun messageBlocage(
     /** Le plafond annonce doit etre CELUI QUI S'APPLIQUE. Voir plus bas. */
     fcfaParDollar: Double?,
     /** Le jeton qui paie le gaz, pour le nommer dans le message. */
-    jetonGaz: String
+    jetonGaz: String,
+    /**
+     * Le prix applique, sans lequel une borne en dollars se convertit
+     * faux. Voir `ChangeService.facteurPrix`.
+     */
+    prix: com.vaultex.domain.fiat.PrixFcfa?,
+    /** Vrai sur un achat. Decide du sens de la borne ET de son unite. */
+    achat: Boolean
 ): String = when (code) {
     /*
     LE MESSAGE NOMME LE JETON ET DIT QUOI FAIRE. « Frais insuffisants »
@@ -5043,21 +5053,68 @@ private fun messageBlocage(
     quelqu'un retaper un montant qui sera refuse une seconde fois. C'est
     exactement le genre de message qui fait fermer l'application.
     */
-    "minimum" -> stringResource(
-        R.string.change_sous_minimum,
-        fcfa(p.minimumPour(monnaie, fcfaParDollar))
+    "minimum" -> borne(
+        R.string.change_sous_minimum, R.string.change_sous_minimum_crypto,
+        p.minimumPour(monnaie, fcfaParDollar, prix, achat),
+        monnaie, prix, achat, versLeHaut = true
     )
     /*
     MEME RAISON QUE POUR LE MINIMUM, un cran plus haut dans ce when :
     montrer le plafond general pendant qu'un autre s'applique enverrait
     quelqu'un retaper un montant qui sera refuse une seconde fois.
     */
-    "plafond" -> stringResource(
-        R.string.change_sur_plafond,
-        fcfa(p.plafondPour(monnaie, fcfaParDollar))
+    "plafond" -> borne(
+        R.string.change_sur_plafond, R.string.change_sur_plafond_crypto,
+        p.plafondPour(monnaie, fcfaParDollar, prix, achat),
+        monnaie, prix, achat, versLeHaut = false
     )
     "solde" -> stringResource(R.string.change_solde_insuffisant)
     else -> stringResource(R.string.change_montant_invalide)
+}
+
+/**
+ * Une borne, dite dans l'unite ou la personne tape.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * « MINIMUM : 610 FCFA » PENDANT QU'ON TAPE DES USDT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * A l'achat, on tape des francs et le message en parle : il se lit et il
+ * se corrige. A la vente, on tape de la crypto — et le message annoncait
+ * quand meme un seuil en francs, que personne ne peut convertir de tete
+ * sans le cours.
+ *
+ * Le refus etait donc exact et inutilisable. On retapait un peu plus, on
+ * se faisait refuser encore, et c'est a ce moment-la qu'on ferme.
+ *
+ * ─── DES ENTIERS, PARCE QUE C'EST TOUT CE QU'ON PEUT TAPER ─────────────
+ *
+ * Le champ n'accepte pas de decimales a la vente. Annoncer « 1,075269 »
+ * designerait un montant qu'on ne peut PAS saisir.
+ *
+ * LE MINIMUM MONTE, LE PLAFOND DESCEND. Arrondir le minimum a 1 quand il
+ * vaut 1,07 afficherait une borne que le controle refuse — on taperait le
+ * chiffre lu, et on se ferait reprendre par la regle qu'on vient de lire.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+@Composable
+private fun borne(
+    enFrancs: Int,
+    enCrypto: Int,
+    seuilFcfa: Double,
+    monnaie: String,
+    prix: com.vaultex.domain.fiat.PrixFcfa?,
+    achat: Boolean,
+    versLeHaut: Boolean
+): String {
+    val v = prix?.venteFcfa ?: 0.0
+    // A l'achat on tape des francs : le seuil est deja dans la bonne
+    // unite. Sans cours, on ne convertit pas — un chiffre invente servirait
+    // a decider d'un montant a envoyer.
+    if (achat || v <= 0.0) return stringResource(enFrancs, fcfa(seuilFcfa))
+    val n = if (versLeHaut) kotlin.math.ceil(seuilFcfa / v) else kotlin.math.floor(seuilFcfa / v)
+    if (n < 1.0) return stringResource(enFrancs, fcfa(seuilFcfa))
+    return stringResource(enCrypto, fcfa(n), monnaie)
 }
 
 private fun fcfa(v: Double): String =
