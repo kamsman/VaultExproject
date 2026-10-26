@@ -537,7 +537,7 @@ class ChangeService @Inject constructor(
         )
     } catch (e: Exception) {
         com.vaultex.core.monitoring.reportUnlessCancelled("ordre change", e)
-        ResultatOrdre.Echec("Le changeur n'a pas pu être joint. Vérifie ta connexion.")
+        ResultatOrdre.Echec("Le changeur n'a pas pu être joint. Vérifiez votre connexion.")
     }
 
     /**

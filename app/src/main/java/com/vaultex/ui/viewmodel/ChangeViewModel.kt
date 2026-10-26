@@ -1711,7 +1711,7 @@ class ChangeViewModel @Inject constructor(
                     it.copy(
                         envoiEnCours = false,
                         erreur = "Le relais n'a pas pu fixer le montant exact à envoyer. " +
-                            "Vérifie ta connexion et réessaie — n'envoie rien avant."
+                            "Vérifiez votre connexion et réessayez — n'envoyez rien avant."
                     )
                 }
                 return@launch
@@ -1779,12 +1779,12 @@ class ChangeViewModel @Inject constructor(
             it.copy(
                 erreur = if (propose >= 1) {
                     "Avec sa marque, le montant à envoyer serait de " +
-                        "$exact ${s.monnaie}, or tu n'en détiens que " +
-                        "${decimal(soldeConnu, s.monnaie)}. Réessaie avec " +
+                        "$exact ${s.monnaie}, or vous n'en détenez que " +
+                        "${decimal(soldeConnu, s.monnaie)}. Réessayez avec " +
                         "$propose ou moins."
                 } else {
                     "Avec sa marque, le montant à envoyer serait de " +
-                        "$exact ${s.monnaie}, or tu n'en détiens que " +
+                        "$exact ${s.monnaie}, or vous n'en détenez que " +
                         "${decimal(soldeConnu, s.monnaie)}. Ce solde ne " +
                         "suffit pas pour une vente."
                 }

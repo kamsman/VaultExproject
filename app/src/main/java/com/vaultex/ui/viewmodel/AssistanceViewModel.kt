@@ -239,7 +239,7 @@ class AssistanceViewModel @Inject constructor(
                     messages = suite,
                     enCours = false,
                     erreur = if (reponse == null) {
-                        r?.raison ?: "L'assistance n'a pas répondu. Vérifie ta connexion."
+                        r?.raison ?: "L'assistance n'a pas répondu. Vérifiez votre connexion."
                     } else null,
                     // `humain` vient du relais ; sans réponse du tout, on le
                     // propose aussi — c'est le moment où un humain sert.

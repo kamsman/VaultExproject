@@ -129,7 +129,7 @@ object PiCodesResultat {
 
         "tx_bad_auth", "tx_bad_auth_extra" ->
             "Signature refusée par le réseau Pi. Ne réessaie pas : signale-le, " +
-                "c'est un défaut de l'application et non de ton portefeuille."
+                "c'est un défaut de l'application et non de votre portefeuille."
 
         "tx_no_source_account" ->
             "Ton compte Pi n'existe pas encore sur la chaîne : il n'a jamais " +
@@ -137,7 +137,7 @@ object PiCodesResultat {
 
         "tx_too_late" ->
             "La transaction a mis trop de temps à partir et n'est plus valable. " +
-                "Aucun Pi n'a bougé — tu peux réessayer."
+                "Aucun Pi n'a bougé — vous pouvez réessayer."
 
         "tx_too_early" -> "La transaction a été présentée trop tôt."
         "tx_insufficient_fee" ->
