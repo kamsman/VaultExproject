@@ -138,11 +138,16 @@ data class ParametresChange(
      * et c'est sur ce chiffre qu'un achat serait refuse. Mieux vaut ne
      * freiner que sur le plafond general, qui est deja en francs.
      */
-    fun plafondPour(monnaie: String, fcfaParDollar: Double?): Double {
+    fun plafondPour(
+        monnaie: String,
+        fcfaParDollar: Double?,
+        prix: PrixFcfa? = null,
+        achat: Boolean = true
+    ): Double {
         val usd = plafondsUsdParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
         val taux = fcfaParDollar?.takeIf { it > 0.0 }
         if (usd == null || taux == null) return plafondFcfa
-        return minOf(plafondFcfa, usd * taux)
+        return minOf(plafondFcfa, usd * taux * facteurPrix(prix, achat))
     }
 
     /**
@@ -156,13 +161,69 @@ data class ParametresChange(
      * sans taux donnerait un chiffre invente, et c'est sur lui qu'une
      * operation serait refusee.
      */
-    fun minimumPour(monnaie: String, fcfaParDollar: Double? = null): Double {
+    fun minimumPour(
+        monnaie: String,
+        fcfaParDollar: Double? = null,
+        prix: PrixFcfa? = null,
+        achat: Boolean = true
+    ): Double {
         val enFrancs = minimumsParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
             ?: minimumFcfa
         val usd = minimumsUsdParMonnaie[monnaie.uppercase()]?.takeIf { it > 0.0 }
         val taux = fcfaParDollar?.takeIf { it > 0.0 }
         if (usd == null || taux == null) return enFrancs
-        return maxOf(enFrancs, usd * taux)
+        return maxOf(enFrancs, usd * taux * facteurPrix(prix, achat))
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * UN SEUIL EN DOLLARS NE SE CONVERTIT PAS AU COURS DU MARCHÉ
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * `usd * taux` paraît évident, et c'est faux dès qu'il y a une marge.
+     *
+     * Ce que le seuil en dollars borne, c'est la QUANTITÉ DE CRYPTO qui
+     * passe sur la chaîne — c'est de là que vient sa raison d'être : en
+     * dessous, les frais de réseau mangent l'opération. Or cette quantité
+     * ne s'obtient pas en divisant les francs par le cours du marché, mais
+     * par le PRIX APPLIQUÉ, marge comprise.
+     *
+     * ─── CE QUE ÇA DONNAIT, MESURÉ ──────────────────────────────────────
+     *
+     * Minimum 10 $, taux 610, marge 26 FCFA/$ (4,27 %) :
+     *
+     *     seuil annoncé par l'écran   10 × 610        = 6 100 FCFA
+     *     crypto réellement livrée    6 100 / 636     = 9,591195 USDT
+     *     seuil exigé par le relais   10 × 0,999      = 9,99 USDT
+     *
+     * L'écran acceptait, le relais refusait. Et le refus arrivait APRÈS le
+     * bouton — c'est-à-dire au seul endroit où un refus coûte vraiment
+     * quelque chose. Le plafond se trompait symétriquement, dans l'autre
+     * sens, sur les ventes.
+     *
+     * Le relais se donne un pour mille de jeu ; la marge en vaut quarante
+     * fois plus. Aucune tolérance raisonnable ne rattrape ça — c'est la
+     * conversion qui est fausse, pas l'arrondi.
+     *
+     * ─── POURQUOI LE RAPPORT, ET PAS UNE SOUSTRACTION ───────────────────
+     *
+     * `applique / base` vaut (1 + marge) à l'achat et (1 − marge) à la
+     * vente. Multiplier le seuil par ce rapport le place EXACTEMENT là où
+     * la quantité de crypto vaut le seuil en dollars, dans les deux sens
+     * et pour les quatre bornes. Vérifié : à la borne, les deux côtés
+     * tombent sur le même chiffre, et le pour mille du relais ne sert plus
+     * qu'à ce pour quoi il a été écrit — l'arrondi du prix au franc.
+     *
+     * SANS PRIX, LE FACTEUR VAUT UN. C'est le comportement d'avant : les
+     * appels qui ne connaissent pas le sens de l'opération ne sont pas
+     * dégradés, ils sont seulement aussi approximatifs qu'avant.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    private fun facteurPrix(prix: PrixFcfa?, achat: Boolean): Double {
+        if (prix == null || prix.baseFcfa <= 0.0) return 1.0
+        val applique = if (achat) prix.achatFcfa else prix.venteFcfa
+        if (applique <= 0.0) return 1.0
+        return applique / prix.baseFcfa
     }
 
     /**

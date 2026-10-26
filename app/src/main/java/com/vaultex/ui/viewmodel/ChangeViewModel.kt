@@ -636,7 +636,10 @@ data class ChangeState(
         val p = parametres
         val venteFcfa = prix?.venteFcfa
         if (p != null && venteFcfa != null && venteFcfa > 0.0) {
-            val plafondCrypto = p.plafondPour(monnaie, fcfaParDollar) / venteFcfa
+            // `achat = false` : la quantite vendable se borne au PRIX DE
+            // VENTE, celui qui s'applique ici. Voir `facteurPrix`.
+            val plafondCrypto =
+                p.plafondPour(monnaie, fcfaParDollar, prix, achat = false) / venteFcfa
             v = minOf(v, kotlin.math.floor(plafondCrypto))
         }
         return if (v >= 1.0) v else 0.0
@@ -650,14 +653,23 @@ data class ChangeState(
         val fcfa = montantFcfa ?: return "montant"
         // Par monnaie : TRON coute 13 a 27 TRX par transfert, BNB Chain
         // vingt centimes. Un seuil unique ferait du plus cher un piege.
-        if (fcfa < p.minimumPour(monnaie, fcfaParDollar)) return "minimum"
+        /*
+        LE SENS ET LE PRIX ENTRENT DANS LA BORNE, et ils y manquaient.
+
+        Un seuil en dollars borne la QUANTITE DE CRYPTO, pas les francs :
+        sans le prix applique, l'ecran acceptait un achat que le relais
+        refusait quatre pour cent plus loin. `facteurPrix` le dit en
+        entier.
+        */
+        val achat = sens == SensChange.ACHAT
+        if (fcfa < p.minimumPour(monnaie, fcfaParDollar, prix, achat)) return "minimum"
         /*
         LE PLAFOND EFFECTIF, PAS LE GENERAL. Certaines monnaies portent
         le leur, en dollars — le BNB ne sert qu'a payer le gaz, et dix
         dollars en couvrent des centaines de transferts. `plafondPour`
         rend le plus bas des deux.
         */
-        if (fcfa > p.plafondPour(monnaie, fcfaParDollar)) return "plafond"
+        if (fcfa > p.plafondPour(monnaie, fcfaParDollar, prix, achat)) return "plafond"
         /*
         ═══════════════════════════════════════════════════════════════
         ON NE PEUT PAS VENDRE CE QU'ON N'A PAS
