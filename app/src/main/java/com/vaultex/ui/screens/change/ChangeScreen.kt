@@ -2096,7 +2096,8 @@ private fun ColumnScope.EtapePaiement(
         sousTitre = if (achat) null else {
             stringResource(R.string.change_telephone_vente_consigne)
         },
-        marque = if (achat) null else R.drawable.logo_orange_money
+        marque = if (achat) null else R.drawable.logo_orange_money,
+        indicatif = stringResource(R.string.indicatif_pays)
     )
 
     /*
@@ -2146,7 +2147,8 @@ private fun ColumnScope.EtapePaiement(
             numero a fournir. Dans la case, en revanche, c'est bien le
             meme numero Orange Money qu'on retape.
             */
-            marque = R.drawable.logo_orange_money
+            marque = R.drawable.logo_orange_money,
+            indicatif = stringResource(R.string.indicatif_pays)
         )
     }
     }
@@ -4853,7 +4855,9 @@ private fun ChampChange(
     pastille de tete reprend son pictogramme, qui s'efface derriere le
     texte au lieu de lui disputer la place.
     */
-    marque: Int? = null
+    marque: Int? = null,
+    /** L'indicatif affiche devant les chiffres, ou null. Voir dans le corps. */
+    indicatif: String? = null
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         /*
@@ -4976,6 +4980,44 @@ private fun ChampChange(
                             .background(BgTertiary)
                     )
                     Spacer(Modifier.width(10.dp))
+                }
+                /*
+                ═══════════════════════════════════════════════════════════
+                L'INDICATIF EST AFFICHE, PAS SAISI
+                ═══════════════════════════════════════════════════════════
+
+                « +226 » se lit, ne se tape pas, et ne fait PAS partie de la
+                valeur. Et ce n'est pas un detail de mise en forme.
+
+                Tout le parcours compte huit chiffres : `telephoneValide`
+                eteint le bouton en dessous, `numeroComparable` rapproche le
+                SMS de l'operateur cote relais, et `numeroGroupe` affiche
+                « 64 64 64 64 » sur le recu. Faire entrer l'indicatif dans
+                le champ ferait onze chiffres, et les trois casseraient
+                ensemble.
+
+                ─── POURQUOI L'AFFICHER QUAND MEME ───────────────────────
+
+                Parce qu'un numero a huit chiffres nu ne dit pas de quel
+                pays il est. Sur l'ecran ou l'on indique ou recevoir de
+                l'argent, c'est la derniere chose qui reste implicite — et
+                l'application se destine a des gens qui ont de la famille
+                en Cote d'Ivoire, au Mali, en France.
+
+                ECRIT EN DUR, et c'est assume : le service est burkinabe de
+                bout en bout — francs CFA, Orange Money Burkina, code USSD
+                *144*. Le jour ou il franchit une frontiere, ce n'est pas
+                cette ligne qu'il faudra changer, c'est tout le reste.
+                ═══════════════════════════════════════════════════════════
+                */
+                indicatif?.let {
+                    Text(
+                        it,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                    Spacer(Modifier.width(8.dp))
                 }
                 androidx.compose.foundation.text.BasicTextField(
                     value = valeur,
