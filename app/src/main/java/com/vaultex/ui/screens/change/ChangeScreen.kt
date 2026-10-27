@@ -6,6 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,8 +31,6 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
@@ -69,6 +70,7 @@ import com.vaultex.ui.theme.BgTertiary
 import com.vaultex.ui.theme.OrangeMoney
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
+import com.vaultex.ui.theme.VertWhatsApp
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.viewmodel.ChangeViewModel
 import com.vaultex.ui.viewmodel.EtapeChange
@@ -451,11 +453,28 @@ fun ChangeScreen(navController: NavController) {
                     du change doivent se distinguer de ceux de l'envoi et du
                     swap ; partager le titre exact de l'ecran de diffusion
                     etait la facon la plus directe de les confondre.
+
+                    ─── ET C'EST LE MEME ECRAN QU'A LA VENTE ──────────────
+
+                    `EtapeDepotAuto` a disparu : les deux sens attendaient
+                    sous un sablier avant un recu qui porte deja un rond au
+                    milieu. Un achat voit donc, lui aussi, le recu se poser
+                    d'abord et le sablier se changer en coche dedans.
+
+                    Ce qui RESTE tu pendant l'attente, ce sont les trois
+                    lignes du recu — ce qu'on recoit, ce qu'on a paye, la
+                    reference. Elles n'ont pas encore de valeur : le relais
+                    peut refuser la demande, et annoncer « Vous recevrez
+                    3,27 USDT » avant qu'il l'accepte promettrait un chiffre
+                    qui n'engage personne. Elles arrivent avec la coche.
                     ═══════════════════════════════════════════════════════
                     */
-                    EtapeDepotAuto(
-                        titre = stringResource(R.string.change_depot_achat_titre),
-                        sousTitre = stringResource(R.string.change_depot_patiente)
+                    EtapeTransmis(
+                        state = state,
+                        copier = copier,
+                        onRecommencer = {},
+                        onAccueil = {},
+                        enCours = true
                     )
 
                 state.etape == EtapeChange.PAIEMENT ->
@@ -2580,6 +2599,19 @@ private fun ColumnScope.EtapePaiement(
             color = AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
         )
     }
+
+    /*
+    EN BAS, ET PAS EN HAUT. C'est l'ecran ou l'on paie : ce qu'il doit
+    porter en premier, ce sont le numero, le montant et la reference. Une
+    offre d'aide posee avant eux ferait craindre une difficulte avant
+    qu'elle existe.
+
+    Mais il faut qu'elle soit LA, sur cet ecran-ci : c'est celui qu'on
+    regarde en hesitant a envoyer de l'argent a quelqu'un qu'on ne connait
+    pas. Un numero burkinabe lisible au bas de la page repond a cette
+    hesitation mieux qu'une phrase rassurante.
+    */
+    AssistanceChange(state.reference)
 }
 
 /*
@@ -3184,112 +3216,6 @@ private fun detailVerification(
     }
 }
 
-// ─── Temps 2 bis : le depot part tout seul ──────────────────────────
-
-/**
- * Ce qu'on montre pendant que la demande se depose.
- *
- * TROIS ELEMENTS, ET AUCUN BOUTON. Un rond qui tourne, ce qui vient de se
- * passer, et ce qui est en train de se faire. Rien a toucher : il n'y a
- * rien a decider, et le moindre bouton relancerait la question « qu'est-ce
- * qu'on attend de moi ».
- *
- * PAS DE SORTIE NON PLUS, et c'est volontaire. Partir d'ici tue le
- * ViewModel et interrompt le depot. Ce n'est pas perdu — la trace et le
- * hash restent sur le disque, et rouvrir l'ecran ramene l'etape de
- * paiement avec son bouton de rattrapage — mais ce serait un detour qu'on
- * n'a aucune raison de proposer pour quelques secondes d'attente.
- */
-@Composable
-private fun ColumnScope.EtapeDepotAuto(
-    titre: String,
-    sousTitre: String
-) {
-    /*
-    ═══════════════════════════════════════════════════════════════════
-    LA MEME ATTENTE QUE SUR L'ECRAN D'ENVOI
-    ═══════════════════════════════════════════════════════════════════
-
-    C'etait un simple rond qui tourne. Celui de l'ecran d'envoi porte un
-    grand sablier dans un cercle, une barre de progression et la consigne
-    « Ne fermez pas l'application » — et ce sont deux attentes du MEME
-    parcours, a quelques secondes d'intervalle.
-
-    Deux formes differentes pour la meme chose se lisent comme deux
-    applications. Celle-ci reprend donc la silhouette de l'autre.
-
-    ─── ET ELLE SERT MAINTENANT AUSSI A L'ACHAT ──────────────────────
-
-    L'achat n'avait aucune attente : « Confirmer le paiement » gardait son
-    rond DANS le bouton pendant que la demande partait au relais. Une
-    seconde ou trois ou l'ecran reste entier, avec ses champs et ses
-    boutons, et rien ne dit que quelque chose se passe — on rappuie.
-
-    Les deux textes sont donnes par l'appelant : une vente dit « Ta vente
-    est partie / On prévient VaultEx », un achat dit « Transaction en
-    cours / On transmet ta demande ». La forme est commune, les mots sont
-    propres a chacun.
-    ═══════════════════════════════════════════════════════════════════
-    */
-    Spacer(Modifier.height(32.dp))
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(112.dp).clip(CircleShape)
-                    .background(AccentBlue.copy(alpha = 0.07f))
-            )
-            Box(
-                Modifier.size(82.dp).clip(CircleShape).background(AccentBlue),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.HourglassEmpty, null,
-                    tint = Color.White, modifier = Modifier.size(40.dp)
-                )
-            }
-        }
-        Text(
-            titre,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-            color = AccentBlue,
-            trackColor = BgTertiary
-        )
-        Text(
-            sousTitre,
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = AccentBlue.copy(alpha = 0.08f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.VerifiedUser, null,
-                    tint = AccentBlue, modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.change_depot_ne_ferme_pas),
-                    fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
-                )
-            }
-        }
-    }
-}
-
 /**
  * Une ligne du recu : le libelle a gauche, la valeur a droite.
  *
@@ -3521,8 +3447,17 @@ private fun ColumnScope.EtapeTransmis(
             }
             Text(
                 stringResource(
-                    if (enCours) R.string.change_depot_vente_titre
-                    else R.string.change_transmis_titre
+                    when {
+                        // Les deux attentes ne font pas le meme travail, et
+                        // la difference compte : une vente a deja mis sa
+                        // crypto sur la chaine et il reste a PREVENIR, un
+                        // achat a paye par Orange Money et il reste a
+                        // TRANSMETTRE. Le titre nomme ce qui se passe.
+                        !enCours -> R.string.change_transmis_titre
+                        state.sens == SensChange.ACHAT ->
+                            R.string.change_depot_achat_titre
+                        else -> R.string.change_depot_vente_titre
+                    }
                 ),
                 fontWeight = FontWeight.Bold, fontSize = 24.sp, color = TextPrimary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -3770,6 +3705,194 @@ private fun ColumnScope.EtapeTransmis(
             fontSize = 16.sp,
             color = AccentBlue
         )
+    }
+
+    /*
+    APRES LES DEUX SORTIES, ET C'EST SA PLACE.
+
+    Neuf personnes sur dix quittent cet ecran sans rien attendre : la
+    demande est partie, les fonds arrivent. L'aide ne doit pas s'imposer a
+    elles.
+
+    La dixieme revient ici — par « Mes dernieres demandes » — parce que
+    rien n'est arrive. Elle descend, et le numero est au bout. C'est le
+    seul endroit de l'application ou elle le cherchera.
+
+    LA REFERENCE PART AVEC LE MESSAGE WHATSAPP. C'est exactement ce qu'on
+    lui redemanderait, et elle vient de quitter l'ecran qui l'affichait.
+    */
+    AssistanceChange(state.reference)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE NUMÉRO QU'ON CHERCHE QUAND ÇA NE SE PASSE PAS COMME PRÉVU
+═══════════════════════════════════════════════════════════════════════════
+
+Tout le reste de ce parcours suppose que ça marche. Le paiement part, le
+changeur reçoit, les fonds arrivent. Et neuf fois sur dix c'est vrai.
+
+La dixième, quelqu'un a envoyé de l'argent réel et il attend. Il relit
+l'écran, il cherche une sortie, il n'en trouve pas — et il conclut, parce
+que c'est la seule conclusion disponible, qu'il n'y a personne au bout.
+Les minutes qu'il passe là sont les pires de tout le parcours.
+
+─── ET CE N'EST PAS QU'UN DÉPANNAGE ──────────────────────────────────────
+
+Un numéro visible AVANT de payer ne sert pas à appeler : il sert à ne pas
+avoir à le faire. Sur un marché où l'on confie son argent à une
+application récente, pouvoir lire un numéro burkinabè qui répond est ce
+qui fait appuyer sur le bouton. Il est donc posé sur l'écran de paiement,
+et pas seulement sur celui qui annonce que c'est fini.
+
+C'est aussi pour ça que le numéro s'affiche EN TOUTES LETTRES au lieu de
+se cacher derrière deux boutons : un bouton promet un appel, un numéro
+écrit prouve qu'il existe. On peut le recopier, le montrer à quelqu'un, le
+chercher dans ses contacts — trois gestes qu'un bouton ne permet pas.
+
+─── DEUX CANAUX, PARCE QU'ON S'EN SERT DIFFÉREMMENT ──────────────────────
+
+On appelle quand c'est urgent. On écrit sur WhatsApp quand il faut joindre
+une capture du SMS Orange Money — et c'est souvent ce qu'on demandera.
+
+LE MESSAGE PART DÉJÀ RÉDIGÉ, avec la référence dedans. C'est la première
+chose qu'on redemanderait, et justement celle que la personne n'a plus
+sous les yeux une fois WhatsApp ouvert.
+
+ACTION_DIAL ET JAMAIS ACTION_CALL, comme pour le code USSD plus haut : on
+compose le numéro, on ne le lance pas. Aucune permission, et personne ne
+voit un appel partir sans l'avoir décidé.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun AssistanceChange(reference: String) {
+    val contexte = androidx.compose.ui.platform.LocalContext.current
+    val message = if (reference.isBlank()) {
+        stringResource(R.string.change_assistance_message_simple)
+    } else {
+        stringResource(R.string.change_assistance_message, reference)
+    }
+
+    /*
+    DEUX ACTIONS, ET PAS LA MEME POUR LES DEUX BOUTONS.
+
+    ACTION_DIAL pour le numero : c'est l'action documentee pour « tel: »,
+    elle n'exige aucune permission, et elle COMPOSE sans appeler — la regle
+    deja posee pour le code USSD plus haut. ACTION_VIEW resout « tel: » sur
+    la plupart des telephones, mais « la plupart » n'est pas une garantie.
+
+    ACTION_VIEW pour le lien wa.me, qui est une URL : il ouvre WhatsApp s'il
+    est installe, le navigateur sinon.
+
+    `runCatching` sur les deux : une tablette n'a pas de composeur, et un
+    telephone sans navigateur ni WhatsApp ne resout pas le lien. Dans les
+    deux cas le numero reste lisible juste au-dessus, et c'est la vraie
+    issue de secours.
+    */
+    fun ouvrir(action: String, lien: String) {
+        runCatching {
+            contexte.startActivity(
+                android.content.Intent(action, android.net.Uri.parse(lien))
+            )
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceColor,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape)
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.SupportAgent, null,
+                        tint = AccentBlue, modifier = Modifier.size(19.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.change_assistance_titre),
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    )
+                    Text(
+                        com.vaultex.domain.support.ContactsVaultex.ASSISTANCE_CHANGE_AFFICHE,
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AccentBlue
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.change_assistance_detail),
+                fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        ouvrir(
+                            android.content.Intent.ACTION_DIAL,
+                            com.vaultex.domain.support.ContactsVaultex
+                                .LIEN_ASSISTANCE_CHANGE_APPEL
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BgTertiary),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = BgTertiary),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    modifier = Modifier.weight(1f).height(42.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Call, null,
+                        tint = AccentBlue, modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        stringResource(R.string.change_assistance_appel),
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AccentBlue,
+                        maxLines = 1
+                    )
+                }
+                OutlinedButton(
+                    onClick = {
+                        ouvrir(
+                            android.content.Intent.ACTION_VIEW,
+                            com.vaultex.domain.support.ContactsVaultex
+                                .lienAssistanceChange(message)
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    // AUX COULEURS DE WHATSAPP, comme le bouton USSD porte
+                    // celles d'Orange Money : on reconnait le canal avant
+                    // d'avoir lu le mot.
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp, VertWhatsApp.copy(alpha = 0.45f)
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = VertWhatsApp.copy(alpha = 0.10f)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    modifier = Modifier.weight(1f).height(42.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Chat, null,
+                        tint = VertWhatsApp, modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        stringResource(R.string.change_assistance_whatsapp),
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = VertWhatsApp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

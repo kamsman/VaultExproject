@@ -104,6 +104,19 @@ n'est pas a nous.
 */
 val OrangeMoney = Color(0xFFFF7900)
 
+/*
+MEME REGLE QUE CI-DESSUS, POUR LE VERT DE WHATSAPP.
+
+Et la meme raison de ne PAS reutiliser `accentGreen` : celui-la dit « ce
+que tu recois » et « c'est confirme ». Peindre un bouton de contact avec
+lui le ferait lire comme un resultat, sur des ecrans ou chaque vert
+annonce un montant.
+
+Fixe lui aussi, dans les deux themes : une couleur de marque n'est pas a
+nous, et un vert WhatsApp qui s'eclaircit la nuit ne se reconnait plus.
+*/
+val VertWhatsApp = Color(0xFF25D366)
+
 val NetworkBtc = Color(0xFFF7931A)
 val NetworkEth = Color(0xFF627EEA)
 val NetworkBnb = Color(0xFFF0B90B)
