@@ -567,6 +567,13 @@ class PortfolioViewModel @Inject constructor(
                     // ne serait affiche nulle part : l'appel coute une
                     // requete par rafraichissement, sur chaque telephone,
                     // pour une ligne qui ne sera pas construite.
+                    // Eteint pendant le chantier : inutile d'interroger le
+                    // reseau pour une ligne qui ne sera pas construite.
+                    val usdtSolD = async(Dispatchers.IO) {
+                        if (com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF) {
+                            fetchUsdtSolBalance(addresses.sol)
+                        } else null
+                    }
                     val piD      = async(Dispatchers.IO) {
                         if (com.vaultex.core.config.Fonctionnalites.PI_ACTIF) {
                             fetchPiBalance(addresses.pi)
@@ -576,6 +583,7 @@ class PortfolioViewModel @Inject constructor(
                     val bnb = bnbD.await(); val sol = solD.await()
                     val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
                     val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
+                    val usdtSol = usdtSolD.await()
                     val pi = piD.await()
 
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
@@ -664,6 +672,14 @@ class PortfolioViewModel @Inject constructor(
                         build("USDT",     "Tether TRC20", usdtTrc, 2, "USDT", "tether",      "#26A17B", Blockchain.TRON),
                         build("USDT-ETH", "Tether ERC20", usdtEth, 2, "USDT", "tether",      "#26A17B", Blockchain.ETHEREUM),
                         build("USDT-BNB", "Tether BEP20", usdtBnb, 2, "USDT", "tether",      "#26A17B", Blockchain.BNB_CHAIN),
+                        /*
+                        L'USDT DE SOLANA, ETEINT TANT QUE L'ENVOI N'EST PAS
+                        ECRIT. Meme garde que le Pi, et la meme raison : une
+                        option visible qui ne marche pas est pire que pas
+                        d'option. Voir `Fonctionnalites.USDT_SOL_ACTIF`.
+                        */
+                        build("USDT-SOL", "Tether Solana", usdtSol, 2, "USDT", "tether", "#26A17B", Blockchain.SOLANA)
+                            .takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF },
                         /*
                         LE PI, EXACTEMENT COMME LES AUTRES — ET PAS DANS L'ÉCHANGE.
 
@@ -1171,6 +1187,90 @@ class PortfolioViewModel @Inject constructor(
             else _incomingPending.value - "BTC"
         (info.chainStats.fundedSum - info.chainStats.spentSum) / 1e8
     } catch (_: Exception) { null }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'USDT SUR SOLANA NE SE LIT PAS COMME LES AUTRES
+    ═══════════════════════════════════════════════════════════════════════
+
+    Sur Tron et sur les EVM, le solde d'un jeton est une case du contrat,
+    indexée par l'adresse du détenteur : on appelle `balanceOf`, on obtient
+    un nombre. Sur Solana il n'y a pas de case — il y a un COMPTE SÉPARÉ,
+    dont l'adresse se dérive, et qui peut tout simplement ne pas exister.
+
+    ─── POURQUOI `getTokenAccountsByOwner` ET PAS `getTokenAccountBalance` ─
+
+    Le second est plus court : on dérive le compte, on demande son solde.
+    Mais quand le compte n'existe pas, il rend une ERREUR — la même sorte
+    d'erreur qu'un nœud injoignable. On confondrait alors « cette personne
+    n'a jamais eu d'USDT » avec « on n'a pas pu regarder », et c'est
+    exactement la confusion que tout ce fichier s'applique à éviter.
+
+    Le premier rend une LISTE. Vide veut dire zéro, sans ambiguïté ; une
+    erreur de transport reste une erreur. Les deux cas se distinguent, et
+    c'est ce qui permet de rendre `null` plutôt qu'un faux zéro sur un
+    écran qui affiche un patrimoine.
+
+    ─── ON NE RETIENT QUE LE COMPTE ASSOCIÉ ───────────────────────────────
+
+    Un détenteur peut posséder plusieurs comptes pour le même jeton. Le
+    tenter serait de les additionner — ce serait plus « vrai », et ce serait
+    une faute : on ne sait envoyer QUE depuis le compte associé. Afficher
+    une somme qu'on ne peut pas dépenser promet ce qu'on ne tiendra pas.
+
+    Dans les faits, un portefeuille qui n'a fait que recevoir n'en a qu'un,
+    et c'est celui-là.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private suspend fun fetchUsdtSolBalance(address: String): Double? = try {
+        val compteAssocie = com.vaultex.core.tx.SolanaSpl.compteAssocieBase58(address)
+        val res = solanaRpc.rpcCall(
+            JsonRpcRequest(
+                "getTokenAccountsByOwner",
+                mutableListOf(
+                    address as Any,
+                    mapOf("mint" to com.vaultex.core.tx.SolanaSpl.MINT_USDT) as Any,
+                    mapOf("encoding" to "jsonParsed") as Any
+                )
+            )
+        )
+        if (res.error != null) null
+        else {
+            @Suppress("UNCHECKED_CAST")
+            val liste = (res.result as? Map<String, Any>)?.get("value") as? List<Map<String, Any>>
+            when {
+                liste == null -> null
+                // La liste existe et ne contient pas notre compte : il n'a
+                // jamais ete cree. C'est un vrai zero, pas une ignorance.
+                else -> liste.firstOrNull { (it["pubkey"] as? String) == compteAssocie }
+                    ?.let { montantJetonSolana(it) } ?: 0.0
+            }
+        }
+    } catch (_: Exception) { null }
+
+    /**
+     * Le montant d'un compte de jeton Solana, lu dans sa forme analysee.
+     *
+     * ON LIT `amount` ET NON `uiAmount`. Le second est un flottant rendu par
+     * le noeud, et il vaut `null` dès que le jeton a beaucoup de decimales.
+     * Le premier est la quantite BRUTE, en chaine de caracteres, exacte par
+     * construction — on applique les decimales nous-memes, en decimal, sans
+     * jamais passer par un flottant intermediaire.
+     *
+     * Rend `null` sur toute structure inattendue : un format qu'on ne
+     * reconnait pas n'est pas un solde nul.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun montantJetonSolana(entree: Map<String, Any>): Double? {
+        val compte = entree["account"] as? Map<String, Any> ?: return null
+        val donnees = compte["data"] as? Map<String, Any> ?: return null
+        val analyse = donnees["parsed"] as? Map<String, Any> ?: return null
+        val info = analyse["info"] as? Map<String, Any> ?: return null
+        val montant = info["tokenAmount"] as? Map<String, Any> ?: return null
+        val brut = montant["amount"] as? String ?: return null
+        val decimales = (montant["decimals"] as? Number)?.toInt() ?: return null
+        return java.math.BigDecimal(brut).movePointLeft(decimales).toDouble()
+    }
 
     private suspend fun fetchSolBalance(address: String): Double? = try {
         val res = solanaRpc.rpcCall(JsonRpcRequest("getBalance", mutableListOf(address as Any)))
