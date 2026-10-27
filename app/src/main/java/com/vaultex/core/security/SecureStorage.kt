@@ -752,12 +752,22 @@ class SecureStorage @Inject constructor(
         private const val KEY_ANTIPHISHING = "anti_phishing_code"
         private const val KEY_CURRENCY = "display_currency"
         private const val KEY_VISIBLE_ASSETS = "visible_assets"
-        val DEFAULT_VISIBLE_ASSETS = setOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "PI")
+        val DEFAULT_VISIBLE_ASSETS = setOfNotNull(
+            "BTC", "ETH", "BNB", "SOL", "TRX", "USDT",
+            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
+        )
 
         /**
          * Monnaies arrivées APRÈS la première version — à activer une fois
          * chez les installations existantes. Voir [avecNouveautes].
+         *
+         * VIDE TANT QUE LE PI EST EN PAUSE, et c'est le cas qui comptait :
+         * ce mécanisme ACTIVE de force chez les anciens. Le laisser tourner
+         * sur un actif en pause le rallumerait chez eux, une fois, sans que
+         * rien ne l'affiche — un réglage vrai pour une monnaie absente.
          */
-        private val ACTIFS_INTRODUITS_APRES_COUP = listOf("PI")
+        private val ACTIFS_INTRODUITS_APRES_COUP = listOfNotNull(
+            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
+        )
     }
 }

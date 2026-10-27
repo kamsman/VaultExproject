@@ -563,7 +563,15 @@ class PortfolioViewModel @Inject constructor(
                     val usdtTrcD = async(Dispatchers.IO) { fetchUsdtTrc20Balance(addresses.trx) }
                     val usdtEthD = async(Dispatchers.IO) { fetchErc20Balance(ethRpc, USDT_ETH_CONTRACT, addresses.eth, 6) }
                     val usdtBnbD = async(Dispatchers.IO) { fetchErc20Balance(bnbRpc, USDT_BNB_CONTRACT, addresses.bnb, 18) }
-                    val piD      = async(Dispatchers.IO) { fetchPiBalance(addresses.pi) }
+                    // EN PAUSE, ON N'INTERROGE MEME PAS HORIZON. Le solde
+                    // ne serait affiche nulle part : l'appel coute une
+                    // requete par rafraichissement, sur chaque telephone,
+                    // pour une ligne qui ne sera pas construite.
+                    val piD      = async(Dispatchers.IO) {
+                        if (com.vaultex.core.config.Fonctionnalites.PI_ACTIF) {
+                            fetchPiBalance(addresses.pi)
+                        } else null
+                    }
                     val btc = btcD.await(); val eth = ethD.await()
                     val bnb = bnbD.await(); val sol = solD.await()
                     val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
@@ -644,7 +652,10 @@ class PortfolioViewModel @Inject constructor(
                             priceUsd = pUsd, priceEur = pEur, priceXof = pXof,
                             amountRaw = bal ?: 0.0)
                     }
-                    listOf(
+                    // `listOfNotNull` POUR LE PI EN PAUSE : il est le seul
+                    // element qui puisse manquer, et il manque entierement
+                    // plutot que d'apparaitre vide. Voir `Fonctionnalites`.
+                    listOfNotNull(
                         build("BTC",      "Bitcoin",      btc,     6, "BTC",  "bitcoin",     "#F7931A", Blockchain.BITCOIN),
                         build("ETH",      "Ethereum",     eth,     6, "ETH",  "ethereum",    "#627EEA", Blockchain.ETHEREUM),
                         build("BNB",      "BNB",          bnb,     6, "BNB",  "binancecoin", "#F0B90B", Blockchain.BNB_CHAIN),
@@ -669,7 +680,15 @@ class PortfolioViewModel @Inject constructor(
                         précisément ce qui permet d'ajouter cette ligne sans
                         ouvrir une route de signature qui n'existe pas encore.
                         */
-                        build("PI",       "Pi Network",   pi,      4, "PI",   "pi-network",  "#7D4698", Blockchain.PI),
+                        /*
+                        L'INTERRUPTEUR LE PLUS EN AMONT. Un actif qui n'est
+                        pas construit ne peut apparaitre nulle part — ni a
+                        l'accueil, ni dans l'envoi, ni dans la reception, ni
+                        sur sa propre fiche. Il n'y a donc pas six ecrans a
+                        penser, seulement cette ligne.
+                        */
+                        build("PI",       "Pi Network",   pi,      4, "PI",   "pi-network",  "#7D4698", Blockchain.PI)
+                            .takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF },
                     )
                 }
 

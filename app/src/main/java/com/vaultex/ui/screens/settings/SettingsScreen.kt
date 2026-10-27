@@ -454,12 +454,18 @@ fun SettingsScreen(navController: NavHostController) {
                     SettingsRow(Icons.Default.Schedule, stringResource(R.string.pending_sends_title)) {
                         navController.navigate(Routes.PENDING_SENDS)
                     }
-                    RowDivider()
                     // Pi Network : écran à part, et non une monnaie de plus —
                     // l'ajouter au registre le ferait apparaître dans le
                     // sélecteur d'échange, où aucun échangeur ne l'accepte.
-                    SettingsRow(Icons.Default.Language, stringResource(R.string.pi_title)) {
-                        navController.navigate(Routes.PI)
+                    //
+                    // EN PAUSE : c'est la derniere porte vers `Routes.PI` qui
+                    // ne passe pas par le portefeuille. Sans elle, l'ecran
+                    // existe toujours et plus rien n'y mene.
+                    if (com.vaultex.core.config.Fonctionnalites.PI_ACTIF) {
+                        RowDivider()
+                        SettingsRow(Icons.Default.Language, stringResource(R.string.pi_title)) {
+                            navController.navigate(Routes.PI)
+                        }
                     }
                 }
             }
