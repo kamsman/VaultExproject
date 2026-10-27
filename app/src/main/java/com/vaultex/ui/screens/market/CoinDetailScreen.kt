@@ -599,7 +599,13 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             d'échange et la liste des actifs fait le travail toute seule.
             ═══════════════════════════════════════════════════════════════
             */
-            val estPi = symbol.equals("PI", ignoreCase = true) || coinId == "pi-network"
+            // EN PAUSE, LE PI N'EST PLUS « LE PI ». Tout ce qui suit se
+            // deduit de ce booleen — les boutons Envoyer et Recevoir, la
+            // monnaie preselectionnee, la route PI_ENVOI. Le mettre a faux
+            // rend la fiche identique a celle de n'importe quelle monnaie
+            // qu'on peut consulter sans la detenir.
+            val estPi = com.vaultex.core.config.Fonctionnalites.PI_ACTIF &&
+                (symbol.equals("PI", ignoreCase = true) || coinId == "pi-network")
             val receivable by viewModel.receivableToken.collectAsState()
             val receivableChecking by viewModel.receivableChecking.collectAsState()
             LaunchedEffect(coinId, supported) {

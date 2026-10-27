@@ -28,7 +28,17 @@ class AssetVisibilityController @Inject constructor(
     }
 
     companion object {
-        /** Toutes les monnaies supportées par l'app (ordre d'affichage). */
-        val SUPPORTED = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB", "PI")
+        /**
+         * Toutes les monnaies supportées par l'app (ordre d'affichage).
+         *
+         * LE PI N'Y EST QUE S'IL EST ALLUMÉ. Laisser un actif en pause dans
+         * cette liste le ferait apparaître dans « Mes actifs » avec un
+         * interrupteur qui n'allume rien — le portefeuille ne le construit
+         * plus. Voir [com.vaultex.core.config.Fonctionnalites.PI_ACTIF].
+         */
+        val SUPPORTED = listOfNotNull(
+            "BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB",
+            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
+        )
     }
 }
