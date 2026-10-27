@@ -842,7 +842,7 @@ private fun ColumnScope.EtapeCalcul(
         NoteEnDeuxTemps(
             messageBlocage(
                 it, p, state.monnaie, state.fcfaParDollar, state.jetonGaz,
-                state.prix, donneFcfa
+                state.prix, donneFcfa, state
             ),
             AccentRed
         )
@@ -5283,14 +5283,31 @@ private fun messageBlocage(
      */
     prix: com.vaultex.domain.fiat.PrixFcfa?,
     /** Vrai sur un achat. Decide du sens de la borne ET de son unite. */
-    achat: Boolean
+    achat: Boolean,
+    /**
+     * L'etat, pour `minimumFcfa()` et `fraisGaz`.
+     *
+     * LE SEUIL AFFICHE DOIT ETRE CELUI QUI REFUSE. Il se recalculait ici,
+     * a cote de celui de `blocage()` — deux ecritures de la meme regle, et
+     * depuis que les frais de reseau y entrent, deux chances de diverger.
+     * L'ecran annoncerait alors un minimum qu'il refuse quand meme.
+     */
+    state: com.vaultex.ui.viewmodel.ChangeState
 ): String = when (code) {
     /*
     LE MESSAGE NOMME LE JETON ET DIT QUOI FAIRE. « Frais insuffisants »
     laisse chercher : insuffisants de quoi, et ou en trouver ? Le nom du
     jeton et le geste suivant tiennent dans la meme phrase.
     */
-    "gaz" -> stringResource(R.string.change_pas_de_gaz, jetonGaz)
+    /*
+    AVEC LE CHIFFRE QUAND ON L'A, et la difference n'est pas mince : sur
+    Tron, « il vous faut du TRX » et « il vous faut environ 27 TRX » ne
+    menent pas au meme geste. Le premier laisse acheter deux TRX et revenir
+    se faire refuser.
+    */
+    "gaz" -> state.fraisGaz?.takeIf { it > 0.0 }?.let { f ->
+        stringResource(R.string.change_pas_de_gaz_montant, montantGaz(f), jetonGaz)
+    } ?: stringResource(R.string.change_pas_de_gaz, jetonGaz)
     /*
     MEME FAMILLE QUE LE GAZ : un refus qui ne vient pas du chiffre tape,
     mais de l'etat du portefeuille. Il nomme la monnaie et le geste
@@ -5309,7 +5326,8 @@ private fun messageBlocage(
     */
     "minimum" -> borne(
         R.string.change_sous_minimum, R.string.change_sous_minimum_crypto,
-        p.minimumPour(monnaie, fcfaParDollar, prix, achat),
+        // CELUI DE L'ETAT, donc frais de reseau compris. Voir `minimumFcfa`.
+        state.minimumFcfa(),
         monnaie, prix, achat, versLeHaut = true
     )
     /*
@@ -5370,6 +5388,23 @@ private fun borne(
     if (n < 1.0) return stringResource(enFrancs, fcfa(seuilFcfa))
     return stringResource(enCrypto, fcfa(n), monnaie)
 }
+
+/**
+ * Un montant de jeton de gaz, lisible.
+ *
+ * DEUX CHIFFRES SIGNIFICATIFS, parce que les ordres de grandeur n'ont rien
+ * a voir : 27 TRX et 0,000105 BNB doivent tous deux se lire. Un nombre fixe
+ * de decimales rendrait « 0,00 » pour l'un ou « 27,000105 » pour l'autre.
+ *
+ * ARRONDI VERS LE HAUT : un seuil annonce trop bas enverrait quelqu'un
+ * acheter exactement ce qu'il faut, moins un cheveu, et se faire refuser.
+ */
+private fun montantGaz(v: Double): String =
+    java.math.BigDecimal.valueOf(v)
+        .round(java.math.MathContext(2, java.math.RoundingMode.CEILING))
+        .stripTrailingZeros()
+        .toPlainString()
+        .replace('.', ',')
 
 private fun fcfa(v: Double): String =
     java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE).format(v)
