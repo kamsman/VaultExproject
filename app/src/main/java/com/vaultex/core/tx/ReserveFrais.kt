@@ -83,7 +83,7 @@ object ReserveFrais {
         chaine == "ETH" || chaine == "USDT-ETH" -> "ETH"
         chaine == "BNB" || chaine == "USDT-BNB" -> "BNB"
         chaine == "BTC" -> "BTC"
-        chaine == "SOL" -> "SOL"
+        chaine == "SOL" || chaine == "USDT-SOL" -> "SOL"
         chaine == "TRX" || chaine == "USDT" -> "TRX"
         else -> chaine
     }

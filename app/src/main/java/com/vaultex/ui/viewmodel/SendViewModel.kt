@@ -631,7 +631,22 @@ class SendViewModel @Inject constructor(
                 if (chain == "TRX") _state.value.toAddress
                     .takeIf { it.isNotBlank() && AddressValidator.isValid(it, "TRX") }
                 else null
-            val frais = sendCryptoUseCase.estimerFrais(chain, adresseTron, adresseBtc, destinationTron)
+            /*
+            LE DESTINATAIRE SOLANA, POUR LA MEME RAISON ET EN PIRE.
+
+            Sur Tron, activer un compte coute 1 TRX. Sur Solana, creer le
+            compte USDT du destinataire coute quatre cent neuf fois les
+            frais. Sans l'adresse, l'estimation provisionne la creation —
+            et des qu'elle est saisie, le chiffre se corrige au
+            rafraichissement suivant.
+            */
+            val destinationSolana =
+                if (chain == "USDT-SOL") _state.value.toAddress
+                    .takeIf { it.isNotBlank() && AddressValidator.isValid(it, "SOL") }
+                else null
+            val frais = sendCryptoUseCase.estimerFrais(
+                chain, adresseTron, adresseBtc, destinationTron, destinationSolana
+            )
 
             // La monnaie a changé pendant que la réponse arrivait : ces frais
             // ne concernent plus l'écran affiché, on les jette.

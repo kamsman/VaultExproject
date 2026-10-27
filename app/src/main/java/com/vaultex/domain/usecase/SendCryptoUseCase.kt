@@ -1162,7 +1162,27 @@ class SendCryptoUseCase @Inject constructor(
          * 1 TRX, brûlé. Sans cette adresse, on doit provisionner ce montant
          * par prudence — et il est retranché du bouton MAX.
          */
-        destinationTron: String? = null
+        destinationTron: String? = null,
+        /**
+         * Adresse Solana du DESTINATAIRE, quand elle est deja saisie.
+         *
+         * ═══════════════════════════════════════════════════════════════
+         * SUR SOLANA, LE COUT DEPEND DE CELUI QUI RECOIT
+         * ═══════════════════════════════════════════════════════════════
+         *
+         * Meme raison que `destinationTron` deux lignes plus haut, en bien
+         * plus marque : la, activer un compte coute 1 TRX ; ici, creer le
+         * compte USDT du destinataire coute QUATRE CENT NEUF FOIS les frais
+         * de transaction.
+         *
+         * Sans cette adresse, on provisionne la creation par prudence. Ce
+         * n'est pas gratuit — l'ecran annonce alors 0,00204 SOL pour une
+         * operation qui en coutera peut-etre 0,000005, et le bouton MAX
+         * reserve d'autant. C'est le prix de ne pas savoir, et il se paie
+         * dans le sens qui ne fait echouer personne.
+         * ═══════════════════════════════════════════════════════════════
+         */
+        destinationSolana: String? = null
     ): FraisReseau? = try {
         // Token personnalisé : gas d'un transfert ERC-20/BEP-20, payé en
         // natif (ETH ou BNB).
@@ -1183,12 +1203,79 @@ class SendCryptoUseCase @Inject constructor(
             "TRX"  -> runCatching { fraisTron(false, adresseTron, destinationTron) }.getOrNull()
                 ?: identiques(0.3)
             "USDT" -> runCatching { fraisTron(true, adresseTron) }.getOrNull() ?: identiques(27.0)
+            "USDT-SOL" -> fraisUsdtSolana(destinationSolana)
             else   -> null
         }
     } catch (_: Exception) { null }
 
     /** Frais dont l'attendu et le plafond se confondent (montant fixe ou déjà estimé). */
     private fun identiques(v: Double) = FraisReseau(attendu = v, plafond = v)
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES FRAIS D'UN ENVOI D'USDT SUR SOLANA : DEUX MONTANTS, PAS UN
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cinq mille lamports si le destinataire possede deja un compte USDT.
+    Deux millions de plus s'il faut le creer. Il n'y a pas de valeur
+    intermediaire, et aucune moyenne n'aurait de sens : ce n'est pas une
+    estimation qui varie, c'est un oui ou un non.
+
+    ─── POURQUOI CE N'EST PAS QU'UN CHIFFRE A AFFICHER ────────────────────
+
+    Trois choses lisent ce resultat, et les trois se tromperaient :
+
+      — l'ECRAN DE CONFIRMATION annoncerait « ≈ 0,000005 SOL » devant
+        quelqu'un qui va en depenser quatre cents fois plus ;
+      — le MINIMUM DE RESEAU vaut trois fois les frais : avec cinq mille
+        lamports il tomberait a quelques millioniemes d'USDT, c'est-a-dire
+        a rien, et laisserait envoyer des montants que le transport mange ;
+      — le bouton MAX reserve ce montant sur le solde, et laisserait
+        l'utilisateur vider son SOL puis echouer a la creation.
+
+    ─── SANS DESTINATAIRE, ON PROVISIONNE LA CREATION ─────────────────────
+
+    L'ecran d'envoi demande les frais des son ouverture, avant qu'une
+    adresse soit saisie. On repond alors le montant HAUT.
+
+    Le sens de l'erreur est choisi : surestimer fait reserver un peu trop de
+    SOL, sous-estimer fait echouer une transaction deja signee. Et des que
+    l'adresse est la, le chiffre se corrige tout seul au rafraichissement
+    suivant.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private suspend fun fraisUsdtSolana(destination: String?): FraisReseau {
+        val frais = com.vaultex.core.tx.SolanaSpl.FRAIS_SIGNATURE
+        val rente = com.vaultex.core.tx.SolanaSpl.RENTE_COMPTE_JETON
+        val haut = java.math.BigDecimal.valueOf(frais + rente).movePointLeft(9).toDouble()
+        val bas = java.math.BigDecimal.valueOf(frais).movePointLeft(9).toDouble()
+
+        val adresse = destination?.trim()?.takeIf { AddressValidator.isValidSolana(it) }
+            ?: return identiques(haut)
+
+        return try {
+            val compte = Base58.encode(
+                com.vaultex.core.tx.SolanaSpl.compteAssocie(
+                    Base58.decode(adresse),
+                    Base58.decode(com.vaultex.core.tx.SolanaSpl.MINT_USDT)
+                )
+            )
+            @Suppress("UNCHECKED_CAST")
+            val res = solanaRpc.rpcCall(
+                JsonRpcRequest(
+                    "getAccountInfo",
+                    mutableListOf(compte as Any, mapOf("encoding" to "base64") as Any)
+                )
+            )
+            // Une erreur de lecture ne dit rien : on reste sur le montant
+            // haut, comme `sendUsdtSol` reste sur « il faut creer ».
+            if (res.error != null) identiques(haut)
+            else if ((res.result as? Map<String, Any>)?.get("value") != null) identiques(bas)
+            else identiques(haut)
+        } catch (_: Exception) {
+            identiques(haut)
+        }
+    }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
