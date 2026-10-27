@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 61
+const VERSION = 62
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2780,7 +2780,15 @@ async function ordreChange(requete, env) {
   imprimant ses six états sans rien appeler.
   */
   const otp = await numeroConfirme(ordre, env)
-  const lignes = messageOrdre(ordre, verif, coherence, otp)
+  /*
+  LE SILENCE SE MESURE ICI, ET SE PASSE EN PARAMETRE.
+
+  `messageOrdre` met en forme et ne consulte rien : elle n'a ni `env` ni
+  le droit d'attendre. C'est deja le cas de `verif`, `coherence` et `otp`,
+  qui arrivent tout calcules — on ne lui donne pas une exception.
+  */
+  const silenceSms = await silenceRobotSms(env)
+  const lignes = messageOrdre(ordre, verif, coherence, otp, silenceSms)
 
   try {
     /*
@@ -3013,7 +3021,7 @@ function marqueOtp(otp) {
   }
 }
 
-function messageOrdre(ordre, verif, coherence, otp) {
+function messageOrdre(ordre, verif, coherence, otp, silenceSms = null) {
   const achat = ordre.sens === 'achat'
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -3218,6 +3226,44 @@ function messageOrdre(ordre, verif, coherence, otp) {
       ? `Ref. paiement : ${aCopier(ordre.referencePaiement)}`
       : null,
     ...lignesVerification(verif, coherence, ordre, fcfaAPayer),
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    « INTROUVABLE » NE DIT PAS LEQUEL DES DEUX A ÉCHOUÉ
+    ═══════════════════════════════════════════════════════════════════
+
+    Sur un achat non confirmé, le message dit que le paiement n'a pas été
+    vu. C'est exact, et c'est ambigu : soit le client n'a pas payé, soit
+    le robot SMS est arrêté et personne ne l'a vu PASSER.
+
+    Les deux mènent à des gestes opposés. Le premier demande de ne rien
+    envoyer. Le second demande d'aller regarder soi-même son relevé — où
+    l'argent est peut-être déjà arrivé — et de rouvrir l'application du
+    robot, ce qui la réveille.
+
+    Sans cette ligne, le changeur conclut au premier : c'est la lecture
+    naturelle, et elle fait accuser des clients honnêtes pendant qu'une
+    panne silencieuse dure des jours.
+
+    ─── SEULEMENT QUAND ELLE SERT, ET NULLE PART AILLEURS ─────────────
+
+    Un achat CONFIRMÉ n'a rien à y gagner : le robot vient justement de
+    prouver qu'il entend. Une vente non plus — elle se vérifie sur la
+    chaîne, le robot n'y joue aucun rôle. Et si CHANGE_SMS_TOKEN n'est
+    pas réglé, il n'y a pas de robot à soupçonner.
+
+    SIX HEURES, ET PAS DOUZE comme sur l'écran du robot. Les deux ne
+    répondent pas à la même question. L'écran demande « est-ce que
+    quelque chose a l'air arrêté », et doit enjamber une nuit sans crier.
+    Ici, quelqu'un VIENT de payer : l'ambiguïté est déjà là, le doute est
+    déjà dans la tête du changeur, et une demi-journée de silence suffit
+    largement à mériter d'être dite.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    achat && !verseVraiment && silenceSms !== null && silenceSms > SILENCE_SMS_MS
+      ? `\u26A0\uFE0F Le robot SMS n'a rien recu ${depuisQuand(silenceSms)} : il est ` +
+        `peut-etre arrete. Verifie ton releve toi-meme, et rouvre ` +
+        `l'application du robot sur le telephone.`
+      : null,
     /*
     \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
     L'AVERTISSEMENT RESTE A L'ACHAT, ET PART A LA VENTE
@@ -6142,6 +6188,44 @@ son téléphone n'a plus de réseau, puis il revient dans l'application.
 */
 const FENETRE_PAIEMENT_MS = 3 * 60 * 60 * 1000
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+SIX HEURES DE SILENCE DU ROBOT, ET PAS DOUZE
+═══════════════════════════════════════════════════════════════════════════
+
+L'écran du robot, lui, attend douze heures avant de passer à l'ambre : il
+répond à « est-ce que quelque chose a l'air arrêté ? », et doit enjamber
+une nuit sans crier au loup tous les matins.
+
+Ici, la question n'est pas la même. Quelqu'un VIENT de payer, le message
+dit que le paiement n'a pas été vu, et le changeur est déjà en train de se
+demander qui croire. L'ambiguïté est posée : une demi-journée de silence
+suffit largement à mériter d'être dite.
+
+Deux seuils pour deux questions, donc, et c'est voulu. Les aligner par
+souci de symétrie ferait taire le plus utile des deux.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const SILENCE_SMS_MS = 6 * 60 * 60 * 1000
+
+/**
+ * Une durée, dite comme on la dit — et jamais en chiffres inutiles.
+ *
+ * « depuis 7 h » suffit à décider d'aller regarder son relevé ; « depuis
+ * 7 h 12 min » n'ajoute rien et allonge une ligne déjà longue.
+ *
+ * L'infini est le cas du robot qui n'a JAMAIS rien transmis, ou plus rien
+ * depuis plus d'une semaine. « depuis plus de 7 jours » est vrai des deux,
+ * et les deux appellent le même geste.
+ */
+function depuisQuand(ms) {
+  if (!Number.isFinite(ms)) return 'depuis plus de 7 jours'
+  const heures = Math.floor(ms / 3600000)
+  if (heures < 1) return `depuis ${Math.max(1, Math.floor(ms / 60000))} min`
+  if (heures < 48) return `depuis ${heures} h`
+  return `depuis ${Math.floor(heures / 24)} jours`
+}
+
 /**
  * Un texte sans accents ni ponctuation superflue, en minuscules.
  *
@@ -7353,6 +7437,33 @@ async function recevoirSms(requete, env) {
   Par MONTANT + NUMÉRO sinon : « 10000 reçus de 70123456 » suffit à
   reconnaître une demande de 10 000 francs déposée par le 70123456.
   */
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE BATTEMENT DE CŒUR DU ROBOT
+  ═══════════════════════════════════════════════════════════════════════
+
+  Un SMS qui arrive ici prouve trois choses d'un coup : le téléphone du
+  changeur est allumé, l'application n'a pas été arrêtée de force, et le
+  réseau passe. C'est la seule preuve de vie qu'on puisse avoir — une
+  application forcée à s'arrêter ne tourne plus, donc ne peut rien dire
+  d'elle-même, et le relais ne peut que constater son silence.
+
+  ─── POSÉ AVANT LE RAPPROCHEMENT, ET MÊME S'IL ÉCHOUE ─────────────────
+
+  Un SMS dont on ne tire ni référence ni numéro repart en 422 quelques
+  lignes plus bas. Il prouve pourtant que le robot entend — c'est le motif
+  qui ne colle pas, pas l'écoute. Le faire compter comme un silence ferait
+  accuser une panne là où il y a un format à corriger.
+
+  SEPT JOURS DE GARDE. Trois heures — la durée des paiements — ne
+  suffiraient pas : un silence de quatre heures effacerait la trace, et
+  « il n'a rien reçu depuis quatre heures » deviendrait indistinguable de
+  « il n'a jamais rien reçu ». Or c'est exactement l'écart qu'on veut
+  mesurer.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  await ecrireBrut('smsvu', 'dernier', String(Date.now()), 7 * 86400)
+
   const valeur = JSON.stringify({ ...lu, quand: Date.now() })
   if (lu.reference) await marquerValeur('paiementref', lu.reference, valeur)
   if (lu.numero) await marquerValeur('paiement', `${lu.montant}-${lu.numero}`, valeur)
@@ -7363,6 +7474,44 @@ async function recevoirSms(requete, env) {
   }
 
   return json({ ok: true, lu })
+}
+
+/**
+ * Depuis combien de temps le robot SMS n'a rien transmis.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * CE QU'ON PEUT DIRE D'UNE APPLICATION QUI NE PEUT PLUS PARLER
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Android ne livre plus aucune diffusion à une application arrêtée de
+ * force — à la main, ou par un « nettoyeur » de batterie. Elle ne tourne
+ * plus : rien à l'intérieur ne peut s'en apercevoir, et encore moins
+ * prévenir. Le robot devient sourd en silence, et les achats repartent
+ * « introuvable » alors que les paiements arrivent bel et bien.
+ *
+ * Le relais, lui, est dehors. Il ne peut pas réveiller le robot, mais il
+ * peut constater qu'il n'a plus rien entendu — et le dire au seul moment
+ * où ça change quelque chose.
+ *
+ * ─── TROIS RÉPONSES, ET ELLES NE SE CONFONDENT PAS ────────────────────
+ *
+ *   null        le robot n'est pas attendu : CHANGE_SMS_TOKEN n'est pas
+ *               réglé, personne n'a installé quoi que ce soit, et il n'y
+ *               a rien à signaler.
+ *   Infinity    il est attendu et n'a JAMAIS rien transmis — ou plus rien
+ *               depuis plus de sept jours. Les deux appellent le même
+ *               regard.
+ *   un nombre   les millisecondes depuis le dernier SMS reçu.
+ *
+ * Une horloge reculée donnerait un négatif, qui s'afficherait « depuis
+ * -3 h » : on le ramène à zéro.
+ */
+async function silenceRobotSms(env) {
+  if (!String(env?.CHANGE_SMS_TOKEN ?? '')) return null
+  const brut = await lireBrut('smsvu', 'dernier')
+  const quand = Number(brut)
+  if (!brut || !Number.isFinite(quand) || quand <= 0) return Infinity
+  return Math.max(0, Date.now() - quand)
 }
 
 /** Garde une valeur, pour la durée de la fenêtre de rapprochement. */
