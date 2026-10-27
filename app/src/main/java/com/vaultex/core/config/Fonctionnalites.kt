@@ -61,4 +61,25 @@ object Fonctionnalites {
     ═══════════════════════════════════════════════════════════════════════
     */
     const val PI_ACTIF = false
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'USDT SUR SOLANA SE CONSTRUIT, ET IL EST ÉTEINT PENDANT CE TEMPS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Même interrupteur, raison inverse : le Pi est en pause parce qu'il
+    marchait, celui-ci est éteint parce qu'il n'est pas fini.
+
+    LA LEÇON VIENT DU PI, et elle vaut dans les deux sens : une option
+    visible qui ne marche pas est pire que pas d'option. Quelqu'un la
+    choisit PARCE QU'ELLE EST LÀ, et découvre qu'elle ne mène nulle part —
+    au milieu d'une opération d'argent.
+
+    Tant que l'envoi et la vérification du relais ne sont pas écrits ET
+    éprouvés sur un vrai petit transfert, le solde se lit mais l'actif ne
+    s'affiche pas. Le code se construit par morceaux ; l'écran, lui, ne
+    connaît que « ça marche » ou « ça n'existe pas ».
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    const val USDT_SOL_ACTIF = false
 }

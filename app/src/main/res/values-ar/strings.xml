@@ -1020,6 +1020,10 @@
     <string name="tx_err_solana_rent">لا تسمح سولانا بترك أقل من 0.0009 SOL في حسابك. أرسل كل الرصيد (%1$s SOL) أو قلّل المبلغ للإبقاء على 0.0009 SOL على الأقل.</string>
     <string name="tx_err_solana_compte_neuf">هذا العنوان حساب سولانا جديد تمامًا: يجب ألا يقل الإرسال الأول عن 0.0009 SOL.</string>
     <string name="tx_err_blockhash_solana">تعذر العثور على blockhash سولانا</string>
+    <string name="tx_err_sol_pour_usdt">تحتاج إلى %1$s SOL على الأقل في محفظتك لهذا التحويل: رسوم الشبكة وإنشاء حساب USDT للمستلم.</string>
+    <string name="tx_err_sol_frais">تحتاج إلى %1$s SOL على الأقل في محفظتك لدفع رسوم الشبكة.</string>
+    <string name="tx_err_envoi_a_soi">هذا العنوان عنوانك. اختر وجهة أخرى.</string>
+    <string name="tx_err_usdt_sol_generique">فشل إرسال USDT على سولانا</string>
     <string name="tx_err_envoi_generique">خطأ في الإرسال</string>
     <string name="swap_confirm_sans_devis">لا يوجد عرض سعر حاليًا: لا يمكن معرفة ما سيعيده هذا التبادل. عد إلى الخلف وأعد المحاولة.</string>
     <!-- شاشة التبادل -->
