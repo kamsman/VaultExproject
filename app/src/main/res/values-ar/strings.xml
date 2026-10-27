@@ -1217,7 +1217,6 @@
     <string name="change_vente_partie_titre">بيعك في طريقه</string>
     <string name="change_depot_vente_titre">نُبلغ VaultEx</string>
     <string name="change_depot_achat_titre">نرسل طلبك</string>
-    <string name="change_depot_patiente">بضع ثوانٍ أخرى.</string>
     <string name="change_depot_ne_ferme_pas">لا تُغلق التطبيق. ابقَ هنا بضع ثوانٍ.</string>
     <string name="change_vente_preparation">جارٍ تحضير بيعك…</string>
     <string name="vente_traitement_etape">جارٍ إرسال العملة…</string>

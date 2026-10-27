@@ -28,8 +28,6 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
@@ -451,11 +449,28 @@ fun ChangeScreen(navController: NavController) {
                     du change doivent se distinguer de ceux de l'envoi et du
                     swap ; partager le titre exact de l'ecran de diffusion
                     etait la facon la plus directe de les confondre.
+
+                    ─── ET C'EST LE MEME ECRAN QU'A LA VENTE ──────────────
+
+                    `EtapeDepotAuto` a disparu : les deux sens attendaient
+                    sous un sablier avant un recu qui porte deja un rond au
+                    milieu. Un achat voit donc, lui aussi, le recu se poser
+                    d'abord et le sablier se changer en coche dedans.
+
+                    Ce qui RESTE tu pendant l'attente, ce sont les trois
+                    lignes du recu — ce qu'on recoit, ce qu'on a paye, la
+                    reference. Elles n'ont pas encore de valeur : le relais
+                    peut refuser la demande, et annoncer « Vous recevrez
+                    3,27 USDT » avant qu'il l'accepte promettrait un chiffre
+                    qui n'engage personne. Elles arrivent avec la coche.
                     ═══════════════════════════════════════════════════════
                     */
-                    EtapeDepotAuto(
-                        titre = stringResource(R.string.change_depot_achat_titre),
-                        sousTitre = stringResource(R.string.change_depot_patiente)
+                    EtapeTransmis(
+                        state = state,
+                        copier = copier,
+                        onRecommencer = {},
+                        onAccueil = {},
+                        enCours = true
                     )
 
                 state.etape == EtapeChange.PAIEMENT ->
@@ -3184,112 +3199,6 @@ private fun detailVerification(
     }
 }
 
-// ─── Temps 2 bis : le depot part tout seul ──────────────────────────
-
-/**
- * Ce qu'on montre pendant que la demande se depose.
- *
- * TROIS ELEMENTS, ET AUCUN BOUTON. Un rond qui tourne, ce qui vient de se
- * passer, et ce qui est en train de se faire. Rien a toucher : il n'y a
- * rien a decider, et le moindre bouton relancerait la question « qu'est-ce
- * qu'on attend de moi ».
- *
- * PAS DE SORTIE NON PLUS, et c'est volontaire. Partir d'ici tue le
- * ViewModel et interrompt le depot. Ce n'est pas perdu — la trace et le
- * hash restent sur le disque, et rouvrir l'ecran ramene l'etape de
- * paiement avec son bouton de rattrapage — mais ce serait un detour qu'on
- * n'a aucune raison de proposer pour quelques secondes d'attente.
- */
-@Composable
-private fun ColumnScope.EtapeDepotAuto(
-    titre: String,
-    sousTitre: String
-) {
-    /*
-    ═══════════════════════════════════════════════════════════════════
-    LA MEME ATTENTE QUE SUR L'ECRAN D'ENVOI
-    ═══════════════════════════════════════════════════════════════════
-
-    C'etait un simple rond qui tourne. Celui de l'ecran d'envoi porte un
-    grand sablier dans un cercle, une barre de progression et la consigne
-    « Ne fermez pas l'application » — et ce sont deux attentes du MEME
-    parcours, a quelques secondes d'intervalle.
-
-    Deux formes differentes pour la meme chose se lisent comme deux
-    applications. Celle-ci reprend donc la silhouette de l'autre.
-
-    ─── ET ELLE SERT MAINTENANT AUSSI A L'ACHAT ──────────────────────
-
-    L'achat n'avait aucune attente : « Confirmer le paiement » gardait son
-    rond DANS le bouton pendant que la demande partait au relais. Une
-    seconde ou trois ou l'ecran reste entier, avec ses champs et ses
-    boutons, et rien ne dit que quelque chose se passe — on rappuie.
-
-    Les deux textes sont donnes par l'appelant : une vente dit « Ta vente
-    est partie / On prévient VaultEx », un achat dit « Transaction en
-    cours / On transmet ta demande ». La forme est commune, les mots sont
-    propres a chacun.
-    ═══════════════════════════════════════════════════════════════════
-    */
-    Spacer(Modifier.height(32.dp))
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(112.dp).clip(CircleShape)
-                    .background(AccentBlue.copy(alpha = 0.07f))
-            )
-            Box(
-                Modifier.size(82.dp).clip(CircleShape).background(AccentBlue),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.HourglassEmpty, null,
-                    tint = Color.White, modifier = Modifier.size(40.dp)
-                )
-            }
-        }
-        Text(
-            titre,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-            color = AccentBlue,
-            trackColor = BgTertiary
-        )
-        Text(
-            sousTitre,
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = AccentBlue.copy(alpha = 0.08f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.VerifiedUser, null,
-                    tint = AccentBlue, modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.change_depot_ne_ferme_pas),
-                    fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
-                )
-            }
-        }
-    }
-}
-
 /**
  * Une ligne du recu : le libelle a gauche, la valeur a droite.
  *
@@ -3521,8 +3430,17 @@ private fun ColumnScope.EtapeTransmis(
             }
             Text(
                 stringResource(
-                    if (enCours) R.string.change_depot_vente_titre
-                    else R.string.change_transmis_titre
+                    when {
+                        // Les deux attentes ne font pas le meme travail, et
+                        // la difference compte : une vente a deja mis sa
+                        // crypto sur la chaine et il reste a PREVENIR, un
+                        // achat a paye par Orange Money et il reste a
+                        // TRANSMETTRE. Le titre nomme ce qui se passe.
+                        !enCours -> R.string.change_transmis_titre
+                        state.sens == SensChange.ACHAT ->
+                            R.string.change_depot_achat_titre
+                        else -> R.string.change_depot_vente_titre
+                    }
                 ),
                 fontWeight = FontWeight.Bold, fontSize = 24.sp, color = TextPrimary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center

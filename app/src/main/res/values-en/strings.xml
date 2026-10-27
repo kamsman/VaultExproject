@@ -1217,7 +1217,6 @@
     <string name="change_vente_partie_titre">Your sale is on its way</string>
     <string name="change_depot_vente_titre">Notifying VaultEx</string>
     <string name="change_depot_achat_titre">Sending your request</string>
-    <string name="change_depot_patiente">A few more seconds.</string>
     <string name="change_depot_ne_ferme_pas">Do not close the app. Stay here a few seconds.</string>
     <string name="change_vente_preparation">Preparing your sale…</string>
     <string name="vente_traitement_etape">Sending the crypto…</string>
