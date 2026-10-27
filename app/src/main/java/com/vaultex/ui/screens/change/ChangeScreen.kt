@@ -375,27 +375,41 @@ fun ChangeScreen(navController: NavController) {
                     (state.depotAutoRestant > 0 || state.envoiEnCours) ->
                     /*
                     ═══════════════════════════════════════════════════════
-                    DEUX ECRANS DE SUITE DISAIENT « VOTRE VENTE EST PARTIE »
+                    L'ATTENTE DU DEPOT N'EST PLUS UN ECRAN A ELLE
                     ═══════════════════════════════════════════════════════
 
-                    L'ecran d'envoi finit sur un rond vert, le montant en
-                    francs, et ce titre-la. On appuie sur « Terminé » — et on
-                    retombe sur le meme titre, mot pour mot, sous un sablier.
+                    Une vente finissait sur trois ecrans pleins : le recu de
+                    l'envoi (rond vert, coche), l'attente du depot (sablier),
+                    puis le recu du change (rond vert, coche). Un succes, une
+                    attente, un succes — pour un seul evenement vecu.
 
-                    Les memes mots deux fois de suite ne se lisent pas deux
-                    fois : la seconde fois, on cherche ce qui a change. Et ce
-                    qui a change est justement ce que le titre ne disait pas
-                    — la crypto est partie, il reste a deposer la demande.
+                    Les deux derniers n'en font plus qu'un. C'est le MEME
+                    appel, avec `enCours` : la carte, le rond, le halo et les
+                    points sont deja a leur place quand on arrive, le sablier
+                    tourne DANS le rond, puis il devient la coche. Rien ne se
+                    remplace, une chose finit.
 
-                    Ce titre-ci nomme donc le travail EN COURS, pas celui qui
-                    vient de finir. Il n'y a plus de repetition parce qu'il
-                    n'y a plus deux ecrans pour dire la meme chose : l'un
-                    annonce l'envoi, l'autre le depot.
+                    ─── LA CONDITION N'A PAS BOUGE D'UN CARACTERE ─────────
+
+                    Et c'est voulu : c'est elle qui porte le chemin de
+                    secours. Quand `depotAutoRestant` retombe a zero sans
+                    verdict, elle devient fausse, et l'etape de paiement
+                    reparait avec le hash en place et son bouton de
+                    rattrapage. Fusionner les deux ecrans ne devait toucher
+                    a RIEN de ce chemin-la — c'est le seul endroit du
+                    parcours ou quelqu'un a encore quelque chose a faire
+                    apres avoir envoye ses fonds.
                     ═══════════════════════════════════════════════════════
                     */
-                    EtapeDepotAuto(
-                        titre = stringResource(R.string.change_depot_vente_titre),
-                        sousTitre = stringResource(R.string.change_depot_patiente)
+                    EtapeTransmis(
+                        state = state,
+                        copier = copier,
+                        // Sans sortie pendant l'attente : `EtapeTransmis`
+                        // n'affiche aucun des deux boutons tant que
+                        // `enCours` est vrai. Voir son commentaire.
+                        onRecommencer = {},
+                        onAccueil = {},
+                        enCours = true
                     )
 
                 /*
@@ -3359,7 +3373,52 @@ private fun ColumnScope.EtapeTransmis(
     qui ne se cherche pas, mais qui ne reclame pas le regard.
     ═══════════════════════════════════════════════════════════════════
     */
-    onAccueil: () -> Unit
+    onAccueil: () -> Unit,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE MEME ECRAN AVANT ET APRES — C'EST TOUT L'INTERET
+    ═══════════════════════════════════════════════════════════════════
+
+    Une vente finissait par TROIS ecrans pleins pour un seul evenement
+    vecu : le recu de l'envoi (vert, coche), l'attente du depot (sablier),
+    puis ce recu-ci (vert, coche). Un succes, une attente, un succes.
+
+    L'attente est reelle — la demande part au relais, ca prend quelques
+    secondes, et ca peut echouer. Ce qui ne l'etait pas, c'est le besoin
+    d'un ECRAN pour elle. Cet ecran-ci existe deja, il connait tout ce
+    qu'il faut dire, et il ne lui manquait qu'un etat.
+
+    `enCours` est donc une attente qui se resout SUR PLACE : la silhouette
+    ne bouge pas, le rond reste vert et a la meme taille, les quatre
+    points restent. Seul le dedans du rond passe du sablier a la coche, et
+    les deux lignes de texte changent. Rien ne saute, rien ne se recharge
+    — on voit une chose finir, pas un ecran remplacer un autre.
+
+    ─── POURQUOI LE VERT DES L'ATTENTE ────────────────────────────────
+
+    Parce que ce qui comptait a deja reussi : la crypto est partie, c'est
+    irreversible, et c'est le seul moment du parcours ou l'utilisateur
+    engageait quelque chose. Ce qui reste est une notification qui se
+    rejoue toute seule. Du bleu, puis du vert, ferait lire un basculement
+    d'etat la ou il n'y a qu'une etape qui se termine.
+
+    ─── LES DEUX BOUTONS DISPARAISSENT, ET C'EST OBLIGATOIRE ──────────
+
+    `onRecommencer` remet l'etat a zero. Offert pendant que la demande est
+    en vol, il permettrait d'effacer une vente dont la crypto est deja
+    partie — le pire bouton qu'on puisse poser sur un ecran. `onAccueil`
+    passe par le meme chemin. Aucune sortie tant que ce n'est pas fini :
+    c'est justement ce que dit « ne fermez pas l'application ».
+
+    ─── ET L'ECHEC RAMENE OU IL RAMENAIT DEJA ─────────────────────────
+
+    La condition qui choisit cet etat est celle qui choisissait l'ecran
+    d'attente, inchangee. Quand `depotAutoRestant` retombe a zero sans
+    verdict, elle devient fausse et l'etape de paiement reparait avec son
+    bouton de rattrapage, exactement comme avant la fusion.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    enCours: Boolean = false
 ) {
     /*
     ═══════════════════════════════════════════════════════════════════
@@ -3425,10 +3484,21 @@ private fun ColumnScope.EtapeTransmis(
                     Modifier.size(82.dp).clip(CircleShape).background(AccentGreen),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Check, null,
-                        tint = Color.White, modifier = Modifier.size(42.dp)
-                    )
+                    // LA SEULE CHOSE QUI BOUGE entre l'attente et la fin.
+                    // Le rond, le halo et les points restent identiques :
+                    // on voit une etape se terminer, pas un ecran changer.
+                    if (enCours) {
+                        CircularProgressIndicator(
+                            Modifier.size(34.dp),
+                            color = Color.White,
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Check, null,
+                            tint = Color.White, modifier = Modifier.size(42.dp)
+                        )
+                    }
                 }
                 // Les quatre points, poses a la main : une poignee de
                 // pixels qui transforment une coche en evenement.
@@ -3450,7 +3520,10 @@ private fun ColumnScope.EtapeTransmis(
                 )
             }
             Text(
-                stringResource(R.string.change_transmis_titre),
+                stringResource(
+                    if (enCours) R.string.change_depot_vente_titre
+                    else R.string.change_transmis_titre
+                ),
                 fontWeight = FontWeight.Bold, fontSize = 24.sp, color = TextPrimary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -3483,7 +3556,13 @@ private fun ColumnScope.EtapeTransmis(
             ═══════════════════════════════════════════════════════════════
             */
             Text(
-                stringResource(R.string.change_transmis_detail),
+                // « Ne fermez pas l'application » VIENT DE L'ECRAN D'ATTENTE,
+                // et c'est la seule chose qu'il disait qu'on ne pouvait pas
+                // perdre : la boucle de depot s'arrete avec la composition.
+                stringResource(
+                    if (enCours) R.string.change_depot_ne_ferme_pas
+                    else R.string.change_transmis_detail
+                ),
                 fontSize = 15.sp, color = TextSecondary, lineHeight = 21.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -3521,7 +3600,7 @@ private fun ColumnScope.EtapeTransmis(
             ferait une troisieme lecture.
             ═══════════════════════════════════════════════════════════════
             */
-            if (state.sens == SensChange.ACHAT) {
+            if (state.sens == SensChange.ACHAT && !enCours) {
                 HorizontalDivider(color = BgPrimary)
                 state.montantCrypto?.let { recu ->
                     LigneRecu(
@@ -3596,8 +3675,10 @@ private fun ColumnScope.EtapeTransmis(
             dernier sondage : c'est lui qui est parti dans le message.
             ═══════════════════════════════════════════════════════════════
             */
+            // IL N'Y A PAS ENCORE DE VERDICT PENDANT L'ATTENTE : c'est le
+            // depot qui le rend, et le depot est justement en cours.
             val v = state.verification
-            if (state.sens == SensChange.VENTE && v != null) {
+            if (state.sens == SensChange.VENTE && v != null && !enCours) {
                 HorizontalDivider(color = BgPrimary)
                 if (v.estVert) {
                     Row(verticalAlignment = Alignment.Top) {
@@ -3635,6 +3716,16 @@ private fun ColumnScope.EtapeTransmis(
             }
         }
     }
+    /*
+    AUCUNE SORTIE TANT QUE LA DEMANDE EST EN VOL.
+
+    `onRecommencer` remet l'etat a zero : offert pendant le depot, il
+    effacerait une vente dont la crypto est deja partie. `onAccueil` passe
+    par le meme chemin. Les deux reviennent quand c'est fini — et d'ici la
+    le texte juste au-dessus dit pourquoi il n'y a rien a toucher.
+    */
+    if (enCours) return
+
     /*
     DEUX BOUTONS DE MEME TAILLE, ET LA HIERARCHIE PASSE PAR LE REMPLISSAGE.
 
