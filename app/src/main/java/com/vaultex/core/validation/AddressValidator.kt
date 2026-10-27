@@ -9,7 +9,16 @@ object AddressValidator {
         "ETH", "BNB", "USDT-ETH", "USDT-BNB" -> isValidEvm(address)
         "BTC"        -> isValidBtc(address)
         "TRX", "USDT" -> isValidTron(address)
-        "SOL"        -> isValidSolana(address)
+        /*
+        « USDT-SOL » DOIT ETRE ICI, et c'est la meme faute que celle du Pi
+        decrite juste en dessous : sans cette branche, il tomberait sur la
+        regle par defaut — « plus de 26 caracteres » — qui accepte a peu
+        pres n'importe quoi, y compris une adresse Solana dont un caractere
+        a ete mal recopie.
+
+        Un USDT envoye sur une adresse Solana fausse ne revient pas.
+        */
+        "SOL", "USDT-SOL" -> isValidSolana(address)
         /*
         Le Pi a sa propre somme de contrôle, et il faut la lui appliquer.
 
