@@ -1020,6 +1020,10 @@
     <string name="tx_err_solana_rent">Solana does not allow leaving less than 0.0009 SOL in your account. Send everything (%1$s SOL) or lower the amount so at least 0.0009 SOL is left.</string>
     <string name="tx_err_solana_compte_neuf">This address is a brand-new Solana account: the first transfer must be at least 0.0009 SOL.</string>
     <string name="tx_err_blockhash_solana">Solana blockhash not found</string>
+    <string name="tx_err_sol_pour_usdt">You need at least %1$s SOL in your wallet for this transfer: the network fee, plus creating the recipient\'s USDT account.</string>
+    <string name="tx_err_sol_frais">You need at least %1$s SOL in your wallet to pay the network fee.</string>
+    <string name="tx_err_envoi_a_soi">This address is your own. Choose another destination.</string>
+    <string name="tx_err_usdt_sol_generique">Sending USDT on Solana failed</string>
     <string name="tx_err_envoi_generique">Send error</string>
     <string name="swap_confirm_sans_devis">No quote right now: there is no telling what this swap would return. Go back and try again.</string>
     <!-- Swap screen labels -->

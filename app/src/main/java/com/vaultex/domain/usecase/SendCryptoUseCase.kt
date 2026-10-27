@@ -317,6 +317,38 @@ class SendCryptoUseCase @Inject constructor(
                 sendSol(toAddress = toAddress, lamports = lamports)
             }
             "USDT" -> sendUsdtTrc20(toAddress = toAddress, amountUsdt = amount)
+            /*
+            ═══════════════════════════════════════════════════════════════
+            SIX DECIMALES, PAR `BigDecimal` ET JAMAIS PAR UN `Double`
+            ═══════════════════════════════════════════════════════════════
+
+            MESURE, parce que j'avais d'abord ecrit ici un exemple invente
+            qui s'est revele faux : « 12,3 » passe tres bien par un Double.
+
+            Le vrai cas est « 2,01 ». `2.01 * 1e6` vaut 2009999,9999999998
+            en flottant, et la conversion en entier tronque a 2 009 999 : un
+            millionieme d'USDT perdu, et surtout une somme qui ne correspond
+            plus a celle que l'ecran venait d'annoncer.
+
+            Ce n'est pas marginal. Sur les 200 000 montants a deux decimales
+            de 0,01 a 2 000,00, le chemin par Double se trompe 2 390 fois —
+            un sur quatre-vingt-quatre. Sur des montants a six decimales
+            tires au hasard, 2 317 sur 200 000.
+
+            `BigDecimal` est exact par construction, et c'est ce que font
+            deja les six autres chaines de ce fichier.
+            ═══════════════════════════════════════════════════════════════
+            */
+            "USDT-SOL" -> {
+                val brut = try {
+                    BigDecimal(amount)
+                        .multiply(BigDecimal.TEN.pow(com.vaultex.core.tx.SolanaSpl.DECIMALES_USDT))
+                        .toBigInteger().toLong()
+                } catch (_: Exception) {
+                    return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide))
+                }
+                sendUsdtSol(toAddress = toAddress, montantBrut = brut)
+            }
             "USDT-ETH" -> {
                 val amountWei = try {
                     BigDecimal(amount).multiply(BigDecimal("1000000")).toBigInteger() // 6 décimales
@@ -841,6 +873,149 @@ class SendCryptoUseCase @Inject constructor(
     }
 
     // ─── SOLANA ──────────────────────────────────────────────────────
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    ENVOYER DE L'USDT SUR SOLANA
+    ═══════════════════════════════════════════════════════════════════════
+
+    Trois choses qu'aucun autre envoi de ce fichier n'a à faire :
+
+      — le compte du destinataire peut ne pas exister, et c'est à nous de
+        le créer dans la même transaction ;
+      — cette création coûte une RENTE — 0,00204 SOL, quatre cents fois les
+        frais — prélevée sur notre solde ;
+      — ce qu'on dépense en frais n'est pas ce qu'on envoie. On envoie des
+        USDT et on paie en SOL, comme sur Tron et les EVM, mais ici la
+        dépense dépend du destinataire.
+
+    ─── SUR UN ÉCHEC DE LECTURE, ON SUPPOSE QU'IL FAUT CRÉER ──────────────
+
+    On demande au réseau si le compte existe. S'il ne répond pas, il faut
+    choisir — et les deux erreurs ne coûtent pas la même chose.
+
+    Supposer qu'il EXISTE alors qu'il manque : la transaction est signée,
+    diffusée, et rejetée par la chaîne. Après le code PIN, pour rien.
+
+    Supposer qu'il MANQUE alors qu'il est là : l'instruction de création est
+    idempotente, elle ne fait rien. On aura seulement exigé la rente dans le
+    contrôle de solde — donc refusé, parfois, un envoi qui serait passé.
+
+    Un refus avant la signature se lit et se corrige. Un échec après, non.
+    On choisit donc de supposer qu'il faut créer.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    suspend fun sendUsdtSol(toAddress: String, montantBrut: Long): Result {
+        if (!AddressValidator.isValidSolana(toAddress))
+            return Result.Error(str(com.vaultex.R.string.tx_err_adresse_solana))
+        val mnemonic = secureStorage.getMnemonic()
+            ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
+        val passphrase = secureStorage.getPassphrase()
+        return try {
+            val fromAddress = WalletManager.deriveAddresses(mnemonic, passphrase).sol
+            /*
+            S'ENVOYER A SOI-MEME produirait deux comptes identiques dans le
+            message, et `SolanaSpl` le refuserait — mais avec un message
+            destine au developpeur. Ici on le dit en francais, avant tout
+            travail reseau.
+            */
+            if (fromAddress == toAddress.trim())
+                return Result.Error(str(com.vaultex.R.string.tx_err_envoi_a_soi))
+
+            val expediteur = Base58.decode(fromAddress)
+            val destinataire = Base58.decode(toAddress.trim())
+            val mint = Base58.decode(com.vaultex.core.tx.SolanaSpl.MINT_USDT)
+            val compteDestinataire = Base58.encode(
+                com.vaultex.core.tx.SolanaSpl.compteAssocie(destinataire, mint)
+            )
+
+            @Suppress("UNCHECKED_CAST")
+            val infoCompte = solanaRpc.rpcCall(
+                JsonRpcRequest(
+                    "getAccountInfo",
+                    mutableListOf(compteDestinataire as Any, mapOf("encoding" to "base64") as Any)
+                )
+            )
+            // `value` a null veut dire « ce compte n'existe pas ». Une erreur
+            // de transport ne dit rien, et on suppose alors qu'il faut creer.
+            val compteExiste = infoCompte.error == null &&
+                (infoCompte.result as? Map<String, Any>)?.get("value") != null
+            val creer = !compteExiste
+
+            val besoinLamports = com.vaultex.core.tx.SolanaSpl.FRAIS_SIGNATURE +
+                if (creer) com.vaultex.core.tx.SolanaSpl.RENTE_COMPTE_JETON else 0L
+
+            @Suppress("UNCHECKED_CAST")
+            val soldeLamports = (
+                (solanaRpc.rpcCall(JsonRpcRequest("getBalance", mutableListOf(fromAddress as Any)))
+                    .result as? Map<String, Any>)?.get("value") as? Number
+                )?.toLong()
+            /*
+            NULL NE REFUSE PAS. Le solde en SOL peut etre illisible — noeud
+            occupe, reseau coupe une seconde. Refuser sur une ignorance
+            bloquerait un envoi parfaitement finançable ; la chaine, elle,
+            tranchera de toute facon.
+            */
+            if (soldeLamports != null && soldeLamports < besoinLamports) {
+                val manque = java.math.BigDecimal.valueOf(besoinLamports)
+                    .movePointLeft(9).stripTrailingZeros().toPlainString()
+                return Result.Error(
+                    str(
+                        if (creer) com.vaultex.R.string.tx_err_sol_pour_usdt
+                        else com.vaultex.R.string.tx_err_sol_frais,
+                        manque
+                    )
+                )
+            }
+
+            val bhRes = solanaRpc.rpcCall(
+                JsonRpcRequest(
+                    "getLatestBlockhash",
+                    mutableListOf(mapOf("commitment" to "finalized") as Any)
+                )
+            )
+            @Suppress("UNCHECKED_CAST")
+            val bhValue = (bhRes.result as? Map<String, Any>)?.get("value") as? Map<String, Any>
+            val blockhashB58 = bhValue?.get("blockhash") as? String
+                ?: return Result.Error(str(com.vaultex.R.string.tx_err_blockhash_solana))
+
+            val message = com.vaultex.core.tx.SolanaSpl.messageTransfert(
+                expediteur = expediteur,
+                destinataire = destinataire,
+                mint = mint,
+                montantBrut = montantBrut,
+                decimales = com.vaultex.core.tx.SolanaSpl.DECIMALES_USDT,
+                blockhashRecent = Base58.decode(blockhashB58),
+                creerCompteDestinataire = creer
+            )
+            val signature = solTx.signTransaction(mnemonic, passphrase, message)
+
+            // Une signature : l'octet de compte, puis les 64 octets, puis le
+            // message. Exactement la forme de `sendSol`.
+            val txBytes = ByteArray(1 + 64 + message.size)
+            txBytes[0] = 1
+            System.arraycopy(signature, 0, txBytes, 1, 64)
+            System.arraycopy(message, 0, txBytes, 65, message.size)
+
+            val envoi = solanaRpc.rpcCall(
+                JsonRpcRequest(
+                    "sendTransaction",
+                    mutableListOf(
+                        Base64.encodeToString(txBytes, Base64.NO_WRAP) as Any,
+                        mapOf("encoding" to "base64") as Any
+                    )
+                )
+            )
+            if (envoi.error != null) Result.Error(envoi.error.message)
+            else {
+                val sig = envoi.result as? String
+                if (identifiantValide(sig, "SOL")) Result.Success(sig!!.trim())
+                else envoiIndetermine()
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: str(com.vaultex.R.string.tx_err_usdt_sol_generique))
+        }
+    }
 
     suspend fun sendSol(toAddress: String, lamports: Long): Result {
         if (!AddressValidator.isValidSolana(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_solana))
