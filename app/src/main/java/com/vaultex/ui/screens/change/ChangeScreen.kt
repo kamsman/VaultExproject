@@ -373,9 +373,29 @@ fun ChangeScreen(navController: NavController) {
                 state.etape == EtapeChange.PAIEMENT &&
                     state.sens == SensChange.VENTE &&
                     (state.depotAutoRestant > 0 || state.envoiEnCours) ->
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    DEUX ECRANS DE SUITE DISAIENT « VOTRE VENTE EST PARTIE »
+                    ═══════════════════════════════════════════════════════
+
+                    L'ecran d'envoi finit sur un rond vert, le montant en
+                    francs, et ce titre-la. On appuie sur « Terminé » — et on
+                    retombe sur le meme titre, mot pour mot, sous un sablier.
+
+                    Les memes mots deux fois de suite ne se lisent pas deux
+                    fois : la seconde fois, on cherche ce qui a change. Et ce
+                    qui a change est justement ce que le titre ne disait pas
+                    — la crypto est partie, il reste a deposer la demande.
+
+                    Ce titre-ci nomme donc le travail EN COURS, pas celui qui
+                    vient de finir. Il n'y a plus de repetition parce qu'il
+                    n'y a plus deux ecrans pour dire la meme chose : l'un
+                    annonce l'envoi, l'autre le depot.
+                    ═══════════════════════════════════════════════════════
+                    */
                     EtapeDepotAuto(
-                        titre = stringResource(R.string.change_vente_partie_titre),
-                        sousTitre = stringResource(R.string.change_depot_en_cours)
+                        titre = stringResource(R.string.change_depot_vente_titre),
+                        sousTitre = stringResource(R.string.change_depot_patiente)
                     )
 
                 /*
@@ -399,9 +419,29 @@ fun ChangeScreen(navController: NavController) {
                 state.etape == EtapeChange.PAIEMENT &&
                     state.sens == SensChange.ACHAT &&
                     state.envoiEnCours ->
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    « TRANSACTION EN COURS » SUR UN ACHAT, ET IL N'Y EN A PAS
+                    ═══════════════════════════════════════════════════════
+
+                    Ce titre etait `send_processing_title` — la chaine meme
+                    de l'ecran de diffusion du Send. Deux problemes, et ils
+                    vont ensemble.
+
+                    IL EST FAUX. Sur un achat, rien ne part sur une chaine :
+                    la personne a paye par Orange Money, et le telephone
+                    appelle le relais. Annoncer une transaction promet un
+                    hash et un explorateur qui n'existent pas.
+
+                    ET IL EST EMPRUNTE. Le traitement, le recu et le retour
+                    du change doivent se distinguer de ceux de l'envoi et du
+                    swap ; partager le titre exact de l'ecran de diffusion
+                    etait la facon la plus directe de les confondre.
+                    ═══════════════════════════════════════════════════════
+                    */
                     EtapeDepotAuto(
-                        titre = stringResource(R.string.send_processing_title),
-                        sousTitre = stringResource(R.string.change_depot_achat)
+                        titre = stringResource(R.string.change_depot_achat_titre),
+                        sousTitre = stringResource(R.string.change_depot_patiente)
                     )
 
                 state.etape == EtapeChange.PAIEMENT ->
