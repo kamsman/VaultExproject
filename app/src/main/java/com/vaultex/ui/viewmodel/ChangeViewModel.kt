@@ -73,6 +73,21 @@ data class ConsignePreparee(
 /** Les trois temps de l'opération, dans l'ordre. */
 enum class EtapeChange { CALCUL, PAIEMENT, TRANSMIS }
 
+/**
+ * Le facteur du minimum de reseau : envoyer doit valoir au moins TROIS
+ * FOIS le transport.
+ *
+ * IL EST COPIE DE `SendViewModel.FACTEUR_MINIMUM`, et c'est la seule raison
+ * de sa valeur. Les deux ecrans du meme parcours doivent repondre la meme
+ * chose ; en choisir un autre ici ne corrigerait pas le desaccord, il le
+ * deplacerait. Si celui de l'envoi change, celui-ci doit suivre.
+ *
+ * AU NIVEAU DU FICHIER parce que `ChangeState` et `ChangeViewModel` sont
+ * deux classes : la regle est portee par l'etat, l'estimation est posee par
+ * le ViewModel, et il leur faut la meme constante.
+ */
+private const val FACTEUR_RESEAU = 3.0
+
 data class ChangeState(
     val parametres: ParametresChange? = null,
     /*
@@ -175,6 +190,44 @@ data class ChangeState(
     val jetonGaz: String = "",
     /** Ce qu'on detient de [jetonGaz]. Null = on n'a pas regarde. */
     val soldeGaz: Double? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CE QUE LE TRANSPORT COUTE, ET PAS SEULEMENT CE QU'ON A POUR LE PAYER
+    ═══════════════════════════════════════════════════════════════════════
+
+    `soldeGaz` disait ce qu'on DETIENT. Il manquait ce que ca COUTE — et
+    sans lui, deux defauts qui se voient surtout sur Tron.
+
+    LE PREMIER : le controle du gaz ne refusait que le zero franc. Le
+    commentaire d'alors l'assumait — « on ne compare pas a un montant de
+    frais : il n'est pas connu ici ». Il l'est maintenant. Quelqu'un qui
+    detient 2 TRX passait l'ecran, signait, et voyait l'envoi echouer : un
+    transfert TRC-20 sans energie en brule vingt-sept.
+
+    LE SECOND, et c'est le plus couteux : le minimum du changeur ignorait
+    le transport. L'ecran acceptait une vente de 10 USDT sur Tron — ou les
+    frais valent entre 4 et 8 dollars — et l'ecran d'ENVOI la refusait
+    trois ecrans plus loin, au nom de sa propre regle (envoyer doit valoir
+    au moins trois fois le transport). Deux ecrans du meme parcours, deux
+    reponses opposees a la meme question.
+
+    C'est la meme famille de defaut que les bornes du relais : celui qui
+    dit oui n'est pas celui qui decide.
+
+    ─── EN UNITES NATIVES, PARCE QUE C'EST AINSI QU'ON PAIE ──────────────
+
+    27 TRX, 0,000105 BNB. `prixFcfaGaz` les ramene en francs, qui est
+    l'unite de toutes les bornes de cet ecran.
+
+    NULL VEUT DIRE « PAS ENCORE ESTIME », jamais « gratuit ». L'estimation
+    demande un aller-retour reseau ; tant qu'elle n'est pas revenue, on
+    retombe exactement sur les regles d'avant — on ne refuse personne sur
+    une ignorance.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val fraisGaz: Double? = null,
+    /** Le cours du jeton de gaz, en francs. Null = inconnu. */
+    val prixFcfaGaz: Double? = null,
     /*
     ═══════════════════════════════════════════════════════════════════════
     L'ADRESSE OU LE CHANGEUR ENVERRA LA CRYPTO ACHETEE
@@ -645,6 +698,88 @@ data class ChangeState(
         return if (v >= 1.0) v else 0.0
     }
 
+    /**
+     * Trois fois les frais de reseau, en francs — ou null si on l'ignore.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LE FACTEUR TROIS N'EST PAS CHOISI ICI
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * C'est celui de `SendViewModel.FACTEUR_MINIMUM`, et c'est tout
+     * l'interet : les deux ecrans du meme parcours doivent repondre la
+     * meme chose. En choisir un autre ici ne corrigerait pas le desaccord,
+     * il le deplacerait.
+     *
+     * Sa justification, elle, est la-bas : envoyer doit valoir au moins
+     * trois fois le transport. Plus bas, on laisse quelqu'un bruler son
+     * argent en frais ; plus haut, on bloque des envois legitimes.
+     *
+     * ─── SEULEMENT A LA VENTE ──────────────────────────────────────────
+     *
+     * C'est la que l'utilisateur paie le gaz, de son propre portefeuille.
+     * A l'achat, c'est le changeur qui envoie et qui paie — son cout est
+     * une affaire de tarif, pas de blocage, et il se regle dans
+     * `CHANGE_MINIMUMS_USD`. Le lui imposer ici reviendrait a inventer une
+     * regle technique la ou il y a une decision commerciale.
+     */
+    fun plancherReseauFcfa(): Double? {
+        if (sens != SensChange.VENTE) return null
+        val f = fraisGaz?.takeIf { it > 0.0 } ?: return null
+        val pxGaz = prixFcfaGaz?.takeIf { it > 0.0 } ?: return null
+        val p = prix ?: return null
+        if (p.baseFcfa <= 0.0 || p.venteFcfa <= 0.0) return null
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE MEME CALCUL QUE L'ECRAN D'ENVOI, PAS UN CALCUL EQUIVALENT
+        ═══════════════════════════════════════════════════════════════════
+
+        Trois fois les frais, convertis par les deux cours de MARCHE — pas
+        par le prix applique. C'est `minimumEconomique` mot pour mot, et il
+        le faut : ce qu'on cherche ici n'est pas une borne raisonnable, mais
+        EXACTEMENT celle que l'envoi opposera.
+
+        L'ARRONDI EN FAIT PARTIE. Il paraissait cosmetique — deux chiffres
+        significatifs vers le haut — et il ne l'est pas : au bas d'une
+        decade, il deplace le seuil de pres de dix pour cent. Un minimum
+        « economiquement equivalent » mais arrondi autrement rouvrirait, sur
+        une bande etroite, exactement le desaccord qu'on ferme ici. On
+        accepterait 10,6 et l'envoi exigerait 11.
+
+        PUIS EN FRANCS, au prix applique. C'est l'unite de toutes les bornes
+        de cet ecran, et celle de `montantFcfa` qu'on compare. La conversion
+        se simplifie des deux cotes de l'inegalite : refuser en dessous de
+        `arrondi x venteFcfa` francs, c'est refuser en dessous de `arrondi`
+        unites — le chiffre meme de l'ecran d'envoi.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val brut = FACTEUR_RESEAU * f * pxGaz / p.baseFcfa
+        val arrondi = java.math.BigDecimal.valueOf(brut)
+            .round(java.math.MathContext(2, java.math.RoundingMode.CEILING))
+            .toDouble()
+        return arrondi * p.venteFcfa
+    }
+
+    /**
+     * Le minimum qui s'applique vraiment, en francs.
+     *
+     * LE PLUS HAUT DES DEUX : ce que le changeur accepte, et ce que le
+     * reseau rend raisonnable. Les deux se resserrent, aucun ne doit
+     * pouvoir ouvrir ce que l'autre ferme — c'est la regle deja posee
+     * entre `minimumFcfa` et les seuils en dollars.
+     *
+     * ECRITE UNE SEULE FOIS, et c'est delibere : `blocage` l'applique et
+     * `messageBlocage` l'affiche. Dupliquer la condition, c'est se garantir
+     * que les deux finiront par repondre differemment — l'ecran refuserait
+     * un montant en en annoncant un autre.
+     */
+    fun minimumFcfa(): Double {
+        val p = parametres ?: return 0.0
+        val borne = p.minimumPour(
+            monnaie, fcfaParDollar, prix, sens == SensChange.ACHAT
+        )
+        return maxOf(borne, plancherReseauFcfa() ?: 0.0)
+    }
+
     fun blocage(): String? {
         val p = parametres ?: return "indisponible"
         if (!p.utilisable) return "ferme"
@@ -662,7 +797,7 @@ data class ChangeState(
         entier.
         */
         val achat = sens == SensChange.ACHAT
-        if (fcfa < p.minimumPour(monnaie, fcfaParDollar, prix, achat)) return "minimum"
+        if (fcfa < minimumFcfa()) return "minimum"
         /*
         LE PLAFOND EFFECTIF, PAS LE GENERAL. Certaines monnaies portent
         le leur, en dollars — le BNB ne sert qu'a payer le gaz, et dix
@@ -705,14 +840,24 @@ data class ChangeState(
             ET DE QUOI PAYER LE GAZ
             ═══════════════════════════════════════════════════════════════
 
-            ZERO SEULEMENT, PAS UN SEUIL. On refuse quand le portefeuille
-            ne detient RIEN du jeton de gaz — le cas reel, celui de
-            quelqu'un qui a recu des USDT et jamais de BNB.
+            ASSEZ, ET PLUS SEULEMENT NON NUL.
 
-            On ne compare pas a un montant de frais : il n'est pas connu
-            ici, il depend du prix du gaz a la seconde pres, et un seuil
-            invente bloquerait des gens qui ont de quoi payer. Mieux vaut
-            attraper le cas franc que de deviner la limite.
+            Ce controle ne refusait que le zero franc, et son commentaire
+            d'alors disait pourquoi : « on ne compare pas a un montant de
+            frais, il n'est pas connu ici ». C'etait vrai. Ca ne l'est
+            plus — `fraisGaz` porte l'estimation du reseau, la meme que
+            celle de l'ecran d'envoi.
+
+            La difference se mesure sur Tron : un transfert TRC-20 sans
+            energie brule vingt-sept TRX. Quelqu'un qui en detient deux
+            passait ici, signait, et voyait l'envoi echouer apres le code
+            PIN — au seul endroit du parcours ou un refus coute vraiment
+            quelque chose.
+
+            ON NE DEVINE TOUJOURS RIEN : quand l'estimation n'est pas
+            revenue, `fraisGaz` est null et on retombe exactement sur
+            l'ancienne regle, le zero franc. Une ignorance ne refuse
+            personne.
 
             NULL NE BLOQUE PAS. L'instantane peut ne rien savoir de ce
             jeton — monnaie jamais affichee, instantane ancien. « On n'a
@@ -720,8 +865,12 @@ data class ChangeState(
             ignorance serait pire que le defaut qu'on corrige.
             ═══════════════════════════════════════════════════════════════
             */
-            if (jetonGaz.isNotBlank() && soldeGaz != null && soldeGaz <= 0.0) {
-                return "gaz"
+            if (jetonGaz.isNotBlank() && soldeGaz != null) {
+                val requis = fraisGaz
+                val insuffisant =
+                    if (requis != null && requis > 0.0) soldeGaz < requis
+                    else soldeGaz <= 0.0
+                if (insuffisant) return "gaz"
             }
         }
         /*
@@ -749,7 +898,16 @@ data class ChangeState(
 class ChangeViewModel @Inject constructor(
     private val service: ChangeService,
     private val secureStorage: SecureStorage,
-    private val historique: HistoriqueChange
+    private val historique: HistoriqueChange,
+    /**
+     * Pour `estimerFrais`, et pour rien d'autre.
+     *
+     * CELUI DE L'ECRAN D'ENVOI, et c'est le point : l'estimation qui
+     * refusera la vente trois ecrans plus loin doit etre celle qu'on
+     * applique ici. Recalculer les frais autrement reviendrait a se donner
+     * deux reponses et a esperer qu'elles coincident.
+     */
+    private val sendCryptoUseCase: com.vaultex.domain.usecase.SendCryptoUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChangeState())
@@ -1193,6 +1351,65 @@ class ChangeViewModel @Inject constructor(
             val a = adresseDeReception(monnaieDemandee)
             _state.update {
                 if (it.monnaie == monnaieDemandee) it.copy(adresseReception = a) else it
+            }
+        }
+        estimerFrais(monnaieDemandee, gaz.orEmpty())
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CE QUE LE TRANSPORT COUTE, DEMANDE AU RESEAU
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'ecran de change raisonnait jusqu'ici en francs et en cours, et jamais
+    en frais. C'etait tenable tant qu'une seule chaine servait ; ca a cesse
+    de l'etre avec Tron, ou un transfert TRC-20 coute entre quatre et huit
+    dollars — c'est-a-dire plus que la vente entiere, sur les petits
+    montants que cet ecran accepte.
+
+    ─── L'ADRESSE DE L'EXPEDITEUR CHANGE LE CHIFFRE ──────────────────────
+
+    Sur Tron, les frais dependent de l'ENERGIE gelee par celui qui envoie :
+    vingt-sept TRX sans energie, presque rien avec. `estimerFrais` la
+    demande a la chaine quand on lui donne l'adresse, et c'est la notre —
+    sur une vente, c'est nous qui envoyons. La derivation est deja en
+    cache, donc elle ne coute rien de plus ici.
+
+    Sans elle, l'estimation retombe sur les vingt-sept TRX : prudent, et
+    donc du bon cote.
+
+    ─── A CHAQUE CHANGEMENT DE MONNAIE, PAS A CHAQUE FRAPPE ──────────────
+
+    Les frais ne dependent pas du montant. Un appel par monnaie suffit, et
+    c'est aussi ce qui garde le quota public de TronGrid tranquille.
+
+    ON ESTIME DANS LES DEUX SENS, meme si seule la vente s'en sert. Le
+    chiffre appartient a la MONNAIE, pas au sens ; le lier au sens ferait
+    qu'un basculement achat → vente travaillerait sur une estimation
+    absente ou perimee, et `onSens` ne repasse pas par ici.
+
+    LE GARDE SUR LA MONNAIE, comme pour la derivation d'adresse : deux
+    changements rapides lancent deux estimations, et rien ne garantit leur
+    ordre de retour. Sans lui, la plus lente ecraserait la bonne.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun estimerFrais(monnaie: String, jetonGaz: String) {
+        viewModelScope.launch {
+            val adresses = runCatching {
+                withContext(Dispatchers.Default) { adressesDeriveesOuNull() }
+            }.getOrNull()
+            val frais = runCatching {
+                sendCryptoUseCase.estimerFrais(
+                    chain = monnaie,
+                    adresseTron = adresses?.trx
+                )
+            }.getOrNull()
+            // Le cours du jeton qui paie : celui du gaz pour un jeton, le
+            // sien propre pour une monnaie native.
+            val px = coursDe(jetonGaz.ifBlank { monnaie })?.second
+            _state.update {
+                if (it.monnaie != monnaie) it
+                else it.copy(fraisGaz = frais?.attendu, prixFcfaGaz = px)
             }
         }
     }
@@ -2420,13 +2637,25 @@ class ChangeViewModel @Inject constructor(
     @Volatile private var adressesDerivees:
         com.vaultex.core.crypto.WalletManager.WalletAddresses? = null
 
-    /** Adresse du portefeuille où le changeur enverra la crypto achetée. */
-    private fun adresseDeReception(monnaie: String): String = try {
+    /**
+     * Les adresses derivees : le cache s'il est chaud, le calcul sinon.
+     *
+     * JAMAIS SUR LE FIL PRINCIPAL au premier appel — c'est du PBKDF2 sur
+     * deux mille tours. Les deux appelants le savent et s'en ecartent.
+     */
+    private fun adressesDeriveesOuNull():
+        com.vaultex.core.crypto.WalletManager.WalletAddresses? = try {
         val m = secureStorage.getMnemonic() ?: ""
-        if (m.isBlank()) "" else {
-            val a = adressesDerivees ?: com.vaultex.core.crypto.WalletManager
+        if (m.isBlank()) null else adressesDerivees
+            ?: com.vaultex.core.crypto.WalletManager
                 .deriveAddresses(m, secureStorage.getPassphrase())
                 .also { adressesDerivees = it }
+    } catch (_: Exception) { null }
+
+    /** Adresse du portefeuille où le changeur enverra la crypto achetée. */
+    private fun adresseDeReception(monnaie: String): String = try {
+        val a = adressesDeriveesOuNull()
+        if (a == null) "" else {
             when (monnaie.uppercase()) {
                 "BTC" -> a.btc
                 "ETH", "USDT-ETH" -> a.eth
