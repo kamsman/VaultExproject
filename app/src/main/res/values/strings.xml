@@ -1174,6 +1174,12 @@
     <string name="change_jai_paye">Confirmer le paiement</string>
     <string name="change_jai_paye_verifie">Paiement vérifié — confirmer</string>
     <string name="change_retour">Revenir au calcul</string>
+    <string name="change_assistance_titre">Assistance technique</string>
+    <string name="change_assistance_detail">Un souci avec votre échange ? Appelez-nous, on répond.</string>
+    <string name="change_assistance_appel">Appeler</string>
+    <string name="change_assistance_whatsapp">WhatsApp</string>
+    <string name="change_assistance_message">Bonjour, j\'ai besoin d\'aide pour ma demande %1$s.</string>
+    <string name="change_assistance_message_simple">Bonjour, j\'ai besoin d\'aide pour un échange.</string>
     <string name="change_transmis_titre">Demande transmise</string>
     <string name="change_transmis_detail">Vous recevrez vos fonds dans un instant.</string>
     <string name="change_nouvelle">Nouvelle opération</string>

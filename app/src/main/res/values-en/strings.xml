@@ -1145,6 +1145,12 @@
     <string name="change_jai_paye">Confirm payment</string>
     <string name="change_jai_paye_verifie">Payment verified — confirm</string>
     <string name="change_retour">Back to the quote</string>
+    <string name="change_assistance_titre">Technical support</string>
+    <string name="change_assistance_detail">Trouble with your exchange? Call us, we answer.</string>
+    <string name="change_assistance_appel">Call</string>
+    <string name="change_assistance_whatsapp">WhatsApp</string>
+    <string name="change_assistance_message">Hello, I need help with my request %1$s.</string>
+    <string name="change_assistance_message_simple">Hello, I need help with an exchange.</string>
     <string name="change_transmis_titre">Request sent</string>
     <string name="change_transmis_detail">You will receive your funds in a moment.</string>
     <string name="change_nouvelle">New transaction</string>
