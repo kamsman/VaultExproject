@@ -62,6 +62,54 @@ class Reglages(contexte: Context) {
         get() = prefs.getBoolean(CLE_ACTIF, false)
         set(v) = prefs.edit().putBoolean(CLE_ACTIF, v).apply()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    QUAND LE DERNIER ENCAISSEMENT EST ARRIVÉ
+    ═══════════════════════════════════════════════════════════════════════
+
+    UNE APPLICATION FORCÉE À S'ARRÊTER NE PEUT PAS LE DIRE. C'est tout le
+    problème : Android ne livre plus aucune diffusion à une application
+    qu'on a arrêtée de force — ou qu'un « nettoyeur » de batterie a arrêtée
+    pour nous — tant qu'on ne la rouvre pas à la main. Et comme elle ne
+    tourne plus, aucun code à l'intérieur ne peut s'en apercevoir, encore
+    moins prévenir.
+
+    L'écran affichait pourtant « ● Actif », parce que c'est un réglage
+    enregistré et non un état mesuré. Le robot était sourd et disait qu'il
+    écoutait. Pendant ce temps les achats repartaient « introuvable » alors
+    que les paiements arrivaient bel et bien.
+
+    Ce qu'on peut faire, c'est garder la DATE du dernier SMS accepté. Elle
+    ne prouve pas que l'application écoute — rien ne le peut de l'intérieur
+    — mais une date ancienne est la seule trace visible que quelque chose
+    s'est arrêté.
+
+    ─── CE QU'ELLE NE DISTINGUE PAS, ET IL FAUT LE DIRE ──────────────────
+
+    « Le robot est sourd » et « personne n'a payé depuis ce matin » donnent
+    exactement la même date. L'indicateur ne tranche pas entre les deux, et
+    ne doit donc pas crier à la panne : il dit un fait, et c'est au changeur
+    de savoir s'il attendait un paiement.
+
+    L'essentiel est ailleurs : ouvrir l'application pour regarder cette date
+    est précisément le geste qui la RÉVEILLE si elle avait été arrêtée. Le
+    remède est le même que le diagnostic.
+
+    ─── POSÉE SUR LES SMS ACCEPTÉS, PAS SUR TOUS ─────────────────────────
+
+    Un SMS écarté prouverait que le receveur vit, et c'est tentant. Mais la
+    question qu'on se pose n'est pas « le receveur vit-il » : c'est « la
+    chaîne qui vérifie les achats fonctionne-t-elle ». Un message publicitaire
+    qui remettrait le compteur à zéro répondrait oui à la mauvaise question.
+
+    0 = jamais rien reçu. Une installation neuve n'est pas en panne, et
+    l'écran le dit autrement.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    var dernierSms: Long
+        get() = prefs.getLong(CLE_DERNIER_SMS, 0L)
+        set(v) = prefs.edit().putLong(CLE_DERNIER_SMS, v).apply()
+
     /**
      * Les expéditeurs dont on transmet les SMS, séparés par des virgules.
      *
@@ -203,6 +251,7 @@ class Reglages(contexte: Context) {
         const val CLE_EXPEDITEURS = "expediteurs"
         const val CLE_FILE = "file"
         const val CLE_JOURNAL = "journal"
+        const val CLE_DERNIER_SMS = "dernier_sms"
 
         /**
          * Les expéditeurs par défaut.

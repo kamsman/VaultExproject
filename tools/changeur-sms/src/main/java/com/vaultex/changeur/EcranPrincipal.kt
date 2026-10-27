@@ -269,20 +269,109 @@ class EcranPrincipal : Activity() {
     private fun rafraichir() {
         val attente = reglages.lireFile().size
         val permission = aLaPermission()
+        val silence = silenceDepuis()
         vueEtat.text = buildString {
             append(if (reglages.actif) "● Actif" else "○ Éteint")
             append("   ·   ")
             append(if (permission) "SMS autorisés" else "⚠ SMS NON autorisés")
             if (attente > 0) append("   ·   $attente en attente")
+            /*
+            SUR SA PROPRE LIGNE, parce que c'est une phrase et non une
+            pastille d'état. Collée aux autres par un point médian, elle
+            allongeait la ligne au point de la faire passer à la ligne
+            n'importe où.
+            */
+            append("\n")
+            append(texteDernierSms())
         }
         vueEtat.setTextColor(
             when {
+                // La permission d'abord : sans elle rien n'arrive, et le
+                // reste de la ligne ne décrit plus qu'un passé.
                 !permission -> Color.rgb(200, 80, 60)
+                /*
+                L'AMBRE DIT « REGARDE », PAS « C'EST CASSÉ ».
+
+                Un long silence a deux causes qui ont la même trace : le
+                robot est sourd, ou personne n'a payé. L'écran ne peut pas
+                trancher — mais il peut cesser d'afficher du vert franc
+                pendant que l'une des deux se produit.
+                */
+                reglages.actif && silence != null && silence > SEUIL_SILENCE ->
+                    Color.rgb(200, 140, 40)
                 reglages.actif -> Color.rgb(40, 150, 90)
                 else -> Color.GRAY
             }
         )
         vueJournal.text = reglages.journal().ifEmpty { "(rien encore)" }
+    }
+
+    /** Depuis combien de temps aucun SMS accepté, ou null si jamais aucun. */
+    private fun silenceDepuis(): Long? {
+        val dernier = reglages.dernierSms
+        if (dernier <= 0L) return null
+        /*
+        UNE DATE DANS LE FUTUR N'EST PAS UNE ERREUR D'ICI : il suffit que
+        l'horloge du téléphone ait été reculée. On rend zéro plutôt qu'un
+        nombre négatif, qui s'afficherait « il y a -3 h ».
+        */
+        return (System.currentTimeMillis() - dernier).coerceAtLeast(0L)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    « JAMAIS » N'EST PAS « PLUS RIEN »
+    ═══════════════════════════════════════════════════════════════════════
+
+    Une installation neuve n'a jamais rien reçu, et ce n'est pas une panne.
+    Elle le dit donc autrement, et sans ambre : l'écran d'un robot qu'on
+    vient de régler ne doit pas avoir l'air en difficulté avant même le
+    premier paiement.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun texteDernierSms(): String {
+        val silence = silenceDepuis() ?: return "Aucun SMS reçu pour l'instant"
+        return "Dernier SMS : " + ilYA(silence)
+    }
+
+    /**
+     * Une durée, dite comme on la dit.
+     *
+     * LES PALIERS SUIVENT CE QU'ON EN FAIT. À la minute près dans l'heure,
+     * parce qu'un paiement vient d'arriver et qu'on veut le voir remonter.
+     * À l'heure ensuite, parce que « il y a 7 h » et « il y a 7 h 12 »
+     * mènent au même geste. Au jour au-delà de deux jours, où la question
+     * n'est plus quand mais pourquoi.
+     */
+    private fun ilYA(ms: Long): String {
+        val minutes = ms / 60_000
+        if (minutes < 1) return "à l'instant"
+        if (minutes < 60) return "il y a $minutes min"
+        val heures = minutes / 60
+        if (heures < 48) return "il y a $heures h"
+        return "il y a ${heures / 24} j"
+    }
+
+    private companion object {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        DOUZE HEURES, ET C'EST UN ARBITRAGE
+        ═══════════════════════════════════════════════════════════════════
+
+        Plus court, l'ambre s'allumerait chaque nuit — et un avertissement
+        qui se déclenche tous les matins cesse d'être lu au bout d'une
+        semaine. C'est le pire résultat possible : l'indicateur serait
+        toujours là, et ne servirait plus.
+
+        Plus long, un arrêt forcé du matin ne se verrait pas avant le
+        lendemain, et toute une journée d'achats repartirait « introuvable ».
+
+        Douze heures enjambent une nuit sans la signaler, et rattrapent un
+        silence de journée le soir même. Le chiffre n'a rien de sacré :
+        c'est le seul réglage de cet indicateur, et il se change ici.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        const val SEUIL_SILENCE = 12L * 60 * 60 * 1000
     }
 
     // ─── La permission ──────────────────────────────────────────────
