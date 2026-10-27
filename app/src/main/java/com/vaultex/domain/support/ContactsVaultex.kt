@@ -81,6 +81,21 @@ object ContactsVaultex {
     générales, et il n'oblige personne à expliquer d'abord ce qu'est VaultEx
     avant de pouvoir dire « mon paiement n'est pas arrivé ».
 
+    ─── LA RÈGLE, ET ELLE NE SE NÉGOCIE PAS ─────────────────────────────
+
+        ASSISTANCE_CHANGE (70)   l'achat et la vente, et rien d'autre
+        TELEPHONE / WHATSAPP     tout le reste de l'application
+
+    Ce ne sont PAS deux copies du même canal. Voir trois numéros dans un
+    même APK donne envie de les ramener à un seul — j'ai proposé de le
+    faire, et c'était une erreur. Ils ne répondent pas aux mêmes
+    questions, et celui du change répond à des gens dont l'argent est en
+    l'air.
+
+    Donc : aucun écran de change n'affiche les canaux généraux, et aucun
+    écran général n'affiche celui-ci. Si cette ligne vous paraît superflue
+    un jour, c'est qu'elle a déjà servi.
+
     LE MÊME POUR L'APPEL ET POUR WHATSAPP, parce que c'est ainsi qu'on
     travaille ici : on appelle quand c'est urgent, on écrit quand on veut
     joindre une capture d'écran. Deux numéros différents feraient hésiter
