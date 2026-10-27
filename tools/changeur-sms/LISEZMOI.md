@@ -227,6 +227,43 @@ texte et le motif sera corrigé **dans le Worker** — pas besoin de
 réinstaller quoi que ce soit sur le téléphone. C'est précisément pour ça
 que le robot transmet le texte brut au lieu de l'analyser lui-même.
 
+## Lire l'écran : le robot écoute-t-il encore ?
+
+La ligne d'état en haut dit deux choses, sur deux lignes :
+
+```
+● Actif   ·   SMS autorisés
+Dernier SMS : il y a 12 min
+```
+
+**Il faut connaître une faiblesse d'Android.** Une application qu'on a
+« forcée à s'arrêter » — à la main, ou par un nettoyeur de batterie qui le
+fait tout seul — ne reçoit **plus aucun SMS** tant qu'on ne la rouvre pas.
+Et comme elle ne tourne plus, rien à l'intérieur ne peut s'en apercevoir ni
+prévenir : l'écran affichait « ● Actif » parce que c'est un réglage
+enregistré, pas un état mesuré. Le robot était sourd et disait qu'il
+écoutait.
+
+La date du dernier SMS est la seule trace visible de ça. Elle passe en
+**ambre au-delà de douze heures**.
+
+**Ce qu'elle ne distingue pas**, et c'est important : « le robot est sourd »
+et « personne n'a payé depuis ce matin » donnent exactement la même date.
+L'ambre ne dit pas « c'est cassé », il dit « regarde ». C'est au changeur de
+savoir s'il attendait un paiement.
+
+**Le remède est le même que le diagnostic** : ouvrir l'application pour
+regarder cette date est précisément le geste qui la réveille si elle avait
+été arrêtée.
+
+### Les deux habitudes qui évitent le problème
+
+1. **Exclure VaultEx Changeur de l'optimisation de batterie** (Paramètres →
+   Applications → VaultEx Changeur → Batterie → *Sans restriction*). C'est ce
+   qui empêche le système de l'arrêter tout seul.
+2. **L'ouvrir une fois par jour**, et regarder la ligne. Douze heures d'ambre
+   un jour de paiements est le seul signal qu'on aura.
+
 ## Si le réseau manque
 
 Les envois ratés **pour cause de réseau** sont gardés et rejoués au SMS

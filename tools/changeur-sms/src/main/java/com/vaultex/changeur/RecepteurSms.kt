@@ -131,6 +131,24 @@ class RecepteurSms : BroadcastReceiver() {
         }
 
         /*
+        ═══════════════════════════════════════════════════════════════════
+        LA DATE SE POSE ICI, ET PAS APRÈS L'ENVOI
+        ═══════════════════════════════════════════════════════════════════
+
+        Ce que cette date répond, c'est « le robot entend-il encore les SMS
+        d'Orange ». Elle est donc posée dès que le message est accepté, avant
+        toute tentative de transmission.
+
+        La poser après l'envoi répondrait à une autre question — « le relais
+        est-il joignable » — et le journal y répond déjà, ligne par ligne.
+        Pire : un réseau coupé pendant trois jours ferait vieillir une date
+        censée dire que le téléphone écoute, alors qu'il écoutait très bien.
+        Les deux pannes ne se confondent pas, et leurs traces non plus.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        reglages.dernierSms = System.currentTimeMillis()
+
+        /*
         goAsync() REPOUSSE LA FIN DU RECEVEUR.
 
         Sans lui, `onReceive` rendrait la main immédiatement et le système
