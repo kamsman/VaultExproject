@@ -2504,6 +2504,7 @@ class ChangeViewModel @Inject constructor(
         // La demande part : plus rien a chercher, et un sondage qui
         // continuerait ecraserait le verdict rendu par le depot lui-meme.
         arreterVerification()
+        val departTransmission = System.currentTimeMillis()
         viewModelScope.launch {
             val adresse = if (s.sens == SensChange.ACHAT) adresseDeReception(s.monnaie) else ""
             val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
@@ -2589,6 +2590,7 @@ class ChangeViewModel @Inject constructor(
                         historique.ajouter(demande)
                         historique.lire()
                     }
+                    attendreLeTemps(departTransmission)
                     _state.update {
                         it.copy(
                             envoiEnCours = false,
@@ -2716,6 +2718,43 @@ class ChangeViewModel @Inject constructor(
         }
     } catch (_: Exception) { "" }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN ECRAN QUI PARAIT UNE SECONDE N'A PAS PARU
+    ═══════════════════════════════════════════════════════════════════════
+
+    SIGNALE A L'USAGE. « On transmet votre demande » durait le temps de
+    l'aller-retour au relais — souvent moins d'une seconde. L'oeil voit
+    quelque chose clignoter entre le bouton et le recu, sans avoir le temps
+    de lire un mot.
+
+    Le resultat est l'inverse de ce que cet ecran existe pour faire : au
+    lieu de rassurer pendant l'attente, il donne l'impression d'un
+    scintillement, d'un ecran qui a rate son affichage.
+
+    ─── ON N'ALLONGE PAS, ON POSE UN PLANCHER ──────────────────────────
+
+    Cinq secondes au MINIMUM, pas cinq secondes de plus. Quand le relais
+    met six secondes a repondre, on n'attend pas : il a deja tenu l'ecran
+    tout seul. Le plancher ne se voit que lorsque la reponse est trop
+    rapide pour etre lue — c'est-a-dire exactement quand il sert.
+
+    ET ON ATTEND APRES LE TRAVAIL, pas avant. La demande est partie,
+    l'historique est ecrit ; ce qu'on retarde, c'est le CHANGEMENT
+    D'ECRAN, jamais l'operation. Un plancher pose avant retarderait
+    l'argent de quelqu'un pour une question de confort.
+
+    MEME CHIFFRE QUE L'ECRAN D'ENVOI, ou `DUREE_MIN_DIFFUSION_MS` existe
+    pour la meme raison. Deux attentes du meme parcours qui se
+    comporteraient differemment se liraient comme deux applications.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private suspend fun attendreLeTemps(departMs: Long) {
+        val ecoule = System.currentTimeMillis() - departMs
+        val reste = DUREE_MIN_TRANSMISSION_MS - ecoule
+        if (reste > 0) kotlinx.coroutines.delay(reste)
+    }
+
     private fun entier(v: Double): String =
         java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE).format(v)
 
@@ -2735,6 +2774,18 @@ class ChangeViewModel @Inject constructor(
         }.format(TauxFcfa.plancher(v, monnaie))
 
     private companion object {
+        /**
+         * Le temps minimum pendant lequel « on transmet votre demande »
+         * reste a l'ecran.
+         *
+         * Cinq secondes : assez pour lire la phrase et comprendre qu'on
+         * travaille, assez court pour qu'on ne se demande pas si c'est
+         * bloque. L'ecran d'envoi tient trois secondes pour une diffusion
+         * qui en prend deja plusieurs ; ici le relais repond en une, et
+         * c'est tout l'ecart qu'il faut combler.
+         */
+        const val DUREE_MIN_TRANSMISSION_MS = 5_000L
+
         /**
          * Un jour. Au-dela, une trace ramenerait quelqu'un sur un prix
          * d'hier : il paierait un montant qui n'a plus cours, et le
