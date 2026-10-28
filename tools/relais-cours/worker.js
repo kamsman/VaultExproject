@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 63
+const VERSION = 64
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1400,8 +1400,8 @@ async function diagnostic(env) {
   */
   const mintUsdtSol = CHAINES_VENTE['USDT-SOL']?.mint
   const proprioSol = adressesPosees['USDT-SOL'] || ''
-  for (const hote of NOEUDS_SOLANA) {
-    const nom = `solana:${hote.replace('https://', '')}`
+  for (const hote of noeudsSolana(env)) {
+    const nom = `solana:${hoteMasque(hote)}`
     if (!proprioSol) {
       chaines[nom] = { ignore: 'aucune adresse USDT-SOL reglee dans CHANGE_ADRESSES' }
       continue
@@ -1419,7 +1419,13 @@ async function diagnostic(env) {
             params: [proprioSol, { mint: mintUsdtSol }, { encoding: 'jsonParsed' }],
           }),
         },
-        7000
+        /*
+        DOUZE SECONDES, ET NON SEPT. Le premier essai a rendu
+        « AbortError » sur publicnode : on ne sait pas si l'hote refuse ou
+        s'il est seulement lent, et les deux appellent des gestes opposes.
+        Une sonde doit distinguer « bloque » de « pas assez attendu ».
+        */
+        12000
       )
       const texte = await r.text()
       let comptes = null
@@ -3871,8 +3877,50 @@ en dernier recours plutôt qu'en premier choix.
 */
 const NOEUDS_SOLANA = [
   'https://solana-rpc.publicnode.com',
+  'https://rpc.ankr.com/solana',
+  'https://solana.drpc.org',
   'https://api.mainnet-beta.solana.com',
 ]
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE QUE LA MESURE A DIT, ET POURQUOI CETTE FONCTION EXISTE
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ depuis le Worker déployé, v63 :
+
+    solana-rpc.publicnode.com     AbortError — aucune réponse en 7 s
+    api.mainnet-beta.solana.com   403 « Your IP or provider is blocked
+                                  from this endpoint »
+
+Le second ne laisse aucun doute : les adresses de Cloudflare sont
+filtrées. C'est le même piège que `api.binance.com` ailleurs dans ce
+fichier, et c'est exactement pour ça que ces sondes existent — aucun
+raisonnement ne l'aurait donné.
+
+Les deux hôtes ajoutés au milieu sont des candidats, pas des réponses :
+`/diag` dira s'ils répondent. Si aucun ne passe, la vérification des
+ventes Solana restera `indisponible` — ce qui est honnête, et ne vend rien.
+
+─── LA VRAIE SORTIE EST UN NŒUD NOMINATIF ────────────────────────────────
+
+`CHANGE_NOEUD_SOLANA` accepte une ou plusieurs URL séparées par des
+virgules, essayées AVANT les publiques. Un compte gratuit chez Helius,
+Alchemy ou QuickNode donne une URL qui porte une clé — et un fournisseur
+qui vend son service n'a aucune raison de bloquer un centre de données,
+puisque c'est de là que viennent ses clients.
+
+C'est la même mécanique que `CHANGE_NOEUD_BNB`, pour la même raison,
+apprise de la même façon : en mesurant.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function noeudsSolana(env) {
+  const perso = String(env?.CHANGE_NOEUD_SOLANA ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.startsWith('https://'))
+  return [...perso, ...NOEUDS_SOLANA]
+}
 
 /*
 NŒUDS PUBLICS, PAR ORDRE DE PRÉFÉRENCE.
@@ -5365,7 +5413,7 @@ n'a bougé.
 ═══════════════════════════════════════════════════════════════════════════
 */
 async function verifierSolana(cfg, critere) {
-  const noeuds = NOEUDS_SOLANA
+  const noeuds = critere.noeudsSolana?.length ? critere.noeudsSolana : NOEUDS_SOLANA
 
   const comptes = await appelSolana(
     'getTokenAccountsByOwner',
@@ -6167,6 +6215,9 @@ async function verifierVente(options) {
     // La liste des nœuds, calculée UNE FOIS ici : un nœud nominatif
     // devant, les publics derrière en secours.
     noeuds: noeudsEvm(cfg.reseau || '', env),
+    // Les noeuds Solana, calcules ici comme ceux des EVM : un noeud
+    // nominatif devant, les publics derriere. Voir `noeudsSolana`.
+    noeudsSolana: noeudsSolana(env),
     /*
     LA TRANCHE EST RÉGLABLE, parce que sa bonne valeur est MESURÉE et
     change avec le fournisseur. Alchemy gratuit : 10. Un nœud payant :
