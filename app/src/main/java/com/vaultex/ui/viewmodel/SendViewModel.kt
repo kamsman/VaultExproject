@@ -373,7 +373,7 @@ class SendViewModel @Inject constructor(
     Marché — écrase ce choix, puisque ces chemins savent mieux.
     */
     private fun varianteUsdtDeDepart(): String {
-        val detenue = listOf("USDT", "USDT-ETH", "USDT-BNB")
+        val detenue = listOf("USDT", "USDT-ETH", "USDT-BNB", "USDT-SOL")
             .map { it to (availableFor(it)?.toDoubleOrNull() ?: 0.0) }
             .filter { it.second > 0.0 }
             .maxByOrNull { it.second }
@@ -1463,7 +1463,7 @@ class SendViewModel @Inject constructor(
         private const val PART_MAX_SOURCE = 0.25
 
         private val NATIVE_CHAINS = setOf(
-            "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB"
+            "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB", "USDT-SOL"
         )
 
         // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que
@@ -1549,7 +1549,8 @@ class SendViewModel @Inject constructor(
             "SHIB"     to 100000.0,     // ~1 $ : sous ce seuil, le gaz coûte plus
             "USDT"     to 1.0,
             "USDT-ETH" to 1.0,
-            "USDT-BNB" to 1.0
+            "USDT-BNB" to 1.0,
+            "USDT-SOL" to 1.0
         )
     }
 

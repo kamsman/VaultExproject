@@ -218,6 +218,7 @@ private fun networkLabel(symbol: String): String = when (symbol) {
     "USDT" -> "Tron · TRC20"
     "USDT-ETH" -> "Ethereum · ERC20"
     "USDT-BNB" -> "BNB Chain · BEP20"
+    "USDT-SOL" -> "Solana · SPL"
     "BTC" -> "Bitcoin"
     "ETH" -> "Ethereum"
     "BNB" -> "BNB Chain"
