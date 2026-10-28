@@ -942,8 +942,44 @@ class SwapViewModel @Inject constructor(
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN DEVIS A LA FOIS, ET IL ETEINT TOUJOURS SA LAMPE
+    ═══════════════════════════════════════════════════════════════════════
+
+    SIGNALE A L'USAGE : « Vous recevez » restait sur « … », le bouton ne
+    s'allumait jamais, et rien ne permettait d'en sortir sans quitter
+    l'ecran.
+
+    LA CAUSE. Deux sorties de ce bloc — une au succes, une a l'echec —
+    s'ecrivaient `if (obsolete(...)) return@launch`, c'est-a-dire SANS
+    eteindre `devisEnCours`. Le garde avait ete ajoute pour qu'un devis
+    perime n'ecrase pas l'ecran, et il faisait bien ca ; mais il laissait
+    la lampe allumee derriere lui.
+
+    Tant qu'un devis plus recent arrivait ensuite, personne ne le voyait :
+    c'est lui qui eteignait. Il suffisait que le dernier parti soit celui
+    qui se perime — un changement de monnaie au moment ou la reponse
+    arrive — pour que plus rien n'eteigne jamais.
+
+    ─── LA CORRECTION N'EST PAS D'ETEINDRE DANS LE GARDE ────────────────
+
+    Ce serait eteindre pendant qu'un devis plus recent travaille encore.
+    On supprime la cause : un seul devis en vol a la fois. Le precedent est
+    ANNULE avant d'en lancer un autre, donc celui qui parle est toujours le
+    seul, et toutes ses sorties peuvent eteindre sans risque.
+
+    ET L'ANNULATION NE DOIT PAS SE LIRE COMME UNE PANNE.
+    `CancellationException` est une `Exception` : sans la relancer, le
+    `catch` plus bas l'habillerait en « Devis indisponible » et afficherait
+    une erreur rouge a chaque frappe au clavier.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private var devisEnVol: kotlinx.coroutines.Job? = null
+
     private fun estimateOutput(amount: String) {
-        viewModelScope.launch {
+        devisEnVol?.cancel()
+        devisEnVol = viewModelScope.launch {
             val input = amount.toDoubleOrNull() ?: return@launch
             if (input <= 0.0) {
                 // « 0 » ou saisie incomplète : on vide le résultat sans appeler l'API.
@@ -995,10 +1031,20 @@ class SwapViewModel @Inject constructor(
                 destination. Un devis qui ne décrit plus ce qui est à l'écran
                 est jeté.
                 */
-                if (obsolete(amount, de, vers)) return@launch
+                // Le garde eteint, lui aussi : c'est le seul devis en vol.
+                if (obsolete(amount, de, vers)) {
+                    _state.update { it.copy(devisEnCours = false) }
+                    return@launch
+                }
                 _state.update { it.copy(toAmount = est.montantEstime, error = null, devisEnCours = false) }
             } catch (e: Exception) {
-                if (obsolete(amount, de, vers)) return@launch
+                // L'ANNULATION N'EST PAS UNE PANNE : relancee telle quelle,
+                // sans quoi chaque frappe au clavier afficherait une erreur.
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (obsolete(amount, de, vers)) {
+                    _state.update { it.copy(devisEnCours = false) }
+                    return@launch
+                }
                 /*
                 ON NE DEPEND PLUS DE L'ECRAN POUR SAVOIR POURQUOI.
 
