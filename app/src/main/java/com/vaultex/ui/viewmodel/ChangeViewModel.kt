@@ -786,6 +786,31 @@ data class ChangeState(
         if (sens == SensChange.VENTE && !p.rachetable(monnaie)) return "pas_de_rachat"
         if (prix == null) return "sans_cours"
         val fcfa = montantFcfa ?: return "montant"
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN SOLDE NUL PASSE AVANT LES BORNES
+        ═══════════════════════════════════════════════════════════════════
+
+        VU SUR TROIS CAPTURES. Portefeuille vide, un USDT tape : l'ecran
+        repond « Minimum : 11 USDT ». On tape 11 — et on se fait refuser
+        une seconde fois, pour le solde. Deux refus d'affilee pour un seul
+        probleme.
+
+        Les bornes parlent du CHIFFRE : les corriger, c'est retaper. Un
+        solde nul ne se corrige par aucun chiffre — il faut d'abord
+        recevoir. Annoncer le minimum a quelqu'un qui ne detient rien,
+        c'est l'envoyer chercher la mauvaise reponse.
+
+        ON NE DEVANCE QUE LE ZERO FRANC. Un solde insuffisant mais non nul
+        garde l'ordre d'avant : la borne vient en premier parce qu'elle
+        peut, elle, etre plus haute que ce qu'on detient — et c'est alors
+        le minimum qu'il faut lire.
+
+        NULL NE BLOQUE PAS : l'instantane peut ne rien savoir de cette
+        monnaie, et « on n'a pas regarde » n'est pas « il n'y a rien ».
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (sens == SensChange.VENTE && solde != null && solde <= 0.0) return "solde"
         // Par monnaie : TRON coute 13 a 27 TRX par transfert, BNB Chain
         // vingt centimes. Un seuil unique ferait du plus cher un piege.
         /*
