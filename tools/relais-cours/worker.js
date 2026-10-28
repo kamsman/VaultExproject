@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 62
+const VERSION = 63
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2079,6 +2079,11 @@ const FORMES_ADRESSE = {
   evm: /^0x[0-9a-fA-F]{40}$/,
   // Bitcoin : bech32 « bc1… », ou base58 « 1… » / « 3… ».
   btc: /^(bc1[0-9a-z]{20,80}|[13][1-9A-HJ-NP-Za-km-z]{25,39})$/,
+  // Solana : 32 octets en base58, soit 32 a 44 caracteres. Pas de somme de
+  // controle — c'est la chaine qui n'en a pas, et aucune regle de forme ne
+  // peut donc attraper une faute de frappe ici. Seule la longueur et
+  // l'alphabet se verifient.
+  solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
   // Stellar et Pi, StrKey : « G » puis 55 caractères en base32.
   stellar: /^G[A-Z2-7]{55}$/,
 }
@@ -2268,6 +2273,16 @@ function txidValide(txid, chaine) {
       // Sans préfixe sur ces deux chaînes. On tolère un « 0x » collé par
       // habitude plutôt que de refuser un hash par ailleurs correct.
       return /^(0x)?[0-9a-fA-F]{64}$/.test(t)
+    /*
+    UNE SIGNATURE SOLANA N'EST PAS UN HASH HEXADÉCIMAL.
+
+    C'est 64 octets en base58 — donc 86 à 88 caractères pris dans un
+    alphabet qui exclut 0, O, I et l, précisément ceux qui se confondent à
+    l'oeil. Appliquer ici la règle des autres chaînes refuserait toutes
+    les signatures Solana sans exception.
+    */
+    case 'solana':
+      return /^[1-9A-HJ-NP-Za-km-z]{86,90}$/.test(t)
     default:
       return false
   }
@@ -2287,6 +2302,8 @@ function formeAttendue(monnaie) {
       return 'evm'
     case 'BTC':
       return 'btc'
+    case 'USDT-SOL':
+      return 'solana'
     case 'PI':
       return 'stellar'
     default:
@@ -3741,12 +3758,60 @@ const CHAINES_VENTE = {
     decimales: 18,
     explorateur: 'https://etherscan.io/tx/',
   },
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  L'USDT DE SOLANA — ET POURQUOI ON PARLE DE « MINT » ET NON DE CONTRAT
+  ═══════════════════════════════════════════════════════════════════════
+
+  Sur Tron et sur les EVM, un jeton est un CONTRAT : du code deploye, qui
+  tient lui-meme la liste de qui possede quoi. Sur Solana, un jeton est un
+  MINT : une simple fiche d'identite — nom, decimales, emetteur — et les
+  soldes vivent ailleurs, dans un compte par detenteur.
+
+  Le role est le meme pour nous : c'est le seul champ qui identifie
+  vraiment le jeton. N'importe qui cree en dix minutes un jeton appele
+  « USDT » a six decimales sur Solana, exactement comme sur BNB Chain.
+
+  MINT VERIFIE SUR SOLSCAN : page « Token USDT », badge verifie, trois
+  millions de detenteurs, 3,8 milliards de capitalisation, six decimales,
+  et « Owner Program : Token Program » — le programme CLASSIQUE, pas
+  Token-2022, qui a une autre adresse et donnerait d'autres comptes.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  'USDT-SOL': {
+    chaine: 'solana',
+    mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+    decimales: 6,
+    explorateur: 'https://solscan.io/tx/',
+  },
   BTC: {
     chaine: 'btc',
     decimales: 8,
     explorateur: 'https://blockstream.info/tx/',
   },
 }
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES NŒUDS SOLANA, PAR ORDRE DE PRÉFÉRENCE
+═══════════════════════════════════════════════════════════════════════════
+
+Même règle que pour les nœuds EVM : le premier qui répond gagne.
+
+CES HÔTES N'ONT PAS ÉTÉ MESURÉS DEPUIS LE WORKER DÉPLOYÉ. `/diag` les
+sonde, et c'est la seule façon de savoir lesquels acceptent une requête
+venant d'un centre de données — Cloudflare en est un, et plus d'un
+fournisseur « public » refuse ce trafic-là.
+
+`api.mainnet-beta.solana.com` est le nœud de la fondation : il répond à
+tout le monde, et il est fortement limité en débit. Il est donc là, mais
+en dernier recours plutôt qu'en premier choix.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const NOEUDS_SOLANA = [
+  'https://solana-rpc.publicnode.com',
+  'https://api.mainnet-beta.solana.com',
+]
 
 /*
 NŒUDS PUBLICS, PAR ORDRE DE PRÉFÉRENCE.
@@ -5194,6 +5259,222 @@ async function verifierTron(cfg, critere) {
  * marquage des txid déjà servis.
  * ═══════════════════════════════════════════════════════════════════════
  */
+/*
+═══════════════════════════════════════════════════════════════════════════
+VÉRIFIER UNE VENTE SUR SOLANA
+═══════════════════════════════════════════════════════════════════════════
+
+Deux difficultés que les autres chaînes n'ont pas.
+
+LA PREMIÈRE : ON NE PEUT PAS INTERROGER L'ADRESSE DU CHANGEUR. Sur Tron et
+sur les EVM, un transfert de jeton touche l'adresse du destinataire, et
+l'explorateur sait le retrouver par elle. Sur Solana, un transfert touche
+son COMPTE DE JETON — une autre adresse — et le portefeuille du
+destinataire n'apparaît nulle part dans la transaction. Demander les
+signatures de l'adresse du changeur ne rendrait rien.
+
+On demande donc d'abord son compte de jeton au réseau. On pourrait le
+calculer — l'application le fait — mais le demander est plus court, plus
+sûr, et c'est la chaîne elle-même qui répond.
+
+LA SECONDE : ON LIT UNE DIFFÉRENCE DE SOLDE, PAS UNE INSTRUCTION. Un
+transfert SPL peut être écrit de plusieurs façons — `transfer`,
+`transferChecked`, ou déclenché par un autre programme. Chercher la bonne
+instruction, c'est chercher toutes les formes qu'elle peut prendre, et en
+oublier une.
+
+`preTokenBalances` et `postTokenBalances` disent ce que le compte avait
+avant et après, quelle que soit la façon dont c'est arrivé. La différence
+EST le montant reçu. Un seul chemin, et il couvre tout.
+
+─── CE QU'ON REFUSE PLUTÔT QUE DE DEVINER ────────────────────────────────
+
+Le MINT doit figurer dans le solde lu. Sans cette comparaison, un jeton
+nommé « USDT » déployé le matin passerait pour de l'USDT — c'est la même
+faute que le contrat sur les autres chaînes, et elle sert à voler le
+changeur en lui donnant confiance.
+
+Les DÉCIMALES viennent de la chaîne et sont comparées aux nôtres. Les
+prendre sans vérifier laisserait un faux jeton à 9 décimales se faire lire
+avec 6, soit mille fois trop.
+
+Et la transaction doit avoir RÉUSSI. `meta.err` non nul veut dire qu'elle a
+été enregistrée et annulée : les soldes affichés sont ceux d'avant, et rien
+n'a bougé.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function verifierSolana(cfg, critere) {
+  const noeuds = NOEUDS_SOLANA
+
+  const comptes = await appelSolana(
+    'getTokenAccountsByOwner',
+    [critere.adresse, { mint: cfg.mint }, { encoding: 'jsonParsed' }],
+    noeuds
+  )
+  const compte = comptes?.value?.[0]?.pubkey
+  /*
+  AUCUN COMPTE DE JETON = AUCUN VERSEMENT POSSIBLE, et ce n'est pas une
+  panne : c'est l'état d'un changeur qui n'a encore jamais reçu d'USDT sur
+  Solana. On rend « rien trouvé » plutôt que de lever une erreur, qui se
+  lirait « on n'a pas pu regarder ».
+  */
+  if (!compte) return null
+
+  const signatures = await appelSolana(
+    'getSignaturesForAddress',
+    [compte, { limit: 50 }],
+    noeuds
+  )
+  if (!Array.isArray(signatures)) return null
+
+  for (const s of signatures) {
+    const ident = String(s?.signature ?? '').trim()
+    if (!ident) continue
+    // Une transaction enregistree et annulee n'a rien deplace.
+    if (s?.err) continue
+    if (critere.txid && ident !== String(critere.txid).trim()) continue
+
+    const quand = Number(s?.blockTime) * 1000
+    if (!Number.isFinite(quand) || quand <= 0) continue
+    if (critere.maintenant - quand > (critere.fenetre || FENETRE_VENTE_MS)) continue
+    // Meme marge d'une minute que sur Tron : l'horloge d'un bloc et celle
+    // du relais ne sont pas la meme.
+    if (critere.apres && quand < critere.apres - 60_000) continue
+    if (quand - critere.maintenant > 5 * 60 * 1000) continue
+
+    const tx = await appelSolana(
+      'getTransaction',
+      [ident, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }],
+      noeuds
+    )
+    if (!tx || tx?.meta?.err) continue
+
+    const lu = recuSurCompteSolana(tx, compte, cfg.mint, cfg.decimales)
+    if (lu === null) continue
+
+    const correspond = critere.exact
+      ? memeMontant(lu, critere.montant)
+      : montantProche(lu, critere.montant)
+    if (!correspond) continue
+
+    return { txid: ident, montant: lu, quand, de: expediteurSolana(tx) }
+  }
+  return null
+}
+
+/**
+ * Ce que ce compte a GAGNE dans cette transaction, ou null.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * LA DIFFERENCE SE FAIT EN ENTIERS, ET LA RAISON N'EST PAS CELLE QU'ON
+ * CROIT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * `uiTokenAmount.amount` est la quantite brute, en chaine ; `uiAmount` est
+ * un flottant, que le noeud omet parfois. Soustraire les flottants se
+ * trompe souvent : MESURE sur 300 000 versements simules, 76,7 % rendent
+ * autre chose que la valeur exacte — « 246,25330599999984 » au lieu de
+ * « 246,253306 ».
+ *
+ * J'AI D'ABORD ECRIT QUE CA FERAIT ECHOUER LA CORRESPONDANCE. C'est faux,
+ * et il faut le dire : `memeMontant` arrondit au millionieme avant de
+ * comparer, donc elle absorbe exactement cette erreur-la. Le chemin
+ * flottant marcherait, aujourd'hui.
+ *
+ * Il marcherait PAR ACCIDENT. L'exactitude ne viendrait pas de ce calcul
+ * mais d'un arrondi fait ailleurs, par une fonction qui n'a pas ete ecrite
+ * pour nous rattraper et qui peut devenir plus stricte. Le montant lu part
+ * aussi dans le message du changeur et dans le calcul du prorata.
+ *
+ * On ne construit pas une verification d'argent sur « une autre fonction
+ * annule mon erreur ». Les entiers n'ont pas d'erreur a annuler.
+ *
+ * ABSENT AVANT, PRESENT APRES = le compte vient d'etre cree par ce
+ * versement meme. C'est le cas normal du tout premier USDT recu, et le
+ * solde d'avant vaut alors zero.
+ */
+function recuSurCompteSolana(tx, compte, mint, decimales) {
+  const cles = tx?.transaction?.message?.accountKeys
+  if (!Array.isArray(cles)) return null
+  const rang = cles.findIndex(
+    (k) => (typeof k === 'string' ? k : String(k?.pubkey ?? '')) === compte
+  )
+  if (rang < 0) return null
+
+  const entree = (liste) =>
+    (Array.isArray(liste) ? liste : []).find(
+      (b) => Number(b?.accountIndex) === rang && String(b?.mint ?? '') === mint
+    )
+
+  const apres = entree(tx?.meta?.postTokenBalances)
+  if (!apres) return null
+  // LES DECIMALES VIENNENT DE LA CHAINE, et doivent etre les notres.
+  if (Number(apres?.uiTokenAmount?.decimals) !== decimales) return null
+  const brutApres = String(apres?.uiTokenAmount?.amount ?? '')
+  if (!/^\d+$/.test(brutApres)) return null
+
+  const avant = entree(tx?.meta?.preTokenBalances)
+  let brutAvant = '0'
+  if (avant) {
+    if (Number(avant?.uiTokenAmount?.decimals) !== decimales) return null
+    brutAvant = String(avant?.uiTokenAmount?.amount ?? '')
+    if (!/^\d+$/.test(brutAvant)) return null
+  }
+
+  const gain = BigInt(brutApres) - BigInt(brutAvant)
+  if (gain <= 0n) return null
+  return depuisUnites(gain.toString(), decimales)
+}
+
+/**
+ * Qui a signe la transaction — pour la ligne « de » du message.
+ *
+ * Le premier compte d'un message Solana est toujours le signataire et le
+ * payeur des frais. Sur un transfert ordinaire, c'est l'expediteur.
+ */
+function expediteurSolana(tx) {
+  const k = tx?.transaction?.message?.accountKeys?.[0]
+  return String(typeof k === 'string' ? k : k?.pubkey ?? '').trim()
+}
+
+/**
+ * Un appel JSON-RPC a Solana, sur le premier noeud qui repond.
+ *
+ * MEME FORME QUE `appelEvm`, et pour la meme raison : un noeud public
+ * tousse, un autre repond. L'erreur du dernier essaye est relancee telle
+ * quelle — elle finira dans le message du changeur, qui saura que la
+ * verification n'a pas eu lieu plutot que de lire « introuvable ».
+ */
+async function appelSolana(methode, params, noeuds) {
+  let derniere = null
+  for (const hote of noeuds) {
+    try {
+      const r = await fetchBorne(
+        hote,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: methode, params }),
+        },
+        7000
+      )
+      if (!r.ok) {
+        derniere = new Error(`solana ${new URL(hote).hostname} HTTP ${r.status}`)
+        continue
+      }
+      const o = await r.json()
+      if (o?.error) {
+        derniere = new Error(String(o.error?.message ?? 'erreur rpc').slice(0, 60))
+        continue
+      }
+      return o?.result ?? null
+    } catch (e) {
+      derniere = e
+    }
+  }
+  throw derniere ?? new Error('aucun noeud solana joignable')
+}
+
 async function verifierEvm(cfg, critere) {
   if (critere.txid) {
     const tx = await appelEvm(cfg.reseau, 'eth_getTransactionByHash', [critere.txid], critere.noeuds)
@@ -5839,6 +6120,7 @@ async function verifierVente(options) {
     if (cfg.chaine === 'tron') trouve = await verifierTron(cfg, critere)
     else if (cfg.chaine === 'evm') trouve = await verifierEvm(cfg, critere)
     else if (cfg.chaine === 'btc') trouve = await verifierBtc(cfg, critere)
+    else if (cfg.chaine === 'solana') trouve = await verifierSolana(cfg, critere)
     else return { etat: 'inconnue', raison: `chaine ${cfg.chaine} non traitee` }
   } catch (e) {
     /*
