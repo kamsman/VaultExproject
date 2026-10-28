@@ -707,7 +707,34 @@ private fun ColumnScope.EtapeCalcul(
         montant = state.saisie,
         unite = if (donneFcfa) "FCFA" else state.monnaie,
         avecLogo = !donneFcfa,
-        monnaies = if (donneFcfa) emptyList() else p.monnaies,
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        A LA VENTE, ON NE PROPOSE QUE CE QU'ON RACHETE
+        ═══════════════════════════════════════════════════════════════════
+
+        L'ecran basculait deja sur une monnaie vendable a l'ouverture. Mais
+        la liste, elle, montrait encore les autres — et les choisir menait
+        au pave rouge « cette monnaie n'est pas rachetee ».
+
+        Proposer un choix qui ne mene nulle part, c'est faire faire un
+        geste pour le refuser ensuite. La meme regle qu'a l'ouverture, un
+        cran plus loin : si le refus est connu d'avance, l'option n'a pas a
+        exister.
+
+        A L'ACHAT ELLES RESTENT TOUTES, et c'est la raison d'etre de cette
+        distinction : `rachetable` ne dit rien de l'achat. Une monnaie que
+        le changeur vend sans la reprendre s'achete parfaitement — c'est
+        exactement le cas de l'USDT-BNB aujourd'hui.
+
+        SI AUCUNE N'EST RACHETEE, ON LES MONTRE TOUTES. Une liste vide
+        n'expliquerait rien ; avec la liste entiere, on choisit, on lit le
+        message rouge, et on sait pourquoi. C'est le seul cas ou il doit
+        s'afficher.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        monnaies = if (donneFcfa) emptyList() else {
+            p.monnaies.filter { p.rachetable(it) }.ifEmpty { p.monnaies }
+        },
         onMonnaie = vm::onMonnaie,
         onMontant = vm::onSaisie,
         // AUCUNE DECIMALE DANS LES DEUX SENS : le franc n'a pas de
