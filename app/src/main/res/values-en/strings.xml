@@ -1122,6 +1122,7 @@
     <string name="change_sous_minimum_crypto">Minimum: %1$s %2$s.</string>
     <string name="change_sur_plafond_crypto">Maximum: %1$s %2$s per transaction.</string>
     <string name="change_solde_insuffisant">You don\'t hold enough for this sale. Lower the amount, or deposit into your wallet first.</string>
+    <string name="change_sans_solde">You don\'t hold any %1$s yet. Receive some first, then come back to sell.</string>
     <string name="change_pas_de_gaz">You need some %1$s to pay the network fee. Receive or buy a little %1$s, then come back to sell.</string>
     <string name="change_pas_de_gaz_montant">You need about %1$s %2$s to pay the network fee. Receive or buy a little %2$s, then come back to sell.</string>
     <string name="change_sans_adresse">VaultEx has no %1$s address to receive your purchase. Open the Receive screen for this coin, then come back.</string>

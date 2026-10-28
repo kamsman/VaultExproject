@@ -5463,7 +5463,27 @@ private fun messageBlocage(
         p.plafondPour(monnaie, fcfaParDollar, prix, achat),
         monnaie, prix, achat, versLeHaut = false
     )
-    "solde" -> stringResource(R.string.change_solde_insuffisant)
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    « PAS ASSEZ » QUAND ON N'A RIEN DU TOUT
+    ═══════════════════════════════════════════════════════════════════
+
+    SIGNALE A L'USAGE, sur un portefeuille vide : « Vous n'en detenez pas
+    assez pour cette vente. Reduisez le montant. » On lit ca avec zero en
+    solde, et on cherche quel montant serait assez petit. Aucun ne l'est.
+
+    « Pas assez » suppose qu'on en a un peu. Quand on n'en a pas du tout,
+    la phrase envoie reflechir a un chiffre alors que le geste a faire est
+    ailleurs : en recevoir.
+
+    Deux situations, deux gestes, deux phrases.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    "solde" -> if ((state.solde ?: 0.0) <= 0.0) {
+        stringResource(R.string.change_sans_solde, monnaie)
+    } else {
+        stringResource(R.string.change_solde_insuffisant)
+    }
     else -> stringResource(R.string.change_montant_invalide)
 }
 

@@ -1122,6 +1122,7 @@
     <string name="change_sous_minimum_crypto">الحد الأدنى: %1$s %2$s.</string>
     <string name="change_sur_plafond_crypto">الحد الأقصى: %1$s %2$s لكل عملية.</string>
     <string name="change_solde_insuffisant">رصيدك لا يكفي لهذا البيع. قلّل المبلغ، أو أودِع في محفظتك أولًا.</string>
+    <string name="change_sans_solde">لا تملك أي %1$s بعد. استلم بعضها أولاً ثم عُد للبيع.</string>
     <string name="change_pas_de_gaz">تحتاج إلى بعض %1$s لدفع رسوم الشبكة. استلم أو اشترِ قليلاً من %1$s ثم عُد للبيع.</string>
     <string name="change_pas_de_gaz_montant">تحتاج إلى نحو %1$s %2$s لدفع رسوم الشبكة. استلم أو اشترِ قليلاً من %2$s ثم عُد للبيع.</string>
     <string name="change_sans_adresse">لا يملك VaultEx عنوان %1$s لاستلام شرائك. افتح شاشة الاستلام لهذه العملة ثم عُد.</string>
