@@ -1476,10 +1476,56 @@ class ChangeViewModel @Inject constructor(
     } catch (_: Exception) { null }
 
     fun onSens(sens: SensChange) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        ON N'OUVRE PAS UN ECRAN SUR UN REFUS QU'ON POUVAIT EVITER
+        ═══════════════════════════════════════════════════════════════════
+
+        VU A L'USAGE. Le changeur a retire l'adresse BNB de ses reglages :
+        l'USDT-BNB reste achetable, il n'est plus rachete. Or c'est la
+        PREMIERE monnaie de sa liste, donc celle choisie par defaut — et
+        l'ecran Vendre s'ouvrait sur un pave rouge « cette monnaie n'est
+        pas rachetee », avant qu'on ait touche a quoi que ce soit.
+
+        Un refus est une reponse a un geste. Posé avant le geste, ce n'est
+        plus un refus, c'est un accueil — et il donne a croire que le
+        service ne marche pas, alors que deux monnaies sur trois se vendent
+        parfaitement.
+
+        ─── ON BASCULE SUR LA PREMIERE VENDABLE ───────────────────────────
+
+        Et seulement si celle qui est choisie ne l'est pas : quelqu'un qui
+        avait deja selectionne sa monnaie ne doit pas la voir changer sous
+        ses doigts.
+
+        SI AUCUNE N'EST RACHETEE, ON NE TOUCHE A RIEN. Le message rouge
+        reprend alors sa place, et il est juste : il n'y a rien a faire de
+        cet ecran. C'est le seul cas ou il doit accueillir.
+
+        ─── POURQUOI ICI ET PAS DANS LA LISTE DU RELAIS ───────────────────
+
+        Reordonner `CHANGE_MONNAIES` reglerait le cas d'aujourd'hui en dix
+        secondes, et laisserait le defaut entier : il reviendrait le jour
+        ou une autre monnaie cesse d'etre rachetee. L'ecran doit savoir
+        s'ouvrir correctement quelle que soit la liste.
+        ═══════════════════════════════════════════════════════════════════
+        */
         _state.update {
-        // La saisie change d'unité avec le sens : la garder tromperait.
-        it.copy(sens = sens, saisie = "", erreur = null)
+            val p = it.parametres
+            val monnaie =
+                if (sens == SensChange.VENTE && p != null && !p.rachetable(it.monnaie)) {
+                    p.monnaies.firstOrNull { m -> p.rachetable(m) } ?: it.monnaie
+                } else it.monnaie
+            // La saisie change d'unité avec le sens : la garder tromperait.
+            it.copy(sens = sens, monnaie = monnaie, saisie = "", erreur = null)
         }
+        /*
+        LE PRIX SUIT LA MONNAIE. Sans ce recalcul, un basculement qui change
+        aussi la monnaie garderait le cours de la precedente — deux USDT de
+        chaines differentes ont des cours tres proches, donc l'ecart ne se
+        verrait pas, et c'est exactement ce qui le rend dangereux.
+        */
+        recalculer()
         preparerConsigne()
     }
 
