@@ -1321,6 +1321,7 @@ private fun coinTitleOf(chain: String, custom: CustomTokenLite?): String = when 
     chain == "USDT" -> "USDT (TRC20)"
     chain == "USDT-ETH" -> "USDT (ERC20)"
     chain == "USDT-BNB" -> "USDT (BEP20)"
+    chain == "USDT-SOL" -> "USDT (Solana)"
     else -> chain
 }
 
@@ -1335,6 +1336,7 @@ private fun networkFullLabel(chain: String, custom: CustomTokenLite?): String = 
     chain == "USDT" -> "TRC20 · Tron"
     chain == "USDT-ETH" -> "ERC20 · Ethereum"
     chain == "USDT-BNB" -> "BEP20 · BNB Chain"
+    chain == "USDT-SOL" -> "SPL · Solana"
     else -> chain
 }
 
@@ -1343,6 +1345,7 @@ private fun nativeFeeUnit(chain: String, custom: CustomTokenLite?): String = whe
     custom != null -> if (custom.blockchain == "BNB") "BNB" else "ETH"
     chain == "USDT-ETH" -> "ETH"
     chain == "USDT-BNB" -> "BNB"
+    chain == "USDT-SOL" -> "SOL"
     chain == "USDT" -> "TRX"
     else -> chain
 }
@@ -1372,13 +1375,20 @@ private fun buildSendNetworks(custom: List<CustomTokenLite>): List<SendNetworkUi
         "BNB", "BNB Chain",
         listOf("BNB", "USDT-BNB") + custom.filter { it.blockchain == "BNB" }.map { it.symbol }
     ),
-    SendNetworkUi("SOL", "Solana", listOf("SOL")),
+    SendNetworkUi(
+        "SOL", "Solana",
+        // Eteint pendant le chantier : voir `Fonctionnalites.USDT_SOL_ACTIF`.
+        listOfNotNull(
+            "SOL",
+            "USDT-SOL".takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF }
+        )
+    ),
     SendNetworkUi("TRX", "Tron", listOf("TRX", "USDT"))
 )
 
 /** Étiquette courte d'une monnaie (le réseau étant déjà affiché au-dessus). */
 private fun coinLabel(sym: String): String = when (sym) {
-    "USDT-ETH", "USDT-BNB" -> "USDT"
+    "USDT-ETH", "USDT-BNB", "USDT-SOL" -> "USDT"
     else -> sym
 }
 
@@ -1442,7 +1452,8 @@ internal data class SendDetail(
 
 private fun coinFullName(chain: String, custom: CustomTokenLite?): String = when {
     custom != null -> custom.symbol
-    chain == "USDT" || chain == "USDT-ETH" || chain == "USDT-BNB" -> "Tether USD"
+    chain == "USDT" || chain == "USDT-ETH" || chain == "USDT-BNB" ||
+        chain == "USDT-SOL" -> "Tether USD"
     chain == "BTC" -> "Bitcoin"
     chain == "ETH" -> "Ethereum"
     chain == "BNB" -> "BNB"
@@ -1467,7 +1478,7 @@ private fun explorerName(chain: String, custom: CustomTokenLite?): String {
         evm == "BNB" || chain == "BNB" || chain == "USDT-BNB" -> "BscScan"
         evm == "ETH" || chain == "ETH" || chain == "USDT-ETH" -> "Etherscan"
         chain == "BTC" -> "Blockstream"
-        chain == "SOL" -> "Solscan"
+        chain == "SOL" || chain == "USDT-SOL" -> "Solscan"
         chain == "TRX" || chain == "USDT" -> "Tronscan"
         else -> "Explorer"
     }
@@ -1479,7 +1490,7 @@ private fun explorerUrl(chain: String, custom: CustomTokenLite?, hash: String): 
         evm == "BNB" || chain == "BNB" || chain == "USDT-BNB" -> "https://bscscan.com/tx/"
         evm == "ETH" || chain == "ETH" || chain == "USDT-ETH" -> "https://etherscan.io/tx/"
         chain == "BTC" -> "https://blockstream.info/tx/"
-        chain == "SOL" -> "https://solscan.io/tx/"
+        chain == "SOL" || chain == "USDT-SOL" -> "https://solscan.io/tx/"
         chain == "TRX" || chain == "USDT" -> "https://tronscan.org/#/transaction/"
         else -> "https://etherscan.io/tx/"
     }

@@ -53,6 +53,7 @@ object CoinIds {
         "USDT" to "tether",
         "USDT-ETH" to "tether",
         "USDT-BNB" to "tether",
+        "USDT-SOL" to "tether",
         "USDC" to "usd-coin",
         "DAI" to "dai",
         "LINK" to "chainlink",

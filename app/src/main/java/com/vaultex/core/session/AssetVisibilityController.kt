@@ -38,6 +38,7 @@ class AssetVisibilityController @Inject constructor(
          */
         val SUPPORTED = listOfNotNull(
             "BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB",
+            "USDT-SOL".takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF },
             "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
         )
     }

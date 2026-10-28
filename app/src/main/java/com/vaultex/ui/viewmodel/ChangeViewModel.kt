@@ -1454,6 +1454,7 @@ class ChangeViewModel @Inject constructor(
     private fun jetonDeGaz(monnaie: String): String? = when (monnaie.uppercase()) {
         "USDT", "USDT-TRX" -> "TRX"
         "USDT-BNB" -> "BNB"
+        "USDT-SOL" -> "SOL"
         "USDT-ETH" -> "ETH"
         else -> null
     }
@@ -2660,6 +2661,7 @@ class ChangeViewModel @Inject constructor(
                 "BTC" -> a.btc
                 "ETH", "USDT-ETH" -> a.eth
                 "BNB", "USDT-BNB" -> a.bnb
+                "USDT-SOL" -> a.sol
                 "SOL" -> a.sol
                 "TRX", "USDT" -> a.trx
                 "PI" -> a.pi

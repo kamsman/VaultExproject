@@ -275,6 +275,7 @@ internal fun receiveCoinTitle(symbol: String, isCustom: Boolean, b: Blockchain):
     symbol == "USDT" -> "USDT (TRC20)"
     symbol == "USDT-ETH" -> "USDT (ERC20)"
     symbol == "USDT-BNB" -> "USDT (BEP20)"
+    symbol == "USDT-SOL" -> "USDT (Solana)"
     else -> symbol
 }
 
@@ -283,6 +284,7 @@ internal fun receiveNetworkLabel(symbol: String, isCustom: Boolean, b: Blockchai
     symbol == "USDT" -> "Tron · TRC20"
     symbol == "USDT-ETH" -> "Ethereum · ERC20"
     symbol == "USDT-BNB" -> "BNB Chain · BEP20"
+    symbol == "USDT-SOL" -> "Solana · SPL"
     symbol == "BTC" -> "Bitcoin"
     symbol == "ETH" -> "Ethereum"
     symbol == "BNB" -> "BNB Chain"

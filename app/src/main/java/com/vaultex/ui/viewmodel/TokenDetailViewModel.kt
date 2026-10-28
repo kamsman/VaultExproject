@@ -82,6 +82,7 @@ class TokenDetailViewModel @Inject constructor(
         "BTC" to "Bitcoin", "ETH" to "Ethereum", "BNB" to "BNB",
         "SOL" to "Solana", "TRX" to "Tron",
         "USDT" to "Tether TRC20", "USDT-ETH" to "Tether ERC20", "USDT-BNB" to "Tether BEP20",
+        "USDT-SOL" to "Tether Solana",
         "USDC" to "USD Coin", "DAI" to "Dai", "LINK" to "Chainlink",
         "SHIB" to "Shiba Inu", "PEPE" to "Pepe", "UNI" to "Uniswap",
         "AAVE" to "Aave", "WBTC" to "Wrapped Bitcoin", "CAKE" to "PancakeSwap",
@@ -146,6 +147,7 @@ class TokenDetailViewModel @Inject constructor(
                         "BTC" -> a.btc
                         "ETH", "USDT-ETH" -> a.eth
                         "BNB", "USDT-BNB" -> a.bnb
+                        "USDT-SOL" -> a.sol
                         "SOL" -> a.sol
                         "TRX", "USDT" -> a.trx
                         /*

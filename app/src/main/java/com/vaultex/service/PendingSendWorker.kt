@@ -50,6 +50,7 @@ class PendingSendWorker @AssistedInject constructor(
         chain.startsWith("ERC20:") -> if (chain.split(":").getOrNull(1) == "BNB") "BNB" else "ETH"
         chain == "ETH" || chain == "USDT-ETH" -> "ETH"
         chain == "BNB" || chain == "USDT-BNB" -> "BNB"
+        "USDT-SOL" -> "SOL"
         chain == "SOL" -> "SOL"
         chain == "TRX" || chain == "USDT" -> "TRX"
         else -> chain

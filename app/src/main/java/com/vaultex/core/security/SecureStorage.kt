@@ -767,7 +767,19 @@ class SecureStorage @Inject constructor(
          * rien ne l'affiche — un réglage vrai pour une monnaie absente.
          */
         private val ACTIFS_INTRODUITS_APRES_COUP = listOfNotNull(
-            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
+            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF },
+            /*
+            L'USDT DE SOLANA ARRIVERA APRES COUP LUI AUSSI, le jour ou le
+            chantier se termine. Le mecanisme est fait pour ca : allumer une
+            fois chez ceux qui ont deja installe l'application, sans quoi
+            l'actif n'apparaitrait que pour les nouveaux.
+
+            Gardee par le meme interrupteur : tant qu'il est eteint, rien ne
+            s'active — un reglage vrai pour une monnaie absente serait un
+            piege silencieux, c'est exactement ce qu'on vient de corriger
+            pour le Pi.
+            */
+            "USDT-SOL".takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF }
         )
     }
 }

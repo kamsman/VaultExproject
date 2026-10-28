@@ -46,11 +46,15 @@ private val DEFAULTS = mapOf(
     "ETH" to listOf("ETH", "USDT-ETH"),
     "BNB" to listOf("BNB", "USDT-BNB"),
     "TRX" to listOf("TRX", "USDT"),
-    "SOL" to listOf("SOL")
+    "SOL" to listOfNotNull(
+        "SOL",
+        // Pendant le chantier, le gestionnaire ne le propose pas non plus.
+        "USDT-SOL".takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF }
+    )
 )
 private val NAMES = mapOf(
     "ETH" to "Ethereum", "BNB" to "BNB Chain", "TRX" to "Tron", "SOL" to "Solana",
-    "USDT" to "Tether", "USDT-ETH" to "Tether", "USDT-BNB" to "Tether"
+    "USDT" to "Tether", "USDT-ETH" to "Tether", "USDT-BNB" to "Tether", "USDT-SOL" to "Tether"
 )
 private fun chainKey(b: Blockchain): String = when (b) {
     Blockchain.ETHEREUM -> "ETH"; Blockchain.BNB_CHAIN -> "BNB"

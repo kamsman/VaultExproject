@@ -258,7 +258,7 @@ private fun explorerUrl(chain: String, hash: String): String? = when (chain.uppe
     "BTC" -> "https://blockstream.info/tx/$hash"
     "ETH", "USDT-ETH" -> "https://etherscan.io/tx/$hash"
     "BNB", "USDT-BNB" -> "https://bscscan.com/tx/$hash"
-    "SOL" -> "https://solscan.io/tx/$hash"
+    "SOL", "USDT-SOL" -> "https://solscan.io/tx/$hash"
     "TRX", "USDT" -> "https://tronscan.org/#/transaction/$hash"
     else -> null
 }

@@ -300,7 +300,7 @@ private fun networkTicker(key: String): String = when (key) {
 }
 
 private fun sendCoinShort(symbol: String): String = when (symbol) {
-    "USDT-ETH", "USDT-BNB" -> "USDT"
+    "USDT-ETH", "USDT-BNB", "USDT-SOL" -> "USDT"
     else -> symbol
 }
 
@@ -309,6 +309,7 @@ private fun sendCoinSubtitle(symbol: String, isCustom: Boolean, b: Blockchain): 
     symbol == "USDT" -> "Tether (TRC20)"
     symbol == "USDT-ETH" -> "Tether (ERC20)"
     symbol == "USDT-BNB" -> "Tether (BEP20)"
+    symbol == "USDT-SOL" -> "Tether (Solana)"
     symbol == "BTC" -> "Bitcoin"
     symbol == "ETH" -> "Ethereum"
     symbol == "BNB" -> "BNB (BEP20)"

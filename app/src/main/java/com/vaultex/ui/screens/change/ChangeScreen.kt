@@ -4578,6 +4578,7 @@ nommer le mauvais réseau.
 private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
     "USDT", "USDT-TRX", "TRX" -> "TRC20 · TRON"
     "USDT-BNB", "BNB" -> "BEP20 · BNB Smart Chain"
+    "USDT-SOL", "SOL" -> "SPL · Solana"
     "USDT-ETH", "ETH" -> "ERC20 · Ethereum"
     "BTC" -> "Bitcoin"
     "SOL" -> "Solana"
@@ -4608,6 +4609,7 @@ private fun chaineDe(monnaie: String): String? = when (monnaie.uppercase()) {
     "USDT", "USDT-TRX" -> "TRX"
     "USDT-BNB" -> "BNB"
     "USDT-ETH" -> "ETH"
+    "USDT-SOL" -> "SOL"
     else -> null
 }
 
