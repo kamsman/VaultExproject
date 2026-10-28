@@ -563,6 +563,116 @@ private fun ColumnScope.SansReglages(
     ) {
         Text(stringResource(R.string.change_verif_reessayer), fontSize = 13.sp)
     }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    HORS LIGNE, L'ECRAN NE SE REDUIT PLUS A SON MESSAGE D'ERREUR
+    ═══════════════════════════════════════════════════════════════════════
+
+    SIGNALE A L'USAGE. Sans reseau, tout l'ecran disparaissait : il ne
+    restait qu'un bandeau orange, un nom d'exception et un bouton
+    « Reessayer ». On ouvrait « Acheter de la crypto » et on tombait sur
+    une page d'erreur.
+
+    Ce n'est pas une panne de l'application, c'est une absence de reseau —
+    et les deux ne se ressemblent que parce qu'on les affichait pareil. La
+    seconde est ordinaire ici, et temporaire.
+
+    ─── L'INTERFACE RESTE, INERTE ET HONNETE ────────────────────────────
+
+    Les onglets basculent, le champ accepte un montant. Ce que l'ecran ne
+    peut PAS faire, il ne le feint pas : « Vous recevez » affiche « — »,
+    parce qu'il n'y a pas de cours. C'est la meme regle que partout —
+    zero serait une reponse, le tiret dit qu'on ne sait pas.
+
+    Et le selecteur de monnaie reste ferme : la liste des monnaies vient
+    du changeur, et on ne l'a pas. Offrir un choix qu'on ne connait pas
+    serait inventer.
+
+    ─── LE BOUTON PROPOSE DE SE CONNECTER ───────────────────────────────
+
+    « Continuer » ne refuse pas en silence et ne grise pas : il dit ce qui
+    manque et relance la connexion dans le meme geste. Si le reseau revient,
+    les vrais parametres arrivent et cet ecran disparait de lui-meme —
+    remplace par le vrai, avec le montant a retaper.
+
+    ON NE GARDE PAS CE MONTANT. Le reproduire dans le vrai ecran
+    demanderait de le faire traverser le ViewModel, et il aurait ete tape
+    sans voir un seul prix. Mieux vaut qu'il soit retape en face du cours
+    que de le retrouver fige a cote d'un chiffre qui a change.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    Spacer(Modifier.height(4.dp))
+
+    var sens by remember { mutableStateOf(SensChange.ACHAT) }
+    var saisie by remember { mutableStateOf("") }
+    var demande by remember { mutableStateOf(false) }
+    val donneFcfa = sens == SensChange.ACHAT
+
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OngletSens(
+            texte = stringResource(R.string.change_acheter),
+            icone = Icons.Default.Add,
+            choisi = donneFcfa,
+            modifier = Modifier.weight(1f)
+        ) { sens = SensChange.ACHAT }
+        OngletSens(
+            texte = stringResource(R.string.change_vendre),
+            icone = Icons.Default.Sell,
+            choisi = !donneFcfa,
+            modifier = Modifier.weight(1f)
+        ) { sens = SensChange.VENTE }
+    }
+
+    CarteMontantChange(
+        libelle = stringResource(R.string.change_tu_donnes),
+        montant = saisie,
+        unite = if (donneFcfa) "FCFA" else state.monnaie,
+        avecLogo = !donneFcfa,
+        // Vide : la liste des monnaies appartient au changeur, et on ne
+        // l'a pas. Un choix invente serait pire qu'aucun choix.
+        monnaies = emptyList(),
+        onMonnaie = {},
+        onMontant = { saisie = it; demande = false },
+        decimalesMax = 0
+    )
+
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        HorizontalDivider(color = SurfaceColor)
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(BgPrimary),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.SwapVert, null,
+                tint = AccentBlue.copy(alpha = 0.4f), modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+
+    CarteMontantChange(
+        libelle = stringResource(R.string.change_tu_recois),
+        // Vide, donc « — » : sans cours, on ne sait pas. Zero serait une
+        // reponse, et une fausse.
+        montant = "",
+        unite = if (donneFcfa) state.monnaie else "FCFA",
+        avecLogo = donneFcfa,
+        monnaies = emptyList(),
+        onMonnaie = {},
+        onMontant = null
+    )
+
+    if (demande) NoteEnDeuxTemps(stringResource(R.string.change_hors_ligne_action), AccentOrange)
+
+    Button(
+        onClick = { demande = true; onReessayer() },
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().height(52.dp)
+    ) {
+        Text(stringResource(R.string.change_continuer), fontWeight = FontWeight.Bold)
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(18.dp))
+    }
 }
 
 // ─── Temps 1 : le calcul ────────────────────────────────────────────
@@ -4080,7 +4190,6 @@ private fun CarteMontantChange(
      */
     decimalesMax: Int = 0,
     /** Le même montant, arrondi, affiché en dessous s'il diffère. */
-    approx: String? = null,
     /**
      * Vrai quand le montant saisi ne peut pas passer — sous le minimum,
      * au-dessus du plafond, au-dessus du solde.
@@ -4336,21 +4445,6 @@ private fun CarteMontantChange(
                                         else AccentGreen,
                                 maxLines = 1
                             )
-                            /*
-                            L'ARRONDI SOUS LE CHIFFRE EXACT.
-
-                            « 1,609509 USDT » est juste et illisible : on ne
-                            retient pas six décimales. « ≈ 1,61 » donne l'ordre
-                            de grandeur d'un coup d'oeil, et le chiffre exact
-                            reste au-dessus pour qui vérifie.
-
-                            On ne le montre que s'il apporte quelque chose : sur
-                            un montant déjà court, deux lignes pour le même
-                            nombre ne feraient que du bruit.
-                            */
-                            approx?.takeIf { it != montant }?.let { a ->
-                                Text("≈ $a", fontSize = 11.sp, color = TextSecondary, maxLines = 1)
-                            }
                         }
                     }
                 }
