@@ -605,11 +605,36 @@ private fun Bulle(m: MessageAssistance) {
         phrase qu'on est en train de croire.
         */
         if (!m.deMoi) {
+            /*
+            LE VRAI LOGO, ET NON UNE LETTRE.
+
+            C'etait un « V » blanc sur un rond bleu. Ca fait l'affaire dans
+            une maquette, et ca rate precisement ce que l'avatar est cense
+            faire : une lettre dans un cercle, n'importe qui la refait en
+            deux minutes pour maquiller une capture d'ecran.
+
+            `logorond` est l'image de marque, celle que porte deja l'onglet
+            Accueil. Une conversation d'assistance se relit, parfois en la
+            montrant a quelqu'un ; le meme logo des deux endroits dit d'ou
+            vient la phrase qu'on est en train de croire.
+
+            COIL PLUTOT QUE `painterResource`, comme dans la barre du bas :
+            le decodage se fait hors du fil principal, et un fichier
+            illisible ne fait pas tomber l'ecran.
+
+            LE FOND BLEU RESTE DESSOUS. L'image est opaque et le recouvre,
+            mais il tient la place pendant le decodage — sans lui, le rond
+            clignoterait en blanc a chaque ouverture.
+            */
             Box(
                 Modifier.size(28.dp).clip(CircleShape).background(AccentBlue),
                 contentAlignment = Alignment.Center
             ) {
-                Text("V", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                coil.compose.AsyncImage(
+                    model = com.vaultex.R.drawable.logorond,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp).clip(CircleShape)
+                )
             }
             Spacer(Modifier.width(8.dp))
         }
