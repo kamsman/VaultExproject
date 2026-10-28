@@ -1376,6 +1376,67 @@ async function diagnostic(env) {
     chaines.blockstream = { erreur: String(e).slice(0, 120) }
   }
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES NŒUDS SOLANA, SONDÉS SUR CE QU'ON LEUR DEMANDERA VRAIMENT
+  ═══════════════════════════════════════════════════════════════════════
+
+  Pas `getHealth`, qui dit seulement que l'hôte est debout. On appelle
+  `getTokenAccountsByOwner` — la PREMIÈRE requête que fait la vérification
+  d'une vente — avec le mint de l'USDT et l'adresse réglée du changeur.
+
+  Ça teste la chaîne entière d'un coup : l'hôte accepte le trafic d'un
+  centre de données, la méthode n'est pas restreinte sur ce nœud public,
+  et l'adresse réglée est lisible. Un nœud qui répond à `getHealth` mais
+  refuse `getTokenAccountsByOwner` — c'est courant sur les hôtes gratuits,
+  la méthode est coûteuse — passerait pour bon et échouerait à la première
+  vraie vente.
+
+  CE QU'IL FAUT LIRE. `comptes: 0` avec un code 200 : le nœud marche et le
+  changeur n'a simplement pas encore de compte USDT. `comptes: 1` : tout
+  est en place. Un 403 ou un 429 : l'hôte filtre ou limite, il faut
+  réordonner NOEUDS_SOLANA.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const mintUsdtSol = CHAINES_VENTE['USDT-SOL']?.mint
+  const proprioSol = adressesPosees['USDT-SOL'] || ''
+  for (const hote of NOEUDS_SOLANA) {
+    const nom = `solana:${hote.replace('https://', '')}`
+    if (!proprioSol) {
+      chaines[nom] = { ignore: 'aucune adresse USDT-SOL reglee dans CHANGE_ADRESSES' }
+      continue
+    }
+    try {
+      const r = await fetchBorne(
+        hote,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'user-agent': AGENT },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getTokenAccountsByOwner',
+            params: [proprioSol, { mint: mintUsdtSol }, { encoding: 'jsonParsed' }],
+          }),
+        },
+        7000
+      )
+      const texte = await r.text()
+      let comptes = null
+      try {
+        comptes = JSON.parse(texte)?.result?.value?.length ?? null
+      } catch (_) { /* on rend l'extrait brut */ }
+      chaines[nom] = {
+        code: r.status,
+        adresse_sondee: proprioSol,
+        comptes,
+        extrait: texte.slice(0, 160),
+      }
+    } catch (e) {
+      chaines[nom] = { erreur: String(e).slice(0, 120) }
+    }
+  }
+
   sondes.chainesVente = chaines
   /*
   QUELLES MONNAIES SONT VRAIMENT VERIFIABLES, croisement de deux réglages.
