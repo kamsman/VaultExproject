@@ -1107,6 +1107,7 @@
     <string name="change_chargement">جارٍ قراءة شروط اليوم…</string>
     <string name="change_indisponible">الخدمة غير متاحة حاليًا. أعد المحاولة بعد قليل.</string>
     <string name="change_hors_ligne">تعذّر الوصول إلى VaultEx. تحقق من بيانات الهاتف أو شبكة Wi-Fi، ثم أعد المحاولة.</string>
+    <string name="change_hors_ligne_action">يجب أن تكون متصلاً للمتابعة. فعّل بيانات الهاتف أو الواي فاي ثم اضغط مرة أخرى.</string>
     <string name="change_tls">رُفض الاتصال الآمن. تحقق أولًا من تاريخ ووقت هاتفك — فهذا هو السبب الأكثر شيوعًا. وإن كنت على شبكة Wi-Fi عامة، فافتح صفحة الدخول ثم أعد المحاولة.</string>
     <string name="change_ferme">الصرف مغلق حاليًا. عد لاحقًا.</string>
     <string name="change_acheter">شراء</string>
