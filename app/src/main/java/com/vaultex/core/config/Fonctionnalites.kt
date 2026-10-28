@@ -79,7 +79,26 @@ object Fonctionnalites {
     éprouvés sur un vrai petit transfert, le solde se lit mais l'actif ne
     s'affiche pas. Le code se construit par morceaux ; l'écran, lui, ne
     connaît que « ça marche » ou « ça n'existe pas ».
+
+    ─── ALLUMÉ POUR LE PORTEFEUILLE, PAS ENCORE POUR LE CHANGE ───────────
+
+    Le relais est éprouvé : son nœud Solana répond depuis Cloudflare, lit
+    l'adresse réglée du changeur et rend une réponse valide. Ce qui ne
+    l'est pas, c'est l'envoi — aucun USDT n'est encore parti d'ici.
+
+    Or on ne peut pas l'éprouver sans l'allumer : c'est cet interrupteur
+    qui empêche de voir le solde et d'atteindre l'écran d'envoi, donc de
+    faire le transfert d'essai.
+
+    DEUX VERROUS, ET LE SECOND TIENT ENCORE. Celui-ci ouvre le
+    PORTEFEUILLE — le solde, l'envoi, la réception. L'écran de change, lui,
+    lit `CHANGE_MONNAIES` sur le relais, qui ne contient pas `USDT-SOL`.
+    Acheter et vendre de l'USDT sur Solana reste donc impossible, et le
+    restera jusqu'à ce qu'un vrai transfert ait abouti.
+
+    C'est la bonne façon de s'y prendre : on éprouve d'abord ce qui
+    n'engage que soi.
     ═══════════════════════════════════════════════════════════════════════
     */
-    const val USDT_SOL_ACTIF = false
+    const val USDT_SOL_ACTIF = true
 }
