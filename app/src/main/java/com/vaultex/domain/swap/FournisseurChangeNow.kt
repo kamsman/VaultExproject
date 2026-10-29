@@ -116,10 +116,24 @@ class FournisseurChangeNow @Inject constructor(
      * rôle. Notre « USDT » est du TRC20 ; sans cette table, la paire est
      * invalide et l'appel échoue.
      */
+    /*
+    LE REPLI `token.lowercase()` EST UN PIÈGE, et il vient de se refermer.
+
+    Une clé absente de cette table n'échoue pas : elle devient son propre
+    nom en minuscules. « USDT-SOL » rendait donc « usdt-sol », un ticker qui
+    n'existe chez personne — et la paire restait sans cours, sans que rien
+    n'indique que la table était incomplète.
+
+    C'est le défaut de forme d'un `else` permissif : il transforme un oubli
+    en panne silencieuse. On ne le remplace pas par une exception — un swap
+    qui plante vaut moins qu'un swap sans cours — mais toute monnaie
+    ajoutée au registre doit passer ici.
+    */
     private fun ticker(token: String): String = when (token.uppercase()) {
         "USDT"     -> "usdttrc20"
         "USDT-ETH" -> "usdterc20"
         "USDT-BNB" -> "usdtbsc"
+        "USDT-SOL" -> "usdtsol"
         "BNB"      -> "bnbbsc"
         else       -> token.lowercase()
     }
