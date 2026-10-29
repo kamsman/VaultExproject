@@ -153,6 +153,51 @@ object TauxFcfa {
         return margeFcfaParDollar / fcfaParDollar * 100.0
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE POURCENTAGE QUI SE VÉRIFIE AVEC LES DEUX NOMBRES DE L'ÉCRAN
+    ═══════════════════════════════════════════════════════════════════════
+
+    [margeEnPourcent] traduit la MARGE : 25 FCFA par dollar à 585, c'est
+    4,27 % du cours. C'est juste, et c'est le chiffre qui se compare à un
+    échangeur en ligne qui annonce son écart au cours.
+
+    Mais l'écran de change ne montre pas le cours à côté : il montre la
+    COMMISSION en francs et le MONTANT de l'opération en francs. Sur un
+    achat de 6 100 FCFA, cela donne « 250 FCFA (4,27 %) » — et 250 sur
+    6 100 font 4,10 %.
+
+    Les deux chiffres étaient vrais séparément, leur rapprochement était
+    faux. C'est exactement le reproche déjà traité pour l'arrondi du prix
+    unitaire, trente lignes plus haut : quelqu'un qui vérifie de tête ne
+    conclut pas « deux dénominateurs différents », il conclut qu'on lui
+    cache quelque chose. Sur un écran de change, ce soupçon coûte plus
+    cher que l'écart.
+
+    CETTE FONCTION PREND DONC LES DEUX NOMBRES AFFICHÉS, et rien d'autre.
+    Elle ne peut pas se désaccorder d'eux : elle les divise.
+
+    ─── ELLE NE REND PAS LE MÊME CHIFFRE À L'ACHAT ET À LA VENTE ─────────
+
+        achat   250 / 6 100 = 4,10 %   (sur ce qu'on paie)
+        vente   268 / 6 000 = 4,46 %   (sur ce qu'on reçoit)
+
+    Et c'est correct. La marge est la même — 25 francs par dollar dans les
+    deux sens — mais le montant de référence change : à l'achat c'est la
+    somme versée, marge comprise ; à la vente c'est la somme reçue, marge
+    déduite. Le même écart pèse plus lourd sur le plus petit des deux.
+
+    FORCER LE MÊME POURCENTAGE DES DEUX CÔTÉS reviendrait à annoncer
+    4,10 % sur une vente où l'on prend 4,46 % : sous-déclarer sa propre
+    commission, ce qui se découvre avec une calculatrice. On préfère deux
+    chiffres exacts à un chiffre rond.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun commissionEnPourcent(fraisFcfa: Double, montantFcfa: Double): Double? {
+        if (montantFcfa <= 0.0 || fraisFcfa < 0.0) return null
+        return fraisFcfa / montantFcfa * 100.0
+    }
+
     /**
      * Montant de crypto obtenu pour [fcfa] francs, au prix d'achat.
      *

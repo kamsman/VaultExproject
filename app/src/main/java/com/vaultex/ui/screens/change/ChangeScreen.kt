@@ -1090,18 +1090,44 @@ portent la même somme finissent par ne plus la porter pareil.
 @Composable
 private fun CarteDetailChange(
     state: com.vaultex.ui.viewmodel.ChangeState,
-    p: com.vaultex.domain.fiat.ParametresChange,
     donneFcfa: Boolean
 ) {
+    /*
+    LES REGLAGES NE SONT PLUS DEMANDES, et c'est le signe que le calcul
+    est au bon endroit.
+
+    La carte recevait `ParametresChange` pour une seule chose : lire
+    `margeFcfaParDollar` et en tirer un pourcentage. Elle refaisait donc,
+    a partir du reglage brut, un chiffre que les deux nombres deja
+    calcules portaient — et pas le meme.
+
+    `state.prix` suffit : la marge y est deja appliquee, bornee et
+    arrondie au franc par `TauxFcfa.prix`. Un ecran qui relit le reglage
+    d'origine se donne le moyen de contredire le prix applique.
+    */
     val prix = state.prix ?: return
-    val taux = state.fcfaParDollar ?: return
 
     val fraisFcfa = state.montantCrypto?.let { c ->
         c * kotlin.math.abs(
             (if (donneFcfa) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa
         )
     }
-    val pourcent = TauxFcfa.margeEnPourcent(p.margeFcfaParDollar, taux)
+    /*
+    LE POURCENTAGE SORT DES DEUX NOMBRES QU'ON MONTRE, pas de la marge.
+
+    C'etait `margeEnPourcent(p.margeFcfaParDollar, taux)` — la marge
+    rapportee au COURS, soit 4,27 % pour 25 FCFA/$ a 585. Juste en soi,
+    mais l'ecran affiche « 250 FCFA » a cote, sur un achat de 6 100 : qui
+    divise trouve 4,10 % et lit 4,27 %.
+
+    `commissionEnPourcent` divise la commission par le montant de
+    l'operation. Le chiffre devient verifiable a la main sur l'ecran meme
+    qui le porte, ce qui est exactement le geste qu'on fait quand on hesite
+    a envoyer de l'argent.
+
+    */
+    val pourcent = state.montantFcfa
+        ?.let { m -> fraisFcfa?.let { f -> TauxFcfa.commissionEnPourcent(f, m) } }
         ?.let { "%.2f".format(it) }
 
     var detailOuvert by remember { mutableStateOf(false) }
@@ -1709,7 +1735,7 @@ private fun ColumnScope.EtapePaiement(
     dernier avant qu'on sorte de l'argent — c'est donc ici que doit se
     lire ce que l'echange prend, pas un ecran plus tot.
     */
-    CarteDetailChange(state, p, donneFcfa = achat)
+    CarteDetailChange(state, donneFcfa = achat)
 
     /*
     ═══════════════════════════════════════════════════════════════════════
