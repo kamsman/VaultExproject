@@ -95,7 +95,42 @@ data class ParametresChange(
      * local. Celui-ci est en dollars : le seuil sous lequel une quantite
      * de crypto n'a pas de sens, frais de reseau compris.
      */
-    val minimumsUsdParMonnaie: Map<String, Double> = emptyMap()
+    val minimumsUsdParMonnaie: Map<String, Double> = emptyMap(),
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    CE QUE LA MARGE DOIT COUVRIR SUR UN ACHAT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Sur une VENTE, l'utilisateur paie le gaz de son portefeuille, et
+    `plancherReseauFcfa` l'empeche de bruler son argent en frais.
+
+    Sur un ACHAT, c'est le changeur qui envoie et qui paie — et rien ne le
+    protegeait. Sa marge est bornee par le plafond : 2 049 FCFA au maximum
+    avec les reglages d'aujourd'hui, soit 3,50 $. Un transfert plus cher
+    que ca est une perte seche, quel que soit le montant encaisse.
+
+    Ce nombre dit combien de fois la marge doit couvrir les frais pour que
+    l'achat passe : 0 eteint le controle, 1 interdit d'y perdre, 2 exige
+    que l'operation rapporte au moins ce qu'elle coute.
+
+    ─── IL VIENT DU RELAIS, ET C'EST TOUTE LA QUESTION ───────────────────
+
+    `plancherReseauFcfa` portait le commentaire qui interdisait ce
+    controle, et son argument etait juste : « son cout est une affaire de
+    tarif, pas de blocage [...] le lui imposer ici reviendrait a inventer
+    une regle technique la ou il y a une decision commerciale ».
+
+    L'application sait MESURER les frais. Elle ne peut pas savoir a partir
+    de quelle marge le changeur juge une vente interessante — ca depend de
+    sa tresorerie, de la concurrence et du jour. Donc elle mesure, et le
+    relais tranche. Le curseur se bouge en dix secondes, sans republier.
+
+    DEFAUT A 1 QUAND LE RELAIS SE TAIT. Un APK plus recent que le relais
+    doit proteger, pas s'ouvrir : « je ne sais pas » ne doit jamais valoir
+    « vends a perte ».
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val facteurMargeAchat: Double = 1.0
 ) {
 
     /**
@@ -498,7 +533,21 @@ class ChangeService @Inject constructor(
                 minimumsUsdParMonnaie = dto.minimumsUsdParMonnaie
                     ?.mapKeys { (k, _) -> k.uppercase() }
                     ?.filterValues { v -> v > 0.0 }
-                    .orEmpty()
+                    .orEmpty(),
+                /*
+                UN FACTEUR ABSENT PROTEGE, UN FACTEUR NEGATIF AUSSI.
+
+                `null` est le relais qui ne dit rien — un ancien worker face
+                a un APK recent — et on retombe sur 1 : on ne vend pas a
+                perte faute de reglage.
+
+                Un negatif n'a pas de sens et rendrait le plancher negatif,
+                donc inoperant : il serait une facon silencieuse d'eteindre
+                le controle. Seul un ZERO explicite l'eteint, et c'est la
+                une decision qu'on prend, pas une qu'on subit.
+                */
+                facteurMargeAchat = dto.facteurMargeAchat
+                    ?.takeIf { v -> v >= 0.0 } ?: 1.0
             )
             cache = p
             horodatage = maintenant

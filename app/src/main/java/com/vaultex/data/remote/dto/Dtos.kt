@@ -495,7 +495,20 @@ data class ParametresChangeDto(
     /** Plafond par monnaie, EN DOLLARS — le general, lui, est en francs. */
     val plafondsUsdParMonnaie: Map<String, Double>? = null,
     /** Minimum par monnaie, EN DOLLARS — symetrique du plafond. */
-    val minimumsUsdParMonnaie: Map<String, Double>? = null
+    val minimumsUsdParMonnaie: Map<String, Double>? = null,
+    /**
+     * Combien de fois la marge doit couvrir les frais, sur un ACHAT.
+     *
+     * Sur un achat, c'est le changeur qui envoie et qui paie le gaz. Ce
+     * nombre dit a partir de quel rapport il accepte l'operation : 0
+     * eteint le controle, 1 interdit d'y perdre, 2 exige qu'elle rapporte
+     * au moins ce qu'elle coute.
+     *
+     * NULL VAUT « LE RELAIS NE DIT RIEN », et non zero. Un APK plus recent
+     * que le relais doit continuer de proteger ; c'est
+     * [ParametresChange.facteurMargeAchat] qui tranche, avec un defaut.
+     */
+    val facteurMargeAchat: Double? = null
 )
 
 /**

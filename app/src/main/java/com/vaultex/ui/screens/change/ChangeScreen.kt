@@ -972,9 +972,19 @@ private fun ColumnScope.EtapeCalcul(
     Celui-ci parle du portefeuille : il est vrai avant la premiere frappe,
     et le dire tout de suite epargne de taper un montant pour rien.
     */
+    /*
+    « FRAIS TROP ELEVES » APPARTIENT A CETTE LISTE, et c'est le plus net
+    des cinq : il ne parle pas du chiffre tape — aucun montant ne le
+    corrige, puisque le seuil qu'il faudrait depasse le plafond — mais de
+    l'etat du RESEAU.
+
+    L'attendre derriere une premiere frappe ferait taper un montant pour
+    s'entendre dire qu'aucun ne convient. Le dire des l'ouverture laisse
+    changer de chaine tout de suite, ce qui est la seule action utile.
+    */
     blocage?.takeIf {
         state.saisie.isNotBlank() || it == "ferme" || it == "pas_de_rachat" ||
-            it == "gaz" || it == "sans_adresse"
+            it == "gaz" || it == "sans_adresse" || it == "frais_trop_eleves"
     }?.let {
         NoteEnDeuxTemps(
             messageBlocage(
@@ -5479,6 +5489,31 @@ private fun messageBlocage(
         state.minimumFcfa(),
         monnaie, prix, achat, versLeHaut = true
     )
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE SEUL REFUS QUI NE PARLE PAS DU MONTANT
+    ═══════════════════════════════════════════════════════════════════
+
+    Les frais du reseau ont monte au point que la marge du changeur ne
+    les couvrirait sur AUCUN montant acceptable — le minimum qu'il
+    faudrait depasse le plafond d'encaissement. Voir
+    `ChangeState.plancherMargeFcfa`.
+
+    IL NE DONNE DONC PAS DE CHIFFRE, et c'est tout l'interet. Tous les
+    autres refus de cette famille se corrigent en retapant ; celui-ci
+    ne se corrige par aucun nombre. Annoncer un seuil ici enverrait
+    quelqu'un essayer des montants l'un apres l'autre.
+
+    IL NOMME LA CHAINE PARCE QUE C'EST LA LE GESTE. Les frais sont une
+    propriete du reseau, pas de l'operation : la meme somme passe sur
+    Solana pour un millieme du prix. « Essayez une autre chaine » est
+    actionnable tout de suite, et c'est la seule chose qui le soit.
+
+    ET IL DIT « POUR L'INSTANT ». Le gaz redescend, et le refus
+    disparaitra tout seul : laisser croire que la chaine est fermee
+    ferait renoncer quelqu'un qui n'a qu'a revenir.
+    */
+    "frais_trop_eleves" -> stringResource(R.string.change_frais_trop_eleves, monnaie)
     /*
     MEME RAISON QUE POUR LE MINIMUM, un cran plus haut dans ce when :
     montrer le plafond general pendant qu'un autre s'applique enverrait
