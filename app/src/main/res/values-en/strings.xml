@@ -890,6 +890,7 @@
     <string name="receive_your_asset_address">Your %1$s address</string>
     <string name="receive_save_qr">Save QR code</string>
     <string name="receive_qr_saved">QR code saved to gallery</string>
+    <string name="receive_qr_saved_file">QR code saved</string>
     <string name="receive_qr_save_failed">Could not save</string>
     <string name="swap_deposit_now">Deposit now</string>
     <string name="swap_tap_to_copy">Tap the address to copy it</string>

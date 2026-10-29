@@ -3931,10 +3931,14 @@ le dossier, et le fichier lui appartient.
 
 C'EST AUSSI LE SEUL CHEMIN QUI MARCHE PARTOUT. `MediaStore.Downloads`
 n'existe qu'à partir d'Android 10, et écrire dans `MediaStore` en deçà
-réclame WRITE_EXTERNAL_STORAGE — que cet APK ne demande pas. Le dire
-autrement : `saveQrToGallery`, dans l'écran Recevoir, échoue en silence
-sur Android 8 et 9 pour cette raison exacte, et minSdk vaut 26. On ne
-reproduit pas ce piège ici.
+réclame WRITE_EXTERNAL_STORAGE — que cet APK ne demande pas, et ne doit
+pas demander : un portefeuille de cryptomonnaies qui réclame l'accès aux
+photos a tout l'air de ce qu'il ne faut pas installer.
+
+C'est le piège où `saveQrToGallery` était tombé, dans l'écran Recevoir :
+l'enregistrement du QR échouait en silence sur Android 8 et 9, pour cette
+raison exacte, alors que minSdk vaut 26. Il se replie désormais sur le
+même sélecteur que celui-ci.
 
 Aucune permission, un seul chemin de code, de l'API 26 à la 36.
 

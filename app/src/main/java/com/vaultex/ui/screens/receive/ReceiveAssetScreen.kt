@@ -2,6 +2,8 @@ package com.vaultex.ui.screens.receive
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -75,14 +77,55 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
             type = "text/plain"; putExtra(Intent.EXTRA_TEXT, address)
         }, null))
     }
-    fun save() {
-        val bmp = qr ?: return
-        val ok = saveQrToGallery(context, bmp, "VaultEx-$symbol")
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE REPLI QUAND LA GALERIE N'EST PAS ATTEIGNABLE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Sur Android 8 et 9, écrire dans la galerie réclame une permission que
+    cet APK ne demande pas — à dessein, voir `saveQrToGallery`. Le
+    sélecteur du système fait la même chose sans rien demander, et depuis
+    l'API 19.
+
+    LE LANCEUR EST DÉCLARÉ POUR TOUT LE MONDE, et n'est utilisé que dans ce
+    cas-là : `rememberLauncherForActivityResult` enregistre un contrat au
+    moment de la composition, donc on ne peut pas le créer à la demande
+    dans une branche. Un lanceur jamais lancé ne coûte rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val choixFichier = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png")
+    ) { uri ->
+        // URI NULLE = annulation. Ce n'est pas un échec, et le dire comme
+        // tel serait un reproche adressé à quelqu'un qui a changé d'avis.
+        if (uri == null) return@rememberLauncherForActivityResult
+        val octets = qr?.let { qrEnPng(it) }
+        val ok = octets != null && runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(octets); true } ?: false
+        }.getOrDefault(false)
         Toast.makeText(
             context,
-            context.getString(if (ok) R.string.receive_qr_saved else R.string.receive_qr_save_failed),
+            context.getString(
+                // PAS « DANS LA GALERIE » ICI : le fichier est allé où la
+                // personne l'a mis. Annoncer la galerie l'enverrait le
+                // chercher au mauvais endroit.
+                if (ok) R.string.receive_qr_saved_file else R.string.receive_qr_save_failed
+            ),
             Toast.LENGTH_SHORT
         ).show()
+    }
+
+    fun save() {
+        val bmp = qr ?: return
+        when (saveQrToGallery(context, bmp, "VaultEx-$symbol")) {
+            IssueQr.GALERIE_INDISPONIBLE -> choixFichier.launch("VaultEx-$symbol.png")
+            IssueQr.ENREGISTRE -> Toast.makeText(
+                context, context.getString(R.string.receive_qr_saved), Toast.LENGTH_SHORT
+            ).show()
+            IssueQr.ECHEC -> Toast.makeText(
+                context, context.getString(R.string.receive_qr_save_failed), Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     Scaffold(

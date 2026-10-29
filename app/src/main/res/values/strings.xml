@@ -90,6 +90,7 @@
     <string name="receive_network_warning">%1$s uniquement — un autre réseau perd les fonds</string>
     <string name="receive_save_qr">Enregistrer le QR</string>
     <string name="receive_qr_saved">QR enregistré dans la galerie</string>
+    <string name="receive_qr_saved_file">QR enregistré</string>
     <string name="receive_qr_save_failed">Échec de l\'enregistrement</string>
     <string name="my_address">Mon adresse</string>
     <string name="copy_address">Copier l\'adresse</string>

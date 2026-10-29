@@ -890,6 +890,7 @@
     <string name="receive_your_asset_address">عنوان %1$s الخاص بك</string>
     <string name="receive_save_qr">حفظ رمز QR</string>
     <string name="receive_qr_saved">تم حفظ رمز QR في المعرض</string>
+    <string name="receive_qr_saved_file">تم حفظ رمز QR</string>
     <string name="receive_qr_save_failed">تعذر الحفظ</string>
     <string name="swap_deposit_now">أودع الآن</string>
     <string name="swap_tap_to_copy">انقر على العنوان لنسخه</string>
