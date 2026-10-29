@@ -1117,6 +1117,14 @@
     <string name="change_continuer">متابعة</string>
     <string name="change_pas_de_rachat">لا تُشترى هذه العملة حاليًا. اختر غيرها، أو اشترِ بدل البيع.</string>
     <string name="change_frais_trop_eleves">رسوم شبكة %1$s مرتفعة جدًا حاليًا. جرّب شبكة أخرى، أو عد لاحقًا.</string>
+    <string name="change_facture_bouton">تنزيل الإيصال</string>
+    <string name="change_facture_titre">إيصال عملية</string>
+    <string name="change_facture_operation">العملية</string>
+    <string name="change_facture_achat_de">شراء %1$s</string>
+    <string name="change_facture_vente_de">بيع %1$s</string>
+    <string name="change_facture_mention">هذا المستند إيصال عملية صادر عن تطبيق VaultEx. وهو ليس فاتورة ضريبية.</string>
+    <string name="change_facture_enregistre">تم حفظ الإيصال</string>
+    <string name="change_facture_echec">تعذّر حفظ الإيصال</string>
     <string name="change_sans_cours">السعر غير متاح: لا يمكن حساب سعر نزيه. افتح الشاشة الرئيسية للتحديث ثم عد.</string>
     <string name="change_sous_minimum">الحد الأدنى: %1$s فرنك.</string>
     <string name="change_sur_plafond">الحد الأقصى: %1$s فرنك لكل عملية.</string>

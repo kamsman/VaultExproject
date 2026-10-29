@@ -1,5 +1,7 @@
 package com.vaultex.ui.screens.change
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -3835,6 +3837,21 @@ private fun ColumnScope.EtapeTransmis(
     if (enCours) return
 
     /*
+    LE RECU S'EMPORTE, ET C'EST ICI QU'IL FAUT LE PROPOSER.
+
+    Juste sous la carte qu'il reproduit, et AVANT les deux sorties : c'est
+    une action sur ce qu'on vient de lire, pas une facon de partir. Pose
+    apres « Retour a l'accueil », il serait lu comme une troisieme sortie
+    et manque par ceux qui en ont le plus besoin.
+
+    EN TEXTE ET NON EN BOUTON PLEIN. Neuf personnes sur dix n'en ont pas
+    besoin — la demande est partie, les fonds arrivent. La dixieme le
+    cherche, et un libelle explicite avec son icone se trouve tout de
+    suite sans peser sur l'ecran.
+    */
+    BoutonFacture(state)
+
+    /*
     DEUX BOUTONS DE MEME TAILLE, ET LA HIERARCHIE PASSE PAR LE REMPLISSAGE.
 
     « Retour à l'accueil » etait un simple texte. A cote d'un bouton plein,
@@ -3895,6 +3912,189 @@ private fun ColumnScope.EtapeTransmis(
     lui redemanderait, et elle vient de quitter l'ecran qui l'affichait.
     */
     AssistanceChange(state.reference)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE REÇU QU'ON EMPORTE
+═══════════════════════════════════════════════════════════════════════════
+
+L'écran de fin dit tout, et le perd dès qu'on en sort. Il reste
+l'historique des demandes — qui ne vit que dans ce téléphone. Quelqu'un
+qui change d'appareil, ou qui réinstalle, n'a plus rien à montrer ; et
+c'est précisément ce qu'on lui demandera si l'opération est contestée.
+
+─── LE SYSTÈME CHOISIT L'ENDROIT, PAS NOUS ──────────────────────────────
+
+`ACTION_CREATE_DOCUMENT` ouvre le sélecteur d'Android : la personne choisit
+le dossier, et le fichier lui appartient.
+
+C'EST AUSSI LE SEUL CHEMIN QUI MARCHE PARTOUT. `MediaStore.Downloads`
+n'existe qu'à partir d'Android 10, et écrire dans `MediaStore` en deçà
+réclame WRITE_EXTERNAL_STORAGE — que cet APK ne demande pas. Le dire
+autrement : `saveQrToGallery`, dans l'écran Recevoir, échoue en silence
+sur Android 8 et 9 pour cette raison exacte, et minSdk vaut 26. On ne
+reproduit pas ce piège ici.
+
+Aucune permission, un seul chemin de code, de l'API 26 à la 36.
+
+─── LE PDF EST CONSTRUIT AVANT, LES OCTETS ATTENDENT L'URI ──────────────
+
+Le sélecteur revient par un callback. On garde donc le document prêt dans
+un `remember` : le construire DANS le callback marcherait aussi, mais une
+erreur de dessin apparaîtrait alors après que la personne a choisi son
+dossier — elle croirait que l'enregistrement a échoué.
+
+Ici, un document qui ne se construit pas se voit tout de suite, et le
+sélecteur ne s'ouvre même pas.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun BoutonFacture(state: com.vaultex.ui.viewmodel.ChangeState) {
+    val contexte = androidx.compose.ui.platform.LocalContext.current
+    val achat = state.sens == com.vaultex.ui.viewmodel.SensChange.ACHAT
+    val p = state.parametres
+    val prix = state.prix
+
+    /*
+    LA COMMISSION, AU MÊME CALCUL QUE LA CARTE DE DÉTAIL.
+
+    `commissionEnPourcent` divise les deux nombres affichés. Reprendre ici
+    `margeEnPourcent` — la marge rapportée au cours — donnerait un reçu qui
+    annonce 4,27 % là où l'écran affichait 4,10 %, pour la même opération.
+    Un document et un écran qui se contredisent sur ce qu'on a prélevé, et
+    c'est le document qui reste.
+    */
+    val fraisFcfa = if (prix == null) null else state.montantCrypto?.let { c ->
+        c * kotlin.math.abs((if (achat) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa)
+    }
+    val pourcent = state.montantFcfa
+        ?.let { m -> fraisFcfa?.let { f -> TauxFcfa.commissionEnPourcent(f, m) } }
+        ?.let { "%.2f".format(it) }
+
+    val donne = state.montantFcfa?.let { "${fcfa(it)} FCFA" }
+    val recoit = state.montantCrypto?.let { "${crypto(it, state.monnaie)} ${state.monnaie}" }
+
+    val facture = DonneesFacture(
+        titre = stringResource(R.string.change_facture_titre),
+        sousTitre = java.text.SimpleDateFormat(
+            "dd/MM/yyyy HH:mm", java.util.Locale.getDefault()
+        ).format(java.util.Date()),
+        /*
+        LA VEDETTE EST CE QU'ON REÇOIT, DANS LES DEUX SENS. C'est le
+        chiffre qu'on vient vérifier sur un reçu — pas celui qu'on a donné,
+        qu'on connaissait déjà en payant.
+        */
+        vedette = stringResource(R.string.change_tu_recois) to
+            ((if (achat) recoit else donne) ?: "—"),
+        lignes = listOfNotNull(
+            stringResource(R.string.change_tu_donnes) to
+                ((if (achat) donne else recoit) ?: "—"),
+            stringResource(R.string.change_facture_operation) to stringResource(
+                if (achat) R.string.change_facture_achat_de
+                else R.string.change_facture_vente_de,
+                state.monnaie
+            ),
+            state.reference.takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.change_reference) to it },
+            prix?.let {
+                stringResource(R.string.change_taux_applique, state.monnaie) to
+                    "${fcfa(if (achat) it.achatFcfa else it.venteFcfa)} FCFA"
+            },
+            prix?.let {
+                stringResource(R.string.change_prix_marche, state.monnaie) to
+                    "${fcfa(it.baseFcfa)} FCFA"
+            },
+            fraisFcfa?.let { f ->
+                stringResource(R.string.change_marge) to
+                    (if (f > 0.0 && f < 1.0) "< 1 FCFA" else "${fcfa(f)} FCFA") +
+                    (pourcent?.let { " ($it %)" } ?: "")
+            },
+            /*
+            L'ADRESSE DE RÉCEPTION N'EST SUR LE REÇU D'UN ACHAT, et c'est la
+            seule chose du parcours qui part sans que l'utilisateur l'ait
+            vue : l'application la dérive et la glisse dans la demande. Le
+            document ferme la boucle, et répond à la première question d'un
+            dépannage — « sur quelle adresse ? ».
+            */
+            state.adresseReception?.takeIf { achat && it.isNotBlank() }
+                ?.let { stringResource(R.string.change_adresse_reception) to it },
+            /*
+            LE TXID N'EST SUR CELUI D'UNE VENTE, pour la raison inverse :
+            c'est la preuve que les fonds sont partis, et elle vit sur la
+            chaine, pas chez nous.
+            */
+            state.verification?.txid?.takeIf { !achat && it.isNotBlank() }
+                ?.let { "Transaction" to it },
+            p?.nomChangeur?.takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.change_beneficiaire) to it },
+            p?.numeroMobileMoney?.takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.change_numero) to it }
+        ),
+        mentions = listOf(
+            stringResource(R.string.change_assistance_titre) + " : " +
+                com.vaultex.domain.support.ContactsVaultex.ASSISTANCE_CHANGE_AFFICHE,
+            stringResource(R.string.change_facture_mention)
+        )
+    )
+
+    /*
+    CONSTRUIT UNE FOIS PAR REFERENCE, et non a chaque recomposition. Le
+    dessin d'une page n'est pas gratuit, et cet ecran se recompose a chaque
+    battement du sondage de verification.
+    */
+    val octets = remember(
+        state.reference, state.sens, state.monnaie,
+        // LES MONTANTS SONT DANS LES CLEFS, sinon un document construit
+        // avant eux resterait servi tel quel. Sur cet ecran ils ne bougent
+        // plus — mais c'est une propriete de l'ecran, pas de ce cache.
+        state.montantFcfa, state.montantCrypto
+    ) {
+        construireFacturePdf(facture)
+    }
+
+    val enregistreur = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument(
+            "application/pdf"
+        )
+    ) { uri ->
+        // URI NULLE = la personne a annule. Ce n'est pas un echec, et le
+        // lui annoncer comme tel serait un reproche.
+        if (uri == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            contexte.contentResolver.openOutputStream(uri)?.use { flux ->
+                flux.write(octets ?: return@runCatching false)
+                true
+            } ?: false
+        }.getOrDefault(false)
+        android.widget.Toast.makeText(
+            contexte,
+            contexte.getString(
+                if (ok) R.string.change_facture_enregistre
+                else R.string.change_facture_echec
+            ),
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    // UN DOCUMENT QU'ON N'A PAS SU CONSTRUIRE NE PROPOSE RIEN. Un bouton
+    // qui ouvre un selecteur pour echouer ensuite est pire que son absence.
+    if (octets == null) return
+
+    TextButton(
+        onClick = { enregistreur.launch(nomFichierFacture(state.reference)) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(
+            Icons.Default.Download, null,
+            tint = AccentBlue, modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.change_facture_bouton),
+            fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AccentBlue
+        )
+    }
 }
 
 /*

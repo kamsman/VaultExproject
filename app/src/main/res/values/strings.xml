@@ -1146,6 +1146,14 @@
     <string name="change_continuer">Continuer</string>
     <string name="change_pas_de_rachat">Cette monnaie n\'est pas rachetée pour le moment. Choisissez-en une autre, ou achetez plutôt que vendre.</string>
     <string name="change_frais_trop_eleves">Les frais du réseau %1$s sont trop élevés pour l’instant. Essayez une autre chaîne, ou revenez plus tard.</string>
+    <string name="change_facture_bouton">Télécharger le reçu</string>
+    <string name="change_facture_titre">REÇU D’OPÉRATION</string>
+    <string name="change_facture_operation">Opération</string>
+    <string name="change_facture_achat_de">Achat de %1$s</string>
+    <string name="change_facture_vente_de">Vente de %1$s</string>
+    <string name="change_facture_mention">Ce document est un reçu d’opération émis par l’application VaultEx. Ce n’est pas une facture fiscale.</string>
+    <string name="change_facture_enregistre">Reçu enregistré</string>
+    <string name="change_facture_echec">Impossible d’enregistrer le reçu</string>
     <string name="change_sans_cours">Cours indisponible : impossible de calculer un prix honnête. Ouvrez l\'accueil pour rafraîchir, puis revenez.</string>
     <string name="change_sous_minimum">Minimum : %1$s FCFA.</string>
     <string name="change_sur_plafond">Maximum : %1$s FCFA par opération.</string>
