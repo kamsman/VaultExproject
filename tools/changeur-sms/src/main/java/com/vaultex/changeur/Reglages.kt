@@ -154,12 +154,63 @@ class Reglages(contexte: Context) {
      * ═══════════════════════════════════════════════════════════════════
      */
     fun expediteurAccepte(expediteur: String): Boolean {
-        val vu = expediteur.lowercase().replace(" ", "").trim()
+        val vu = normaliser(expediteur)
         if (vu.length < 4) return false
         return expediteurs.split(',')
-            .map { it.trim().lowercase().replace(" ", "") }
+            .map { normaliser(it) }
             .filter { it.length >= 4 }
-            .any { attendu -> vu.contains(attendu) || attendu.contains(vu) }
+            .any { attendu -> correspond(vu, attendu) }
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE TIRET COMPTAIT, ET IL N'AURAIT PAS DÛ
+    ═══════════════════════════════════════════════════════════════════════
+
+    On ne retirait que les ESPACES. « Orange Money » devenait donc
+    « orangemoney » et passait, mais « Orange-Money » restait
+    « orange-money » — qui ne contient pas « orangemoney » et n'y est pas
+    contenu. Rejeté.
+
+    Or personne ne sait encore sous quelle forme exacte Orange Money
+    Burkina signe ses SMS : c'est écrit noir sur blanc dans
+    [DEFAUT_EXPEDITEURS]. Un tiret, un point ou un souligné suffisait à
+    faire écarter le tout premier encaissement — et le changeur aurait
+    cherché la panne ailleurs.
+
+    On ne garde donc que les lettres et les chiffres. Un identifiant
+    d'opérateur n'est pas sensible à sa ponctuation.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun normaliser(s: String): String =
+        s.lowercase().filter { it.isLetterOrDigit() }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN NUMÉRO COURT SE COMPARE EN ENTIER, ET C'EST UNE AFFAIRE DE VIE PRIVÉE
+    ═══════════════════════════════════════════════════════════════════════
+
+    La correspondance partielle existe pour les noms : « Orange » doit
+    reconnaître « OrangeMoney ». Sur des CHIFFRES, elle devient dangereuse,
+    et par le chemin même qu'on recommande.
+
+    Le journal affiche l'expéditeur écarté pour qu'on l'ajoute « tel quel ».
+    Si Orange Money signe depuis un numéro court — 3636, par exemple — le
+    changeur colle donc « 3636 » dans la liste. À partir de cet instant,
+    `vu.contains(attendu)` accepte TOUT expéditeur dont le numéro contient
+    ces quatre chiffres : +226 70 36 36 12, le voisin, un client.
+
+    Ces SMS-là quitteraient le téléphone. C'est exactement ce que ce filtre
+    existe pour empêcher, et la faille s'ouvrait en suivant la consigne.
+
+    Dès que l'un des deux côtés est purement numérique, on exige donc
+    l'égalité. Un numéro court n'a ni abréviation ni variante : il n'y a
+    rien à reconnaître partiellement.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun correspond(vu: String, attendu: String): Boolean {
+        if (vu.all { it.isDigit() } || attendu.all { it.isDigit() }) return vu == attendu
+        return vu.contains(attendu) || attendu.contains(vu)
     }
 
     val configure: Boolean
