@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 64
+const VERSION = 65
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -6565,10 +6565,57 @@ changeur en imitant l'opérateur, qui est le cas le plus probable des trois.
  * ne veut plus rien dire — « a » n'identifie personne.
  * ═══════════════════════════════════════════════════════════════════════
  */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MÊME RÈGLE QUE DANS LE ROBOT, ET IL FAUT QUE CE SOIT LA MÊME
+═══════════════════════════════════════════════════════════════════════════
+
+Ces deux filtres portent le même nom et la même intention, dans deux
+langages. Quand ils divergent, la panne qui en sort est la plus déroutante
+de toutes : le robot transmet, le relais refuse, et son journal affiche
+« ✗ refus 400 : expediteur non reconnu » pour un SMS qui venait bel et bien
+d'Orange Money.
+
+C'est arrivé. Le robot a appris à ignorer la ponctuation ; ici, on ne
+retirait que les espaces. « Orange-Money » passait donc le téléphone et
+butait sur le relais — l'encaissement perdu, et un message qui accuse
+l'expéditeur.
+
+Les deux règles sont désormais identiques, et les deux écarts qu'elles
+corrigent valent d'être redits :
+
+  LA PONCTUATION NE COMPTE PAS. On ne garde que lettres et chiffres. La
+  forme exacte sous laquelle Orange Money Burkina signe ses SMS n'a jamais
+  été mesurée ; un tiret ne doit pas faire perdre un paiement.
+
+  UN IDENTIFIANT NUMÉRIQUE SE COMPARE EN ENTIER. La correspondance
+  partielle existe pour les noms — « orange » doit reconnaître
+  « orangemoney ». Sur des chiffres elle devient dangereuse : avec « 3636 »
+  dans la liste, tout numéro contenant ces chiffres passait, +226 70 36 36
+  12 compris. Or c'est exactement ce qu'on demande de faire, puisque le
+  journal du robot invite à recopier l'expéditeur écarté tel quel.
+
+SI L'UNE DES DEUX CHANGE, L'AUTRE CHANGE AVEC. Rien dans le code ne peut
+l'imposer — ce sont deux fichiers, deux langages, deux déploiements. Cette
+ligne est le seul rappel qui existe.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function normaliserExpediteur(x) {
+  // `sansAccents` passe déjà en minuscules, d'où le motif sans A-Z.
+  return sansAccents(x).replace(/[^a-z0-9]/g, '')
+}
+
 function expediteurAccepte(expediteur, liste) {
-  const vu = String(expediteur ?? '').trim()
+  const vu = normaliserExpediteur(expediteur)
   if (vu.length < 4) return false
-  return liste.some((e) => e.length >= 4 && (vu.includes(e) || e.includes(vu)))
+  return liste
+    .map(normaliserExpediteur)
+    .filter((e) => e.length >= 4)
+    .some((e) => (
+      /^[0-9]+$/.test(vu) || /^[0-9]+$/.test(e)
+        ? vu === e
+        : vu.includes(e) || e.includes(vu)
+    ))
 }
 
 const EXPEDITEURS_SMS = ['orangemoney', 'orange money', 'moovmoney', 'moov money', 'wave']
