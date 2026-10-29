@@ -53,25 +53,26 @@ et une référence, et garde ça trois heures.
 
 ## Construire
 
-Depuis la racine du dépôt :
+**Une seule commande, et c'est `assembleRelease`.** Depuis la racine du
+dépôt :
 
 ```bash
-./gradlew -p tools/changeur-sms assembleDebug
+./gradlew -p tools/changeur-sms assembleRelease
 ```
 
 Sous Windows :
-
-```powershell
-.\gradlew.bat -p tools\changeur-sms assembleDebug
-```
-
-### Pour l'APK qu'on installe vraiment : `assembleRelease`
 
 ```powershell
 .\gradlew.bat -p tools\changeur-sms assembleRelease
 ```
 
 L'APK sort dans `tools/changeur-sms/build/outputs/apk/release/`.
+
+### Pourquoi `assembleDebug` n'est pas une variante acceptable
+
+Cette page donnait `assembleDebug` comme commande principale, et la mise en
+garde venait quatorze lignes plus bas. C'est l'ordre inverse de celui qu'il
+faut : on copie la première commande qu'on voit.
 
 **La différence qui compte est `debuggable`.** Un APK de debug est
 débogable par construction : quiconque branche un câble sur ce téléphone
@@ -80,14 +81,28 @@ permet d'affirmer au relais qu'un paiement a eu lieu — et donc de faire
 confirmer des achats jamais payés.
 
 Pour un APK qu'on installe une fois et qui reste en place des mois sur le
-téléphone qui encaisse, ça n'est pas un détail.
+téléphone qui encaisse, ça n'est pas un détail. Et la faute ne se voit pas :
+les deux APK s'installent, s'ouvrent et transmettent les SMS exactement
+pareil. Rien sur l'écran ne distingue le mauvais du bon.
 
-Il est signé avec la clé de debug, ce qui suffit : il ne passera jamais par
-le Play Store et s'installe à la main. Sans configuration de signature,
-`assembleRelease` produirait un APK **non signé**, qu'Android refuse
-d'installer — et on ne s'en apercevrait qu'une fois le fichier transféré.
+`assembleDebug` reste utile pour **vérifier que ça compile**, sur sa propre
+machine, sans rien installer nulle part. L'APK sort alors dans
+`tools/changeur-sms/build/outputs/apk/debug/` — et il n'a rien à faire sur
+le téléphone du changeur.
 
-L'APK sort dans `tools/changeur-sms/build/outputs/apk/debug/`.
+### La signature
+
+L'APK release est signé avec la clé de debug, ce qui suffit : il ne passera
+jamais par le Play Store et s'installe à la main. Sans configuration de
+signature, `assembleRelease` produirait un APK **non signé**, qu'Android
+refuse d'installer — et on ne s'en apercevrait qu'une fois le fichier
+transféré sur le téléphone.
+
+**Conséquence pour les mises à jour :** cette clé vit dans
+`~/.android/debug.keystore`, propre à la machine qui construit. Un APK
+reconstruit sur un AUTRE ordinateur ne s'installera pas par-dessus — il
+faudra désinstaller d'abord, donc **reposer l'adresse, le jeton et la liste
+des expéditeurs**. Reconstruire toujours depuis la même machine évite ça.
 
 ### Si la compilation dit « SDK location not found »
 

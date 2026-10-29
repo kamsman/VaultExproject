@@ -20,11 +20,18 @@ sont déjà dans le cache Gradle, donc rien de plus à télécharger.
 
 Depuis la racine du dépôt :
 
-    ./gradlew -p tools/changeur-sms assembleDebug
+    ./gradlew -p tools/changeur-sms assembleRelease
 
-L'APK sort dans tools/changeur-sms/build/outputs/apk/debug/.
+L'APK sort dans tools/changeur-sms/build/outputs/apk/release/.
 
-Sous Windows : .\gradlew.bat -p tools\changeur-sms assembleDebug
+Sous Windows : .\gradlew.bat -p tools\changeur-sms assembleRelease
+
+C'EST « RELEASE » ET NON « DEBUG », et ces deux lignes disaient « debug ».
+Un APK de debug est débogable par construction : un câble USB suffit alors
+à lire le jeton du changeur, donc à faire confirmer au relais des paiements
+qui n'ont jamais eu lieu. Les deux APK s'installent et transmettent les SMS
+exactement pareil — rien ne signale la faute une fois le mauvais posé sur
+le téléphone. Le LISEZMOI du dossier détaille le reste.
 ═══════════════════════════════════════════════════════════════════════════
 */
 pluginManagement {
