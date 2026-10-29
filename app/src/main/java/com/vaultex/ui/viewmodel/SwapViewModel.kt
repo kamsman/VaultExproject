@@ -145,6 +145,43 @@ class SwapViewModel @Inject constructor(
                 contract = "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals = 6),
             SwapAsset("USDT-BNB", "USDT", "BEP20", "BNB Chain (BEP20)", "usdtbsc", "BNB", "USDT-BNB",
                 contract = "0x55d398326f99059fF775485246999027B3197955", decimals = 18),
+            /*
+            ═══════════════════════════════════════════════════════════════
+            L'USDT DE SOLANA MANQUAIT, ET C'ETAIT UN OUBLI
+            ═══════════════════════════════════════════════════════════════
+
+            Le chantier Solana a branche le portefeuille, l'envoi, la
+            reception, l'ecran de change et le relais. Pas ce registre —
+            qui est la SEULE liste que l'ecran de swap consulte. Resultat
+            signale a l'usage : un solde USDT-SOL bien visible dans le
+            portefeuille, et la monnaie absente de la liste du swap.
+
+            C'est le mode de panne d'une liste ecrite a la main : elle ne
+            se plaint pas de ce qui lui manque.
+
+            ─── LE RESTE ETAIT DEJA PRET ─────────────────────────────────
+
+            `ReserveFrais.natifDe` rend deja « SOL » pour « USDT-SOL », le
+            moteur d'envoi connait cette cle, et `addrFor("SOL")` rend
+            l'adresse Solana. Il ne manquait que la ligne qui les relie.
+
+            ─── « usdtsol » EST LE TICKER DE CHANGENOW ───────────────────
+
+            Leur convention se lit dans les trois lignes du dessus :
+            `usdttrc20`, `usdterc20`, `usdtbsc`. Le suffixe est le reseau,
+            et c'est `sol` pour Solana.
+
+            SI CE TICKER ETAIT FAUX, le fournisseur refuserait le devis et
+            la paire resterait sans cours — penible, mais SANS DANGER : il
+            n'y a pas d'adresse de depot tant qu'il n'y a pas de devis,
+            donc aucun fonds ne peut partir vers le vide. C'est la seule
+            raison pour laquelle cette ligne part sans avoir ete verifiee
+            contre leur API, qui n'est pas joignable d'ou je travaille.
+            ═══════════════════════════════════════════════════════════════
+            */
+            SwapAsset("USDT-SOL", "USDT", "SPL", "Solana (SPL)", "usdtsol", "SOL", "USDT-SOL",
+                contract = com.vaultex.core.tx.SolanaSpl.MINT_USDT,
+                decimals = com.vaultex.core.tx.SolanaSpl.DECIMALES_USDT),
             SwapAsset("USDC", "USDC", "ERC20", "Ethereum (ERC20)", "usdc", "ETH",
                 "ERC20:ETH:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48:6",
                 contract = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals = 6),
@@ -203,7 +240,24 @@ class SwapViewModel @Inject constructor(
          */
         fun tokenEntityFor(asset: SwapAsset): com.vaultex.data.local.entity.TokenEntity? {
             val contract = asset.contract ?: return null
-            if (asset.key == "USDT-ETH" || asset.key == "USDT-BNB") return null
+            /*
+            LES VARIANTES D'USDT SONT EXCLUES, ET « USDT-SOL » DOIT L'ETRE
+            AUSSI — plus imperativement que les deux autres.
+
+            Cette fonction fabrique une TokenEntity EVM : elle force
+            `blockchain` a « ETH » ou « BNB ». Le contrat d'USDT-SOL n'est
+            pas une adresse EVM, c'est un MINT en base58. Sans cette
+            exclusion, on enregistrerait dans le portefeuille un faux jeton
+            Ethereum portant une adresse Solana — une entree qui ne
+            correspond a rien, que l'utilisateur verrait apparaitre seul et
+            qu'aucun ecran ne saurait interroger.
+
+            Les trois sont geres nativement par Envoyer et Recevoir : il
+            n'y a rien a auto-ajouter pour eux.
+            */
+            if (asset.key == "USDT-ETH" || asset.key == "USDT-BNB" ||
+                asset.key == "USDT-SOL"
+            ) return null
             return com.vaultex.data.local.entity.TokenEntity(
                 contractAddress = contract,
                 blockchain = if (asset.chain == "BNB") "BNB" else "ETH",

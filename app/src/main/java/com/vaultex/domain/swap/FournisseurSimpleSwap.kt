@@ -259,6 +259,19 @@ class FournisseurSimpleSwap @Inject constructor(
         "USDT"     -> "usdttrc20"  // notre USDT = Tron
         "USDT-ETH" -> "usdterc20"
         "USDT-BNB" -> "usdtbep20"  // et non « usdtbsc », qui n'existe pas
+        /*
+        « usdtsol » EST UNE SUPPOSITION, et la ligne du dessus dit pourquoi
+        il faut l'écrire. Les deux fournisseurs ne nomment pas pareil le
+        MÊME jeton : ChangeNOW dit « usdtbsc » là où celui-ci dit
+        « usdtbep20 ». La convention se devine, elle ne se déduit pas.
+
+        Pour Solana les deux emploient le suffixe du réseau — « sol » — et
+        c'est ce qu'on pose. Si l'un des deux refuse, la paire reste sans
+        cours : pénible, mais sans danger, puisqu'il n'y a pas d'adresse de
+        dépôt tant qu'il n'y a pas de devis. C'est une chaîne à corriger,
+        pas un risque à prendre.
+        */
+        "USDT-SOL" -> "usdtsol"
         // Jetons Ethereum
         "USDC"     -> "usdc"
         "DAI"      -> "dai"
