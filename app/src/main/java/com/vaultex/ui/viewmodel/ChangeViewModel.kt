@@ -88,6 +88,57 @@ enum class EtapeChange { CALCUL, PAIEMENT, TRANSMIS }
  */
 private const val FACTEUR_RESEAU = 3.0
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES CHAINES DONT ON PEUT CHIFFRER LE COUT DU CHANGEUR
+═══════════════════════════════════════════════════════════════════════════
+
+`plancherMargeFcfa` protege la marge du changeur sur un achat. Pour ca il
+faut savoir ce que SON envoi va lui couter — et l'application ne voit que
+le portefeuille de SON utilisateur. La question est donc : les frais
+dependent-ils de l'expediteur ?
+
+  ETH, BNB et leurs USDT      NON. Gaz x prix du gaz, identique pour
+                              tout le monde. Mesurable.
+
+  SOL et USDT-SOL             NON. Cinq mille lamports, plus la rente du
+                              compte jeton si le DESTINATAIRE n'en a pas
+                              — et sur un achat le destinataire est notre
+                              propre utilisateur, dont on connait
+                              l'adresse. Mesurable, et c'est le cas ou ce
+                              plancher sert le plus : 409 fois les frais.
+
+  USDT sur TRON et TRX        OUI, et c'est redhibitoire. Le cout depend
+                              de l'ENERGIE GELEE PAR L'EXPEDITEUR : vingt-
+                              sept TRX sans energie, presque rien avec.
+                              L'expediteur est le changeur, et son energie
+                              n'est pas lisible d'ici.
+
+  BTC                         OUI. Le nombre d'entrees depend du
+                              portefeuille de l'expediteur.
+
+─── POURQUOI L'EXCLUSION DE TRON N'EST PAS UN OUBLI ──────────────────────
+
+C'est le cas qui compte le plus — l'USDT-TRC20 est le plus demande — et
+c'est pour ca qu'il faut resister a la tentation de l'inclure. Sans
+l'adresse du changeur, l'estimation retombe sur vingt-sept TRX par
+prudence. Ce chiffre porterait le minimum d'achat a plus de cent mille
+francs, donc au-dessus du plafond : Tron se fermerait tout seul a l'achat,
+y compris quand le changeur a gele de l'energie et que ses transferts ne
+lui coutent presque rien.
+
+Fermer une chaine rentable sur une supposition est pire que ne pas la
+controler. Tron reste donc une affaire de tarif, dans
+`CHANGE_MINIMUMS_USD`, jusqu'au jour ou le relais nous dira l'energie du
+changeur — et ce jour-la c'est ici qu'on l'ajoutera.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private fun coutEnvoiMesurable(monnaie: String): Boolean =
+    when (monnaie.uppercase()) {
+        "ETH", "USDT-ETH", "BNB", "USDT-BNB", "SOL", "USDT-SOL" -> true
+        else -> false
+    }
+
 data class ChangeState(
     val parametres: ParametresChange? = null,
     /*
@@ -717,10 +768,26 @@ data class ChangeState(
      * ─── SEULEMENT A LA VENTE ──────────────────────────────────────────
      *
      * C'est la que l'utilisateur paie le gaz, de son propre portefeuille.
-     * A l'achat, c'est le changeur qui envoie et qui paie — son cout est
-     * une affaire de tarif, pas de blocage, et il se regle dans
-     * `CHANGE_MINIMUMS_USD`. Le lui imposer ici reviendrait a inventer une
-     * regle technique la ou il y a une decision commerciale.
+     * A l'achat, c'est le changeur qui paie, et ce plancher-ci ne le
+     * regarde pas : trois fois les frais n'a aucun sens pour quelqu'un
+     * dont la contrainte est sa MARGE, pas le rapport entre un montant et
+     * son transport.
+     *
+     * ─── CE QUE DISAIT CE COMMENTAIRE, ET CE QUI A CHANGE ──────────────
+     *
+     * Il disait que le cout du changeur « est une affaire de tarif, pas
+     * de blocage », qu'il se regle dans `CHANGE_MINIMUMS_USD`, et que
+     * l'imposer ici « reviendrait a inventer une regle technique la ou il
+     * y a une decision commerciale ».
+     *
+     * La derniere phrase etait juste et elle le reste — c'est pourquoi
+     * [plancherMargeFcfa] ne decide rien : il lit `facteurMargeAchat` sur
+     * le relais. Ce qui etait faux, c'est que `CHANGE_MINIMUMS_USD`
+     * suffise. Un seuil fixe ne peut pas suivre le gaz d'Ethereum, qui
+     * bouge d'heure en heure, ni savoir que CE client-ci n'a pas encore
+     * de compte USDT sur Solana — deux cas ou le cout varie sans que la
+     * variable change. Un seuil assez haut pour le pire cas ferme la
+     * porte le reste du temps.
      */
     fun plancherReseauFcfa(): Double? {
         if (sens != SensChange.VENTE) return null
@@ -759,13 +826,79 @@ data class ChangeState(
         return arrondi * p.venteFcfa
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ACHAT EN DESSOUS DUQUEL LE CHANGEUR PERDRAIT DE L'ARGENT
+    ═══════════════════════════════════════════════════════════════════════
+
+    Sur un achat, l'utilisateur paie en francs et le CHANGEUR envoie la
+    crypto. Les frais de reseau sortent donc de la poche du changeur, et
+    sa marge est bornee par le plafond : 2 049 FCFA au maximum avec les
+    reglages d'aujourd'hui, soit 3,50 $. Au-dela, c'est une perte seche,
+    et aucun montant plus gros ne la rattrape.
+
+    ─── ON RELEVE LE MINIMUM, ON NE REFUSE PAS ───────────────────────────
+
+    C'est la meme reponse que pour la vente, et pour la meme raison : un
+    refus sec laisse chercher. Un minimum releve DIT ce qui marcherait.
+
+    La marge croit avec le montant, les frais non — il existe donc toujours
+    un montant a partir duquel l'operation redevient saine, et c'est
+    exactement ce chiffre-la qu'on calcule :
+
+        marge(X) = X x (achat - base) / achat        >=  facteur x frais
+        donc  X  >=  facteur x frais x achat / (achat - base)
+
+    Avec 25 FCFA de marge par dollar a 585, le rapport achat/(achat-base)
+    vaut 610/25, soit 24,4 : il faut vingt-quatre francs encaisses par
+    franc de frais. Des frais de 527 FCFA — du gaz ERC-20 a cinq gwei —
+    portent donc le minimum de 6 100 a 12 900 francs, et il redescend tout
+    seul quand le gaz retombe.
+
+    SI LE CHIFFRE DEPASSE LE PLAFOND, la monnaie n'est pas achetable pour
+    l'instant, et `blocage` le dit autrement : relever un minimum au-dessus
+    du maximum donnerait un ecran qui exige l'impossible.
+
+    ─── SEULEMENT LA OU LE COUT SE MESURE SANS RIEN SUPPOSER ─────────────
+
+    Voir [coutEnvoiMesurable]. Tron en est exclu, et c'est le point
+    delicat de toute cette affaire.
+
+    ─── NULL VEUT DIRE « ON N'A PAS REGARDE » ────────────────────────────
+
+    Pas « c'est gratuit ». Tant que l'estimation n'est pas revenue, ce
+    plancher ne participe pas — l'ecran s'ouvre sur la borne du changeur,
+    comme avant, puis se resserre quand le reseau a repondu.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun plancherMargeFcfa(): Double? {
+        if (sens != SensChange.ACHAT) return null
+        val p = parametres ?: return null
+        val facteur = p.facteurMargeAchat.takeIf { it > 0.0 } ?: return null
+        if (!coutEnvoiMesurable(monnaie)) return null
+        val f = fraisGaz?.takeIf { it > 0.0 } ?: return null
+        val pxGaz = prixFcfaGaz?.takeIf { it > 0.0 } ?: return null
+        val px = prix ?: return null
+        val marge = px.achatFcfa - px.baseFcfa
+        if (px.achatFcfa <= 0.0 || marge <= 0.0) return null
+        return facteur * f * pxGaz * px.achatFcfa / marge
+    }
+
     /**
      * Le minimum qui s'applique vraiment, en francs.
      *
-     * LE PLUS HAUT DES DEUX : ce que le changeur accepte, et ce que le
-     * reseau rend raisonnable. Les deux se resserrent, aucun ne doit
-     * pouvoir ouvrir ce que l'autre ferme — c'est la regle deja posee
-     * entre `minimumFcfa` et les seuils en dollars.
+     * LE PLUS HAUT DES TROIS : ce que le changeur accepte, ce que le reseau
+     * rend raisonnable pour l'utilisateur qui vend, et ce qu'il faut
+     * encaisser pour que l'achat ne coute pas au changeur plus qu'il ne lui
+     * rapporte. Les trois se resserrent, aucun ne doit pouvoir ouvrir ce
+     * qu'un autre ferme — c'est la regle deja posee entre `minimumFcfa` et
+     * les seuils en dollars.
+     *
+     * LES DEUX PLANCHERS NE SE RENCONTRENT JAMAIS : l'un ne vaut qu'a la
+     * vente, l'autre qu'a l'achat. Ils sont additionnes ici par un `maxOf`
+     * plutot que par un `if` sur le sens, parce que la condition vit deja
+     * dans chacun d'eux — la dupliquer ici serait un troisieme endroit ou
+     * elle pourrait divergir.
      *
      * ECRITE UNE SEULE FOIS, et c'est delibere : `blocage` l'applique et
      * `messageBlocage` l'affiche. Dupliquer la condition, c'est se garantir
@@ -777,7 +910,11 @@ data class ChangeState(
         val borne = p.minimumPour(
             monnaie, fcfaParDollar, prix, sens == SensChange.ACHAT
         )
-        return maxOf(borne, plancherReseauFcfa() ?: 0.0)
+        return maxOf(
+            borne,
+            plancherReseauFcfa() ?: 0.0,
+            plancherMargeFcfa() ?: 0.0
+        )
     }
 
     fun blocage(): String? {
@@ -822,6 +959,33 @@ data class ChangeState(
         entier.
         */
         val achat = sens == SensChange.ACHAT
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        QUAND LE MINIMUM PASSE AU-DESSUS DU PLAFOND
+        ═══════════════════════════════════════════════════════════════════
+
+        `plancherMargeFcfa` releve le minimum d'achat jusqu'a ce que la
+        marge couvre les frais du changeur. Sur un reseau devenu cher, ce
+        chiffre peut depasser le plafond d'encaissement — et il n'existe
+        alors AUCUN montant acceptable.
+
+        Laisser passer ce cas donnerait « Minimum : 118 000 FCFA » sur un
+        ecran dont le plafond est 50 000 : un ordre qu'on ne peut pas
+        suivre, et qui a l'air d'un bogue. Pire, le plafond se verifiant
+        apres, quelqu'un qui taperait 118 000 se ferait refuser une
+        seconde fois, pour la raison inverse.
+
+        LE REFUS DOIT DONC PORTER SUR LA CHAINE, PAS SUR LE CHIFFRE. Ce
+        n'est pas « tape autre chose », c'est « pas celle-la, pas
+        maintenant » — et la bonne action est de changer de reseau, ce que
+        le message dit.
+
+        PASSE AVANT LE MINIMUM, parce que les deux sont vrais a la fois et
+        que celui-ci est le seul actionnable.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val plafondEffectif = p.plafondPour(monnaie, fcfaParDollar, prix, achat)
+        if (minimumFcfa() > plafondEffectif) return "frais_trop_eleves"
         if (fcfa < minimumFcfa()) return "minimum"
         /*
         LE PLAFOND EFFECTIF, PAS LE GENERAL. Certaines monnaies portent
@@ -829,7 +993,10 @@ data class ChangeState(
         dollars en couvrent des centaines de transferts. `plafondPour`
         rend le plus bas des deux.
         */
-        if (fcfa > p.plafondPour(monnaie, fcfaParDollar, prix, achat)) return "plafond"
+        // `plafondEffectif` est deja calcule plus haut, pour la comparaison
+        // avec le minimum. Le recalculer ici donnerait deux lectures d'une
+        // meme borne dans une meme passe.
+        if (fcfa > plafondEffectif) return "plafond"
         /*
         ═══════════════════════════════════════════════════════════════
         ON NE PEUT PAS VENDRE CE QU'ON N'A PAS
@@ -1419,6 +1586,19 @@ class ChangeViewModel @Inject constructor(
     ═══════════════════════════════════════════════════════════════════════
     */
     private fun estimerFrais(monnaie: String, jetonGaz: String) {
+        /*
+        LE SENS EST FIGE ICI, AVEC LA MONNAIE, ET POUR LA MEME RAISON.
+
+        Il entre maintenant dans le chiffre — `destinationSolana` n'est
+        donnee qu'a l'achat — donc une estimation lancee a l'achat ne
+        decrit plus la vente. Le garde-fou du bas ne regardait que la
+        monnaie ; basculer achat/vente sans changer de monnaie aurait
+        laisse passer le resultat de l'autre sens.
+
+        On le lit UNE fois, hors de la coroutine, pour que la valeur
+        comparee a l'arrivee soit bien celle qui a servi au calcul.
+        */
+        val sensDemande = _state.value.sens
         viewModelScope.launch {
             val adresses = runCatching {
                 withContext(Dispatchers.Default) { adressesDeriveesOuNull() }
@@ -1426,14 +1606,41 @@ class ChangeViewModel @Inject constructor(
             val frais = runCatching {
                 sendCryptoUseCase.estimerFrais(
                     chain = monnaie,
-                    adresseTron = adresses?.trx
+                    adresseTron = adresses?.trx,
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    SUR UN ACHAT, LE DESTINATAIRE C'EST NOUS
+                    ═══════════════════════════════════════════════════════
+
+                    Sur Solana, creer le compte USDT de celui qui recoit
+                    coute 2 039 280 lamports — QUATRE CENT NEUF FOIS les
+                    frais d'un transfert. Sans l'adresse du destinataire,
+                    `estimerFrais` provisionne cette creation par prudence.
+
+                    A l'achat, c'est le changeur qui envoie et notre
+                    utilisateur qui recoit : l'adresse est la notre, deja
+                    derivee, deja en cache. La donner remplace une
+                    provision prudente par le chiffre exact — et l'ecart
+                    est tout sauf cosmetique, puisqu'il porte le plancher
+                    de marge de un franc a cinq mille six cents.
+
+                    A LA VENTE ON NE LA DONNE PAS, et ce n'est pas un
+                    oubli : c'est le changeur qui recoit, et savoir si SON
+                    compte jeton existe demanderait son adresse — qui est
+                    bien dans les parametres, mais que `plancherReseauFcfa`
+                    n'utilise pas. La provision prudente est alors du bon
+                    cote : elle protege l'utilisateur qui paie.
+                    ═══════════════════════════════════════════════════════
+                    */
+                    destinationSolana =
+                        if (sensDemande == SensChange.ACHAT) adresses?.sol else null
                 )
             }.getOrNull()
             // Le cours du jeton qui paie : celui du gaz pour un jeton, le
             // sien propre pour une monnaie native.
             val px = coursDe(jetonGaz.ifBlank { monnaie })?.second
             _state.update {
-                if (it.monnaie != monnaie) it
+                if (it.monnaie != monnaie || it.sens != sensDemande) it
                 else it.copy(fraisGaz = frais?.attendu, prixFcfaGaz = px)
             }
         }

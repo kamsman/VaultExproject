@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 65
+const VERSION = 66
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1858,9 +1858,38 @@ function quotaEpuise(statut, texte) {
   return texte.includes('"error_code":10006') || texte.includes('calls limit')
 }
 
-function nombre(v) {
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE DÉFAUT ÉTAIT PASSÉ, ET IL ÉTAIT IGNORÉ
+═══════════════════════════════════════════════════════════════════════════
+
+Cette fonction ne prenait qu'un argument. Quatre appels lui en passaient
+deux, et le second ne servait à rien :
+
+    nombre(env?.CHANGE_MARGE, 25)      rendait 0, pas 25
+    nombre(env?.CHANGE_MIN, 5000)      rendait 0
+    nombre(env?.CHANGE_MAX, 50000)     rendait 0
+    nombre(env?.CHANGE_DELAI, 30)      rendait 0
+
+Le code se LIT comme s'il avait des défauts de sécurité, et il n'en avait
+aucun. Aucun de ces appels ne mord aujourd'hui, parce que les quatre
+variables sont réglées dans le tableau de bord — c'est précisément ce qui
+rend le piège durable : il ne se manifestera que le jour où l'une d'elles
+disparaîtra.
+
+CE QUE ÇA COÛTERAIT. Une marge de 0 rend `achatFcfa` et `venteFcfa` égaux
+au cours : le changeur achèterait et vendrait à prix coûtant, sans qu'un
+seul écran ne change d'aspect. On a failli y passer il y a deux
+déploiements, quand Wrangler a proposé d'effacer ces variables-là.
+
+Un paramètre par défaut suffit. Les appels à un seul argument gardent
+exactement le comportement d'avant — `defaut` vaut alors 0, ce qu'ils
+rendaient déjà.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function nombre(v, defaut = 0) {
   const n = parseFloat(v)
-  return Number.isFinite(n) ? n : 0
+  return Number.isFinite(n) ? n : defaut
 }
 
 /*
@@ -2084,6 +2113,49 @@ function parametresChange(env) {
       plafondsUsdParMonnaie: plafondsUsdChange(env),
       // Et son symetrique : le minimum par monnaie, en dollars lui aussi.
       minimumsUsdParMonnaie: minimumsUsdChange(env),
+      /*
+      ═══════════════════════════════════════════════════════════════════
+      CE QUE LA MARGE DOIT COUVRIR SUR UN ACHAT
+      ═══════════════════════════════════════════════════════════════════
+
+      Sur un achat, c'est LE CHANGEUR qui envoie et qui paie le gaz. Sa
+      marge est bornée par le plafond — 2 049 FCFA au maximum avec les
+      réglages actuels, soit 3,50 $. Tout transfert plus cher que ça est
+      une perte sèche, quel que soit le montant.
+
+      Ce nombre dit combien de fois la marge doit couvrir les frais pour
+      que l'achat soit accepté :
+
+          0    le garde-fou est éteint — comportement d'avant
+          1    on ne perd jamais d'argent, on peut ne rien gagner
+          2    l'opération rapporte au moins ce qu'elle coûte
+
+      ─── POURQUOI ICI ET PAS DANS L'APK ───────────────────────────────
+
+      Parce que c'est une DÉCISION COMMERCIALE, et que l'application
+      avait raison de refuser de l'inventer : son code portait même le
+      commentaire qui l'interdisait. Ce qu'elle sait faire, c'est MESURER
+      les frais et appliquer une règle ; ce qu'elle ne peut pas savoir,
+      c'est à partir de quelle marge vous jugez une vente intéressante.
+
+      Posé ici, le curseur se bouge en dix secondes — y compris pour
+      éteindre le garde-fou un jour de forte demande, sans republier un
+      APK.
+
+      ─── CE QUE ÇA NE COUVRE PAS, ET C'EST VOULU ──────────────────────
+
+      Tron. Les frais TRC-20 dépendent de l'ÉNERGIE gelée par celui qui
+      envoie — le changeur — et l'application ne peut pas la lire : elle
+      ne connaît que le portefeuille de son utilisateur. Deviner
+      donnerait 27 TRX et fermerait Tron à l'achat alors qu'une énergie
+      gelée le rend presque gratuit.
+
+      Tron reste donc une affaire de tarif, dans CHANGE_MINIMUMS_USD. Le
+      garde-fou ne s'applique qu'aux chaînes dont le coût se mesure sans
+      rien supposer du portefeuille du changeur.
+      ═══════════════════════════════════════════════════════════════════
+      */
+      facteurMargeAchat: nombre(env?.CHANGE_FACTEUR_MARGE, 1),
     },
     TTL_PARAMETRES_CHANGE
   )

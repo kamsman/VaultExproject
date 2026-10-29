@@ -1116,6 +1116,7 @@
     <string name="change_marge">رسوم الصرف</string>
     <string name="change_continuer">متابعة</string>
     <string name="change_pas_de_rachat">لا تُشترى هذه العملة حاليًا. اختر غيرها، أو اشترِ بدل البيع.</string>
+    <string name="change_frais_trop_eleves">رسوم شبكة %1$s مرتفعة جدًا حاليًا. جرّب شبكة أخرى، أو عد لاحقًا.</string>
     <string name="change_sans_cours">السعر غير متاح: لا يمكن حساب سعر نزيه. افتح الشاشة الرئيسية للتحديث ثم عد.</string>
     <string name="change_sous_minimum">الحد الأدنى: %1$s فرنك.</string>
     <string name="change_sur_plafond">الحد الأقصى: %1$s فرنك لكل عملية.</string>
