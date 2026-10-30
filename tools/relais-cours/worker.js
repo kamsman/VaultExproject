@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 66
+const VERSION = 67
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1561,8 +1561,52 @@ async function diagnostic(env) {
   liaison absente. Ici le robot reçoit un 401 explicite dès son premier
   envoi : il n'y a rien à deviner, donc rien à exposer.
   */
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE ROBOT EST-IL VIVANT ? ON NE POUVAIT LE SAVOIR QU'EN VENDANT
+  ═══════════════════════════════════════════════════════════════════════
+
+  `silenceRobotSms` existait déjà, et elle répond exactement à la question
+  qui compte : depuis combien de temps le robot du changeur n'a plus rien
+  transmis. Mais elle n'était lue qu'au moment de bâtir le message Telegram
+  d'un achat — donc on ne l'apprenait qu'en provoquant une opération.
+
+  SIGNALÉ À L'USAGE : l'APK est parti chez le changeur, et rien ne disait
+  s'il l'avait installé, réglé, et activé. Entre « il n'a pas encore
+  touché » et « il a tout fait et ça marche », l'écart est de plusieurs
+  jours d'achats non vérifiés — et la seule façon de trancher était
+  d'acheter soi-même.
+
+  Le chiffre est là, il ne coûte qu'une lecture. Il n'y a aucune raison de
+  le garder pour une seule phrase d'un seul message.
+
+  ─── TROIS RÉPONSES, ET ELLES NE SE CONFONDENT PAS ────────────────────
+
+      null         le jeton n'est pas posé : le robot n'est pas attendu
+      jamais       le jeton est posé, mais RIEN n'est jamais arrivé
+      depuis X     la date du dernier SMS accepté
+
+  « Jamais » est l'état d'une installation qui n'a pas abouti. C'est celui
+  qu'on cherche aujourd'hui, et c'est précisément celui qu'un simple
+  booléen `configuree` ne distingue pas de « tout va bien ».
+
+  ─── CE QUE ÇA NE DIT PAS ─────────────────────────────────────────────
+
+  « Le robot est sourd » et « personne n'a payé depuis ce matin » donnent
+  la même date. Le relais ne peut pas trancher — pas plus que l'écran du
+  robot, qui porte le même avertissement. Mais un silence de plusieurs
+  JOURS après une installation annoncée ne laisse qu'une lecture.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const silence = await silenceRobotSms(env)
   sondes.lectureSms = {
     configuree: Boolean(env?.CHANGE_SMS_TOKEN),
+    robot: silence === null ? 'non attendu'
+      : !Number.isFinite(silence) ? 'jamais rien recu'
+      : depuisQuand(silence),
+    // En millisecondes aussi : un humain lit la phrase, un script compare
+    // le nombre. `null` quand il n'y a rien à comparer.
+    robotSilenceMs: silence === null || !Number.isFinite(silence) ? null : silence,
     expediteursAcceptes: String(env?.CHANGE_SMS_EXPEDITEURS ?? '')
       .split(',').map((x) => x.trim()).filter(Boolean),
     expediteursParDefaut: EXPEDITEURS_SMS,
