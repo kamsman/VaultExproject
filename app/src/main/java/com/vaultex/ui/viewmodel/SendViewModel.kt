@@ -707,21 +707,55 @@ class SendViewModel @Inject constructor(
             )
         }
         /*
-        TRON EST LA SEULE CHAÎNE OÙ LES FRAIS DÉPENDENT DE QUI REÇOIT.
+        ═══════════════════════════════════════════════════════════════════
+        DEUX CHAÎNES OÙ LES FRAIS DÉPENDENT DE QUI REÇOIT
+        ═══════════════════════════════════════════════════════════════════
 
-        Partout ailleurs, le coût d'un transfert ne regarde que l'expéditeur
-        et l'état du réseau : l'adresse saisie n'y change rien, et relancer
-        l'estimation à chaque frappe serait du gaspillage.
+        Ce commentaire disait « Tron est la SEULE chaîne », et c'était vrai
+        le jour où il a été écrit. Solana est arrivée depuis, et la phrase
+        est restée.
 
-        Sur Tron, activer un compte inexistant coûte 1 TRX. Connaître le
-        destinataire permet donc de savoir si cette somme doit être réservée
-        — et c'est elle qui décide de ce que le bouton MAX propose.
+        MESURÉ SUR UN VRAI ENVOI : l'écran annonçait 0,00207428 SOL de
+        frais — vingt centimes — pour un transfert qui en a coûté
+        0,00001515, soit un quatorzième de centime. CENT TRENTE-SEPT FOIS
+        TROP.
+
+        La cause tient dans la ligne du dessous. `fetchFee` passe bien
+        l'adresse du destinataire à l'estimateur, qui sait demander à la
+        chaîne si son compte de jeton existe. Mais elle n'était relancée
+        que pour Tron : au moment du seul appel, le champ d'adresse était
+        vide, et l'estimateur retombait sur sa provision prudente — celle
+        qui suppose qu'il faut créer le compte, à 2 039 280 lamports.
+
+        ─── POURQUOI ÇA COMPTE PLUS QUE SUR TRON ─────────────────────────
+
+        Activer un compte Tron coûte 1 TRX, soit trois fois les frais d'un
+        transfert. Créer un compte de jeton Solana en coûte QUATRE CENT
+        NEUF fois. La chaîne où l'on avait le plus besoin de poser la
+        question était justement celle qui ne la posait pas.
+
+        ─── CE QUE ÇA COÛTAIT, AU-DELÀ DU CHIFFRE AFFICHÉ ────────────────
+
+        Le bouton MAX réserve les frais annoncés. Quelqu'un qui envoie tout
+        son SOL se voyait retirer 0,002 SOL de trop. Et sur l'écran de
+        change, ce même chiffre nourrit le plancher réseau d'une vente :
+        une provision 137 fois trop haute remonte le minimum qu'on peut
+        vendre.
+
+        ─── PARTOUT AILLEURS, RIEN NE CHANGE ─────────────────────────────
+
+        Le coût d'un transfert EVM ou Bitcoin ne regarde que l'expéditeur
+        et l'état du réseau. Relancer l'estimation à chaque frappe y serait
+        du gaspillage.
 
         On ne relance que sur une adresse VALIDE et RÉELLEMENT nouvelle :
         pendant la frappe, aucune adresse intermédiaire ne passe la
         validation, et un collage identique ne redemande rien.
+        ═══════════════════════════════════════════════════════════════════
         */
-        if (s.selectedChain == "TRX" && valid && address != s.toAddress) fetchFee("TRX")
+        if ((s.selectedChain == "TRX" || s.selectedChain == "USDT-SOL") &&
+            valid && address != s.toAddress
+        ) fetchFee(s.selectedChain)
     }
 
     /**
