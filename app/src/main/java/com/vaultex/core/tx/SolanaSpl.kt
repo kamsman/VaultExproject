@@ -132,19 +132,31 @@ object SolanaSpl {
     ─── LE PRIX, ET POURQUOI CELUI-LÀ ────────────────────────────────────
 
     Le coût d'une transaction prioritaire vaut `unités × prix ÷ 10⁶`
-    lamports. Sans limite déclarée, Solana alloue 200 000 unités PAR
-    INSTRUCTION — soit 400 000 pour un transfert simple, 600 000 quand il
-    faut créer le compte du destinataire.
+    lamports. Sans limite déclarée, Solana en alloue 200 000 par
+    instruction — c'est le calcul que faisait ce commentaire, et il
+    annonçait 20 000 lamports pour un transfert simple.
 
-    À 50 000 micro-lamports l'unité :
+    MESURÉ SUR LE PREMIER VRAI ENVOI : 10 150 lamports, soit la MOITIÉ.
+    Solscan donnait « Priority Fee 0.00001015 SOL » pour un transfert à
+    deux instructions. Le réseau n'a donc pas compté 400 000 unités mais
+    environ 203 000 — il semble ne pas appliquer le quota par défaut à
+    l'instruction de budget elle-même.
 
-        transfert simple   400 000 × 50 000 ÷ 10⁶ =  20 000 lamports
-        avec création      600 000 × 50 000 ÷ 10⁶ =  30 000 lamports
+    ON GARDE LE CHIFFRE HAUT dans [fraisPriorite], et c'est délibéré :
+    annoncer plus qu'on ne prélève est la bonne direction sur un écran
+    d'envoi, et l'écart absolu vaut 10 000 lamports — un millième de
+    dollar. Sous-estimer ferait échouer un envoi « au maximum » pour
+    quelques milliers de lamports qu'on n'aurait pas mis de côté.
 
-    Soit 0,00002 à 0,00003 SOL — DEUX À TROIS MILLIÈMES DE DOLLAR. Quatre
-    à six fois les frais de base, et toujours mille fois moins que la rente
-    d'un compte de jeton. Payer cela pour que la transaction arrive est le
-    meilleur rapport de tout ce fichier.
+    Ce qui compte, et qui est désormais mesuré plutôt que déduit :
+
+        annoncé par fraisPriorite(false)   20 000 lamports
+        réellement prélevé                 10 150 lamports
+        frais totaux de l'envoi            15 150 lamports = 0,0014 $
+
+    Quelques millièmes de dollar, mille fois moins que la rente d'un compte
+    de jeton. Payer cela pour que la transaction arrive est le meilleur
+    rapport de tout ce fichier.
 
     ─── ON NE DÉCLARE PAS DE LIMITE D'UNITÉS, ET C'EST VOULU ─────────────
 
