@@ -1001,8 +1001,39 @@ fun SendScreen(navController: NavController) {
 
                 Sur la même ligne que la contre-valeur : ce sont deux repères
                 sur le montant, ils vont ensemble.
+
+                ═══════════════════════════════════════════════════════════
+                LES CLÉS DOIVENT PORTER TOUT CE DONT LE CALCUL DÉPEND
+                ═══════════════════════════════════════════════════════════
+
+                MESURÉ SUR UN VRAI ENVOI : l'écran affichait « Frais réseau
+                ≈ 0,000025 SOL » et, deux lignes plus bas, « Minimum 0,59
+                USDT ». Les deux viennent pourtant du MÊME nombre — le
+                minimum vaut trois fois les frais.
+
+                `minimumLisible` lit bien l'état au moment où on l'appelle.
+                Mais `remember` ne le rappelait qu'au changement de MONNAIE.
+                Les frais, eux, se rafraîchissent plus tard — quand
+                l'adresse est saisie et que la chaîne a répondu si le compte
+                de jeton du destinataire existe. La clé ne bougeait pas, la
+                valeur en cache restait : celle calculée sur la provision
+                prudente, quatre-vingt-trois fois trop haute.
+
+                CE QUE ÇA REFUSAIT. Un envoi de 0,3 USDT sur Solana, dont le
+                transport coûte 0,0014 $. Le seuil honnête est 0,0071 ; on
+                en opposait 0,59. Personne ne s'en plaint parce que les
+                petits envois sont rares — mais c'est exactement le genre de
+                refus qu'on ne peut ni comprendre ni contourner.
+
+                `feeAfficheAmount` et `customToken` entrent donc dans les
+                clés : ce sont les deux champs que `minimumEconomique` lit.
+                Un `remember` dont la clé omet une dépendance ne met pas en
+                cache, il FIGE.
+                ═══════════════════════════════════════════════════════════
                 */
-                val minimum = remember(state.selectedChain) {
+                val minimum = remember(
+                    state.selectedChain, state.feeAfficheAmount, state.customToken
+                ) {
                     viewModel.minimumLisible(state.selectedChain)
                 }
                 if (amountFiat != null || minimum != null) {

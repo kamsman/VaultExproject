@@ -663,6 +663,34 @@ class SendViewModel @Inject constructor(
                     feeAfficheAmount = frais?.attendu
                 )
             }
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE MINIMUM SUIT LES FRAIS, DONC L'AVERTISSEMENT AUSSI
+            ═══════════════════════════════════════════════════════════════
+
+            `dustWarning` vaut trois fois les frais — il n'etait pourtant
+            calcule que dans `setChain` et `setAmount`. Quand l'estimation
+            se rafraichit plus tard, et c'est le cas des que l'adresse est
+            saisie, l'avertissement restait celui d'avant.
+
+            MESURE AVEC SON VOISIN : l'ecran affichait « Frais reseau
+            0,000025 SOL » et « Minimum 0,59 USDT » en meme temps, alors
+            que les deux descendent du meme nombre. 0,59 venait de la
+            provision prudente, quatre-vingt-trois fois trop haute.
+
+            L'AVERTISSEMENT EST PIRE QUE LA LIGNE GRISE, parce qu'il
+            REFUSE : un envoi de 0,3 USDT sur Solana, dont le transport
+            coute 0,0014 \$, se voyait opposer un seuil de 0,59. Un refus
+            qu'on ne peut ni comprendre ni contourner.
+
+            On le recalcule DANS UNE SECONDE PASSE, apres que les frais
+            sont ecrits : `dustWarning` les relit dans l'etat, et les lire
+            avant reviendrait a refaire le meme calcul avec l'ancienne
+            valeur.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val avertissement = dustWarning(chain, _state.value.amount)
+            _state.update { it.copy(dustWarning = avertissement) }
         }
     }
 
