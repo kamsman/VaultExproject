@@ -1147,6 +1147,7 @@
     <string name="change_continuer">Continuer</string>
     <string name="change_pas_de_rachat">Cette monnaie n\'est pas rachetée pour le moment. Choisissez-en une autre, ou achetez plutôt que vendre.</string>
     <string name="change_frais_trop_eleves">Les frais du réseau %1$s sont trop élevés pour l’instant. Essayez une autre chaîne, ou revenez plus tard.</string>
+    <string name="change_minimum_frais_reseau">Les frais du réseau %1$s sont élevés en ce moment : le minimum passe à %2$s. Essayez une autre chaîne, ou revenez plus tard.</string>
     <string name="change_facture_bouton">Télécharger le reçu</string>
     <string name="change_facture_titre">REÇU D’OPÉRATION</string>
     <string name="change_facture_operation">Opération</string>

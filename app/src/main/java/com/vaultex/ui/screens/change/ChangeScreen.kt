@@ -5687,7 +5687,36 @@ private fun messageBlocage(
     quelqu'un retaper un montant qui sera refuse une seconde fois. C'est
     exactement le genre de message qui fait fermer l'application.
     */
-    "minimum" -> borne(
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE MEME REFUS, MAIS IL DIT D'OU VIENT LE CHIFFRE
+    ═══════════════════════════════════════════════════════════════════
+
+    Quand le minimum vient du GAZ et non du tarif du changeur, un nombre
+    nu ne suffit pas. « Minimum : 30 459 FCFA » apres un « 6 100 » la
+    veille se lit comme un bogue — signale a l'usage, et par la personne
+    meme qui avait demande ce garde-fou.
+
+    LA PHRASE NOMME LA CAUSE ET LE RESEAU, parce que c'est ce qui rend
+    l'information actionnable : les frais sont une propriete de la
+    CHAINE, pas de l'operation. La meme somme passe sur Solana pour un
+    milliieme du prix. « Essayez une autre chaine » se fait tout de
+    suite ; « tapez plus gros » coute trente mille francs.
+
+    ET ELLE DIT « EN CE MOMENT ». Le gaz redescend, le seuil avec lui.
+    Laisser croire que c'est l'etat normal du service ferait renoncer
+    quelqu'un qui n'a qu'a revenir.
+
+    EN FRANCS, TOUJOURS. Ce plancher n'existe qu'a l'achat, ou la saisie
+    est deja en francs : pas de variante en crypto a prevoir.
+    */
+    "minimum" -> if (state.minimumVientDesFrais()) {
+        stringResource(
+            R.string.change_minimum_frais_reseau,
+            monnaie,
+            "${fcfa(kotlin.math.ceil(state.minimumFcfa()))} FCFA"
+        )
+    } else borne(
         R.string.change_sous_minimum, R.string.change_sous_minimum_crypto,
         // CELUI DE L'ETAT, donc frais de reseau compris. Voir `minimumFcfa`.
         state.minimumFcfa(),

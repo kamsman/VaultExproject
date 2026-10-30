@@ -917,6 +917,45 @@ data class ChangeState(
         )
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN MINIMUM QUI TRIPLE SANS RIEN DIRE SE LIT COMME UN BOGUE
+    ═══════════════════════════════════════════════════════════════════════
+
+    SIGNALE A L'USAGE, et c'etait un defaut de ma part. L'ecran affichait
+    « Minimum : 30 459 FCFA » sur un achat en USDT-ERC20, la ou il
+    annoncait 6 100 la veille. Le chiffre etait juste — le gaz d'Ethereum
+    valait 2,13 $ ce jour-la, et en dessous de ce montant le changeur perd
+    de l'argent — mais rien ne le disait.
+
+    Un seuil qui quintuple sans explication, sur un ecran d'argent, n'a pas
+    l'air d'une protection : il a l'air d'un defaut. Et la premiere
+    personne a l'avoir lu comme tel, c'est celui qui a demande ce
+    garde-fou.
+
+    ─── CE QUE CETTE FONCTION PERMET DE DIRE ─────────────────────────────
+
+    « Les frais du reseau sont eleves en ce moment » plutot qu'un nombre
+    nu. La difference est qu'on sait alors quoi faire : changer de chaine,
+    ou revenir plus tard. Un nombre seul n'offre que de taper plus gros.
+
+    ─── ELLE NE RECALCULE RIEN ────────────────────────────────────────────
+
+    Elle compare les deux memes valeurs que `minimumFcfa` vient de prendre
+    en compte. Recrire l'une des deux ici rouvrirait l'ecart entre ce qui
+    refuse et ce qui s'affiche, que `minimumFcfa` existe justement pour
+    fermer.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun minimumVientDesFrais(): Boolean {
+        val p = parametres ?: return false
+        val plancher = plancherMargeFcfa() ?: return false
+        val borne = p.minimumPour(
+            monnaie, fcfaParDollar, prix, sens == SensChange.ACHAT
+        )
+        return plancher > borne && plancher >= (plancherReseauFcfa() ?: 0.0)
+    }
+
     fun blocage(): String? {
         val p = parametres ?: return "indisponible"
         if (!p.utilisable) return "ferme"

@@ -1118,6 +1118,7 @@
     <string name="change_continuer">متابعة</string>
     <string name="change_pas_de_rachat">لا تُشترى هذه العملة حاليًا. اختر غيرها، أو اشترِ بدل البيع.</string>
     <string name="change_frais_trop_eleves">رسوم شبكة %1$s مرتفعة جدًا حاليًا. جرّب شبكة أخرى، أو عد لاحقًا.</string>
+    <string name="change_minimum_frais_reseau">رسوم شبكة %1$s مرتفعة حاليًا، لذا يرتفع الحد الأدنى إلى %2$s. جرّب شبكة أخرى، أو عد لاحقًا.</string>
     <string name="change_facture_bouton">تنزيل الإيصال</string>
     <string name="change_facture_titre">إيصال عملية</string>
     <string name="change_facture_operation">العملية</string>
