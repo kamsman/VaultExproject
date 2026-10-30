@@ -1247,8 +1247,24 @@ class SendCryptoUseCase @Inject constructor(
     private suspend fun fraisUsdtSolana(destination: String?): FraisReseau {
         val frais = com.vaultex.core.tx.SolanaSpl.FRAIS_SIGNATURE
         val rente = com.vaultex.core.tx.SolanaSpl.RENTE_COMPTE_JETON
-        val haut = java.math.BigDecimal.valueOf(frais + rente).movePointLeft(9).toDouble()
-        val bas = java.math.BigDecimal.valueOf(frais).movePointLeft(9).toDouble()
+        /*
+        LA PRIORITÉ ENTRE DANS LE CHIFFRE ANNONCÉ, et elle n'est pas la
+        même des deux côtés : avec création de compte la transaction porte
+        une instruction de plus, donc un quota d'unités plus large, donc
+        une priorité plus chère. `fraisPriorite` fait cette distinction, et
+        il faut la respecter ici.
+
+        Un montant affiché plus bas que celui prélevé est exactement ce
+        qu'on ne veut pas sur un écran d'envoi — c'est aussi ce qui ferait
+        échouer un envoi « au maximum », pour quelques milliers de lamports
+        qu'on n'aurait pas mis de côté.
+        */
+        val prioriteHaute = com.vaultex.core.tx.SolanaSpl.fraisPriorite(true)
+        val prioriteBasse = com.vaultex.core.tx.SolanaSpl.fraisPriorite(false)
+        val haut = java.math.BigDecimal.valueOf(frais + rente + prioriteHaute)
+            .movePointLeft(9).toDouble()
+        val bas = java.math.BigDecimal.valueOf(frais + prioriteBasse)
+            .movePointLeft(9).toDouble()
 
         val adresse = destination?.trim()?.takeIf { AddressValidator.isValidSolana(it) }
             ?: return identiques(haut)
