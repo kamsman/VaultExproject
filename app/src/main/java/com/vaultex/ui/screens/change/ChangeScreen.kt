@@ -2762,16 +2762,62 @@ private fun ColumnScope.EtapePaiement(
     }
 
     /*
-    LE RETOUR EST UN LIEN, DONC IL EST BLEU.
+    ═══════════════════════════════════════════════════════════════════════
+    CE N'EST PAS UNE SORTIE, C'EST LE CHEMIN DE LA CORRECTION
+    ═══════════════════════════════════════════════════════════════════════
 
-    Il etait gris, de la couleur des notes et des libelles — c'est-a-dire
-    de ce qui se lit et ne se touche pas. Seul element actif de l'ecran a
-    ne pas porter la couleur de l'action, il se trouvait en le cherchant.
+    Il a d'abord ete gris, puis bleu — la couleur de l'action, pour qu'on
+    voie qu'il se touche. Signale a l'usage quand meme : « le mot revenir
+    n'est pas tres visible, alors qu'il joue un grand role ».
+
+    LA REMARQUE EST JUSTE, ET LE CODE PORTAIT DEJA SA REPONSE. Sur l'ecran
+    de fin, « Retour a l'accueil » a recu ce meme traitement, avec ce
+    raisonnement : « a cote d'un bouton plein, un texte se lit comme un
+    lien secondaire — ce qu'il est — mais sur un ecran ou il n'y a QUE
+    deux sorties, il devenait difficile a viser : pas de contour, pas de
+    surface, une ligne au milieu du vide. »
+
+    ─── CE QUE CE BOUTON FAIT VRAIMENT ───────────────────────────────────
+
+    Pas quitter : CORRIGER. On se trompe de montant ou de chaine bien plus
+    souvent qu'on abandonne, et c'est le seul geste qui repare. Quelqu'un
+    qui ne le trouve pas a deux options, toutes deux mauvaises — fermer
+    l'application, ou payer le mauvais montant.
+
+    ─── LE BOUTON RETOUR DU TELEPHONE NE SUFFIT PAS ──────────────────────
+
+    Il fait pourtant la meme chose sur un achat, le `BackHandler` en tete
+    de ce fichier s'en charge. Mais SUR UN TELEPHONE EN NAVIGATION PAR
+    GESTES, IL N'Y A AUCUN BOUTON VISIBLE — et beaucoup de Samsung sont
+    regles ainsi. Pour ces gens-la, ce bouton-ci est la seule issue qu'on
+    VOIT.
+
+    ─── EN CONTOUR, ET SURTOUT PAS EN PLEIN ──────────────────────────────
+
+    « Payer avec Orange Money » doit rester l'action evidente de l'ecran.
+    Un second bouton plein se disputerait le regard avec elle, sur l'ecran
+    ou l'on engage de l'argent — exactement ce qu'il ne faut pas.
+
+    Le contour donne une surface qu'on vise du pouce sans rien promettre
+    de plus. Et la fleche vers la GAUCHE dit le sens du geste avant qu'on
+    ait lu le mot.
+    ═══════════════════════════════════════════════════════════════════════
     */
-    TextButton(onClick = vm::retourAuCalcul, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+    OutlinedButton(
+        onClick = vm::retourAuCalcul,
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BgTertiary),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = SurfaceColor),
+        modifier = Modifier.fillMaxWidth().height(50.dp)
+    ) {
+        Icon(
+            Icons.Default.ArrowBack, null,
+            tint = AccentBlue, modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
         Text(
             stringResource(R.string.change_retour),
-            color = AccentBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+            color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
         )
     }
 
