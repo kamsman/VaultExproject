@@ -1118,6 +1118,7 @@
     <string name="change_continuer">Continue</string>
     <string name="change_pas_de_rachat">This currency is not bought back right now. Pick another one, or buy instead of selling.</string>
     <string name="change_frais_trop_eleves">%1$s network fees are too high right now. Try another chain, or come back later.</string>
+    <string name="change_minimum_frais_reseau">%1$s network fees are high right now, so the minimum rises to %2$s. Try another chain, or come back later.</string>
     <string name="change_facture_bouton">Download receipt</string>
     <string name="change_facture_titre">TRANSACTION RECEIPT</string>
     <string name="change_facture_operation">Operation</string>
