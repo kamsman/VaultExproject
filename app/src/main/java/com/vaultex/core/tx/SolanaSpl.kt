@@ -104,6 +104,95 @@ object SolanaSpl {
 
     /*
     ═══════════════════════════════════════════════════════════════════════
+    LA FILE D'ATTENTE DE SOLANA SE PAIE, ET ON NE LA PAYAIT PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    OBSERVÉ EN DIRECT, le 30 octobre : quatre transferts USDT émis depuis un
+    autre portefeuille, tous restés « in progress », aucun jamais arrivé
+    dans un bloc. Le solde ne bougeait pas, l'explorateur ne trouvait pas
+    les signatures. Le réseau était simplement chargé — SOL perdait 7,8 %
+    ce jour-là, et la volatilité amène le trafic.
+
+    CE QUI SE PASSE ALORS. Les validateurs ordonnent les transactions par
+    FRAIS DE PRIORITÉ. Celles qui n'en paient aucune attendent ; et comme
+    le blockhash d'une transaction Solana expire au bout d'environ deux
+    minutes, celles qui attendent trop ne sont pas retardées — elles sont
+    ANNULÉES. Sans erreur, sans trace, sans rien à l'écran.
+
+    VaultEx n'en payait aucune. Les transferts passés jusqu'ici l'ont été
+    parce que le réseau était calme.
+
+    ─── CE QUE ÇA COÛTERAIT DE NE RIEN FAIRE ─────────────────────────────
+
+    Une vente dont le dépôt n'arrive jamais. L'écran afficherait « dépôt
+    introuvable », et la personne — qui a bien appuyé sur « envoyer » —
+    conclurait que l'application a perdu son argent. C'est la pire panne du
+    parcours : invisible pour nous, inexplicable pour elle.
+
+    ─── LE PRIX, ET POURQUOI CELUI-LÀ ────────────────────────────────────
+
+    Le coût d'une transaction prioritaire vaut `unités × prix ÷ 10⁶`
+    lamports. Sans limite déclarée, Solana alloue 200 000 unités PAR
+    INSTRUCTION — soit 400 000 pour un transfert simple, 600 000 quand il
+    faut créer le compte du destinataire.
+
+    À 50 000 micro-lamports l'unité :
+
+        transfert simple   400 000 × 50 000 ÷ 10⁶ =  20 000 lamports
+        avec création      600 000 × 50 000 ÷ 10⁶ =  30 000 lamports
+
+    Soit 0,00002 à 0,00003 SOL — DEUX À TROIS MILLIÈMES DE DOLLAR. Quatre
+    à six fois les frais de base, et toujours mille fois moins que la rente
+    d'un compte de jeton. Payer cela pour que la transaction arrive est le
+    meilleur rapport de tout ce fichier.
+
+    ─── ON NE DÉCLARE PAS DE LIMITE D'UNITÉS, ET C'EST VOULU ─────────────
+
+    `SetComputeUnitLimit` rendrait la facture plus fine — environ 1 500
+    lamports au lieu de 20 000. Mais une limite trop basse fait ÉCHOUER la
+    transaction, et le vrai coût d'un transfert SPL dépend de choses qu'on
+    ne mesure pas d'ici.
+
+    Économiser deux centièmes de centime en échange d'un risque d'échec est
+    un mauvais marché. On laisse donc Solana appliquer son défaut.
+
+    ─── LE JOUR OÙ 50 000 NE SUFFIRA PAS ─────────────────────────────────
+
+    Ce nombre est le seul réglage de ce mécanisme, et il est écrit ici
+    plutôt que lu sur la chaîne parce qu'un appel de plus est un appel qui
+    peut échouer — au moment précis où le réseau va mal. S'il devenait
+    insuffisant, `getRecentPrioritizationFees` donne la valeur du moment,
+    et c'est là qu'il faudra l'ajouter.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    const val PROGRAMME_BUDGET = "ComputeBudget111111111111111111111111111111"
+
+    /** Micro-lamports par unité de calcul. Voir le bloc ci-dessus. */
+    const val PRIX_UNITE_CALCUL = 50_000L
+
+    /** Ce que Solana alloue par instruction quand on ne déclare rien. */
+    private const val UNITES_PAR_INSTRUCTION = 200_000L
+
+    /**
+     * Les lamports que la priorité ajoute, selon la forme du transfert.
+     *
+     * ELLE COMPTE L'INSTRUCTION DE BUDGET ELLE-MÊME : Solana alloue son
+     * quota par instruction présente, celle-ci comprise. Oublier de la
+     * compter sous-estimerait les frais annoncés — et un montant affiché
+     * plus bas que celui prélevé est exactement ce qu'on ne veut pas sur un
+     * écran d'envoi.
+     */
+    fun fraisPriorite(creerCompteDestinataire: Boolean): Long {
+        val instructions = if (creerCompteDestinataire) 3L else 2L
+        val unites = instructions * UNITES_PAR_INSTRUCTION
+        // Division entière arrondie vers le HAUT : le réseau ne rend pas la
+        // monnaie, et annoncer un lamport de moins qu'il n'en prend serait
+        // la même faute que de ne rien annoncer.
+        return (unites * PRIX_UNITE_CALCUL + 999_999L) / 1_000_000L
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
     L'ADRESSE DÉRIVÉE DE PROGRAMME, ET POURQUOI ELLE BOUCLE
     ═══════════════════════════════════════════════════════════════════════
 
@@ -289,6 +378,7 @@ object SolanaSpl {
 
         val programmeJeton = Base58.decode(PROGRAMME_JETON)
         val programmeAta = Base58.decode(PROGRAMME_ATA)
+        val programmeBudget = Base58.decode(PROGRAMME_BUDGET)
         val ataSource = compteAssocie(expediteur, mint)
         val ataDestination = compteAssocie(destinataire, mint)
 
@@ -314,6 +404,22 @@ object SolanaSpl {
             comptes += programmeJeton
             lectureSeule = 2
         }
+
+        /*
+        LE PROGRAMME DE BUDGET ENTRE EN DERNIER, ET IL COMPTE POUR UN
+        LECTURE SEULE.
+
+        L'en-tête ne nomme aucun compte : il dit seulement combien il y a
+        de signataires et combien de lectures seules À LA FIN. Les rangs
+        font le reste. Ajouter ce compte ailleurs qu'au bout décalerait la
+        frontière entre modifiables et lecture seule — et un compte
+        modifiable lu comme lecture seule fait échouer le transfert, tandis
+        que l'inverse ouvrirait une écriture qu'on n'a pas voulue.
+
+        Il va donc après les autres, et `lectureSeule` monte d'un.
+        */
+        comptes += programmeBudget
+        lectureSeule += 1
 
         /*
         ═══════════════════════════════════════════════════════════════════
@@ -367,6 +473,34 @@ object SolanaSpl {
 
         val instructions = ByteArrayOutputStream()
         var nombreInstructions = 0
+
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE PRIX DE LA PRIORITÉ, EN PREMIER
+        ═══════════════════════════════════════════════════════════════════
+
+        Rien n'oblige formellement cette instruction à venir avant les
+        autres, mais c'est la convention de tout l'écosystème, et une
+        convention respectée est une chose de moins à démontrer le jour où
+        un nœud se comporte autrement.
+
+        ELLE NE TOUCHE À AUCUN COMPTE — zéro dans la longueur de sa liste.
+        Elle ne déplace pas de fonds : elle dit au réseau ce qu'on est prêt
+        à payer pour être servi.
+
+        Ses données tiennent en neuf octets : le code 3
+        (`SetComputeUnitPrice`), puis le prix sur huit octets en petit-
+        boutiste, comme tout ce que Solana encode.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        nombreInstructions++
+        instructions.write(indice(programmeBudget))
+        instructions.write(0)                              // aucun compte
+        instructions.write(9)                              // données : 1 + 8 octets
+        instructions.write(3)                              // SetComputeUnitPrice
+        for (i in 0 until 8) {
+            instructions.write((PRIX_UNITE_CALCUL ushr (i * 8)).toInt() and 0xFF)
+        }
 
         if (creerCompteDestinataire) {
             nombreInstructions++
