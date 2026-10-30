@@ -1678,9 +1678,56 @@ class ChangeViewModel @Inject constructor(
             // Le cours du jeton qui paie : celui du gaz pour un jeton, le
             // sien propre pour une monnaie native.
             val px = coursDe(jetonGaz.ifBlank { monnaie })?.second
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UNE ESTIMATION RATEE N'EFFACE PAS CELLE QUI A REUSSI
+            ═══════════════════════════════════════════════════════════════
+
+            SIGNALE A L'USAGE, ET C'EST LE PIRE DEFAUT DE CE FICHIER : « le
+            message rouge s'affiche par flash et disparait ». Sur un achat
+            en USDT-ERC20, l'ecran annoncait « les frais du reseau sont
+            eleves, le minimum passe a 30 599 FCFA », puis l'avertissement
+            s'effaçait et le bouton se rallumait — pour un montant que le
+            garde-fou venait de refuser.
+
+            ─── LE MECANISME ─────────────────────────────────────────────
+
+            `estimerFrais` est relancee a chaque recalcul. Les appels se
+            suivent, et les noeuds publics refusent parfois — quota, delai,
+            reseau mobile. Un appel rate donne `frais = null`, et cette
+            ligne ecrivait ce null PAR-DESSUS une mesure qui avait abouti.
+
+            `plancherMargeFcfa` exige `fraisGaz != null`. Perdre la valeur,
+            c'est donc desactiver le plancher — et avec lui le refus qu'il
+            venait de prononcer.
+
+            ─── POURQUOI C'EST PLUS GRAVE QU'UN CLIGNOTEMENT ─────────────
+
+            Un avertissement qui s'efface n'est pas seulement desagreable :
+            il LAISSE PASSER. Deux secondes plus tard, le meme montant
+            devient acceptable, et l'achat part sur une chaine ou le
+            changeur perd de l'argent. Le garde-fou s'eteint tout seul, sans
+            que personne n'ait rien decide.
+
+            ─── LA REGLE DE LA MAISON, APPLIQUEE ICI ─────────────────────
+
+            « Null veut dire qu'on n'a pas regarde, pas qu'il n'y a rien. »
+            Une tentative qui echoue n'a pas regarde : elle ne doit donc
+            rien dire. On garde ce qu'on savait.
+
+            CE QU'ON PERD, et il faut le nommer : un frais devenu obsolete
+            survit a un echec. Sur un gaz qui bouge, l'ecran peut annoncer
+            la valeur d'il y a une minute. C'est sans commune mesure avec
+            le fait de retomber a « aucune idee » — et le prochain appel qui
+            aboutit corrige.
+            ═══════════════════════════════════════════════════════════════
+            */
             _state.update {
                 if (it.monnaie != monnaie || it.sens != sensDemande) it
-                else it.copy(fraisGaz = frais?.attendu, prixFcfaGaz = px)
+                else it.copy(
+                    fraisGaz = frais?.attendu ?: it.fraisGaz,
+                    prixFcfaGaz = px ?: it.prixFcfaGaz
+                )
             }
         }
     }
@@ -1788,7 +1835,14 @@ class ChangeViewModel @Inject constructor(
                     p.monnaies.firstOrNull { m -> p.rachetable(m) } ?: it.monnaie
                 } else it.monnaie
             // La saisie change d'unité avec le sens : la garder tromperait.
-            it.copy(sens = sens, monnaie = monnaie, saisie = "", erreur = null)
+            // Les frais tombent AUSSI au changement de sens : la
+            // destination change de camp — a l'achat c'est nous qui
+            // recevons, a la vente c'est le changeur — et `estimerFrais`
+            // n'interroge pas le meme compte. Voir `onMonnaie`.
+            it.copy(
+                sens = sens, monnaie = monnaie, saisie = "", erreur = null,
+                fraisGaz = null, prixFcfaGaz = null
+            )
         }
         /*
         LE PRIX SUIT LA MONNAIE. Sans ce recalcul, un basculement qui change
@@ -1829,7 +1883,29 @@ class ChangeViewModel @Inject constructor(
             it.copy(
                 monnaie = monnaie,
                 saisie = if (it.sens == SensChange.VENTE) "" else it.saisie,
-                erreur = null
+                erreur = null,
+                /*
+                ═══════════════════════════════════════════════════════════
+                LES FRAIS D'UNE CHAINE NE VALENT RIEN POUR UNE AUTRE
+                ═══════════════════════════════════════════════════════════
+
+                Ils ne l'ont jamais valu, et ils survivaient pourtant au
+                changement de monnaie — le temps que la nouvelle estimation
+                revienne, l'ecran raisonnait sur ceux de la precedente.
+                Entre Ethereum et Solana, c'est un facteur cent.
+
+                ET DEPUIS QU'UNE ESTIMATION RATEE NE LES EFFACE PLUS, ce
+                serait pire : sans cette remise a zero, un echec juste apres
+                un changement de monnaie figerait les frais de l'ancienne
+                chaine pour de bon.
+
+                Les deux regles se tiennent et ne marchent qu'ensemble : on
+                garde ce qu'on sait de CETTE monnaie, on ne garde rien d'une
+                autre.
+                ═══════════════════════════════════════════════════════════
+                */
+                fraisGaz = null,
+                prixFcfaGaz = null
             )
         }
         recalculer()
