@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 72
+const VERSION = 73
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -423,8 +423,38 @@ avalés en silence, et le pire qui puisse arriver est un chiffre en retard.
 ═══════════════════════════════════════════════════════════════════════════
 */
 async function majTableau(env) {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  CE TABLEAU N'A RIEN À FAIRE DANS LE CANAL DU CHANGEUR
+  ═══════════════════════════════════════════════════════════════════════
+
+  J'avais écrit `TG_ADMIN_CHAT || TG_CHANGE_CHAT`, par symétrie avec le
+  reste du fichier. Le repli a joué : `TG_ADMIN_CHAT` n'était pas réglée,
+  et le tableau est allé s'épingler chez le changeur.
+
+  CE N'ÉTAIT PAS UN ACCIDENT DE CONFIGURATION, MAIS UNE ERREUR DE
+  CONCEPTION. Les deux canaux ne servent pas les mêmes gens :
+
+    Vaultex-Change          le poste de travail du changeur. Une demande,
+                            un message. Il y travaille, il ne veut pas
+                            qu'on y affiche des totaux qui ne le
+                            concernent pas.
+
+    Vaultex Administration  le tableau de bord du propriétaire. Les
+                            installations y sont déjà comptées.
+
+  Un repli est bon quand les deux destinations sont acceptables. Ici la
+  seconde ne l'est pas — alors on n'y retombe pas, et le tableau ne paraît
+  nulle part tant que `TG_ADMIN_CHAT` n'est pas posée.
+
+  SE TAIRE VAUT MIEUX QUE SE TROMPER DE CANAL : un tableau absent se
+  remarque et se corrige en une variable ; un tableau au mauvais endroit
+  encombre le travail de quelqu'un d'autre, et personne ne sait d'où il
+  sort.
+  ═══════════════════════════════════════════════════════════════════════
+  */
   const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
-  const chat = env?.TG_ADMIN_CHAT || env?.TG_CHANGE_CHAT
+  const chat = env?.TG_ADMIN_CHAT
   if (!token || !chat) return
 
   const c = await lireCompteurs(env)
