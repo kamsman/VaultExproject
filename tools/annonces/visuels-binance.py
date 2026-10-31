@@ -21,6 +21,8 @@ Dépendances : pillow, reportlab.
 
 import os
 import re
+import shutil
+import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -326,6 +328,27 @@ def visuel_regle(chemin):
 
 # ============================================================= le PDF
 
+def en_jpeg(source, destination, fond=None):
+    """Aplatit une image en JPEG sans transparence.
+
+    Un PNG à canal alpha arrive dans le PDF en Flate avec un masque
+    séparé, et les lecteurs allégés des téléphones sautent parfois ces
+    images-là : la page s'affiche, le visuel manque. Le JPEG est le seul
+    encodage qu'aucun lecteur ne refuse.
+    """
+    im = Image.open(source)
+    if im.mode in ("RGBA", "LA", "P"):
+        im = im.convert("RGBA")
+        plat = Image.new("RGB", im.size, fond or "#FFFFFF")
+        plat.paste(im, mask=im.split()[-1])
+        im = plat
+    else:
+        im = im.convert("RGB")
+    # subsampling=0 : sans ça le bleu du logo bave sur le fond sombre.
+    im.save(destination, "JPEG", quality=95, subsampling=0, optimize=True)
+    return destination
+
+
 def lire_article():
     """Rend la liste (type, texte) des blocs de l'article."""
     with open(ARTICLE, encoding="utf-8") as f:
@@ -429,11 +452,10 @@ def decor(canvas, doc):
     L, H = A4
     canvas.setFillColor(HexColor(ENCRE))
     canvas.rect(0, H - 26 * mm, L, 26 * mm, stroke=0, fill=1)
-    logo = Image.open(LOGO)
+    logo = Image.open(LOGO_PDF[0])
     h = 9 * mm
     l = logo.width * h / logo.height
-    canvas.drawImage(LOGO, 18 * mm, H - 18.5 * mm, width=l, height=h,
-                     mask="auto")
+    canvas.drawImage(LOGO_PDF[0], 18 * mm, H - 18.5 * mm, width=l, height=h)
     canvas.setFont("DejaVu", 8)
     canvas.setFillColor(HexColor(ENCRE_3))
     canvas.drawRightString(L - 18 * mm, H - 15 * mm, "Alerte sécurité")
@@ -449,9 +471,18 @@ def decor(canvas, doc):
     canvas.restoreState()
 
 
-def construire_pdf(images):
+# Le logo aplati sur le bandeau sombre, posé par construire_pdf et lu par
+# decor, qui est appelé par reportlab sans pouvoir recevoir d'argument.
+LOGO_PDF = [LOGO]
+
+
+def construire_pdf(images, atelier):
     s = styles()
     L, H = A4
+    LOGO_PDF[0] = en_jpeg(LOGO, os.path.join(atelier, "logo.jpg"), ENCRE)
+    images = [(titre, en_jpeg(png, os.path.join(
+        atelier, os.path.basename(png).replace(".png", ".jpg"))), legende)
+        for titre, png, legende in images]
     doc = BaseDocTemplate(PDF, pagesize=A4, title="VaultEx — Vol chez Binance :"
                           " ce que ça change pour toi",
                           author="VaultEx", subject="Alerte sécurité")
@@ -570,7 +601,11 @@ def main():
         ("Si tu l'as déjà donnée", trois,
          "La seule règle à retenir — elle protège de toutes ces arnaques."),
     ]
-    pdf = construire_pdf(images)
+    atelier = tempfile.mkdtemp(prefix="vaultex-pdf-")
+    try:
+        pdf = construire_pdf(images, atelier)
+    finally:
+        shutil.rmtree(atelier, ignore_errors=True)
 
     for chemin in (un, deux, trois, pdf):
         print("%8d o  %s" % (os.path.getsize(chemin), chemin))

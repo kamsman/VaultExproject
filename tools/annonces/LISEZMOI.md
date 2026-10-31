@@ -501,3 +501,17 @@ image qui ne dirait que le bon côté serait de la publicité.
 `binance-3-regle` est la seule urgente. Elle nomme `gbash.tools`, donne
 la règle, et finit par quoi faire si c'est déjà arrivé. C'est celle à
 envoyer en premier si quelqu'un signale avoir été contacté.
+
+**Pourquoi les images du PDF sont en JPEG et pas en PNG.** Les trois
+visuels sont écrits en PNG pour le partage — c'est le bon format pour
+WhatsApp. Mais dans le PDF, un PNG à canal alpha arrive en Flate avec un
+masque de transparence séparé, et des lecteurs allégés de téléphone
+sautent ces images-là : la page s'affiche, le texte est là, le visuel
+manque, sans message d'erreur. `en_jpeg()` aplatit donc tout avant la
+mise en page, logo compris, dans un dossier temporaire effacé après le
+build. Le PDF pèse plus lourd (870 ko contre 350) et c'est le prix d'un
+fichier qui s'ouvre partout.
+
+Le `subsampling=0` n'est pas décoratif : sans lui, le bleu du logo bave
+sur le fond sombre du bandeau et la jointure avec le rectangle dessiné
+par reportlab devient visible.
