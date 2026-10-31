@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 68
+const VERSION = 69
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3002,8 +3002,13 @@ async function ordreChange(requete, env) {
   le droit d'attendre. C'est deja le cas de `verif`, `coherence` et `otp`,
   qui arrivent tout calcules — on ne lui donne pas une exception.
   */
+  /*
+  LES DEUX SILENCES PARTENT ENSEMBLE, parce que c'est leur ECART qui
+  nomme la panne. Voir le bloc qui les lit, dans `messageOrdre`.
+  */
   const silenceSms = await silenceRobotSms(env)
-  const lignes = messageOrdre(ordre, verif, coherence, otp, silenceSms)
+  const silenceVie = await silenceRobotVivant(env)
+  const lignes = messageOrdre(ordre, verif, coherence, otp, silenceSms, silenceVie)
 
   try {
     /*
@@ -3236,7 +3241,7 @@ function marqueOtp(otp) {
   }
 }
 
-function messageOrdre(ordre, verif, coherence, otp, silenceSms = null) {
+function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVie = null) {
   const achat = ordre.sens === 'achat'
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -3474,10 +3479,63 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null) {
     largement à mériter d'être dite.
     ═══════════════════════════════════════════════════════════════════
     */
+    /*
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    DEUX PANNES, DEUX GESTES OPPOS\u00C9S \u2014 ET UN SEUL MESSAGE JUSQU'ICI
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+    Cette ligne disait toujours la m\u00EAme chose : \u00AB le robot est peut-\u00EAtre
+    arr\u00EAt\u00E9, rouvre l'application \u00BB. Or un achat non v\u00E9rifi\u00E9 a DEUX causes
+    possibles c\u00F4t\u00E9 robot, et elles demandent des gestes contraires :
+
+      A. LE ROBOT EST MORT. Android l'a arr\u00EAt\u00E9 \u2014 un nettoyeur de
+         batterie, une fermeture depuis les applications r\u00E9centes. Plus
+         aucune diffusion ne lui parvient. Rouvrir l'application est le
+         bon geste : c'est pr\u00E9cis\u00E9ment ce qui la r\u00E9veille.
+
+      B. LE ROBOT TOURNE, MAIS IL \u00C9CARTE ORANGE MONEY. Le SMS arrive, le
+         receveur s'ex\u00E9cute, et le filtre d'exp\u00E9diteur le refuse parce
+         que l'identifiant de l'op\u00E9rateur n'est pas dans sa liste.
+         Rouvrir l'application NE SERT \u00C0 RIEN : elle marchait d\u00E9j\u00E0. Il
+         faut lire le journal et corriger la liste.
+
+    Envoyer quelqu'un rouvrir une application qui fonctionne pendant que
+    la vraie panne reste enti\u00E8re, c'est pire que ne rien dire : \u00E7a donne
+    l'impression d'avoir agi.
+
+    \u2500\u2500\u2500 CE QUI PERMET DE TRANCHER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+    `silenceVie` \u2014 la derni\u00E8re fois que le robot a PARL\u00C9, quoi qu'il ait
+    dit. Un SMS \u00E9cart\u00E9 le met \u00E0 jour ; un encaissement lisible aussi.
+
+    Si le robot a parl\u00E9 r\u00E9cemment alors qu'aucun encaissement n'a \u00E9t\u00E9
+    lu, c'est le cas B : il entend, et il jette. Sinon, c'est le cas A.
+
+    \u2500\u2500\u2500 LE CAS B EST LE PLUS PROBABLE, ET C'EST POUR LUI QUE J'\u00C9CRIS \u2500\u2500
+
+    L'identifiant exact sous lequel Orange Money Burkina signe ses SMS
+    n'a jamais \u00E9t\u00E9 mesur\u00E9. La liste par d\u00E9faut est une supposition, et
+    le journal du robot affiche l'exp\u00E9diteur \u00E9cart\u00E9 pr\u00E9cis\u00E9ment pour
+    qu'on la corrige en le lisant.
+
+    \u2500\u2500\u2500 ET SI ON NE SAIT PAS, ON GARDE L'ANCIENNE PHRASE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+    `silenceVie` vaut null quand le relais est plus ancien que cette
+    mesure, ou Infinity quand rien n'a jamais parl\u00E9. Dans les deux cas
+    on ne peut pas trancher, et une phrase qui pr\u00E9tendrait le faire
+    enverrait au hasard.
+    \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    */
     achat && !verseVraiment && silenceSms !== null && silenceSms > SILENCE_SMS_MS
-      ? `\u26A0\uFE0F Le robot SMS n'a rien recu ${depuisQuand(silenceSms)} : il est ` +
-        `peut-etre arrete. Verifie ton releve toi-meme, et rouvre ` +
-        `l'application du robot sur le telephone.`
+      ? (Number.isFinite(silenceVie) && silenceVie <= SILENCE_SMS_MS
+        ? `\u26A0\uFE0F Le robot a parle ${depuisQuand(silenceVie)}, mais aucun ` +
+          `encaissement n'a ete lu ${depuisQuand(silenceSms)}. Il TOURNE et ` +
+          `ECARTE les SMS : ouvre son journal, lis la ligne ` +
+          `\u00AB ecarte : expediteur \u00BB, et ajoute cet expediteur dans la liste. ` +
+          `Verifie ton releve toi-meme en attendant.`
+        : `\u26A0\uFE0F Le robot SMS n'a rien recu ${depuisQuand(silenceSms)} : il est ` +
+          `peut-etre arrete. Verifie ton releve toi-meme, et rouvre ` +
+          `l'application du robot sur le telephone.`)
       : null,
     /*
     \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
