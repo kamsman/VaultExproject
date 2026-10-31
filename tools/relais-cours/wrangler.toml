@@ -203,13 +203,25 @@ id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 # Cloudflare réveille le Worker à cette heure et appelle `scheduled`, qui
 # poste dans le canal l'état du robot et les chiffres du jour.
 #
-# 20 h UTC — et le Burkina Faso est à UTC+0, donc 20 h sur place. Le soir
-# plutôt que le matin : la journée est finie, le chiffre est complet, et
-# c'est le moment où l'on regarde son téléphone sans être au travail.
+# TOUTES LES HEURES, ET PAS UNE FOIS PAR JOUR.
+#
+# J'avais d'abord mis le tableau à jour au passage de CHAQUE demande, pour
+# qu'il soit juste à la minute. Un test l'a refusé, et il avait raison :
+# « NORMAL : et part sur Telegram » vérifie qu'une demande ne déclenche
+# QU'UN appel à Telegram. Le second — celui du tableau — s'ajoutait dans
+# le chemin critique de quelqu'un qui attend que sa demande parte.
+#
+# Un tableau de bord ne vaut pas une milliseconde d'attente sur l'écran de
+# paiement. Il sort donc du chemin de la demande et vient ici.
+#
+# Une heure de retard au pire, pour un chiffre qu'on consulte quand on y
+# pense. Et la ligne du robot — « vivant depuis 2 h » — vieillit toute
+# seule : c'est elle qui a vraiment besoin d'un rendez-vous régulier, pas
+# les compteurs.
 #
 # L'HEURE EST ICI ET PAS DANS LE CODE, pour qu'on la change sans toucher à
 # worker.js — et sans risquer une faute dans un fichier de huit mille
-# lignes pour déplacer un rendez-vous d'une heure.
+# lignes pour déplacer un rendez-vous.
 #
 # POUR L'ÉPROUVER SANS ATTENDRE LE SOIR :
 #
@@ -222,7 +234,7 @@ id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 # apparaît pas, le message ne partira jamais et rien ne le signalera.
 # ==========================================================================
 [triggers]
-crons = ["0 20 * * *"]
+crons = ["0 * * * *"]
 
 # --------------------------------------------------------------------------
 # CE QUE KV NE RÈGLE PAS
