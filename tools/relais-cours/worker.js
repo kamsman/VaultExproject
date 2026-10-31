@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 71
+const VERSION = 72
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -380,129 +380,134 @@ const PAIRES_SURES = new Set(['BTC', 'ETH', 'BNB', 'SOL', 'TRX'])
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
-LE RÉSUMÉ QUOTIDIEN — CE QU'ON NE VA PAS CHERCHER NE SE SAIT PAS
+UN COMPTEUR ÉPINGLÉ, PAS UN MESSAGE PAR JOUR
 ═══════════════════════════════════════════════════════════════════════════
 
-`/change/compteurs` répond bien, mais il faut y penser et ouvrir un
-terminal. Un chiffre qu'on doit aller chercher n'est consulté que les jours
-où l'on se pose déjà la question — c'est-à-dire trop tard.
+J'avais d'abord écrit un résumé quotidien : un message posté chaque soir
+avec les chiffres et l'écart depuis la veille. Ce n'est pas ce qu'il
+fallait.
 
-Cloudflare sait réveiller un Worker à heure fixe. Le résumé vient donc à
-vous, dans le canal, une fois par jour.
+UN MESSAGE PAR JOUR DEVIENT UNE LISTE À FAIRE DÉFILER. Au bout d'un mois,
+trente messages presque identiques enterrent ceux qui disaient quelque
+chose — et pour connaître le total d'aujourd'hui, il faut chercher le plus
+récent dans le fil.
 
-─── IL PORTE D'ABORD L'ÉTAT DU ROBOT, ET ENSUITE LES CHIFFRES ────────────
+Le canal portait déjà la bonne forme sous les yeux : « VaultEx —
+installations : 223 », épinglé, modifié sur place. UN SEUL MESSAGE, TOUJOURS
+À JOUR, lisible en haut du canal sans rien faire défiler.
 
-C'est l'inverse de l'ordre auquel on pense, et c'est délibéré. Les chiffres
-d'activité se rattrapent : personne ne perd d'argent parce qu'il a découvert
-le lundi ce qui s'est passé le dimanche.
+─── IL SE MET À JOUR QUAND IL Y A QUELQUE CHOSE À DIRE ───────────────────
 
-Un robot mort, non. Chaque heure de silence est une heure d'achats qui
-repartent non vérifiés, et dont les clients attendent.
+À chaque demande aboutie, et une fois par jour. Le premier garde le
+chiffre vrai à la minute ; le second rafraîchit la ligne du robot, qui
+vieillit toute seule même sans opération.
 
-Et c'est ce qui donne sa valeur au message des jours creux : même avec zéro
-opération, « robot vivant il y a 3 h » est une information. Un résumé qui
-ne dirait que « 0 achats, 0 ventes » finirait par ne plus être lu — et le
-jour où il aurait quelque chose à dire, il serait passé inaperçu.
+─── ET IL PORTE L'ÉTAT DU ROBOT ──────────────────────────────────────────
 
-─── « DEPUIS HIER » PLUTÔT QU'UN TOTAL QUI MONTE ─────────────────────────
+Parce que c'est la ligne qu'on veut voir sans la chercher, et qu'un
+tableau épinglé est exactement l'endroit où l'on ne cherche pas.
 
-Un cumul qui passe de 847 à 851 ne se lit pas. On garde donc l'instantané
-de la veille et on montre l'écart — c'est ce qu'on veut savoir, et le
-cumul reste à côté pour ceux qui le cherchent.
+─── L'IDENTIFIANT DU MESSAGE VIT DANS KV ─────────────────────────────────
 
-─── TOUS LES JOURS, MÊME QUAND IL N'Y A RIEN ─────────────────────────────
+Pas dans le message épinglé lui-même, comme le fait le compteur
+d'installations de l'application. Lui relit le texte épinglé et en extrait
+le nombre — ce qui marche tant qu'il n'y a qu'un épinglé, et casse dès
+qu'il y en a deux.
 
-Un message qui ne vient que lorsqu'il a quelque chose à dire laisse son
-absence ambiguë : rien à signaler, ou le déclencheur est cassé ? Un rendez-
-vous quotidien tranche — s'il manque, c'est qu'il manque.
+On garde donc notre propre identifiant. Les deux compteurs coexistent sans
+se marcher dessus, et celui-ci survit à un épinglage fait à la main.
+
+ÉCHOUER ICI NE DOIT RIEN CASSER. Ce tableau est un confort ; une demande
+qui aboutit compte plus que son affichage. Tous les appels sont donc
+avalés en silence, et le pire qui puisse arriver est un chiffre en retard.
 ═══════════════════════════════════════════════════════════════════════════
 */
-async function resumeQuotidien(env) {
+async function majTableau(env) {
   const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
   const chat = env?.TG_ADMIN_CHAT || env?.TG_CHANGE_CHAT
   if (!token || !chat) return
 
   const c = await lireCompteurs(env)
   const vie = await silenceRobotVivant(env)
-  const sms = await silenceRobotSms(env)
 
-  /*
-  L'INSTANTANÉ DE LA VEILLE, pour l'écart. Il est écrit APRÈS l'envoi :
-  un message qui n'est pas parti ne doit pas faire croire, demain, que
-  son contenu a déjà été vu.
-  */
-  const hier = (await lireValeur('stat', 'hier')) || {}
-  /*
-  L'ÉCART SE MET EN FORME COMME SON TOTAL. « 347 500 FCFA (+87500) »
-  fait lire deux nombres écrits dans deux langues, sur la même ligne —
-  et c'est celui de droite qu'on cherche.
-  */
-  const ecart = (n, avant) => {
-    const d = n - (Number(avant) || 0)
-    return d > 0 ? ` (+${d.toLocaleString('fr-FR')})` : ''
+  const robot = vie === null ? '\u26AA Robot : non attendu'
+    : !Number.isFinite(vie) ? '\u{1F534} Robot : jamais vu'
+    : vie > SILENCE_SMS_MS ? `\u{1F7E0} Robot : silencieux ${depuisQuand(vie)}`
+    : `\u{1F7E2} Robot : vivant ${depuisQuand(vie)}`
+
+  const parMonnaie = Object.entries(c.parMonnaie)
+    .filter(([, v]) => v.achats > 0 || v.ventes > 0)
+    .map(([m, v]) => `${m} ${v.achats}/${v.ventes}`)
+    .join('  \u00b7  ')
+
+  const texte = [
+    '\u{1F4CA} VaultEx \u2014 change',
+    `Achats : ${c.achats}   Ventes : ${c.ventes}`,
+    `Volume : ${c.volumeTotalFcfa.toLocaleString('fr-FR')} FCFA`,
+    parMonnaie ? `(achats/ventes) ${parMonnaie}` : null,
+    robot,
+  ].filter((l) => l !== null).join('\n')
+
+  const appel = async (methode, params) => {
+    const corps = new URLSearchParams(params)
+    const r = await fetch(`https://api.telegram.org/bot${token}/${methode}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: corps.toString(),
+    })
+    return r.ok ? await r.json() : null
   }
 
-  const ligneRobot = vie === null
-    ? '⚪ Robot : non attendu (aucun jeton SMS)'
-    : !Number.isFinite(vie)
-      ? '\u{1F534} Robot : jamais vu — installation non aboutie'
-      : vie > SILENCE_SMS_MS
-        ? `\u{1F7E0} Robot : silencieux ${depuisQuand(vie)}`
-        : `\u{1F7E2} Robot : vivant ${depuisQuand(vie)}`
+  const idGarde = await lireBrut('stat', 'tableau')
+  const id = Number(idGarde)
+  if (idGarde && Number.isFinite(id) && id > 0) {
+    /*
+    MODIFIER UN MESSAGE DONT LE TEXTE N'A PAS CHANGÉ rend une erreur
+    Telegram — « message is not modified ». Elle est sans conséquence, et
+    c'est pour ça qu'on ne la distingue pas d'un vrai échec : dans les
+    deux cas il n'y a rien à faire.
+    */
+    const ok = await appel('editMessageText', {
+      chat_id: String(chat), message_id: String(id), text: texte,
+    })
+    if (ok) return
+    // L'identifiant ne vaut plus rien — message supprimé, canal changé.
+    // On en recrée un plutôt que de rester muet pour toujours.
+  }
 
-  const ligneSms = sms === null ? null
-    : !Number.isFinite(sms)
-      ? '   Encaissement : aucun depuis l\'installation'
-      : `   Dernier encaissement lu : ${depuisQuand(sms)}`
-
-  const monnaies = Object.entries(c.parMonnaie)
-    .filter(([, v]) => v.achats > 0 || v.ventes > 0)
-    .map(([m, v]) => `   ${m} : ${v.achats} achat(s), ${v.ventes} vente(s)`)
-
-  const lignes = [
-    '\u{1F4CA} <b>VaultEx — résumé du jour</b>',
-    '',
-    ligneRobot,
-    ligneSms,
-    '',
-    `Achats     : ${c.achats}${ecart(c.achats, hier.achats)}`,
-    `Ventes     : ${c.ventes}${ecart(c.ventes, hier.ventes)}`,
-    `Volume     : ${c.volumeTotalFcfa.toLocaleString('fr-FR')} FCFA` +
-      ecart(c.volumeTotalFcfa, hier.volumeTotalFcfa),
-    monnaies.length ? '' : null,
-    ...monnaies,
-  ].filter((l) => l !== null)
-
-  const corps = new URLSearchParams()
-  corps.set('chat_id', String(chat))
-  corps.set('text', lignes.join('\n'))
-  corps.set('parse_mode', 'HTML')
-  corps.set('disable_web_page_preview', 'true')
-
-  const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: corps.toString(),
+  const cree = await appel('sendMessage', {
+    chat_id: String(chat), text: texte, disable_notification: 'true',
   })
-  if (!envoi.ok) return
-
-  await ecrireBrut('stat', 'hier', JSON.stringify({
-    achats: c.achats, ventes: c.ventes, volumeTotalFcfa: c.volumeTotalFcfa,
-  }), GARDE_COMPTEURS)
+  const neuf = cree?.result?.message_id
+  if (!neuf) return
+  await ecrireBrut('stat', 'tableau', String(neuf), GARDE_COMPTEURS)
+  // Épinglé SANS notifier : un tableau de bord ne réveille personne.
+  await appel('pinChatMessage', {
+    chat_id: String(chat), message_id: String(neuf), disable_notification: 'true',
+  })
 }
 
 export default {
   /*
-  LE DÉCLENCHEUR PLANIFIÉ. Son heure est dans wrangler.toml, pas ici : on
-  la change sans toucher au code.
+  LE DÉCLENCHEUR PLANIFIÉ RAFRAÎCHIT LA LIGNE QUI VIEILLIT TOUTE SEULE.
+
+  Les chiffres, eux, se mettent à jour au passage de chaque demande : ils
+  n'ont pas besoin de rendez-vous. Mais « Robot : vivant depuis 2 h »
+  devient faux sans que rien ne se passe — c'est le propre d'une durée.
+
+  Une fois par jour suffit : au-delà de six heures la ligne passe à
+  l'orange, et c'est ce basculement qu'on veut voir arriver même sur un
+  canal où personne n'échange rien.
+
+  Son heure est dans wrangler.toml, pas ici : on la change sans toucher à
+  un fichier de huit mille lignes.
 
   IL N'A PAS LE DROIT DE LEVER. Une exception dans un `scheduled` est
-  invisible — pas de requête, pas de réponse, personne pour la voir. On
-  avale donc, et l'absence du message devient elle-même le signal.
+  invisible — pas de requête, pas de réponse, personne pour la voir.
   */
   async scheduled(evenement, env, ctx) {
     poserMemoire(env)
-    ctx.waitUntil(resumeQuotidien(env).catch(() => {}))
+    ctx.waitUntil(majTableau(env).catch(() => {}))
   },
 
   async fetch(requete, env) {
@@ -6457,6 +6462,7 @@ async function compterOrdre(ordre) {
     await ecrireBrut('stat', cle, String(avant + fcfa), GARDE_COMPTEURS)
   }
 }
+
 
 /**
  * Les chiffres du service, tels qu'on les lit.
