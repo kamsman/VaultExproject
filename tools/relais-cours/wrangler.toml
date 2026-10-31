@@ -196,6 +196,34 @@ compatibility_date = "2025-09-26"
 binding = "MEMOIRE"
 id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 
+# ==========================================================================
+# LE RÉSUMÉ QUOTIDIEN
+# ==========================================================================
+#
+# Cloudflare réveille le Worker à cette heure et appelle `scheduled`, qui
+# poste dans le canal l'état du robot et les chiffres du jour.
+#
+# 20 h UTC — et le Burkina Faso est à UTC+0, donc 20 h sur place. Le soir
+# plutôt que le matin : la journée est finie, le chiffre est complet, et
+# c'est le moment où l'on regarde son téléphone sans être au travail.
+#
+# L'HEURE EST ICI ET PAS DANS LE CODE, pour qu'on la change sans toucher à
+# worker.js — et sans risquer une faute dans un fichier de huit mille
+# lignes pour déplacer un rendez-vous d'une heure.
+#
+# POUR L'ÉPROUVER SANS ATTENDRE LE SOIR :
+#
+#   npx wrangler dev --config wrangler.toml --test-scheduled
+#   puis, dans un autre terminal :
+#   curl "http://localhost:8787/__scheduled"
+#
+# Le déclencheur n'existe qu'une fois DÉPLOYÉ : `wrangler deploy` le crée,
+# et le tableau de bord Cloudflare le montre sous « Triggers ». S'il n'y
+# apparaît pas, le message ne partira jamais et rien ne le signalera.
+# ==========================================================================
+[triggers]
+crons = ["0 20 * * *"]
+
 # --------------------------------------------------------------------------
 # CE QUE KV NE RÈGLE PAS
 # --------------------------------------------------------------------------

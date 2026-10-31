@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 70
+const VERSION = 71
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -378,7 +378,133 @@ les cinq monnaies natives et l'euro, qui sert de pivot de conversion.
 */
 const PAIRES_SURES = new Set(['BTC', 'ETH', 'BNB', 'SOL', 'TRX'])
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE RÉSUMÉ QUOTIDIEN — CE QU'ON NE VA PAS CHERCHER NE SE SAIT PAS
+═══════════════════════════════════════════════════════════════════════════
+
+`/change/compteurs` répond bien, mais il faut y penser et ouvrir un
+terminal. Un chiffre qu'on doit aller chercher n'est consulté que les jours
+où l'on se pose déjà la question — c'est-à-dire trop tard.
+
+Cloudflare sait réveiller un Worker à heure fixe. Le résumé vient donc à
+vous, dans le canal, une fois par jour.
+
+─── IL PORTE D'ABORD L'ÉTAT DU ROBOT, ET ENSUITE LES CHIFFRES ────────────
+
+C'est l'inverse de l'ordre auquel on pense, et c'est délibéré. Les chiffres
+d'activité se rattrapent : personne ne perd d'argent parce qu'il a découvert
+le lundi ce qui s'est passé le dimanche.
+
+Un robot mort, non. Chaque heure de silence est une heure d'achats qui
+repartent non vérifiés, et dont les clients attendent.
+
+Et c'est ce qui donne sa valeur au message des jours creux : même avec zéro
+opération, « robot vivant il y a 3 h » est une information. Un résumé qui
+ne dirait que « 0 achats, 0 ventes » finirait par ne plus être lu — et le
+jour où il aurait quelque chose à dire, il serait passé inaperçu.
+
+─── « DEPUIS HIER » PLUTÔT QU'UN TOTAL QUI MONTE ─────────────────────────
+
+Un cumul qui passe de 847 à 851 ne se lit pas. On garde donc l'instantané
+de la veille et on montre l'écart — c'est ce qu'on veut savoir, et le
+cumul reste à côté pour ceux qui le cherchent.
+
+─── TOUS LES JOURS, MÊME QUAND IL N'Y A RIEN ─────────────────────────────
+
+Un message qui ne vient que lorsqu'il a quelque chose à dire laisse son
+absence ambiguë : rien à signaler, ou le déclencheur est cassé ? Un rendez-
+vous quotidien tranche — s'il manque, c'est qu'il manque.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function resumeQuotidien(env) {
+  const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
+  const chat = env?.TG_ADMIN_CHAT || env?.TG_CHANGE_CHAT
+  if (!token || !chat) return
+
+  const c = await lireCompteurs(env)
+  const vie = await silenceRobotVivant(env)
+  const sms = await silenceRobotSms(env)
+
+  /*
+  L'INSTANTANÉ DE LA VEILLE, pour l'écart. Il est écrit APRÈS l'envoi :
+  un message qui n'est pas parti ne doit pas faire croire, demain, que
+  son contenu a déjà été vu.
+  */
+  const hier = (await lireValeur('stat', 'hier')) || {}
+  /*
+  L'ÉCART SE MET EN FORME COMME SON TOTAL. « 347 500 FCFA (+87500) »
+  fait lire deux nombres écrits dans deux langues, sur la même ligne —
+  et c'est celui de droite qu'on cherche.
+  */
+  const ecart = (n, avant) => {
+    const d = n - (Number(avant) || 0)
+    return d > 0 ? ` (+${d.toLocaleString('fr-FR')})` : ''
+  }
+
+  const ligneRobot = vie === null
+    ? '⚪ Robot : non attendu (aucun jeton SMS)'
+    : !Number.isFinite(vie)
+      ? '\u{1F534} Robot : jamais vu — installation non aboutie'
+      : vie > SILENCE_SMS_MS
+        ? `\u{1F7E0} Robot : silencieux ${depuisQuand(vie)}`
+        : `\u{1F7E2} Robot : vivant ${depuisQuand(vie)}`
+
+  const ligneSms = sms === null ? null
+    : !Number.isFinite(sms)
+      ? '   Encaissement : aucun depuis l\'installation'
+      : `   Dernier encaissement lu : ${depuisQuand(sms)}`
+
+  const monnaies = Object.entries(c.parMonnaie)
+    .filter(([, v]) => v.achats > 0 || v.ventes > 0)
+    .map(([m, v]) => `   ${m} : ${v.achats} achat(s), ${v.ventes} vente(s)`)
+
+  const lignes = [
+    '\u{1F4CA} <b>VaultEx — résumé du jour</b>',
+    '',
+    ligneRobot,
+    ligneSms,
+    '',
+    `Achats     : ${c.achats}${ecart(c.achats, hier.achats)}`,
+    `Ventes     : ${c.ventes}${ecart(c.ventes, hier.ventes)}`,
+    `Volume     : ${c.volumeTotalFcfa.toLocaleString('fr-FR')} FCFA` +
+      ecart(c.volumeTotalFcfa, hier.volumeTotalFcfa),
+    monnaies.length ? '' : null,
+    ...monnaies,
+  ].filter((l) => l !== null)
+
+  const corps = new URLSearchParams()
+  corps.set('chat_id', String(chat))
+  corps.set('text', lignes.join('\n'))
+  corps.set('parse_mode', 'HTML')
+  corps.set('disable_web_page_preview', 'true')
+
+  const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: corps.toString(),
+  })
+  if (!envoi.ok) return
+
+  await ecrireBrut('stat', 'hier', JSON.stringify({
+    achats: c.achats, ventes: c.ventes, volumeTotalFcfa: c.volumeTotalFcfa,
+  }), GARDE_COMPTEURS)
+}
+
 export default {
+  /*
+  LE DÉCLENCHEUR PLANIFIÉ. Son heure est dans wrangler.toml, pas ici : on
+  la change sans toucher au code.
+
+  IL N'A PAS LE DROIT DE LEVER. Une exception dans un `scheduled` est
+  invisible — pas de requête, pas de réponse, personne pour la voir. On
+  avale donc, et l'absence du message devient elle-même le signal.
+  */
+  async scheduled(evenement, env, ctx) {
+    poserMemoire(env)
+    ctx.waitUntil(resumeQuotidien(env).catch(() => {}))
+  },
+
   async fetch(requete, env) {
     /*
     LA MÉMOIRE EST POSÉE AVANT TOUT LE RESTE.
