@@ -214,10 +214,25 @@ id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 # Un tableau de bord ne vaut pas une milliseconde d'attente sur l'écran de
 # paiement. Il sort donc du chemin de la demande et vient ici.
 #
-# Une heure de retard au pire, pour un chiffre qu'on consulte quand on y
-# pense. Et la ligne du robot — « vivant depuis 2 h » — vieillit toute
-# seule : c'est elle qui a vraiment besoin d'un rendez-vous régulier, pas
-# les compteurs.
+# TOUS LES TROIS JOURS, ET PAS TOUTES LES HEURES
+#
+# L'horaire était d'abord horaire. Signalé à l'usage : « ça vient trop
+# vite ». Et c'est juste — le message est pourtant MODIFIÉ sur place, pas
+# reposté, mais Telegram remonte la conversation dans la liste à chaque
+# modification. Un tableau de bord qui fait clignoter un canal vingt-quatre
+# fois par jour devient un bruit qu'on apprend à ignorer.
+#
+# CE QUE ÇA COÛTE, ET IL FAUT LE SAVOIR : la ligne « Robot : vivant depuis
+# 2 h » peut avoir jusqu'à trois jours de retard. Si le robot meurt le
+# lendemain d'un rafraîchissement, ce tableau-ci ne le dira pas avant deux
+# jours.
+#
+# CE QUI RATTRAPE : l'alerte sur un achat non vérifié part, elle, au-delà
+# de SIX HEURES de silence, et immédiatement. C'est elle qui protège, pas
+# le tableau — le tableau renseigne. Les deux ne jouent pas le même rôle,
+# et c'est pour ça qu'on peut ralentir l'un sans affaiblir l'autre.
+#
+# Pour une lecture à la minute, sans attendre : /change/compteurs et /diag.
 #
 # L'HEURE EST ICI ET PAS DANS LE CODE, pour qu'on la change sans toucher à
 # worker.js — et sans risquer une faute dans un fichier de huit mille
@@ -234,7 +249,7 @@ id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 # apparaît pas, le message ne partira jamais et rien ne le signalera.
 # ==========================================================================
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0 20 */3 * *"]
 
 # --------------------------------------------------------------------------
 # CE QUE KV NE RÈGLE PAS
