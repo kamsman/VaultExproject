@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 67
+const VERSION = 68
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1599,8 +1599,23 @@ async function diagnostic(env) {
   ═══════════════════════════════════════════════════════════════════════
   */
   const silence = await silenceRobotSms(env)
+  /*
+  DEUX LIGNES, DEUX QUESTIONS, ET ELLES NE SE CONFONDENT PLUS.
+
+      vivant : il y a 2 h        le robot tourne
+      robot  : il y a 3 jours    personne n'a paye depuis trois jours
+
+  Lues ensemble, elles sont limpides. Avec la seule seconde — ce qu'on
+  avait — un silence de trois jours pouvait aussi bien vouloir dire que
+  l'application avait ete tuee par un nettoyeur de batterie.
+  */
+  const vie = await silenceRobotVivant(env)
   sondes.lectureSms = {
     configuree: Boolean(env?.CHANGE_SMS_TOKEN),
+    vivant: vie === null ? 'non attendu'
+      : !Number.isFinite(vie) ? 'jamais vu'
+      : depuisQuand(vie),
+    vivantSilenceMs: vie === null || !Number.isFinite(vie) ? null : vie,
     robot: silence === null ? 'non attendu'
       : !Number.isFinite(silence) ? 'jamais rien recu'
       : depuisQuand(silence),
@@ -7836,6 +7851,7 @@ async function recevoirOtp(requete, env) {
   if (String(requete.headers.get('x-vaultex-sms') ?? '') !== jeton) {
     return json({ ok: false, raison: 'jeton refuse' }, 0, 401)
   }
+  await marquerRobotVivant()
 
   let corps = null
   try {
@@ -7939,6 +7955,7 @@ async function recevoirSms(requete, env) {
   if (presente !== jeton) {
     return json({ ok: false, raison: 'jeton refuse' }, 0, 401)
   }
+  await marquerRobotVivant()
 
   let corps = null
   try {
@@ -8066,6 +8083,63 @@ async function recevoirSms(requete, env) {
 async function silenceRobotSms(env) {
   if (!String(env?.CHANGE_SMS_TOKEN ?? '')) return null
   const brut = await lireBrut('smsvu', 'dernier')
+  const quand = Number(brut)
+  if (!brut || !Number.isFinite(quand) || quand <= 0) return Infinity
+  return Math.max(0, Date.now() - quand)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+« LE ROBOT TOURNE-T-IL ? » N'EST PAS « A-T-ON ÉTÉ PAYÉ ? »
+═══════════════════════════════════════════════════════════════════════════
+
+`silenceRobotSms` ne bouge QUE lorsqu'un encaissement lisible arrive. Sans
+achat, elle ne dit plus rien — et « le robot est mort » devient
+indiscernable de « personne n'a payé », indéfiniment.
+
+C'est le pire moment pour ne pas savoir : au démarrage d'un service, des
+jours passent sans opération. Le silence y est normal, donc muet.
+
+─── CE QUE CELLE-CI MESURE, ET POURQUOI C'EST AUTRE CHOSE ────────────────
+
+La dernière fois que le robot A PARLÉ, quoi qu'il ait dit. Elle se pose
+juste après la vérification du jeton, AVANT tout jugement sur le contenu :
+
+  un encaissement lisible          compte
+  un expéditeur refusé (400)       compte  ← et c'est le cas qui manquait
+  un format non reconnu (422)      compte
+  une confirmation de numéro       compte
+
+Un robot qui poste un SMS dont l'expéditeur n'est pas dans la liste prouve
+qu'il tourne. Aujourd'hui ce cas-là ne laissait aucune trace, et c'est
+précisément la panne la plus probable — l'identifiant d'Orange Money
+Burkina n'a jamais été mesuré.
+
+─── POURQUOI PAS UN BATTEMENT DANS LE ROBOT ──────────────────────────────
+
+Parce qu'il faudrait réinstaller l'APK chez le changeur, et qu'on ne veut
+plus qu'il y touche. Ce qui existe déjà suffit : `RecepteurSms` poste sur
+`/change/otp` pour TOUT SMS contenant une référence « VX-XXXXXXXX », quel
+que soit l'expéditeur.
+
+Un SMS envoyé depuis n'importe quel téléphone au numéro du changeur, avec
+une fausse référence dedans, fait donc répondre le robot — sans le
+déranger, sans rien installer. C'est la sonde, et elle ne coûte qu'un SMS.
+
+─── SEPT JOURS, COMME SA SŒUR ────────────────────────────────────────────
+
+Pour la même raison : une garde plus courte effacerait la trace, et « rien
+depuis quatre heures » redeviendrait « jamais rien ». C'est l'écart qu'on
+veut mesurer.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function marquerRobotVivant() {
+  await ecrireBrut('robotvu', 'dernier', String(Date.now()), 7 * 86400)
+}
+
+async function silenceRobotVivant(env) {
+  if (!String(env?.CHANGE_SMS_TOKEN ?? '')) return null
+  const brut = await lireBrut('robotvu', 'dernier')
   const quand = Number(brut)
   if (!brut || !Number.isFinite(quand) || quand <= 0) return Infinity
   return Math.max(0, Date.now() - quand)
