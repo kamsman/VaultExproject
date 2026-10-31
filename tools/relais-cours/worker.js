@@ -257,7 +257,7 @@ montre à chaque vendeur — et les cours le sont aussi.
 */
 
 /** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 69
+const VERSION = 70
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -640,6 +640,30 @@ export default {
 
     if (url.pathname === '/change/ordre' && requete.method === 'POST') {
       return await ordreChange(requete, env)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    /change/compteurs — LES CHIFFRES DU SERVICE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Combien d'achats, combien de ventes, quel volume, sur quelle chaîne.
+    Comptés par `compterOrdre` au passage de chaque demande aboutie.
+
+    EN LECTURE SEULE ET SANS JETON, comme `/diag` et `/sante`. Ce sont des
+    totaux agrégés : ils ne nomment ni client, ni numéro, ni référence, et
+    ne disent rien que le canal du changeur ne dise déjà demande par
+    demande. Les protéger demanderait un secret de plus à distribuer, pour
+    cacher ce qui se compte de toute façon dans Telegram.
+
+    SANS CACHE. Un chiffre de tableau de bord qu'on relit trente secondes
+    après une opération doit l'inclure. Une minute de cache ferait douter
+    du comptage lui-même, et c'est exactement ce qu'on ne veut pas d'un
+    compteur.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/change/compteurs') {
+      return json(await lireCompteurs(env), 0)
     }
 
     /*
@@ -3140,6 +3164,46 @@ async function ordreChange(requete, env) {
   if (ordre.sens === 'achat' && ordre.referencePaiement) {
     await marquer('refpay', ordre.referencePaiement, 86400)
   }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES CHIFFRES DU SERVICE, COMPTÉS LÀ OÙ ILS PASSENT
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le canal du changeur reçoit un message par demande. Pour savoir combien
+  d'achats ont eu lieu ce mois-ci, il fallait les compter à la main dans
+  Telegram — c'est-à-dire ne jamais le savoir.
+
+  Or TOUT ordre passe ici. Le relais est le seul endroit qui les voit
+  tous, et il peut les compter sans que l'application change d'une ligne.
+
+  ─── APRÈS L'ENVOI, COMME TOUT LE RESTE DE CE BLOC ────────────────────
+
+  Un échec de Telegram ne doit pas gonfler un compteur pour une demande
+  qui n'est jamais arrivée chez le changeur. Et le garde-fou de doublon
+  plus haut nous protège du renvoi après coupure réseau : une même
+  référence ne passe qu'une fois par heure, donc ne compte qu'une fois.
+
+  ─── CE QUE CES COMPTEURS NE SONT PAS ─────────────────────────────────
+
+  Exacts à l'unité. `incrementer` lit puis écrit, et KV n'est pas
+  atomique : deux demandes vraiment simultanées peuvent perdre une unité.
+  C'est écrit noir sur blanc au-dessus de cette fonction, et c'est sans
+  conséquence pour un tableau de bord — personne ne pilote un service sur
+  la différence entre 180 et 181.
+
+  Un décompte exact demanderait un Durable Object. Le jour où ces chiffres
+  serviront à autre chose qu'à se faire une idée, il faudra y passer.
+
+  ─── DIX ANS DE GARDE ─────────────────────────────────────────────────
+
+  Les autres marques de ce fichier expirent — un paiement, un txid, un
+  quota de la journée. Celles-ci sont l'HISTOIRE du service : elles ne
+  doivent jamais tomber. KV exige un délai, on lui en donne un qui
+  dépasse la durée de vie probable du projet.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  await compterOrdre(ordre)
   if (numero.length === 8) {
     await incrementer('debit', `${numero}-${jour}`, 86400)
     /*
@@ -6234,6 +6298,76 @@ async function incrementer(espace, valeur, secondes) {
   const n = (await compteur(espace, valeur)) + 1
   await ecrireBrut(espace, valeur, String(n), secondes)
   return n
+}
+
+/** Dix ans. Voir `compterOrdre` : ces marques-ci sont l'histoire du service. */
+const GARDE_COMPTEURS = 10 * 365 * 86400
+
+/**
+ * Compte une demande aboutie : son sens, sa monnaie, et son volume.
+ *
+ * LE VOLUME EST EN FRANCS DANS LES DEUX SENS, et c'est voulu : un achat
+ * de 20 000 FCFA et une vente qui en rend 20 000 pèsent pareil dans
+ * l'activité du changeur. Compter l'un en francs et l'autre en USDT
+ * donnerait deux chiffres qu'on ne peut pas additionner.
+ *
+ * `montantFcfa` arrive formaté pour l'affichage — « 20 000 » avec son
+ * espace. `nombreFrancais` le relit, et rend zéro sur ce qu'il ne
+ * comprend pas : un volume faux vaut moins qu'un volume absent.
+ */
+async function compterOrdre(ordre) {
+  const achat = ordre.sens === 'achat'
+  await incrementer('stat', achat ? 'achats' : 'ventes', GARDE_COMPTEURS)
+
+  const monnaie = String(ordre.monnaie ?? '').toUpperCase().slice(0, 12)
+  if (monnaie) {
+    await incrementer('stat', `${achat ? 'a' : 'v'}-${monnaie}`, GARDE_COMPTEURS)
+  }
+
+  const fcfa = Math.round(nombreFrancais(ordre.montantFcfa))
+  if (fcfa > 0) {
+    const cle = achat ? 'volumeAchat' : 'volumeVente'
+    const avant = await compteur('stat', cle)
+    await ecrireBrut('stat', cle, String(avant + fcfa), GARDE_COMPTEURS)
+  }
+}
+
+/**
+ * Les chiffres du service, tels qu'on les lit.
+ *
+ * ON NE REND QUE CE QUI EXISTE. Un compteur jamais touché vaut zéro, et
+ * `compteur` le rend déjà ainsi — pas de null à interpréter côté lecteur.
+ *
+ * LES MONNAIES SE DÉDUISENT DE CHANGE_MONNAIES plutôt que d'une liste
+ * écrite ici : le jour où une chaîne s'ouvre ou se ferme, le tableau suit
+ * sans qu'on y pense. Une monnaie retirée garde son compteur, et c'est
+ * normal — l'histoire ne s'efface pas parce qu'on cesse de la proposer.
+ */
+async function lireCompteurs(env) {
+  const achats = await compteur('stat', 'achats')
+  const ventes = await compteur('stat', 'ventes')
+  const volumeAchat = await compteur('stat', 'volumeAchat')
+  const volumeVente = await compteur('stat', 'volumeVente')
+
+  const monnaies = String(env?.CHANGE_MONNAIES ?? '')
+    .split(',').map((m) => m.trim().toUpperCase()).filter(Boolean)
+  const parMonnaie = {}
+  for (const m of monnaies) {
+    parMonnaie[m] = {
+      achats: await compteur('stat', `a-${m}`),
+      ventes: await compteur('stat', `v-${m}`),
+    }
+  }
+
+  return {
+    achats,
+    ventes,
+    operations: achats + ventes,
+    volumeAchatFcfa: volumeAchat,
+    volumeVenteFcfa: volumeVente,
+    volumeTotalFcfa: volumeAchat + volumeVente,
+    parMonnaie,
+  }
 }
 
 async function txidDejaServi(txid) {
