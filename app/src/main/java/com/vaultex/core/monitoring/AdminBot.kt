@@ -554,8 +554,10 @@ object AdminBot {
             "\u26A0\uFE0F Service indisponible : $service" + (reason?.take(120)?.let { "\n$it" } ?: "")
         )
 
+    // Même coupe que sur le swap, et c'est ICI qu'elle fait le plus de dégâts :
+    // le manque de gaz se constate d'abord sur un envoi. Voir [RAISON_MAX].
     fun sendFailed(symbol: String, reason: String?) =
-        send("❌ Envoi échoué : $symbol" + (reason?.take(160)?.let { "\n$it" } ?: ""))
+        send("❌ Envoi échoué : $symbol" + (reason?.take(RAISON_MAX)?.let { "\n$it" } ?: ""))
 
     /** 💸 Envoi rapporté dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
     fun reportSend(amount: String, symbol: String, usd: Double) {
@@ -583,7 +585,35 @@ object AdminBot {
     private fun usdTxt(usd: Double): String =
         if (usd > 0.0) String.format(Locale.US, " (≈ $%.2f)", usd) else " (valeur inconnue)"
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    160 CARACTÈRES COUPAIENT LA PHRASE DEUX CARACTÈRES AVANT LE CHIFFRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    MESURÉ sur le canal, le 2 novembre. Le message arrivait ainsi :
+
+        dépôt refusé : Les frais réseau d'un envoi de jeton se paient en
+        BNB, jamais dans le jeton envoyé.
+        Réserve exigée par le réseau : ~0.000004 BNB
+        Disponible sur
+
+    Et c'est tout. `tx_err_gas_natif_manquant` fait 162 caractères jusqu'au
+    solde ; la coupe à 160 emportait exactement le nombre qu'on vient lire.
+
+    « Disponible sur » suivi de rien ressemble à un bogue de formatage et
+    envoie chercher au mauvais endroit. Un diagnostic tronqué coûte plus
+    cher qu'un message long : c'est précisément quand ça échoue qu'on veut
+    le détail.
+
+    600 plutôt que 162 : caler la limite sur la longueur d'un message
+    d'aujourd'hui la rendrait fausse au premier mot ajouté. Telegram en
+    accepte 4096, et une borne reste utile — un message d'erreur venu du
+    réseau peut porter une page entière.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private const val RAISON_MAX = 600
+
     /** ❌ Swap échoué (dépôt refusé ou statut terminal failed/refunded/expired). */
     fun swapFailed(from: String, to: String, reason: String?) =
-        send("❌ Swap échoué : $from → $to" + (reason?.take(160)?.let { "\n$it" } ?: ""))
+        send("❌ Swap échoué : $from → $to" + (reason?.take(RAISON_MAX)?.let { "\n$it" } ?: ""))
 }
