@@ -120,7 +120,18 @@ class SwapViewModel @Inject constructor(
         val base: String,       // symbole affiché (et logo)
         val badge: String,      // réseau court (TRC20, ERC20…)
         val network: String,    // réseau long (écran de confirmation)
-        val cn: String,         // ticker ChangeNOW
+        /*
+        CE CHAMP N'EST LU PAR RIEN. Dix-huit valeurs renseignées, aucune
+        lecture : les fournisseurs portent chacun leur propre table, et
+        c'est elle qui part sur le réseau.
+
+        Il est conservé parce que le supprimer touche les dix-huit lignes
+        du registre et demande un compilateur pour confirmer que rien ne
+        s'y accroche. Mais il se maintient à chaque nouvel actif, pour
+        rien, et il trompe : « usdtsol » figurait ici aussi quand il s'est
+        révélé faux. Le corriger ici n'aurait rien changé.
+        */
+        val cn: String,         // MORT — voir ci-dessus. Ticker ChangeNOW.
         val chain: String,      // chaîne de l'adresse de RÉCEPTION (BTC/ETH/BNB/SOL/TRX)
         val sendChain: String,  // chaîne du moteur d'envoi pour le DÉPÔT
         val contract: String? = null, // contrat (auto-ajout au portefeuille à la réception)

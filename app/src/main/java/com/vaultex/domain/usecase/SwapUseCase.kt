@@ -177,12 +177,29 @@ class SwapUseCase @Inject constructor(
          * réseaux : notre « USDT » est du TRC20 → « usdttrc20 ». Sans ça la
          * paire est invalide et l'API échoue.
          */
+        /*
+        CETTE FONCTION N'EST APPELÉE PAR RIEN, comme VAULTEX_FEE_PERCENT
+        juste au-dessus, et pour la même raison : le fournisseur en service
+        porte sa propre table. La seule qui parte sur le réseau est
+        `FournisseurChangeNow.ticker`, et elle n'est lue que si
+        `swap.provider` vaut « changenow » — ce que le test
+        `simpleswap est l'echangeur configure` dit ne pas être le cas.
+
+        LE DANGER N'EST PAS QU'ELLE SOIT FAUSSE, C'EST QU'ON LA CORRIGE.
+        Quand « usdtsol » s'est révélé faux chez SimpleSwap, cette ligne-ci
+        portait la même chaîne. Quelqu'un qui la corrigerait croirait avoir
+        réparé le swap, et rien ne changerait : le ticker réellement envoyé
+        se trouve ailleurs.
+
+        À supprimer avec le compilateur sous la main, qui dira si quelque
+        chose s'y accrochait encore. Tant que ce n'est pas fait, ces lignes
+        coûtent moins cher que la demi-journée perdue à corriger la mauvaise
+        table.
+        */
         fun cnTicker(token: String): String = when (token.uppercase()) {
             "USDT" -> "usdttrc20"       // notre USDT = TRC20
             "USDT-ETH" -> "usdterc20"   // USDT sur Ethereum
             "USDT-BNB" -> "usdtbsc"     // USDT sur BNB Chain
-            // NON VÉRIFIÉ — chez SimpleSwap c'est « usdtspl ». Voir le pavé
-            // de FournisseurChangeNow.ticker, qui porte la même ligne.
             "USDT-SOL" -> "usdtsol"     // USDT sur Solana (SPL)
             "BNB"  -> "bnbbsc"          // BNB de BNB Chain (BSC) — « bnb » = ancienne Beacon Chain
             else   -> token.lowercase()
