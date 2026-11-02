@@ -140,10 +140,28 @@ class FournisseurChangeNow @Inject constructor(
         supposant le contraire qu'on s'est trompé là-bas.
 
         Celui-ci n'a pas été contrôlé faute de pouvoir interroger ChangeNOW.
+
+        ET CETTE CLASSE N'EST PAS DORMANTE : elle est le REPLI. SwapModule
+        y retombe dans trois cas, dont deux sont des accidents —
+
+            swap.provider = changenow        choisi
+            swap.provider = simpleswap       MAIS simpleswap.key vide
+            swap.provider mal orthographié   ou absent
+
+        Une machine fraîchement clonée, sans local.properties, échange donc
+        par ici sans que rien ne l'annonce — c'est voulu, un écran mort
+        serait pire. Mais cela veut dire qu'on ne peut PAS conclure « nous
+        sommes en SimpleSwap » en lisant `swap.provider` : il faut aussi
+        que la clé soit là.
+
+        Le seul juge est l'écran lui-même. « Échange via … » affiche
+        `fournisseur.nom`, donc le nom de l'instance réellement injectée.
+        C'est la seule preuve qui ne se discute pas.
+
         Si une paire partant de l'USDT Solana rend « Not Found » SANS
-        afficher de minimum, c'est cette ligne : le fournisseur en service
-        est alors ChangeNOW (`swap.provider`), et le ticker est à relever
-        dans son propre catalogue avant d'être recopié ici.
+        afficher de minimum ALORS que l'écran dit ChangeNOW, c'est cette
+        ligne : le ticker est à relever dans le catalogue de ChangeNOW
+        avant d'être recopié ici.
         */
         "USDT-SOL" -> "usdtsol"
         "BNB"      -> "bnbbsc"
