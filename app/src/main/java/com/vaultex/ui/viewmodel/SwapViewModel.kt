@@ -1325,7 +1325,7 @@ class SwapViewModel @Inject constructor(
                 }
                 // Événement admin (Telegram) : swap lancé — 🚨 si ≥ 20 $.
                 com.vaultex.core.monitoring.AdminBot.swapCreated(
-                    apiAmount(net), assetOf(s.fromToken).base, assetOf(s.toToken).base,
+                    apiAmount(net), assetOf(s.fromToken).key, assetOf(s.toToken).key,
                     net * s.fromPriceUsd
                 )
 
@@ -1402,7 +1402,7 @@ class SwapViewModel @Inject constructor(
                             )
                         }
                         com.vaultex.core.monitoring.AdminBot.swapFailed(
-                            assetOf(s.fromToken).base, assetOf(s.toToken).base,
+                            assetOf(s.fromToken).key, assetOf(s.toToken).key,
                             "dépôt refusé : ${dep.message}")
                     }
                 }
@@ -1670,14 +1670,14 @@ class SwapViewModel @Inject constructor(
                                 val usdFee = (st.fromAmount.toDoubleOrNull() ?: 0.0) *
                                     (commissionPourcent / 100.0) * st.fromPriceUsd
                                 com.vaultex.core.monitoring.AdminBot.swapFinished(
-                                    st.fromAmount, assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
+                                    st.fromAmount, assetOf(st.fromToken).key, assetOf(st.toToken).key, usdFee)
                                 // Jalon de MONÉTISATION : tout premier swap abouti.
                                 com.vaultex.core.monitoring.AdminBot.milestoneFirstSwap(
-                                    assetOf(st.fromToken).base, assetOf(st.toToken).base, usdFee)
+                                    assetOf(st.fromToken).key, assetOf(st.toToken).key, usdFee)
                             }
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(
-                                    assetOf(st.fromToken).base, assetOf(st.toToken).base, remote)
+                                    assetOf(st.fromToken).key, assetOf(st.toToken).key, remote)
                         }
                         // Centre de notifications (cloche) : trace le swap terminé,
                         // au même titre que les envois/réceptions. Respecte
