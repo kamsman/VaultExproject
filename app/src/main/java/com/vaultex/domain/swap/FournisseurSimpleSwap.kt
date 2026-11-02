@@ -265,35 +265,41 @@ class FournisseurSimpleSwap @Inject constructor(
         MÊME jeton : ChangeNOW dit « usdtbsc » là où celui-ci dit
         « usdtbep20 ». La convention se devine, elle ne se déduit pas.
 
-        Pour Solana les deux emploient le suffixe du réseau — « sol » — et
-        c'est ce qu'on pose. Si l'un des deux refuse, la paire reste sans
-        cours : pénible, mais sans danger, puisqu'il n'y a pas d'adresse de
-        dépôt tant qu'il n'y a pas de devis. C'est une chaîne à corriger,
-        pas un risque à prendre.
+        ─── « usdtsol » ÉTAIT UNE SUPPOSITION, ET ELLE ÉTAIT FAUSSE ───────
 
-        ─── LA SUPPOSITION ÉTAIT FAUSSE, CONSTATÉ EN PRODUCTION ───────────
+        Cette ligne a porté « usdtsol » — posé au jugé, en suivant le
+        suffixe du RÉSEAU comme ChangeNOW. Constaté sur appareil le 2
+        novembre : TOUTE paire partant de l'USDT Solana rendait « Devis
+        indisponible. Not Found », vers SOL, DAI, ETH et BNB, les quatre
+        essayées. Aucun minimum n'accompagnait l'erreur — la signature d'un
+        ticker refusé, décrite plus bas, et non celle d'un montant trop
+        petit.
 
-        Le 2 novembre, sur appareil : TOUTE paire partant de l'USDT Solana
-        rend « Devis indisponible. Not Found » — vers SOL, DAI, ETH et BNB,
-        les quatre essayées. Aucun minimum n'est affiché avec l'erreur, et
-        c'est la signature décrite plus bas : un ticker refusé, et non un
-        montant trop petit.
+        SimpleSwap suit ici le STANDARD du jeton, pas le réseau : trc20,
+        erc20, bep20… et spl. La règle se voit après coup ; elle ne se
+        devinait pas, et c'est tout le sujet du pavé ci-dessous.
 
-        LE BON TICKER N'EST PAS ÉCRIT ICI, ET C'EST VOLONTAIRE. En poser un
-        second au jugé serait répéter la faute, en pire : un ticker
-        inexistant ne fait qu'échouer, un ticker qui EXISTE et désigne autre
-        chose rend une adresse de dépôt valide — et les fonds partent.
+        ─── VÉRIFIÉ, PAS DEVINÉ ───────────────────────────────────────────
 
-        Il se lit avec `tools/simpleswap-ticker.sh usdt solana`, qui montre
-        le réseau ET le contrat. Celui de l'USDT Solana est
-        Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB — c'est lui qui tranche,
-        pas le nom.
+            tools/simpleswap-ticker.sh usdt
 
-        Tant que ce n'est pas fait, l'échange depuis l'USDT Solana ne marche
-        pas. Il n'expose à aucune perte : le bouton Continuer reste éteint
-        sans devis.
+            usdtspl   Tether USD (Solana)   solana
+                      Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
+
+        Le contrat est identique à [SolanaSpl.MINT_USDT]. C'est LUI qui
+        tranche, pas le nom : la même sortie montre « usdt » tout court
+        désignant l'Omni Layer, exactement le piège décrit plus bas.
+
+        Le même relevé confirme au passage usdttrc20, usdterc20 et
+        usdtbep20 par leur contrat. Les quatre lignes Tether de cette table
+        sont donc vérifiées, et non plus supposées.
+
+        RESTE À VÉRIFIER : la table de FournisseurChangeNow porte encore
+        « usdtsol ». Elle n'a pas été contrôlée — ChangeNOW a son propre
+        catalogue, et c'est précisément en supposant que les deux maisons
+        écrivent pareil qu'on s'est trompé ici.
         */
-        "USDT-SOL" -> "usdtsol"
+        "USDT-SOL" -> "usdtspl"
         // Jetons Ethereum
         "USDC"     -> "usdc"
         "DAI"      -> "dai"

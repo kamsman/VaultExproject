@@ -133,6 +133,18 @@ class FournisseurChangeNow @Inject constructor(
         "USDT"     -> "usdttrc20"
         "USDT-ETH" -> "usdterc20"
         "USDT-BNB" -> "usdtbsc"
+        /*
+        NON VÉRIFIÉ. Chez SimpleSwap, « usdtsol » n'existe pas — c'est
+        « usdtspl », constaté en production après quatre paires refusées.
+        Les deux catalogues ne s'écrivent pas pareil, et c'est justement en
+        supposant le contraire qu'on s'est trompé là-bas.
+
+        Celui-ci n'a pas été contrôlé faute de pouvoir interroger ChangeNOW.
+        Si une paire partant de l'USDT Solana rend « Not Found » SANS
+        afficher de minimum, c'est cette ligne : le fournisseur en service
+        est alors ChangeNOW (`swap.provider`), et le ticker est à relever
+        dans son propre catalogue avant d'être recopié ici.
+        */
         "USDT-SOL" -> "usdtsol"
         "BNB"      -> "bnbbsc"
         else       -> token.lowercase()

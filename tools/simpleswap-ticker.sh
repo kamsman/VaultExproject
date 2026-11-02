@@ -13,11 +13,12 @@
 # donne, ne garde que les lignes dont le RESEAU le contient.
 #
 # LE SECOND ARGUMENT SE DONNE EN DERNIER, PAS EN PREMIER. Le reseau porte le
-# nom que SIMPLESWAP lui donne — « sol » et non « solana », « bsc » et non
-# « BNB Chain ». Filtrer d'emblee sur le nom qu'on a en tete rend une liste
-# vide qui ressemble a « ce ticker n'existe pas », alors qu'elle dit
-# seulement « je ne sais pas comment ils l'appellent ». Cherchez large,
-# lisez la colonne reseau, filtrez ensuite si la liste est longue.
+# nom que SIMPLESWAP lui donne, et ce nom ne suit aucune regle : « solana »
+# en toutes lettres, mais « bsc », « trx », « matic », « avax-c ». Filtrer
+# d'emblee sur le nom qu'on a en tete rend une liste vide qui ressemble a
+# « ce ticker n'existe pas », alors qu'elle dit seulement « je ne sais pas
+# comment ils l'appellent ». Cherchez large, lisez la colonne reseau,
+# filtrez ensuite si la liste est longue.
 #
 # --------------------------------------------------------------------------
 # POURQUOI CET OUTIL EXISTE
@@ -187,8 +188,9 @@ elif [ "$TROUVEES" -eq 0 ]; then
   echo "  $LUES monnaies lues, AUCUNE ne correspond a « $RECHERCHE »${RESEAU:+ sur « $RESEAU »}."
   if [ -n "$RESEAU" ]; then
     echo
-    echo "  Le filtre de reseau est le premier suspect : SimpleSwap ecrit"
-    echo "  « sol » la ou on dit « solana », « bsc » la ou on dit « BNB »."
+    echo "  Le filtre de reseau est le premier suspect : SimpleSwap nomme"
+    echo "  les reseaux a sa facon — « bsc » pour BNB Chain, « matic » pour"
+    echo "  Polygon, « avax-c » pour Avalanche."
     echo "  Relancez SANS le second argument pour voir tous les reseaux :"
     echo "      ./tools/simpleswap-ticker.sh $RECHERCHE"
   fi

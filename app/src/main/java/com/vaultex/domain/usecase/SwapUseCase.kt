@@ -181,6 +181,8 @@ class SwapUseCase @Inject constructor(
             "USDT" -> "usdttrc20"       // notre USDT = TRC20
             "USDT-ETH" -> "usdterc20"   // USDT sur Ethereum
             "USDT-BNB" -> "usdtbsc"     // USDT sur BNB Chain
+            // NON VÉRIFIÉ — chez SimpleSwap c'est « usdtspl ». Voir le pavé
+            // de FournisseurChangeNow.ticker, qui porte la même ligne.
             "USDT-SOL" -> "usdtsol"     // USDT sur Solana (SPL)
             "BNB"  -> "bnbbsc"          // BNB de BNB Chain (BSC) — « bnb » = ancienne Beacon Chain
             else   -> token.lowercase()
