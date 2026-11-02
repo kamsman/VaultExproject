@@ -456,3 +456,62 @@ qui vieillit sur des frais est celle qu'on ne rattrape pas.
 
 Aucune autre chaîne n'est citée : sur Ethereum, le même envoi peut coûter
 des dollars. Nommer la moins chère est un conseil, pas une moyenne.
+
+### `visuels-binance.py` — les images et le PDF de l'alerte Binance
+
+    python3 tools/annonces/visuels-binance.py
+
+Produit trois images carrées (1080 × 1080, format WhatsApp / Facebook /
+Telegram) dans `visuels/`, et `article-binance.pdf`, l'article complet
+avec les trois visuels intégrés.
+
+**Pourquoi un script et pas trois fichiers d'images.** Les chiffres de cet
+incident bougent encore — Binance a annoncé 6,3 milliards le 31 octobre,
+environ trois bloqués, 90 % remboursés. Des images exportées à la main
+seraient à refaire une par une à chaque correction, et celle qu'on oublie
+est celle qui circule. Ici, un chiffre vit dans `CHIFFRES`, en un seul
+exemplaire ; on corrige, on relance, les trois images et le PDF suivent.
+
+**Les couleurs viennent de `Theme.kt`.** Elles sont recopiées en haut du
+script avec la mention de leur source. Un seul endroit décide des
+couleurs de VaultEx, et ce n'est pas ce fichier-là.
+
+**Le texte du PDF vient de `article-binance-ce-que-ca-change.md`.** Le
+script lit le Markdown, saute le chapeau de rédaction, et coupe la liste
+des canaux — elle est reprise à la fin dans son propre encadré et
+apparaîtrait sinon deux fois. Corriger l'article corrige le PDF.
+
+**Ce qui est à vérifier si un visuel change.** Pillow ne replie rien tout
+seul : un texte trop long sort de l'image sans prévenir. Les trois
+visuels ont été relus page par page après chaque retouche, et deux
+débordements ont été corrigés comme ça. Après une modification, regardez
+les PNG — ne vous fiez pas au fait que le script s'est terminé sans
+erreur.
+
+**Les trois images, et à quoi elles servent.**
+
+`binance-1-chiffres` porte les faits et ses sources. C'est celle qui peut
+accompagner la notification : elle n'accuse personne et ne demande rien.
+
+`binance-2-plateforme` est l'argument de fond — custodial contre
+non-custodial — et elle dit la contrepartie dans le même cadre : personne
+ne peut perdre vos clés pour vous, personne ne peut vous les rendre. Une
+image qui ne dirait que le bon côté serait de la publicité.
+
+`binance-3-regle` est la seule urgente. Elle nomme `gbash.tools`, donne
+la règle, et finit par quoi faire si c'est déjà arrivé. C'est celle à
+envoyer en premier si quelqu'un signale avoir été contacté.
+
+**Pourquoi les images du PDF sont en JPEG et pas en PNG.** Les trois
+visuels sont écrits en PNG pour le partage — c'est le bon format pour
+WhatsApp. Mais dans le PDF, un PNG à canal alpha arrive en Flate avec un
+masque de transparence séparé, et des lecteurs allégés de téléphone
+sautent ces images-là : la page s'affiche, le texte est là, le visuel
+manque, sans message d'erreur. `en_jpeg()` aplatit donc tout avant la
+mise en page, logo compris, dans un dossier temporaire effacé après le
+build. Le PDF pèse plus lourd (870 ko contre 350) et c'est le prix d'un
+fichier qui s'ouvre partout.
+
+Le `subsampling=0` n'est pas décoratif : sans lui, le bleu du logo bave
+sur le fond sombre du bandeau et la jointure avec le rectangle dessiné
+par reportlab devient visible.

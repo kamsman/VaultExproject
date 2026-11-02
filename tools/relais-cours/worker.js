@@ -525,9 +525,18 @@ export default {
   n'ont pas besoin de rendez-vous. Mais « Robot : vivant depuis 2 h »
   devient faux sans que rien ne se passe — c'est le propre d'une durée.
 
-  Une fois par jour suffit : au-delà de six heures la ligne passe à
-  l'orange, et c'est ce basculement qu'on veut voir arriver même sur un
-  canal où personne n'échange rien.
+  LE RYTHME EST DE TROIS JOURS, ET IL FAUT EN CONNAÎTRE LE PRIX. La ligne
+  du robot bascule à l'orange après six heures de silence — mais ce
+  basculement n'est AFFICHÉ qu'au passage suivant. Un robot tombé le
+  lendemain d'un envoi se voit donc jusqu'à trois jours plus tard.
+
+  C'est un compromis assumé, pas un oubli : le canal reste lisible, et
+  c'est ce qui avait été demandé. Pour être prévenu plus tôt il faudrait
+  un second déclencheur, plus fréquent, qui n'écrirait QUE si la ligne
+  vient de changer — sinon on retombe sur le bruit qu'on fuyait.
+
+  Et si la ligne affiche « Robot : non attendu », ce n'est pas le robot :
+  c'est `CHANGE_SMS_TOKEN` qui n'est pas posée.
 
   Son heure est dans wrangler.toml, pas ici : on la change sans toucher à
   un fichier de huit mille lignes.

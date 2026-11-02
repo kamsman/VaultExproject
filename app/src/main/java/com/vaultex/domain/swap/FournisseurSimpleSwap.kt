@@ -270,6 +270,28 @@ class FournisseurSimpleSwap @Inject constructor(
         cours : pénible, mais sans danger, puisqu'il n'y a pas d'adresse de
         dépôt tant qu'il n'y a pas de devis. C'est une chaîne à corriger,
         pas un risque à prendre.
+
+        ─── LA SUPPOSITION ÉTAIT FAUSSE, CONSTATÉ EN PRODUCTION ───────────
+
+        Le 2 novembre, sur appareil : TOUTE paire partant de l'USDT Solana
+        rend « Devis indisponible. Not Found » — vers SOL, DAI, ETH et BNB,
+        les quatre essayées. Aucun minimum n'est affiché avec l'erreur, et
+        c'est la signature décrite plus bas : un ticker refusé, et non un
+        montant trop petit.
+
+        LE BON TICKER N'EST PAS ÉCRIT ICI, ET C'EST VOLONTAIRE. En poser un
+        second au jugé serait répéter la faute, en pire : un ticker
+        inexistant ne fait qu'échouer, un ticker qui EXISTE et désigne autre
+        chose rend une adresse de dépôt valide — et les fonds partent.
+
+        Il se lit avec `tools/simpleswap-ticker.sh usdt solana`, qui montre
+        le réseau ET le contrat. Celui de l'USDT Solana est
+        Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB — c'est lui qui tranche,
+        pas le nom.
+
+        Tant que ce n'est pas fait, l'échange depuis l'USDT Solana ne marche
+        pas. Il n'expose à aucune perte : le bouton Continuer reste éteint
+        sans devis.
         */
         "USDT-SOL" -> "usdtsol"
         // Jetons Ethereum

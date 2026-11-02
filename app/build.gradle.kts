@@ -17,6 +17,31 @@ val localProps = Properties().apply {
 
 /*
 ──────────────────────────────────────────────────────────────────────────
+UNE CLÉ PRÉSENTE MAIS VIDE N'EST PAS UNE CLÉ ABSENTE
+──────────────────────────────────────────────────────────────────────────
+
+`Properties.getProperty(cle, defaut)` ne rend le défaut que si la clé
+MANQUE. Présente et vide, elle rend "".
+
+Pour une chaîne, ça passe : `secret()` veut justement "". Pour un NOMBRE
+ou un BOOLÉEN, la ligne générée devient `double X = ;` et le build casse,
+sur une erreur qui pointe un fichier que personne n'a écrit.
+
+Et le piège se refermait sur le chemin qu'on recommande :
+`local.properties.example` porte `echange.surplace.max=` sous un
+commentaire qui annonce « Défaut : 2.0 ». Le recopier tel quel — tout son
+objet — suffisait à ne plus pouvoir compiler.
+
+Cette fonction sert donc TOUT ce qui n'est pas une chaîne : vide, blanc
+ou absent, c'est le défaut. Elle vit au niveau du script et non dans
+`defaultConfig`, parce que `buildTypes` en a besoin aussi.
+──────────────────────────────────────────────────────────────────────────
+*/
+fun reglage(key: String, defaut: String): String =
+    localProps.getProperty(key, defaut).trim().ifBlank { defaut }
+
+/*
+──────────────────────────────────────────────────────────────────────────
 ALERTE CLÉS MANQUANTES
 
 `local.properties` est gitignoré, et il est aussi exclu des archives du
@@ -301,6 +326,7 @@ android {
          */
         fun secret(key: String): String = localProps.getProperty(key, "")
 
+
         buildConfigField("String", "ETHERSCAN_KEY",   "\"${secret("etherscan.key")}\"")
         buildConfigField("String", "BSCSCAN_KEY",     "\"${secret("bscscan.key")}\"")
         buildConfigField("String", "CHANGENOW_KEY",   "\"${secret("changenow.key")}\"")
@@ -370,10 +396,10 @@ android {
         */
         buildConfigField(
             "double", "ECHANGE_SUR_PLACE_MAX_USD",
-            localProps.getProperty("echange.surplace.max", "2.0")
+            reglage("echange.surplace.max", "2.0")
         )
-        buildConfigField("String", "SWAP_PROVIDER",   "\"${localProps.getProperty("swap.provider", "simpleswap")}\"")
-        buildConfigField("double", "SIMPLESWAP_COMMISSION", localProps.getProperty("simpleswap.commission", "1.5"))
+        buildConfigField("String", "SWAP_PROVIDER",   "\"${reglage("swap.provider", "simpleswap")}\"")
+        buildConfigField("double", "SIMPLESWAP_COMMISSION", reglage("simpleswap.commission", "1.5"))
         /*
         ─── TAUX FIXE OU FLOTTANT ──────────────────────────────────────────
 
@@ -402,7 +428,7 @@ android {
         */
         buildConfigField(
             "boolean", "SIMPLESWAP_TAUX_FIXE",
-            localProps.getProperty("simpleswap.taux.fixe", "true")
+            reglage("simpleswap.taux.fixe", "true")
         )
         /*
         ─── INTERRUPTEUR DE TEST : MANQUE DE FRAIS ─────────────────────────
@@ -426,7 +452,7 @@ android {
         */
         buildConfigField(
             "boolean", "FORCE_GAS_SHORTFALL",
-            localProps.getProperty("debug.force.gas.shortfall", "false")
+            reglage("debug.force.gas.shortfall", "false")
         )
         buildConfigField("String", "FLUTTERWAVE_KEY", "\"${secret("flutterwave.key")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
@@ -460,7 +486,7 @@ android {
         buildConfigField("String", "PRICE_RELAY_URL", "\"${secret("prix.relay.url")}\"")
         // Play Integrity : numéro de projet Google Cloud (Console > Paramètres du projet).
         // 0 = désactivé. Renseigner play.integrity.project dans local.properties pour activer.
-        buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${localProps.getProperty("play.integrity.project", "0")}L")
+        buildConfigField("long", "PLAY_INTEGRITY_PROJECT", "${reglage("play.integrity.project", "0")}L")
         // Bot Telegram d'administration (groupe « Vaultex Administration ») :
         // événements temps réel — wallet créé, swap, gros swap, échec.
         // Absent = monitoring simplement désactivé (AdminBot sort si vide).
@@ -524,7 +550,7 @@ android {
              */
             buildConfigField(
                 "boolean", "ENABLE_CERT_PINNING",
-                localProps.getProperty("cert.pinning", "true")
+                reglage("cert.pinning", "true")
             )
             // Signature applied uniquement si le keystore est disponible.
             signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
