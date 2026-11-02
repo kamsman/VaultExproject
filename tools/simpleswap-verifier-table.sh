@@ -80,11 +80,56 @@ TMP=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswaptable.$$")
 trap 'rm -f "$TMP"' EXIT
 printf '%s' "$REPONSE" | sed 's/},[[:space:]]*{/}\n{/g' > "$TMP"
 
-champ() {
-  printf '%s' "$2" \
-    | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" \
-    | head -1
-}
+# --------------------------------------------------------------------------
+# UNE SEULE PASSE, ET UN SEUL PROCESSUS POUR LIRE LE CATALOGUE
+# --------------------------------------------------------------------------
+#
+# La premiere version relisait TOUT le catalogue pour CHACUN des dix-huit
+# tickers, en lancant quatre `sed` par ligne. Sur un catalogue de plusieurs
+# centaines de monnaies, cela fait des dizaines de milliers de processus.
+#
+# MESURE SUR APPAREIL : sous Git Bash, lancer un processus coute cher, et le
+# script n'avait affiche que seize lignes sur dix-huit quand l'utilisateur
+# l'a interrompu. Il ne plantait pas — il ramait, ce qui se voit pareil et
+# se corrige autrement.
+#
+# `awk` fait maintenant tout le decoupage en UN processus et rend des lignes
+# « symbole|reseau|contrat ». Le reste est du bash pur, sans aucun fork.
+APLAT=$(awk '
+  function val(s, k,   r, p) {
+    p = index(s, "\"" k "\"")
+    if (p == 0) return ""
+    r = substr(s, p + length(k) + 2)
+    p = index(r, ":")
+    if (p == 0) return ""
+    r = substr(r, p + 1)
+    sub(/^[ \t]+/, "", r)
+    # Pas de guillemet : la valeur est null ou un nombre, pas une chaine.
+    # Sans ce test, on sauterait au guillemet du champ SUIVANT et on
+    # recopierait sa valeur — un contrat attribue a la mauvaise monnaie.
+    if (substr(r, 1, 1) != "\"") return ""
+    r = substr(r, 2)
+    p = index(r, "\"")
+    if (p == 0) return ""
+    return substr(r, 1, p - 1)
+  }
+  {
+    s = val($0, "symbol")
+    if (s == "") next
+    printf "%s|%s|%s\n", s, val($0, "network"), val($0, "contract_address")
+  }
+' "$TMP")
+
+# UN APLAT VIDE DECLARERAIT LES DIX-HUIT TICKERS ABSENTS, et c'est la pire
+# sortie possible : une fausse alerte qui fait corriger du code juste. Si
+# `awk` manque ou si le format a change, on le dit et on s'arrete.
+NB_PLAT=$(printf '%s\n' "$APLAT" | grep -c . || true)
+if [ "$NB_PLAT" -lt 10 ]; then
+  echo "  Catalogue illisible : $NB_PLAT monnaie(s) extraite(s)." >&2
+  echo "  Ce n'est PAS une reponse sur les tickers — c'est le decoupage qui" >&2
+  echo "  a echoue (awk absent, ou format change). Ne corrigez rien." >&2
+  exit 1
+fi
 
 printf '  %-11s %-14s %-9s %-11s %s\n' CLE TICKER ETAT RESEAU CONTRAT
 echo "  ----------------------------------------------------------------------"
@@ -94,25 +139,22 @@ echo "  ----------------------------------------------------------------------"
 # meme en ayant trouve un ticker absent. Un verificateur qui ne sait pas
 # dire qu'il a echoue ne verifie rien.
 LISTE=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswappaires.$$")
-trap 'rm -f "$TMP" "$LISTE"' EXIT
+PLAT=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswapplat.$$")
+trap 'rm -f "$TMP" "$LISTE" "$PLAT"' EXIT
 printf '%s\n' "$PAIRES" > "$LISTE"
+printf '%s\n' "$APLAT" > "$PLAT"
 
 ABSENTS=0
 while read -r cle ticker; do
   [ -n "$ticker" ] || continue
   trouve=""
-  # `|| [ -n "$ligne" ]` : le dernier objet du tableau JSON n'a pas de
-  # retour chariot, et sans ca la derniere monnaie du catalogue est perdue.
-  while IFS= read -r ligne || [ -n "$ligne" ]; do
-    sym=$(champ symbol "$ligne")
+  while IFS='|' read -r sym net ctr; do
     [ "$sym" = "$ticker" ] || continue
     trouve="oui"
-    net=$(champ network "$ligne")
-    ctr=$(champ contract_address "$ligne")
     printf '  %-11s %-14s %-9s %-11s %s\n' \
       "$cle" "$ticker" "TROUVE" "${net:--}" "${ctr:-(natif ou absent)}"
     break
-  done < "$TMP"
+  done < "$PLAT"
 
   if [ -z "$trouve" ]; then
     printf '  %-11s %-14s %-9s %s\n' "$cle" "$ticker" "ABSENT" "<<< a corriger"
