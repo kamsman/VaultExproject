@@ -33,3 +33,7 @@ tools/changeur-sms/.gradle/
 # La video de la pub est reconstruite par tools/annonces/rendre-video.mjs.
 # Un binaire regenerable ne se versionne pas, au meme titre que les APK.
 tools/annonces/*.mp4
+
+# Bytecode Python : regenere a chaque execution, aucun interet a le suivre.
+__pycache__/
+*.pyc
