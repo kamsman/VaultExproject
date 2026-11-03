@@ -249,7 +249,24 @@ id = "a10b5ca2d5e34bd1aaeb81d7b9b6784b"
 # apparaît pas, le message ne partira jamais et rien ne le signalera.
 # ==========================================================================
 [triggers]
-crons = ["0 20 */3 * *"]
+crons = ["0 20 */3 * *", "17 * * * *"]
+
+# DEUX HORAIRES, ET ILS NE FONT PAS LE MEME TRAVAIL.
+#
+#   0 20 */3 * *   le TABLEAU de bord : des totaux qu'on consulte. Tous les
+#                  trois jours, pour que le canal reste lisible.
+#
+#   17 * * * *     la SURVEILLANCE du robot : toutes les heures, mais elle
+#                  ne parle QUE quand l'etat bascule — silencieux, puis
+#                  revenu. Entre les deux, elle se tait.
+#
+# Pourquoi la surveillance ne peut pas attendre le tableau : la fenetre de
+# rapprochement du relais est de TROIS HEURES. Un telephone eteint une nuit
+# fait payer des clients dans le vide, et l'apprendre trois jours plus tard
+# ne sert plus a rien.
+#
+# Minute 17 et non 0 : les declencheurs du monde entier se bousculent a
+# l'heure ronde, et Cloudflare les decale alors de plusieurs minutes.
 
 # --------------------------------------------------------------------------
 # CE QUE KV NE RÈGLE PAS

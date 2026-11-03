@@ -422,6 +422,97 @@ qui aboutit compte plus que son affichage. Tous les appels sont donc
 avalés en silence, et le pire qui puisse arriver est un chiffre en retard.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ALERTE DE SILENCE — PRÉVENIR VITE, MAIS UNE SEULE FOIS
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI ELLE EXISTE. Le téléphone du changeur se décharge, s'éteint, ou
+l'application est forcée à l'arrêt. L'encaissement d'un client arrive alors
+dans le vide.
+
+Le rattrapage du robot (version 1.1) repêche le SMS au rallumage — mais la
+fenêtre de rapprochement du relais est de TROIS HEURES. Au-delà, le SMS
+arrive et le paiement est refusé quand même : « encaissement trop ancien ».
+Le rattrapage sauve une coupure courte, pas une nuit entière.
+
+Donc ce qui compte vraiment, c'est d'être prévenu AVANT que des clients
+paient dans le vide. Le tableau de bord ne le dit que tous les trois
+jours : largement trop tard.
+
+─── POURQUOI ON NE PRÉVIENT QU'AU CHANGEMENT ───────────────────────────
+
+Une alerte horaire répétée pendant deux jours est une alerte qu'on cesse
+de lire, et c'est pire que pas d'alerte du tout : le jour où elle compte,
+elle ressemble aux cinquante précédentes.
+
+On ne parle donc QUE quand l'état bascule. Silencieux → une alerte.
+Revenu → un message de reprise, qui vaut autant : il dit que c'est réglé,
+et évite d'aller vérifier un téléphone qui marche.
+
+Entre les deux, rien. Le cron tourne toutes les heures et se tait.
+
+─── CE QU'ON NE SIGNALE PAS, ET POURQUOI ────────────────────────────────
+
+« jamais vu » n'est pas une panne : c'est une installation neuve, ou un
+changeur qui n'a pas encore reçu son premier encaissement. Alerter
+là-dessus ferait sonner le canal avant le premier client.
+
+« non attendu » non plus — `CHANGE_SMS_TOKEN` n'est pas posée, donc aucun
+robot n'est censé parler.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function surveillerRobot(env) {
+  const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
+  const chat = env?.TG_ADMIN_CHAT
+  if (!token || !chat) return
+
+  const vie = await silenceRobotVivant(env)
+  // Ni robot attendu, ni premier SMS : rien à surveiller.
+  if (vie === null || !Number.isFinite(vie)) return
+
+  const etat = vie > SILENCE_SMS_MS ? 'silencieux' : 'vivant'
+  const connu = await lireBrut('robotetat', 'dernier')
+  if (connu === etat) return
+
+  /*
+  LE PREMIER PASSAGE NE PARLE PAS.
+
+  Sans mémoire, le déploiement de cette fonction enverrait une alerte sur
+  un robot parfaitement sain, simplement parce qu'on ne savait rien de
+  lui. On enregistre l'état et on attend le prochain basculement.
+  */
+  await ecrireBrut('robotetat', 'dernier', etat, 30 * 86400)
+  if (connu === null) return
+
+  const texte = etat === 'silencieux'
+    ? [
+        '\u{1F7E0} Robot SMS silencieux ' + depuisQuand(vie),
+        '',
+        "Le telephone du changeur est peut-etre eteint, decharge, ou",
+        "l'application forcee a l'arret.",
+        '',
+        "CE QUI SE PASSE PENDANT CE TEMPS : un client qui paie n'est pas",
+        'verifie. Le robot repechera son SMS au rallumage, mais au-dela de',
+        '3 h le relais le refusera — « encaissement trop ancien ».',
+        '',
+        "A FAIRE : rallumer le telephone et rouvrir l'application du robot.",
+      ].join('\n')
+    : [
+        '\u{1F7E2} Robot SMS de nouveau vivant',
+        '',
+        'Dernier encaissement entendu ' + depuisQuand(vie) + '.',
+        'Les SMS recus pendant la coupure ont pu etre repeches, dans la',
+        'limite des 3 h de la fenetre de rapprochement.',
+      ].join('\n')
+
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ chat_id: String(chat), text: texte }).toString(),
+  })
+}
+
 async function majTableau(env) {
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -546,7 +637,36 @@ export default {
   */
   async scheduled(evenement, env, ctx) {
     poserMemoire(env)
-    ctx.waitUntil(majTableau(env).catch(() => {}))
+    /*
+    DEUX HORAIRES, DEUX TRAVAUX, ET ILS NE SE CONFONDENT PAS.
+
+    Le tableau de bord est une LECTURE : des totaux qu'on consulte quand on
+    veut. Tous les trois jours suffit, et c'est ce qui a été demandé — un
+    canal lisible.
+
+    L'alerte de silence est un ÉVÉNEMENT : quelque chose vient de casser,
+    et chaque heure qui passe est un client qui peut payer dans le vide.
+    Elle a donc son propre horaire, bien plus serré.
+
+    Les mettre au même rythme obligerait à choisir entre un canal bruyant
+    et une alerte qui arrive trois jours trop tard. On ne choisit pas : la
+    surveillance se tait tant que rien ne change, donc sa fréquence ne
+    coûte rien en bruit.
+
+    L'horaire exact vient de wrangler.toml. On reconnaît lequel a
+    déclenché par `evenement.cron` — et si Cloudflare n'en donne pas, on
+    fait les deux : se taire par prudence serait rater l'alerte.
+    */
+    const quotidien = String(evenement?.cron ?? '')
+    const estTableau = quotidien.includes('*/3')
+    const estSurveillance = quotidien.startsWith('17 ')
+
+    if (estTableau || (!estTableau && !estSurveillance)) {
+      ctx.waitUntil(majTableau(env).catch(() => {}))
+    }
+    if (estSurveillance || (!estTableau && !estSurveillance)) {
+      ctx.waitUntil(surveillerRobot(env).catch(() => {}))
+    }
   },
 
   async fetch(requete, env) {
