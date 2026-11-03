@@ -8673,11 +8673,35 @@ async function verifierAchat(ordre, env) {
   }
 
   if (!paiement) {
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DIRE TOUT CE QU'ON A CHERCHÉ, PAS SEULEMENT LA PREMIÈRE PISTE
+    ═══════════════════════════════════════════════════════════════════
+
+    Ce message ne nommait que la référence dès qu'il y en avait une. Le
+    changeur lisait « aucun SMS ne porte la reference MPP2611… » et
+    partait vérifier la référence — alors que le rapprochement par
+    MONTANT ET NUMÉRO avait échoué lui aussi, et pour la même cause : il
+    n'y avait aucun SMS du tout.
+
+    VU LE 3 NOVEMBRE. Le robot n'avait rien transmis depuis trois jours,
+    et le message a envoyé chercher un problème de référence. Une heure
+    perdue sur la mauvaise piste, à cause d'une phrase qui ne disait
+    qu'une moitié de ce qu'elle savait.
+
+    Un diagnostic qui tait la moitié de sa recherche n'oriente pas, il
+    égare. Les deux pistes sont donc nommées, et dans l'ordre où elles
+    ont été suivies.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    const pistes = []
+    if (refClient) pistes.push(`la reference ${refClient}`)
+    if (numero.length === 8 && fcfa > 0) pistes.push(`${fcfa} FCFA depuis le ${numero}`)
     return {
       etat: 'absent',
-      raison: refClient
-        ? `aucun SMS d'encaissement ne porte la reference ${refClient}`
-        : `aucun encaissement de ${fcfa} FCFA depuis le ${numero || 'numero du client'}`,
+      raison: pistes.length
+        ? `aucun SMS d'encaissement ne correspond — cherche par ${pistes.join(', puis par ')}`
+        : `aucun encaissement de ${fcfa} FCFA (ni reference ni numero utilisable)`,
     }
   }
 

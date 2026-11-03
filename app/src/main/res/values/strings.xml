@@ -1182,7 +1182,7 @@
     <string name="change_motif">Mettez votre référence en motif si votre paiement le permet.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement</string>
-    <string name="change_ref_paiement_aide">Le numéro de transaction reçu par SMS.</string>
+    <string name="change_ref_paiement_aide">Facultatif. Le numéro de transaction reçu par SMS — il accélère la vérification. Sans lui, votre numéro Mobile Money suffit.</string>
     <string name="change_ref_paiement_exemple">Ex. MP251008123456</string>
     <string name="change_ref_probleme_demande">Ça, c\'est la référence de votre DEMANDE, celle qu\'on met en motif. Ici il faut celle de votre paiement, dans le SMS de l\'opérateur — ex. MP251008123456.</string>
     <string name="change_ref_probleme_courte">Trop court pour un numéro de transaction. Recopiez-le en entier depuis votre SMS.</string>
@@ -1243,7 +1243,7 @@
     <string name="change_verif_achat_recu">Encaissé (lu dans le SMS de l\'opérateur)</string>
     <string name="change_verif_achat_de">Payé depuis</string>
     <string name="change_verif_achat_absent">Aucun paiement ne correspond</string>
-    <string name="change_verif_achat_absent_detail">Vérifiez bien votre référence de paiement, celle du SMS d\'Orange Money. Une faute de frappe est la cause la plus fréquente.</string>
+    <string name="change_verif_achat_absent_detail">Le paiement n\'est pas encore arrivé chez le changeur, ou il vient d\'un autre numéro que celui indiqué. Vérifiez votre numéro Mobile Money, et la référence si vous en avez saisi une. Un SMS peut aussi tarder de quelques minutes.</string>
     <string name="change_verif_achat_deja_servi">Ce paiement a déjà servi</string>
     <string name="change_verif_achat_deja_servi_detail">L\'encaissement existe, mais il a déjà réglé une autre demande. Regardez vos dernières demandes : si c\'est celle-ci, elle est déjà chez le changeur et vous n\'avez rien à refaire.</string>
     <string name="change_verif_achat_impossible">Vérification automatique indisponible</string>
