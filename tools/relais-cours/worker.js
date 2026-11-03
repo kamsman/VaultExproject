@@ -7453,20 +7453,53 @@ function normaliserExpediteur(x) {
   return sansAccents(x).replace(/[^a-z0-9]/g, '')
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE MINIMUM DE QUATRE NE PROTEGEAIT PAS CE QU'ON CROYAIT
+═══════════════════════════════════════════════════════════════════════════
+
+CETTE REGLE EST JUMELLE DE CELLE DU ROBOT — Reglages.correspond, dans
+tools/changeur-sms. Les deux doivent changer ENSEMBLE : une divergence
+fait accepter d'un cote ce qu'on refuse de l'autre, et le defaut se
+deplace au lieu de disparaitre. C'est deja arrive.
+
+CONSTATE LE 3 NOVEMBRE : Orange Money Burkina signe ses encaissements
+depuis « 320 ». Trois caracteres — ecarte quoi qu'il arrive, et l'ajouter
+a la liste n'y changeait rien puisque les entrees courtes etaient
+filtrees elles aussi. Le robot ne pouvait PAS fonctionner avec cet
+operateur.
+
+CE QUE LE MINIMUM PROTEGEAIT REELLEMENT. La faille d'origine : « 3636 »
+dans la liste, et l'inclusion acceptait +226 70 36 36 12 — le voisin, un
+client. C'est la CORRESPONDANCE PARTIELLE qui etait dangereuse, et elle
+est deja fermee par l'egalite exigee des qu'un cote est numerique.
+Verifie : « 22670363612 » n'est pas « 3636 », donc ecarte, minimum ou
+pas.
+
+Le minimum faisait double emploi sur le chemin numerique et y bloquait un
+operateur legitime. Il reste la ou il sert : sur la correspondance
+partielle, ou « abc » matcherait « abcdef ».
+═══════════════════════════════════════════════════════════════════════════
+*/
 function expediteurAccepte(expediteur, liste) {
   const vu = normaliserExpediteur(expediteur)
-  if (vu.length < 4) return false
+  if (!vu) return false
   return liste
     .map(normaliserExpediteur)
-    .filter((e) => e.length >= 4)
-    .some((e) => (
-      /^[0-9]+$/.test(vu) || /^[0-9]+$/.test(e)
-        ? vu === e
-        : vu.includes(e) || e.includes(vu)
-    ))
+    .filter(Boolean)
+    .some((e) => {
+      if (/^[0-9]+$/.test(vu) || /^[0-9]+$/.test(e)) return vu === e
+      if (vu.length < 4 || e.length < 4) return false
+      return vu.includes(e) || e.includes(vu)
+    })
 }
 
-const EXPEDITEURS_SMS = ['orangemoney', 'orange money', 'moovmoney', 'moov money', 'wave']
+// « 320 » est l'expediteur reel d'Orange Money Burkina, releve sur un
+// encaissement le 3 novembre 2026. Les noms en toutes lettres restent : un
+// operateur peut signer differemment selon le type d'operation.
+const EXPEDITEURS_SMS = [
+  'orangemoney', 'orange money', '320', 'moovmoney', 'moov money', 'wave',
+]
 
 /*
 TROIS HEURES, comme pour les ventes.
