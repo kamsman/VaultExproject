@@ -256,8 +256,30 @@ montre à chaque vendeur — et les cours le sont aussi.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-/** Version du Worker déployé — lisible sur /sante et /diag. */
-const VERSION = 73
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE NUMERO QUI DIT SI LE DEPLOIEMENT A PRIS
+═══════════════════════════════════════════════════════════════════════════
+
+Lisible sur /sante et /diag, et c'est le SEUL moyen de savoir quel code
+tourne : wrangler ne rend aucune empreinte, et Cloudflare affiche un
+identifiant de version qui ne dit rien du contenu.
+
+IL DOIT MONTER A CHAQUE COMMIT QUI TOUCHE CE FICHIER. Il est reste a 73
+pendant douze commits — l'analyseur de SMS, les cles de reference,
+l'alerte de silence, les boutons de copie. Pendant tout ce temps /sante
+repondait « 73 », et un deploiement reussi ressemblait exactement a un
+deploiement oublie.
+
+Un marqueur qui ne bouge pas est pire que pas de marqueur : il affirme
+quelque chose de faux au moment ou l'on vient verifier.
+
+`verifier-version.mjs` compare desormais ce numero a l'historique de git
+et refuse de se taire quand il est en retard. Lancez-le avant de
+deployer.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const VERSION = 74
 
 const COINGECKO = 'https://api.coingecko.com'
 
