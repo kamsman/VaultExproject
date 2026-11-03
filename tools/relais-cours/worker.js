@@ -3410,7 +3410,9 @@ async function ordreChange(requete, env) {
         })
       }
     } else {
-      const francs = String(ordre.montantFcfa ?? '').replace(/\D/g, '')
+      // La MEME fonction que le bloc « TU ENVOIES » : ce qui est affiche
+      // doit etre ce qui est copie, et une seule ligne en decide.
+      const francs = francsNus(ordre.montantFcfa)
       if (francs) {
         copies.push({ text: '\u{1F4CB} Montant', copy_text: { text: francs } })
       }
@@ -3867,9 +3869,9 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
     */
     achat
       ? `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`
-      : `Montant   : <b>${aCopier(ordre.montantFcfa)} FCFA</b>`,
+      : null,
     achat
-      ? `Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`
+      ? null
       : `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
     /*
     ═══════════════════════════════════════════════════════════════════
@@ -3897,8 +3899,50 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
       ? `Taux      : ${echapper(ordre.taux)} / ${echapper(ordre.monnaie)}`
       : `Taux      : ${echapper(ordre.taux)}`,
     `Marge     : ${echapper(ordre.marge)}`,
-    ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null,
-    ordre.telephone
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    CE QUI PART CHEZ LE CLIENT SE LIT D'UN BLOC, PAS EN CHERCHANT
+    ═══════════════════════════════════════════════════════════════════
+
+    REMARQUE D'USAGE. Les deux valeurs que le changeur doit REPORTER
+    etaient dispersees : « Crypto » en deuxieme ligne, « Adresse » en
+    cinquieme, separees par le taux et la marge qu'il ne recopie jamais.
+
+    Il les cherchait a chaque demande, dans une liste ou rien ne
+    distinguait ce qu'on lit de ce qu'on tape.
+
+    ─── LA REGLE DE CE BLOC ────────────────────────────────────────────
+
+    CE QUI Y EST AFFICHE EST EXACTEMENT CE QUE LE BOUTON COPIE. Pas de
+    mise en forme qui embellit : « 6 108 » se lit mieux et se colle mal,
+    Orange Money veut des chiffres. Le bloc montre donc `6108`, et la
+    ligne « Montant » plus haut garde la forme lisible pour celui qui
+    verifie son solde.
+
+    Deux affichages du meme nombre, et c'est voulu : l'un se lit, l'autre
+    se tape. Les confondre, c'est exactement ce qui faisait recopier a la
+    main.
+
+    ─── CE QUI ENTRE DANS LE BLOC DEPEND DU SENS ───────────────────────
+
+      ACHAT  la quantite de crypto et l'adresse. Le telephone du client
+             reste en contexte : on l'appelle, on ne lui envoie rien.
+      VENTE  les francs et le numero. La quantite de crypto reste en
+             contexte : elle est deja arrivee.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    '',
+    `\u{1F4E4} <b>TU ENVOIES</b>`,
+    achat
+      ? `Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`
+      : `Montant   : ${aCopier(francsNus(ordre.montantFcfa))} FCFA`,
+    achat
+      ? (ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null)
+      : (ordre.telephone
+          ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
+          : null),
+    '',
+    achat && ordre.telephone
       ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
       : null,
     ordre.referencePaiement
@@ -4278,6 +4322,26 @@ function echapper(v) {
 /** Une valeur qu'on copie d'un appui dans Telegram. */
 function aCopier(v) {
   return `<code>${echapper(v)}</code>`
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES FRANCS, TELS QU'ON LES TAPE
+═══════════════════════════════════════════════════════════════════════════
+
+« 6 108 » se lit mieux et se colle mal : Orange Money veut des chiffres.
+
+Cette fonction existe pour qu'UN SEUL endroit decide de cette forme. Le
+bloc « TU ENVOIES » et le bouton qui copie doivent porter exactement la
+meme chaine — c'est la regle annoncee dans ce bloc, et deux conversions
+voisines finiraient par diverger sur un separateur.
+
+Elle ne touche pas a la ligne « Montant » du contexte, qui garde sa forme
+lisible : l'une se lit, l'autre se tape.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function francsNus(v) {
+  return String(v ?? '').replace(/\D/g, '')
 }
 
 /** Un montant lisible : assez de décimales pour être exact, pas plus. */
