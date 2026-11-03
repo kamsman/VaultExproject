@@ -54,9 +54,19 @@ if (!trouve) {
 }
 const version = Number(trouve[1])
 
-// `-S` cherche les commits qui ont CHANGE le nombre d'occurrences de la
-// chaine : c'est exactement « quand ce numero a-t-il bouge ».
-const commitVersion = git('log', '-1', '--format=%H', '-S', 'const VERSION = ', '--', 'worker.js')
+/*
+`-G` ET NON `-S`, ET LE PREMIER ESSAI S'EST TROMPE DESSUS.
+
+`-S` cherche les commits qui changent le NOMBRE D'OCCURRENCES d'une
+chaine. Passer de « 73 » a « 74 » n'en change aucune : la ligne reste
+une ligne. Le script annoncait donc « en retard de 82 commits » juste
+apres que le numero ait bouge, et pointait le commit qui avait
+INTRODUIT la constante, en aout.
+
+`-G` cherche dans le TEXTE du diff, ce qui est la vraie question : cette
+ligne a-t-elle ete touchee ?
+*/
+const commitVersion = git('log', '-1', '--format=%H', '-G', '^const VERSION = ', '--', 'worker.js')
 const commitFichier = git('log', '-1', '--format=%H', '--', 'worker.js')
 
 console.log('')
