@@ -179,10 +179,10 @@ class Reglages(contexte: Context) {
      */
     fun expediteurAccepte(expediteur: String): Boolean {
         val vu = normaliser(expediteur)
-        if (vu.length < 4) return false
+        if (vu.isEmpty()) return false
         return expediteurs.split(',')
             .map { normaliser(it) }
-            .filter { it.length >= 4 }
+            .filter { it.isNotEmpty() }
             .any { attendu -> correspond(vu, attendu) }
     }
 
@@ -233,7 +233,37 @@ class Reglages(contexte: Context) {
     ═══════════════════════════════════════════════════════════════════════
     */
     private fun correspond(vu: String, attendu: String): Boolean {
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE MINIMUM DE QUATRE NE PROTEGEAIT PAS CE QU'ON CROYAIT
+        ═══════════════════════════════════════════════════════════════
+
+        Il etait pose a l'entree, sur TOUS les expediteurs. Constate le
+        3 novembre : Orange Money Burkina signe ses encaissements depuis
+        « 320 ». Trois caracteres — ecarte quoi qu'il arrive, et
+        l'ajouter a la liste n'y changeait rien puisque les entrees
+        courtes etaient filtrees elles aussi.
+
+        Le robot ne pouvait donc PAS fonctionner avec cet operateur.
+
+        ─── CE QUE LE MINIMUM PROTEGEAIT REELLEMENT ────────────────────
+
+        La faille d'origine : « 3636 » dans la liste, et
+        `vu.contains(attendu)` acceptait +226 70 36 36 12 — le voisin, un
+        client. C'est la CORRESPONDANCE PARTIELLE qui etait dangereuse.
+
+        Or elle a deja ete fermee, par la ligne du dessous : des que l'un
+        des deux cotes est numerique, on exige l'EGALITE. Verifie :
+        « 22670363612 » n'est pas « 3636 », donc ecarte, minimum ou pas.
+
+        Le minimum faisait donc double emploi sur le chemin numerique, et
+        il y bloquait un operateur legitime. Il reste la ou il sert
+        vraiment : sur la correspondance partielle, ou « abc » matcherait
+        « abcdef » et n'identifierait plus personne.
+        ═══════════════════════════════════════════════════════════════
+        */
         if (vu.all { it.isDigit() } || attendu.all { it.isDigit() }) return vu == attendu
+        if (vu.length < 4 || attendu.length < 4) return false
         return vu.contains(attendu) || attendu.contains(vu)
     }
 
@@ -337,7 +367,14 @@ class Reglages(contexte: Context) {
          * l'expéditeur de chaque SMS écarté, précisément pour qu'on
          * corrige cette liste en le lisant plutôt qu'en le devinant.
          */
-        const val DEFAUT_EXPEDITEURS = "OrangeMoney,Orange Money,MoovMoney,Moov Money,Wave"
+        /*
+        « 320 » EST L'EXPEDITEUR REEL D'ORANGE MONEY BURKINA, releve sur
+        un encaissement le 3 novembre 2026. Les noms en toutes lettres
+        restent : un operateur peut signer differemment selon le type
+        d'operation, et on ne sait pas lesquels.
+        */
+        const val DEFAUT_EXPEDITEURS =
+            "OrangeMoney,Orange Money,320,MoovMoney,Moov Money,Wave"
 
         const val FILE_MAX = 50
         const val JOURNAL_MAX = 60

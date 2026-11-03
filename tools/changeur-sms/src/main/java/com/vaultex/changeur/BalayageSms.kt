@@ -171,6 +171,11 @@ object BalayageSms {
                             reglages.mettreEnFile(expediteur, texte)
                             reglages.journaliser("↻ rattrape en attente : ${issue.message}")
                         }
+                        // Reparable a la main : on garde, voir Relais.Issue.
+                        issue.garder -> {
+                            reglages.mettreEnFile(expediteur, texte)
+                            reglages.journaliser("⏸ rattrape garde : ${issue.message}")
+                        }
                         else -> {
                             refuses++
                             reglages.journaliser("✗ rattrape : ${issue.message}")

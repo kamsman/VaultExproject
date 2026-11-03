@@ -515,6 +515,45 @@ que le champ manque.
   verifie('EXPEDITEUR : un motif trop court est ignore', expediteurAccepte('orangemoney', ['a', 'o']) === false)
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+« 320 » — L'EXPEDITEUR REEL D'ORANGE MONEY BURKINA
+═══════════════════════════════════════════════════════════════════════════
+
+RELEVE LE 3 NOVEMBRE 2026 sur le journal du robot : « ecarte : expediteur
+« 320 » ». Trois caracteres, alors que le filtre exigeait quatre de TOUS
+les expediteurs. Le robot ne pouvait donc pas fonctionner avec cet
+operateur, et l'ajouter a la liste n'y changeait rien — les entrees
+courtes etaient filtrees elles aussi.
+
+CE BLOC EXISTE POUR QUE LA CORRECTION NE ROUVRE PAS LA FAILLE QU'ELLE
+TOUCHE. Le minimum avait ete pose contre un vrai danger : « 3636 » dans
+la liste, et l'inclusion acceptait +226 70 36 36 12 — le voisin.
+
+La protection ne vient pas du minimum mais de l'EGALITE exigee des qu'un
+cote est numerique. Les deux cas sont testes ensemble : si quelqu'un
+rend un jour la comparaison numerique partielle « pour etre tolerant »,
+c'est la deuxieme ligne qui tombera.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const L = ['orangemoney', 'orange money', '320', 'moovmoney', 'wave']
+  verifie('COURT : « 320 » est ACCEPTE', expediteurAccepte('320', L) === true)
+  verifie(
+    'COURT : le voisin qui CONTIENT 320 reste ecarte',
+    expediteurAccepte('+226 70 32 01 23', L) === false
+  )
+  verifie('COURT : un chiffre de plus est ecarte', expediteurAccepte('3200', L) === false)
+  verifie('COURT : un numero de client est ecarte', expediteurAccepte('70320123', L) === false)
+  verifie('COURT : un numero absent de la liste est ecarte', expediteurAccepte('32', L) === false)
+  /*
+  LE MINIMUM RESTE SUR LE CHEMIN PARTIEL, et c'est la qu'il sert : trois
+  lettres matcheraient trop de choses.
+  */
+  verifie('COURT : trois lettres ne font pas une correspondance', expediteurAccepte('abc', ['abcdef']) === false)
+  verifie('COURT : quatre lettres, oui', expediteurAccepte('wave', L) === true)
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les REGLES de lecture tiennent.')

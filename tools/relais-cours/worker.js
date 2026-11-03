@@ -3362,20 +3362,113 @@ async function ordreChange(requete, env) {
       text: lignes.join('\n'),
       parse_mode: 'HTML',
     })
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DES BOUTONS QUI COPIENT, PARCE QU'UN APPUI LONG SE RATE
+    ═══════════════════════════════════════════════════════════════════
+
+    Le `<code>` du corps se copie deja — en appuyant longtemps, puis en
+    choisissant « Copier » dans un menu. Ca marche, et c'est exactement
+    le genre de geste qu'on rate a la trentieme demande d'un soir, le
+    telephone dans une main.
+
+    `copy_text` met la valeur dans un bouton : un appui, c'est copie.
+
+    ─── DEUX BOUTONS, ET PAS UN DE PLUS ────────────────────────────────
+
+    Ceux que le changeur REPORTE, et ils changent avec le sens :
+
+      ACHAT  la quantite de crypto et l'adresse — ce qu'il tape dans son
+             portefeuille.
+      VENTE  les francs et le numero — ce qu'il tape dans Orange Money.
+
+    Mettre tout le message en boutons rendrait la barre illisible et
+    ferait chercher le bon parmi six. Deux se visent sans regarder.
+
+    ─── LES FRANCS PARTENT SANS LEURS ESPACES ──────────────────────────
+
+    « 6 108 » s'affiche bien et se colle mal : Orange Money veut des
+    chiffres. Le bouton porte donc « 6108 », pendant que la ligne du
+    message garde sa forme lisible. C'est tout l'interet d'avoir separe
+    les deux.
+    ═══════════════════════════════════════════════════════════════════
+    */
     const lien = verif && verif.explorateur ? String(verif.explorateur) : ''
-    if (lien.startsWith('https://')) {
-      corpsTg.set(
-        'reply_markup',
-        JSON.stringify({
-          inline_keyboard: [[{ text: '\u{1F50E} Voir la transaction', url: lien }]],
+    const rangees = []
+    const copies = []
+    if (achat) {
+      if (ordre.montantCrypto) {
+        copies.push({
+          text: '\u{1F4CB} Montant',
+          copy_text: { text: String(ordre.montantCrypto).slice(0, 256) },
         })
-      )
+      }
+      if (ordre.adresse) {
+        copies.push({
+          text: '\u{1F4CB} Adresse',
+          copy_text: { text: String(ordre.adresse).slice(0, 256) },
+        })
+      }
+    } else {
+      // La MEME fonction que le bloc « TU ENVOIES » : ce qui est affiche
+      // doit etre ce qui est copie, et une seule ligne en decide.
+      const francs = francsNus(ordre.montantFcfa)
+      if (francs) {
+        copies.push({ text: '\u{1F4CB} Montant', copy_text: { text: francs } })
+      }
+      if (ordre.telephone) {
+        copies.push({
+          text: '\u{1F4CB} Numero',
+          copy_text: { text: String(ordre.telephone).slice(0, 256) },
+        })
+      }
     }
-    const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: corpsTg.toString(),
-    })
+    if (copies.length) rangees.push(copies)
+    if (lien.startsWith('https://')) {
+      rangees.push([{ text: '\u{1F50E} Voir la transaction', url: lien }])
+    }
+    if (rangees.length) {
+      corpsTg.set('reply_markup', JSON.stringify({ inline_keyboard: rangees }))
+    }
+
+    const envoyerTg = () =>
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: corpsTg.toString(),
+      })
+
+    let envoi = await envoyerTg()
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ORNEMENT EST UN CONFORT, LE MESSAGE EST VITAL
+    ═══════════════════════════════════════════════════════════════════
+
+    Deux choses de ce message sont RECENTES dans l'API de Telegram : les
+    boutons `copy_text` et la balise `<blockquote>`. Une version qui n'en
+    connait pas une rend 400 — et sans repli, TOUTE LA DEMANDE
+    echouerait : le changeur ne verrait rien, le client aurait paye pour
+    une commande jamais arrivee.
+
+    Une barre verticale absente se remarque a peine ; une demande perdue
+    coute de l'argent et la confiance.
+
+    ─── UN SEUL REPLI, QUI RETIRE TOUT ─────────────────────────────────
+
+    On ne cherche pas LAQUELLE des deux a fache Telegram : ce serait deux
+    requetes de plus pour une information dont on ne ferait rien. Le repli
+    enleve l'ornement en bloc, et il couvre d'avance ce qu'on ajoutera un
+    jour.
+
+    Ce qui reste est exact : le gras, le `code` et le texte. Un message
+    depouille doit rester juste — c'est lui qui part chez le changeur.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (!envoi.ok) {
+      corpsTg.delete('reply_markup')
+      corpsTg.set('text', sansOrnement(lignes.join('\n')))
+      envoi = await envoyerTg()
+    }
     if (!envoi.ok) {
       /*
       ON REND LA RAISON DE TELEGRAM, PAS LA NOTRE.
@@ -3760,12 +3853,49 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
     reporte ailleurs — dans un portefeuille, dans Orange Money, dans un
     releve. Ce sont celles qui doivent se copier d'un appui.
 
-    Le montant, le taux et la marge se LISENT. Les rendre copiables ne
-    servirait a rien et banaliserait la marque : si tout est en `code`,
-    plus rien ne signale ce qui se copie.
+    Le taux et la marge se LISENT. Les rendre copiables ne servirait a
+    rien et banaliserait la marque : si tout est en `code`, plus rien ne
+    signale ce qui se copie.
+
+    ─── LE MONTANT, LUI, DEPEND DU SENS ────────────────────────────────
+
+    Ce commentaire mettait « le montant » avec le taux et la marge. C'est
+    vrai d'UN des deux montants seulement, et l'erreur vient de les avoir
+    nommes pareil.
+
+      ACHAT  le changeur ENVOIE de la crypto. « 10,013114 » se tape dans
+             un portefeuille. Les FCFA, eux, se lisent : ils disent ce que
+             le client a deja paye.
+
+      VENTE  l'inverse. Les FCFA se tapent dans Orange Money, et la
+             quantite de crypto se lit.
+
+    Le critere du commentaire — « ce qui se reporte ailleurs » — etait
+    bon ; il n'avait pas ete applique a la ligne qui en avait le plus
+    besoin. Recopier « 10,013114 » a la main, c'est la faute de frappe
+    qui coute de l'argent.
+
+    ─── TROIS MARQUES, TROIS SENS, ET PAS DAVANTAGE ────────────────────
+
+      <b>      ce qu'il faut FAIRE
+      <code>   ce qu'il faut COPIER
+      rien     le contexte, qu'on lit
+
+    Cette ligne portait du gras, sans qu'aucun commentaire ne dise
+    pourquoi. Elle devenait alors le SEUL gras du bloc de contexte — et
+    sur un achat, « 6 108 FCFA » est precisement le nombre qu'il ne faut
+    PAS envoyer. L'oeil allait au mauvais endroit.
+
+    Le gras reste sur la consigne « A FAIRE » et sur l'en-tete du bloc
+    « TU ENVOIES ». Une marque qui veut dire deux choses ne veut plus
+    rien dire.
     */
-    `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`,
-    `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
+    achat
+      ? `Montant   : ${echapper(ordre.montantFcfa)} FCFA`
+      : null,
+    achat
+      ? null
+      : `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
     /*
     ═══════════════════════════════════════════════════════════════════
     UN TAUX SANS UNITE NE DIT RIEN
@@ -3792,8 +3922,42 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
       ? `Taux      : ${echapper(ordre.taux)} / ${echapper(ordre.monnaie)}`
       : `Taux      : ${echapper(ordre.taux)}`,
     `Marge     : ${echapper(ordre.marge)}`,
-    ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null,
-    ordre.telephone
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    CE QUI PART CHEZ LE CLIENT SE LIT D'UN BLOC, PAS EN CHERCHANT
+    ═══════════════════════════════════════════════════════════════════
+
+    REMARQUE D'USAGE. Les deux valeurs que le changeur doit REPORTER
+    etaient dispersees : « Crypto » en deuxieme ligne, « Adresse » en
+    cinquieme, separees par le taux et la marge qu'il ne recopie jamais.
+
+    Il les cherchait a chaque demande, dans une liste ou rien ne
+    distinguait ce qu'on lit de ce qu'on tape.
+
+    ─── LA REGLE DE CE BLOC ────────────────────────────────────────────
+
+    CE QUI Y EST AFFICHE EST EXACTEMENT CE QUE LE BOUTON COPIE. Pas de
+    mise en forme qui embellit : « 6 108 » se lit mieux et se colle mal,
+    Orange Money veut des chiffres. Le bloc montre donc `6108`, et la
+    ligne « Montant » plus haut garde la forme lisible pour celui qui
+    verifie son solde.
+
+    Deux affichages du meme nombre, et c'est voulu : l'un se lit, l'autre
+    se tape. Les confondre, c'est exactement ce qui faisait recopier a la
+    main.
+
+    ─── CE QUI ENTRE DANS LE BLOC DEPEND DU SENS ───────────────────────
+
+      ACHAT  la quantite de crypto et l'adresse. Le telephone du client
+             reste en contexte : on l'appelle, on ne lui envoie rien.
+      VENTE  les francs et le numero. La quantite de crypto reste en
+             contexte : elle est deja arrivee.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    '',
+    blocEnvoi(achat, ordre, otp),
+    '',
+    achat && ordre.telephone
       ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
       : null,
     ordre.referencePaiement
@@ -4173,6 +4337,75 @@ function echapper(v) {
 /** Une valeur qu'on copie d'un appui dans Telegram. */
 function aCopier(v) {
   return `<code>${echapper(v)}</code>`
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES FRANCS, TELS QU'ON LES TAPE
+═══════════════════════════════════════════════════════════════════════════
+
+« 6 108 » se lit mieux et se colle mal : Orange Money veut des chiffres.
+
+Cette fonction existe pour qu'UN SEUL endroit decide de cette forme. Le
+bloc « TU ENVOIES » et le bouton qui copie doivent porter exactement la
+meme chaine — c'est la regle annoncee dans ce bloc, et deux conversions
+voisines finiraient par diverger sur un separateur.
+
+Elle ne touche pas a la ligne « Montant » du contexte, qui garde sa forme
+lisible : l'une se lit, l'autre se tape.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function francsNus(v) {
+  return String(v ?? '').replace(/\D/g, '')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE BLOC « TU ENVOIES », DETACHE PAR UNE BARRE
+═══════════════════════════════════════════════════════════════════════════
+
+Un titre ne suffisait pas : dans un message de vingt lignes, « TU
+ENVOIES » reste une ligne parmi d'autres. `<blockquote>` trace une BARRE
+VERTICALE a gauche du bloc — le seul relief que Telegram offre, puisqu'il
+n'a pas de texte colore.
+
+Et c'est du relief qui ne coute aucune couleur : le vert et le rouge
+restent les seuls signaux colores du message, et ils gardent leur sens
+unique — payer, ou ne pas payer.
+
+─── IL RETOURNE UNE SEULE CHAINE, AVEC SES RETOURS ──────────────────────
+
+La balise doit ouvrir avant la premiere ligne et fermer apres la
+derniere. Dans un tableau de lignes dont certaines valent `null` — pas
+d'adresse, pas de telephone — savoir laquelle est « la derniere » se
+calcule a chaque fois et se trompe le jour ou l'on en ajoute une.
+
+Le bloc se construit donc a part, et le tableau n'en voit qu'un element.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function blocEnvoi(achat, ordre, otp) {
+  const lignes = [`\u{1F4E4} <b>TU ENVOIES</b>`]
+  if (achat) {
+    lignes.push(`Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`)
+    if (ordre.adresse) lignes.push(`Adresse   : ${aCopier(ordre.adresse)}`)
+  } else {
+    lignes.push(`Montant   : ${aCopier(francsNus(ordre.montantFcfa))} FCFA`)
+    if (ordre.telephone) {
+      lignes.push(`Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`)
+    }
+  }
+  return `<blockquote>${lignes.join('\n')}</blockquote>`
+}
+
+/*
+RETIRER L'ORNEMENT, SANS TOUCHER AU FOND.
+
+Seules les balises de DECOR partent. Le gras, le `code` et le texte
+restent : ce sont eux qui portent l'information, et un message depouille
+doit rester exact.
+*/
+function sansOrnement(texte) {
+  return String(texte).replace(/<\/?blockquote[^>]*>/g, '')
 }
 
 /** Un montant lisible : assez de décimales pour être exact, pas plus. */
@@ -7220,20 +7453,53 @@ function normaliserExpediteur(x) {
   return sansAccents(x).replace(/[^a-z0-9]/g, '')
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE MINIMUM DE QUATRE NE PROTEGEAIT PAS CE QU'ON CROYAIT
+═══════════════════════════════════════════════════════════════════════════
+
+CETTE REGLE EST JUMELLE DE CELLE DU ROBOT — Reglages.correspond, dans
+tools/changeur-sms. Les deux doivent changer ENSEMBLE : une divergence
+fait accepter d'un cote ce qu'on refuse de l'autre, et le defaut se
+deplace au lieu de disparaitre. C'est deja arrive.
+
+CONSTATE LE 3 NOVEMBRE : Orange Money Burkina signe ses encaissements
+depuis « 320 ». Trois caracteres — ecarte quoi qu'il arrive, et l'ajouter
+a la liste n'y changeait rien puisque les entrees courtes etaient
+filtrees elles aussi. Le robot ne pouvait PAS fonctionner avec cet
+operateur.
+
+CE QUE LE MINIMUM PROTEGEAIT REELLEMENT. La faille d'origine : « 3636 »
+dans la liste, et l'inclusion acceptait +226 70 36 36 12 — le voisin, un
+client. C'est la CORRESPONDANCE PARTIELLE qui etait dangereuse, et elle
+est deja fermee par l'egalite exigee des qu'un cote est numerique.
+Verifie : « 22670363612 » n'est pas « 3636 », donc ecarte, minimum ou
+pas.
+
+Le minimum faisait double emploi sur le chemin numerique et y bloquait un
+operateur legitime. Il reste la ou il sert : sur la correspondance
+partielle, ou « abc » matcherait « abcdef ».
+═══════════════════════════════════════════════════════════════════════════
+*/
 function expediteurAccepte(expediteur, liste) {
   const vu = normaliserExpediteur(expediteur)
-  if (vu.length < 4) return false
+  if (!vu) return false
   return liste
     .map(normaliserExpediteur)
-    .filter((e) => e.length >= 4)
-    .some((e) => (
-      /^[0-9]+$/.test(vu) || /^[0-9]+$/.test(e)
-        ? vu === e
-        : vu.includes(e) || e.includes(vu)
-    ))
+    .filter(Boolean)
+    .some((e) => {
+      if (/^[0-9]+$/.test(vu) || /^[0-9]+$/.test(e)) return vu === e
+      if (vu.length < 4 || e.length < 4) return false
+      return vu.includes(e) || e.includes(vu)
+    })
 }
 
-const EXPEDITEURS_SMS = ['orangemoney', 'orange money', 'moovmoney', 'moov money', 'wave']
+// « 320 » est l'expediteur reel d'Orange Money Burkina, releve sur un
+// encaissement le 3 novembre 2026. Les noms en toutes lettres restent : un
+// operateur peut signer differemment selon le type d'operation.
+const EXPEDITEURS_SMS = [
+  'orangemoney', 'orange money', '320', 'moovmoney', 'moov money', 'wave',
+]
 
 /*
 TROIS HEURES, comme pour les ventes.

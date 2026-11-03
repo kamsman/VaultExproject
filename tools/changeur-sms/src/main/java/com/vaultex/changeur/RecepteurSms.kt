@@ -171,6 +171,18 @@ class RecepteurSms : BroadcastReceiver() {
                         reglages.mettreEnFile(expediteur, texte)
                         reglages.journaliser("↻ en attente : ${issue.message}")
                     }
+                    /*
+                    UN JETON FAUX NE DOIT PAS COUTER L'ENCAISSEMENT.
+
+                    L'envoi ne peut pas aboutir maintenant, mais il
+                    aboutira des que la ligne sera corrigee. Le jeter
+                    ici, c'est perdre un vrai paiement pour une faute de
+                    recopie — et c'est arrive le 3 novembre, dix fois.
+                    */
+                    issue.garder -> {
+                        reglages.mettreEnFile(expediteur, texte)
+                        reglages.journaliser("⏸ garde : ${issue.message}")
+                    }
                     else -> reglages.journaliser("✗ ${issue.message}")
                 }
 
