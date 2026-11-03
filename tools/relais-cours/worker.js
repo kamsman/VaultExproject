@@ -3866,9 +3866,24 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
     bon ; il n'avait pas ete applique a la ligne qui en avait le plus
     besoin. Recopier « 10,013114 » a la main, c'est la faute de frappe
     qui coute de l'argent.
+
+    ─── TROIS MARQUES, TROIS SENS, ET PAS DAVANTAGE ────────────────────
+
+      <b>      ce qu'il faut FAIRE
+      <code>   ce qu'il faut COPIER
+      rien     le contexte, qu'on lit
+
+    Cette ligne portait du gras, sans qu'aucun commentaire ne dise
+    pourquoi. Elle devenait alors le SEUL gras du bloc de contexte — et
+    sur un achat, « 6 108 FCFA » est precisement le nombre qu'il ne faut
+    PAS envoyer. L'oeil allait au mauvais endroit.
+
+    Le gras reste sur la consigne « A FAIRE » et sur l'en-tete du bloc
+    « TU ENVOIES ». Une marque qui veut dire deux choses ne veut plus
+    rien dire.
     */
     achat
-      ? `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`
+      ? `Montant   : ${echapper(ordre.montantFcfa)} FCFA`
       : null,
     achat
       ? null
