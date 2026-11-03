@@ -6925,6 +6925,7 @@ export {
   poserMemoire,
   formeAttendue,
   lireSmsPaiement,
+  clesReference,
   sansAccents,
   montantFcfaDepuisTexte,
   expediteurAccepte,
@@ -7313,11 +7314,97 @@ function lireSmsPaiement(texte) {
   C'est le rapprochement le plus net, parce que le client la recopie
   depuis SON propre SMS : les deux références doivent coïncider. Quand
   elle manque, on retombe sur montant + numéro.
+
+  ═══════════════════════════════════════════════════════════════════════
+  CE MOTIF RENDAIT « TRANS », ET PERSONNE NE L'AVAIT VU
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ le 3 novembre sur un vrai SMS d'Orange Money Burkina :
+
+      « … ID Trans: PP261103.1638.42172960. Pour toute reclamation… »
+
+  L'ancien motif voyait « id », avalait l'espace, puis capturait les cinq
+  premières lettres venues — « trans ». La référence lue était donc la
+  chaîne constante TRANS, pour TOUS les encaissements.
+
+  Deux conséquences, et la seconde est pire que la première. Aucun achat
+  ne pouvait se rapprocher par référence, puisque le client recopie un
+  numéro et non le mot « trans ». Et tous les paiements s'écrasaient sous
+  la même clé.
+
+  Le format figé dans test-sms.mjs dit « Ref: 1234567890 », et il passe.
+  C'est tout le piège : le motif était juste sur l'exemple qu'on s'était
+  donné, et faux sur celui que l'opérateur envoie.
+
+  DEUX CORRECTIONS. L'étiquette accepte maintenant « id trans » et
+  « id transaction » AVANT « id » seul — c'est elle qui règle le cas
+  d'Orange Money. Et en filet, la capture doit CONTENIR AU MOINS UN
+  CHIFFRE : une référence d'opérateur en porte toujours, un mot de
+  liaison jamais. On essaie les candidats dans l'ordre et on garde le
+  premier qui en a.
+
+  UN SEUL CHIFFRE, ET PAS QUATRE. Le seuil avait d'abord été mis à
+  quatre, et un test a refusé : « ABC123XY » n'en porte que trois.
+  Il avait raison. Les formats de Moov et de Wave ne sont pas connus,
+  et resserrer au-delà du défaut constaté écarterait des références
+  légitimes qu'on n'a pas encore vues. Ce qu'on a vu, c'est une capture
+  sans AUCUN chiffre.
+  ═══════════════════════════════════════════════════════════════════════
   */
-  const refTrouvee = t.match(/(?:ref(?:erence)?|id|transaction)\s*[:.=n°#]*\s*([a-z0-9.\-]{5,32})/)
-  const reference = refTrouvee ? refTrouvee[1].replace(/[.\-]/g, '').toUpperCase() : ''
+  const motifRef =
+    /(?:ref(?:erence)?|id\s*trans(?:action)?|transaction|id)\s*[:.=n°#]*\s*([a-z0-9.\-]{5,32})/g
+  let reference = ''
+  for (const essai of t.matchAll(motifRef)) {
+    const brut = essai[1].replace(/[.\-]/g, '').toUpperCase()
+    // « TRANS » n'en a aucun ; toute référence d'opérateur en a.
+    if (/\d/.test(brut)) {
+      reference = brut
+      break
+    }
+  }
 
   return { montant, numero: numeroComparable(numero), reference }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES DEUX CÔTÉS N'ÉCRIVENT PAS LA MÊME RÉFÉRENCE, ET C'EST L'OPÉRATEUR
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ le 3 novembre, sur un paiement réel de 6 108 FCFA :
+
+    ce que le client a recopié   MPP261103163842172960
+    ce que le SMS du changeur dit  PP261103.1638.42172960
+
+Points retirés, c'est le MÊME identifiant à un « M » près. Orange Money
+nomme la transaction d'un préfixe selon le canal ; le payeur et le
+bénéficiaire ne lisent donc pas la même chaîne pour le même paiement.
+
+Un rapprochement strict échouait sur ce seul caractère, et aucun achat ne
+pouvait aboutir par référence.
+
+CE SONT LES CHIFFRES QUI IDENTIFIENT, PAS LES LETTRES. Dix-huit chiffres
+portent la date, l'heure et un compteur : c'est l'identité de l'opération.
+Les lettres de tête sont une convention de canal.
+
+On range donc chaque paiement sous DEUX clés — la référence complète et
+ses seuls chiffres — et on cherche dans cet ordre. Le strict d'abord,
+le tolérant ensuite.
+
+POURQUOI C'EST SANS DANGER. Trouver n'est pas accepter : le montant lu
+DANS LE SMS est recomparé juste après, et un écart refuse. La fenêtre de
+rapprochement reste la même. Tout ce que cette tolérance change, c'est
+qu'on retrouve le bon paiement au lieu de n'en retrouver aucun.
+
+Huit chiffres au minimum : en dessous, deux opérations sans rapport
+pourraient porter la même suite.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function clesReference(reference) {
+  const plein = String(reference ?? '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (!plein) return []
+  const chiffres = plein.replace(/\D/g, '')
+  return chiffres.length >= 8 && chiffres !== plein ? [plein, chiffres] : [plein]
 }
 
 /*
@@ -8402,7 +8489,12 @@ async function recevoirSms(requete, env) {
   await ecrireBrut('smsvu', 'dernier', String(Date.now()), 7 * 86400)
 
   const valeur = JSON.stringify({ ...lu, quand: Date.now() })
-  if (lu.reference) await marquerValeur('paiementref', lu.reference, valeur)
+  // Rangé sous la référence complète ET sous ses seuls chiffres : le
+  // payeur et le bénéficiaire ne lisent pas la même chaîne. Voir
+  // [clesReference].
+  for (const cle of clesReference(lu.reference)) {
+    await marquerValeur('paiementref', cle, valeur)
+  }
   if (lu.numero) await marquerValeur('paiement', `${lu.montant}-${lu.numero}`, valeur)
   if (!lu.reference && !lu.numero) {
     // Ni référence ni numéro : on ne saurait pas le retrouver. Le dire
@@ -8567,7 +8659,13 @@ async function verifierAchat(ordre, env) {
   deux doivent coïncider. Le montant et le numéro ne viennent qu'après,
   pour le client qui n'a rien recopié.
   */
-  let paiement = refClient ? await lireValeur('paiementref', refClient) : null
+  // Le strict d'abord, le tolérant ensuite — voir [clesReference]. Le
+  // montant est recomparé plus bas dans les deux cas.
+  let paiement = null
+  for (const cle of clesReference(refClient)) {
+    paiement = await lireValeur('paiementref', cle)
+    if (paiement) break
+  }
   let par = 'reference'
   if (!paiement && numero.length === 8 && fcfa > 0) {
     paiement = await lireValeur('paiement', `${fcfa}-${numero}`)
