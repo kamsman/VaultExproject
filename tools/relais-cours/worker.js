@@ -3441,24 +3441,32 @@ async function ordreChange(requete, env) {
     let envoi = await envoyerTg()
     /*
     ═══════════════════════════════════════════════════════════════════
-    LES BOUTONS SONT UN CONFORT, LE MESSAGE EST VITAL
+    L'ORNEMENT EST UN CONFORT, LE MESSAGE EST VITAL
     ═══════════════════════════════════════════════════════════════════
 
-    `copy_text` est recent dans l'API de Telegram. Si une version ne le
-    connait pas, elle rend 400 — et sans ce repli, TOUTE LA DEMANDE
+    Deux choses de ce message sont RECENTES dans l'API de Telegram : les
+    boutons `copy_text` et la balise `<blockquote>`. Une version qui n'en
+    connait pas une rend 400 — et sans repli, TOUTE LA DEMANDE
     echouerait : le changeur ne verrait rien, le client aurait paye pour
     une commande jamais arrivee.
 
-    Un bouton qui manque se remarque a peine ; une demande perdue coute
-    de l'argent et la confiance. On reessaie donc une fois sans la barre,
-    et le `<code>` du corps reste copiable comme avant.
+    Une barre verticale absente se remarque a peine ; une demande perdue
+    coute de l'argent et la confiance.
 
-    Ce repli vaut aussi pour tout ce qu'on ajoutera un jour a cette
-    barre : le message part, quoi qu'on ait voulu y mettre.
+    ─── UN SEUL REPLI, QUI RETIRE TOUT ─────────────────────────────────
+
+    On ne cherche pas LAQUELLE des deux a fache Telegram : ce serait deux
+    requetes de plus pour une information dont on ne ferait rien. Le repli
+    enleve l'ornement en bloc, et il couvre d'avance ce qu'on ajoutera un
+    jour.
+
+    Ce qui reste est exact : le gras, le `code` et le texte. Un message
+    depouille doit rester juste — c'est lui qui part chez le changeur.
     ═══════════════════════════════════════════════════════════════════
     */
-    if (!envoi.ok && corpsTg.has('reply_markup')) {
+    if (!envoi.ok) {
       corpsTg.delete('reply_markup')
+      corpsTg.set('text', sansOrnement(lignes.join('\n')))
       envoi = await envoyerTg()
     }
     if (!envoi.ok) {
@@ -3947,15 +3955,7 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
     ═══════════════════════════════════════════════════════════════════
     */
     '',
-    `\u{1F4E4} <b>TU ENVOIES</b>`,
-    achat
-      ? `Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`
-      : `Montant   : ${aCopier(francsNus(ordre.montantFcfa))} FCFA`,
-    achat
-      ? (ordre.adresse ? `Adresse   : ${aCopier(ordre.adresse)}` : null)
-      : (ordre.telephone
-          ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
-          : null),
+    blocEnvoi(achat, ordre, otp),
     '',
     achat && ordre.telephone
       ? `Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`
@@ -4357,6 +4357,55 @@ lisible : l'une se lit, l'autre se tape.
 */
 function francsNus(v) {
   return String(v ?? '').replace(/\D/g, '')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE BLOC « TU ENVOIES », DETACHE PAR UNE BARRE
+═══════════════════════════════════════════════════════════════════════════
+
+Un titre ne suffisait pas : dans un message de vingt lignes, « TU
+ENVOIES » reste une ligne parmi d'autres. `<blockquote>` trace une BARRE
+VERTICALE a gauche du bloc — le seul relief que Telegram offre, puisqu'il
+n'a pas de texte colore.
+
+Et c'est du relief qui ne coute aucune couleur : le vert et le rouge
+restent les seuls signaux colores du message, et ils gardent leur sens
+unique — payer, ou ne pas payer.
+
+─── IL RETOURNE UNE SEULE CHAINE, AVEC SES RETOURS ──────────────────────
+
+La balise doit ouvrir avant la premiere ligne et fermer apres la
+derniere. Dans un tableau de lignes dont certaines valent `null` — pas
+d'adresse, pas de telephone — savoir laquelle est « la derniere » se
+calcule a chaque fois et se trompe le jour ou l'on en ajoute une.
+
+Le bloc se construit donc a part, et le tableau n'en voit qu'un element.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function blocEnvoi(achat, ordre, otp) {
+  const lignes = [`\u{1F4E4} <b>TU ENVOIES</b>`]
+  if (achat) {
+    lignes.push(`Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`)
+    if (ordre.adresse) lignes.push(`Adresse   : ${aCopier(ordre.adresse)}`)
+  } else {
+    lignes.push(`Montant   : ${aCopier(francsNus(ordre.montantFcfa))} FCFA`)
+    if (ordre.telephone) {
+      lignes.push(`Telephone : ${aCopier(ordre.telephone)}${echapper(marqueOtp(otp))}`)
+    }
+  }
+  return `<blockquote>${lignes.join('\n')}</blockquote>`
+}
+
+/*
+RETIRER L'ORNEMENT, SANS TOUCHER AU FOND.
+
+Seules les balises de DECOR partent. Le gras, le `code` et le texte
+restent : ce sont eux qui portent l'information, et un message depouille
+doit rester exact.
+*/
+function sansOrnement(texte) {
+  return String(texte).replace(/<\/?blockquote[^>]*>/g, '')
 }
 
 /** Un montant lisible : assez de décimales pour être exact, pas plus. */
