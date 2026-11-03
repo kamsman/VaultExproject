@@ -40,12 +40,36 @@ object Relais {
      * Ce qu'il advient d'un envoi.
      *
      * @param reessayer vrai seulement quand une nouvelle tentative a du
-     *   sens — c'est-à-dire pour une panne de réseau, et rien d'autre.
+     *   sens TOUT DE SUITE — c'est-à-dire pour une panne de réseau.
+     * @param garder vrai quand l'envoi ne peut pas aboutir MAINTENANT mais
+     *   aboutira une fois qu'un humain aura corrigé quelque chose.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * « NE PAS REJOUER » ET « JETER » NE SONT PAS LA MÊME CHOSE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Un seul drapeau les confondait, et ça s'est vu le 3 novembre : dix
+     * encaissements en attente, un jeton mal recopié, et le journal
+     * affiche dix fois « jeton refuse par le relais ». Les dix SMS ont
+     * été JETÉS — définitivement, alors que corriger le jeton les aurait
+     * tous fait passer.
+     *
+     * Trois cas, et non deux :
+     *
+     *   réseau mort        on rejoue plus tard, tout seul
+     *   jeton refusé       on GARDE, et on attend qu'un humain corrige
+     *   format non reconnu on jette : rien ne le fera reconnaître
+     *
+     * Le deuxième était traité comme le troisième. C'est le pire des
+     * deux : la donnée est perdue au moment précis où la réparation est
+     * la plus simple — une ligne à recopier.
+     * ═══════════════════════════════════════════════════════════════════
      */
     data class Issue(
         val ok: Boolean,
         val message: String,
-        val reessayer: Boolean
+        val reessayer: Boolean,
+        val garder: Boolean = false
     )
 
     /*
@@ -157,8 +181,21 @@ object Relais {
 
             when {
                 code in 200..299 -> Issue(true, resume(reponse), reessayer = false)
-                code == 401 -> Issue(false, "jeton refuse par le relais", reessayer = false)
-                code == 503 -> Issue(false, "CHANGE_SMS_TOKEN absent du Worker", reessayer = false)
+                /*
+                LES DEUX REFUS QUI SE RÉPARENT À LA MAIN.
+
+                401 : le jeton de cet écran ne correspond pas à
+                CHANGE_SMS_TOKEN dans Cloudflare. 503 : la variable n'est
+                pas posée du tout.
+
+                Dans les deux cas l'encaissement est VALIDE et partira
+                sans rien changer d'autre, dès que la ligne sera
+                corrigée. On le garde, et on cesse d'essayer.
+                */
+                code == 401 ->
+                    Issue(false, "jeton refuse par le relais", reessayer = false, garder = true)
+                code == 503 ->
+                    Issue(false, "CHANGE_SMS_TOKEN absent du Worker", reessayer = false, garder = true)
                 else -> Issue(false, "refus $code : ${raison(reponse)}", reessayer = false)
             }
         } catch (e: Exception) {
@@ -221,20 +258,37 @@ object Relais {
         val restants = mutableListOf<Reglages.EnAttente>()
         var reseauMort = false
 
+        var bloque: String? = null
+
         for (e in file) {
-            if (reseauMort) {
+            /*
+            UN SEUL ÉCHEC ARRÊTE LA SÉRIE, ET IL NE S'ÉCRIT QU'UNE FOIS.
+
+            Dix lignes identiques dans un journal qui en garde soixante,
+            c'est tout le reste effacé — y compris l'expéditeur écarté
+            qu'on était venu y chercher. Le premier refus dit la cause ;
+            les neuf suivants ne disent rien de plus.
+            */
+            if (reseauMort || bloque != null) {
                 restants.add(e)
                 continue
             }
             val issue = envoyer(reglages, e.expediteur, e.texte)
-            if (issue.ok) {
-                reglages.journaliser("✓ (file) ${issue.message}")
-            } else if (issue.reessayer) {
-                restants.add(e)
-                reseauMort = true
-            } else {
-                reglages.journaliser("✗ (file) ${issue.message}")
+            when {
+                issue.ok -> reglages.journaliser("✓ (file) ${issue.message}")
+                issue.reessayer -> {
+                    restants.add(e)
+                    reseauMort = true
+                }
+                issue.garder -> {
+                    restants.add(e)
+                    bloque = issue.message
+                }
+                else -> reglages.journaliser("✗ (file) ${issue.message}")
             }
+        }
+        if (bloque != null) {
+            reglages.journaliser("⏸ ${restants.size} en attente — $bloque")
         }
         reglages.ecrireFile(restants)
     }
