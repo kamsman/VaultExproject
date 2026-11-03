@@ -205,6 +205,20 @@ class EcranPrincipal : Activity() {
         if (reglages.actif && reglages.configure) {
             Thread { Relais.rejouerFile(reglages) }.start()
         }
+
+        /*
+        LA VEILLE DEMARRE A CHAQUE OUVERTURE, ET C'EST ICI QU'ELLE REPART.
+
+        Une application forcee a l'arret ne recoit RIEN tant que personne
+        ne la rouvre : ni diffusion, ni service, ni rattrapage. Ce moment
+        precis — quelqu'un vient de l'ouvrir — est donc le seul ou l'on
+        puisse reprendre la main apres un arret.
+
+        [ServiceVeille] balaie immediatement au demarrage : le SMS manque
+        pendant l'arret est repeche dans la seconde qui suit cette
+        ouverture, au lieu d'etre perdu.
+        */
+        if (reglages.configure) ServiceVeille.demarrer(this)
     }
 
     private fun enregistrer() {
@@ -379,10 +393,36 @@ class EcranPrincipal : Activity() {
     private fun aLaPermission(): Boolean =
         checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DEUX PERMISSIONS, ET ELLES NE SERVENT PAS A LA MEME CHOSE
+    ═══════════════════════════════════════════════════════════════════
+
+    RECEIVE_SMS est INDISPENSABLE : sans elle, le robot n'entend rien et
+    plus aucun achat n'est verifie. [aLaPermission] ne regarde donc
+    qu'elle, et l'ecran crie quand elle manque.
+
+    READ_SMS n'est qu'un FILET : le rattrapage des messages manques. Sans
+    elle, le robot fonctionne exactement comme avant — c'est-a-dire bien,
+    tant que la diffusion passe. On la demande, on ne l'exige pas, et un
+    refus ne doit pas donner l'impression que tout est casse.
+
+    POST_NOTIFICATIONS (Android 13+) ne conditionne pas le service : il
+    tourne sans. Elle conditionne la NOTIFICATION, donc la seule facon
+    pour le changeur de voir que le robot vit sans ouvrir l'application.
+    ═══════════════════════════════════════════════════════════════════
+    */
     private fun demanderPermission() {
-        if (!aLaPermission()) {
-            requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), 1)
+        val manquantes = mutableListOf<String>()
+        if (!aLaPermission()) manquantes += Manifest.permission.RECEIVE_SMS
+        if (!BalayageSms.permissionLecture(this)) manquantes += Manifest.permission.READ_SMS
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission("android.permission.POST_NOTIFICATIONS") !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            manquantes += "android.permission.POST_NOTIFICATIONS"
         }
+        if (manquantes.isNotEmpty()) requestPermissions(manquantes.toTypedArray(), 1)
     }
 
     override fun onRequestPermissionsResult(

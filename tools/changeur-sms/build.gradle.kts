@@ -155,8 +155,22 @@ android {
         sur un téléphone.
         */
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        /*
+        VERSION 2 — LA VEILLE ET LE RATTRAPAGE.
+
+        Le numero monte parce qu'il sert a repondre a « laquelle est
+        installee chez Abdoul ». Avec deux APK portant versionCode 1, la
+        question n'a pas de reponse, et c'est le genre de doute qui coute
+        une heure quand une panne apparait.
+
+        L'INSTALLATION SE FAIT PAR-DESSUS, et les reglages sont conserves
+        — a une condition : que l'APK soit signe par la MEME cle. Ici
+        c'est la cle de DEBOGAGE de la machine qui compile (voir plus bas,
+        signingConfig). Construit sur un autre poste, Android refusera la
+        mise a jour, et il faudrait desinstaller — donc ressaisir le jeton.
+        */
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {

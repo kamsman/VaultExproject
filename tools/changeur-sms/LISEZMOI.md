@@ -294,3 +294,80 @@ Change `CHANGE_SMS_TOKEN` dans Cloudflare et redéploie. L'ancien jeton
 devient inutile immédiatement, partout. C'est la seule protection qui
 compte : un chiffrement local du jeton, avec une clé posée dans le même
 appareil, ne protégerait de rien.
+
+## La veille et le rattrapage — version 1.1
+
+### Ce que c'était, et pourquoi ça ne suffisait pas
+
+Le robot n'avait qu'un seul chemin : la diffusion `SMS_RECEIVED`, au moment
+où le message arrive. `READ_SMS` était refusé exprès, et l'argument était
+bon — cette permission donne accès à toute la boîte de réception.
+
+Le prix de ce refus n'était pas écrit : **un SMS manqué était manqué pour
+toujours.** Le robot n'avait aucun moyen de le relire.
+
+**Constaté le 3 novembre 2026.** L'application avait été « forcée à
+l'arrêt » — Android ne délivre alors aucune diffusion tant que personne ne
+la rouvre. Un encaissement de 6 108 FCFA arrive à 16:38, l'application est
+rouverte à 16:52. Le SMS était perdu, et l'achat refusé alors que le client
+avait payé.
+
+### Les trois niveaux, maintenant
+
+1. **Le SMS arrive** → transmis en une seconde, par la diffusion. Inchangé,
+   c'est le chemin normal et le plus rapide.
+2. **La diffusion est manquée** → `BalayageSms` relit les SMS toutes les
+   quinze minutes, et **immédiatement à chaque ouverture de l'application**.
+   C'est ce second point qui répare le cas du 3 novembre.
+3. **Le robot est vraiment arrêté** → la notification permanente disparaît
+   du téléphone du changeur, et le tableau Telegram passe à 🟠 après six
+   heures.
+
+Avant, seul le niveau 3 existait, et il mettait six heures à parler.
+
+### Ce que le rattrapage s'interdit
+
+La permission donne plus que ce qu'on en fait : c'est désormais **le code**
+qui limite, plus le système. Quatre règles, toutes vérifiables en lisant
+`BalayageSms.kt` :
+
+- il ne lit que les **expéditeurs de la liste** du changeur, avec le même
+  `expediteurAccepte` que la diffusion ;
+- il ne remonte **jamais au-delà de vingt-quatre heures** — la fenêtre de
+  rapprochement du relais est de trois heures, relire un mois d'historique
+  ne récupérerait aucun achat ;
+- il ne transmet ni ne journalise **jamais le texte** d'un expéditeur
+  écarté ;
+- il traite **vingt messages au maximum** par passage.
+
+Si ces quatre règles cessent d'être vraies, l'argument de vie privée tombe
+pour de bon. C'est une promesse qui ne tient que par relecture.
+
+### Ce qu'il ne répare PAS
+
+**Pendant** qu'une application est forcée à l'arrêt, Android ne lui donne
+rien : ni diffusion, ni service, ni balayage. Aucun code ne contourne ça.
+
+Ce qui change, c'est la **reprise** : rouvrir l'application repêche tout ce
+qui a été manqué. Avant, rouvrir ne récupérait rien.
+
+### L'installation chez le changeur
+
+C'est la **même application**, en version 2 — pas une seconde appli. Elle
+s'installe par-dessus et les réglages sont conservés : relais, jeton,
+expéditeurs. Rien à ressaisir.
+
+**À UNE CONDITION : construire sur la MÊME machine que la fois précédente.**
+L'APK est signé avec la clé de débogage du poste qui compile
+(`~/.android/debug.keystore`). Depuis un autre poste, Android refuse la mise
+à jour — il faudrait désinstaller, et le jeton serait perdu.
+
+Ce que le changeur verra, une seule fois :
+
+1. L'installation par-dessus l'ancienne
+2. Une demande de permission SMS — **Autoriser**
+3. Une notification permanente : « Actif · dernier encaissement il y a 4 min »
+
+Puis plus jamais rien. S'il refuse la lecture des SMS, le robot fonctionne
+comme avant la 1.1 : la diffusion suffit tant qu'elle passe. La notification
+le dit alors en toutes lettres — « Rattrapage inactif ».
