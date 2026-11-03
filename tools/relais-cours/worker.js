@@ -3362,20 +3362,103 @@ async function ordreChange(requete, env) {
       text: lignes.join('\n'),
       parse_mode: 'HTML',
     })
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DES BOUTONS QUI COPIENT, PARCE QU'UN APPUI LONG SE RATE
+    ═══════════════════════════════════════════════════════════════════
+
+    Le `<code>` du corps se copie deja — en appuyant longtemps, puis en
+    choisissant « Copier » dans un menu. Ca marche, et c'est exactement
+    le genre de geste qu'on rate a la trentieme demande d'un soir, le
+    telephone dans une main.
+
+    `copy_text` met la valeur dans un bouton : un appui, c'est copie.
+
+    ─── DEUX BOUTONS, ET PAS UN DE PLUS ────────────────────────────────
+
+    Ceux que le changeur REPORTE, et ils changent avec le sens :
+
+      ACHAT  la quantite de crypto et l'adresse — ce qu'il tape dans son
+             portefeuille.
+      VENTE  les francs et le numero — ce qu'il tape dans Orange Money.
+
+    Mettre tout le message en boutons rendrait la barre illisible et
+    ferait chercher le bon parmi six. Deux se visent sans regarder.
+
+    ─── LES FRANCS PARTENT SANS LEURS ESPACES ──────────────────────────
+
+    « 6 108 » s'affiche bien et se colle mal : Orange Money veut des
+    chiffres. Le bouton porte donc « 6108 », pendant que la ligne du
+    message garde sa forme lisible. C'est tout l'interet d'avoir separe
+    les deux.
+    ═══════════════════════════════════════════════════════════════════
+    */
     const lien = verif && verif.explorateur ? String(verif.explorateur) : ''
-    if (lien.startsWith('https://')) {
-      corpsTg.set(
-        'reply_markup',
-        JSON.stringify({
-          inline_keyboard: [[{ text: '\u{1F50E} Voir la transaction', url: lien }]],
+    const rangees = []
+    const copies = []
+    if (achat) {
+      if (ordre.montantCrypto) {
+        copies.push({
+          text: '\u{1F4CB} Montant',
+          copy_text: { text: String(ordre.montantCrypto).slice(0, 256) },
         })
-      )
+      }
+      if (ordre.adresse) {
+        copies.push({
+          text: '\u{1F4CB} Adresse',
+          copy_text: { text: String(ordre.adresse).slice(0, 256) },
+        })
+      }
+    } else {
+      const francs = String(ordre.montantFcfa ?? '').replace(/\D/g, '')
+      if (francs) {
+        copies.push({ text: '\u{1F4CB} Montant', copy_text: { text: francs } })
+      }
+      if (ordre.telephone) {
+        copies.push({
+          text: '\u{1F4CB} Numero',
+          copy_text: { text: String(ordre.telephone).slice(0, 256) },
+        })
+      }
     }
-    const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: corpsTg.toString(),
-    })
+    if (copies.length) rangees.push(copies)
+    if (lien.startsWith('https://')) {
+      rangees.push([{ text: '\u{1F50E} Voir la transaction', url: lien }])
+    }
+    if (rangees.length) {
+      corpsTg.set('reply_markup', JSON.stringify({ inline_keyboard: rangees }))
+    }
+
+    const envoyerTg = () =>
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: corpsTg.toString(),
+      })
+
+    let envoi = await envoyerTg()
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LES BOUTONS SONT UN CONFORT, LE MESSAGE EST VITAL
+    ═══════════════════════════════════════════════════════════════════
+
+    `copy_text` est recent dans l'API de Telegram. Si une version ne le
+    connait pas, elle rend 400 — et sans ce repli, TOUTE LA DEMANDE
+    echouerait : le changeur ne verrait rien, le client aurait paye pour
+    une commande jamais arrivee.
+
+    Un bouton qui manque se remarque a peine ; une demande perdue coute
+    de l'argent et la confiance. On reessaie donc une fois sans la barre,
+    et le `<code>` du corps reste copiable comme avant.
+
+    Ce repli vaut aussi pour tout ce qu'on ajoutera un jour a cette
+    barre : le message part, quoi qu'on ait voulu y mettre.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (!envoi.ok && corpsTg.has('reply_markup')) {
+      corpsTg.delete('reply_markup')
+      envoi = await envoyerTg()
+    }
     if (!envoi.ok) {
       /*
       ON REND LA RAISON DE TELEGRAM, PAS LA NOTRE.
@@ -3760,12 +3843,34 @@ function messageOrdre(ordre, verif, coherence, otp, silenceSms = null, silenceVi
     reporte ailleurs — dans un portefeuille, dans Orange Money, dans un
     releve. Ce sont celles qui doivent se copier d'un appui.
 
-    Le montant, le taux et la marge se LISENT. Les rendre copiables ne
-    servirait a rien et banaliserait la marque : si tout est en `code`,
-    plus rien ne signale ce qui se copie.
+    Le taux et la marge se LISENT. Les rendre copiables ne servirait a
+    rien et banaliserait la marque : si tout est en `code`, plus rien ne
+    signale ce qui se copie.
+
+    ─── LE MONTANT, LUI, DEPEND DU SENS ────────────────────────────────
+
+    Ce commentaire mettait « le montant » avec le taux et la marge. C'est
+    vrai d'UN des deux montants seulement, et l'erreur vient de les avoir
+    nommes pareil.
+
+      ACHAT  le changeur ENVOIE de la crypto. « 10,013114 » se tape dans
+             un portefeuille. Les FCFA, eux, se lisent : ils disent ce que
+             le client a deja paye.
+
+      VENTE  l'inverse. Les FCFA se tapent dans Orange Money, et la
+             quantite de crypto se lit.
+
+    Le critere du commentaire — « ce qui se reporte ailleurs » — etait
+    bon ; il n'avait pas ete applique a la ligne qui en avait le plus
+    besoin. Recopier « 10,013114 » a la main, c'est la faute de frappe
+    qui coute de l'argent.
     */
-    `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`,
-    `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
+    achat
+      ? `Montant   : <b>${echapper(ordre.montantFcfa)} FCFA</b>`
+      : `Montant   : <b>${aCopier(ordre.montantFcfa)} FCFA</b>`,
+    achat
+      ? `Crypto    : ${aCopier(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`
+      : `Crypto    : ${echapper(ordre.montantCrypto)} ${echapper(ordre.monnaie)}`,
     /*
     ═══════════════════════════════════════════════════════════════════
     UN TAUX SANS UNITE NE DIT RIEN
