@@ -1,19 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
 ═══════════════════════════════════════════════════════════════════════════
-UNE SEULE PERMISSION, ET PAS CELLE QU'ON ATTENDAIT
+READ_SMS A ETE REFUSE PENDANT DES MOIS, ET CE REFUS A COUTE UN PAIEMENT
 ═══════════════════════════════════════════════════════════════════════════
 
-RECEIVE_SMS suffit, et READ_SMS est volontairement ABSENT.
+Ce commentaire disait : « RECEIVE_SMS suffit, et READ_SMS est
+volontairement ABSENT ». L'argument etait bon et il reste vrai — READ_SMS
+donne acces a TOUTE la boite de reception, l'historique entier, les
+messages des proches, les codes de connexion des autres services.
 
-La différence compte. READ_SMS donne accès à toute la boîte de réception —
-l'historique entier, les messages des proches, les codes de connexion des
-autres services. RECEIVE_SMS ne donne que les messages QUI ARRIVENT,
-pendant qu'ils arrivent, et c'est tout ce dont ce robot a besoin : le
-corps du SMS est dans l'intention elle-même.
+Ce qu'il ne disait pas, c'est son prix.
 
-Ma première intention était de demander les deux, par habitude. Il n'y a
-aucune raison : rien ici ne relit un ancien message.
+RECEIVE_SMS ne donne que les messages pendant qu'ils arrivent. Un message
+manque est donc manque POUR TOUJOURS : le robot n'a aucun moyen de le
+relire. Tant que la diffusion passe, c'est parfait. Le jour ou elle ne
+passe pas, il n'y a pas de seconde chance.
+
+MESURE LE 3 NOVEMBRE 2026. L'application avait ete « forcee a l'arret » —
+Android ne delivre alors aucune diffusion tant que personne ne la rouvre.
+Un encaissement de 6 108 FCFA arrive a 16:38, l'application est rouverte a
+16:52. Le SMS est perdu, et l'achat refuse alors que le client avait paye.
+
+LE CHOIX A DONC ETE INVERSE, EN CONNAISSANCE DE CAUSE. La permission
+donne plus que ce qu'on en fait, et c'est desormais LE CODE qui limite,
+plus le systeme. BalayageSms.kt porte ces limites et elles se verifient
+en le lisant : seuls les expediteurs de la liste, jamais au-dela de
+vingt-quatre heures, jamais le texte d'un expediteur ecarte.
+
+Si ces limites cessent d'etre vraies, l'argument de vie privee tombe pour
+de bon. C'est le genre de promesse qui ne tient que par relecture.
 
 ═══════════════════════════════════════════════════════════════════════════
 LE RECEVEUR EXIGE BROADCAST_SMS, ET CE N'EST PAS DÉCORATIF
@@ -35,7 +50,12 @@ C'est le genre de ligne dont l'absence ne se voit jamais en testant.
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="VaultEx Changeur"
@@ -59,6 +79,34 @@ C'est le genre de ligne dont l'absence ne se voit jamais en testant.
             android:permission="android.permission.BROADCAST_SMS">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+        LA VEILLE : notification permanente et rattrapage periodique.
+
+        `dataSync` decrit ce qu'elle fait — synchroniser des messages avec
+        un serveur. A partir d'Android 14 un type absent ou faux fait
+        REFUSER le demarrage par le systeme, et l'application s'arrete :
+        exactement la panne qu'on repare.
+
+        `exported="false"` : rien d'exterieur n'a a la demarrer.
+        -->
+        <service
+            android:name=".ServiceVeille"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+        Le redemarrage du telephone relance la veille. La diffusion
+        SMS_RECEIVED, elle, repart seule — c'est le rattrapage et la
+        notification qui ont besoin de ce receveur.
+        -->
+        <receiver
+            android:name=".RecepteurDemarrage"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 

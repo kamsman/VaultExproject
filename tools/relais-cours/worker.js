@@ -422,6 +422,97 @@ qui aboutit compte plus que son affichage. Tous les appels sont donc
 avalés en silence, et le pire qui puisse arriver est un chiffre en retard.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ALERTE DE SILENCE — PRÉVENIR VITE, MAIS UNE SEULE FOIS
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI ELLE EXISTE. Le téléphone du changeur se décharge, s'éteint, ou
+l'application est forcée à l'arrêt. L'encaissement d'un client arrive alors
+dans le vide.
+
+Le rattrapage du robot (version 1.1) repêche le SMS au rallumage — mais la
+fenêtre de rapprochement du relais est de TROIS HEURES. Au-delà, le SMS
+arrive et le paiement est refusé quand même : « encaissement trop ancien ».
+Le rattrapage sauve une coupure courte, pas une nuit entière.
+
+Donc ce qui compte vraiment, c'est d'être prévenu AVANT que des clients
+paient dans le vide. Le tableau de bord ne le dit que tous les trois
+jours : largement trop tard.
+
+─── POURQUOI ON NE PRÉVIENT QU'AU CHANGEMENT ───────────────────────────
+
+Une alerte horaire répétée pendant deux jours est une alerte qu'on cesse
+de lire, et c'est pire que pas d'alerte du tout : le jour où elle compte,
+elle ressemble aux cinquante précédentes.
+
+On ne parle donc QUE quand l'état bascule. Silencieux → une alerte.
+Revenu → un message de reprise, qui vaut autant : il dit que c'est réglé,
+et évite d'aller vérifier un téléphone qui marche.
+
+Entre les deux, rien. Le cron tourne toutes les heures et se tait.
+
+─── CE QU'ON NE SIGNALE PAS, ET POURQUOI ────────────────────────────────
+
+« jamais vu » n'est pas une panne : c'est une installation neuve, ou un
+changeur qui n'a pas encore reçu son premier encaissement. Alerter
+là-dessus ferait sonner le canal avant le premier client.
+
+« non attendu » non plus — `CHANGE_SMS_TOKEN` n'est pas posée, donc aucun
+robot n'est censé parler.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function surveillerRobot(env) {
+  const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
+  const chat = env?.TG_ADMIN_CHAT
+  if (!token || !chat) return
+
+  const vie = await silenceRobotVivant(env)
+  // Ni robot attendu, ni premier SMS : rien à surveiller.
+  if (vie === null || !Number.isFinite(vie)) return
+
+  const etat = vie > SILENCE_SMS_MS ? 'silencieux' : 'vivant'
+  const connu = await lireBrut('robotetat', 'dernier')
+  if (connu === etat) return
+
+  /*
+  LE PREMIER PASSAGE NE PARLE PAS.
+
+  Sans mémoire, le déploiement de cette fonction enverrait une alerte sur
+  un robot parfaitement sain, simplement parce qu'on ne savait rien de
+  lui. On enregistre l'état et on attend le prochain basculement.
+  */
+  await ecrireBrut('robotetat', 'dernier', etat, 30 * 86400)
+  if (connu === null) return
+
+  const texte = etat === 'silencieux'
+    ? [
+        '\u{1F7E0} Robot SMS silencieux ' + depuisQuand(vie),
+        '',
+        "Le telephone du changeur est peut-etre eteint, decharge, ou",
+        "l'application forcee a l'arret.",
+        '',
+        "CE QUI SE PASSE PENDANT CE TEMPS : un client qui paie n'est pas",
+        'verifie. Le robot repechera son SMS au rallumage, mais au-dela de',
+        '3 h le relais le refusera — « encaissement trop ancien ».',
+        '',
+        "A FAIRE : rallumer le telephone et rouvrir l'application du robot.",
+      ].join('\n')
+    : [
+        '\u{1F7E2} Robot SMS de nouveau vivant',
+        '',
+        'Dernier encaissement entendu ' + depuisQuand(vie) + '.',
+        'Les SMS recus pendant la coupure ont pu etre repeches, dans la',
+        'limite des 3 h de la fenetre de rapprochement.',
+      ].join('\n')
+
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ chat_id: String(chat), text: texte }).toString(),
+  })
+}
+
 async function majTableau(env) {
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -546,7 +637,36 @@ export default {
   */
   async scheduled(evenement, env, ctx) {
     poserMemoire(env)
-    ctx.waitUntil(majTableau(env).catch(() => {}))
+    /*
+    DEUX HORAIRES, DEUX TRAVAUX, ET ILS NE SE CONFONDENT PAS.
+
+    Le tableau de bord est une LECTURE : des totaux qu'on consulte quand on
+    veut. Tous les trois jours suffit, et c'est ce qui a été demandé — un
+    canal lisible.
+
+    L'alerte de silence est un ÉVÉNEMENT : quelque chose vient de casser,
+    et chaque heure qui passe est un client qui peut payer dans le vide.
+    Elle a donc son propre horaire, bien plus serré.
+
+    Les mettre au même rythme obligerait à choisir entre un canal bruyant
+    et une alerte qui arrive trois jours trop tard. On ne choisit pas : la
+    surveillance se tait tant que rien ne change, donc sa fréquence ne
+    coûte rien en bruit.
+
+    L'horaire exact vient de wrangler.toml. On reconnaît lequel a
+    déclenché par `evenement.cron` — et si Cloudflare n'en donne pas, on
+    fait les deux : se taire par prudence serait rater l'alerte.
+    */
+    const quotidien = String(evenement?.cron ?? '')
+    const estTableau = quotidien.includes('*/3')
+    const estSurveillance = quotidien.startsWith('17 ')
+
+    if (estTableau || (!estTableau && !estSurveillance)) {
+      ctx.waitUntil(majTableau(env).catch(() => {}))
+    }
+    if (estSurveillance || (!estTableau && !estSurveillance)) {
+      ctx.waitUntil(surveillerRobot(env).catch(() => {}))
+    }
   },
 
   async fetch(requete, env) {
@@ -6925,6 +7045,7 @@ export {
   poserMemoire,
   formeAttendue,
   lireSmsPaiement,
+  clesReference,
   sansAccents,
   montantFcfaDepuisTexte,
   expediteurAccepte,
@@ -7313,11 +7434,97 @@ function lireSmsPaiement(texte) {
   C'est le rapprochement le plus net, parce que le client la recopie
   depuis SON propre SMS : les deux références doivent coïncider. Quand
   elle manque, on retombe sur montant + numéro.
+
+  ═══════════════════════════════════════════════════════════════════════
+  CE MOTIF RENDAIT « TRANS », ET PERSONNE NE L'AVAIT VU
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ le 3 novembre sur un vrai SMS d'Orange Money Burkina :
+
+      « … ID Trans: PP261103.1638.42172960. Pour toute reclamation… »
+
+  L'ancien motif voyait « id », avalait l'espace, puis capturait les cinq
+  premières lettres venues — « trans ». La référence lue était donc la
+  chaîne constante TRANS, pour TOUS les encaissements.
+
+  Deux conséquences, et la seconde est pire que la première. Aucun achat
+  ne pouvait se rapprocher par référence, puisque le client recopie un
+  numéro et non le mot « trans ». Et tous les paiements s'écrasaient sous
+  la même clé.
+
+  Le format figé dans test-sms.mjs dit « Ref: 1234567890 », et il passe.
+  C'est tout le piège : le motif était juste sur l'exemple qu'on s'était
+  donné, et faux sur celui que l'opérateur envoie.
+
+  DEUX CORRECTIONS. L'étiquette accepte maintenant « id trans » et
+  « id transaction » AVANT « id » seul — c'est elle qui règle le cas
+  d'Orange Money. Et en filet, la capture doit CONTENIR AU MOINS UN
+  CHIFFRE : une référence d'opérateur en porte toujours, un mot de
+  liaison jamais. On essaie les candidats dans l'ordre et on garde le
+  premier qui en a.
+
+  UN SEUL CHIFFRE, ET PAS QUATRE. Le seuil avait d'abord été mis à
+  quatre, et un test a refusé : « ABC123XY » n'en porte que trois.
+  Il avait raison. Les formats de Moov et de Wave ne sont pas connus,
+  et resserrer au-delà du défaut constaté écarterait des références
+  légitimes qu'on n'a pas encore vues. Ce qu'on a vu, c'est une capture
+  sans AUCUN chiffre.
+  ═══════════════════════════════════════════════════════════════════════
   */
-  const refTrouvee = t.match(/(?:ref(?:erence)?|id|transaction)\s*[:.=n°#]*\s*([a-z0-9.\-]{5,32})/)
-  const reference = refTrouvee ? refTrouvee[1].replace(/[.\-]/g, '').toUpperCase() : ''
+  const motifRef =
+    /(?:ref(?:erence)?|id\s*trans(?:action)?|transaction|id)\s*[:.=n°#]*\s*([a-z0-9.\-]{5,32})/g
+  let reference = ''
+  for (const essai of t.matchAll(motifRef)) {
+    const brut = essai[1].replace(/[.\-]/g, '').toUpperCase()
+    // « TRANS » n'en a aucun ; toute référence d'opérateur en a.
+    if (/\d/.test(brut)) {
+      reference = brut
+      break
+    }
+  }
 
   return { montant, numero: numeroComparable(numero), reference }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES DEUX CÔTÉS N'ÉCRIVENT PAS LA MÊME RÉFÉRENCE, ET C'EST L'OPÉRATEUR
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ le 3 novembre, sur un paiement réel de 6 108 FCFA :
+
+    ce que le client a recopié   MPP261103163842172960
+    ce que le SMS du changeur dit  PP261103.1638.42172960
+
+Points retirés, c'est le MÊME identifiant à un « M » près. Orange Money
+nomme la transaction d'un préfixe selon le canal ; le payeur et le
+bénéficiaire ne lisent donc pas la même chaîne pour le même paiement.
+
+Un rapprochement strict échouait sur ce seul caractère, et aucun achat ne
+pouvait aboutir par référence.
+
+CE SONT LES CHIFFRES QUI IDENTIFIENT, PAS LES LETTRES. Dix-huit chiffres
+portent la date, l'heure et un compteur : c'est l'identité de l'opération.
+Les lettres de tête sont une convention de canal.
+
+On range donc chaque paiement sous DEUX clés — la référence complète et
+ses seuls chiffres — et on cherche dans cet ordre. Le strict d'abord,
+le tolérant ensuite.
+
+POURQUOI C'EST SANS DANGER. Trouver n'est pas accepter : le montant lu
+DANS LE SMS est recomparé juste après, et un écart refuse. La fenêtre de
+rapprochement reste la même. Tout ce que cette tolérance change, c'est
+qu'on retrouve le bon paiement au lieu de n'en retrouver aucun.
+
+Huit chiffres au minimum : en dessous, deux opérations sans rapport
+pourraient porter la même suite.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function clesReference(reference) {
+  const plein = String(reference ?? '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (!plein) return []
+  const chiffres = plein.replace(/\D/g, '')
+  return chiffres.length >= 8 && chiffres !== plein ? [plein, chiffres] : [plein]
 }
 
 /*
@@ -8402,7 +8609,12 @@ async function recevoirSms(requete, env) {
   await ecrireBrut('smsvu', 'dernier', String(Date.now()), 7 * 86400)
 
   const valeur = JSON.stringify({ ...lu, quand: Date.now() })
-  if (lu.reference) await marquerValeur('paiementref', lu.reference, valeur)
+  // Rangé sous la référence complète ET sous ses seuls chiffres : le
+  // payeur et le bénéficiaire ne lisent pas la même chaîne. Voir
+  // [clesReference].
+  for (const cle of clesReference(lu.reference)) {
+    await marquerValeur('paiementref', cle, valeur)
+  }
   if (lu.numero) await marquerValeur('paiement', `${lu.montant}-${lu.numero}`, valeur)
   if (!lu.reference && !lu.numero) {
     // Ni référence ni numéro : on ne saurait pas le retrouver. Le dire
@@ -8567,7 +8779,13 @@ async function verifierAchat(ordre, env) {
   deux doivent coïncider. Le montant et le numéro ne viennent qu'après,
   pour le client qui n'a rien recopié.
   */
-  let paiement = refClient ? await lireValeur('paiementref', refClient) : null
+  // Le strict d'abord, le tolérant ensuite — voir [clesReference]. Le
+  // montant est recomparé plus bas dans les deux cas.
+  let paiement = null
+  for (const cle of clesReference(refClient)) {
+    paiement = await lireValeur('paiementref', cle)
+    if (paiement) break
+  }
   let par = 'reference'
   if (!paiement && numero.length === 8 && fcfa > 0) {
     paiement = await lireValeur('paiement', `${fcfa}-${numero}`)
@@ -8575,11 +8793,35 @@ async function verifierAchat(ordre, env) {
   }
 
   if (!paiement) {
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DIRE TOUT CE QU'ON A CHERCHÉ, PAS SEULEMENT LA PREMIÈRE PISTE
+    ═══════════════════════════════════════════════════════════════════
+
+    Ce message ne nommait que la référence dès qu'il y en avait une. Le
+    changeur lisait « aucun SMS ne porte la reference MPP2611… » et
+    partait vérifier la référence — alors que le rapprochement par
+    MONTANT ET NUMÉRO avait échoué lui aussi, et pour la même cause : il
+    n'y avait aucun SMS du tout.
+
+    VU LE 3 NOVEMBRE. Le robot n'avait rien transmis depuis trois jours,
+    et le message a envoyé chercher un problème de référence. Une heure
+    perdue sur la mauvaise piste, à cause d'une phrase qui ne disait
+    qu'une moitié de ce qu'elle savait.
+
+    Un diagnostic qui tait la moitié de sa recherche n'oriente pas, il
+    égare. Les deux pistes sont donc nommées, et dans l'ordre où elles
+    ont été suivies.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    const pistes = []
+    if (refClient) pistes.push(`la reference ${refClient}`)
+    if (numero.length === 8 && fcfa > 0) pistes.push(`${fcfa} FCFA depuis le ${numero}`)
     return {
       etat: 'absent',
-      raison: refClient
-        ? `aucun SMS d'encaissement ne porte la reference ${refClient}`
-        : `aucun encaissement de ${fcfa} FCFA depuis le ${numero || 'numero du client'}`,
+      raison: pistes.length
+        ? `aucun SMS d'encaissement ne correspond — cherche par ${pistes.join(', puis par ')}`
+        : `aucun encaissement de ${fcfa} FCFA (ni reference ni numero utilisable)`,
     }
   }
 

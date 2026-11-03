@@ -111,6 +111,30 @@ class Reglages(contexte: Context) {
         set(v) = prefs.edit().putLong(CLE_DERNIER_SMS, v).apply()
 
     /**
+     * Date du SMS le plus récent que le RATTRAPAGE a déjà examiné.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * EXAMINÉ, PAS TRANSMIS — ET LA NUANCE EST TOUT LE RÉGLAGE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * Ce repère avance sur TOUS les messages lus, y compris ceux d'un
+     * expéditeur écarté. S'il n'avançait que sur les messages transmis, le
+     * SMS d'un proche reçu une fois serait relu à chaque passage — toutes
+     * les quinze minutes, pour toujours.
+     *
+     * C'est donc la frontière de « j'ai déjà regardé jusqu'ici », et elle
+     * ne recule jamais.
+     *
+     * 0 = jamais balayé. [BalayageSms] borne alors la remontée à sa
+     * fenêtre, pour qu'une première installation ne relise pas des mois
+     * d'historique.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    var dernierBalaye: Long
+        get() = prefs.getLong(CLE_DERNIER_BALAYE, 0L)
+        set(v) = prefs.edit().putLong(CLE_DERNIER_BALAYE, v).apply()
+
+    /**
      * Les expéditeurs dont on transmet les SMS, séparés par des virgules.
      *
      * ═══════════════════════════════════════════════════════════════════
@@ -303,6 +327,7 @@ class Reglages(contexte: Context) {
         const val CLE_FILE = "file"
         const val CLE_JOURNAL = "journal"
         const val CLE_DERNIER_SMS = "dernier_sms"
+        const val CLE_DERNIER_BALAYE = "dernier_balaye"
 
         /**
          * Les expéditeurs par défaut.

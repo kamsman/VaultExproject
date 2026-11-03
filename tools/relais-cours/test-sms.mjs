@@ -33,7 +33,7 @@ connexion. Tu peux remplacer le numéro par un autre avant de coller.
 */
 
 import { readFileSync } from 'node:fs'
-import { lireSmsPaiement, sansAccents, montantFcfaDepuisTexte, expediteurAccepte } from './worker.js'
+import { lireSmsPaiement, sansAccents, montantFcfaDepuisTexte, expediteurAccepte, clesReference } from './worker.js'
 
 // ─── Mode vérification : un vrai SMS en argument ────────────────────
 
@@ -153,6 +153,71 @@ function verifie(nom, condition, detail) {
   verifie('LU : « credite de »', lu !== null, lu)
   verifie('LU : separateur point', lu && lu.montant === 25000, lu)
   verifie('LU : reference alphanumerique', lu && lu.reference === 'ABC123XY', lu)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE VRAI FORMAT D'ORANGE MONEY BURKINA, RELEVE LE 3 NOVEMBRE 2026
+═══════════════════════════════════════════════════════════════════════════
+
+Les exemples au-dessus disent « Ref: 1234567890 », et ils passaient tous.
+Le vrai SMS dit « ID Trans: PP261103.1638.42172960 », et l'analyseur en
+tirait la chaine constante « TRANS » — le mot, pas le numero.
+
+AUCUN ACHAT NE POUVAIT ABOUTIR PAR REFERENCE, et rien ne le signalait :
+le rapprochement retombait sur montant + numero quand il le pouvait, et
+disait « aucun encaissement » quand il ne le pouvait pas.
+
+Ce bloc existe pour que ce format precis ne puisse plus repasser. Il est
+recopie d'un paiement reel, pas invente.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const reel =
+    'Cher client, vous avez recu 6,108.00 FCFA de 64088910. ' +
+    'Votre solde est de 31116.4 FCFA. ID Trans: PP261103.1638.42172960. ' +
+    'Pour toute reclamation contactez par appel le 127. Orange Money BF'
+  const lu = lireSmsPaiement(reel)
+  verifie('ORANGE BF : le SMS est lu', lu !== null, lu)
+  verifie('ORANGE BF : montant 6108', lu && lu.montant === 6108, lu)
+  verifie('ORANGE BF : numero du payeur', lu && lu.numero === '64088910', lu)
+  verifie(
+    'ORANGE BF : la reference n\'est PAS « TRANS »',
+    lu && lu.reference !== 'TRANS',
+    lu
+  )
+  verifie(
+    'ORANGE BF : reference = PP261103163842172960',
+    lu && lu.reference === 'PP261103163842172960',
+    lu
+  )
+
+  /*
+  LE PAYEUR ET LE BENEFICIAIRE NE LISENT PAS LA MEME CHAINE.
+
+  Le client a recopie « MPP261103163842172960 », le SMS du changeur dit
+  « PP261103.1638.42172960 ». Un « M » d'ecart, et l'operateur en est la
+  cause : le prefixe depend du canal.
+  */
+  const duClient = clesReference('MPP261103163842172960')
+  const duSms = clesReference(lu.reference)
+  verifie('ORANGE BF : la cle stricte differe', duClient[0] !== duSms[0], { duClient, duSms })
+  verifie(
+    'ORANGE BF : les chiffres rapprochent les deux',
+    duClient.some((c) => duSms.includes(c)),
+    { duClient, duSms }
+  )
+}
+
+{
+  // Une reference trop courte ne doit PAS ouvrir une cle numerique : deux
+  // operations sans rapport pourraient porter la meme suite.
+  verifie('CLES : refus sous huit chiffres', clesReference('AB123').length === 1)
+  verifie('CLES : reference vide rend rien', clesReference('').length === 0)
+  verifie(
+    'CLES : deja numerique, pas de doublon',
+    clesReference('1234567890').length === 1
+  )
 }
 
 // ─── CE QUI NE DOIT JAMAIS ÊTRE LU ──────────────────────────────────
