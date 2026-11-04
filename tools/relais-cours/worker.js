@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 76
+const VERSION = 77
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2421,6 +2421,36 @@ function parametresChange(env) {
       actif: String(env?.CHANGE_ACTIF ?? '1') !== '0',
       // Marge en FRANCS PAR DOLLAR : la langue du marché local.
       margeFcfaParDollar: nombre(env?.CHANGE_MARGE, 25),
+      /*
+      ═══════════════════════════════════════════════════════════════════
+      LES FRAIS D'ENVOI, EN DOLLARS ET A PART DE LA MARGE
+      ═══════════════════════════════════════════════════════════════════
+
+      La marge est PROPORTIONNELLE : elle suit le montant, parce qu'elle
+      remunere le service. Les frais de reseau, eux, ne suivent rien —
+      envoyer 10 $ ou 500 $ d'USDT coute la meme chose au changeur.
+
+      Les melanger obligerait a choisir entre deux torts : une marge
+      assez grosse pour couvrir les frais sur un petit montant, donc
+      abusive sur un gros ; ou l'inverse, et le changeur perd sur les
+      petits achats.
+
+      Ce montant est donc FIXE et s'ajoute au total, une seule fois.
+
+      ─── IL EST CONVERTI AU COURS DU MARCHE, SANS MARGE DESSUS ────────
+
+      C'est un cout qu'on REPERCUTE, pas un service qu'on vend. Ajouter
+      la marge par-dessus reviendrait a prendre un benefice sur un frais
+      de reseau, et ce serait difficile a defendre le jour ou quelqu'un
+      refait le calcul.
+
+      ─── ZERO PAR DEFAUT ──────────────────────────────────────────────
+
+      Une variable absente ne doit jamais renchrerir une operation : tant
+      que CHANGE_FRAIS_USD n'est pas posee, rien ne change pour personne.
+      ═══════════════════════════════════════════════════════════════════
+      */
+      fraisUsdAchat: nombre(env?.CHANGE_FRAIS_USD, 0),
       // Bornes par opération. Le plafond est bas tant que la confiance se
       // construit : c'est l'utilisateur qui envoie en premier.
       minimumFcfa: nombre(env?.CHANGE_MIN, 5000),

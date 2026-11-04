@@ -134,6 +134,58 @@ class Reglages(contexte: Context) {
         get() = prefs.getLong(CLE_DERNIER_BALAYE, 0L)
         set(v) = prefs.edit().putLong(CLE_DERNIER_BALAYE, v).apply()
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES SMS DEJA TRANSMIS EN DIRECT, POUR QUE LE BALAYAGE NE LES REFASSE PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    VU SUR LE JOURNAL D'ABDOUL le 4 novembre : chaque encaissement y
+    figure DEUX fois — une en direct, une repechee quelques minutes plus
+    tard.
+
+        10:12  ✓ 1000 FCFA [CI261104101245322566]
+        10:21  ⟲ rattrape : 1000 FCFA [CI261104101245322566]
+
+    C'est sans danger — le relais range sous la meme cle, et
+    `paiementservi` empeche qu'un paiement serve deux fois. Mais ca double
+    le trafic et ca remplit un journal qui ne garde que soixante lignes :
+    l'expediteur ecarte qu'on vient y chercher disparait deux fois plus
+    vite.
+
+    ─── POURQUOI `dernierBalaye` NE SUFFIT PAS ───────────────────────────
+
+    Il n'avance qu'au BALAYAGE. Le chemin direct, lui, ne le touche pas —
+    et c'est exprès : le faire avancer sur un SMS recu en direct sauterait
+    les messages plus anciens qu'une panne aurait fait manquer. On
+    perdrait la seule chose que le rattrapage existe pour faire.
+
+    ─── UNE LISTE DE DATES EXACTES, PLUTOT QU'UNE FRONTIERE ──────────────
+
+    On retient donc la DATE de chaque SMS transmis en direct, et le
+    balayage saute exactement celles-la. Aucune fenetre, aucun saut
+    possible : un message manque n'est jamais dans cette liste, donc il
+    est toujours repeche.
+
+    TRENTE SUFFISENT : le balayage ne remonte que vingt-quatre heures et
+    n'en traite que vingt par passage.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    fun marquerTransmis(date: Long) {
+        if (date <= 0L) return
+        val liste = datesTransmises().toMutableList()
+        if (liste.contains(date)) return
+        liste.add(date)
+        while (liste.size > TRANSMIS_MAX) liste.removeAt(0)
+        prefs.edit().putString(CLE_TRANSMIS, liste.joinToString(",")).apply()
+    }
+
+    fun dejaTransmis(date: Long): Boolean = datesTransmises().contains(date)
+
+    private fun datesTransmises(): List<Long> =
+        prefs.getString(CLE_TRANSMIS, "").orEmpty()
+            .split(',')
+            .mapNotNull { it.trim().toLongOrNull() }
+
     /**
      * Les expéditeurs dont on transmet les SMS, séparés par des virgules.
      *
@@ -358,6 +410,8 @@ class Reglages(contexte: Context) {
         const val CLE_JOURNAL = "journal"
         const val CLE_DERNIER_SMS = "dernier_sms"
         const val CLE_DERNIER_BALAYE = "dernier_balaye"
+        const val CLE_TRANSMIS = "transmis"
+        const val TRANSMIS_MAX = 30
 
         /**
          * Les expéditeurs par défaut.

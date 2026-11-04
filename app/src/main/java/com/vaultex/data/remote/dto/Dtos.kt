@@ -459,6 +459,8 @@ interdirait tout.
 data class ParametresChangeDto(
     val actif: Boolean? = null,
     val margeFcfaParDollar: Double? = null,
+    /** Frais fixes en dollars, ajoutes une fois au total d'un ACHAT. */
+    val fraisUsdAchat: Double? = null,
     val minimumFcfa: Double? = null,
     val plafondFcfa: Double? = null,
     val numeroMobileMoney: String? = null,

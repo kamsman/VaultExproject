@@ -405,12 +405,62 @@ data class ChangeState(
             return if (sens == SensChange.ACHAT) n else TauxFcfa.fcfaPourCrypto(n, p)
         }
 
-    /** Montant en crypto, quel que soit le sens de la saisie. */
+    /**
+     * Les frais FIXES de l'operation, en francs. Zero hors achat.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * CONVERTIS AU COURS DU MARCHE, PAS AU PRIX APPLIQUE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * C'est un cout qu'on REPERCUTE — les frais de reseau que le changeur
+     * paie pour envoyer la crypto. Le convertir au prix d'achat
+     * reviendrait a prendre une marge sur un frais, et ce serait
+     * indefendable le jour ou quelqu'un refait le calcul.
+     *
+     * Le cours du marche est donc le bon taux, et c'est [fcfaParDollar].
+     *
+     * ─── SEULEMENT A L'ACHAT ──────────────────────────────────────────
+     *
+     * A la vente, c'est le CLIENT qui envoie la crypto et paie son propre
+     * gaz. Le changeur, lui, paie en francs par Mobile Money. Retenir un
+     * dollar sur une vente ferait payer au client un frais que personne
+     * n'a engage.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    val fraisFixesFcfa: Double
+        get() {
+            if (sens != SensChange.ACHAT) return 0.0
+            val usd = parametres?.fraisUsdAchat ?: return 0.0
+            val taux = fcfaParDollar ?: return 0.0
+            if (usd <= 0.0 || taux <= 0.0) return 0.0
+            return usd * taux
+        }
+
+    /**
+     * Montant en crypto, quel que soit le sens de la saisie.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * LES FRAIS FIXES SORTENT AVANT LA CONVERSION
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * A l'achat, l'utilisateur tape des FRANCS. Ce qu'il recoit, c'est ce
+     * qui reste une fois les frais d'envoi retires — les diviser par le
+     * prix sans les avoir retires lui promettrait une quantite que le
+     * changeur ne peut pas envoyer sans perdre de l'argent.
+     *
+     * NULL PLUTOT QUE ZERO quand le montant ne couvre pas les frais.
+     * Zero s'afficherait comme un resultat ; null laisse l'ecran vide, et
+     * le minimum — qui inclut desormais ces frais — dit pourquoi.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     val montantCrypto: Double?
         get() {
             val n = saisi ?: return null
             val p = prix ?: return null
-            return if (sens == SensChange.ACHAT) TauxFcfa.cryptoPourFcfa(n, p) else n
+            if (sens != SensChange.ACHAT) return n
+            val net = n - fraisFixesFcfa
+            if (net <= 0.0) return null
+            return TauxFcfa.cryptoPourFcfa(net, p)
         }
 
     /**
@@ -881,7 +931,41 @@ data class ChangeState(
         val px = prix ?: return null
         val marge = px.achatFcfa - px.baseFcfa
         if (px.achatFcfa <= 0.0 || marge <= 0.0) return null
-        return facteur * f * pxGaz * px.achatFcfa / marge
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LES FRAIS DEJA FACTURES NE SONT PAS A REFACTURER A LA MARGE
+        ═══════════════════════════════════════════════════════════════
+
+        Ce plancher existe pour qu'un achat ne fasse pas PERDRE d'argent
+        au changeur : il exige que la marge couvre le cout d'envoi.
+
+        Depuis que `fraisUsdAchat` facture ce cout explicitement, les
+        deux se superposent. Exiger de la marge qu'elle couvre la
+        TOTALITE du cout revient a le faire payer deux fois — une fois
+        dans les frais, une fois dans un minimum gonfle.
+
+        Ce qui reste a couvrir, c'est le cout MOINS ce qu'on a deja
+        encaisse. Si les frais suffisent, il n'y a plus de plancher du
+        tout.
+
+        ─── CE QUE CA CHANGE, CONCRETEMENT ────────────────────────────
+
+        Sur Solana, rien : le cout d'envoi est d'une fraction de centime
+        et le plancher etait deja invisible sous le minimum.
+
+        Sur Ethereum, tout. Avec un gaz a 3 $ et un dollar facture, la
+        marge n'a plus que 2 $ a couvrir au lieu de 3 — et des achats
+        parfaitement rentables cessent d'etre refuses.
+
+        L'erreur allait dans le bon sens — on bloquait trop, jamais trop
+        peu — mais elle fermait des operations que le changeur aurait eu
+        interet a faire.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val coutEnvoi = f * pxGaz
+        val resteACouvrir = coutEnvoi - fraisFixesFcfa
+        if (resteACouvrir <= 0.0) return null
+        return facteur * resteACouvrir * px.achatFcfa / marge
     }
 
     /**
@@ -910,11 +994,31 @@ data class ChangeState(
         val borne = p.minimumPour(
             monnaie, fcfaParDollar, prix, sens == SensChange.ACHAT
         )
-        return maxOf(
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LES FRAIS FIXES S'AJOUTENT AU MINIMUM, ILS NE S'Y FONDENT PAS
+        ═══════════════════════════════════════════════════════════════
+
+        Le minimum dit « dix dollars de crypto ». Depuis que les frais
+        d'envoi sortent du montant avant la conversion, dix dollars de
+        FRANCS n'en donnent plus dix de crypto — il en manque un.
+
+        Sans cette addition, l'ecran accepterait un montant qui ne peut
+        pas honorer sa propre borne, et le refus viendrait plus tard,
+        d'ailleurs, sans dire pourquoi.
+
+        Les deux autres planchers, eux, ne s'additionnent pas : ils
+        expriment chacun un seuil ALTERNATIF — le reseau, la marge — et
+        c'est le plus haut qui gagne. Celui-ci est d'une autre nature :
+        c'est un cout qui s'ajoute a tout ce qui precede.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val sansFrais = maxOf(
             borne,
             plancherReseauFcfa() ?: 0.0,
             plancherMargeFcfa() ?: 0.0
         )
+        return sansFrais + fraisFixesFcfa
     }
 
     /*
