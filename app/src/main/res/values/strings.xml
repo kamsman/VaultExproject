@@ -1182,12 +1182,12 @@
     <string name="change_motif">Mettez votre référence en motif si votre paiement le permet.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement (facultatif)</string>
-    <string name="change_ref_paiement_aide">Le numéro de transaction de votre SMS. Il accélère la vérification.</string>
-    <string name="change_ref_paiement_exemple">Ex. MP251008123456</string>
-    <string name="change_ref_probleme_demande">Ça, c\'est la référence de votre DEMANDE, celle qu\'on met en motif. Ici il faut celle de votre paiement, dans le SMS de l\'opérateur — ex. MP251008123456.</string>
+    <string name="change_ref_paiement_aide">Le numéro de transaction de votre SMS, recopié tel quel. Il accélère la vérification.</string>
+    <string name="change_ref_paiement_exemple">Ex. PP261103.1638.42172960</string>
+    <string name="change_ref_probleme_demande">Ça, c\'est la référence de votre DEMANDE, celle qu\'on met en motif. Ici il faut celle de votre paiement, dans le SMS de l\'opérateur — ex. PP261103.1638.42172960.</string>
     <string name="change_ref_probleme_courte">Trop court pour un numéro de transaction. Recopiez-le en entier depuis votre SMS.</string>
     <string name="change_ref_probleme_longue">Trop long pour un numéro de transaction. Ne recopie que la référence, pas tout le SMS.</string>
-    <string name="change_ref_probleme_sans_chiffre">Un numéro de transaction contient des chiffres. Vérifiez dans votre SMS — ex. MP251008123456.</string>
+    <string name="change_ref_probleme_sans_chiffre">Un numéro de transaction contient des chiffres. Vérifiez dans votre SMS — ex. PP261103.1638.42172960.</string>
     <string name="change_telephone">Votre numéro Mobile Money</string>
     <string name="change_jai_paye">Confirmer le paiement</string>
     <string name="change_jai_paye_verifie">Paiement vérifié — confirmer</string>
