@@ -931,7 +931,41 @@ data class ChangeState(
         val px = prix ?: return null
         val marge = px.achatFcfa - px.baseFcfa
         if (px.achatFcfa <= 0.0 || marge <= 0.0) return null
-        return facteur * f * pxGaz * px.achatFcfa / marge
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LES FRAIS DEJA FACTURES NE SONT PAS A REFACTURER A LA MARGE
+        ═══════════════════════════════════════════════════════════════
+
+        Ce plancher existe pour qu'un achat ne fasse pas PERDRE d'argent
+        au changeur : il exige que la marge couvre le cout d'envoi.
+
+        Depuis que `fraisUsdAchat` facture ce cout explicitement, les
+        deux se superposent. Exiger de la marge qu'elle couvre la
+        TOTALITE du cout revient a le faire payer deux fois — une fois
+        dans les frais, une fois dans un minimum gonfle.
+
+        Ce qui reste a couvrir, c'est le cout MOINS ce qu'on a deja
+        encaisse. Si les frais suffisent, il n'y a plus de plancher du
+        tout.
+
+        ─── CE QUE CA CHANGE, CONCRETEMENT ────────────────────────────
+
+        Sur Solana, rien : le cout d'envoi est d'une fraction de centime
+        et le plancher etait deja invisible sous le minimum.
+
+        Sur Ethereum, tout. Avec un gaz a 3 $ et un dollar facture, la
+        marge n'a plus que 2 $ a couvrir au lieu de 3 — et des achats
+        parfaitement rentables cessent d'etre refuses.
+
+        L'erreur allait dans le bon sens — on bloquait trop, jamais trop
+        peu — mais elle fermait des operations que le changeur aurait eu
+        interet a faire.
+        ═══════════════════════════════════════════════════════════════
+        */
+        val coutEnvoi = f * pxGaz
+        val resteACouvrir = coutEnvoi - fraisFixesFcfa
+        if (resteACouvrir <= 0.0) return null
+        return facteur * resteACouvrir * px.achatFcfa / marge
     }
 
     /**
