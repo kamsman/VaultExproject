@@ -169,8 +169,8 @@ android {
         signingConfig). Construit sur un autre poste, Android refusera la
         mise a jour, et il faudrait desinstaller — donc ressaisir le jeton.
         */
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
 
     buildTypes {

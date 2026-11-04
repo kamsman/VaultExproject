@@ -147,6 +147,20 @@ object BalayageSms {
 
                     if (!reglages.expediteurAccepte(expediteur)) continue
 
+                    /*
+                    DEJA PARTI EN DIRECT : on ne le refait pas.
+
+                    Le chemin rapide a traite ce message a la seconde ou
+                    il est arrive. Le repecher doublerait le trafic et
+                    remplirait le journal — qui ne garde que soixante
+                    lignes — deux fois plus vite.
+
+                    On compare des DATES EXACTES, pas une frontiere : un
+                    message manque n'est jamais dans cette liste, donc il
+                    reste toujours repechable.
+                    */
+                    if (reglages.dejaTransmis(date)) continue
+
                     val texte = c.getString(iCorps).orEmpty()
                     if (texte.isBlank()) continue
                     lus++
@@ -165,6 +179,9 @@ object BalayageSms {
                     when {
                         issue.ok -> {
                             transmis++
+                            // Meme raison que ci-dessus : un second passage
+                            // dans la meme fenetre le refarait sinon.
+                            reglages.marquerTransmis(date)
                             reglages.journaliser("⟲ rattrape : ${issue.message}")
                         }
                         issue.reessayer -> {

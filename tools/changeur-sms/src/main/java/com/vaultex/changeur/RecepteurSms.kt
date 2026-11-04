@@ -149,6 +149,19 @@ class RecepteurSms : BroadcastReceiver() {
         reglages.dernierSms = System.currentTimeMillis()
 
         /*
+        LA DATE DU SMS, POUR QUE LE BALAYAGE NE LE REPECHE PAS.
+
+        Sans ca, chaque encaissement part DEUX fois : une en direct, une
+        au balayage suivant. Constate sur le journal du 4 novembre.
+
+        C'est la date de l'OPERATEUR — `timestampMillis` — et pas
+        l'instant present, parce que c'est elle que porte la boite de
+        reception, donc celle que le balayage comparera.
+        */
+        val dateSms = messages.firstOrNull { it != null }?.timestampMillis ?: 0L
+        reglages.marquerTransmis(dateSms)
+
+        /*
         goAsync() REPOUSSE LA FIN DU RECEVEUR.
 
         Sans lui, `onReceive` rendrait la main immédiatement et le système
