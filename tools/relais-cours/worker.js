@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 75
+const VERSION = 76
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -4700,33 +4700,36 @@ publicnode RESTE : un 429 dit « trop souvent », pas « jamais ». Il repond
 quand la charge baisse, et un secours qui marche une fois sur deux vaut
 mieux qu'un secours qui ne marche jamais.
 
-─── CE QUI ARRIVE, ET CE QU'IL FAUT EN PENSER ──────────────────────────
+─── DEUX CANDIDATS ESSAYES, DEUX MORTS ─────────────────────────────────
 
-Les deux suivants sont des ENDPOINTS PUBLICS NON MESURES. Je ne peux pas
-les sonder d'ici, et je ne vais pas affirmer qu'ils marchent. Ils sont
-places APRES le noeud personnel : s'ils echouent, on est exactement dans
-l'etat d'avant, rien n'est perdu.
+omniatech et onfinality avaient ete ajoutes puis MESURES sur /diag le
+meme jour :
 
-C'est /diag qui tranchera, comme il l'a fait pour les quatre precedents.
-Relisez-le apres deploiement et retirez ceux qui refusent.
+    endpoints.omniatech.io   521  serveur d'origine injoignable
+    solana.api.onfinality    429  « Please apply an OnFinality API key »
 
-─── LA VRAIE REPONSE N'EST PAS DANS CETTE LISTE ────────────────────────
+Retires. Il ne reste donc qu'UNE seule entree ici, et c'est la verite de
+l'etat du Solana public : les endpoints gratuits ont ete fermes les uns
+apres les autres, et ceux qui restent demandent une cle.
 
-Les endpoints publics sont une loterie : gratuits, donc satures, donc
-fermes un par un. Le secours qui tient, c'est un SECOND NOEUD A CLE.
+ECRIRE UNE LISTE PLUS LONGUE SERAIT MENTIR. Quatre entrees mortes
+donnaient l'illusion d'une redondance et ont coute une demi-journee a
+diagnostiquer. Une entree honnete vaut mieux.
 
-`CHANGE_NOEUD_SOLANA` accepte deja plusieurs adresses separees par des
-virgules, et elles passent toutes avant celles-ci. Un second fournisseur
-en offre gratuite y suffit — et ce jour-la, cette liste redevient ce
-qu'elle aurait toujours du etre : un filet, pas une dependance.
+─── LA VRAIE REDONDANCE EST AILLEURS, ET ELLE EXISTE DESORMAIS ─────────
+
+`CHANGE_NOEUD_SOLANA` accepte plusieurs adresses separees par des
+virgules, et elles passent toutes AVANT cette liste. Deux noeuds a cle y
+sont regles — Alchemy et Helius — et tous deux repondent 200.
+
+C'est la que vit le secours. Cette liste-ci n'est plus qu'une derniere
+chance si les deux tombaient ensemble, et il faut la lire ainsi : pas
+une securite, un reste d'espoir.
 ═══════════════════════════════════════════════════════════════════════════
 */
 const NOEUDS_SOLANA = [
   // 429 le 4 novembre : sature, pas ferme. Il repond quand ca se calme.
   'https://solana-rpc.publicnode.com',
-  // NON MESURES — a confirmer sur /diag apres deploiement.
-  'https://endpoints.omniatech.io/v1/sol/mainnet/public',
-  'https://solana.api.onfinality.io/public',
 ]
 
 /*
