@@ -3299,6 +3299,39 @@ private enum class AffichageVerif { RECHERCHE, VERT, ABSENT, DEJA_SERVI, IMPOSSI
  */
 private const val GRACE_VENTE_MS = 3 * 60 * 1000L
 
+/**
+ * Le meme temps, pour l'acheteur. Voir [affichageVerification].
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DEUX MINUTES, PARCE QU'UN SMS NE VOYAGE PAS INSTANTANEMENT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * CONSTATE LE 4 NOVEMBRE, sur le premier achat reel qui ait abouti :
+ * « quand j'ai mis le numero ca a refuse deux fois, dix secondes plus
+ * tard c'etait confirme ».
+ *
+ * Le paiement etait bon depuis le debut. Ce qui manquait, c'est le temps
+ * que le SMS de l'operateur arrive chez le changeur, que le robot le
+ * transmette, et que le relais le range. Quelques dizaines de secondes.
+ *
+ * Pendant ce temps l'ecran affichait « Aucun paiement ne correspond » —
+ * en rouge, a quelqu'un qui venait d'envoyer six mille francs. Celui qui
+ * a ecrit ce message savait ce qu'il faisait ; celui qui le LIT vient de
+ * payer et croit avoir perdu son argent.
+ *
+ * ─── POURQUOI DEUX ET PAS TROIS ────────────────────────────────────────
+ *
+ * La vente en a trois : il faut y ouvrir un portefeuille, coller une
+ * adresse de quarante caracteres, et attendre un bloc. Un paiement Mobile
+ * Money est plus court — un code USSD, un code secret, et le SMS part.
+ *
+ * Deux minutes couvrent largement le trajet, et laissent huit minutes de
+ * la fenetre de prix pour dire quelque chose d'utile si ca cloche
+ * vraiment.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+private const val GRACE_ACHAT_MS = 2 * 60 * 1000L
+
 private fun affichageVerification(
     state: com.vaultex.ui.viewmodel.ChangeState
 ): AffichageVerif {
@@ -3348,9 +3381,15 @@ private fun affichageVerification(
     exactement la precision que ce seuil merite.
     ═══════════════════════════════════════════════════════════════════════
     */
-    if (state.sens == SensChange.VENTE && v?.etat == com.vaultex.domain.fiat.EtatVerification.ABSENT) {
-        val depuis = System.currentTimeMillis() - state.confirmeA
-        if (state.confirmeA > 0L && depuis < GRACE_VENTE_MS) return AffichageVerif.RECHERCHE
+    if (v?.etat == com.vaultex.domain.fiat.EtatVerification.ABSENT && state.confirmeA > 0L) {
+        /*
+        LA MEME REGLE DES DEUX COTES, avec deux durees. Elle n'existait
+        que pour la vente, et l'achat la meritait autant — voir
+        [GRACE_ACHAT_MS] : le premier achat reel a affiche deux refus sur
+        un paiement parfaitement valide.
+        */
+        val grace = if (state.sens == SensChange.VENTE) GRACE_VENTE_MS else GRACE_ACHAT_MS
+        if (System.currentTimeMillis() - state.confirmeA < grace) return AffichageVerif.RECHERCHE
     }
 
     if (v == null) {
