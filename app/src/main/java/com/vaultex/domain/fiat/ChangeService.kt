@@ -51,6 +51,26 @@ au premier, qu'on envoie sur une capture d'écran sans vérifier.
 data class ParametresChange(
     val actif: Boolean,
     val margeFcfaParDollar: Double,
+    /**
+     * Frais FIXES en dollars, ajoutes une seule fois au total d'un ACHAT.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * POURQUOI CE N'EST PAS DE LA MARGE
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * La marge est proportionnelle : elle suit le montant, parce qu'elle
+     * remunere un service. Les frais de reseau ne suivent rien — envoyer
+     * 10 $ ou 500 $ d'USDT coute la meme chose au changeur.
+     *
+     * Les confondre obligerait a choisir entre deux torts : une marge
+     * assez grosse pour couvrir les frais d'un petit achat, donc abusive
+     * sur un gros ; ou l'inverse, et le changeur perd sur les petits.
+     *
+     * ZERO par defaut : une variable absente ne doit jamais rencherir une
+     * operation.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    val fraisUsdAchat: Double = 0.0,
     val minimumFcfa: Double,
     val plafondFcfa: Double,
     val numeroMobileMoney: String,
@@ -511,6 +531,14 @@ class ChangeService @Inject constructor(
                 // ligne ».
                 margeFcfaParDollar = dto.margeFcfaParDollar
                     ?: return ResultatParametres.Indisponible,
+                /*
+                ABSENT VAUT ZERO, et c'est le seul defaut acceptable ici.
+                Un relais plus ancien que l'application ne connait pas ce
+                champ ; rencherir l'achat sur une valeur devinee serait
+                faire payer un chiffre que personne n'a decide. La marge,
+                elle, refuse — sans elle il n'y a pas de prix du tout.
+                */
+                fraisUsdAchat = dto.fraisUsdAchat?.takeIf { it >= 0.0 } ?: 0.0,
                 minimumFcfa = dto.minimumFcfa ?: 0.0,
                 plafondFcfa = dto.plafondFcfa ?: return ResultatParametres.Indisponible,
                 numeroMobileMoney = dto.numeroMobileMoney.orEmpty(),

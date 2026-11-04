@@ -1119,10 +1119,25 @@ private fun CarteDetailChange(
     */
     val prix = state.prix ?: return
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LES FRAIS AFFICHES SONT TOUT CE QU'ON PAIE EN PLUS DU MARCHE
+    ═══════════════════════════════════════════════════════════════════
+
+    La marge, qui suit le montant, PLUS les frais d'envoi, qui ne le
+    suivent pas. N'en montrer qu'une des deux donnerait une ligne
+    « Frais de change » que l'addition contredit — et c'est le genre
+    d'ecart qu'un utilisateur trouve tout seul, puis ne pardonne pas.
+
+    `fraisFixesFcfa` vaut zero hors achat et tant que la variable
+    CHANGE_FRAIS_USD n'est pas posee : cette ligne n'ajoute rien tant
+    qu'il n'y a rien a ajouter.
+    ═══════════════════════════════════════════════════════════════════
+    */
     val fraisFcfa = state.montantCrypto?.let { c ->
         c * kotlin.math.abs(
             (if (donneFcfa) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa
-        )
+        ) + state.fraisFixesFcfa
     }
     /*
     LE POURCENTAGE SORT DES DEUX NOMBRES QU'ON MONTRE, pas de la marge.
@@ -4054,8 +4069,12 @@ private fun BoutonFacture(state: com.vaultex.ui.viewmodel.ChangeState) {
     Un document et un écran qui se contredisent sur ce qu'on a prélevé, et
     c'est le document qui reste.
     */
+    // Meme calcul que sur l'ecran : marge PLUS frais d'envoi. Un recu qui
+    // annoncerait moins que ce qui a ete preleve serait pire qu'un recu
+    // absent — c'est le document qu'on ressort en cas de reclamation.
     val fraisFcfa = if (prix == null) null else state.montantCrypto?.let { c ->
-        c * kotlin.math.abs((if (achat) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa)
+        c * kotlin.math.abs((if (achat) prix.achatFcfa else prix.venteFcfa) - prix.baseFcfa) +
+            state.fraisFixesFcfa
     }
     val pourcent = state.montantFcfa
         ?.let { m -> fraisFcfa?.let { f -> TauxFcfa.commissionEnPourcent(f, m) } }
