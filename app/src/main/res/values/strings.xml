@@ -120,6 +120,12 @@
     <string name="price_24h">Prix (24h)</string>
     <string name="market_cap">Cap. marché</string>
 
+    <!-- Actualités crypto et finance -->
+    <string name="actus_titre">Actualités</string>
+    <string name="actus_rafraichir">Rafraîchir</string>
+    <string name="actus_vide">Impossible de lire les actualités pour le moment.</string>
+    <string name="actus_ouvrir">Ouvrir les actualités</string>
+
     <!-- History / Transactions -->
     <string name="history_title">Historique</string>
     <string name="no_transactions">Aucune transaction</string>

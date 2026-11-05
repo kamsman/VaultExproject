@@ -89,6 +89,12 @@
     <string name="price_24h">Price (24h)</string>
     <string name="market_cap">Market cap</string>
 
+    <!-- Crypto and finance news -->
+    <string name="actus_titre">News</string>
+    <string name="actus_rafraichir">Refresh</string>
+    <string name="actus_vide">Could not load the news right now.</string>
+    <string name="actus_ouvrir">Open news</string>
+
     <!-- History / Transactions -->
     <string name="history_title">History</string>
     <string name="no_transactions">No transactions</string>

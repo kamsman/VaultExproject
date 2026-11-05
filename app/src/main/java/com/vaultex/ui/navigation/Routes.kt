@@ -50,6 +50,16 @@ object Routes {
 
     const val MARKET = "market"
 
+    /*
+    ACTUALITÉS CRYPTO ET FINANCE — UNE LECTURE, PAS UN NAVIGATEUR
+
+    L'écran liste des titres et ouvre l'article dans le navigateur du
+    téléphone. Il ne contient AUCUNE WebView : une page web affichée dans un
+    portefeuille est la porte par laquelle on se fait vider, et un article
+    n'a rien à signer. Voir l'en-tête de `ActusScreen`.
+    */
+    const val ACTUS = "actus"
+
     const val SETTINGS = "settings"
 
     const val SEND = "send"

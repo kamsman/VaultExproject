@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 77
+const VERSION = 78
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -976,6 +976,16 @@ export default {
     */
     if (url.pathname === '/change/compteurs') {
       return json(await lireCompteurs(env), 0)
+    }
+
+    /*
+    LES ACTUALITES. Cachees quinze minutes cote relais ; le `ttl` dit au
+    telephone de ne pas redemander avant cinq minutes, ce qui lisse les
+    ouvertures d'ecran sans retarder une actualite de plus d'un quart
+    d'heure.
+    */
+    if (url.pathname === '/actus') {
+      return json(await actualites(env), 300)
     }
 
     /*
@@ -2375,6 +2385,181 @@ function montantFcfaDepuisTexte(brut) {
   if (!chiffres) return 0
   const n = Number(chiffres)
   return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES ACTUALITES — DES FLUX RSS, AGREGES ICI PLUTOT QUE DANS CHAQUE TELEPHONE
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI LE RELAIS ET PAS L'APPLICATION. Deux cent vingt-trois telephones
+qui interrogent quatre sites quatre fois par jour, c'est trois mille appels
+quotidiens chez des editeurs qui n'ont rien demande — et le jour ou l'un
+d'eux bloque, il bloque tout le monde a la fois.
+
+Ici, c'est UNE lecture toutes les quinze minutes, partagee par tous. Et
+changer de source ne demande plus de reconstruire l'application.
+
+─── DES SOURCES FRANCOPHONES, ET C'EST UN CHOIX ────────────────────────
+
+Les utilisateurs de VaultEx lisent le francais. Un fil anglophone serait
+plus fourni et plus rapide, et illisible pour la plupart d'entre eux. On
+prefere trois articles compris a dix qu'on survole.
+
+─── LE DECOUPAGE EST FRAGILE, ET IL LE RESTERA ─────────────────────────
+
+RSS est du XML, et on l'analyse a coups d'expressions regulieres parce
+qu'un Worker n'a pas d'analyseur XML et que cette application n'ajoute pas
+de bibliotheque. Un editeur qui change sa mise en forme cassera sa source
+— pas les autres.
+
+C'est pourquoi CHAQUE SOURCE EST ISOLEE : une qui tombe laisse les autres
+passer, et /diag dit laquelle. Une liste vide n'arrive que si les quatre
+tombent ensemble.
+
+─── CES ADRESSES NE SONT PAS MESUREES ──────────────────────────────────
+
+Ce conteneur n'atteint aucun de ces sites. Les adresses sont celles que
+ces editeurs publient habituellement, et elles valent ce que vaut une
+supposition.
+
+C'EST POURQUOI /actus REND UN OBJET `sondes` : une ligne par source, avec
+le code HTTP obtenu ou le nom de l'echec. Apres deploiement, un seul appel
+dit laquelle repond et laquelle est a remplacer — exactement la methode qui
+a servi pour les noeuds Solana, ou trois des quatre etaient morts.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const SOURCES_ACTUS = [
+  { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/' },
+  { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/' },
+  { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/' },
+  { nom: 'Les Echos Finance', theme: 'finance',
+    url: 'https://services.lesechos.fr/rss/les-echos-finance-marches.xml' },
+]
+
+/** Quatre par source : de quoi remplir un ecran sans le noyer. */
+const ACTUS_PAR_SOURCE = 4
+
+/** Quinze minutes. Une actualite n'a pas besoin d'etre a la seconde. */
+const ACTUS_CACHE_S = 15 * 60
+
+/*
+LE TEXTE D'UN TITRE RSS N'EST PAS DU TEXTE.
+
+Il arrive enrobe de CDATA, avec des entites HTML et parfois des balises.
+Affiche tel quel, un titre donne « Bitcoin d&eacute;passe les 80&nbsp;000 $ ».
+*/
+function texteRss(brut) {
+  return String(brut ?? '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(?:amp|#38);/g, '&')
+    .replace(/&(?:lt|#60);/g, '<')
+    .replace(/&(?:gt|#62);/g, '>')
+    .replace(/&(?:quot|#34);/g, '"')
+    .replace(/&(?:apos|#39|rsquo|#8217);/g, "'")
+    .replace(/&(?:nbsp|#160);/g, ' ')
+    .replace(/&(?:eacute|#233);/g, 'é')
+    .replace(/&(?:egrave|#232);/g, 'è')
+    .replace(/&(?:agrave|#224);/g, 'à')
+    .replace(/&(?:ccedil|#231);/g, 'ç')
+    .replace(/&(?:ocirc|#244);/g, 'ô')
+    .replace(/&(?:hellip|#8230);/g, '…')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Le premier contenu d'une balise, ou ''. */
+function champRss(bloc, balise) {
+  const m = bloc.match(new RegExp(`<${balise}[^>]*>([\\s\\S]*?)</${balise}>`, 'i'))
+  return m ? texteRss(m[1]) : ''
+}
+
+/*
+ATOM OU RSS, ON NE CHOISIT PAS : les deux circulent, et un editeur peut
+passer de l'un a l'autre sans prevenir. On cherche `item` (RSS) puis
+`entry` (Atom), et le lien d'Atom vit dans un attribut et non dans le
+contenu de la balise.
+*/
+function lireFluxRss(xml, source) {
+  const texte = String(xml ?? '')
+  const blocs = texte.match(/<item[\s>][\s\S]*?<\/item>/gi)
+    || texte.match(/<entry[\s>][\s\S]*?<\/entry>/gi)
+    || []
+  const articles = []
+  for (const bloc of blocs.slice(0, ACTUS_PAR_SOURCE)) {
+    const titre = champRss(bloc, 'title')
+    let lien = champRss(bloc, 'link')
+    if (!lien) {
+      const href = bloc.match(/<link[^>]*href=["']([^"']+)["']/i)
+      lien = href ? href[1] : ''
+    }
+    /*
+    HTTPS SEULEMENT, ET LE MEME FILTRE QUE L'APPLICATION.
+
+    `ActusViewModel` ecarte deja tout lien qui ne commence pas par
+    `https://`. Accepter `http://` ici aurait donc produit un cas muet :
+    le relais annonce quatre articles, le telephone n'en affiche aucun, et
+    `sondes` dirait que la source va bien.
+
+    Les deux cotes refusent la meme chose, donc `sondes` dit la verite :
+    « 0 article lisible », et on sait quelle source remplacer.
+    */
+    if (!titre || !lien.startsWith('https://')) continue
+    articles.push({
+      titre: titre.slice(0, 200),
+      lien,
+      source: source.nom,
+      theme: source.theme,
+      quand: Date.parse(champRss(bloc, 'pubDate') || champRss(bloc, 'updated')) || 0,
+    })
+  }
+  return articles
+}
+
+/**
+ * La liste des actualites, cachee quinze minutes.
+ *
+ * Rend toujours un objet, jamais une exception : un ecran d'actualites
+ * qui plante vaut moins qu'un ecran vide qui dit pourquoi.
+ */
+async function actualites(env) {
+  const enCache = await lireBrut('actus', 'liste')
+  if (enCache) {
+    try {
+      return JSON.parse(enCache)
+    } catch (_) {
+      // Cache illisible : on refait, plutot que de rendre du vide.
+    }
+  }
+
+  const sondes = {}
+  const articles = []
+  for (const source of SOURCES_ACTUS) {
+    try {
+      const r = await fetch(source.url, {
+        headers: { 'user-agent': 'VaultEx/1.0 (lecteur de flux)' },
+        signal: AbortSignal.timeout(7000),
+      })
+      sondes[source.nom] = r.status
+      if (!r.ok) continue
+      const lus = lireFluxRss(await r.text(), source)
+      sondes[source.nom] = lus.length ? r.status : `${r.status} mais 0 article lisible`
+      articles.push(...lus)
+    } catch (e) {
+      // Une source morte n'emporte pas les autres.
+      sondes[source.nom] = e?.name || 'echec'
+    }
+  }
+
+  // Les plus recentes d'abord ; celles sans date passent en dernier.
+  articles.sort((a, b) => (b.quand || 0) - (a.quand || 0))
+
+  const resultat = { articles: articles.slice(0, 24), sondes, quand: Date.now() }
+  if (articles.length) {
+    await ecrireBrut('actus', 'liste', JSON.stringify(resultat), ACTUS_CACHE_S)
+  }
+  return resultat
 }
 
 function json(objet, ttl, statut) {
