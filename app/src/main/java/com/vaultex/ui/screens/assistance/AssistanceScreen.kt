@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
@@ -29,7 +30,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
@@ -462,7 +462,7 @@ private fun Suggestions(vm: AssistanceViewModel) {
         */
         val cartes = listOf(
             Carte(
-                Icons.Default.SwapHoriz,
+                Icons.Default.Repeat,
                 R.string.assistance_carte_acheter,
                 R.string.assistance_carte_acheter_aide,
                 R.string.assistance_ex_acheter

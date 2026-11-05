@@ -1,6 +1,7 @@
 package com.vaultex.ui.screens.change
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,8 +46,6 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -646,7 +645,7 @@ private fun ColumnScope.SansReglages(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Default.SwapVert, null,
+                Icons.Default.Repeat, null,
                 tint = AccentBlue.copy(alpha = 0.4f), modifier = Modifier.size(22.dp)
             )
         }
@@ -880,7 +879,7 @@ private fun ColumnScope.EtapeCalcul(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    Icons.Default.SwapVert,
+                    Icons.Default.Repeat,
                     stringResource(R.string.change_inverser),
                     tint = AccentBlue,
                     modifier = Modifier.size(22.dp)

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -15,7 +16,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -663,7 +663,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionFiche(
-                        Icons.Default.SwapHoriz, stringResource(R.string.tab_swap),
+                        Icons.Default.Repeat, stringResource(R.string.tab_swap),
                         plein = false, actif = supported != null, modifier = Modifier.weight(1f)
                     ) {
                         // Même règle : on part de ce qu'on détient, sinon du registre.
