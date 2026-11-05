@@ -1179,10 +1179,10 @@
     <string name="change_reference">Votre référence</string>
     <string name="change_paye">Payé</string>
     <string name="change_adresse_reception">Adresse de réception</string>
-    <string name="change_motif">Mettez votre référence en motif si votre paiement le permet.</string>
+    <string name="change_motif">Référence en motif, si votre paiement le permet.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement (facultatif)</string>
-    <string name="change_ref_paiement_aide">Le numéro de transaction de votre SMS, recopié tel quel. Il accélère la vérification.</string>
+    <string name="change_ref_paiement_aide">Dans le SMS de l\'opérateur. Accélère la vérification.</string>
     <string name="change_ref_paiement_exemple">Ex. PP261103.1638.42172960</string>
     <string name="change_ref_probleme_demande">Ça, c\'est la référence de votre DEMANDE, celle qu\'on met en motif. Ici il faut celle de votre paiement, dans le SMS de l\'opérateur — ex. PP261103.1638.42172960.</string>
     <string name="change_ref_probleme_courte">Trop court pour un numéro de transaction. Recopiez-le en entier depuis votre SMS.</string>
@@ -1193,7 +1193,7 @@
     <string name="change_jai_paye_verifie">Paiement vérifié — confirmer</string>
     <string name="change_retour">Revenir au calcul</string>
     <string name="change_assistance_titre">Assistance technique</string>
-    <string name="change_assistance_detail">Un souci avec votre échange ? Appelez-nous, on répond.</string>
+    <string name="change_assistance_detail">Un souci ? Appelez-nous.</string>
     <string name="change_assistance_appel">Appeler</string>
     <string name="change_assistance_whatsapp">WhatsApp</string>
     <string name="change_assistance_message">Bonjour, j\'ai besoin d\'aide pour ma demande %1$s.</string>
@@ -1203,7 +1203,7 @@
     <string name="change_nouvelle">Nouvelle opération</string>
     <string name="change_retour_accueil">Retour à l\'accueil</string>
     <string name="action_acheter">Acheter</string>
-    <string name="change_telephone_aide">Le numéro qui a payé. Si vous payez depuis un autre téléphone, mettez la référence ci-dessus.</string>
+    <string name="change_telephone_aide">Le numéro qui a payé. Un autre téléphone ? Mettez la référence ci-dessus.</string>
     <string name="change_telephone_exemple">Ex. 70 12 34 56</string>
     <string name="change_copier_reference">Copier la référence</string>
     <string name="change_historique_titre">Mes dernières demandes</string>
