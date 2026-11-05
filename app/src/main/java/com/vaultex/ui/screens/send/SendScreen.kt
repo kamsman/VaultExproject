@@ -601,7 +601,7 @@ fun SendScreen(navController: NavController) {
                                     horizontalArrangement = Arrangement.End,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.SwapHoriz, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
+                                    Icon(Icons.Default.Repeat, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text(
                                         "Obtenir du ${proposition.vers} depuis mes ${swapBaseCourt(proposition.de)}",

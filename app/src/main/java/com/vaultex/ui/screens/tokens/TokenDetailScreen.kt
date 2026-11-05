@@ -290,7 +290,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Repeat, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.action_swap))
                     }

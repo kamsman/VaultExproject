@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -27,8 +28,6 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -887,7 +886,7 @@ private fun SwapFormScreen(
                     border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.SwapVert, stringResource(com.vaultex.R.string.swap_invert_tokens), tint = SwapPurple,
+                        Icon(Icons.Default.Repeat, stringResource(com.vaultex.R.string.swap_invert_tokens), tint = SwapPurple,
                             modifier = Modifier.size(22.dp).rotate(spinAngle))
                     }
                 }
@@ -1446,7 +1445,7 @@ private fun SwapConfirmScreen(
                 Column(Modifier.padding(16.dp)) {
                     ConfirmAmountRow(stringResource(com.vaultex.R.string.swap_you_send_label), state.fromToken, "${state.fromAmount} ${swapBaseOf(state.fromToken)}", fromFiat)
                     Box(Modifier.padding(start = 4.dp, top = 6.dp, bottom = 6.dp)) {
-                        Icon(Icons.Default.SwapVert, null, tint = swapTextFaint, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Repeat, null, tint = swapTextFaint, modifier = Modifier.size(20.dp))
                     }
                     ConfirmAmountRow(stringResource(com.vaultex.R.string.swap_you_receive_label), state.toToken, "${state.toAmount.ifEmpty { "—" }} ${swapBaseOf(state.toToken)}", toFiat)
                 }

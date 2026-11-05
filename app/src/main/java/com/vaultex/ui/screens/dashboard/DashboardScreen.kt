@@ -1919,7 +1919,7 @@ private fun RecentTxRow(tx: com.vaultex.data.local.entity.TransactionEntity, onC
     val (icon, tint, sign) = when (tx.type) {
         "received" -> Triple(Icons.Default.ArrowDownward, AccentGreen, "+")
         "sent" -> Triple(Icons.Default.ArrowUpward, AccentRed, "-")
-        else -> Triple(Icons.Default.SwapHoriz, Color(0xFF7C5CFC), "")
+        else -> Triple(Icons.Default.Repeat, Color(0xFF7C5CFC), "")
     }
     val title = when (tx.type) {
         "received" -> stringResource(R.string.received) + " " + tx.tokenSymbol

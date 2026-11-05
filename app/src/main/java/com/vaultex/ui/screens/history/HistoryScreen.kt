@@ -134,7 +134,7 @@ private fun TxCard(tx: TxDisplay, onClick: () -> Unit) {
     }
     val bgColor = iconColor.copy(alpha = 0.1f)
     val icon = when {
-        tx.estEchange -> Icons.Default.SwapHoriz
+        tx.estEchange -> Icons.Default.Repeat
         tx.isIncoming -> Icons.Default.CallReceived
         else -> Icons.Default.CallMade
     }
