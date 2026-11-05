@@ -705,7 +705,21 @@ fun DashboardScreen(navController: NavHostController) {
                         TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
                     ActionTile(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
                         TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
-                    ActionTile(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
+                    /*
+                    LA MEME FLECHE QUE LE BOUTON ROND DE LA BARRE DU BAS.
+
+                    Les deux ouvrent le meme ecran, a quelques
+                    centimetres l'un de l'autre, et portaient deux
+                    dessins differents : `SwapHoriz` ici, `Repeat` en
+                    bas. Rien ne distinguait les deux gestes.
+
+                    SEULE L'ICONE CHANGE : le libelle, la teinte
+                    TextPrimary, la largeur et la destination restent.
+                    Envoyer et Recevoir gardent leurs fleches — eux font
+                    autre chose, et les confondre serait le defaut
+                    inverse.
+                    */
+                    ActionTile(stringResource(R.string.tab_swap), Icons.Default.Repeat,
                         TextPrimary, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                     /*
                     ═══════════════════════════════════════════════════════
