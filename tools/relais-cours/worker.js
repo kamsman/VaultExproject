@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 79
+const VERSION = 80
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2424,12 +2424,37 @@ obtenu ou le nom de l'echec. C'est lui qui tranche, parce que ce conteneur
 de developpement n'atteint aucun de ces sites — meme methode que pour les
 noeuds Solana, ou trois des quatre etaient morts.
 
+Un `200` TOUT COURT VEUT DIRE MIEUX QUE « CA REPOND » : on n'ecrit le code
+nu que si des articles ont ete LUS. Une source qui repond sans qu'on sache
+la decouper se lit « 200 mais 0 article lisible », et c'est une panne
+differente — l'adresse est bonne, le format a change.
+
 MESURE LE 5 NOVEMBRE 2026, relais version 78 :
 
   Cryptoast          200   ✅
   Journal du Coin    200   ✅
   Cointribune        200   ✅
   Les Echos Finance  403   ❌  retiree
+
+MESURE LE 5 NOVEMBRE 2026, relais version 79, les remplacantes :
+
+  RFI Economie         200        ✅  gardee
+  France 24 Economie   TypeError  ❌  `fetch` n'est jamais parti
+  Agence Ecofin        404        ❌  hote bon, chemin faux
+
+Les deux echecs ne disent pas la meme chose, et ca change la suite :
+
+  · 404 — le domaine existe, il repond, c'est le CHEMIN qui est faux. Ca
+    vaut un second essai sur une autre adresse du meme site.
+  · TypeError — la requete n'est jamais partie. Dans un Worker, c'est ce
+    que rend `fetch` quand l'adresse ne peut pas etre resolue ou suivie,
+    pas un refus du serveur. Le chemin accentue en pourcent-encodage est le
+    suspect, donc le second essai passe par un flux SANS accent : si celui-
+    la marche, on saura que c'etait l'encodage et non le site.
+
+REGLE POUR NE PAS ACCUMULER DES MORTES : une candidate qui echoue DEUX
+mesures de suite sort de la liste. Trois sources crypto et une finance
+suffisent a faire l'ecran ; les essais suivants ne sont que du confort.
 
 ─── POURQUOI LES ECHOS EST PARTI, ET CE QU'ON N'A PAS FAIT ─────────────
 
@@ -2443,37 +2468,40 @@ sites qui vident les portefeuilles. Notre en-tete dit ce que nous sommes —
 `VaultEx/1.0 (lecteur de flux)` — et quand on nous ferme la porte, on va
 ailleurs.
 
-─── LES TROIS REMPLACANTES SONT DES SUPPOSITIONS ───────────────────────
+─── POURQUOI DES SOURCES AFRICAINES, ET PAS LA BOURSE DE PARIS ─────────
 
-Elles ne sont pas mesurees, et il y en a trois pour la meme raison qu'il y
-avait quatre noeuds Solana : une seule supposition se verifie une fois sur
-deux, trois se verifient en un appel. Le prochain /actus dira lesquelles
-repondent, et on elaguera.
-
-RFI et Ecofin ne sont pas la par hasard : les utilisateurs de VaultEx sont
-au Burkina Faso, et une actualite financiere qui parle du franc CFA et de
-la zone UEMOA leur sert plus que la bourse de Paris. Les Echos etait un
-reflexe d'Europeen.
+Les utilisateurs de VaultEx sont au Burkina Faso. Une actualite financiere
+qui parle du franc CFA et de la zone UEMOA leur sert plus que le CAC 40.
+Les Echos etait un reflexe d'Europeen ; RFI couvre l'Afrique de l'Ouest en
+francais, et c'est elle qui a repondu.
 ═══════════════════════════════════════════════════════════════════════════
 */
 const SOURCES_ACTUS = [
-  // Mesurees 200 le 5 novembre 2026.
+  // ─── MESUREES 200 AVEC ARTICLES LUS, le 5 novembre 2026 ───
   { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/' },
   { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/' },
   { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/' },
+  { nom: 'RFI Economie', theme: 'finance', url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss' },
 
   /*
-  CANDIDATES — PAS ENCORE MESUREES. Les chemins de RFI et France 24
-  portent un accent (« /économie/ ») ; il est ecrit en pourcent-encodage
-  parce qu'une adresse accentuee passee telle quelle a `fetch` depend de
-  la facon dont le moteur la normalise, et ca ne se devine pas.
+  ─── SECOND ESSAI — PAS ENCORE MESUREES ───
+
+  Une candidate rouge ne coute rien : son echec est immediat (404 refuse,
+  TypeError ne part meme pas), les lectures sont en parallele, et l'ecran
+  se remplit avec les quatre sources ci-dessus. Mais elle ne reste pas :
+  deux echecs de suite et elle sort.
+
+  Ecofin : le /finance/rss du premier essai a rendu 404 — le site repond,
+  donc on tente la racine du flux.
+
+  France 24 : le chemin accentue en pourcent-encodage a rendu TypeError.
+  Celui-ci n'a aucun accent, ce qui separe les deux hypotheses — si ca
+  marche, c'etait l'encodage ; si ca echoue encore, c'est le site.
   */
-  { nom: 'RFI Economie', theme: 'finance',
-    url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss' },
-  { nom: 'France 24 Economie', theme: 'finance',
-    url: 'https://www.france24.com/fr/%C3%A9conomie/rss' },
   { nom: 'Agence Ecofin', theme: 'finance',
-    url: 'https://www.agenceecofin.com/finance/rss' },
+    url: 'https://www.agenceecofin.com/rss' },
+  { nom: 'France 24 Eco', theme: 'finance',
+    url: 'https://www.france24.com/fr/rss' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
