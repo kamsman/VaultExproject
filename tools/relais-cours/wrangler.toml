@@ -12,11 +12,36 @@
 # DÉPLOYER
 # --------------------------------------------------------------------------
 #
-#   cd tools/relais-cours
-#   npx wrangler deploy --config wrangler.toml
+# LES QUATRE COMMANDES, DANS CET ORDRE. Aucune n'est facultative : chacune
+# répare une panne déjà vécue, décrite juste après.
 #
-# Sous PowerShell, si `npx` est bloqué par la politique d'exécution, appeler
-# `npx.cmd` : il contourne le script .ps1 sans rien changer aux réglages de
+#   git pull
+#   cd tools/relais-cours
+#   node verifier-version.mjs
+#   npx.cmd wrangler deploy --config wrangler.toml
+#
+# `git pull` D'ABORD — ET C'EST LA MARCHE LA PLUS FACILE À MANQUER.
+#
+# MESURÉ : un déploiement lancé sans `git pull` a publié le worker de la
+# veille. /sante répondait 77 alors que le dépôt était à 78, et la route
+# qu'on venait d'ajouter rendait « 404 Not Found ». On a cherché la faute
+# dans le code pendant un moment — il n'y en avait aucune, le code n'était
+# simplement pas sur le disque.
+#
+# `verifier-version.mjs` ENSUITE : il compare le numéro de worker.js à
+# l'historique de git et refuse de se taire s'il est en retard. S'il
+# annonce l'ancien numéro, le `git pull` n'a rien ramené — ne pas déployer.
+#
+# `npx.cmd` ET NON `npx` — SOUS POWERSHELL C'EST TOUJOURS VRAI, PAS PARFOIS.
+#
+# La version précédente de cette note disait « si `npx` est bloqué ». Le
+# « si » est faux sur la machine de déploiement : PowerShell refuse
+# systématiquement `npx.ps1` (« l'exécution de scripts est désactivée sur ce
+# système »), et le refus arrive AVANT que wrangler ne démarre. Donc rien
+# n'est publié, et rien ne ressemble à un déploiement raté : la commande
+# suivante s'exécute normalement.
+#
+# Le `.cmd` contourne le script .ps1 sans rien changer aux réglages de
 # sécurité de la machine.
 #
 # --------------------------------------------------------------------------
@@ -47,12 +72,23 @@
 # VÉRIFIER APRÈS COUP — ET NE PAS SAUTER CETTE ÉTAPE
 # --------------------------------------------------------------------------
 #
-#   https://vaultex-prix.<compte>.workers.dev/sante
+#   curl.exe -s "https://vaultex-prix.<compte>.workers.dev/sante"
+#
+# L'adresse complète est dans local.properties, sous `prix.relay.url`, sans
+# le `/api/v3/` de la fin. C'est la même que celle configurée dans l'app du
+# changeur.
 #
 # La réponse porte le numéro de VERSION défini en tête de worker.js. C'est le
 # seul moyen de savoir si le code déployé est bien le dernier : on a déjà
 # perdu du temps à corriger un défaut qui l'était déjà, simplement parce que
 # l'ancienne version tournait encore.
+#
+# LE `-s` DE CURL N'EST PAS UN DÉTAIL quand on enchaîne avec ConvertFrom-Json.
+#
+# MESURÉ sous PowerShell : sans lui, curl écrit sa barre de progression dans
+# le même tuyau que la réponse, et ConvertFrom-Json échoue sur un JSON qui
+# est pourtant valide. L'erreur parle de la propriété demandée et non de la
+# barre de progression, donc elle envoie chercher au mauvais endroit.
 #
 # --------------------------------------------------------------------------
 # LE NOM DOIT CORRESPONDRE À CELUI DU TABLEAU DE BORD

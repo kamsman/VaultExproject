@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 78
+const VERSION = 79
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2414,27 +2414,66 @@ de bibliotheque. Un editeur qui change sa mise en forme cassera sa source
 — pas les autres.
 
 C'est pourquoi CHAQUE SOURCE EST ISOLEE : une qui tombe laisse les autres
-passer, et /diag dit laquelle. Une liste vide n'arrive que si les quatre
+passer, et `sondes` dit laquelle. Une liste vide n'arrive que si toutes
 tombent ensemble.
 
-─── CES ADRESSES NE SONT PAS MESUREES ──────────────────────────────────
+─── CE QUI EST MESURE, ET CE QUI NE L'EST PAS ──────────────────────────
 
-Ce conteneur n'atteint aucun de ces sites. Les adresses sont celles que
-ces editeurs publient habituellement, et elles valent ce que vaut une
-supposition.
+/actus REND UN OBJET `sondes` : une ligne par source, avec le code HTTP
+obtenu ou le nom de l'echec. C'est lui qui tranche, parce que ce conteneur
+de developpement n'atteint aucun de ces sites — meme methode que pour les
+noeuds Solana, ou trois des quatre etaient morts.
 
-C'EST POURQUOI /actus REND UN OBJET `sondes` : une ligne par source, avec
-le code HTTP obtenu ou le nom de l'echec. Apres deploiement, un seul appel
-dit laquelle repond et laquelle est a remplacer — exactement la methode qui
-a servi pour les noeuds Solana, ou trois des quatre etaient morts.
+MESURE LE 5 NOVEMBRE 2026, relais version 78 :
+
+  Cryptoast          200   ✅
+  Journal du Coin    200   ✅
+  Cointribune        200   ✅
+  Les Echos Finance  403   ❌  retiree
+
+─── POURQUOI LES ECHOS EST PARTI, ET CE QU'ON N'A PAS FAIT ─────────────
+
+Un 403 sur un flux RSS n'est pas une panne : c'est l'editeur qui refuse
+les clients automatises. Le faire passer etait a une ligne — annoncer un
+`user-agent` de navigateur au lieu du notre.
+
+ON NE L'A PAS FAIT. Mentir sur l'identite du lecteur pour contourner un
+refus explicite, c'est exactement le genre de raccourci qu'on reproche aux
+sites qui vident les portefeuilles. Notre en-tete dit ce que nous sommes —
+`VaultEx/1.0 (lecteur de flux)` — et quand on nous ferme la porte, on va
+ailleurs.
+
+─── LES TROIS REMPLACANTES SONT DES SUPPOSITIONS ───────────────────────
+
+Elles ne sont pas mesurees, et il y en a trois pour la meme raison qu'il y
+avait quatre noeuds Solana : une seule supposition se verifie une fois sur
+deux, trois se verifient en un appel. Le prochain /actus dira lesquelles
+repondent, et on elaguera.
+
+RFI et Ecofin ne sont pas la par hasard : les utilisateurs de VaultEx sont
+au Burkina Faso, et une actualite financiere qui parle du franc CFA et de
+la zone UEMOA leur sert plus que la bourse de Paris. Les Echos etait un
+reflexe d'Europeen.
 ═══════════════════════════════════════════════════════════════════════════
 */
 const SOURCES_ACTUS = [
+  // Mesurees 200 le 5 novembre 2026.
   { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/' },
   { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/' },
   { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/' },
-  { nom: 'Les Echos Finance', theme: 'finance',
-    url: 'https://services.lesechos.fr/rss/les-echos-finance-marches.xml' },
+
+  /*
+  CANDIDATES — PAS ENCORE MESUREES. Les chemins de RFI et France 24
+  portent un accent (« /économie/ ») ; il est ecrit en pourcent-encodage
+  parce qu'une adresse accentuee passee telle quelle a `fetch` depend de
+  la facon dont le moteur la normalise, et ca ne se devine pas.
+  */
+  { nom: 'RFI Economie', theme: 'finance',
+    url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss' },
+  { nom: 'France 24 Economie', theme: 'finance',
+    url: 'https://www.france24.com/fr/%C3%A9conomie/rss' },
+  { nom: 'Agence Ecofin', theme: 'finance',
+    url: 'https://www.agenceecofin.com/finance/rss' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
@@ -2517,6 +2556,31 @@ function lireFluxRss(xml, source) {
   return articles
 }
 
+/*
+LA CLE DU CACHE PORTE L'EMPREINTE DE LA LISTE DES SOURCES.
+
+MESURE, ET C'EST CE QUI A MOTIVE CETTE FONCTION. On deploie une source
+corrigee, on appelle /actus pour voir `sondes`, et on lit encore les sondes
+D'AVANT — pendant un quart d'heure. On en conclut que la correction n'a pas
+pris, exactement comme un numero de version qui ne bouge pas.
+
+Avec l'empreinte dans la cle, changer une adresse change la cle : le vieux
+cache n'est plus trouve, et il expire tout seul. Aucune purge a faire.
+
+Elle ne bouge PAS quand on modifie autre chose dans le relais : seules les
+adresses et les noms la composent, donc un deploiement ordinaire ne jette
+pas un cache encore bon.
+*/
+function empreinteSources() {
+  const texte = SOURCES_ACTUS.map((s) => `${s.nom}|${s.url}`).join('\n')
+  // djb2 — pas de la cryptographie, juste de quoi distinguer deux listes.
+  let h = 5381
+  for (let i = 0; i < texte.length; i++) {
+    h = ((h * 33) ^ texte.charCodeAt(i)) >>> 0
+  }
+  return h.toString(36)
+}
+
 /**
  * La liste des actualites, cachee quinze minutes.
  *
@@ -2524,7 +2588,8 @@ function lireFluxRss(xml, source) {
  * qui plante vaut moins qu'un ecran vide qui dit pourquoi.
  */
 async function actualites(env) {
-  const enCache = await lireBrut('actus', 'liste')
+  const cle = `liste-${empreinteSources()}`
+  const enCache = await lireBrut('actus', cle)
   if (enCache) {
     try {
       return JSON.parse(enCache)
@@ -2533,23 +2598,51 @@ async function actualites(env) {
     }
   }
 
+  /*
+  LES SOURCES SONT LUES EN PARALLELE, ET CE N'EST PAS UNE COQUETTERIE.
+
+  La boucle sequentielle additionnait les attentes. Avec six sources et un
+  delai de garde de sept secondes chacune, un cache expire pouvait faire
+  attendre QUARANTE SECONDES l'utilisateur qui ouvre l'ecran — et il
+  n'aurait vu qu'un rond qui tourne, sans rien pour comprendre pourquoi.
+
+  En parallele, le pire cas devient celui de la source la plus lente : sept
+  secondes, quel que soit le nombre de sources. C'est aussi ce qui permet
+  d'en ajouter sans que chaque ajout se paie en attente.
+
+  `Promise.all` et non `allSettled` parce que CHAQUE lecture attrape deja
+  sa propre erreur : aucune ne peut rejeter, donc aucune ne peut emporter
+  les autres. La garantie est dans le `try` ci-dessous, pas dans le choix
+  de la combinaison.
+  */
+  const resultats = await Promise.all(
+    SOURCES_ACTUS.map(async (source) => {
+      try {
+        const r = await fetch(source.url, {
+          // On dit ce qu'on est. Voir l'en-tete du fichier : on ne se
+          // deguise pas en navigateur pour forcer un 403.
+          headers: { 'user-agent': 'VaultEx/1.0 (lecteur de flux)' },
+          signal: AbortSignal.timeout(7000),
+        })
+        if (!r.ok) return { source, sonde: r.status, lus: [] }
+        const lus = lireFluxRss(await r.text(), source)
+        return {
+          source,
+          sonde: lus.length ? r.status : `${r.status} mais 0 article lisible`,
+          lus,
+        }
+      } catch (e) {
+        // Une source morte n'emporte pas les autres.
+        return { source, sonde: e?.name || 'echec', lus: [] }
+      }
+    })
+  )
+
   const sondes = {}
   const articles = []
-  for (const source of SOURCES_ACTUS) {
-    try {
-      const r = await fetch(source.url, {
-        headers: { 'user-agent': 'VaultEx/1.0 (lecteur de flux)' },
-        signal: AbortSignal.timeout(7000),
-      })
-      sondes[source.nom] = r.status
-      if (!r.ok) continue
-      const lus = lireFluxRss(await r.text(), source)
-      sondes[source.nom] = lus.length ? r.status : `${r.status} mais 0 article lisible`
-      articles.push(...lus)
-    } catch (e) {
-      // Une source morte n'emporte pas les autres.
-      sondes[source.nom] = e?.name || 'echec'
-    }
+  for (const { source, sonde, lus } of resultats) {
+    sondes[source.nom] = sonde
+    articles.push(...lus)
   }
 
   // Les plus recentes d'abord ; celles sans date passent en dernier.
@@ -2557,7 +2650,7 @@ async function actualites(env) {
 
   const resultat = { articles: articles.slice(0, 24), sondes, quand: Date.now() }
   if (articles.length) {
-    await ecrireBrut('actus', 'liste', JSON.stringify(resultat), ACTUS_CACHE_S)
+    await ecrireBrut('actus', cle, JSON.stringify(resultat), ACTUS_CACHE_S)
   }
   return resultat
 }
