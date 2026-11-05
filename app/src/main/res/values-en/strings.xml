@@ -1160,7 +1160,7 @@
     <string name="change_ref_probleme_courte">Too short for a transaction number. Copy it in full from your SMS.</string>
     <string name="change_ref_probleme_longue">Too long for a transaction number. Copy only the reference, not the whole SMS.</string>
     <string name="change_ref_probleme_sans_chiffre">A transaction number contains digits. Check your SMS — e.g. MP251008123456.</string>
-    <string name="change_telephone">Your Mobile Money number</string>
+    <string name="change_telephone">Number that paid</string>
     <string name="change_jai_paye">Confirm payment</string>
     <string name="change_jai_paye_verifie">Payment verified — confirm</string>
     <string name="change_retour">Back to the quote</string>
@@ -1175,7 +1175,7 @@
     <string name="change_nouvelle">New transaction</string>
     <string name="change_retour_accueil">Back to home</string>
     <string name="action_acheter">Buy</string>
-    <string name="change_telephone_aide">The number that paid. Another phone? Add the reference above.</string>
+    <string name="change_telephone_aide">The one the money was sent from, even if it isn\'t yours.</string>
     <string name="change_telephone_exemple">e.g. 70 12 34 56</string>
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>
