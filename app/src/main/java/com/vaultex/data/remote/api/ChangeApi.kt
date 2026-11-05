@@ -1,6 +1,7 @@
 package com.vaultex.data.remote.api
 
 import com.vaultex.data.remote.dto.OrdreChangeBody
+import com.vaultex.data.remote.dto.ActualitesDto
 import com.vaultex.data.remote.dto.ParametresChangeDto
 import com.vaultex.data.remote.dto.ReponseOrdreDto
 import com.vaultex.data.remote.dto.ConsigneDto
@@ -41,6 +42,20 @@ interface ChangeApi {
 
     @GET("change/parametres")
     suspend fun parametres(): ParametresChangeDto
+
+    /**
+     * Les actualites crypto et finance, agregees par le relais.
+     *
+     * ELLES PASSENT PAR LE RELAIS, et ce n'est pas un detour inutile :
+     * deux cent vingt-trois telephones qui liraient quatre flux RSS
+     * chacun feraient des milliers d'appels quotidiens chez des editeurs
+     * qui n'ont rien demande. Ici c'est une lecture toutes les quinze
+     * minutes, partagee.
+     *
+     * Et changer de source ne demande plus de reconstruire l'application.
+     */
+    @GET("actus")
+    suspend fun actus(): ActualitesDto
 
     @POST("change/ordre")
     suspend fun ordre(@Body corps: OrdreChangeBody): ReponseOrdreDto

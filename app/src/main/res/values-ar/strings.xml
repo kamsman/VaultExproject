@@ -89,6 +89,12 @@
     <string name="price_24h">السعر (24 ساعة)</string>
     <string name="market_cap">القيمة السوقية</string>
 
+    <!-- أخبار العملات الرقمية والمال -->
+    <string name="actus_titre">الأخبار</string>
+    <string name="actus_rafraichir">تحديث</string>
+    <string name="actus_vide">لا يمكن قراءة الأخبار في الوقت الحالي.</string>
+    <string name="actus_ouvrir">فتح الأخبار</string>
+
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>
     <string name="no_transactions">لا توجد معاملات</string>

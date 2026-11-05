@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -263,6 +264,19 @@ fun MarketScreen(navController: NavHostController) {
                             modifier = Modifier.weight(1f)
                         )
                         BoutonRecherche(etatRecherche)
+                        Spacer(Modifier.width(8.dp))
+                        /*
+                        LES ACTUALITÉS SONT ICI, et pas dans un onglet.
+
+                        C'est l'écran où l'on regarde déjà les prix : lire
+                        « pourquoi ça bouge » appartient au même geste. Un
+                        cinquième onglet en bas aurait coûté une place
+                        permanente à un écran qu'on ouvre de temps en temps.
+                        */
+                        BoutonRond(
+                            icone = Icons.Default.Newspaper,
+                            description = stringResource(R.string.actus_ouvrir)
+                        ) { navController.navigate(Routes.ACTUS) }
                         Spacer(Modifier.width(8.dp))
                         BoutonRond(
                             icone = Icons.Default.Notifications,

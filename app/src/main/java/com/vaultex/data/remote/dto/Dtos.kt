@@ -685,3 +685,25 @@ data class ReponseAssistance(
     /** Vrai quand le relais conseille de passer au changeur. */
     val humain: Boolean? = null
 )
+
+/**
+ * Une actualite, telle que le relais la rend.
+ *
+ * Tout est NULLABLE parce que tout vient d'un flux RSS qu'on ne controle
+ * pas : un editeur qui change sa mise en forme rend un champ vide, et un
+ * champ vide ne doit pas faire tomber l'ecran. Le filtrage se fait a la
+ * lecture, pas ici.
+ */
+data class ArticleDto(
+    val titre: String? = null,
+    val lien: String? = null,
+    val source: String? = null,
+    val theme: String? = null,
+    val quand: Long? = null
+)
+
+/** La reponse de /actus : les articles, et l'etat de chaque source. */
+data class ActualitesDto(
+    val articles: List<ArticleDto>? = null,
+    val quand: Long? = null
+)
