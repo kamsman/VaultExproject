@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 81
+const VERSION = 82
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2442,15 +2442,31 @@ MESURE LE 5 NOVEMBRE 2026, relais version 79, les remplacantes :
   France 24 Economie   TypeError  ❌  `fetch` n'est jamais parti
   Agence Ecofin        404        ❌  hote bon, chemin faux
 
-Les deux echecs ne disent pas la meme chose, et ca change la suite :
+Les deux echecs ne disaient pas la meme chose, et ca a change la suite :
 
   · 404 — le domaine existe, il repond, c'est le CHEMIN qui est faux. Ca
-    vaut un second essai sur une autre adresse du meme site.
+    valait un second essai sur une autre adresse du meme site.
   · TypeError — la requete n'est jamais partie. Dans un Worker, c'est ce
     que rend `fetch` quand l'adresse ne peut pas etre resolue ou suivie,
-    pas un refus du serveur. Le chemin accentue en pourcent-encodage est le
-    suspect, donc le second essai passe par un flux SANS accent : si celui-
-    la marche, on saura que c'etait l'encodage et non le site.
+    pas un refus du serveur. Le chemin accentue en pourcent-encodage etait
+    le suspect, donc le second essai est passe par un chemin SANS accent.
+
+MESURE LE 5 NOVEMBRE 2026, relais version 81, les seconds essais :
+
+  France 24 (/fr/rss)        200                        ✅
+  Agence Ecofin (/rss)       200 mais 0 article lisible  ❌
+
+VERDICT SUR FRANCE 24 : c'etait bien le pourcent-encodage, pas le site.
+L'essai sans accent passe. D'ou l'adresse actuelle, ou « economie » est
+ecrit sans accent — ce qui n'est pas une approximation, c'est la seule
+forme qu'on a vue fonctionner.
+
+VERDICT SUR ECOFIN : elle sort, par la regle ci-dessous, et sans
+exception parce qu'elle m'arrangeait. « 200 mais 0 article lisible » dit
+que /rss repond mais ne sert pas de flux — ni `<item>`, ni `<entry>`. Ce
+n'est pas une adresse a corriger, c'est une page qui n'est pas un flux.
+C'est precisement ce que le 404 ne disait pas, et c'est pour ca que les
+deux lignes sont distinctes dans `sondes`.
 
 REGLE POUR NE PAS ACCUMULER DES MORTES : une candidate qui echoue DEUX
 mesures de suite sort de la liste. Trois sources crypto et une finance
@@ -2474,6 +2490,11 @@ Les utilisateurs de VaultEx sont au Burkina Faso. Une actualite financiere
 qui parle du franc CFA et de la zone UEMOA leur sert plus que le CAC 40.
 Les Echos etait un reflexe d'Europeen ; RFI couvre l'Afrique de l'Ouest en
 francais, et c'est elle qui a repondu.
+
+Agence Ecofin aurait ete la meilleure des trois pour ca — finance
+africaine, rien d'autre. Elle n'a pas de flux lisible, et on ne l'a pas
+gardee pour autant : une source qu'on garde parce qu'elle nous plairait
+est une ligne de code qui ment sur ce qui est verifie.
 ═══════════════════════════════════════════════════════════════════════════
 */
 const SOURCES_ACTUS = [
@@ -2484,24 +2505,25 @@ const SOURCES_ACTUS = [
   { nom: 'RFI Economie', theme: 'finance', url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss' },
 
   /*
-  ─── SECOND ESSAI — PAS ENCORE MESUREES ───
+  ─── FRANCE 24 : LE CHEMIN ECONOMIE, SANS ACCENT ───
 
-  Une candidate rouge ne coute rien : son echec est immediat (404 refuse,
-  TypeError ne part meme pas), les lectures sont en parallele, et l'ecran
-  se remplit avec les quatre sources ci-dessus. Mais elle ne reste pas :
-  deux echecs de suite et elle sort.
+  `/fr/rss` a rendu 200 a la mesure de la version 81, ce qui a prouve que
+  le TypeError du premier essai venait de mon pourcent-encodage et non du
+  site. Mais `/fr/rss` est le flux GENERAL — politique, monde, societe.
 
-  Ecofin : le /finance/rss du premier essai a rendu 404 — le site repond,
-  donc on tente la racine du flux.
+  L'ETIQUETER `finance` AURAIT ETE UN MENSONGE D'INTERFACE : l'ecran
+  dessine une pastille bleue et un graphique boursier sur tout ce qui
+  porte ce theme. Un article de politique avec une icone de bourse apprend
+  au lecteur que l'icone ne veut rien dire — et le jour ou elle comptera,
+  il ne la regardera plus.
 
-  France 24 : le chemin accentue en pourcent-encodage a rendu TypeError.
-  Celui-ci n'a aucun accent, ce qui separe les deux hypotheses — si ca
-  marche, c'etait l'encodage ; si ca echoue encore, c'est le site.
+  Donc on pointe la rubrique economie, « economie » ecrit SANS accent :
+  c'est la seule forme qu'on ait vue fonctionner sur ce site. Si elle
+  echoue a la prochaine mesure, le repli connu est `/fr/rss` — mais alors
+  avec un theme honnete, pas `finance`.
   */
-  { nom: 'Agence Ecofin', theme: 'finance',
-    url: 'https://www.agenceecofin.com/rss' },
   { nom: 'France 24 Eco', theme: 'finance',
-    url: 'https://www.france24.com/fr/rss' },
+    url: 'https://www.france24.com/fr/economie/rss' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
