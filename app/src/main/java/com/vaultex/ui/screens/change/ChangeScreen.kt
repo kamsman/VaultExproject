@@ -2131,17 +2131,62 @@ private fun ColumnScope.EtapePaiement(
         numero de transaction recu par SMS » dit quoi chercher, pas quoi
         penser de ce qu'on vient de taper.
         */
-        ChampChange(
-            valeur = state.referencePaiement,
-            onValeur = vm::onReferencePaiement,
-            libelle = stringResource(R.string.change_ref_paiement),
-            sousTitre = stringResource(R.string.change_ref_paiement_aide),
-            exemple = stringResource(R.string.change_ref_paiement_exemple),
-            aide = stringResource(R.string.change_ref_paiement_aide),
-            icone = Icons.Default.Description,
-            clavier = androidx.compose.ui.text.input.KeyboardType.Text,
-            erreur = probleme?.let { stringResource(it) }
-        )
+        /*
+        ═══════════════════════════════════════════════════════════════
+        CE QUI EST FACULTATIF NE DOIT PAS OCCUPER LA PLACE DU NECESSAIRE
+        ═══════════════════════════════════════════════════════════════
+
+        SIGNALE SUR CAPTURE : « il y a trop d'informations ». Ce champ
+        prenait quatre lignes — un titre, une aide, un exemple, une case
+        — pour quelque chose que la plupart laisseront vide, puisque le
+        numero Mobile Money suffit a retrouver le paiement.
+
+        Replie derriere un lien, il en prend une. Celui qui a sa
+        reference la trouve en un appui ; celui qui ne l'a pas ne la voit
+        meme pas, et c'est le cas le plus frequent.
+
+        ─── IL S'OUVRE TOUT SEUL S'IL Y A DEJA QUELQUE CHOSE ───────────
+
+        Une demande reprise, un retour en arriere : la reference saisie
+        est encore la. La replier cacherait ce que l'utilisateur a tape,
+        et il la retaperait sans savoir qu'elle y etait deja.
+
+        D'ou `isNotBlank()` dans la condition, et pas seulement le
+        drapeau : l'etat du champ decide autant que le geste.
+
+        ─── `remember` ET NON `rememberSaveable` ───────────────────────
+
+        Une rotation d'ecran replie le lien. Sans consequence : si une
+        reference avait ete saisie, la condition ci-dessus la rouvre.
+        On ne perd que le cas « ouvert, mais vide », qui ne contient
+        rien a perdre.
+        ═══════════════════════════════════════════════════════════════
+        */
+        var refOuverte by remember { mutableStateOf(false) }
+        if (refOuverte || state.referencePaiement.isNotBlank()) {
+            ChampChange(
+                valeur = state.referencePaiement,
+                onValeur = vm::onReferencePaiement,
+                libelle = stringResource(R.string.change_ref_paiement),
+                sousTitre = stringResource(R.string.change_ref_paiement_aide),
+                exemple = stringResource(R.string.change_ref_paiement_exemple),
+                aide = stringResource(R.string.change_ref_paiement_aide),
+                icone = Icons.Default.Description,
+                clavier = androidx.compose.ui.text.input.KeyboardType.Text,
+                erreur = probleme?.let { stringResource(it) }
+            )
+        } else {
+            TextButton(
+                onClick = { refOuverte = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    stringResource(R.string.change_ref_ajouter),
+                    color = AccentBlue,
+                    fontSize = 14.sp
+                )
+            }
+        }
     }
 
     /*

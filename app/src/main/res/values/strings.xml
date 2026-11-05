@@ -1182,6 +1182,7 @@
     <string name="change_motif">Référence en motif, si votre paiement le permet.</string>
     <string name="change_declarer_titre">Une fois le paiement envoyé</string>
     <string name="change_ref_paiement">Référence du paiement (facultatif)</string>
+    <string name="change_ref_ajouter">+ J\'ai une référence de paiement</string>
     <string name="change_ref_paiement_aide">Dans le SMS de l\'opérateur. Accélère la vérification.</string>
     <string name="change_ref_paiement_exemple">Ex. PP261103.1638.42172960</string>
     <string name="change_ref_probleme_demande">Ça, c\'est la référence de votre DEMANDE, celle qu\'on met en motif. Ici il faut celle de votre paiement, dans le SMS de l\'opérateur — ex. PP261103.1638.42172960.</string>
