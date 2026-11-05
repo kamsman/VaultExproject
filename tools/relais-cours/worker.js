@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 80
+const VERSION = 81
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2667,14 +2667,45 @@ async function actualites(env) {
   )
 
   const sondes = {}
-  const articles = []
-  for (const { source, sonde, lus } of resultats) {
-    sondes[source.nom] = sonde
-    articles.push(...lus)
-  }
+  for (const { source, sonde } of resultats) sondes[source.nom] = sonde
 
-  // Les plus recentes d'abord ; celles sans date passent en dernier.
-  articles.sort((a, b) => (b.quand || 0) - (a.quand || 0))
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE SOURCE A LA FOIS, A TOUR DE ROLE — ET NON LES PLUS RECENTES
+  ═══════════════════════════════════════════════════════════════════════
+
+  VU SUR LE TELEPHONE, le 5 novembre 2026 : les huit premiers articles de
+  l'ecran etaient TOUS de la crypto, et quatre d'entre eux venaient de la
+  meme source. La finance existait — RFI repondait 200 — mais il fallait
+  faire defiler longtemps pour l'atteindre.
+
+  La cause etait un tri par date seul. Il a l'air neutre et il ne l'est
+  pas : un blog crypto publie plusieurs fois par jour, une redaction
+  economique quelques fois. Classer par fraicheur donne donc tout le haut
+  de l'ecran au plus bavard, et l'ecran promettait « crypto ET finance ».
+
+  Le tour de role rend le premier ecran representatif : le plus recent de
+  chaque source, puis le deuxieme de chaque, et ainsi de suite. Avec
+  quatre sources vivantes, la finance est en quatrieme position au pire —
+  visible sans defiler.
+
+  CE QUE CA COUTE, ET IL FAUT LE DIRE : une source qui n'a rien publie
+  depuis trois jours place quand meme son article en haut. On echange une
+  fraicheur stricte contre une representation honnete des sources. C'est
+  le bon echange ici, parce que personne n'ouvre cet ecran pour avoir la
+  derniere minute — il y a les prix pour ca — mais pour voir ce qui se
+  dit, et « ce qui se dit » inclut la finance.
+
+  A L'INTERIEUR d'une source, l'ordre du flux est conserve : les editeurs
+  servent leurs articles du plus recent au plus ancien.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const articles = []
+  for (let rang = 0; rang < ACTUS_PAR_SOURCE; rang++) {
+    for (const { lus } of resultats) {
+      if (lus[rang]) articles.push(lus[rang])
+    }
+  }
 
   const resultat = { articles: articles.slice(0, 24), sondes, quand: Date.now() }
   if (articles.length) {
