@@ -1160,7 +1160,7 @@
     <string name="change_ref_probleme_courte">قصير جدًا ليكون رقم معاملة. انسخه كاملًا من رسالتك.</string>
     <string name="change_ref_probleme_longue">طويل جدًا ليكون رقم معاملة. انسخ المرجع فقط، لا الرسالة كلها.</string>
     <string name="change_ref_probleme_sans_chiffre">رقم المعاملة يحتوي على أرقام. تحقق من رسالتك — مثال MP251008123456.</string>
-    <string name="change_telephone">رقم Mobile Money الخاص بك</string>
+    <string name="change_telephone">الرقم الذي دفع</string>
     <string name="change_jai_paye">تأكيد الدفع</string>
     <string name="change_jai_paye_verifie">تم التحقق من الدفعة — تأكيد</string>
     <string name="change_retour">العودة إلى الحساب</string>
@@ -1175,7 +1175,7 @@
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="change_retour_accueil">العودة إلى الرئيسية</string>
     <string name="action_acheter">شراء</string>
-    <string name="change_telephone_aide">الرقم الذي دفع. هاتف آخر؟ أضف المرجع أعلاه.</string>
+    <string name="change_telephone_aide">الرقم الذي أُرسل منه المال، حتى لو لم يكن رقمك.</string>
     <string name="change_telephone_exemple">مثال 70 12 34 56</string>
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
