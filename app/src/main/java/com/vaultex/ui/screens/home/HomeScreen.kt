@@ -149,7 +149,21 @@ fun HomeScreen(navController: NavHostController) {
                         AccentRed, Modifier.weight(1f)) { navController.navigate(Routes.SEND_SELECT) }
                     ActionChip(stringResource(R.string.action_receive), Icons.Default.ArrowDownward,
                         AccentGreen, Modifier.weight(1f)) { navController.navigate(Routes.RECEIVE) }
-                    ActionChip(stringResource(R.string.tab_swap), Icons.Default.SwapHoriz,
+                    /*
+                    LA MEME FLECHE QUE LE BOUTON ROND DE LA BARRE DU BAS.
+
+                    Les deux ouvrent le meme ecran, a quelques
+                    centimetres l'un de l'autre, et portaient deux
+                    dessins differents : `SwapHoriz` ici, `Repeat` en
+                    bas. Rien ne distinguait les deux gestes — seuls les
+                    icones differaient.
+
+                    SEULE L'ICONE CHANGE. Le libelle, la teinte
+                    AccentBlue, la largeur et la destination restent.
+                    Les deux chips voisins — Envoyer, Recevoir — gardent
+                    leurs fleches : eux font autre chose.
+                    */
+                    ActionChip(stringResource(R.string.tab_swap), Icons.Default.Repeat,
                         AccentBlue, Modifier.weight(1f)) { navController.navigate(Routes.SWAP) }
                 }
             }

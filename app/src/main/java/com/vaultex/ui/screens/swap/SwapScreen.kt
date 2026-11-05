@@ -27,9 +27,6 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Repeat
-// Toujours utilise ligne ~1475 : le separateur decoratif de l'ecran de
-// confirmation, qui n'est PAS le bouton d'inversion et garde son dessin.
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.*
@@ -890,20 +887,7 @@ private fun SwapFormScreen(
                     border = BorderStroke(1.dp, swapBorder), modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        /*
-                        LA MEME FLECHE QUE LE BOUTON ROND DU BAS.
-
-                        Celui-ci portait `SwapVert` — deux fleches
-                        verticales — quand la barre de navigation porte
-                        `Repeat`. Deux dessins pour le meme geste dans le
-                        meme ecran : l'un en haut, l'autre a trois
-                        centimetres en dessous.
-
-                        SEULE L'ICONE CHANGE. La taille, la teinte, le
-                        cercle, la bordure et la rotation restent : c'est
-                        le dessin qui differait, pas le bouton.
-                        */
-                        Icon(Icons.Default.Repeat, stringResource(com.vaultex.R.string.swap_invert_tokens), tint = SwapPurple,
+                        Icon(Icons.Default.SwapVert, stringResource(com.vaultex.R.string.swap_invert_tokens), tint = SwapPurple,
                             modifier = Modifier.size(22.dp).rotate(spinAngle))
                     }
                 }
