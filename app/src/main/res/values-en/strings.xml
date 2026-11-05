@@ -1152,9 +1152,10 @@
     <string name="change_adresse_reception">Receiving address</string>
     <string name="change_motif">Put your reference in the reason field if your payment allows it.</string>
     <string name="change_declarer_titre">Once the payment is sent</string>
-    <string name="change_ref_paiement">Payment reference</string>
-    <string name="change_ref_paiement_aide">The transaction number you got by SMS.</string>
-    <string name="change_ref_paiement_exemple">e.g. MP251008123456</string>
+    <string name="change_ref_paiement">Payment reference (optional)</string>
+    <string name="change_ref_ajouter">+ I have a payment reference</string>
+    <string name="change_ref_paiement_aide">From your operator\'s SMS. Speeds up verification.</string>
+    <string name="change_ref_paiement_exemple">e.g. PP261103.1638.42172960</string>
     <string name="change_ref_probleme_demande">That is your REQUEST reference, the one you put as the payment reason. Here we need your payment\'s reference, from the operator\'s SMS — e.g. MP251008123456.</string>
     <string name="change_ref_probleme_courte">Too short for a transaction number. Copy it in full from your SMS.</string>
     <string name="change_ref_probleme_longue">Too long for a transaction number. Copy only the reference, not the whole SMS.</string>
@@ -1174,7 +1175,7 @@
     <string name="change_nouvelle">New transaction</string>
     <string name="change_retour_accueil">Back to home</string>
     <string name="action_acheter">Buy</string>
-    <string name="change_telephone_aide">The number that made the payment.</string>
+    <string name="change_telephone_aide">The number that paid. Another phone? Add the reference above.</string>
     <string name="change_telephone_exemple">e.g. 70 12 34 56</string>
     <string name="change_copier_reference">Copy the reference</string>
     <string name="change_historique_titre">My recent requests</string>

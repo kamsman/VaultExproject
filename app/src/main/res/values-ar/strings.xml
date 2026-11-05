@@ -1152,9 +1152,10 @@
     <string name="change_adresse_reception">عنوان الاستلام</string>
     <string name="change_motif">ضع مرجعك في خانة السبب إن سمح الدفع بذلك.</string>
     <string name="change_declarer_titre">بعد إرسال الدفعة</string>
-    <string name="change_ref_paiement">مرجع الدفع</string>
-    <string name="change_ref_paiement_aide">رقم المعاملة الذي وصلك برسالة نصية.</string>
-    <string name="change_ref_paiement_exemple">مثال MP251008123456</string>
+    <string name="change_ref_paiement">مرجع الدفع (اختياري)</string>
+    <string name="change_ref_ajouter">+ لدي مرجع دفع</string>
+    <string name="change_ref_paiement_aide">من رسالة المشغل النصية. يسرّع التحقق.</string>
+    <string name="change_ref_paiement_exemple">مثال PP261103.1638.42172960</string>
     <string name="change_ref_probleme_demande">هذا هو مرجع طلبك، الذي تضعه كسبب للدفع. هنا نحتاج مرجع دفعتك من رسالة المشغل — مثال MP251008123456.</string>
     <string name="change_ref_probleme_courte">قصير جدًا ليكون رقم معاملة. انسخه كاملًا من رسالتك.</string>
     <string name="change_ref_probleme_longue">طويل جدًا ليكون رقم معاملة. انسخ المرجع فقط، لا الرسالة كلها.</string>
@@ -1174,7 +1175,7 @@
     <string name="change_nouvelle">عملية جديدة</string>
     <string name="change_retour_accueil">العودة إلى الرئيسية</string>
     <string name="action_acheter">شراء</string>
-    <string name="change_telephone_aide">الرقم الذي دفع.</string>
+    <string name="change_telephone_aide">الرقم الذي دفع. هاتف آخر؟ أضف المرجع أعلاه.</string>
     <string name="change_telephone_exemple">مثال 70 12 34 56</string>
     <string name="change_copier_reference">نسخ المرجع</string>
     <string name="change_historique_titre">طلباتي الأخيرة</string>
