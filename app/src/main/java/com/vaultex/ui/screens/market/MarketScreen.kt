@@ -88,17 +88,59 @@ private const val SEUIL_PREFETCH = 10
 private fun BoutonRond(
     icone: ImageVector,
     description: String,
+    pastille: Boolean = false,
     onClick: () -> Unit
 ) {
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(Surface)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
+    Box(Modifier.size(40.dp)) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(CircleShape)
+                .background(Surface)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
+        }
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        LE POINT « IL Y A DU NOUVEAU »
+        ═══════════════════════════════════════════════════════════════════
+
+        BLEU ET NON ROUGE. Le rouge dit « problème » — c'est la couleur des
+        baisses dans la liste juste en dessous. Or il n'y a rien d'urgent à
+        lire un article, et c'est précisément l'argument qui a fait écarter
+        la notification : on informe, on ne presse pas.
+
+        DEUX CERCLES ET NON UN. L'anneau extérieur reprend le fond de
+        l'écran et sépare le point du disque gris du bouton. Sans lui, les
+        deux gris se touchent et le point se lit comme une bavure du
+        dessin plutôt que comme un signal.
+
+        IL NE PORTE AUCUN CLIC ni aucune description : le bouton en dessous
+        les porte déjà, et doubler la cible de frappe ne ferait que créer
+        une zone morte au coin de l'icône. Ce que la pastille annonce est
+        dit à la synthèse vocale par la description du bouton, qui change
+        quand il y a du nouveau.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (pastille) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .size(11.dp)
+                    .clip(CircleShape)
+                    .background(BgPrimary),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(AccentBlue)
+                )
+            }
+        }
     }
 }
 
@@ -120,7 +162,17 @@ fun MarketScreen(navController: NavHostController) {
     val moreError by viewModel.moreError.collectAsState()
     val reseau by viewModel.reseau.collectAsState()
 
+    val actusNouvelles by viewModel.actusNouvelles.collectAsState()
+
     LaunchedEffect(Unit) { viewModel.loadMarkets() }
+
+    /*
+    LA VÉRIFICATION PART À CHAQUE ENTRÉE SUR L'ÉCRAN, et le frein est dans
+    `PastilleActus` plutôt qu'ici : un `LaunchedEffect(Unit)` repart à
+    chaque retour sur l'onglet, et compter sur lui pour espacer les appels
+    reviendrait à dépendre du nombre d'allers-retours de l'utilisateur.
+    */
+    LaunchedEffect(Unit) { viewModel.verifierActus() }
 
     var filter by remember { mutableStateOf(MarketFilter.ALL) }
 
@@ -275,7 +327,11 @@ fun MarketScreen(navController: NavHostController) {
                         */
                         BoutonRond(
                             icone = Icons.Default.Newspaper,
-                            description = stringResource(R.string.actus_ouvrir)
+                            description = stringResource(
+                                if (actusNouvelles) R.string.actus_ouvrir_nouveau
+                                else R.string.actus_ouvrir
+                            ),
+                            pastille = actusNouvelles
                         ) { navController.navigate(Routes.ACTUS) }
                         Spacer(Modifier.width(8.dp))
                         BoutonRond(

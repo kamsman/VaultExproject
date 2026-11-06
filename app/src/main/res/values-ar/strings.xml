@@ -94,6 +94,7 @@
     <string name="actus_rafraichir">تحديث</string>
     <string name="actus_vide">لا يمكن قراءة الأخبار في الوقت الحالي.</string>
     <string name="actus_ouvrir">فتح الأخبار</string>
+    <string name="actus_ouvrir_nouveau">فتح الأخبار، مقالات جديدة</string>
 
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>

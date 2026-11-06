@@ -94,6 +94,7 @@
     <string name="actus_rafraichir">Refresh</string>
     <string name="actus_vide">Could not load the news right now.</string>
     <string name="actus_ouvrir">Open news</string>
+    <string name="actus_ouvrir_nouveau">Open news, new articles</string>
 
     <!-- History / Transactions -->
     <string name="history_title">History</string>
