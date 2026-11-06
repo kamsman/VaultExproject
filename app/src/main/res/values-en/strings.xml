@@ -95,6 +95,10 @@
     <string name="actus_vide">Could not load the news right now.</string>
     <string name="actus_ouvrir">Open news</string>
     <string name="actus_ouvrir_nouveau">Open news, new articles</string>
+    <string name="actus_age_instant">just now</string>
+    <string name="actus_age_min">%1$d min ago</string>
+    <string name="actus_age_h">%1$d h ago</string>
+    <string name="actus_age_j">%1$d d ago</string>
 
     <!-- History / Transactions -->
     <string name="history_title">History</string>
