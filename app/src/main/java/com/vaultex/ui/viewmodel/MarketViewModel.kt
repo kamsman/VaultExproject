@@ -20,8 +20,27 @@ class MarketViewModel @Inject constructor(
     private val tokenInfoService: com.vaultex.core.tx.TokenInfoService,
     private val tokenRepository: com.vaultex.data.repository.TokenRepository,
     private val currencyController: com.vaultex.core.session.CurrencyController,
+    private val pastilleActus: com.vaultex.core.session.PastilleActus,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
+
+    /*
+    LA PASTILLE DES ACTUALITÉS N'APPARTIENT PAS À CE MODÈLE.
+
+    Elle vit dans un objet unique partagé — `PastilleActus` — parce que
+    DEUX écrans la manipulent : celui-ci l'allume, celui des actualités
+    l'éteint. Un état gardé ici s'éteindrait à la destruction de ce
+    modèle, c'est-à-dire en quittant l'onglet, et le point se rallumerait
+    sans raison au retour.
+
+    On expose le flux tel quel : on n'en garde pas de copie, donc il n'y a
+    rien à resynchroniser.
+    */
+    val actusNouvelles: kotlinx.coroutines.flow.StateFlow<Boolean> = pastilleActus.aDuNouveau
+
+    fun verifierActus() {
+        viewModelScope.launch { pastilleActus.verifier() }
+    }
 
     // ─── Solde détenu d'une monnaie (carte « Mon portefeuille » du détail) ───
     data class Holding(

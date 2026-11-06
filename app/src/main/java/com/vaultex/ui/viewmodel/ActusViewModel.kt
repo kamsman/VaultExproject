@@ -43,7 +43,8 @@ data class EtatActus(
 
 @HiltViewModel
 class ActusViewModel @Inject constructor(
-    private val api: ChangeApi
+    private val api: ChangeApi,
+    private val pastille: com.vaultex.core.session.PastilleActus
 ) : ViewModel() {
 
     private val _etat = MutableStateFlow(EtatActus())
@@ -101,6 +102,23 @@ class ActusViewModel @Inject constructor(
             }
             _etat.update {
                 it.copy(chargement = false, articles = articles, erreur = articles.isEmpty())
+            }
+
+            /*
+            LA PASTILLE S'ÉTEINT ICI, ET SEULEMENT SUR UNE LECTURE RÉUSSIE.
+
+            On est à l'intérieur du cas « la requête a abouti et des
+            articles ont été retenus » : les deux sorties précédentes ont
+            déjà quitté la fonction. Marquer plus haut éteindrait le point
+            pour quelqu'un qui a ouvert l'écran dans un tunnel et n'a rien
+            vu — il ne saurait jamais qu'il avait du nouveau à lire.
+
+            On retient la date du PLUS RÉCENT article affiché, pas l'heure
+            qu'il est : si un article paraît pendant la lecture, il reste
+            du nouveau, et la pastille le dira au prochain passage.
+            */
+            if (articles.isNotEmpty()) {
+                pastille.marquerVu(articles.maxOf { it.quand })
             }
         }
     }

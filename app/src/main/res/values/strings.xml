@@ -125,6 +125,7 @@
     <string name="actus_rafraichir">Rafraîchir</string>
     <string name="actus_vide">Impossible de lire les actualités pour le moment.</string>
     <string name="actus_ouvrir">Ouvrir les actualités</string>
+    <string name="actus_ouvrir_nouveau">Ouvrir les actualités, nouveaux articles</string>
 
     <!-- History / Transactions -->
     <string name="history_title">Historique</string>
