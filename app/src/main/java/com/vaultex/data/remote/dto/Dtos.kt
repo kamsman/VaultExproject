@@ -707,3 +707,26 @@ data class ActualitesDto(
     val articles: List<ArticleDto>? = null,
     val quand: Long? = null
 )
+
+/**
+ * Un membre de l'equipe, tel que /equipe le rend.
+ *
+ * `photo` est une ADRESSE COMPLETE, construite par le relais a partir du
+ * nom de fichier regle dans CHANGE_EQUIPE. L'application ne la fabrique
+ * pas : elle serait fausse pour tout relais deploye ailleurs.
+ *
+ * Vide quand aucune photo n'a ete deposee — l'ecran dessine alors les
+ * initiales, et ce n'est pas un cas d'erreur mais l'etat normal tant que
+ * les photos ne sont pas en ligne.
+ */
+data class MembreEquipeDto(
+    val nom: String? = null,
+    val poste: String? = null,
+    val photo: String? = null
+)
+
+/** La reponse de /equipe. */
+data class EquipeDto(
+    val equipe: List<MembreEquipeDto>? = null,
+    val quand: Long? = null
+)

@@ -478,6 +478,8 @@
     <string name="settings_tokens_item">Tokens</string>
     <string name="settings_rpc_item">RPC settings</string>
     <string name="settings_about">About</string>
+    <string name="apropos_equipe">The team</string>
+    <string name="apropos_mission">VaultEx is a non-custodial wallet: your keys stay on your phone, and nobody else can touch your funds. Buying and selling in francs goes through a changer, account to account — VaultEx never holds your money.</string>
     <string name="settings_version_short">v%1$s</string>
     <string name="settings_language_french">English</string>
     <string name="import_wallet_title">Import wallet</string>

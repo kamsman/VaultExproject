@@ -2,6 +2,7 @@ package com.vaultex.data.remote.api
 
 import com.vaultex.data.remote.dto.OrdreChangeBody
 import com.vaultex.data.remote.dto.ActualitesDto
+import com.vaultex.data.remote.dto.EquipeDto
 import com.vaultex.data.remote.dto.ParametresChangeDto
 import com.vaultex.data.remote.dto.ReponseOrdreDto
 import com.vaultex.data.remote.dto.ConsigneDto
@@ -56,6 +57,17 @@ interface ChangeApi {
      */
     @GET("actus")
     suspend fun actus(): ActualitesDto
+
+    /**
+     * L'equipe VaultEx, pour l'ecran « A propos ».
+     *
+     * ELLE VIENT DU RELAIS ET NON DE L'APPLICATION, parce que l'assistance
+     * cite deja cette meme liste. Recopiee ici, elle creerait deux verites :
+     * le jour ou quelqu'un change de poste, on corrige un endroit, on oublie
+     * l'autre, et le robot annonce un titre que l'ecran dement.
+     */
+    @GET("equipe")
+    suspend fun equipe(): EquipeDto
 
     @POST("change/ordre")
     suspend fun ordre(@Body corps: OrdreChangeBody): ReponseOrdreDto
