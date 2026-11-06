@@ -95,6 +95,10 @@
     <string name="actus_vide">لا يمكن قراءة الأخبار في الوقت الحالي.</string>
     <string name="actus_ouvrir">فتح الأخبار</string>
     <string name="actus_ouvrir_nouveau">فتح الأخبار، مقالات جديدة</string>
+    <string name="actus_age_instant">الآن</string>
+    <string name="actus_age_min">قبل %1$d د</string>
+    <string name="actus_age_h">قبل %1$d س</string>
+    <string name="actus_age_j">قبل %1$d ي</string>
 
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>

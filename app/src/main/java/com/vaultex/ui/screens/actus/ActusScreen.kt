@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -202,15 +203,51 @@ fun ActusScreen(navController: NavHostController) {
                                 }
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
+                                    /*
+                                    DEUX LIGNES AU PLUS.
+
+                                    Mesure sur appareil : des titres libres
+                                    prenaient trois lignes, et SEPT articles
+                                    tenaient a l'ecran sur les seize envoyes.
+                                    A deux lignes on en voit une dizaine, et
+                                    toutes les cartes ont la meme hauteur —
+                                    une liste reguliere se parcourt des yeux,
+                                    une liste en escalier se lit.
+
+                                    Ce qu'on perd est reel : la fin d'un titre
+                                    long. C'est acceptable parce qu'un titre
+                                    d'actualite met son sujet au debut, et que
+                                    l'article complet est a un appui.
+                                    */
                                     Text(
                                         article.titre,
                                         fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                                        color = TextPrimary, lineHeight = 19.sp
+                                        color = TextPrimary, lineHeight = 19.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Spacer(Modifier.height(4.dp))
+                                    /*
+                                    LA SOURCE ET L'AGE, SUR LA MEME LIGNE.
+
+                                    L'age manquait, et c'etait le manque le
+                                    plus visible : « DIRECT — fausses alertes
+                                    a la bombe » ne dit pas s'il date de dix
+                                    minutes ou de mardi. Pour une liste
+                                    d'actualites c'est la seconde information
+                                    apres le titre.
+
+                                    La donnee etait DEJA LA — le relais envoie
+                                    `quand`, le modele le range dans
+                                    `Actualite.quand` — et l'ecran la jetait.
+                                    */
+                                    val age = ageArticle(article.quand)
                                     Text(
-                                        article.source,
-                                        fontSize = 11.sp, color = TextSecondary
+                                        if (age == null) article.source
+                                        else "${article.source} · $age",
+                                        fontSize = 11.sp, color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 Spacer(Modifier.width(8.dp))
@@ -228,3 +265,62 @@ fun ActusScreen(navController: NavHostController) {
 }
 
 private val P = Color(0xFF7C5CFC)
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ÂGE D'UN ARTICLE — ÉCRIT À LA MAIN, ET CE N'EST PAS UN CAPRICE
+═══════════════════════════════════════════════════════════════════════════
+
+Android propose `DateUtils.getRelativeTimeSpanString`, qui rend « il y a
+2 heures » tout fait et traduit. On ne s'en sert pas, pour une raison
+précise à cette application.
+
+VaultEx porte sa PROPRE langue, choisie dans les réglages et appliquée par
+`LocaleManager.wrap` sur le Context de l'Activity. `DateUtils` va chercher
+ses mots dans les ressources du SYSTÈME, pas dans celles de l'application.
+Un utilisateur dont le téléphone est en anglais mais qui a mis VaultEx en
+français lirait « 2 hours ago » au milieu d'un écran français — et en
+arabe, le mélange serait pire encore, la ligne changeant de sens d'écriture
+en son milieu.
+
+Nos quatre chaînes passent par `stringResource`, donc par le Context de la
+composition, donc par la langue de l'application. Quatre lignes de
+traduction contre une incohérence qu'on n'aurait vue qu'en production.
+
+─── LE TEMPS NE S'ÉCOULE PAS TOUT SEUL ICI ─────────────────────────────
+
+`System.currentTimeMillis()` est lu à la composition : l'âge ne vieillit
+pas sous les yeux de quelqu'un qui laisse l'écran ouvert. C'est voulu. Le
+rafraîchir à la seconde demanderait une horloge qui recompose la liste
+entière, pour corriger « il y a 2 h » en « il y a 2 h » dans l'immense
+majorité des cas. Un retour sur l'écran, ou le bouton Rafraîchir, remet
+tout à jour.
+═══════════════════════════════════════════════════════════════════════════
+*/
+@Composable
+private fun ageArticle(quand: Long): String? {
+    if (quand <= 0L) return null
+
+    val ecart = System.currentTimeMillis() - quand
+
+    /*
+    UNE DATE DANS LE FUTUR : ON SE TAIT PLUTÔT QUE DE MENTIR.
+
+    Ça arrive — un éditeur qui publie avec un fuseau mal réglé date son
+    article d'une heure d'avance. « il y a -45 min » serait absurde, et
+    « dans 45 min » ferait croire à une actualité qui n'existe pas encore.
+
+    Sous dix minutes d'écart on arrondit à « à l'instant », parce qu'à
+    cette échelle c'est vrai et c'est utile : ce sont les articles les plus
+    récents, donc ceux du haut de l'écran.
+    */
+    if (ecart < -10 * 60_000L) return null
+
+    val minutes = (if (ecart < 0) 0L else ecart) / 60_000L
+    return when {
+        minutes < 1 -> stringResource(R.string.actus_age_instant)
+        minutes < 60 -> stringResource(R.string.actus_age_min, minutes.toInt())
+        minutes < 60 * 24 -> stringResource(R.string.actus_age_h, (minutes / 60).toInt())
+        else -> stringResource(R.string.actus_age_j, (minutes / (60 * 24)).toInt())
+    }
+}
