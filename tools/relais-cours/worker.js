@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 82
+const VERSION = 83
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -986,6 +986,36 @@ export default {
     */
     if (url.pathname === '/actus') {
       return json(await actualites(env), 300)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    L'ÉQUIPE — POUR L'ÉCRAN « À PROPOS »
+    ═══════════════════════════════════════════════════════════════════
+
+    LA MÊME LISTE QUE CELLE DE L'ASSISTANCE, et c'est tout l'intérêt.
+    Recopier les noms dans l'application aurait créé deux vérités : le
+    jour où quelqu'un change de poste, on corrige un endroit, on oublie
+    l'autre, et l'assistance annonce un titre que l'écran dément.
+
+    Un seul réglage — CHANGE_EQUIPE — nourrit les deux.
+
+    L'ADRESSE DE LA PHOTO EST CONSTRUITE ICI. Le réglage ne porte qu'un
+    nom de fichier ; le relais sait, lui, sur quel domaine il tourne.
+    C'est aussi ce qui évite d'écrire l'adresse du relais en dur dans
+    l'application, où elle serait fausse pour tout déploiement futur.
+
+    Une heure de cache : une équipe ne change pas dans la journée, et
+    l'écran s'ouvre rarement.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname === '/equipe') {
+      const equipe = equipeVaultex(env).map((e) => ({
+        nom: e.nom,
+        poste: e.poste,
+        photo: e.photo ? `${url.origin}/img/${e.photo}` : '',
+      }))
+      return json({ equipe, quand: Date.now() }, 3600)
     }
 
     /*
@@ -8321,19 +8351,31 @@ function contactsVaultex(env) {
 }
 
 const EQUIPE_DEFAUT = [
-  { nom: 'Koanda Moumine', poste: 'Fondateur' },
-  { nom: 'Rasmane OUEDRAOGO, dit DOLLAR', poste: 'Directeur Marketing' },
-  { nom: 'Abdul Hack Sakande', poste: 'Directeur Commercial' },
+  { nom: 'Koanda Moumine', poste: 'Fondateur', photo: '' },
+  { nom: 'Rasmane OUEDRAOGO, dit DOLLAR', poste: 'Directeur Marketing', photo: '' },
+  { nom: 'Abdul Hack Sakande', poste: 'Directeur Commercial', photo: '' },
 ]
 
 /**
  * L'équipe, depuis CHANGE_EQUIPE ou par défaut.
  *
- * Format du réglage : `Nom|Poste;Nom|Poste`. Choisi pour être tapable
- * dans un champ de variable d'environnement Cloudflare sans se tromper —
- * un JSON s'y écrit mal, et une virgule manquante le rend illisible en
- * entier. Ici, une entrée mal formée est simplement ignorée, et les
- * autres restent.
+ * Format du réglage : `Nom|Poste;Nom|Poste`, avec une PHOTO facultative en
+ * troisième champ : `Nom|Poste|photo.jpg`. Choisi pour être tapable dans un
+ * champ de variable d'environnement Cloudflare sans se tromper — un JSON
+ * s'y écrit mal, et une virgule manquante le rend illisible en entier. Ici,
+ * une entrée mal formée est simplement ignorée, et les autres restent.
+ *
+ * ─── LA PHOTO EST UN NOM DE FICHIER, PAS UNE ADRESSE ──────────────────
+ *
+ * On écrit `moumine.jpg`, et le relais en fait `/img/moumine.jpg` — la
+ * même image servie depuis KV que pour les bannières d'annonces, déjà
+ * déployée et déjà de notre domaine.
+ *
+ * Accepter une adresse complète aurait fait de ce réglage un moyen de
+ * charger n'importe quelle image dans l'application depuis n'importe quel
+ * site. Un nom de fichier ne peut désigner que ce qu'on a nous-mêmes
+ * déposé. Les caractères sont donc filtrés, et une photo absente n'est pas
+ * une panne : l'écran dessine les initiales.
  */
 function equipeVaultex(env) {
   const brut = String(env?.CHANGE_EQUIPE ?? '').trim()
@@ -8341,11 +8383,31 @@ function equipeVaultex(env) {
   const lu = brut
     .split(';')
     .map((part) => {
-      const [nom, poste] = part.split('|')
-      return { nom: String(nom ?? '').trim(), poste: String(poste ?? '').trim() }
+      const [nom, poste, photo] = part.split('|')
+      return {
+        nom: String(nom ?? '').trim(),
+        poste: String(poste ?? '').trim(),
+        photo: nomPhotoSur(photo),
+      }
     })
     .filter((e) => e.nom.length > 1 && e.poste.length > 1)
   return lu.length ? lu : EQUIPE_DEFAUT
+}
+
+/**
+ * Retient un nom de fichier d'image, ou rien.
+ *
+ * Pas de barre oblique, pas de deux-points, pas de point-point : ce qui
+ * sort d'ici est collé derrière `/img/`, et doit rester un nom. Un
+ * `../` ou un `https://` y serait une porte ouverte.
+ */
+function nomPhotoSur(brut) {
+  const nom = String(brut ?? '').trim()
+  if (!nom || nom.length > 64) return ''
+  if (!/^[a-zA-Z0-9._-]+$/.test(nom)) return ''
+  if (nom.includes('..')) return ''
+  if (!/\.(png|jpg|jpeg|webp)$/i.test(nom)) return ''
+  return nom
 }
 
 /** « Koanda Moumine (Fondateur), … » — pour une phrase. */

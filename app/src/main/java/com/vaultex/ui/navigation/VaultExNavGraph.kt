@@ -21,6 +21,7 @@ import com.vaultex.ui.screens.pending.PendingSendsScreen
 import com.vaultex.ui.screens.dashboard.DashboardScreen
 import com.vaultex.ui.screens.home.HomeScreen
 import com.vaultex.ui.screens.actus.ActusScreen
+import com.vaultex.ui.screens.apropos.AProposScreen
 import com.vaultex.ui.screens.market.MarketScreen
 import com.vaultex.ui.screens.market.CoinDetailScreen
 import com.vaultex.ui.screens.settings.SettingsScreen
@@ -176,6 +177,10 @@ fun VaultExNavGraph(navController: NavHostController) {
 
         composable(Routes.ACTUS) {
             ActusScreen(navController)
+        }
+
+        composable(Routes.A_PROPOS) {
+            AProposScreen(navController)
         }
 
         composable(

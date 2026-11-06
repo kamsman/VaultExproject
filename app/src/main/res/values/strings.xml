@@ -567,6 +567,8 @@
     <string name="settings_tokens_item">Tokens</string>
     <string name="settings_rpc_item">Paramètres RPC</string>
     <string name="settings_about">À propos</string>
+    <string name="apropos_equipe">L\'équipe</string>
+    <string name="apropos_mission">VaultEx est un portefeuille non dépositaire : vos clés restent sur votre téléphone, et personne d\'autre ne peut toucher à vos fonds. Acheter et vendre en francs se fait auprès d\'un changeur, de compte à compte — VaultEx ne détient jamais votre argent.</string>
     <string name="settings_version_short">v%1$s</string>
     <string name="settings_language_french">Français</string>
     <string name="import_wallet_title">Importer wallet</string>

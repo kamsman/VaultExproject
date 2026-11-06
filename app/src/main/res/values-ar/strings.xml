@@ -478,6 +478,8 @@
     <string name="settings_tokens_item">الرموز</string>
     <string name="settings_rpc_item">إعدادات RPC</string>
     <string name="settings_about">حول التطبيق</string>
+    <string name="apropos_equipe">الفريق</string>
+    <string name="apropos_mission">‏VaultEx محفظة غير وصائية: مفاتيحك تبقى على هاتفك، ولا أحد غيرك يمكنه المساس بأموالك. الشراء والبيع بالفرنك يتم عبر صرّاف، من حساب إلى حساب — ‏VaultEx لا تحتفظ بأموالك أبدًا.</string>
     <string name="settings_version_short">الإصدار %1$s</string>
     <string name="settings_language_french">الفرنسية</string>
     <string name="import_wallet_title">استيراد محفظة</string>

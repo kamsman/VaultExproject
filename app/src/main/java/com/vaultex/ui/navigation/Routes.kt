@@ -60,6 +60,15 @@ object Routes {
     */
     const val ACTUS = "actus"
 
+    /*
+    « À PROPOS » — L'APPLICATION, PUIS L'ÉQUIPE.
+
+    L'équipe vient du relais, de la MÊME liste que celle citée par
+    l'assistance : la recopier dans l'application créerait deux vérités
+    qui finiraient par diverger.
+    */
+    const val A_PROPOS = "apropos"
+
     const val SETTINGS = "settings"
 
     const val SEND = "send"

@@ -539,7 +539,7 @@ fun SettingsScreen(navController: NavHostController) {
                             R.string.settings_version_short,
                             com.vaultex.BuildConfig.VERSION_NAME
                         )
-                    )
+                    ) { navController.navigate(Routes.A_PROPOS) }
                 }
             }
 
