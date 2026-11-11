@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 85
+const VERSION = 86
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8579,6 +8579,20 @@ function systemeAssistance(env, langue) {
     "  et tu n'attribues jamais un poste a quelqu'un qui n'est pas dans",
     '  cette liste. Si on te demande quelqu un d autre, dis que tu ne peux',
     '  pas le confirmer et propose les canaux officiels ci-dessous.',
+    /*
+    UNE QUESTION SUR UNE PERSONNE N'APPELLE PAS LA LISTE ENTIERE.
+
+    CONSTATE SUR L'ECRAN : « qui est Rasmane Ouedraogo » recevait les
+    trois noms, les trois postes et le WhatsApp general. La question
+    portait sur UNE personne ; la reponse recitait l'annuaire.
+
+    Elle n'etait pas fausse, et c'est ce qui la rendait genante : juste a
+    cote, la fiche jointe montrait Rasmane seul. Le texte et l'image ne
+    repondaient pas a la meme question.
+    */
+    "- Si on te demande qui est UNE personne, tu reponds sur ELLE : son nom",
+    '  et son poste, en une phrase. Tu ne recites pas toute l\'equipe, et tu',
+    "  ne donnes les canaux de contact que si la question les demande.",
     '',
     /*
     ═══════════════════════════════════════════════════════════════════
@@ -9162,7 +9176,38 @@ async function assistance(requete, env) {
       }
     : null
 
-  if (derniere.role === 'user' && nomLangue(corps?.langue) === 'francais') {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  UNE QUESTION QUI NOMME QUELQU'UN NE PREND PAS LA REPONSE TOUTE FAITE
+  ═══════════════════════════════════════════════════════════════════════
+
+  CONSTATE SUR L'ECRAN. « qui est rasmane Ouedraogo » declenchait la
+  reponse toute faite sur l'equipe : les trois noms, les trois postes, le
+  WhatsApp general et l'adresse Telegram. Juste en dessous, la fiche
+  montrait Rasmane seul.
+
+  Les deux etaient exacts, et c'est ce qui rendait l'ensemble ambigu : le
+  texte repondait a « comment vous joindre », l'image a « qui est
+  Rasmane ». L'utilisateur devait deviner laquelle des deux questions il
+  avait posee.
+
+  Les reponses toutes faites sont ecrites pour des questions GENERALES —
+  les minimums, les frais, les canaux. Elles n'ont rien a dire sur une
+  personne en particulier. Quand la question en nomme une, on laisse donc
+  le modele repondre : lui sait faire la difference entre « qui est X »
+  et « comment joindre X », ce qu'aucune liste de mots declencheurs ne
+  saura faire.
+
+  CA COUTE UN APPEL sur les trois cents du jour, la ou la reponse etait
+  gratuite. Ces questions-la sont rares, et une reponse a cote vaut moins
+  cher a corriger qu'a laisser.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  if (
+    derniere.role === 'user' &&
+    !membre &&
+    nomLangue(corps?.langue) === 'francais'
+  ) {
     const connue = reponseConnue(derniere.content, env)
     if (connue) return json({ ok: true, reponse: connue, source: 'reglages', membre })
   }
@@ -9187,10 +9232,19 @@ async function assistance(requete, env) {
     changeur : on ne sait pas, on le dit, et on indique qui saura.
     ═══════════════════════════════════════════════════════════════════
     */
+    /*
+    LA FICHE PART MEME ICI, ET C'EST LE CAS OU ELLE SERT LE PLUS.
+
+    Sans cle, on ne sait pas repondre a « qui est Rasmane ». La fiche,
+    elle, repond : son nom, son poste, son visage — et l'avertissement
+    qui compte. Une assistance qui dit « je ne sais pas » en montrant
+    quand meme la bonne personne vaut mieux que l'aveu seul.
+    */
     return json({
       ok: true,
       source: 'repli',
       humain: true,
+      membre,
       reponse:
         `Je ne sais pas encore repondre a celle-la. Pour l'instant je reponds a : ` +
         `le minimum et le plafond, le delai, les frais et le taux, quel reseau choisir, ` +
