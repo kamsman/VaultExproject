@@ -683,7 +683,18 @@ data class ReponseAssistance(
     val reponse: String? = null,
     val raison: String? = null,
     /** Vrai quand le relais conseille de passer au changeur. */
-    val humain: Boolean? = null
+    val humain: Boolean? = null,
+    /**
+     * La fiche d'un membre de l'equipe, quand la QUESTION le nommait.
+     *
+     * C'est le relais qui la choisit, par comparaison avec la liste qu'il
+     * tient — jamais le modele. Un modele a qui l'on demanderait de
+     * designer une photo en inventerait l'adresse, comme il inventait une
+     * adresse de support avant qu'on lui donne les vraies.
+     *
+     * Nul dans l'immense majorite des reponses.
+     */
+    val membre: MembreEquipeDto? = null
 )
 
 /**
