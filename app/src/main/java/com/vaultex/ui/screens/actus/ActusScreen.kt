@@ -37,6 +37,7 @@ import com.vaultex.ui.theme.BorderColor
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
+import com.vaultex.ui.viewmodel.Actualite
 import com.vaultex.ui.viewmodel.ActusViewModel
 
 /*
@@ -168,94 +169,36 @@ fun ActusScreen(navController: NavHostController) {
                             }
                         }
                     }
-                    items(etat.articles) { article ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = SurfaceColor,
-                            border = BorderStroke(1.dp, BorderColor),
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                /*
-                                UN LIEN QUI N'OUVRE RIEN NE DOIT PAS FAIRE
-                                TOMBER L'ÉCRAN. Un téléphone sans
-                                navigateur, c'est rare mais ça existe — et
-                                une liste d'articles qui plante au premier
-                                appui serait pire que pas de liste.
-                                */
-                                runCatching {
-                                    contexte.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(article.lien))
-                                    )
-                                }
-                            }
-                        ) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-                                val teinte = if (article.finance) AccentBlue else P
-                                Box(
-                                    Modifier.size(38.dp).clip(CircleShape)
-                                        .background(teinte.copy(alpha = 0.13f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        if (article.finance) Icons.Default.ShowChart
-                                        else Icons.Default.Newspaper,
-                                        null, tint = teinte, modifier = Modifier.size(17.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    /*
-                                    DEUX LIGNES AU PLUS.
+                    /*
+                    ═══════════════════════════════════════════════════
+                    UN ARTICLE EN AVANT, PUIS LES AUTRES
+                    ═══════════════════════════════════════════════════
 
-                                    Mesure sur appareil : des titres libres
-                                    prenaient trois lignes, et SEPT articles
-                                    tenaient a l'ecran sur les seize envoyes.
-                                    A deux lignes on en voit une dizaine, et
-                                    toutes les cartes ont la meme hauteur —
-                                    une liste reguliere se parcourt des yeux,
-                                    une liste en escalier se lit.
+                    Une liste plate de seize lignes identiques n'offre
+                    aucun point d'entrée : l'œil commence en haut faute
+                    de mieux, pas parce que quelque chose l'y invite.
 
-                                    Ce qu'on perd est reel : la fin d'un titre
-                                    long. C'est acceptable parce qu'un titre
-                                    d'actualite met son sujet au debut, et que
-                                    l'article complet est a un appui.
-                                    */
-                                    Text(
-                                        article.titre,
-                                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                                        color = TextPrimary, lineHeight = 19.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    /*
-                                    LA SOURCE ET L'AGE, SUR LA MEME LIGNE.
+                    Le premier article est le plus récent de la source
+                    la plus récente — l'entrelacement du relais le place
+                    là — donc le mettre en avant ne ment pas sur son
+                    importance. C'est bien le dernier paru.
 
-                                    L'age manquait, et c'etait le manque le
-                                    plus visible : « DIRECT — fausses alertes
-                                    a la bombe » ne dit pas s'il date de dix
-                                    minutes ou de mardi. Pour une liste
-                                    d'actualites c'est la seconde information
-                                    apres le titre.
+                    SANS IMAGE, et c'est un choix économique avant
+                    d'être esthétique : une illustration de flux RSS
+                    pèse 50 à 200 Ko, sur le forfait mobile de
+                    quelqu'un à Ouagadougou, pour une photo d'agence
+                    qui n'apprend rien.
+                    */
+                    val premier = etat.articles.first()
+                    val reste = etat.articles.drop(1)
 
-                                    La donnee etait DEJA LA — le relais envoie
-                                    `quand`, le modele le range dans
-                                    `Actualite.quand` — et l'ecran la jetait.
-                                    */
-                                    val age = ageArticle(article.quand)
-                                    Text(
-                                        if (age == null) article.source
-                                        else "${article.source} · $age",
-                                        fontSize = 11.sp, color = TextSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.OpenInNew, null,
-                                    tint = TextSecondary, modifier = Modifier.size(15.dp)
-                                )
-                            }
+                    item { TitreSection(stringResource(R.string.actus_une)) }
+                    item { CarteUne(premier) { ouvrir(contexte, premier.lien) } }
+
+                    if (reste.isNotEmpty()) {
+                        item { TitreSection(stringResource(R.string.actus_dernieres)) }
+                        items(reste) { article ->
+                            CarteArticle(article) { ouvrir(contexte, article.lien) }
                         }
                     }
                 }
@@ -265,6 +208,196 @@ fun ActusScreen(navController: NavHostController) {
 }
 
 private val P = Color(0xFF7C5CFC)
+
+/** Violet pour la crypto, bleu pour la finance — comme la pastille ronde. */
+@Composable
+private fun teinteDe(article: Actualite) = if (article.finance) AccentBlue else P
+
+/**
+ * Ouvre l'article dans le navigateur du téléphone.
+ *
+ * UN LIEN QUI N'OUVRE RIEN NE DOIT PAS FAIRE TOMBER L'ÉCRAN. Un téléphone
+ * sans navigateur, c'est rare mais ça existe — et une liste d'articles qui
+ * plante au premier appui serait pire que pas de liste.
+ *
+ * Et c'est bien le navigateur, pas une WebView : voir l'en-tête du fichier.
+ */
+private fun ouvrir(contexte: android.content.Context, lien: String) {
+    runCatching {
+        contexte.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(lien)))
+    }
+}
+
+@Composable
+private fun TitreSection(texte: String) {
+    Text(
+        texte,
+        fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+    )
+}
+
+/*
+LA PASTILLE DE CATÉGORIE — DEUX VALEURS, PARCE QU'ON N'EN A QUE DEUX.
+
+Le thème colorait déjà le rond de l'icône. Écrit en toutes lettres, il se
+lit sans décoder une icône : un graphique boursier et un journal ne se
+distinguent pas d'un coup d'œil à dix-sept pixels.
+
+PAS DE TROISIÈME CATÉGORIE INVENTÉE. Une maquette proposait « Blockchain »,
+« Économie » et « Tech » en plus : des filtres qu'on toucherait pour ne
+rien trouver, puisque le relais ne range les sources que sous `crypto` ou
+`finance`.
+*/
+@Composable
+private fun Pastille(article: Actualite, grande: Boolean = false) {
+    val teinte = teinteDe(article)
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = teinte.copy(alpha = 0.15f)
+    ) {
+        Text(
+            stringResource(
+                if (article.finance) R.string.actus_theme_finance
+                else R.string.actus_theme_crypto
+            ),
+            fontSize = if (grande) 11.sp else 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = teinte,
+            modifier = Modifier.padding(
+                horizontal = if (grande) 8.dp else 6.dp,
+                vertical = if (grande) 4.dp else 2.dp
+            )
+        )
+    }
+}
+
+/**
+ * L'article mis en avant.
+ *
+ * Le titre y tient sur TROIS lignes au lieu de deux : c'est la contrepartie
+ * de la mise en avant, et elle ne coûte qu'une ligne puisqu'il n'y en a
+ * qu'un. Les autres restent à deux, où la régularité des hauteurs compte
+ * plus que la fin d'un titre.
+ */
+@Composable
+private fun CarteUne(article: Actualite, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceColor,
+        border = BorderStroke(1.dp, teinteDe(article).copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Pastille(article, grande = true)
+                Spacer(Modifier.weight(1f))
+                ageArticle(article.quand)?.let {
+                    Text(it, fontSize = 11.sp, color = TextSecondary)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                article.titre,
+                fontWeight = FontWeight.Bold, fontSize = 17.sp,
+                color = TextPrimary, lineHeight = 23.sp,
+                maxLines = 3, overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    article.source,
+                    fontSize = 12.sp, color = TextSecondary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    Icons.Default.OpenInNew, null,
+                    tint = TextSecondary, modifier = Modifier.size(15.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CarteArticle(article: Actualite, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceColor,
+        border = BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+            val teinte = teinteDe(article)
+            Box(
+                Modifier.size(38.dp).clip(CircleShape)
+                    .background(teinte.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (article.finance) Icons.Default.ShowChart
+                    else Icons.Default.Newspaper,
+                    null, tint = teinte, modifier = Modifier.size(17.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                /*
+                DEUX LIGNES AU PLUS.
+
+                Mesure sur appareil : des titres libres prenaient trois
+                lignes, et SEPT articles tenaient a l'ecran sur les seize
+                envoyes. A deux lignes on en voit une dizaine, et toutes
+                les cartes ont la meme hauteur — une liste reguliere se
+                parcourt des yeux, une liste en escalier se lit.
+
+                Ce qu'on perd est reel : la fin d'un titre long. C'est
+                acceptable parce qu'un titre d'actualite met son sujet au
+                debut, et que l'article complet est a un appui.
+                */
+                Text(
+                    article.titre,
+                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    color = TextPrimary, lineHeight = 19.sp,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(5.dp))
+                /*
+                LA CATEGORIE, LA SOURCE ET L'AGE SUR UNE SEULE LIGNE.
+
+                Aucune hauteur ajoutee : la pastille remplace l'espace
+                qu'occupait deja la ligne de source. L'age manquait, et
+                c'etait le manque le plus visible — « DIRECT — fausses
+                alertes a la bombe » ne dit pas s'il date de dix minutes
+                ou de mardi.
+
+                La donnee etait DEJA LA : le relais envoie `quand`, le
+                modele le range dans `Actualite.quand`, et l'ecran la
+                jetait.
+                */
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Pastille(article)
+                    Spacer(Modifier.width(6.dp))
+                    val age = ageArticle(article.quand)
+                    Text(
+                        if (age == null) article.source
+                        else "${article.source} · $age",
+                        fontSize = 11.sp, color = TextSecondary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Default.OpenInNew, null,
+                tint = TextSecondary, modifier = Modifier.size(15.dp)
+            )
+        }
+    }
+}
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
