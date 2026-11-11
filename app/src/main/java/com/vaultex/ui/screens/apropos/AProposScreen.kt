@@ -187,26 +187,51 @@ absente, une adresse injoignable, un réseau coupé, un format que Coil ne
 sait pas lire — dans tous ces cas les initiales restent, parce qu'elles
 étaient déjà là avant que l'image ne soit demandée.
 
-L'ordre inverse — dessiner les initiales SI le chargement échoue — oblige
-à connaître l'échec, donc à attendre, donc à montrer un trou pendant ce
-temps-là.
+─── MAIS ELLES DOIVENT S'EFFACER QUAND LA PHOTO ARRIVE ─────────────────
+
+CONSTATÉ SUR L'ÉCRAN, et je ne l'avais pas vu en l'écrivant : les photos
+de l'équipe sont DÉTOURÉES. Leur fond est transparent, et les initiales
+posées dessous transparaissaient tout autour de la tête — deux lettres
+bleues dans les coins du rond, qu'on prend pour un détourage raté.
+
+Le montage était juste tant que les photos étaient opaques. Il devenait
+faux à la seconde où elles ont cessé de l'être, et rien dans le code ne
+le disait.
+
+`onState` règle les deux à la fois : les initiales tiennent la place
+pendant le chargement et en cas d'échec, puis disparaissent à l'instant
+où l'image est posée. On n'attend donc toujours pas de connaître l'échec
+pour dessiner quelque chose — c'est le succès qu'on attend pour effacer.
 */
 @Composable
 private fun Avatar(membre: Membre) {
+    /*
+    `remember(membre.photo)` et non `remember(Unit)` : la liste est
+    recyclée par la LazyColumn, et un rond qui change de membre en
+    gardant « photo déjà chargée » afficherait un rond vide le temps de
+    la nouvelle image.
+    */
+    var photoPosee by remember(membre.photo) { mutableStateOf(false) }
+
     Box(
         Modifier.size(46.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.15f)),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            initiales(membre.nom),
-            fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentBlue
-        )
+        if (!photoPosee) {
+            Text(
+                initiales(membre.nom),
+                fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentBlue
+            )
+        }
         if (membre.photo.isNotEmpty()) {
             coil.compose.AsyncImage(
                 model = membre.photo,
                 contentDescription = membre.nom,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize().clip(CircleShape)
+                modifier = Modifier.matchParentSize().clip(CircleShape),
+                onState = { etat ->
+                    photoPosee = etat is coil.compose.AsyncImagePainter.State.Success
+                }
             )
         }
     }
