@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 83
+const VERSION = 84
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8351,7 +8351,7 @@ function contactsVaultex(env) {
 }
 
 const EQUIPE_DEFAUT = [
-  { nom: 'Koanda Moumine', poste: 'Fondateur', photo: '' },
+  { nom: 'Koanda Moumine', poste: 'CEO', photo: '' },
   { nom: 'Rasmane OUEDRAOGO, dit DOLLAR', poste: 'Directeur Marketing', photo: '' },
   { nom: 'Abdul Hack Sakande', poste: 'Directeur Commercial', photo: '' },
 ]
