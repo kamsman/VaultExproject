@@ -9,12 +9,14 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -658,6 +660,79 @@ private fun Bulle(m: MessageAssistance) {
                     color = if (m.deMoi) Color.White else TextPrimary
                 )
             }
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LA FICHE D'UN MEMBRE, SOUS LA RÉPONSE QUI LA PORTE
+            ═══════════════════════════════════════════════════════════════
+
+            Jointe quand la QUESTION nommait quelqu'un de l'équipe. Le
+            relais choisit la photo dans la liste qu'il tient ; le modèle
+            n'écrit que le texte.
+
+            ─── ET ELLE PORTE UN AVERTISSEMENT, TOUJOURS ─────────────────
+
+            Montrer un visage dans une application de portefeuille a un
+            effet qu'on ne voulait pas : quelqu'un qu'un escroc contacte
+            sur WhatsApp pourrait « vérifier » en comparant les visages.
+            L'escroc n'a qu'à prendre cette photo-ci en image de profil, et
+            la comparaison réussira.
+
+            La ligne sous la fiche dit donc ce qui protège vraiment : le
+            changeur ne contacte jamais en premier, et le seul numéro
+            valable est celui affiché sur l'écran d'achat au moment de la
+            commande. Sans elle, cette fiche serait un accessoire offert à
+            l'usurpateur. Avec elle, c'est un rappel de plus.
+
+            Elle n'est pas facultative : une fiche sans sa phrase vaut
+            moins que pas de fiche.
+            ═══════════════════════════════════════════════════════════════
+            */
+            m.membre?.let { membre ->
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = SurfaceColor,
+                    border = BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.widthIn(max = maxLargeur)
+                ) {
+                    Column(Modifier.padding(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(40.dp).clip(CircleShape)
+                                    .background(AccentBlue.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (membre.photo.isNotEmpty()) {
+                                    coil.compose.AsyncImage(
+                                        model = membre.photo,
+                                        contentDescription = membre.nom,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(40.dp).clip(CircleShape)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    membre.nom,
+                                    fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    membre.poste,
+                                    fontSize = 11.sp, color = TextSecondary
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.assistance_fiche_avertissement),
+                            fontSize = 10.5.sp, lineHeight = 15.sp, color = TextMuted
+                        )
+                    }
+                }
+            }
+
             /*
             L'HEURE, ET RIEN D'AUTRE.
 

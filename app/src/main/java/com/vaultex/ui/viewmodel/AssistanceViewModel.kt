@@ -32,7 +32,15 @@ data class MessageAssistance(
     et toute la conversation afficherait la même heure, celle de la
     dernière frappe. L'heure d'un message est celle où il a existé.
     */
-    val quand: Long = System.currentTimeMillis()
+    val quand: Long = System.currentTimeMillis(),
+    /*
+    LA FICHE JOINTE À LA RÉPONSE, QUAND LA QUESTION NOMMAIT QUELQU'UN.
+
+    Elle appartient au MESSAGE et non à l'écran : une conversation se
+    relit en remontant, et une fiche rangée dans l'état global suivrait le
+    dernier échange au lieu de rester sous la réponse qui la portait.
+    */
+    val membre: Membre? = null
 )
 
 data class AssistanceState(
@@ -231,8 +239,29 @@ class AssistanceViewModel @Inject constructor(
 
             val reponse = r?.reponse?.takeIf { r.ok == true && it.isNotBlank() }
             _state.update { etat ->
+                /*
+                LE MÊME FILTRE QUE PARTOUT : un nom ou un poste vide n'est
+                pas une fiche, et une photo qui n'est pas en https n'est
+                pas une photo. Le relais filtre déjà, et c'est précisément
+                pour ça qu'on refiltre — la barrière qui ne sert jamais
+                est celle qui tient le jour où l'autre cède.
+                */
+                val fiche = r?.membre?.let { m ->
+                    val nom = m.nom?.trim().orEmpty()
+                    val poste = m.poste?.trim().orEmpty()
+                    if (nom.isEmpty() || poste.isEmpty()) null
+                    else Membre(
+                        nom = nom,
+                        poste = poste,
+                        photo = m.photo?.trim().orEmpty()
+                            .takeIf { it.startsWith("https://") }.orEmpty()
+                    )
+                }
+
                 val suite = if (reponse != null) {
-                    etat.messages + MessageAssistance(deMoi = false, texte = reponse)
+                    etat.messages + MessageAssistance(
+                        deMoi = false, texte = reponse, membre = fiche
+                    )
                 } else etat.messages
 
                 etat.copy(

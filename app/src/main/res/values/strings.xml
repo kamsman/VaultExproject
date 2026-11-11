@@ -134,6 +134,7 @@
     <string name="actus_dernieres">Dernières actualités</string>
     <string name="actus_theme_crypto">CRYPTO</string>
     <string name="actus_theme_finance">FINANCE</string>
+    <string name="assistance_fiche_avertissement">Personne de l\'équipe ne vous contactera en premier, et jamais pour vous demander votre phrase de récupération. Le seul numéro valable est celui affiché sur l\'écran d\'achat au moment de votre commande — une photo ne prouve rien, elle se copie.</string>
 
     <!-- History / Transactions -->
     <string name="history_title">Historique</string>

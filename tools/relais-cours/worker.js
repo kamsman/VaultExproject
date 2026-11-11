@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 84
+const VERSION = 85
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8410,9 +8410,59 @@ function nomPhotoSur(brut) {
   return nom
 }
 
-/** « Koanda Moumine (Fondateur), … » — pour une phrase. */
+/** « Koanda Moumine (CEO), … » — pour une phrase. */
 function equipeTexte(env) {
   return equipeVaultex(env).map((e) => `${e.nom} (${e.poste})`).join(', ')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+RECONNAÎTRE UN MEMBRE DE L'ÉQUIPE DANS UNE QUESTION
+═══════════════════════════════════════════════════════════════════════════
+
+Quand quelqu'un écrit « qui est Sakandé », l'assistance joint sa fiche —
+photo, nom, poste — sous sa réponse.
+
+─── C'EST LE RELAIS QUI CHOISIT L'IMAGE, JAMAIS LE MODÈLE ──────────────
+
+Un modèle à qui l'on demanderait de désigner une photo en inventerait
+l'adresse, exactement comme il inventait une adresse de support avant
+qu'on lui donne les vraies. Une image inventée dans une application de
+portefeuille, c'est une image qu'on ne contrôle pas, affichée sous notre
+nom.
+
+Ici le modèle écrit le texte, et rien d'autre. La photo vient de la liste
+que nous tenons, par une comparaison de chaînes.
+
+─── ON CHERCHE DANS LA QUESTION, PAS DANS LA RÉPONSE ───────────────────
+
+La consigne du modèle contient toute l'équipe : interrogé sur « comment
+vous joindre », il cite les trois noms. Chercher dans sa réponse
+joindrait donc trois fiches à une question qui n'en demandait aucune.
+
+C'est la question de l'utilisateur qui dit de qui il parle.
+
+─── QUATRE LETTRES AU MOINS, ET UN SEUL RÉSULTAT ───────────────────────
+
+Les mots courts attrapent n'importe quoi — « dit », dans « Rasmane
+OUEDRAOGO, dit DOLLAR », apparaît dans des dizaines de phrases
+ordinaires. Et si deux membres correspondent, on n'en joint aucun :
+afficher le mauvais visage vaut moins que n'en afficher aucun.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function membreEvoque(question, env) {
+  const texte = sansAccents(String(question ?? '')).toLowerCase()
+  if (texte.length < 3) return null
+
+  const trouves = equipeVaultex(env).filter((membre) =>
+    sansAccents(membre.nom)
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((mot) => mot.length >= 4)
+      .some((mot) => texte.includes(mot))
+  )
+
+  return trouves.length === 1 ? trouves[0] : null
 }
 
 /**
@@ -9089,9 +9139,32 @@ async function assistance(requete, env) {
   fois, en gardant les contacts et les chiffres a jour partout.
   */
   const derniere = propres[propres.length - 1]
+
+  /*
+  LA FICHE D'UN MEMBRE, QUAND LA QUESTION LE NOMME.
+
+  Calculee UNE fois et jointe aux deux sorties — la reponse toute faite
+  des reglages comme celle du modele. Les separer aurait fait qu'une
+  question sur Sakande montre sa photo ou non selon qu'elle tombe sur un
+  mot declencheur, ce qui est indefendable vu de l'ecran.
+
+  Rend `null` dans l'immense majorite des cas, et l'application ne dessine
+  alors rien de plus.
+  */
+  const evoque = derniere.role === 'user' ? membreEvoque(derniere.content, env) : null
+  const membre = evoque
+    ? {
+        nom: evoque.nom,
+        poste: evoque.poste,
+        photo: evoque.photo
+          ? `${new URL(requete.url).origin}/img/${evoque.photo}`
+          : '',
+      }
+    : null
+
   if (derniere.role === 'user' && nomLangue(corps?.langue) === 'francais') {
     const connue = reponseConnue(derniere.content, env)
-    if (connue) return json({ ok: true, reponse: connue, source: 'reglages' })
+    if (connue) return json({ ok: true, reponse: connue, source: 'reglages', membre })
   }
 
   const cle = String(env?.CHANGE_IA_CLE ?? '')
@@ -9178,7 +9251,7 @@ async function assistance(requete, env) {
     }
 
     await incrementer('ia', jour, 2 * 86400)
-    return json({ ok: true, reponse: nettoyerIa(brut, env) })
+    return json({ ok: true, reponse: nettoyerIa(brut, env), membre })
   } catch (e) {
     return json({
       ok: false,
