@@ -103,7 +103,7 @@
     <string name="actus_dernieres">آخر الأخبار</string>
     <string name="actus_theme_crypto">العملات الرقمية</string>
     <string name="actus_theme_finance">المال</string>
-    <string name="assistance_fiche_avertissement">لن يتواصل معك أحد من الفريق أولاً، ولن يطلب منك أبدًا عبارة الاسترداد. الرقم الوحيد الصحيح هو الظاهر على شاشة الشراء عند تقديم طلبك — الصورة لا تثبت شيئًا، فهي تُنسخ بسهولة.</string>
+    <string name="assistance_fiche_avertissement">الصورة لا تثبت شيئًا، فهي تُنسخ بسهولة. الرقم الوحيد الصحيح هو الظاهر على شاشة الشراء.</string>
 
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>
