@@ -172,7 +172,63 @@ fi
 
 echo "  cadre : $cadre"
 convert "$source" -crop "$cadre" +repage -resize 256x256 \
-  -strip -quality 82 -define webp:method=6 "$sortie" || exit 1
+  -strip -quality 84 -define webp:method=6 "$sortie" || exit 1
+
+# ==========================================================================
+# HARMONISER L'EXPOSITION — MESUREE, PAS JUGEE A L'OEIL
+# ==========================================================================
+#
+# MESURE SUR LES TROIS PREMIERES PHOTOS : luminance du visage 133, 65 et 93
+# sur 255. Celle du milieu etait DEUX FOIS plus sombre que la premiere.
+# Alignees dans une liste, elles ne ressemblaient pas a un meme jeu — l'une
+# paraissait sous-exposee, et on l'aurait mise sur le dos du photographe
+# plutot que sur celui de l'ecran.
+#
+# ON MESURE LE CENTRE, PAS L'IMAGE. Sur une photo detouree, le fond est
+# transparent : le compter ferait croire qu'une image est claire alors que
+# seul son vide l'est. Le carre central est le visage, a peu de chose pres.
+#
+# LE GAMMA SEUL NE SUFFIT PAS. Eclaircir une image sombre d'un gamma 1,7
+# remonte tout, y compris les noirs : le costume sombre de la deuxieme photo
+# virait au gris. Une legere courbe sigmoide rend les noirs sans reprendre
+# la lumiere du visage — mesure : contraste 65 sans elle, 72 avec.
+#
+# LES BORNES SONT LA POUR UNE RAISON. Au-dela de 1,8 on ne revele plus rien,
+# on amplifie le bruit d'une photo ratee ; en-dessous de 0,8 on assombrit une
+# photo qui allait bien. Hors de ces bornes, c'est la photo qu'il faut
+# refaire, pas la courbe qu'il faut forcer.
+#
+# CE QU'ON NE FAIT PAS : rien qui change le visage de quelqu'un. Corriger une
+# exposition est du developpement ; lisser une peau ou retoucher des traits
+# est autre chose, et ca ne se decide pas dans un script.
+# ==========================================================================
+CIBLE_LUMINANCE=115
+
+mesure() {
+  convert "$1" -crop 110x110+73+60 +repage -alpha off -colorspace Gray \
+    -format "%[fx:int(mean*255)] %[fx:int(standard_deviation*255)]" info:
+}
+
+avant=$(mesure "$sortie")
+lum=${avant%% *}
+
+if [ "${lum:-0}" -gt 5 ] && [ "${lum:-0}" -lt 250 ]; then
+  gamma=$(awk -v l="$lum" -v c="$CIBLE_LUMINANCE" 'BEGIN{
+    g = log(l/255) / log(c/255)
+    if (g < 0.8) g = 0.8
+    if (g > 1.8) g = 1.8
+    printf "%.2f", g
+  }')
+  # La sigmoide ne sert qu'aux images qu'on a reellement eclaircies.
+  sig=""
+  case "$(awk -v g="$gamma" 'BEGIN{print (g > 1.2) ? "oui" : "non"}')" in
+    oui) sig="-sigmoidal-contrast 4x42%";;
+  esac
+  convert "$sortie" -gamma "$gamma" $sig -unsharp 0x0.7+0.5+0.02 \
+    -strip -quality 84 -define webp:method=6 "$sortie"
+  apres=$(mesure "$sortie")
+  echo "  exposition : visage $avant → $apres   (gamma $gamma ${sig:+avec sigmoide})"
+fi
 
 # ─── Apercu rond, tel que l'ecran le dessine ───
 apercu="$(dirname "$source")/$nom-apercu.png"
