@@ -130,6 +130,10 @@
     <string name="actus_age_min">il y a %1$d min</string>
     <string name="actus_age_h">il y a %1$d h</string>
     <string name="actus_age_j">il y a %1$d j</string>
+    <string name="actus_une">À la une</string>
+    <string name="actus_dernieres">Dernières actualités</string>
+    <string name="actus_theme_crypto">CRYPTO</string>
+    <string name="actus_theme_finance">FINANCE</string>
 
     <!-- History / Transactions -->
     <string name="history_title">Historique</string>

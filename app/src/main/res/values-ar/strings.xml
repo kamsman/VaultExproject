@@ -99,6 +99,10 @@
     <string name="actus_age_min">قبل %1$d د</string>
     <string name="actus_age_h">قبل %1$d س</string>
     <string name="actus_age_j">قبل %1$d ي</string>
+    <string name="actus_une">أبرز خبر</string>
+    <string name="actus_dernieres">آخر الأخبار</string>
+    <string name="actus_theme_crypto">العملات الرقمية</string>
+    <string name="actus_theme_finance">المال</string>
 
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>
