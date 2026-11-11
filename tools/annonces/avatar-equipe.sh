@@ -50,6 +50,35 @@
 # C'est cette rupture qui borne le portrait.
 #
 # Sur une source non détourée, il n'y a rien à mesurer : donner `--cadre`.
+#
+# --------------------------------------------------------------------------
+# DÉTOURER UNE PHOTO QUI NE L'EST PAS
+# --------------------------------------------------------------------------
+#
+# Ce script ne détoure pas : il mesure, recadre et compresse. Le détourage
+# demande un modèle, et un modèle n'a pas sa place dans un dépôt.
+#
+# Ce qui a servi pour deux des trois photos de l'équipe, sur une machine de
+# travail — PAS sur le relais, PAS dans l'application :
+#
+#     python3 -m venv venv && ./venv/bin/pip install "rembg[cpu,cli]"
+#     ./venv/bin/rembg i photo.jpg photo-detouree.png
+#
+# Le modèle fait un gigaoctet et se télécharge au premier appel. Sur une
+# photo de salle de réunion — mur, micro, chaise — le résultat a été propre
+# sans retouche.
+#
+# PUIS REPASSER PAR CE SCRIPT sur le PNG détouré : la mesure de la tête
+# redevient possible, et c'est lui qui fait la taille, la compression et le
+# retrait des métadonnées.
+#
+# SI LE CRÂNE TOUCHE LE HAUT de la photo d'origine, il n'y a pas d'air à
+# prendre au-dessus. En ajouter avant de mesurer :
+#
+#     convert detouree.png -background none -gravity north -splice 0x60 \
+#       avec-air.png
+#
+# Sans ça, les cheveux touchent le bord du rond et la tête paraît coincée.
 # ==========================================================================
 set -u
 
