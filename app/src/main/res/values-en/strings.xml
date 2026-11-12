@@ -103,7 +103,7 @@
     <string name="actus_dernieres">Latest news</string>
     <string name="actus_theme_crypto">CRYPTO</string>
     <string name="actus_theme_finance">FINANCE</string>
-    <string name="assistance_fiche_avertissement">A photo proves nothing — it can be copied. The only valid number is the one shown on your purchase screen.</string>
+    <string name="assistance_fiche_avertissement">This photo can be copied. If someone contacts you claiming to be from VaultEx, it proves nothing.</string>
 
     <!-- History / Transactions -->
     <string name="history_title">History</string>
