@@ -1,5 +1,8 @@
 package com.vaultex.ui.screens.splash
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -17,6 +20,15 @@ import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
 import com.vaultex.ui.viewmodel.SplashViewModel
 import kotlinx.coroutines.delay
+
+/*
+LE VOLET QUI DÉCOUVRE LE NOM : 800 ms.
+
+Il se termine à 2 350 ms, soit cent millisecondes avant la fin de
+l'animation du logo. Les deux finissent donc ensemble à l'œil, sans que le
+nom attende bêtement que l'icône ait fini de briller.
+*/
+private const val MS_REVELE_MOT = 800
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
@@ -86,7 +98,30 @@ fun SplashScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(28.dp))
 
-            com.vaultex.ui.components.VaultexWordmark(height = 40.dp)
+            /*
+            LE NOM FAIT PARTIE DU MÊME MOUVEMENT.
+
+            Il se découvre pendant que la brillance traverse encore le
+            losange — c'est voulu. Attendre la fin de l'icône pour
+            commencer le nom donnerait deux animations à la suite ; ici
+            il n'y en a qu'une, qui descend du logo vers le nom.
+
+            Son horloge est séparée mais ses bornes viennent du composant
+            du logo : le recouvrement est un réglage de l'animation, pas
+            de cet écran.
+            */
+            val motRevele = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                delay(com.vaultex.ui.components.LOGO_ANIME_MOT_DEBUT_MS.toLong())
+                motRevele.animateTo(
+                    1f,
+                    tween(MS_REVELE_MOT, easing = EaseOutCubic)
+                )
+            }
+            com.vaultex.ui.components.VaultexWordmarkAnime(
+                height = 40.dp,
+                avancement = motRevele.value
+            )
 
             Spacer(Modifier.height(8.dp))
 
