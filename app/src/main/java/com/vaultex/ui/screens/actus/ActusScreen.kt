@@ -3,10 +3,12 @@ package com.vaultex.ui.screens.actus
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -17,7 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -302,6 +306,26 @@ private fun CarteUne(article: Actualite, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                /*
+                PLUS PETIT QU'EN LISTE, ET SANS ROND TEINTÉ.
+
+                Ici le logo accompagne le nom écrit à côté ; il n'a pas à
+                tenir seul comme dans la liste, où il occupe la colonne de
+                gauche. Un disque de 38 points sous un titre de 17 serait
+                le deuxième sujet de la carte.
+
+                Rien ne prend sa place s'il manque : le nom de la source
+                commence alors au bord, et c'est très bien.
+                */
+                if (article.logo.isNotEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = article.logo,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(18.dp).clip(CircleShape)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                }
                 Text(
                     article.source,
                     fontSize = 12.sp, color = TextSecondary,
@@ -328,32 +352,49 @@ private fun CarteArticle(article: Actualite, onClick: () -> Unit) {
     ) {
         /*
         ═══════════════════════════════════════════════════════════════════
-        PAS DE ROND D'ICÔNE — IL ÉTAIT DEVENU REDONDANT
+        LE ROND PORTE LE LOGO DE LA SOURCE
         ═══════════════════════════════════════════════════════════════════
 
-        Chaque ligne portait un disque de 38 points avec un graphique
-        boursier ou un journal, teinté selon le thème. Il disait « crypto »
-        ou « finance » — exactement ce que la pastille, ajoutée depuis,
-        écrit en toutes lettres deux lignes plus bas.
+        Il portait avant un graphique boursier ou un journal, teinté selon
+        le thème — c'est-à-dire exactement ce que la pastille écrit en
+        toutes lettres deux lignes plus bas. Deux signes pour la même
+        information, dont un qu'il fallait décoder : à dix-sept points, un
+        graphique et un journal ne se distinguent pas.
 
-        Deux signes pour la même information, dont un qu'il faut décoder :
-        à dix-sept points, un graphique et un journal ne se distinguent pas
-        d'un coup d'œil.
+        Il a donc été retiré. Puis remis, avec autre chose dedans : le logo
+        de l'éditeur, qui dit quelque chose que rien d'autre ne dit à cette
+        vitesse — on reconnaît Cryptoast ou RFI avant d'avoir lu leur nom.
 
-        Ce qu'on gagne est mesurable : cinquante points de largeur rendus
-        au titre, qui déborde moins souvent sur sa deuxième ligne, et la
-        hauteur de carte baisse de ce que le rond imposait. Deux ou trois
-        articles de plus tiennent à l'écran.
+        ─── CE QUI REND CETTE IMAGE ACCEPTABLE ET PAS L'AUTRE ──────────
 
-        ─── ET POURQUOI PAS LE LOGO DE LA SOURCE À LA PLACE ────────────
+        Il y en a CINQ EN TOUT, une par source, pas une par article. Une
+        illustration d'article aurait coûté un à deux mégaoctets à chaque
+        ouverture d'écran, sur le forfait mobile de quelqu'un à
+        Ouagadougou. Cinq logos de deux kilo-octets, c'est une dizaine de
+        kilo-octets téléchargés une fois et gardés en cache.
 
-        Parce qu'il faudrait cinq fichiers de plus à produire, déposer et
-        maintenir, pour une information que le nom de la source donne déjà
-        en clair sous le titre. Le rond ne manquait pas d'image : il
-        manquait de raison d'être.
+        ─── ET S'IL MANQUE ──────────────────────────────────────────────
+
+        Un rond teinté, vide, à la bonne place. Pas de trou, pas de
+        décalage : la ligne garde sa forme, qu'une source ait son logo ou
+        non. C'est ce qui permet d'en ajouter une sans rien casser.
         ═══════════════════════════════════════════════════════════════════
         */
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+            Box(
+                Modifier.size(38.dp).clip(CircleShape)
+                    .background(teinteDe(article).copy(alpha = 0.13f))
+            ) {
+                if (article.logo.isNotEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = article.logo,
+                        contentDescription = article.source,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.matchParentSize().clip(CircleShape)
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 /*
                 DEUX LIGNES AU PLUS.

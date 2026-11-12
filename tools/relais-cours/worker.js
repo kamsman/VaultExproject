@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 87
+const VERSION = 88
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -985,7 +985,7 @@ export default {
     d'heure.
     */
     if (url.pathname === '/actus') {
-      return json(await actualites(env), 300)
+      return json(await actualites(env, url.origin), 300)
     }
 
     /*
@@ -2527,12 +2527,32 @@ gardee pour autant : une source qu'on garde parce qu'elle nous plairait
 est une ligne de code qui ment sur ce qui est verifie.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+LE LOGO EST CELUI DE LA SOURCE, PAS CELUI DE L'ARTICLE.
+
+CINQ IMAGES EN TOUT, et c'est ce qui rend l'idee acceptable la ou les
+illustrations d'articles ne l'etaient pas. Une illustration par article,
+c'est un a deux megaoctets a chaque ouverture d'ecran, sur le forfait
+mobile de quelqu'un a Ouagadougou. Cinq logos de deux kilo-octets, c'est
+une dizaine de kilo-octets telecharges UNE fois et gardes en cache.
+
+Ils vivent dans KV comme les portraits de l'equipe, derriere `/img/`, et
+portent un prefixe `logo-` pour qu'on ne les confonde jamais avec eux.
+
+UN NOM NE SE REUTILISE PAS. La regle est la meme qu'ailleurs : les
+telephones gardent ces images par adresse, pour des mois. Un logo qui
+change prend un nom neuf.
+*/
 const SOURCES_ACTUS = [
   // ─── MESUREES 200 AVEC ARTICLES LUS, le 5 novembre 2026 ───
-  { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/' },
-  { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/' },
-  { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/' },
-  { nom: 'RFI Economie', theme: 'finance', url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss' },
+  { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/',
+    logo: 'logo-cryptoast.webp' },
+  { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/',
+    logo: 'logo-journalducoin.webp' },
+  { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/',
+    logo: 'logo-cointribune.webp' },
+  { nom: 'RFI Economie', theme: 'finance', url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss',
+    logo: 'logo-rfi.webp' },
 
   /*
   ─── FRANCE 24 : LE CHEMIN ECONOMIE, SANS ACCENT ───
@@ -2553,7 +2573,8 @@ const SOURCES_ACTUS = [
   avec un theme honnete, pas `finance`.
   */
   { nom: 'France 24 Eco', theme: 'finance',
-    url: 'https://www.france24.com/fr/economie/rss' },
+    url: 'https://www.france24.com/fr/economie/rss',
+    logo: 'logo-france24.webp' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
@@ -2676,6 +2697,9 @@ function lireFluxRss(xml, source) {
       lien,
       source: source.nom,
       theme: source.theme,
+      // Adresse complete, construite par `actualites` : le relais seul
+      // sait sur quel domaine il tourne.
+      logo: source.logoUrl ?? '',
       quand: Date.parse(champRss(bloc, 'pubDate') || champRss(bloc, 'updated')) || 0,
     })
   }
@@ -2698,7 +2722,14 @@ adresses et les noms la composent, donc un deploiement ordinaire ne jette
 pas un cache encore bon.
 */
 function empreinteSources() {
-  const texte = SOURCES_ACTUS.map((s) => `${s.nom}|${s.url}`).join('\n')
+  /*
+  LE LOGO ENTRE DANS L'EMPREINTE, au meme titre que le nom et l'adresse.
+  Sans lui, ajouter ou changer un logo laisserait servir pendant un quart
+  d'heure une liste d'articles sans logos — et on conclurait que le
+  deploiement n'a pas pris. C'est exactement la panne que cette empreinte
+  existe pour empecher.
+  */
+  const texte = SOURCES_ACTUS.map((s) => `${s.nom}|${s.url}|${s.logo ?? ''}`).join('\n')
   // djb2 — pas de la cryptographie, juste de quoi distinguer deux listes.
   let h = 5381
   for (let i = 0; i < texte.length; i++) {
@@ -2713,7 +2744,7 @@ function empreinteSources() {
  * Rend toujours un objet, jamais une exception : un ecran d'actualites
  * qui plante vaut moins qu'un ecran vide qui dit pourquoi.
  */
-async function actualites(env) {
+async function actualites(env, origine) {
   const cle = `liste-${empreinteSources()}`
   const enCache = await lireBrut('actus', cle)
   if (enCache) {
@@ -2742,7 +2773,17 @@ async function actualites(env) {
   de la combinaison.
   */
   const resultats = await Promise.all(
-    SOURCES_ACTUS.map(async (source) => {
+    SOURCES_ACTUS.map(async (brute) => {
+      /*
+      L'ADRESSE DU LOGO EST CONSTRUITE ICI, et pas ecrite dans la liste :
+      le reglage ne porte qu'un nom de fichier, et c'est le relais qui
+      sait sur quel domaine il repond. Ecrire l'adresse en dur la rendrait
+      fausse pour tout deploiement ailleurs.
+      */
+      const source = {
+        ...brute,
+        logoUrl: brute.logo && origine ? `${origine}/img/${brute.logo}` : '',
+      }
       try {
         const r = await fetch(source.url, {
           // On dit ce qu'on est. Voir l'en-tete du fichier : on ne se

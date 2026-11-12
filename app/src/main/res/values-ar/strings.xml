@@ -103,7 +103,6 @@
     <string name="actus_dernieres">آخر الأخبار</string>
     <string name="actus_theme_crypto">العملات الرقمية</string>
     <string name="actus_theme_finance">المال</string>
-    <string name="assistance_fiche_avertissement">هذه الصورة يمكن نسخها. إذا تواصل معك أحد مدّعيًا أنه من ‏VaultEx، فهي لا تثبت شيئًا.</string>
 
     <!-- History / Transactions -->
     <string name="history_title">السجلّ</string>

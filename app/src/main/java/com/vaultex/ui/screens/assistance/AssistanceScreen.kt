@@ -669,22 +669,30 @@ private fun Bulle(m: MessageAssistance) {
             relais choisit la photo dans la liste qu'il tient ; le modèle
             n'écrit que le texte.
 
-            ─── ET ELLE PORTE UN AVERTISSEMENT, TOUJOURS ─────────────────
+            ─── ELLE PORTAIT UN AVERTISSEMENT, ET IL EST PARTI ───────────
 
-            Montrer un visage dans une application de portefeuille a un
-            effet qu'on ne voulait pas : quelqu'un qu'un escroc contacte
-            sur WhatsApp pourrait « vérifier » en comparant les visages.
-            L'escroc n'a qu'à prendre cette photo-ci en image de profil, et
-            la comparaison réussira.
+            L'argument qui l'avait mis là tient toujours : montrer un
+            visage dans une application de portefeuille donne à un escroc
+            l'image de profil dont il a besoin, et quelqu'un qui
+            « vérifie » en comparant les visages trouvera que ça
+            correspond.
 
-            La ligne sous la fiche dit donc ce qui protège vraiment : le
-            changeur ne contacte jamais en premier, et le seul numéro
-            valable est celui affiché sur l'écran d'achat au moment de la
-            commande. Sans elle, cette fiche serait un accessoire offert à
-            l'usurpateur. Avec elle, c'est un rappel de plus.
+            Mais la phrase a été réécrite trois fois sans jamais tomber
+            juste — trop longue, puis parlant d'un numéro de paiement là
+            où l'on ne paie pas, puis écrite dans une langue que personne
+            ne parle. Une mise en garde qu'on ne sait pas formuler en deux
+            lignes n'en est pas une : elle occupe la place sans faire le
+            travail.
 
-            Elle n'est pas facultative : une fiche sans sa phrase vaut
-            moins que pas de fiche.
+            CE QUI PROTÈGE RESTE, ET AILLEURS. Le numéro du changeur est
+            sur l'écran d'achat, au moment où il sert. « Personne ne vous
+            demandera votre phrase » est dit à l'intégration, à l'achat, et
+            par l'assistance elle-même quand on l'interroge. Ces
+            endroits-là sont les bons : on y est en train d'agir.
+
+            Si cette ligne revient un jour, qu'elle vienne avec une
+            formulation qui tient toute seule — pas avec un quatrième
+            essai.
             ═══════════════════════════════════════════════════════════════
             */
             m.membre?.let { membre ->
@@ -695,40 +703,39 @@ private fun Bulle(m: MessageAssistance) {
                     border = BorderStroke(1.dp, BorderColor),
                     modifier = Modifier.widthIn(max = maxLargeur)
                 ) {
-                    Column(Modifier.padding(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier.size(40.dp).clip(CircleShape)
-                                    .background(AccentBlue.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (membre.photo.isNotEmpty()) {
-                                    coil.compose.AsyncImage(
-                                        model = membre.photo,
-                                        contentDescription = membre.nom,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(40.dp).clip(CircleShape)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    membre.nom,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    membre.poste,
-                                    fontSize = 11.sp, color = TextSecondary
+                    // La colonne qui enveloppait cette ligne portait
+                    // l'avertissement en dessous. Sans lui, elle n'enveloppe
+                    // plus qu'un seul enfant.
+                    Row(
+                        Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape)
+                                .background(AccentBlue.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (membre.photo.isNotEmpty()) {
+                                coil.compose.AsyncImage(
+                                    model = membre.photo,
+                                    contentDescription = membre.nom,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape)
                                 )
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.assistance_fiche_avertissement),
-                            fontSize = 10.5.sp, lineHeight = 15.sp, color = TextMuted
-                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                membre.nom,
+                                fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                                color = TextPrimary
+                            )
+                            Text(
+                                membre.poste,
+                                fontSize = 11.sp, color = TextSecondary
+                            )
+                        }
                     }
                 }
             }
