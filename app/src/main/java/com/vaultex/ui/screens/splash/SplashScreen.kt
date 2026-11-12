@@ -22,13 +22,29 @@ import com.vaultex.ui.viewmodel.SplashViewModel
 import kotlinx.coroutines.delay
 
 /*
-LE VOLET QUI DÉCOUVRE LE NOM.
+LE VOLET QUI DÉCOUVRE LE NOM : 1 100 ms.
 
 Il démarre à [LOGO_ANIME_MOT_DEBUT_MS], pendant que la brillance traverse
 encore le losange : le logo et le nom sont un seul mouvement, pas deux
 animations à la suite.
+
+─── NI LES 800 MS D'ESSAI, NI LES 1 450 DE LA MAQUETTE ─────────────────
+
+La maquette étale le nom sur 1 450 ms, mais elle y fait monter HUIT
+LETTRES l'une après l'autre, en décalé. C'est la succession qui occupe ce
+temps-là, pas chaque lettre.
+
+Un volet unique étalé sur la même durée traîne : il n'y a qu'un seul
+mouvement à regarder, et il devient lent. À 800 ms, l'essai précédent,
+il passait au contraire avant qu'on l'ait vu.
+
+Le nom finit donc à 2 650 ms et l'écran dure 3 150 ms — toujours moins
+que les 3 550 d'avant ce travail.
+
+Changer ce nombre suffit : l'attente avant navigation se recalcule
+dessous, et c'est précisément ce qu'elle ne faisait pas.
 */
-private const val MS_REVELE_MOT = 800
+private const val MS_REVELE_MOT = 1100
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
