@@ -135,19 +135,32 @@
     <string name="actus_theme_crypto">CRYPTO</string>
     <string name="actus_theme_finance">FINANCE</string>
     <!--
-    UNE SEULE IDÉE, ET LA PLUS UTILE.
+    LA SITUATION D'ABORD, SINON LA PHRASE N'A PAS DE SENS.
 
-    La première version en disait trois : ne pas être contacté en premier,
-    ne jamais donner sa phrase, et vérifier par le numéro. Cinq lignes de
-    mise en garde sous une réponse d'une ligne — l'avertissement écrasait
+    Deux versions ont échoué avant celle-ci, et pour deux raisons
+    différentes.
+
+    La première disait trois choses — ne pas être contacté en premier,
+    ne jamais donner sa phrase, vérifier par le numéro. Cinq lignes de
+    mise en garde sous une réponse d'une ligne : l'avertissement écrasait
     ce qu'on était venu lire.
 
-    Les deux premières sont déjà répétées à l'intégration, sur l'écran
-    d'achat et dans les règles de l'assistance. La troisième ne se dit
-    qu'ici, parce qu'ici seulement on regarde un visage en se demandant à
-    qui l'on a affaire.
+    La seconde, raccourcie, gardait « le seul numéro valable est celui de
+    l'écran d'achat ». Valable POUR QUOI ? Elle est écrite pour un
+    paiement, et elle s'affiche sous la fiche du CEO, où il n'est question
+    d'aucun paiement. On pouvait la lire comme « le seul numéro pour
+    joindre cette personne », ce qui est faux.
+
+    Et « une photo ne prouve rien » placé juste sous une photo est un
+    contre-sens apparent tant qu'on n'a pas dit QUAND : le lecteur ne peut
+    pas deviner qu'on parle de quelqu'un qui lui écrira plus tard sur
+    WhatsApp.
+
+    La situation vient donc en premier. Le numéro de paiement sort d'ici :
+    il appartient à l'écran d'achat, qui le porte déjà, au moment où il
+    sert.
     -->
-    <string name="assistance_fiche_avertissement">Une photo ne prouve rien, elle se copie. Le seul numéro valable est celui affiché sur votre écran d\'achat.</string>
+    <string name="assistance_fiche_avertissement">Cette photo se copie. Si quelqu\'un vous contacte en se disant de VaultEx, elle ne prouve rien.</string>
 
     <!-- History / Transactions -->
     <string name="history_title">Historique</string>
