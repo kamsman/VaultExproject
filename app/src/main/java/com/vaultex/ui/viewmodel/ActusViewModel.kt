@@ -32,6 +32,8 @@ data class Actualite(
     val lien: String,
     val source: String,
     val finance: Boolean,
+    /** Logo de la source, ou vide — l'ecran dessine alors le rond nu. */
+    val logo: String,
     val quand: Long
 )
 
@@ -97,6 +99,15 @@ class ActusViewModel @Inject constructor(
                     lien = lien,
                     source = a.source?.trim().orEmpty().ifEmpty { "—" },
                     finance = a.theme == "finance",
+                    /*
+                    HTTPS SEULEMENT, comme pour les photos de l'equipe. Le
+                    relais construit lui-meme ces adresses et ne peut donc
+                    pas en produire d'autres — c'est precisement pourquoi
+                    on verifie : la barriere qui ne sert jamais est celle
+                    qui tient le jour ou l'autre cede.
+                    */
+                    logo = a.logo?.trim().orEmpty()
+                        .takeIf { it.startsWith("https://") }.orEmpty(),
                     quand = a.quand ?: 0L
                 )
             }

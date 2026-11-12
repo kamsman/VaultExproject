@@ -710,6 +710,15 @@ data class ArticleDto(
     val lien: String? = null,
     val source: String? = null,
     val theme: String? = null,
+    /**
+     * Le logo de la SOURCE, pas une illustration de l'article.
+     *
+     * Cinq adresses en tout, une par source, mises en cache par le
+     * telephone pour des mois. C'est ce qui separe cette idee des
+     * illustrations d'articles, qui auraient coute un a deux megaoctets
+     * a chaque ouverture d'ecran.
+     */
+    val logo: String? = null,
     val quand: Long? = null
 )
 
