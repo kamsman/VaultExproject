@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 89
+const VERSION = 90
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2592,6 +2592,34 @@ const SOURCES_ACTUS = [
   { nom: 'France 24 Eco', theme: 'finance',
     url: 'https://www.france24.com/fr/economie/rss',
     logo: 'logo-france24.webp' },
+
+  /*
+  ─── DEUX SOURCES ANGLOPHONES — PAS ENCORE MESUREES ───
+
+  Ajoutees a la demande explicite du proprietaire du produit, et la
+  reserve a ete posee avant : les utilisateurs sont au Burkina Faso et
+  lisent le francais. Avec sept sources entrelacees, DEUX DES SEPT
+  PREMIERES LIGNES seront en anglais — en bonne place, pas au fond de la
+  liste.
+
+  Ce que ca apporte en echange est reel : CoinDesk et Cointelegraph sont
+  les deux plus gros titres du secteur et sortent l'information avant que
+  la presse francophone ne la traduise.
+
+  L'ALTERNATIVE ECARTEE, pour memoire : servir des sources differentes
+  selon la langue de l'application, comme le fait deja l'assistance. Elle
+  aurait demande que l'application envoie sa langue, que la liste soit
+  dedoublee et que la langue entre dans la cle de cache. Le jour ou des
+  utilisateurs anglophones existent vraiment, c'est cette forme-la qu'il
+  faut reprendre, pas celle-ci.
+
+  Sans logo pour l'instant : le rond reste teinte et vide, la ligne garde
+  sa forme.
+  */
+  { nom: 'CoinDesk', theme: 'crypto',
+    url: 'https://www.coindesk.com/arc/outboundfeeds/rss/' },
+  { nom: 'Cointelegraph', theme: 'crypto',
+    url: 'https://cointelegraph.com/rss' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
@@ -2863,7 +2891,21 @@ async function actualites(env, origine) {
     }
   }
 
-  const resultat = { articles: articles.slice(0, 24), sondes, quand: Date.now() }
+  /*
+  LE PLAFOND SUIT LE NOMBRE DE SOURCES, il n'est plus fige a 24.
+
+  Avec sept sources et quatre articles chacune, un plafond de 24
+  coupait au milieu du dernier tour : les trois premieres sources
+  gardaient leur quatrieme article, les quatre autres le perdaient.
+  Une inegalite invisible, produite par un chiffre ecrit a une epoque ou
+  il y avait six sources.
+
+  Le calculer rend le tour de role complet par construction, et le
+  plafond continue de borner la reponse — il suit la liste au lieu de la
+  contredire.
+  */
+  const plafond = ACTUS_PAR_SOURCE * SOURCES_ACTUS.length
+  const resultat = { articles: articles.slice(0, plafond), sondes, quand: Date.now() }
   if (articles.length) {
     await ecrireBrut('actus', cle, JSON.stringify(resultat), ACTUS_CACHE_S)
   }
