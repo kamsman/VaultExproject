@@ -3,24 +3,20 @@ package com.vaultex.ui.screens.actus
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -330,20 +326,34 @@ private fun CarteArticle(article: Actualite, onClick: () -> Unit) {
         border = BorderStroke(1.dp, BorderColor),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        PAS DE ROND D'ICÔNE — IL ÉTAIT DEVENU REDONDANT
+        ═══════════════════════════════════════════════════════════════════
+
+        Chaque ligne portait un disque de 38 points avec un graphique
+        boursier ou un journal, teinté selon le thème. Il disait « crypto »
+        ou « finance » — exactement ce que la pastille, ajoutée depuis,
+        écrit en toutes lettres deux lignes plus bas.
+
+        Deux signes pour la même information, dont un qu'il faut décoder :
+        à dix-sept points, un graphique et un journal ne se distinguent pas
+        d'un coup d'œil.
+
+        Ce qu'on gagne est mesurable : cinquante points de largeur rendus
+        au titre, qui déborde moins souvent sur sa deuxième ligne, et la
+        hauteur de carte baisse de ce que le rond imposait. Deux ou trois
+        articles de plus tiennent à l'écran.
+
+        ─── ET POURQUOI PAS LE LOGO DE LA SOURCE À LA PLACE ────────────
+
+        Parce qu'il faudrait cinq fichiers de plus à produire, déposer et
+        maintenir, pour une information que le nom de la source donne déjà
+        en clair sous le titre. Le rond ne manquait pas d'image : il
+        manquait de raison d'être.
+        ═══════════════════════════════════════════════════════════════════
+        */
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-            val teinte = teinteDe(article)
-            Box(
-                Modifier.size(38.dp).clip(CircleShape)
-                    .background(teinte.copy(alpha = 0.13f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (article.finance) Icons.Default.ShowChart
-                    else Icons.Default.Newspaper,
-                    null, tint = teinte, modifier = Modifier.size(17.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 /*
                 DEUX LIGNES AU PLUS.
