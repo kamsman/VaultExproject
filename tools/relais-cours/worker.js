@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 90
+const VERSION = 91
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2617,9 +2617,11 @@ const SOURCES_ACTUS = [
   sa forme.
   */
   { nom: 'CoinDesk', theme: 'crypto',
-    url: 'https://www.coindesk.com/arc/outboundfeeds/rss/' },
+    url: 'https://www.coindesk.com/arc/outboundfeeds/rss/',
+    logo: 'logo-coindesk.webp' },
   { nom: 'Cointelegraph', theme: 'crypto',
-    url: 'https://cointelegraph.com/rss' },
+    url: 'https://cointelegraph.com/rss',
+    logo: 'logo-cointelegraph.webp' },
 ]
 
 /** Quatre par source : de quoi remplir un ecran sans le noyer. */
