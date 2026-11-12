@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 86
+const VERSION = 87
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2568,22 +2568,68 @@ LE TEXTE D'UN TITRE RSS N'EST PAS DU TEXTE.
 Il arrive enrobe de CDATA, avec des entites HTML et parfois des balises.
 Affiche tel quel, un titre donne « Bitcoin d&eacute;passe les 80&nbsp;000 $ ».
 */
+/*
+LES ENTITÉS NOMMÉES QU'ON TRADUIT, ET SEULEMENT CELLES-LÀ.
+
+La liste complète du HTML en compte plus de deux mille. Celles-ci
+couvrent le français et la ponctuation des titres de presse ; une entité
+inconnue reste affichée telle quelle, ce qui est laid mais lisible — et
+surtout visible, donc corrigeable.
+*/
+const ENTITES_RSS = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  nbsp: ' ', ensp: ' ', emsp: ' ', thinsp: ' ',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  laquo: '«', raquo: '»', hellip: '…', ndash: '–', mdash: '—',
+  eacute: 'é', egrave: 'è', ecirc: 'ê', euml: 'ë',
+  agrave: 'à', acirc: 'â', ccedil: 'ç',
+  ocirc: 'ô', ouml: 'ö', ugrave: 'ù', ucirc: 'û',
+  icirc: 'î', iuml: 'ï', deg: '°', euro: '€', times: '×',
+}
+
+/**
+ * Un caractère depuis son numéro d'entité, ou une espace.
+ *
+ * Un flux peut porter n'importe quel nombre, y compris un caractère de
+ * contrôle ou un numéro hors de l'Unicode. Les laisser passer mettrait
+ * dans un titre des caractères invisibles qu'aucun écran ne sait
+ * afficher — et `String.fromCodePoint` lève sur les seconds.
+ */
+function caractereEntite(code) {
+  if (!Number.isFinite(code) || code < 32 || code > 0x10ffff) return ' '
+  try {
+    return String.fromCodePoint(code)
+  } catch (_) {
+    return ' '
+  }
+}
+
+/*
+LE TEXTE D'UN TITRE RSS N'EST PAS DU TEXTE — ET LE DÉCODER À LA MAIN NE
+MARCHE PAS.
+
+VU SUR L'ÉCRAN : « les députés suppriment l&#039;article ». La première
+version listait les entités une par une — `&#39;` y était, `&#039;` non.
+Le zéro initial suffisait à la faire passer, et `&#x27;` et `&#8239;`
+passaient aussi.
+
+Une liste d'exceptions ne peut pas gagner contre un format qui autorise
+toutes les écritures d'un même caractère. Les formes NUMÉRIQUES sont donc
+traitées génériquement, décimales et hexadécimales ; il ne reste à
+énumérer que les entités nommées, qui sont, elles, un ensemble fini.
+
+L'ORDRE COMPTE : les numériques d'abord. L'inverse décoderait `&amp;` en
+`&`, et `&amp;#39;` deviendrait `&#39;` — une entité fabriquée par notre
+propre décodage, qu'un second passage seul rattraperait.
+*/
 function texteRss(brut) {
   return String(brut ?? '')
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
     .replace(/<[^>]*>/g, '')
-    .replace(/&(?:amp|#38);/g, '&')
-    .replace(/&(?:lt|#60);/g, '<')
-    .replace(/&(?:gt|#62);/g, '>')
-    .replace(/&(?:quot|#34);/g, '"')
-    .replace(/&(?:apos|#39|rsquo|#8217);/g, "'")
-    .replace(/&(?:nbsp|#160);/g, ' ')
-    .replace(/&(?:eacute|#233);/g, 'é')
-    .replace(/&(?:egrave|#232);/g, 'è')
-    .replace(/&(?:agrave|#224);/g, 'à')
-    .replace(/&(?:ccedil|#231);/g, 'ç')
-    .replace(/&(?:ocirc|#244);/g, 'ô')
-    .replace(/&(?:hellip|#8230);/g, '…')
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, h) => caractereEntite(parseInt(h, 16)))
+    .replace(/&#(\d{1,7});/g, (_, d) => caractereEntite(parseInt(d, 10)))
+    .replace(/&([a-z]{2,8});/gi, (entier, nom) => ENTITES_RSS[nom.toLowerCase()] ?? entier)
+    // Les espaces insecables decodees ci-dessus sont des espaces pour `\s`.
     .replace(/\s+/g, ' ')
     .trim()
 }
