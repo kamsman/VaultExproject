@@ -22,13 +22,43 @@ import com.vaultex.ui.viewmodel.SplashViewModel
 import kotlinx.coroutines.delay
 
 /*
-LE VOLET QUI DÉCOUVRE LE NOM : 800 ms.
+LE VOLET QUI DÉCOUVRE LE NOM.
 
-Il se termine à 2 350 ms, soit cent millisecondes avant la fin de
-l'animation du logo. Les deux finissent donc ensemble à l'œil, sans que le
-nom attende bêtement que l'icône ait fini de briller.
+Il démarre à [LOGO_ANIME_MOT_DEBUT_MS], pendant que la brillance traverse
+encore le losange : le logo et le nom sont un seul mouvement, pas deux
+animations à la suite.
 */
 private const val MS_REVELE_MOT = 800
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ATTENTE SE CALE SUR CE QUI FINIT EN DERNIER
+═══════════════════════════════════════════════════════════════════════════
+
+Elle valait `durée du logo + 500 ms`, et ne regardait pas le nom du tout.
+
+Ça marchait par chance : le nom finissait à 2 350 ms, la navigation partait
+à 2 950. Mais les deux chiffres n'étaient liés par rien. Allonger le volet
+de six cents millisecondes — ce que la maquette demande — aurait fait
+partir l'écran AVANT la fin du mot, et le défaut n'aurait eu aucun symptôme
+lisible : juste un nom qui n'apparaît jamais tout à fait, sur un écran
+qu'on ne regarde pas deux fois.
+
+`maxOf` supprime la coïncidence. Peu importe lequel des deux temps est
+rallongé, l'attente suit.
+
+LES 500 MS QUI SUIVENT NE SONT PAS DE LA MARGE : c'est le temps de lire le
+nom une fois qu'il est entier. Sans eux, le mot serait complet à l'instant
+même où l'écran disparaît.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private const val MS_LECTURE_NOM = 500
+
+private val MS_AVANT_NAVIGATION =
+    maxOf(
+        com.vaultex.ui.components.LOGO_ANIME_DUREE_MS,
+        com.vaultex.ui.components.LOGO_ANIME_MOT_DEBUT_MS + MS_REVELE_MOT
+    ) + MS_LECTURE_NOM
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
@@ -44,13 +74,13 @@ fun SplashScreen(navController: NavHostController) {
         l'écran montre — et bien trop longue : on ouvre un portefeuille pour
         vérifier un solde, pas pour regarder un logo.
 
-        On attend maintenant la durée de l'animation plus une demi-seconde
-        pour laisser lire le nom. La constante vit à côté de l'animation : sa
-        durée a déjà changé une fois — quand le chargeur à points a disparu et
-        que le logo a dû porter l'écran seul — et l'attente a suivi sans qu'on
-        y touche.
+        Le calcul est juste au-dessus : le plus tardif des deux temps, plus
+        le temps de lire le nom. Il a déjà fallu le reprendre deux fois —
+        quand le chargeur à points a disparu, puis quand le nom s'est mis à
+        s'animer — et c'est la deuxième qui a montré qu'un seul des deux
+        temps ne suffisait pas.
         */
-        delay(com.vaultex.ui.components.LOGO_ANIME_DUREE_MS + 500L)
+        delay(MS_AVANT_NAVIGATION.toLong())
         // Route vers PIN_UNLOCK si wallet existe, animation de premier lancement sinon
         val aUnPortefeuille = viewModel.hasWallet()
         // Dernier instant où « nouvel arrivant » et « mise à jour » se
