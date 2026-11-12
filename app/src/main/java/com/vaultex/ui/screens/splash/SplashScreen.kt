@@ -140,7 +140,26 @@ fun SplashScreen(navController: NavHostController) {
             REFERME autour d'une forme dit « coffre » sans un mot — c'est ce
             que fait cette application, dit sans une phrase.
             */
-            com.vaultex.ui.components.LogoAnime(taille = 124.dp)
+            /*
+            ═══════════════════════════════════════════════════════════
+            LA TAILLE DU LOGO — 176 POINTS, ET NON 124
+            ═══════════════════════════════════════════════════════════
+
+            VU SUR L'ÉCRAN. À 124 points, le logo occupait trente pour
+            cent de la largeur d'un téléphone ordinaire et flottait au
+            milieu d'un écran presque entièrement vide. Le mouvement
+            était juste, mais trop petit pour qu'on le regarde.
+
+            À 176, il en occupe quarante-trois pour cent. C'est la
+            proportion d'un écran de démarrage qui assume d'en être un.
+
+            Le trait de l'anneau suit tout seul : son épaisseur est une
+            fraction de la taille demandée, pas un nombre de points. Un
+            logo plus grand n'a donc pas un trait plus fin, ce qui
+            arriverait avec une valeur fixe.
+            ═══════════════════════════════════════════════════════════
+            */
+            com.vaultex.ui.components.LogoAnime(taille = 176.dp)
 
             Spacer(Modifier.height(28.dp))
 
@@ -164,8 +183,10 @@ fun SplashScreen(navController: NavHostController) {
                     tween(MS_REVELE_MOT, easing = EaseOutCubic)
                 )
             }
+            // Le nom grandit dans la même proportion que le logo : laissé à
+            // 40 points sous un logo de 176, il aurait paru rétréci.
             com.vaultex.ui.components.VaultexWordmarkAnime(
-                height = 40.dp,
+                height = 54.dp,
                 avancement = motRevele.value
             )
 
