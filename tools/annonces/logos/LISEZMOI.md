@@ -8,18 +8,23 @@ d'actualités. Ils s'affichent dans le rond à gauche de chaque titre.
 ```powershell
 cd tools\relais-cours
 
-foreach ($n in "cryptoast","journalducoin","cointribune","rfi","france24") {
+foreach ($n in "cryptoast","journalducoin-2","cointribune","rfi","france24") {
   npx.cmd wrangler kv key put --config wrangler.toml --remote `
     --binding MEMOIRE "img:logo-$n.webp" --path "..\annonces\logos\logo-$n.webp"
 }
 ```
+
+Le `-2` de Journal du Coin n'est pas une faute de frappe : son premier
+logo, le bandeau complet, était illisible à 38 points. Le nom a changé
+parce que l'ancien est déjà en cache sur les téléphones qui ont ouvert
+l'écran.
 
 Vérifier les tailles servies, **avant** de conclure quoi que ce soit à
 l'écran :
 
 ```powershell
 cd ..\..
-$attendu = @{ cryptoast=1908; journalducoin=1052; cointribune=1956; rfi=884; france24=2318 }
+$attendu = @{ cryptoast=1908; "journalducoin-2"=718; cointribune=1956; rfi=884; france24=2318 }
 foreach ($n in $attendu.Keys) {
   $t = curl.exe -s -o NUL -w "%{size_download}" "https://<relais>/img/logo-$n.webp"
   Write-Host "$n -> $t (attendu $($attendu[$n]))"
