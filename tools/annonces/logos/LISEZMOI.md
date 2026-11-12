@@ -1,6 +1,6 @@
 # Logos des sources d'actualités
 
-Cinq fichiers de 96×96, **8 Ko au total**, un par source du fil
+Sept fichiers de 96×96, **11 Ko au total**, un par source du fil
 d'actualités. Ils s'affichent dans le rond à gauche de chaque titre.
 
 ## Déposer sur le relais
@@ -8,7 +8,7 @@ d'actualités. Ils s'affichent dans le rond à gauche de chaque titre.
 ```powershell
 cd tools\relais-cours
 
-foreach ($n in "cryptoast","journalducoin-2","cointribune","rfi","france24") {
+foreach ($n in "cryptoast","journalducoin-2","cointribune","rfi","france24","coindesk","cointelegraph") {
   npx.cmd wrangler kv key put --config wrangler.toml --remote `
     --binding MEMOIRE "img:logo-$n.webp" --path "..\annonces\logos\logo-$n.webp"
 }
@@ -24,7 +24,8 @@ l'écran :
 
 ```powershell
 cd ..\..
-$attendu = @{ cryptoast=1908; "journalducoin-2"=718; cointribune=1956; rfi=884; france24=2318 }
+$attendu = @{ cryptoast=1908; "journalducoin-2"=718; cointribune=1956; rfi=884
+              france24=2318; coindesk=1214; cointelegraph=1112 }
 foreach ($n in $attendu.Keys) {
   $t = curl.exe -s -o NUL -w "%{size_download}" "https://<relais>/img/logo-$n.webp"
   Write-Host "$n -> $t (attendu $($attendu[$n]))"
