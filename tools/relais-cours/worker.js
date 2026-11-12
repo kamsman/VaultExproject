@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 88
+const VERSION = 89
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2547,8 +2547,25 @@ const SOURCES_ACTUS = [
   // ─── MESUREES 200 AVEC ARTICLES LUS, le 5 novembre 2026 ───
   { nom: 'Cryptoast', theme: 'crypto', url: 'https://cryptoast.fr/feed/',
     logo: 'logo-cryptoast.webp' },
+  /*
+  JOURNAL DU COIN — SA MARQUE, PAS SON BANDEAU.
+
+  Son logo est un bandeau horizontal, « JOURNAL » au-dessus de « DU
+  COIN » : deux lignes de texte, et rien d'autre. Reduit a un rond de
+  38 points, il devenait une pastille bleu fonce indistincte — vu sur
+  l'ecran, et il ne faisait donc pas le travail qui justifie les logos :
+  reconnaitre la source avant d'avoir lu son nom.
+
+  On garde sa signature visuelle — le bloc cyan portant « COIN » — pose
+  sur son bleu nuit. C'est sa composition et ses couleurs, et le mot
+  tient entier dans le disque.
+
+  Le suffixe `-2` n'est pas decoratif : l'ancien logo est deja en cache
+  sur les telephones qui ont ouvert l'ecran. Le remplacer sous le meme
+  nom le laisserait s'afficher pendant des mois.
+  */
   { nom: 'Journal du Coin', theme: 'crypto', url: 'https://journalducoin.com/feed/',
-    logo: 'logo-journalducoin.webp' },
+    logo: 'logo-journalducoin-2.webp' },
   { nom: 'Cointribune', theme: 'crypto', url: 'https://www.cointribune.com/feed/',
     logo: 'logo-cointribune.webp' },
   { nom: 'RFI Economie', theme: 'finance', url: 'https://www.rfi.fr/fr/%C3%A9conomie/rss',
