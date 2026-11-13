@@ -2,6 +2,7 @@ package com.vaultex.ui.screens.splash
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -70,11 +71,57 @@ même où l'écran disparaît.
 */
 private const val MS_LECTURE_NOM = 500
 
+/*
+LE E SE SÉPARE AU MOMENT OÙ LE VOLET L'ATTEINT.
+
+Son instant de départ n'est pas un chiffre choisi : c'est la position
+horizontale du E dans le mot, appliquée à la durée du volet. Écrit en dur,
+il se décalerait silencieusement à la première retouche de [MS_REVELE_MOT]
+— le E partirait avant que les lettres qui le précèdent ne soient là, ou
+longtemps après.
+
+700 ms pour la séparation : la maquette lui en donne 1 050 sur un mot qui
+s'étale sur 1 450, soit un peu moins des trois quarts. Ici le mot tient en
+1 100, et la même proportion donne 790. Arrondi à 700 pour que le E se pose
+avant que l'écran ne parte, sans quoi la fin du mouvement ne serait jamais
+vue.
+*/
+private const val MS_SEPARATION_E = 700
+
+private val MS_E_DEBUT =
+    com.vaultex.ui.components.LOGO_ANIME_MOT_DEBUT_MS +
+        (MS_REVELE_MOT * com.vaultex.ui.components.FRACTION_HORIZONTALE_E).toInt()
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ATTENTE SE CALE SUR CE QUI FINIT EN DERNIER
+═══════════════════════════════════════════════════════════════════════════
+
+Elle valait `durée du logo + 500 ms`, et ne regardait pas le nom du tout.
+
+Ça marchait par chance : le nom finissait avant. Mais les deux chiffres
+n'étaient liés par rien, et allonger le volet l'aurait fait partir APRÈS le
+départ de l'écran — sans aucun symptôme lisible : pas de plantage, juste un
+nom qui n'apparaît jamais tout à fait, sur un écran qu'on ne regarde pas
+deux fois.
+
+TROIS CONDITIONS, ET LA PLUS TARDIVE GAGNE :
+
+  · l'icône a fini ;
+  · le mot est lisible depuis une demi-seconde — c'est la fin du VOLET qui
+    compte ici, pas celle du E : le mot se lit dès que ses lettres sont
+    là, même si le E finit de se poser ;
+  · le E a fini de se poser depuis un instant, pour qu'on voie sa fin.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private const val MS_APRES_POSE_E = 100
+
 private val MS_AVANT_NAVIGATION =
     maxOf(
         com.vaultex.ui.components.LOGO_ANIME_DUREE_MS,
-        com.vaultex.ui.components.LOGO_ANIME_MOT_DEBUT_MS + MS_REVELE_MOT
-    ) + MS_LECTURE_NOM
+        com.vaultex.ui.components.LOGO_ANIME_MOT_DEBUT_MS + MS_REVELE_MOT + MS_LECTURE_NOM,
+        MS_E_DEBUT + MS_SEPARATION_E + MS_APRES_POSE_E
+    )
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
@@ -183,11 +230,25 @@ fun SplashScreen(navController: NavHostController) {
                     tween(MS_REVELE_MOT, easing = EaseOutCubic)
                 )
             }
+
+            /*
+            LA SÉPARATION DU E A SA PROPRE HORLOGE.
+
+            Elle court en LINÉAIRE : ses quatre temps portent déjà leurs
+            courbes, mesurées sur la maquette. Une courbe de plus par-dessus
+            les écraserait toutes.
+            */
+            val eSepare = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                delay(MS_E_DEBUT.toLong())
+                eSepare.animateTo(1f, tween(MS_SEPARATION_E, easing = LinearEasing))
+            }
             // Le nom grandit dans la même proportion que le logo : laissé à
             // 40 points sous un logo de 176, il aurait paru rétréci.
             com.vaultex.ui.components.VaultexWordmarkAnime(
                 height = 54.dp,
-                avancement = motRevele.value
+                avancement = motRevele.value,
+                avancementE = eSepare.value
             )
 
             Spacer(Modifier.height(8.dp))
