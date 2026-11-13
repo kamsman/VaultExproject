@@ -1306,8 +1306,20 @@
     <string name="assistance_en_cours">L\'assistance réfléchit…</string>
     <string name="assistance_humain_titre">Vous pouvez joindre l\'équipe technique</string>
     <string name="assistance_humain_aide">Cette question mérite un humain. Le plus rapide est WhatsApp — quelqu\'un de l\'équipe vous répondra. Ce sont les seuls canaux officiels.</string>
-    <string name="assistance_numero_titre">Votre numéro, pour qu\'on puisse vous rappeler</string>
-    <string name="assistance_numero_aide">Si votre question doit être transmise à l\'équipe technique, c\'est là qu\'on vous répondra. Il ne sert à rien d\'autre, et il ne part nulle part tant que vous ne demandez pas à joindre l\'équipe.</string>
+    <!--
+    TROIS LIGNES SONT DEVENUES UNE.
+
+    L'aide expliquait à quoi sert le numéro, ce qu'il ne sert pas, et
+    quand il part — trois assurances sous un titre déjà long. Vu à
+    l'écran : la carte occupait la moitié basse, et on la lisait plus que
+    la réponse qu'on venait chercher.
+
+    Ce qui inquiète quelqu'un à qui on demande son numéro tient en une
+    question : « à qui va-t-il ? ». Le reste répondait à des questions
+    que personne ne pose.
+    -->
+    <string name="assistance_numero_titre">Votre numéro, si on doit vous rappeler</string>
+    <string name="assistance_numero_aide">Il sert seulement à ça, et rien ne part sans votre accord.</string>
     <string name="assistance_numero_valider">Enregistrer</string>
     <string name="assistance_numero_sans">Continuer sans</string>
     <string name="assistance_ex_acheter">Comment acheter de la crypto ?</string>
