@@ -675,7 +675,21 @@ data class DemandeAssistance(
      * Un relais plus ancien l'ignore simplement, et continue a repondre
      * comme avant.
      */
-    val langue: String
+    val langue: String,
+    /**
+     * Le prenom affiche dans l'en-tete de l'ecran ce jour-la.
+     *
+     * L'ECRAN LE CHOISIT, PAS LE RELAIS, et c'est volontaire : il change
+     * chaque jour, et c'est l'application qui l'affiche. Si le relais en
+     * tirait un de son cote, l'en-tete annoncerait Savanah pendant que la
+     * reponse serait signee Joe — l'incoherence exacte que ce champ
+     * existe pour fermer.
+     *
+     * Un relais plus ancien l'ignore, et le modele repond sans se nommer :
+     * l'en-tete affiche alors un prenom que la conversation ne reprend
+     * pas. C'est moins bien, et ce n'est pas faux.
+     */
+    val prenom: String = ""
 )
 
 data class ReponseAssistance(

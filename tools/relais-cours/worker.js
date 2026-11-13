@@ -352,7 +352,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 94
+const VERSION = 95
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8821,7 +8821,7 @@ par defaut y est le bon comportement, et le `Math.max(1, ...)` qui
 l'entoure le dit deja.
 ═══════════════════════════════════════════════════════════════════════════
 */
-function systemeAssistance(env, langue) {
+function systemeAssistance(env, langue, prenom) {
   const min = nombre(env?.CHANGE_MIN, 5000)
   const max = nombre(env?.CHANGE_MAX, 50000)
   const marge = margeParDollar(env)
@@ -8830,8 +8830,45 @@ function systemeAssistance(env, langue) {
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
   const contacts = contactsVaultex(env)
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE PRENOM VIENT DE L'ECRAN, ET LE MODELE NE L'INVENTE PAS
+  ═══════════════════════════════════════════════════════════════════════
+
+  L'en-tete de l'ecran affiche un prenom qui change chaque jour — Alice,
+  Joe, Savanah, Samira. Sans cette consigne, le modele interroge sur son
+  nom repondait qu'il est l'assistance de VaultEx, pendant que l'ecran
+  annoncait « Savanah ». Deux reponses a la meme question, dans la meme
+  fenetre.
+
+  LE PRENOM N'EST PAS TIRE ICI. S'il l'etait, le relais en choisirait un
+  et l'ecran un autre : c'est l'application qui l'affiche, donc c'est
+  elle qui l'envoie. Un seul calcul, deux lecteurs.
+
+  ET IL NE TRANSFORME PAS LE MODELE EN PERSONNE. La consigne lui demande
+  de dire, dans la meme phrase, qu'il est une assistance automatique.
+  C'est la regle de tout cet ecran : se faire passer pour un humain est
+  exactement ce que fait l'escroc qui reclame les douze mots.
+
+  Une demande sans prenom — une version plus ancienne de l'application —
+  n'ajoute simplement pas la ligne.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const nomAssistant = String(prenom ?? '').trim().slice(0, 20)
+  const presentation = /^[A-Za-zÀ-ÿ' -]{2,20}$/.test(nomAssistant)
+    ? [
+        `TU T'APPELLES ${nomAssistant}. Si on te demande ton nom, ou si tu`,
+        "  te presentes, tu le dis — ET tu precises dans la MEME phrase que",
+        "  tu es l'assistance automatique de VaultEx. Jamais le prenom seul :",
+        "  quelqu'un qui croit parler a une personne finit par lui faire",
+        "  confiance comme a une personne.",
+        "- Tu ne dis jamais que tu es humain, meme si on insiste.",
+      ]
+    : []
+
   return [
     "Tu es l'assistance de VaultEx, un portefeuille crypto utilise au Burkina Faso.",
+    ...presentation,
     /*
     ═══════════════════════════════════════════════════════════════════════
     LA LANGUE DE LA REPONSE EST CELLE DE LA QUESTION
@@ -9610,7 +9647,7 @@ async function assistance(requete, env) {
         securite.
         */
         max_tokens: 700,
-        system: systemeAssistance(env, corps?.langue),
+        system: systemeAssistance(env, corps?.langue, corps?.prenom),
         messages: propres,
       }),
     }, 20000)
