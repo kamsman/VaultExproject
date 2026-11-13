@@ -253,6 +253,79 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
 Aucune donnée personnelle ne transite ici : ni mnémonique, ni identifiant
 d'utilisateur. Les adresses du changeur sont publiques — l'application les
 montre à chaque vendeur — et les cours le sont aussi.
+
+═══════════════════════════════════════════════════════════════════════════
+LES RÉGLAGES QUI MANQUAIENT À CETTE LISTE
+═══════════════════════════════════════════════════════════════════════════
+
+Quinze réglages étaient lus par le code sans figurer nulle part ci-dessus.
+Ce n'était pas une négligence d'écriture : chacun a été ajouté avec la
+fonction qui l'emploie, et la liste n'a pas suivi.
+
+C'EST CE QUI A PERMIS AU DÉFAUT DU 13 NOVEMBRE DE SURVIVRE. Deux endroits
+lisaient `CHANGE_MARGE_FCFA_PAR_DOLLAR`, qui n'existe pas, et annonçaient
+donc 25 FCFA de marge au lieu de 50. Un nom de réglage est une chaîne de
+caractères : un nom faux ne lève pas, et un réglage absent ne se distingue
+pas d'un réglage laissé par défaut. La seule chose qui aurait montré
+l'erreur, c'est la comparaison entre ce que le code lit et ce qui est
+écrit ici — et cette comparaison était impossible tant que la liste était
+incomplète.
+
+`verifier-reglages.mjs` la fait désormais, et refuse de se taire. À lancer
+avec `verifier-version.mjs`, avant de déployer.
+
+─── LES PRIX ───────────────────────────────────────────────────────────
+
+  CHANGE_FRAIS_USD     Frais fixes d'un ACHAT, en dollars (défaut 0).
+                       Couvrent le coût d'envoi de la crypto, quel que
+                       soit le montant. Convertis au cours du MARCHÉ, sans
+                       marge : c'est un coût répercuté, pas un bénéfice.
+  CHANGE_FACTEUR_MARGE Multiplie la marge sur les ACHATS seulement
+                       (défaut 1 — même marge qu'à la vente).
+  CHANGE_MINIMUMS_USD  Minimum par monnaie en DOLLARS, quand le seuil
+                       dépend du coût réseau plutôt que d'un montant en
+                       francs. {"USDT-ETH":15}
+  CHANGE_PLAFONDS_USD  Plafond par monnaie en dollars, même principe.
+
+─── LES CANAUX ET L'ÉQUIPE ─────────────────────────────────────────────
+
+  CHANGE_WHATSAPP      Numéro affiché par l'assistance. Les trois ont une
+  CHANGE_TELEGRAM      valeur par défaut dans le code : un relais déployé
+  CHANGE_EMAIL         sans eux répond quand même.
+  CHANGE_EQUIPE        « Nom|Poste;Nom|Poste », avec une photo facultative
+                       en troisième champ : « Nom|Poste|photo.webp ». Sert
+                       à l'écran À propos ET à l'assistance — une seule
+                       liste, pour qu'elles ne se contredisent pas.
+
+─── L'ASSISTANCE ───────────────────────────────────────────────────────
+
+  CHANGE_IA_CLE        ⚠️ SECRET. Sans elle, l'assistance répond quand
+                       même aux questions fréquentes, par les réponses
+                       toutes faites, et avoue son ignorance pour le
+                       reste.
+  CHANGE_IA_MODELE     Modèle employé. Défaut : le moins cher qui réponde
+                       bien à ces questions-là.
+
+─── LES CHAÎNES ────────────────────────────────────────────────────────
+
+  CHANGE_NOEUD_SOLANA  Nœud RPC Solana personnel. Les nœuds publics
+                       refusent les appels venant d'un centre de données ;
+                       trois des quatre essayés étaient morts.
+  CHANGE_CLE_ETHERSCAN Relève le quota de lecture sur Ethereum et BNB.
+  CHANGE_TRANCHE_EVM   Nombre de blocs lus par appel. Une tranche à zéro
+                       n'étant pas un réglage mais une faute de saisie,
+                       elle retombe sur la valeur par défaut.
+
+─── LE SECOND CANAL TELEGRAM ───────────────────────────────────────────
+
+  TG_ADMIN_TOKEN       Bot et groupe de l'ADMINISTRATEUR — le tableau de
+  TG_ADMIN_CHAT        bord, l'alerte de silence du robot. Séparés de
+                       TG_CHANGE_* pour que le changeur ne reçoive pas les
+                       chiffres d'exploitation.
+
+                       Chacun retombe sur son équivalent CHANGE : un
+                       relais à un seul canal fonctionne, tout arrive au
+                       même endroit.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
@@ -279,7 +352,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 93
+const VERSION = 94
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8721,11 +8794,38 @@ function nomLangue(code) {
     LANGUES_ASSISTANCE.fr
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ASSISTANCE LIT LES REGLAGES COMME LE RESTE DU FICHIER
+═══════════════════════════════════════════════════════════════════════════
+
+Elle les lisait avec `Number(x) || defaut`, et c'est la famille exacte du
+defaut de marge trouve le 13 novembre : un reglage pose a ZERO devient
+silencieusement la valeur par defaut, parce que `Number('0') || 5000`
+rend 5000.
+
+CE QUI SE SERAIT PASSE. Un minimum mis a zero — « plus de minimum pour
+le lancement » — et `/change/parametres` aurait annonce 0 a
+l'application pendant que l'assistance disait 5 000 FCFA. Deux chiffres
+contradictoires sur la meme question, sans que rien ne plante.
+
+Le cas ne s'est pas produit : aucun reglage ne vaut zero aujourd'hui.
+C'est de la chance, pas une protection.
+
+`nombre` donne la meme lecture ici que dans `/change/parametres` — un
+zero regle est un zero servi, des deux cotes.
+
+POURQUOI `CHANGE_TRANCHE_EVM` GARDE SON `||` : une tranche de zero bloc
+n'est pas un reglage, c'est une faute de saisie. Retomber sur la valeur
+par defaut y est le bon comportement, et le `Math.max(1, ...)` qui
+l'entoure le dit deja.
+═══════════════════════════════════════════════════════════════════════════
+*/
 function systemeAssistance(env, langue) {
-  const min = Number(env?.CHANGE_MIN) || 5000
-  const max = Number(env?.CHANGE_MAX) || 50000
+  const min = nombre(env?.CHANGE_MIN, 5000)
+  const max = nombre(env?.CHANGE_MAX, 50000)
   const marge = margeParDollar(env)
-  const delai = Number(env?.CHANGE_DELAI) || 30
+  const delai = nombre(env?.CHANGE_DELAI, 30)
   const minsParMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
   const contacts = contactsVaultex(env)
@@ -9101,9 +9201,9 @@ mots SPÉCIFIQUES — « minimum », jamais « combien ».
 ═══════════════════════════════════════════════════════════════════════════
 */
 function reponsesConnues(env) {
-  const min = Number(env?.CHANGE_MIN) || 5000
-  const max = Number(env?.CHANGE_MAX) || 50000
-  const delai = Number(env?.CHANGE_DELAI) || 30
+  const min = nombre(env?.CHANGE_MIN, 5000)
+  const max = nombre(env?.CHANGE_MAX, 50000)
+  const delai = nombre(env?.CHANGE_DELAI, 30)
   const marge = margeParDollar(env)
   const parMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
