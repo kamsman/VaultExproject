@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 91
+const VERSION = 93
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2329,6 +2329,40 @@ function nombre(v, defaut = 0) {
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
+LA MARGE SE LIT ICI, ET NULLE PART AILLEURS
+═══════════════════════════════════════════════════════════════════════════
+
+DEFAUT TROUVE LE 13 NOVEMBRE 2026, et il disait un faux prix aux clients.
+
+Le reglage s'appelle CHANGE_MARGE. Deux endroits lisaient
+`CHANGE_MARGE_FCFA_PAR_DOLLAR`, qui n'existe pas — et tombaient donc sur
+leur valeur par defaut, 25, pendant que la vraie marge en vigueur etait
+de 50.
+
+CES DEUX ENDROITS SONT CEUX QUI PARLENT AU CLIENT. La reponse toute faite
+sur les frais annoncait « la marge appliquee est de 25 FCFA par dollar »,
+et la consigne du modele lui donnait le meme chiffre. L'ecran d'achat,
+lui, calculait avec 50 : l'assistance annoncait la moitie de ce que
+l'application facturait.
+
+Aucune alerte possible — les deux noms sont des chaines, et un reglage
+absent ne se distingue pas d'un reglage a sa valeur par defaut.
+
+POURQUOI UNE FONCTION PLUTOT QU'UNE CORRECTION SUR PLACE : parce que la
+correction sur place aurait laisse quatre lectures independantes du meme
+reglage, et que c'est exactement ce qui a produit le defaut. Il n'y a
+plus qu'un seul endroit ou se tromper de nom.
+
+`nombre` et non `|| 25` : une marge de zero est un reglage legitime — une
+promotion, un lancement — et `Number('0') || 25` rend 25.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function margeParDollar(env) {
+  return nombre(env?.CHANGE_MARGE, 25)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
 RELIRE UN NOMBRE MIS EN FORME EN FRANÇAIS
 ═══════════════════════════════════════════════════════════════════════════
 
@@ -2884,13 +2918,61 @@ async function actualites(env, origine) {
 
   A L'INTERIEUR d'une source, l'ordre du flux est conserve : les editeurs
   servent leurs articles du plus recent au plus ancien.
+
+  ─── ET LE TOUR DE ROLE SEUL NE SUFFISAIT PLUS ────────────────────────
+
+  Il etait juste avec trois sources crypto et deux finance. Avec CINQ
+  crypto et deux finance — depuis l'ajout de CoinDesk et Cointelegraph —
+  il donnait cinq lignes sur sept a la crypto, et les deux articles
+  finance se suivaient en quatrieme et cinquieme position : un bloc au
+  milieu d'une liste.
+
+  L'ecran promet « crypto ET finance ». Avec un tour de role simple, cette
+  promesse se degrade a chaque source crypto ajoutee, sans que personne
+  n'ait decide de la degrader.
+
+  ON ALTERNE DONC LES THEMES, et le tour de role devient interne a chaque
+  theme : crypto, finance, crypto, finance… Chaque file pioche a son tour
+  parmi SES sources, et les deux files se relaient.
+
+  Resultat sur le premier ecran : une ligne sur deux est de la finance au
+  lieu de deux sur sept, et elles ne forment plus un bloc.
+
+  QUAND UNE FILE S'EPUISE, l'autre continue seule. Les sources finance ont
+  huit articles, les crypto en ont vingt : l'alternance tient sur seize
+  lignes, puis la crypto prend la suite. C'est exactement l'inverse de ce
+  qui se passait — la ou il fallait defiler pour trouver de la finance, il
+  faut maintenant defiler pour n'avoir plus que de la crypto.
+
+  AJOUTER UNE SOURCE NE CHANGE PLUS L'EQUILIBRE, seulement la variete a
+  l'interieur d'un theme. C'est ce qui manquait.
   ═══════════════════════════════════════════════════════════════════════
   */
-  const articles = []
-  for (let rang = 0; rang < ACTUS_PAR_SOURCE; rang++) {
-    for (const { lus } of resultats) {
-      if (lus[rang]) articles.push(lus[rang])
+  const tourDeRole = (groupe) => {
+    const file = []
+    for (let rang = 0; rang < ACTUS_PAR_SOURCE; rang++) {
+      for (const { lus } of groupe) {
+        if (lus[rang]) file.push(lus[rang])
+      }
     }
+    return file
+  }
+
+  const fileCrypto = tourDeRole(resultats.filter((r) => r.source.theme !== 'finance'))
+  const fileFinance = tourDeRole(resultats.filter((r) => r.source.theme === 'finance'))
+
+  /*
+  LA CRYPTO OUVRE, et ce n'est pas un hasard : le premier article passe a
+  la une, et VaultEx est un portefeuille crypto. Mettre la finance en tete
+  d'affiche serait aussi desequilibre que l'inverse, juste dans l'autre
+  sens.
+  */
+  const articles = []
+  let iCrypto = 0
+  let iFinance = 0
+  while (iCrypto < fileCrypto.length || iFinance < fileFinance.length) {
+    if (iCrypto < fileCrypto.length) articles.push(fileCrypto[iCrypto++])
+    if (iFinance < fileFinance.length) articles.push(fileFinance[iFinance++])
   }
 
   /*
@@ -2957,7 +3039,7 @@ function parametresChange(env) {
       // bouton de l'application, sans rien republier.
       actif: String(env?.CHANGE_ACTIF ?? '1') !== '0',
       // Marge en FRANCS PAR DOLLAR : la langue du marché local.
-      margeFcfaParDollar: nombre(env?.CHANGE_MARGE, 25),
+      margeFcfaParDollar: margeParDollar(env),
       /*
       ═══════════════════════════════════════════════════════════════════
       LES FRAIS D'ENVOI, EN DOLLARS ET A PART DE LA MARGE
@@ -7841,8 +7923,7 @@ async function coherenceFcfa(monnaie, montantCrypto, fcfaAnnonce, env) {
   if (!(prixUsd > 0) || !(eurUsd > 0)) return { etat: 'indisponible' }
 
   const tauxXof = XOF_PAR_EURO / eurUsd
-  const marge = Number(env?.CHANGE_MARGE)
-  const margeFcfa = Number.isFinite(marge) && marge >= 0 ? marge : 25
+  const margeFcfa = margeParDollar(env)
   // Même formule que TauxFcfa.prix cote application, y compris l'arrondi
   // au franc du prix unitaire : c'est ce qui rend les deux comparables.
   const unitaire = Math.round(prixUsd * tauxXof - margeFcfa * prixUsd)
@@ -8643,7 +8724,7 @@ function nomLangue(code) {
 function systemeAssistance(env, langue) {
   const min = Number(env?.CHANGE_MIN) || 5000
   const max = Number(env?.CHANGE_MAX) || 50000
-  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const marge = margeParDollar(env)
   const delai = Number(env?.CHANGE_DELAI) || 30
   const minsParMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
@@ -9023,7 +9104,7 @@ function reponsesConnues(env) {
   const min = Number(env?.CHANGE_MIN) || 5000
   const max = Number(env?.CHANGE_MAX) || 50000
   const delai = Number(env?.CHANGE_DELAI) || 30
-  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const marge = margeParDollar(env)
   const parMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
   const contacts = contactsVaultex(env)
