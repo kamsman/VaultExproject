@@ -189,24 +189,27 @@ fun SplashScreen(navController: NavHostController) {
             */
             /*
             ═══════════════════════════════════════════════════════════
-            LA TAILLE DU LOGO — 176 POINTS, ET NON 124
+            LA TAILLE DU LOGO — 160 POINTS
             ═══════════════════════════════════════════════════════════
 
-            VU SUR L'ÉCRAN. À 124 points, le logo occupait trente pour
-            cent de la largeur d'un téléphone ordinaire et flottait au
-            milieu d'un écran presque entièrement vide. Le mouvement
-            était juste, mais trop petit pour qu'on le regarde.
+            VU SUR L'ÉCRAN, en deux fois.
 
-            À 176, il en occupe quarante-trois pour cent. C'est la
-            proportion d'un écran de démarrage qui assume d'en être un.
+            À 124 points, le logo occupait trente pour cent de la largeur
+            d'un téléphone ordinaire et flottait au milieu d'un écran
+            presque vide : le mouvement était juste, mais trop petit pour
+            qu'on le regarde. À 176, il prenait quarante-trois pour cent
+            et pesait un peu trop.
+
+            160 en fait trente-neuf. C'est la valeur retenue après avoir
+            vu les deux autres sur l'appareil — pas un calcul.
 
             Le trait de l'anneau suit tout seul : son épaisseur est une
             fraction de la taille demandée, pas un nombre de points. Un
-            logo plus grand n'a donc pas un trait plus fin, ce qui
-            arriverait avec une valeur fixe.
+            logo plus petit n'a donc pas un trait proportionnellement
+            plus épais, ce qui arriverait avec une valeur fixe.
             ═══════════════════════════════════════════════════════════
             */
-            com.vaultex.ui.components.LogoAnime(taille = 176.dp)
+            com.vaultex.ui.components.LogoAnime(taille = 160.dp)
 
             Spacer(Modifier.height(28.dp))
 
