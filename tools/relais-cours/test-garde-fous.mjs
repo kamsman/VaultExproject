@@ -409,7 +409,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, contactsVaultex, equipeVaultex } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, contactsVaultex, equipeVaultex } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -1993,7 +1993,13 @@ c'est là qu'est le piège.
   for (const nom of ['Koanda Moumine', 'Rasmane', 'Sakande']) {
     verifie(`EQUIPE : ${nom} y est`, String(r).includes(nom), r)
   }
-  for (const poste of ['Fondateur', 'Directeur Marketing', 'Directeur Commercial']) {
+  /*
+  « CEO » ET NON « FONDATEUR » : le poste a change dans le code, et ce
+  test etait reste sur l'ancien. Il echouait donc sans qu'aucun defaut
+  existe — et une suite rouge en permanence est une suite qu'on cesse de
+  lire. C'est le titre reel qu'on verifie.
+  */
+  for (const poste of ['CEO', 'Directeur Marketing', 'Directeur Commercial']) {
     verifie(`EQUIPE : le poste « ${poste} » y est`, String(r).includes(poste), r)
   }
 }
@@ -2088,7 +2094,7 @@ c'est là qu'est le piège.
   const sys = systemeAssistance(ENV_EQUIPE)
   for (const attendu of [
     'Koanda Moumine', 'Rasmane', 'Sakande',
-    'Fondateur', 'Directeur Marketing', 'Directeur Commercial',
+    'CEO', 'Directeur Marketing', 'Directeur Commercial',
     '+22672306526', 't.me/vaultexCommunity', 'vaultexteams@gmail.com',
   ]) {
     verifie(`CONSIGNE : « ${attendu} » est dans le prompt`, sys.includes(attendu), attendu)
@@ -2248,9 +2254,22 @@ test ne couvre QUE ce que l'assistance renvoie.
   vide » sans exclure le nul ecrirait « null » dans la consigne, et le
   modele le lirait comme un fait.
   */
+  /*
+  ON CHERCHE UNE LIGNE QUI VAUT « null », PAS LE TEXTE « null ».
+
+  C'etait `!sansMinimums.includes('null')`, et ca a refuse une ligne
+  parfaitement bonne : « et nulle part ailleurs » contient « null ».
+
+  Le defaut guette a trouve son vrai contour : une entree nulle du
+  tableau, une fois jointe par `\n`, devient une LIGNE qui vaut
+  exactement « null ». La chercher comme ligne attrape donc exactement ce
+  qu'on craint, et plus rien d'autre — « nulle », « annuler », « nullite »
+  passent, et c'est correct.
+  */
   const sansMinimums = systemeAssistance({})
-  verifie('CONSIGNE : aucun « null » ne fuit quand une section manque',
-    !sansMinimums.includes('null'), null)
+  const lignesNulles = sansMinimums.split('\n').filter((l) => l.trim() === 'null').length
+  verifie('CONSIGNE : aucune ligne « null » ne fuit quand une section manque',
+    lignesNulles === 0, lignesNulles)
 }
 
 /*
@@ -2533,6 +2552,127 @@ encaissements déjà servis. Le motif est fermé, et ces essais le tiennent.
     )
     verifie('IMAGE : sans KV, 503 et pas 404', r.status === 503, r.status)
   }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES QUATRE NOUVELLES RÉPONSES, ET SURTOUT CE QU'ELLES NE DOIVENT PAS VOLER
+═══════════════════════════════════════════════════════════════════════════
+
+`reponseConnue` rend la PREMIÈRE entrée dont un mot-clé apparaît, et la
+comparaison est un `includes` — pas une recherche de mot entier. Ajouter
+une entrée, c'est donc prendre le risque de retirer des questions à une
+autre, sans que rien ne le signale : les deux réponses sont valides, l'une
+répond simplement à côté.
+
+CE BLOC MESURE LES QUATRE PIÈGES CONNUS, un par nouvelle entrée :
+
+  — « mon PIN » contient « mon pi ». Un cours sur Pi Network à quelqu'un
+    qui a oublié son code serait le défaut le plus ridicule de la liste,
+    et c'est celui qui arriverait en premier.
+  — « quels frais pour envoyer » contient « frais », donc la marge du
+    change répondait à une question sur un transfert.
+  — « échanger contre des francs » est une VENTE, pas un swap. Le mot
+    « échanger » est donc absent des déclencheurs du swap, et ce test le
+    prouve plutôt que de l'affirmer.
+  — « sauvegarder mes 12 mots » contient « 12 mots », donc
+    l'avertissement anti-arnaque répondait à une demande de procédure —
+    tout en devant CONTINUER de répondre à « on me demande mes 12 mots ».
+
+Les cinq dernières lignes vérifient que les anciennes entrées répondent
+toujours. C'est la moitié qui compte : une collision se voit sur celle
+qu'on perd, jamais sur celle qu'on ajoute.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const E = ENV_EQUIPE
+  const dit = (q, extrait) => {
+    const r = reponseConnue(q, E)
+    verifie(`AIGUILLAGE : « ${q} » → « ${extrait} »`,
+      Boolean(r && r.includes(extrait)), r ? String(r).slice(0, 80) : null)
+  }
+  const neDitPas = (q, extrait) => {
+    const r = reponseConnue(q, E)
+    verifie(`AIGUILLAGE : « ${q} » ne répond PAS « ${extrait} »`,
+      !(r && r.includes(extrait)), r ? String(r).slice(0, 80) : null)
+  }
+
+  // Pi — et le piège du PIN.
+  dit('c est quoi le reseau pi', 'adresse Pi')
+  dit('je veux vendre mon pi network', 'adresse Pi')
+  dit('comment echanger mon pi', 'adresse Pi')
+  dit('quel est le minimum pour pi coin', 'adresse Pi')
+  neDitPas("j'ai oublie mon pin", 'adresse Pi')
+  neDitPas('comment changer mon pin', 'adresse Pi')
+  neDitPas('je veux une copie de mon pin', 'adresse Pi')
+
+  // La gratuité des envois — et la marge qui doit rester à sa place.
+  dit('est ce que c est gratuit', 'aucune commission')
+  dit('quels frais pour envoyer du btc', 'aucune commission')
+  dit('combien pour envoyer 10 usdt', 'aucune commission')
+  dit('c est quoi votre marge', 'FCFA par dollar')
+  dit('vous prenez combien', 'FCFA par dollar')
+
+  // Le swap — qui n'est pas le change.
+  dit('comment marche le swap', 'AUTRE CRYPTO')
+  dit('je veux convertir mon usdt en btc', 'AUTRE CRYPTO')
+  neDitPas('je veux echanger mes usdt contre des francs', 'AUTRE CRYPTO')
+
+  // La sauvegarde — et l'avertissement qui doit survivre.
+  dit('comment je sauvegarde mon portefeuille', 'SAUVEGARDE')
+  dit('comment sauvegarder mes 12 mots', 'SAUVEGARDE')
+  dit('ou sont mes douze mots', 'SAUVEGARDE')
+  dit('le support m a demande ma phrase secrete', 'JAMAIS ta phrase')
+  dit('on me demande mes 12 mots', 'JAMAIS ta phrase')
+
+  // Les anciennes, inchangées.
+  dit('c est quoi le minimum', 'minimum depend')
+  dit('combien de temps ca prend', 'delai annonce')
+  dit('jai envoye et jai rien recu', 'carte de verification')
+  dit('comment vendre mes usdt', 'onglet VENDRE')
+  dit('comment vous contacter', 'WhatsApp')
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE QUI NE DOIT JAMAIS ENTRER DANS LE JOURNAL DES QUESTIONS
+═══════════════════════════════════════════════════════════════════════════
+
+Ce relais ne gardait rien du texte des clients. Le journal revient sur
+cette règle, et la seule chose qui rende ce retour défendable est que
+`anonymiserQuestion` enlève vraiment ce qu'elle prétend enlever.
+
+L'ORDRE DES REMPLACEMENTS EST TESTÉ, pas supposé : la référence doit
+partir AVANT les chiffres, sinon « VX-12345678 » perdrait sa queue et son
+préfixe resterait — une référence à moitié masquée reste une référence.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const sorti = (entre) => anonymiserQuestion(entre)
+
+  verifie('JOURNAL : un numero de telephone part',
+    !sorti('appelle moi au 70123456').includes('70123456'),
+    sorti('appelle moi au 70123456'))
+  verifie('JOURNAL : une reference VX part en entier',
+    !/\d/.test(sorti('ma demande VX-12345678 na rien recu')),
+    sorti('ma demande VX-12345678 na rien recu'))
+  verifie('JOURNAL : une adresse EVM part',
+    sorti(`jai envoye a 0x${'a'.repeat(40)}`).includes('[adresse]'),
+    sorti(`jai envoye a 0x${'a'.repeat(40)}`))
+  verifie('JOURNAL : une adresse TRON part',
+    sorti('adresse TJYeasTPa6gpEEfYYSCCDHxZLBPbEgE1Qp').includes('[adresse]'),
+    sorti('adresse TJYeasTPa6gpEEfYYSCCDHxZLBPbEgE1Qp'))
+  verifie('JOURNAL : un e-mail part',
+    sorti('ecris moi a quelquun@exemple.com').includes('[email]'),
+    sorti('ecris moi a quelquun@exemple.com'))
+  verifie('JOURNAL : la question elle-meme reste lisible',
+    sorti('comment je sauvegarde mon portefeuille') === 'comment je sauvegarde mon portefeuille',
+    sorti('comment je sauvegarde mon portefeuille'))
+  verifie('JOURNAL : un petit montant survit — il ne designe personne',
+    sorti('je veux vendre 50000 FCFA').includes('50000'),
+    sorti('je veux vendre 50000 FCFA'))
+  verifie('JOURNAL : le texte est borne a 160 caracteres',
+    sorti('a'.repeat(400)).length === 160, sorti('a'.repeat(400)).length)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)

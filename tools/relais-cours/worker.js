@@ -305,6 +305,12 @@ avec `verifier-version.mjs`, avant de déployer.
                        reste.
   CHANGE_IA_MODELE     Modèle employé. Défaut : le moins cher qui réponde
                        bien à ces questions-là.
+  CHANGE_DIAG_CLE      ⚠️ SECRET. Ouvre le texte des trente dernières
+                       questions sur /diag?cle=… . SANS ELLE, /diag n'en
+                       donne que le NOMBRE : /diag n'est protégé par rien,
+                       et le texte d'une question de client n'a pas à être
+                       lisible par Internet. Choisis n'importe quoi de
+                       long ; la perdre ne casse rien.
 
 ─── LES CHAÎNES ────────────────────────────────────────────────────────
 
@@ -352,7 +358,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 96
+const VERSION = 97
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -875,7 +881,7 @@ export default {
     }
 
     if (url.pathname === '/diag') {
-      return await diagnostic(env)
+      return await diagnostic(env, url.searchParams)
     }
 
     /*
@@ -1611,7 +1617,7 @@ async function servirImage(url, env) {
   })
 }
 
-async function diagnostic(env) {
+async function diagnostic(env, params) {
   const sondes = { version: VERSION }
 
   /*
@@ -2103,6 +2109,38 @@ async function diagnostic(env) {
     }
     return acc
   }, {})
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES QUESTIONS SANS RÉPONSE TOUTE FAITE — FERMÉES PAR DÉFAUT
+  ═══════════════════════════════════════════════════════════════════════
+
+  Le nombre est toujours donné : il ne dit rien de personne, et c'est lui
+  qu'on regarde d'abord — zéro après un déploiement signifie que
+  l'écriture ne marche pas.
+
+  LE TEXTE, LUI, DEMANDE LA CLÉ. `/diag` répond à qui l'appelle, et
+  l'adresse du relais est dans un dépôt public. Sans `CHANGE_DIAG_CLE`,
+  les questions des clients seraient donc lisibles par n'importe qui —
+  anonymisées, mais lisibles. Un réglage absent ferme.
+
+  La comparaison se fait sur la chaîne entière et la clé vide ne passe
+  jamais : `cleDiag.length > 0` avant tout le reste, sinon `/diag?cle=`
+  ouvrirait le journal sur un relais qui n'a rien réglé.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const journal = await questionsSansReponse()
+  const cleDiag = String(env?.CHANGE_DIAG_CLE ?? '')
+  const ouvert = cleDiag.length > 0 && String(params?.get('cle') ?? '') === cleDiag
+  sondes.questionsSansReponse = {
+    combien: journal.length,
+    plafond: JOURNAL_MAX,
+    liste: ouvert
+      ? journal
+      : cleDiag
+        ? 'texte masque — rappelle /diag?cle=… pour le lire'
+        : 'texte masque — regle CHANGE_DIAG_CLE pour pouvoir le lire',
+  }
 
   return json(sondes)
 }
@@ -8083,6 +8121,7 @@ export {
   nettoyerIa,
   systemeAssistance,
   reponseConnue,
+  anonymiserQuestion,
   contactsVaultex,
   equipeVaultex,
   equipeTexte,
@@ -9039,10 +9078,74 @@ function systemeAssistance(env, langue, prenom) {
     '  jetons pour afficher ou masquer ce qui est suivi.',
     "- LANGUES : francais, anglais, arabe.",
     '',
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DEUX TROUS MESURES, ET LA MEME CAUSE QUE LA PREMIERE FOIS
+    ═══════════════════════════════════════════════════════════════════
+
+    « Tu as rendu l'assistance plus intelligente en fonction des
+    questions ? » La reponse honnete etait non : on avait elargi son
+    SUJET — le bloc du dessus — sans rien ajouter a ce qu'elle SAIT.
+    Deux faits manquaient, et tous les deux sont deja annonces aux
+    clients dans le canal Telegram. Ils SONT donc poses, et on y
+    repondait au hasard.
+
+    ─── PI : L'ECRAN EXISTE, LA CONVERSION NON ───────────────────────
+
+    Sans ces lignes, le modele devait choisir entre deux reponses
+    fausses. « VaultEx ne gere pas Pi » : faux, l'adresse et le solde
+    s'affichent, et l'envoi marche. « Oui, va dans Swap » : faux aussi,
+    et celui qui y va cherche dix minutes un bouton qui n'existe pas.
+
+    La verite est la nuance, et une nuance ne se devine pas.
+
+    ─── LA GRATUITE : UNE QUESTION DE CONFIANCE ──────────────────────
+
+    « Est-ce que vous prenez quelque chose sur un envoi » ne demande pas
+    un tarif, elle demande si on se sert au passage. La reponse est non,
+    et elle etait introuvable dans cette consigne : le modele ne
+    connaissait que la marge du change, donc il parlait de la marge du
+    change a quelqu'un qui parlait d'un envoi.
+
+    ON NE DONNE AUCUN POURCENTAGE SUR LE SWAP. Le taux vient du
+    fournisseur et l'application l'affiche avant validation ; le chiffre
+    exact n'est pas verifie ici. Une assistance qui annonce un
+    pourcentage faux fait plus de degats qu'une qui renvoie a l'ecran.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    'LE RESEAU PI, TEL QU IL EST VRAIMENT PRIS EN CHARGE :',
+    '- VaultEx AFFICHE ton adresse Pi et ton solde Pi, et sait ENVOYER',
+    '  du Pi. Cet ecran existe, ne dis jamais le contraire.',
+    '- VaultEx ne sait PAS convertir du Pi — ni en USDT, ni en francs, ni',
+    "  en autre chose. Aucun echangeur n'ouvre ce reseau a ce jour. Ce",
+    "  n'est pas un oubli de notre part, et le Swap ne le fera pas.",
+    "- Il existe pourtant un chemin qui marche pour sortir du Pi, et",
+    "  l'equipe l'a ecrit etape par etape dans la communaute Telegram :",
+    `  ${contacts.telegram}.`,
+    "- Donc si on te demande comment vendre, echanger ou retirer du Pi,",
+    '  dis les DEUX choses : que l application ne le convertit pas, et',
+    '  que le guide est dans ce groupe. Jamais une seule des deux.',
+    '',
+    'CE QUE VAULTEX PRELEVE, ET CE QU IL NE PRELEVE PAS :',
+    '- ENVOYER et RECEVOIR : AUCUNE commission de notre part, ni a',
+    "  l'envoi ni a la reception. Ce qui s'affiche sous « frais estimes »",
+    '  revient en entier au reseau qui inscrit la transaction. Sur une',
+    '  chaine chargee ce montant monte, et nous ne touchons pas un franc',
+    "  de plus. C'est vrai sur toutes les chaines.",
+    `- ACHETER / VENDRE contre des francs : la marge de ${marge} FCFA par`,
+    '  dollar, affichee en clair avant validation, et rien de plus.',
+    '- SWAP entre cryptos : il passe par un fournisseur externe, et son',
+    "  taux inclut sa propre commission. L'application affiche ce que tu",
+    '  recevras AVANT que tu valides : renvoie a ce chiffre-la, et ne',
+    '  calcule jamais un pourcentage toi-meme.',
+    '',
     'LA SECURITE, TELLE QU ELLE EST FAITE :',
     '- Les DOUZE MOTS de recuperation sont la seule sauvegarde. Ils se',
     '  notent sur du papier, jamais en photo ni dans une note du telephone.',
     '  Perdus, les fonds le sont aussi — personne ne peut les redonner.',
+    '- On les REVOIT dans les reglages, rubrique SAUVEGARDE, apres le PIN',
+    '  ou la biometrie. Cette rubrique existe : si on te demande ou les',
+    "  retrouver, c'est la, et nulle part ailleurs.",
     '- Un PIN, et la biometrie si le telephone la propose.',
     "- Un PIN DE PANIQUE : saisi a l'ecran de deverrouillage, il EFFACE",
     "  toutes les donnees du portefeuille. C'est irreversible et volontaire.",
@@ -9251,6 +9354,47 @@ function reponsesConnues(env) {
     : `${groupeMilliers(min)} FCFA`
 
   return [
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    PI EST LA PREMIERE, ET C'EST OBLIGATOIRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    `reponseConnue` rend la PREMIERE entree dont un mot apparait. Or
+    « c'est quoi le reseau Pi » contient « reseau », et « je veux vendre
+    mon Pi » contient « je veux vendre ». Placee ailleurs qu'en tete,
+    cette entree se faisait voler ses questions par celle du choix de
+    reseau et par celle de la vente — deux reponses qui parlent du change
+    en USDT a quelqu'un qui parle de Pi.
+
+    Mise en premier, elle attrape aussi « quel est le minimum pour Pi ».
+    C'est voulu : il n'y a PAS de minimum pour le Pi, puisqu'on ne
+    l'echange pas. La reponse « le minimum est de 5 000 FCFA » serait
+    fausse ici, et celle-ci est juste.
+
+    ─── LES MOTS DECLENCHEURS NE CONTIENNENT JAMAIS « pi » SEUL ──────────
+
+    La comparaison est un `includes`, pas une recherche de mot entier.
+    « pi » seul attraperait « mon PIN », « copie », « depuis », « rapide »
+    — donc « j'ai oublie mon pin » recevrait un cours de Pi Network.
+
+    Chaque forme ci-dessous a ete relue contre ce piege. « mon pi » est
+    absent pour cette raison exacte : il est contenu dans « mon pin ».
+    « du pi » aussi : il est contenu dans « du pied ». Si l'on en ajoute
+    une, on verifie d'abord qu'aucun mot courant ne la contient.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    {
+      mots: ['pi network', 'pinetwork', 'pi coin', 'picoin', 'reseau pi',
+             'vendre mon pi', 'vendre du pi', 'vendre des pi', 'vendre mes pi',
+             'echanger mon pi', 'convertir mon pi', 'retirer mon pi',
+             'sortir mon pi', 'mes pi network'],
+      reponse:
+        `VaultEx affiche bien ton adresse Pi et ton solde Pi, et sait ENVOYER du Pi. ` +
+        `Par contre l'application ne le CONVERTIT pas — ni en USDT, ni en francs : ` +
+        `aucun echangeur n'ouvre ce reseau a ce jour, et l'ecran Swap ne le propose donc ` +
+        `pas. Il existe quand meme un chemin qui marche pour sortir du Pi, et l'equipe ` +
+        `l'a ecrit etape par etape dans la communaute Telegram : ${contacts.telegram}.`,
+    },
     {
       mots: ['minimum', 'minimom', 'le moins', 'au moins', 'plus petit'],
       reponse:
@@ -9263,6 +9407,39 @@ function reponsesConnues(env) {
         `Le delai annonce est de ${delai} minutes. En pratique c'est souvent plus court : ` +
         `ta vente est verifiee automatiquement sur la chaine des que le versement arrive, ` +
         `et l'equipe technique voit la confirmation en meme temps que toi.`,
+    },
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA GRATUITE PASSE AVANT LA MARGE, PARCE QU'ELLE EST PLUS PRECISE
+    ═══════════════════════════════════════════════════════════════════════
+
+    « Quels frais pour envoyer ? » contient « frais », donc l'entree
+    suivante l'attrapait et repondait la marge du change — un nombre de
+    FCFA par dollar, a quelqu'un qui demandait le cout d'un transfert.
+    Exact sur le change, hors sujet sur la question posee.
+
+    Celle-ci est donc placee avant, et ses declencheurs portent tous le
+    mot « envoi » ou « gratuit » : elle ne prend que les questions ou le
+    sujet est l'envoi, et laisse « c'est quoi votre marge » a la suivante.
+
+    ELLE REPOND QUAND MEME SUR LES DEUX. Quelqu'un qui tape « c'est
+    gratuit ? » ne precise pas de quoi il parle ; la reponse donne donc
+    l'envoi ET la marge du change, dans cet ordre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    {
+      mots: ['gratuit', 'frais d envoi', "frais d'envoi", 'frais pour envoyer',
+             'frais de transfert', 'cout d un envoi', 'payer pour envoyer',
+             'combien pour envoyer', 'vous prenez sur les envois',
+             'commission sur les envois', 'frais de reception'],
+      reponse:
+        `Sur un ENVOI ou une RECEPTION, VaultEx ne prend aucune commission. Ce que tu ` +
+        `vois sous « frais estimes » revient en entier au reseau qui inscrit ta ` +
+        `transaction — jamais a nous. Sur une chaine chargee ce montant monte, et nous ne ` +
+        `touchons pas un franc de plus. La seule chose que nous prenons est la marge du ` +
+        `change, ${marge} FCFA par dollar, affichee en clair dans l'ecran Change avant ` +
+        `que tu valides. Le Swap, lui, passe par un fournisseur externe dont le taux ` +
+        `inclut sa commission : l'ecran t'affiche ce que tu recevras avant de valider.`,
     },
     {
       mots: ['frais', 'marge', 'commission', 'ca coute', 'vous prenez', 'tu prends'],
@@ -9311,6 +9488,33 @@ function reponsesConnues(env) {
         `Paie ce montant exact, puis reviens valider : l'equipe recoit ta demande et ` +
         `envoie la crypto a ton adresse une fois le paiement verifie.`,
     },
+    /*
+    LE SWAP N'EST PAS LE CHANGE, ET ON LES CONFONDAIT.
+
+    Deux ecrans, deux operations, et un seul mot dans la bouche du
+    client : « echanger ». Le change va de la crypto aux FRANCS ; le swap
+    va d'une crypto a une AUTRE CRYPTO. Rien dans la liste ne parlait du
+    second, donc toute question dessus descendait au modele.
+
+    « ECHANGER » SEUL EST ABSENT DES DECLENCHEURS, et c'est delibere :
+    « je veux echanger mes USDT contre des francs » est une vente, pas un
+    swap. Ne sont gardees que les formes qui nomment DEUX cryptos, ou le
+    mot « swap » lui-meme. Ce qui reste ambigu descend au modele, qui
+    saura demander.
+    */
+    {
+      mots: ['swap', 'usdt en btc', 'usdt contre btc', 'btc en usdt',
+             'crypto contre crypto', 'echanger entre crypto',
+             'convertir mon usdt', 'convertir mes usdt', 'passer de usdt',
+             'usdt en eth', 'usdt en bnb', 'usdt en trx', 'une crypto en une autre'],
+      reponse:
+        `L'ecran Swap echange une crypto contre une AUTRE CRYPTO — USDT vers BTC, ETH, ` +
+        `BNB ou TRX — en 2 a 5 minutes. Aucune inscription, aucun depot chez qui que ce ` +
+        `soit : tu choisis les deux jetons, le montant, et l'ecran t'affiche ce que tu ` +
+        `recevras AVANT que tu valides. Ce taux vient d'un fournisseur externe et inclut ` +
+        `sa commission. A ne pas confondre avec l'ecran Change, qui lui va de la crypto ` +
+        `aux francs CFA.`,
+    },
     {
       mots: ['orange money', 'moov', 'wave', 'mobile money', 'comment payer', 'je paie comment'],
       reponse:
@@ -9354,6 +9558,45 @@ function reponsesConnues(env) {
         `n'a pas abouti : tire l'ecran vers le bas pour rafraichir. Tes fonds ne sont pas ` +
         `dans l'application — ils sont sur la chaine, et l'application ne fait que les ` +
         `lire. Verifie aussi que tu regardes le bon reseau.`,
+    },
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SAUVEGARDER ET SE FAIRE VOLER SA PHRASE SONT DEUX QUESTIONS
+    ═══════════════════════════════════════════════════════════════════════
+
+    L'entree suivante existe pour UNE chose : quelqu'un a qui on reclame
+    ses douze mots. Elle lui dit non, fermement, et c'est la bonne
+    reponse a cette question-la.
+
+    Mais « comment je sauvegarde mes 12 mots » contient « 12 mots », donc
+    elle l'attrapait aussi — et repondait « VaultEx ne te les demandera
+    jamais » a quelqu'un qui demandait une procedure. Un avertissement a
+    la place d'un mode d'emploi : il faut reposer la question.
+
+    Celle-ci est donc placee avant, et ses declencheurs portent tous
+    l'idee de sauvegarder ou de noter. Aucune formulation d'arnaque ne
+    contient ces mots : « le support m'a demande ma phrase secrete »
+    continue de tomber sur l'entree suivante, ce qui est l'essentiel.
+
+    ET ELLE PORTE QUAND MEME L'AVERTISSEMENT, en derniere phrase. Les
+    deux sujets se touchent ; repondre a l'un sans rappeler l'autre
+    serait expliquer ou ranger sa cle sans dire a qui ne pas la confier.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    {
+      mots: ['sauvegarde', 'sauvegarder', 'noter mes mots', 'ecrire mes mots',
+             'ou sont mes 12 mots', 'ou sont mes douze mots', 'revoir mes mots',
+             'afficher mes mots', 'copie de mon portefeuille', 'backup'],
+      reponse:
+        `Ta sauvegarde, ce sont tes DOUZE MOTS, et il n'y en a pas d'autre : VaultEx ne ` +
+        `garde rien chez lui. Dans les reglages, rubrique SAUVEGARDE, tu peux les ` +
+        `reafficher apres ton PIN ou ta biometrie. ` +
+        `Note-les a la main, sur du papier, dans l'ordre et sans faute, et ` +
+        `range le papier a l'abri du feu et de l'eau — deux copies a deux endroits valent ` +
+        `mieux qu'une. JAMAIS en photo, jamais dans une note du telephone, jamais dans un ` +
+        `message, jamais dans le cloud : tout ce qui est sur le telephone peut partir avec ` +
+        `lui. Verifie ensuite que ta copie est juste en la relisant mot par mot. Et ` +
+        `personne, pas meme nous, ne te les demandera jamais.`,
     },
     {
       mots: ['phrase secrete', 'douze mots', '12 mots', 'mnemonique', 'seed', 'cle privee'],
@@ -9430,6 +9673,106 @@ function reponseConnue(question, env) {
     if (entree.mots.some((m) => q.includes(sansAccents(m)))) return entree.reponse
   }
   return null
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE JOURNAL DES QUESTIONS QUE LA LISTE N'A PAS SU PRENDRE
+═══════════════════════════════════════════════════════════════════════════
+
+CE RELAIS NE GARDAIT RIEN DU TEXTE DES CLIENTS, et c'était une règle
+écrite, pas un oubli : `/change/otp` reçoit la référence et le numéro de
+l'expéditeur, jamais le corps du SMS, « parce que son texte ne nous
+regarde pas ».
+
+CE BLOC REVIENT SUR CETTE POSTURE. Autant le dire franchement que le
+glisser au milieu d'autre chose.
+
+─── POURQUOI, ET POURQUOI MAINTENANT ──────────────────────────────────
+
+« L'assistance n'est pas si intelligente » est un constat juste. On y a
+répondu deux fois en DEVINANT ce qui manquait — d'abord tout
+l'inventaire de l'application, puis Pi et la gratuité. Les deux fois ça
+a marché, et les deux fois c'était un coup de chance : on écrivait les
+réponses aux questions qu'on imaginait.
+
+Ce que ce journal rend, c'est la liste des questions RÉELLEMENT posées
+auxquelles aucune réponse toute faite ne correspondait. Une question qui
+revient trois fois est une entrée à écrire ; une question qu'on n'avait
+pas imaginée est exactement ce qu'on cherche. Sans elle, la prochaine
+amélioration sera encore une supposition.
+
+─── CE QUI N'Y ENTRE PAS ──────────────────────────────────────────────
+
+Le texte passe par `anonymiserQuestion` AVANT d'être écrit, et ce qui en
+sort n'a plus : d'adresse de chaîne, de référence VX-…, d'adresse
+e-mail, ni aucune suite de huit chiffres ou plus — donc aucun numéro de
+téléphone, aucun montant assez long pour identifier une opération.
+
+ET IL N'Y A AUCUN LIEN VERS LA PERSONNE. Pas d'identifiant d'appareil,
+pas de numéro, pas d'horodatage à la seconde — la date est tronquée à la
+minute, et trente lignes seulement sont conservées. On ne peut pas
+remonter d'une ligne à quelqu'un, et c'est la condition pour que ce
+journal existe.
+
+LA LECTURE EST FERMÉE PAR DÉFAUT. `/diag` n'est protégé par rien : il
+répond à qui l'appelle. Sans `CHANGE_DIAG_CLE`, ce point d'entrée ne
+donne donc que le NOMBRE de questions, jamais leur texte. C'est l'ordre
+qui compte : un réglage absent doit fermer, pas ouvrir.
+
+UNE ÉCRITURE QUI ÉCHOUE NE CASSE RIEN. Tout est dans un `try`, et la
+réponse au client part de toute façon. Un journal n'a jamais le droit
+d'empêcher une réponse.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const JOURNAL_MAX = 30
+const JOURNAL_GARDE_S = 30 * 86400
+
+/** Retire d'une question tout ce qui pourrait désigner quelqu'un. */
+function anonymiserQuestion(texte) {
+  return String(texte ?? '')
+    .replace(/\s+/g, ' ')
+    /* L'ordre compte : la référence avant les chiffres, sinon « VX-12345678 »
+       perdrait sa queue et resterait reconnaissable. */
+    .replace(/VX[-\s]?[0-9A-Za-z]{3,}/gi, '[reference]')
+    .replace(/0x[0-9a-fA-F]{40}/g, '[adresse]')
+    .replace(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/g, '[adresse]')
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[email]')
+    /* Huit chiffres d'affilée sont un numéro au Burkina Faso. Au-delà aussi. */
+    .replace(/(?<!\d)\d{8,}(?!\d)/g, '[numero]')
+    .trim()
+    .slice(0, 160)
+}
+
+/** Note une question à laquelle aucune réponse toute faite ne répondait. */
+async function noterQuestionSansReponse(texte, langue, avecFiche) {
+  const q = anonymiserQuestion(texte)
+  if (q.length < 3) return
+  try {
+    const brut = await lireBrut('questions', 'journal')
+    const lu = brut ? JSON.parse(brut) : []
+    const liste = Array.isArray(lu) ? lu.filter((e) => e && typeof e.q === 'string') : []
+    liste.unshift({
+      q,
+      // À la minute, pas à la seconde : assez pour voir « trois fois ce
+      // matin », trop peu pour rapprocher une ligne d'une transaction.
+      le: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      ...(langue && langue !== 'francais' ? { langue } : {}),
+      ...(avecFiche ? { fiche: true } : {}),
+    })
+    await ecrireBrut('questions', 'journal', JSON.stringify(liste.slice(0, JOURNAL_MAX)), JOURNAL_GARDE_S)
+  } catch (_) { /* un journal n'empêche jamais une réponse */ }
+}
+
+/** Les questions notées, de la plus récente à la plus ancienne. */
+async function questionsSansReponse() {
+  try {
+    const brut = await lireBrut('questions', 'journal')
+    const lu = brut ? JSON.parse(brut) : []
+    return Array.isArray(lu) ? lu : []
+  } catch (_) {
+    return []
+  }
 }
 
 /**
@@ -9576,6 +9919,33 @@ async function assistance(requete, env) {
   ) {
     const connue = reponseConnue(derniere.content, env)
     if (connue) return json({ ok: true, reponse: connue, source: 'reglages', membre })
+  }
+
+  /*
+  ON NOTE ICI, ET PAS AILLEURS.
+
+  À cet endroit précis du chemin, une seule chose est vraie de toutes les
+  questions qui passent : aucune réponse toute faite ne leur
+  correspondait. C'est exactement ce que le journal cherche à mesurer.
+
+  PLUS HAUT, on noterait aussi les questions déjà traitées — le journal se
+  remplirait de « c'est quoi le minimum » et ne dirait plus rien. PLUS
+  BAS, on raterait le cas sans clé, qui est le plus parlant des trois :
+  là, personne n'a répondu du tout.
+
+  LES DEUX AUTRES CAS SONT MARQUÉS plutôt qu'exclus. Une question en
+  anglais ou en arabe n'a pas de réponse toute faite parce qu'elles sont
+  écrites en français, et une question qui nomme un membre est envoyée au
+  modèle exprès. Ce ne sont pas des trous de connaissance, mais les
+  séparer d'office effacerait des questions utiles. `langue` et `fiche`
+  disent lesquelles, et on lit le journal en le sachant.
+
+  UN `await` SUR LE CHEMIN DE LA RÉPONSE, assumé : deux accès KV avant un
+  appel au modèle qui prend des secondes. Le `try` interne garantit que la
+  réponse part même si l'écriture échoue.
+  */
+  if (derniere.role === 'user') {
+    await noterQuestionSansReponse(derniere.content, nomLangue(corps?.langue), Boolean(membre))
   }
 
   const cle = String(env?.CHANGE_IA_CLE ?? '')
