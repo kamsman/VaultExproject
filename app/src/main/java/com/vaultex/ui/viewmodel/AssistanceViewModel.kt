@@ -293,13 +293,25 @@ class AssistanceViewModel @Inject constructor(
 
     private companion object {
         /**
-         * Trois échanges avant de demander le numéro.
+         * Six échanges avant de demander le numéro.
          *
-         * En dessous, la conversation peut être une seule question dont la
-         * réponse suffit — et on aurait réclamé un numéro pour rien. Au
-         * troisième, elle dure : il y a une chance réelle qu'elle doive
-         * être reprise par un humain.
+         * C'était trois, et c'était trop tôt. Vu à l'usage : la carte
+         * tombait au milieu d'une conversation qui se passait bien, et
+         * elle occupe la moitié basse de l'écran — on la voit plus que la
+         * réponse qu'on venait lire.
+         *
+         * UNE CONVERSATION DE TROIS TOURS N'EST PAS UNE CONVERSATION QUI
+         * ÉCHOUE. « Combien de temps ? », « et pour le BNB ? », « merci » :
+         * trois échanges, aucun problème, et on réclamait un numéro de
+         * téléphone.
+         *
+         * À six, il s'est vraiment passé quelque chose — soit la question
+         * est difficile, soit les réponses ne suffisent pas. C'est là que
+         * proposer un rappel a du sens.
+         *
+         * Le compteur ne compte que les messages de l'utilisateur : six
+         * questions posées, pas six bulles affichées.
          */
-        const val SEUIL_NUMERO = 3
+        const val SEUIL_NUMERO = 6
     }
 }

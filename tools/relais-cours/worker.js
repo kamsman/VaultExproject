@@ -352,7 +352,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 95
+const VERSION = 96
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -9646,7 +9646,46 @@ async function assistance(requete, env) {
         C'est elle qui regle la longueur ; ceci n'est qu'un plafond de
         securite.
         */
-        max_tokens: 700,
+        /*
+        ═══════════════════════════════════════════════════════════════
+        DEUX MILLE JETONS, PARCE QUE LA REFLEXION PARTAGE CE BUDGET
+        ═══════════════════════════════════════════════════════════════
+
+        C'etait sept cents, et ca suffisait tant que le modele ne
+        reflechissait pas : les sept cents allaient entierement a la
+        reponse.
+
+        Depuis `effort: high`, ils se partagent. Le raisonnement passe
+        d'abord, et ce qui reste va au texte — une reponse a six etapes
+        se ferait couper au milieu, exactement la panne que le passage
+        de quatre cents a sept cents avait corrigee.
+
+        DEUX MILLE N'EST PAS UNE DEPENSE, C'EST UN PLAFOND. On ne paie
+        que ce qui est produit, et la consigne continue de demander
+        court quand c'est court. Ce nombre ne sert qu'a ne pas couper.
+        ═══════════════════════════════════════════════════════════════
+        */
+        max_tokens: 2000,
+        /*
+        ═══════════════════════════════════════════════════════════════
+        EFFORT ELEVE — LE LEVIER LE MOINS CHER
+        ═══════════════════════════════════════════════════════════════
+
+        Claude Haiku 5.5 reflechit par defaut, mais a l'effort `medium`.
+        Le passer a `high` ne change pas le prix du jeton : il en fait
+        produire davantage, et seulement sur les questions qui le
+        demandent.
+
+        C'est a essayer AVANT de changer de modele. Un modele superieur
+        coute vingt fois le jeton ; l'effort coute ce que la reflexion
+        consomme, sur les questions difficiles uniquement.
+
+        POUR ALLER PLUS LOIN, IL N'Y A RIEN A DEPLOYER : le modele se
+        regle par CHANGE_IA_MODELE dans le tableau de bord. Mettre
+        `claude-sonnet-5-5` y suffit, et revenir en arriere aussi.
+        ═══════════════════════════════════════════════════════════════
+        */
+        output_config: { effort: 'high' },
         system: systemeAssistance(env, corps?.langue, corps?.prenom),
         messages: propres,
       }),
