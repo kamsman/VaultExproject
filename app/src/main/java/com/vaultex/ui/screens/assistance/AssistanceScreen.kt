@@ -835,11 +835,44 @@ private fun EnTete(enService: Boolean, onRetour: () -> Unit) {
                             .background(if (enService) AccentGreen else AccentOrange)
                     )
                     Spacer(Modifier.width(6.dp))
+                    /*
+                    ═══════════════════════════════════════════════════════
+                    LE PRÉNOM, ET CE QUI LE SUIT TOUJOURS
+                    ═══════════════════════════════════════════════════════
+
+                    Le prénom est demandé, et il est légitime : une
+                    assistance qui a un nom se parle mieux qu'un guichet.
+
+                    MAIS IL NE VA JAMAIS SEUL. L'en-tête de ce fichier dit
+                    pourquoi, et c'est la raison la plus sérieuse de
+                    l'écran : « laisser croire à un humain serait payé deux
+                    fois », et « l'arnaque la plus courante sur ce marché,
+                    c'est quelqu'un qui se fait passer pour le support et
+                    réclame les douze mots ».
+
+                    Un prénom humain à côté d'une pastille verte « en
+                    ligne », c'est exactement l'apparence que l'escroc
+                    cherche à produire. Le produire nous-mêmes affaiblirait
+                    notre propre défense dans l'écran où elle compte le
+                    plus.
+
+                    Le prénom et « réponses automatiques » tiennent donc
+                    sur LA MÊME LIGNE. Personne ne peut lire l'un sans
+                    lire l'autre, et la pastille verte reprend son vrai
+                    sens : le service répond, pas quelqu'un est assis
+                    derrière.
+
+                    Quand le service est muet, le prénom disparaît : il
+                    n'y a personne à présenter, et le message qui compte
+                    est alors l'indisponibilité.
+                    ═══════════════════════════════════════════════════════
+                    */
+                    val statut = stringResource(
+                        if (enService) R.string.assistance_statut_actif
+                        else R.string.assistance_statut_muet
+                    )
                     Text(
-                        stringResource(
-                            if (enService) R.string.assistance_statut_actif
-                            else R.string.assistance_statut_muet
-                        ),
+                        if (enService) "${prenomAssistant()} · $statut" else statut,
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.85f)
                     )
@@ -1048,4 +1081,43 @@ private fun DemandeNumero(vm: AssistanceViewModel, numero: String, valide: Boole
             }
         }
     }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE PRÉNOM DE L'ASSISTANCE — IL CHANGE CHAQUE JOUR
+═══════════════════════════════════════════════════════════════════════════
+
+Quatre prénoms, et celui du jour se déduit de la date. Pas de tirage au
+sort, pas de valeur enregistrée.
+
+─── POURQUOI CALCULÉ ET NON TIRÉ AU HASARD ─────────────────────────────
+
+Un tirage changerait de prénom à chaque recomposition de l'écran : on
+écrirait à Samira et la réponse arriverait de Joe. Il faudrait alors le
+retenir quelque part, et gérer sa durée de vie.
+
+La division du jour par quatre donne tout ça gratuitement : le même
+prénom du début à la fin d'une journée, le suivant le lendemain, et
+AUCUN état à conserver. Deux utilisateurs qui comparent leurs écrans
+voient le même prénom — ce qui évite la question « pourquoi tu as Alice
+et moi Joe ? », à laquelle il n'y a pas de bonne réponse.
+
+─── LE JOUR EST CELUI DU TÉLÉPHONE, PAS D'UN FUSEAU CHOISI ─────────────
+
+`currentTimeMillis` divisé par un jour donne le jour UTC. Au Burkina
+Faso, UTC est l'heure locale : le changement tombe donc à minuit pour
+tout le monde ici, ce qui est la seule chose qui compte.
+
+Ailleurs, le prénom change à un autre moment de la journée. Personne ne
+le remarquera, et vouloir y remédier demanderait un fuseau en dur —
+c'est-à-dire un choix arbitraire pour corriger un défaut que personne ne
+voit.
+═══════════════════════════════════════════════════════════════════════════
+*/
+private val PRENOMS_ASSISTANCE = listOf("Alice", "Joe", "Savanah", "Samira")
+
+private fun prenomAssistant(): String {
+    val jour = System.currentTimeMillis() / 86_400_000L
+    return PRENOMS_ASSISTANCE[(jour % PRENOMS_ASSISTANCE.size).toInt()]
 }
