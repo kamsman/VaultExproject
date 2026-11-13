@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 92
+const VERSION = 93
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2329,6 +2329,40 @@ function nombre(v, defaut = 0) {
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
+LA MARGE SE LIT ICI, ET NULLE PART AILLEURS
+═══════════════════════════════════════════════════════════════════════════
+
+DEFAUT TROUVE LE 13 NOVEMBRE 2026, et il disait un faux prix aux clients.
+
+Le reglage s'appelle CHANGE_MARGE. Deux endroits lisaient
+`CHANGE_MARGE_FCFA_PAR_DOLLAR`, qui n'existe pas — et tombaient donc sur
+leur valeur par defaut, 25, pendant que la vraie marge en vigueur etait
+de 50.
+
+CES DEUX ENDROITS SONT CEUX QUI PARLENT AU CLIENT. La reponse toute faite
+sur les frais annoncait « la marge appliquee est de 25 FCFA par dollar »,
+et la consigne du modele lui donnait le meme chiffre. L'ecran d'achat,
+lui, calculait avec 50 : l'assistance annoncait la moitie de ce que
+l'application facturait.
+
+Aucune alerte possible — les deux noms sont des chaines, et un reglage
+absent ne se distingue pas d'un reglage a sa valeur par defaut.
+
+POURQUOI UNE FONCTION PLUTOT QU'UNE CORRECTION SUR PLACE : parce que la
+correction sur place aurait laisse quatre lectures independantes du meme
+reglage, et que c'est exactement ce qui a produit le defaut. Il n'y a
+plus qu'un seul endroit ou se tromper de nom.
+
+`nombre` et non `|| 25` : une marge de zero est un reglage legitime — une
+promotion, un lancement — et `Number('0') || 25` rend 25.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function margeParDollar(env) {
+  return nombre(env?.CHANGE_MARGE, 25)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
 RELIRE UN NOMBRE MIS EN FORME EN FRANÇAIS
 ═══════════════════════════════════════════════════════════════════════════
 
@@ -3005,7 +3039,7 @@ function parametresChange(env) {
       // bouton de l'application, sans rien republier.
       actif: String(env?.CHANGE_ACTIF ?? '1') !== '0',
       // Marge en FRANCS PAR DOLLAR : la langue du marché local.
-      margeFcfaParDollar: nombre(env?.CHANGE_MARGE, 25),
+      margeFcfaParDollar: margeParDollar(env),
       /*
       ═══════════════════════════════════════════════════════════════════
       LES FRAIS D'ENVOI, EN DOLLARS ET A PART DE LA MARGE
@@ -7889,8 +7923,7 @@ async function coherenceFcfa(monnaie, montantCrypto, fcfaAnnonce, env) {
   if (!(prixUsd > 0) || !(eurUsd > 0)) return { etat: 'indisponible' }
 
   const tauxXof = XOF_PAR_EURO / eurUsd
-  const marge = Number(env?.CHANGE_MARGE)
-  const margeFcfa = Number.isFinite(marge) && marge >= 0 ? marge : 25
+  const margeFcfa = margeParDollar(env)
   // Même formule que TauxFcfa.prix cote application, y compris l'arrondi
   // au franc du prix unitaire : c'est ce qui rend les deux comparables.
   const unitaire = Math.round(prixUsd * tauxXof - margeFcfa * prixUsd)
@@ -8691,7 +8724,7 @@ function nomLangue(code) {
 function systemeAssistance(env, langue) {
   const min = Number(env?.CHANGE_MIN) || 5000
   const max = Number(env?.CHANGE_MAX) || 50000
-  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const marge = margeParDollar(env)
   const delai = Number(env?.CHANGE_DELAI) || 30
   const minsParMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
@@ -9071,7 +9104,7 @@ function reponsesConnues(env) {
   const min = Number(env?.CHANGE_MIN) || 5000
   const max = Number(env?.CHANGE_MAX) || 50000
   const delai = Number(env?.CHANGE_DELAI) || 30
-  const marge = Number(env?.CHANGE_MARGE_FCFA_PAR_DOLLAR) || 25
+  const marge = margeParDollar(env)
   const parMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
   const contacts = contactsVaultex(env)
