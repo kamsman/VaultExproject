@@ -279,7 +279,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 91
+const VERSION = 92
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2884,13 +2884,61 @@ async function actualites(env, origine) {
 
   A L'INTERIEUR d'une source, l'ordre du flux est conserve : les editeurs
   servent leurs articles du plus recent au plus ancien.
+
+  ─── ET LE TOUR DE ROLE SEUL NE SUFFISAIT PLUS ────────────────────────
+
+  Il etait juste avec trois sources crypto et deux finance. Avec CINQ
+  crypto et deux finance — depuis l'ajout de CoinDesk et Cointelegraph —
+  il donnait cinq lignes sur sept a la crypto, et les deux articles
+  finance se suivaient en quatrieme et cinquieme position : un bloc au
+  milieu d'une liste.
+
+  L'ecran promet « crypto ET finance ». Avec un tour de role simple, cette
+  promesse se degrade a chaque source crypto ajoutee, sans que personne
+  n'ait decide de la degrader.
+
+  ON ALTERNE DONC LES THEMES, et le tour de role devient interne a chaque
+  theme : crypto, finance, crypto, finance… Chaque file pioche a son tour
+  parmi SES sources, et les deux files se relaient.
+
+  Resultat sur le premier ecran : une ligne sur deux est de la finance au
+  lieu de deux sur sept, et elles ne forment plus un bloc.
+
+  QUAND UNE FILE S'EPUISE, l'autre continue seule. Les sources finance ont
+  huit articles, les crypto en ont vingt : l'alternance tient sur seize
+  lignes, puis la crypto prend la suite. C'est exactement l'inverse de ce
+  qui se passait — la ou il fallait defiler pour trouver de la finance, il
+  faut maintenant defiler pour n'avoir plus que de la crypto.
+
+  AJOUTER UNE SOURCE NE CHANGE PLUS L'EQUILIBRE, seulement la variete a
+  l'interieur d'un theme. C'est ce qui manquait.
   ═══════════════════════════════════════════════════════════════════════
   */
-  const articles = []
-  for (let rang = 0; rang < ACTUS_PAR_SOURCE; rang++) {
-    for (const { lus } of resultats) {
-      if (lus[rang]) articles.push(lus[rang])
+  const tourDeRole = (groupe) => {
+    const file = []
+    for (let rang = 0; rang < ACTUS_PAR_SOURCE; rang++) {
+      for (const { lus } of groupe) {
+        if (lus[rang]) file.push(lus[rang])
+      }
     }
+    return file
+  }
+
+  const fileCrypto = tourDeRole(resultats.filter((r) => r.source.theme !== 'finance'))
+  const fileFinance = tourDeRole(resultats.filter((r) => r.source.theme === 'finance'))
+
+  /*
+  LA CRYPTO OUVRE, et ce n'est pas un hasard : le premier article passe a
+  la une, et VaultEx est un portefeuille crypto. Mettre la finance en tete
+  d'affiche serait aussi desequilibre que l'inverse, juste dans l'autre
+  sens.
+  */
+  const articles = []
+  let iCrypto = 0
+  let iFinance = 0
+  while (iCrypto < fileCrypto.length || iFinance < fileFinance.length) {
+    if (iCrypto < fileCrypto.length) articles.push(fileCrypto[iCrypto++])
+    if (iFinance < fileFinance.length) articles.push(fileFinance[iFinance++])
   }
 
   /*
