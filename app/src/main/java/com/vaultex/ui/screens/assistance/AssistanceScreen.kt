@@ -872,7 +872,7 @@ private fun EnTete(enService: Boolean, onRetour: () -> Unit) {
                         else R.string.assistance_statut_muet
                     )
                     Text(
-                        if (enService) "${prenomAssistant()} · $statut" else statut,
+                        if (enService) "${prenomAssistantDuJour()} · $statut" else statut,
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.85f)
                     )
@@ -1117,7 +1117,17 @@ voit.
 */
 private val PRENOMS_ASSISTANCE = listOf("Alice", "Joe", "Savanah", "Samira")
 
-private fun prenomAssistant(): String {
+/*
+PUBLIQUE, PARCE QUE LE MODELE DOIT DIRE LE MEME PRENOM QUE L'EN-TETE.
+
+Le modele de langue le recoit dans la demande et s'en sert pour se
+presenter. Si le relais en tirait un de son cote, l'ecran annoncerait
+Savanah pendant que la reponse serait signee Joe.
+
+Une seule fonction, deux lecteurs : l'en-tete de cet ecran et le corps
+de la requete. C'est ce qui garantit qu'ils ne peuvent pas diverger.
+*/
+fun prenomAssistantDuJour(): String {
     val jour = System.currentTimeMillis() / 86_400_000L
     return PRENOMS_ASSISTANCE[(jour % PRENOMS_ASSISTANCE.size).toInt()]
 }

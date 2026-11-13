@@ -195,7 +195,12 @@ class AssistanceViewModel @Inject constructor(
                             // du systeme : c'est celle qu'il a reglee qui dit
                             // dans quelle langue il veut qu'on lui reponde.
                             langue = com.vaultex.core.session.LocaleManager
-                                .appLocale().language
+                                .appLocale().language,
+                            // Le meme prenom que celui de l'en-tete, pris a
+                            // la meme source : sans ca, l'ecran annoncerait
+                            // un prenom que la reponse ne reprendrait pas.
+                            prenom = com.vaultex.ui.screens.assistance
+                                .prenomAssistantDuJour()
                         )
                     )
                 }
