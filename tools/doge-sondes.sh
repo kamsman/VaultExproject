@@ -32,16 +32,37 @@
 # d'envoi. L'argument etait bon ; il ne vaut rien sur un service qui
 # refuse les requetes venant d'ici.
 #
-# ─── CE QUI RESTE A MESURER AVANT DE CHOISIR ──────────────────────────────
+# --------------------------------------------------------------------------
+# SECONDE MESURE — LE QUOTA, ET CE QU'IL TRANCHE
+# --------------------------------------------------------------------------
 #
-# LE QUOTA. Repondre vite a UNE requete ne dit rien de ce que fera le
-# service face a deux cent vingt-trois utilisateurs. La sonde affiche donc
-# les en-tetes de quota quand le service en envoie — on ne recopie pas un
-# chiffre lu dans une documentation.
+#   blockcypher   x-ratelimit-remaining: 1   sur CHACUN des trois appels.
 #
-# LES NOMS DE CHAMPS D'UNE SORTIE NON DEPENSEE. La premiere mesure a
-# interroge une adresse VIDE : elle prouve que le service repond, pas ce
-# que contient une sortie. D'ou `--vivante`.
+# A QUELLE FENETRE CE COMPTEUR SE RAPPORTE N'EST PAS ECRIT, et on ne le
+# devinera pas ici. Ce qu'il dit suffit : il reste UNE requete. Un envoi
+# consomme au moins deux appels — lire les sorties, diffuser — sans
+# compter la lecture du solde a chaque ouverture de l'ecran. Pour deux
+# cent vingt-trois utilisateurs, la fourniture gratuite de BlockCypher
+# n'est pas un candidat ; c'est un bac a sable.
+#
+# LA RECHERCHE `--vivante` A ECHOUE DANS LA FOULEE, ce qui est coherent :
+# elle ajoute trois appels a un quota deja epuise.
+#
+# ─── CE QUE CA NE DIT PAS : QUE BLOCKBOOK SOIT MORT ───────────────────────
+#
+# Le 403 mesure la politique de L'INSTANCE PUBLIQUE DE TREZOR, pas la
+# forme d'API. NOWNodes sert du Blockbook sur son propre hote, derriere
+# une cle — donc sans le mur anti-robot qui nous a refuses. L'argument de
+# portabilite tient toujours, il demande juste un compte.
+#
+# ─── LA PROCHAINE MESURE, ET ELLE DEMANDE UNE CLE ─────────────────────────
+#
+# Ouvrir un compte gratuit chez NOWNodes, puis :
+#
+#   NOWNODES_CLE=xxxx ./tools/doge-sondes.sh --vivante
+#
+# C'est la seule facon de savoir si un Blockbook joignable depuis le
+# Burkina existe, et quel quota il annonce.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -136,25 +157,54 @@ trap 'rm -f "$ENTETES"' EXIT
 if [ "${1:-}" = "--vivante" ]; then
   echo
   echo "  Recherche d'une adresse approvisionnee dans le dernier bloc…"
-  extraire() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" <<<"$1" | head -1; }
-  bloc=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main" 2>/dev/null)
-  hash=$(extraire "$bloc" hash)
-  detail=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main/blocks/$hash?limit=1" 2>/dev/null)
-  # `txids` est un tableau de chaines : on prend la premiere entre guillemets
-  # apres le nom du champ, sans analyseur JSON — aucun n'est garanti present
-  # sur une machine Windows.
-  txid=$(sed -n 's/.*"txids"[^]]*\["\([0-9a-f]\{64\}\)".*/\1/p' <<<"$detail" | head -1)
-  tx=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main/txs/$txid" 2>/dev/null)
-  trouvee=$(sed -n 's/.*"addresses"[^]]*\["\(D[1-9A-HJ-NP-Za-km-z]\{25,34\}\)".*/\1/p' <<<"$tx" | head -1)
+
+  # --------------------------------------------------------------------
+  # UNE RECHERCHE QUI ECHOUE DOIT DIRE A QUELLE ETAPE, ET POURQUOI
+  # --------------------------------------------------------------------
+  #
+  # La premiere version avalait tout : `2>/dev/null`, aucun code HTTP
+  # regarde, et un seul message a la fin — « echec de la recherche ».
+  # MESURE : elle a echoue chez l'utilisateur, et cette sortie ne
+  # permettait pas de distinguer un quota epuise d'un champ renomme.
+  #
+  # C'est la faute meme que ce script reproche aux fournisseurs : rendre
+  # « rien trouve » la ou il faudrait rendre « je n'ai pas pu regarder ».
+  # Chaque etape affiche donc son code et le debut de sa reponse.
+  etape() {
+    local titre="$1" url="$2" rep code
+    rep=$(curl -sS -m "$DELAI" -w '\n%{http_code}' "$url" 2>&1)
+    code=$(printf '%s' "$rep" | tail -1)
+    DERNIER=$(printf '%s' "$rep" | sed '$d')
+    printf '    %-14s %-7s %s\n' "$titre" "$code" \
+      "$(printf '%s' "$DERNIER" | tr -d '\n' | cut -c1-70)"
+    [ "$code" = "200" ]
+  }
+
+  trouvee=""
+  if etape "dernier bloc" "https://api.blockcypher.com/v1/doge/main"; then
+    hash=$(sed -n 's/.*"hash"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+    if [ -n "$hash" ] && etape "bloc $…" "https://api.blockcypher.com/v1/doge/main/blocks/$hash"; then
+      # `txids` est un tableau de chaines : on prend la premiere, sans
+      # analyseur JSON — aucun n'est garanti present sur une machine
+      # Windows.
+      txid=$(sed -n 's/.*"txids"[^]]*\["\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+      if [ -n "$txid" ] && etape "transaction" "https://api.blockcypher.com/v1/doge/main/txs/$txid"; then
+        trouvee=$(sed -n 's/.*"addresses"[^]]*\["\(D[1-9A-HJ-NP-Za-km-z]\{25,33\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+      fi
+    fi
+  fi
+
   if [ -n "$trouvee" ]; then
     ADRESSE="$trouvee"
     echo "  Trouvee : $ADRESSE"
     echo "  (passez-la en argument aux prochaines relances pour economiser"
     echo "   les trois appels de recherche)"
   else
-    echo "  Echec de la recherche — on retombe sur l'adresse de test, vide."
-    echo "  Ce n'est PAS une reponse sur les fournisseurs : c'est la recherche"
-    echo "  qui a echoue. Donnez une adresse en argument."
+    echo
+    echo "  Recherche infructueuse — on retombe sur l'adresse de test, vide."
+    echo "  Les codes ci-dessus disent OU ca s'est arrete. Un 429 signifie"
+    echo "  quota epuise, pas « champ introuvable » : attendez et relancez."
+    echo "  Sinon, donnez simplement une adresse en argument."
     ADRESSE="$ADRESSE_TEST"
   fi
 fi
@@ -261,10 +311,17 @@ if [ -n "${NOWNODES_CLE:-}" ]; then
   echo
 else
   echo "── Non sondes, faute de cle ──────────────────────────────────────────"
-  echo "  NOWNodes, GetBlock, Tatum : comptes a ouvrir. Plusieurs servent du"
-  echo "  Blockbook, donc la MEME forme d'API que la premiere section — si"
-  echo "  elle vous convient, en changer plus tard ne touche pas le moteur."
-  echo "  Relancez avec NOWNODES_CLE=... pour en sonder un."
+  echo "  NOWNodes, GetBlock, Tatum : comptes a ouvrir."
+  echo
+  echo "  C'EST MAINTENANT LA MESURE QUI MANQUE. La fourniture gratuite de"
+  echo "  BlockCypher annonce une requete restante : c'est un bac a sable,"
+  echo "  pas un fournisseur pour 223 utilisateurs."
+  echo
+  echo "  NOWNodes sert du Blockbook sur SON hote, derriere une cle — donc"
+  echo "  sans le mur anti-robot qui a refuse l'instance publique de Trezor."
+  echo "  La forme d'API y est la meme, et elle couvre les trois besoins."
+  echo
+  echo "    NOWNODES_CLE=xxxx ./tools/doge-sondes.sh --vivante"
   echo
 fi
 
