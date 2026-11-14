@@ -55,14 +55,39 @@
 # une cle — donc sans le mur anti-robot qui nous a refuses. L'argument de
 # portabilite tient toujours, il demande juste un compte.
 #
-# ─── LA PROCHAINE MESURE, ET ELLE DEMANDE UNE CLE ─────────────────────────
+# --------------------------------------------------------------------------
+# TROISIEME MESURE — L'HOTE NOWNODES REPOND, ET BLOCKCHAIR DECROCHE
+# --------------------------------------------------------------------------
 #
-# Ouvrir un compte gratuit chez NOWNodes, puis :
+#   nownodes     HTTP 401 « Unknown API_key », en 1,6 s.
 #
-#   NOWNODES_CLE=xxxx ./tools/doge-sondes.sh --vivante
+# LA CLE ETAIT FAUSSE — un exemple colle tel quel — et c'est justement ce
+# qui rend la mesure utile. Un 401 n'est ni un 403 ni un delai depasse :
+# l'hote est JOIGNABLE depuis le Burkina, il a lu la requete, et il a
+# repondu une phrase qui a du sens. Avec une vraie cle, il repondra.
 #
-# C'est la seule facon de savoir si un Blockbook joignable depuis le
-# Burkina existe, et quel quota il annonce.
+# C'est le seul candidat de forme Blockbook qui nous parle. Il reste donc
+# a mesurer son quota, et lui seul.
+#
+#   blockchair   DELAI DEPASSE a 20 s sur l'appel d'adresse, apres 2,9 s
+#                puis 1,9 s aux deux mesures precedentes. Le meme appel,
+#                le meme jour.
+#
+# TROIS MESURES, TROIS RESULTATS DIFFERENTS : c'est pire qu'une panne
+# franche. Une panne franche se voit et se contourne ; une lenteur
+# intermittente produit des envois qui echouent une fois sur trois, sans
+# motif lisible, chez des gens qui viennent de signer une transaction.
+# Blockchair sort de la liste tant qu'une mesure repetee ne le rehabilite
+# pas.
+#
+# ─── LA PROCHAINE MESURE, ET ELLE DEMANDE UNE VRAIE CLE ───────────────────
+#
+# Ouvrir un compte gratuit chez NOWNodes, copier la cle du tableau de
+# bord, puis — en remplacant le mot ci-dessous par cette cle :
+#
+#   NOWNODES_CLE=<collez-ici-la-cle-NOWNodes> ./tools/doge-sondes.sh --vivante
+#
+# C'est la derniere inconnue : le quota qu'un Blockbook joignable annonce.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -125,7 +150,11 @@
 # Si vous avez deja une cle, donnez-la par l'environnement et la sonde
 # l'emploiera :
 #
-#   NOWNODES_CLE=xxxx ./tools/doge-sondes.sh
+#   NOWNODES_CLE=<collez-ici-la-cle-NOWNodes> ./tools/doge-sondes.sh
+#
+# LE CHEVRON FAIT PARTIE DU RAPPEL, PAS DE LA COMMANDE. Un exemple ecrit
+# « xxxx » ou « ta_cle » ressemble assez a un jeton pour etre colle tel
+# quel — c'est arrive, et le service a repondu « Unknown API_key ».
 #
 # ==========================================================================
 
@@ -170,26 +199,42 @@ if [ "${1:-}" = "--vivante" ]; then
   # C'est la faute meme que ce script reproche aux fournisseurs : rendre
   # « rien trouve » la ou il faudrait rendre « je n'ai pas pu regarder ».
   # Chaque etape affiche donc son code et le debut de sa reponse.
+  # --------------------------------------------------------------------
+  # LA REPONSE EST APLATIE AVANT D'ETRE LUE, ET C'EST INDISPENSABLE
+  # --------------------------------------------------------------------
+  #
+  # MESURE : l'etape « bloc » rendait 200 et la recherche s'arretait la.
+  # Ni quota, ni champ renomme — `sed` travaille LIGNE PAR LIGNE, et
+  # BlockCypher formate ses reponses sur plusieurs lignes. Le nom du
+  # champ « txids » et le premier identifiant n'etaient pas sur la meme
+  # ligne, donc aucun motif ne pouvait les relier.
+  #
+  # C'est le diagnostic ajoute au tour precedent qui l'a montre : sans
+  # les codes par etape, on aurait soupconne le quota.
+  #
+  # SECONDE FAUTE, EMPILEE SUR LA PREMIERE : apres aplatissement, le
+  # motif exigeait `["` colles. BlockCypher ecrit `[` puis des espaces
+  # puis le guillemet. D'ou `\[[^"]*"`.
+  DERNIER=""
   etape() {
     local titre="$1" url="$2" rep code
     rep=$(curl -sS -m "$DELAI" -w '\n%{http_code}' "$url" 2>&1)
     code=$(printf '%s' "$rep" | tail -1)
-    DERNIER=$(printf '%s' "$rep" | sed '$d')
-    printf '    %-14s %-7s %s\n' "$titre" "$code" \
-      "$(printf '%s' "$DERNIER" | tr -d '\n' | cut -c1-70)"
+    DERNIER=$(printf '%s' "$rep" | sed '$d' | tr -d '\n')
+    printf '    %-14s %-7s %s\n' "$titre" "$code" "$(printf '%s' "$DERNIER" | cut -c1-70)"
     [ "$code" = "200" ]
   }
 
   trouvee=""
   if etape "dernier bloc" "https://api.blockcypher.com/v1/doge/main"; then
     hash=$(sed -n 's/.*"hash"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
-    if [ -n "$hash" ] && etape "bloc $…" "https://api.blockcypher.com/v1/doge/main/blocks/$hash"; then
+    if [ -n "$hash" ] && etape "bloc" "https://api.blockcypher.com/v1/doge/main/blocks/$hash"; then
       # `txids` est un tableau de chaines : on prend la premiere, sans
       # analyseur JSON — aucun n'est garanti present sur une machine
       # Windows.
-      txid=$(sed -n 's/.*"txids"[^]]*\["\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+      txid=$(sed -n 's/.*"txids"[^]]*\[[^"]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
       if [ -n "$txid" ] && etape "transaction" "https://api.blockcypher.com/v1/doge/main/txs/$txid"; then
-        trouvee=$(sed -n 's/.*"addresses"[^]]*\["\(D[1-9A-HJ-NP-Za-km-z]\{25,33\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+        trouvee=$(sed -n 's/.*"addresses"[^]]*\[[^"]*"\(D[1-9A-HJ-NP-Za-km-z]\{25,33\}\)".*/\1/p' <<<"$DERNIER" | head -1)
       fi
     fi
   fi
@@ -321,7 +366,8 @@ else
   echo "  sans le mur anti-robot qui a refuse l'instance publique de Trezor."
   echo "  La forme d'API y est la meme, et elle couvre les trois besoins."
   echo
-  echo "    NOWNODES_CLE=xxxx ./tools/doge-sondes.sh --vivante"
+  echo "    NOWNODES_CLE=<la-cle-de-votre-tableau-de-bord> \\"
+  echo "      ./tools/doge-sondes.sh --vivante"
   echo
 fi
 
