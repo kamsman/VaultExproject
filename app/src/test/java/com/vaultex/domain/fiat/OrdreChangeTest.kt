@@ -73,11 +73,31 @@ class OrdreChangeTest {
     ───────────────────────────────────────────────────────────────────────
     */
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    `monnaies` EST OBLIGATOIRE, ET CE TEST NE LE SAVAIT PAS
+    ═══════════════════════════════════════════════════════════════════
+
+    `utilisable` exige depuis quelque temps `monnaies.isNotEmpty()` — un
+    service sans aucune monnaie a proposer n'est pas un service. Ce
+    decor-ci ne renseignait pas le champ, donc il decrivait un service
+    que la production refuse, et il affirmait l'inverse.
+
+    IL N'A PAS ECHOUE PENDANT UN MOIS, parce que le jeu de tests ne
+    compilait pas du tout : un `@Test` en double dans CodeUssdTest.
+    L'ecart est apparu a la premiere execution qui a suivi la reparation.
+
+    C'est le decor qui avait tort, pas la production. Le champ est donc
+    renseigne, et il porte la liste par defaut plutot qu'une monnaie
+    inventee : le reste du fichier parle d'USDT.
+    ═══════════════════════════════════════════════════════════════════
+    */
     private fun params(
         actif: Boolean = true,
         numero: String = "70000000",
         min: Double = 5000.0,
-        max: Double = 50000.0
+        max: Double = 50000.0,
+        monnaies: List<String> = listOf("USDT")
     ) = ParametresChange(
         actif = actif,
         margeFcfaParDollar = 25.0,
@@ -86,11 +106,24 @@ class OrdreChangeTest {
         numeroMobileMoney = numero,
         nomChangeur = "Changeur",
         operateur = "Orange Money",
-        delaiMinutes = 30
+        delaiMinutes = 30,
+        monnaies = monnaies
     )
 
     @Test fun `un service complet est utilisable`() {
         assertTrue(params().utilisable)
+    }
+
+    /*
+    LA CONDITION QUI MANQUAIT A LA COUVERTURE.
+
+    Elle existait en production sans qu'aucun test ne la decrive — c'est
+    pour ca que la corriger au-dessus aurait pu la masquer. On l'ecrit
+    donc explicitement : un service sans monnaie n'est pas utilisable,
+    meme actif, meme avec un numero.
+    */
+    @Test fun `un service sans aucune monnaie n est pas utilisable`() {
+        assertFalse(params(monnaies = emptyList()).utilisable)
     }
 
     @Test fun `l'interrupteur ferme le service`() {

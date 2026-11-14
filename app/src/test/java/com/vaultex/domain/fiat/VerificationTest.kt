@@ -171,6 +171,54 @@ class VerificationTest {
         assertFalse(s.peutTransmettre())
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LA CONFIRMATION DU NUMERO N'ETAIT COUVERTE PAR AUCUN TEST
+    ═══════════════════════════════════════════════════════════════════
+
+    Elle existait en production — `telephonePret` l'exige — et rien ne
+    la decrivait ici. C'est ce qui a rendu les deux tests du dessus
+    trompeurs : en corrigeant leur decor pour qu'ils passent, on aurait
+    pu masquer la regle au lieu de l'ecrire.
+
+    Les trois cas ci-dessous la fixent dans les deux sens : le numero
+    retape ouvre, le numero mal retape ferme, et `forcer` ne la saute
+    pas. Ce dernier point est le plus important : `forcer` existe pour
+    passer outre une verification on-chain absente, PAS pour passer
+    outre le numero qui recevra l'argent.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    @Test
+    fun `un numero non retape ferme la porte, meme verifie`() {
+        val s = vente(
+            telephone = "70123456",
+            confirmation = "",
+            verification = Verification(EtatVerification.CONFIRME)
+        )
+        assertFalse(s.peutTransmettre())
+    }
+
+    @Test
+    fun `un numero mal retape ferme la porte`() {
+        val s = vente(
+            telephone = "70123456",
+            confirmation = "70123457",   // un chiffre different
+            verification = Verification(EtatVerification.CONFIRME)
+        )
+        assertFalse(s.peutTransmettre())
+    }
+
+    @Test
+    fun `forcer ne saute pas la confirmation du numero`() {
+        val s = vente(
+            telephone = "70123456",
+            confirmation = "",
+            verification = Verification(EtatVerification.ABSENT),
+            forcer = true
+        )
+        assertFalse(s.peutTransmettre())
+    }
+
     @Test
     fun `un achat ne depend pas de la chaine`() {
         /*
@@ -337,16 +385,45 @@ class VerificationTest {
         assertEquals(6, TauxFcfa.decimalesAffichage("DOGE"))
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE NUMERO SE RETAPE, ET CE DECOR L'IGNORAIT
+    ═══════════════════════════════════════════════════════════════════
+
+    `peutTransmettre` sur une vente exige `telephonePret`, et non plus
+    seulement `telephoneValide`. La difference est la CONFIRMATION :
+    depuis que `confirmationNumeroDemandee` vaut simplement
+    `telephoneValide`, elle est demandee a chaque vente, et
+    `telephoneConfirmation` doit egaler `telephone`.
+
+    Ce decor ne renseignait que `telephone`. Il decrivait donc un etat
+    ou l'utilisateur n'a pas retape son numero — etat dans lequel la
+    production refuse de transmettre, a juste titre. Les deux tests qui
+    s'appuyaient dessus affirmaient le contraire.
+
+    CE N'EST PAS UNE REGRESSION. C'est un durcissement voulu, explique
+    en toutes lettres dans ChangeViewModel : « sur un geste
+    irreversible, la retaper coute huit chiffres ; se tromper coute tout
+    ce qu'on vend. » Le decor suit, il ne discute pas.
+
+    PAR DEFAUT LE NUMERO EST DONC CONFIRME, parce que c'est le cas
+    NORMAL — celui de quelqu'un qui a rempli les deux champs. Les tests
+    qui veulent l'etat inverse le disent maintenant explicitement, ce
+    qui se lit mieux qu'un decor incomplet par accident.
+    ═══════════════════════════════════════════════════════════════════
+    */
     private fun vente(
         telephone: String = "",
         verification: Verification? = null,
-        forcer: Boolean = false
+        forcer: Boolean = false,
+        confirmation: String = telephone
     ) = ChangeState(
         etape = EtapeChange.PAIEMENT,
         sens = SensChange.VENTE,
         monnaie = "USDT",
         reference = "VX-AAAAAAAA",
         telephone = telephone,
+        telephoneConfirmation = confirmation,
         verification = verification,
         forcer = forcer
     )
