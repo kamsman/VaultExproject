@@ -6,7 +6,42 @@
 # UTILISATION (Git Bash, depuis la racine du projet) :
 #
 #   ./tools/doge-sondes.sh                      <-- commencez par celui-ci
+#   ./tools/doge-sondes.sh --vivante            <-- puis celui-ci
 #   ./tools/doge-sondes.sh DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L
+#
+# --------------------------------------------------------------------------
+# CE QUE LA PREMIERE MESURE A DONNE — OUAGADOUGOU, 14 NOVEMBRE 2026
+# --------------------------------------------------------------------------
+#
+#   blockbook (Trezor)   HTTP 403 sur les QUATRE points d'entree, en 0,8 a
+#                        1,4 s, avec une page Cloudflare en reponse. Ce
+#                        n'est pas une panne : c'est un refus. Le service
+#                        est joignable et ne veut pas repondre.
+#
+#   blockcypher          OK partout, 1,2 a 1,7 s. La diffusion refuse le
+#                        corps invalide en le DISANT : « Transaction
+#                        missing input or output » — donc elle diffuse.
+#
+#   blockchair           OK, mais 2,9 s sur l'appel d'adresse, celui dont
+#                        depend l'envoi. Deux fois BlockCypher.
+#
+# CETTE MESURE A RENVERSE UN AVIS, ET C'EST POUR CA QU'ELLE EXISTE.
+# Blockbook etait le candidat PREFERE avant de mesurer : une seule forme
+# d'API pour les trois besoins, et plusieurs fournisseurs payants servent
+# la meme, donc changer de maison plus tard n'aurait pas touche le moteur
+# d'envoi. L'argument etait bon ; il ne vaut rien sur un service qui
+# refuse les requetes venant d'ici.
+#
+# ─── CE QUI RESTE A MESURER AVANT DE CHOISIR ──────────────────────────────
+#
+# LE QUOTA. Repondre vite a UNE requete ne dit rien de ce que fera le
+# service face a deux cent vingt-trois utilisateurs. La sonde affiche donc
+# les en-tetes de quota quand le service en envoie — on ne recopie pas un
+# chiffre lu dans une documentation.
+#
+# LES NOMS DE CHAMPS D'UNE SORTIE NON DEPENSEE. La premiere mesure a
+# interroge une adresse VIDE : elle prouve que le service repond, pas ce
+# que contient une sortie. D'ou `--vivante`.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -75,14 +110,61 @@
 
 set -uo pipefail
 
-ADRESSE="${1:-DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC}"
+ADRESSE_TEST="DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC"
+ADRESSE="${1:-$ADRESSE_TEST}"
 DELAI=20
+ENTETES=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/dogesondes.$$")
+trap 'rm -f "$ENTETES"' EXIT
+
+# --------------------------------------------------------------------------
+# TROUVER UNE ADRESSE VIVANTE PLUTOT QUE D'EN DEMANDER UNE
+# --------------------------------------------------------------------------
+#
+# L'adresse de test est vide, et une adresse vide ne montre AUCUNE sortie
+# non depensee — donc pas les noms de champs, qui sont precisement ce qu'on
+# vient verifier. Demander a l'utilisateur d'aller en chercher une sur un
+# explorateur marche, mais ajoute une corvee a chaque relance.
+#
+# `--vivante` remonte donc la chaine : dernier bloc, sa premiere
+# transaction, l'adresse de sa premiere sortie. Trois appels de plus, d'ou
+# le fait que ce ne soit PAS le comportement par defaut : sur une fourniture
+# gratuite, chaque appel compte, et la premiere question — « qui repond ? »
+# — se tranche sans eux.
+#
+# L'adresse trouvee est AFFICHEE : notez-la et passez-la en argument aux
+# relances suivantes, ce qui economise les trois appels.
+if [ "${1:-}" = "--vivante" ]; then
+  echo
+  echo "  Recherche d'une adresse approvisionnee dans le dernier bloc…"
+  extraire() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" <<<"$1" | head -1; }
+  bloc=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main" 2>/dev/null)
+  hash=$(extraire "$bloc" hash)
+  detail=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main/blocks/$hash?limit=1" 2>/dev/null)
+  # `txids` est un tableau de chaines : on prend la premiere entre guillemets
+  # apres le nom du champ, sans analyseur JSON — aucun n'est garanti present
+  # sur une machine Windows.
+  txid=$(sed -n 's/.*"txids"[^]]*\["\([0-9a-f]\{64\}\)".*/\1/p' <<<"$detail" | head -1)
+  tx=$(curl -sS -m "$DELAI" "https://api.blockcypher.com/v1/doge/main/txs/$txid" 2>/dev/null)
+  trouvee=$(sed -n 's/.*"addresses"[^]]*\["\(D[1-9A-HJ-NP-Za-km-z]\{25,34\}\)".*/\1/p' <<<"$tx" | head -1)
+  if [ -n "$trouvee" ]; then
+    ADRESSE="$trouvee"
+    echo "  Trouvee : $ADRESSE"
+    echo "  (passez-la en argument aux prochaines relances pour economiser"
+    echo "   les trois appels de recherche)"
+  else
+    echo "  Echec de la recherche — on retombe sur l'adresse de test, vide."
+    echo "  Ce n'est PAS une reponse sur les fournisseurs : c'est la recherche"
+    echo "  qui a echoue. Donnez une adresse en argument."
+    ADRESSE="$ADRESSE_TEST"
+  fi
+fi
 
 echo
 echo "  Adresse interrogee : $ADRESSE"
-if [ "$ADRESSE" = "DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC" ]; then
-  echo "  (adresse de test, VIDE — relancez avec une adresse qui detient des"
-  echo "   DOGE pour voir la forme reelle d'une sortie non depensee)"
+if [ "$ADRESSE" = "$ADRESSE_TEST" ]; then
+  echo "  (adresse de test, VIDE — relancez avec --vivante, ou avec une"
+  echo "   adresse qui detient des DOGE, pour voir la forme reelle d'une"
+  echo "   sortie non depensee)"
 fi
 echo
 
@@ -97,11 +179,12 @@ echo
 sonder() {
   local nom="$1" url="$2" methode="${3:-GET}" corps="${4:-}"
   local sortie code duree
+  : > "$ENTETES"
   if [ "$methode" = "POST" ]; then
-    sortie=$(curl -sS -m "$DELAI" -w '\n%{http_code} %{time_total}' \
+    sortie=$(curl -sS -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total}' \
              -H 'content-type: application/json' -d "$corps" "$url" 2>&1)
   else
-    sortie=$(curl -sS -m "$DELAI" -w '\n%{http_code} %{time_total}' "$url" 2>&1)
+    sortie=$(curl -sS -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total}' "$url" 2>&1)
   fi
   code=$(printf '%s' "$sortie" | tail -1 | cut -d' ' -f1)
   # TRONQUEE AU CARACTERE, ET NON ARRONDIE PAR printf : « %.2f » depend de
@@ -120,6 +203,24 @@ sonder() {
   esac
   printf '  %-34s %-8s %7s  %s\n' \
     "$nom" "$etat" "$temps" "$(printf '%s' "$contenu" | tr -d '\n' | cut -c1-100)"
+
+  # --------------------------------------------------------------------
+  # LE QUOTA SE LIT DANS LES EN-TETES, ET C'EST LA QUESTION DECISIVE
+  # --------------------------------------------------------------------
+  #
+  # Un service qui repond vite et juste aujourd'hui, a une requete, ne dit
+  # rien de ce qu'il fera a deux cent vingt-trois utilisateurs. Les
+  # fournitures gratuites plafonnent, et le plafond ne s'annonce pas dans
+  # le corps de la reponse : il est dans les en-tetes, et il n'y est que
+  # quand le service veut bien le dire.
+  #
+  # ON NE RECOPIE PAS UN CHIFFRE LU DANS UNE DOCUMENTATION. Les quotas
+  # changent, dependent du compte et du pays. Celui-ci vient du service
+  # lui-meme, a l'instant ou on l'interroge.
+  local quota
+  quota=$(tr -d '\r' < "$ENTETES" | grep -i '^x-ratelimit\|^ratelimit\|^retry-after' |
+          sed 's/^/        /' )
+  [ -n "$quota" ] && printf '%s\n' "$quota"
 }
 
 # --------------------------------------------------------------------------
