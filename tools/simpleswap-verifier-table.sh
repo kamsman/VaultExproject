@@ -18,16 +18,44 @@
 # juge, jamais verifie, decouvert en production par quatre paires refusees
 # d'affilee. Ce script l'aurait nomme en une seconde.
 #
-# IL N'ATTRAPE PAS, TOUT SEUL, le ticker qui existe et designe autre chose.
+# IL ATTRAPE AUSSI, DESORMAIS, le ticker qui existe et designe autre chose.
 # « usdt » tout court existe : c'est Tether Omni. Un ticker juste de nom et
 # faux de chaine rend une adresse de depot valide, et les fonds partent.
 #
-# C'est pour ca que la colonne CONTRAT est affichee et qu'elle est la seule
-# qui tranche. Lisez-la contre le registre de SwapViewModel :
+# C'ETAIT A L'OEIL, ET C'EST POUR CA QUE CA NE SE FAISAIT PAS. L'en-tete
+# affichait trois contrats de reference et demandait de lire dix-huit lignes
+# contre eux. Les neuf jetons Ethereum n'y figuraient pas du tout : les
+# verifier voulait dire chercher neuf contrats ailleurs, a la main, et la
+# verification est restee a faire pendant des semaines. Un controle qu'on
+# reporte ne protege de rien.
 #
-#   USDT-ETH   0xdAC17F958D2ee523a2206206994597C13D831ec7
-#   USDT-BNB   0x55d398326f99059fF775485246999027B3197955
-#   USDT-SOL   Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
+# Le script lit donc maintenant le contrat ATTENDU dans le registre de
+# SwapViewModel.kt — la seule liste que l'ecran de swap consulte — et le
+# compare lui-meme a celui du catalogue. La colonne ETAT dit :
+#
+#   JUSTE      le contrat du catalogue est celui du registre. Rien a faire.
+#   ECART      le ticker existe et designe UNE AUTRE monnaie. <<< DANGER :
+#              c'est le seul etat qui peut faire partir des fonds.
+#   SANS CTR   le registre ne porte pas de contrat pour cette cle (monnaie
+#              native : BTC, ETH, BNB, SOL, TRX, et l'USDT Tron). Le reseau
+#              reste a lire a l'oeil.
+#   ABSENT     le ticker n'existe pas. Le devis echouera, aucune perte.
+#
+# La comparaison ignore la casse : une adresse EVM s'ecrit avec ou sans
+# somme de controle, et « 0xdAC17… » et « 0xdac17… » sont la meme adresse.
+# Comparer les chaines telles quelles aurait rendu dix-huit faux ECART.
+#
+# --------------------------------------------------------------------------
+# ESSAYER LA COMPARAISON SANS APPELER SIMPLESWAP
+# --------------------------------------------------------------------------
+#
+#   SSWAP_CATALOGUE=chemin/vers/catalogue.json ./tools/simpleswap-verifier-table.sh
+#
+# Le catalogue est alors lu dans ce fichier au lieu d'etre demande a l'API,
+# et la cle devient inutile. C'est ainsi que la comparaison a ete testee —
+# sur un catalogue juste ET sur un catalogue fausse — plutot que relue.
+#
+# Un verificateur qu'on ne peut pas verifier n'est qu'une opinion de plus.
 #
 # --------------------------------------------------------------------------
 # LA CLE NE SORT PAS DE VOTRE MACHINE
@@ -40,13 +68,66 @@
 set -uo pipefail
 
 TABLE="app/src/main/java/com/vaultex/domain/swap/FournisseurSimpleSwap.kt"
+REGISTRE="app/src/main/java/com/vaultex/ui/viewmodel/SwapViewModel.kt"
+SOLANA="app/src/main/java/com/vaultex/core/tx/SolanaSpl.kt"
 PROPS="local.properties"
+CATALOGUE="${SSWAP_CATALOGUE:-}"
 
 [ -f "$TABLE" ] || { echo "ERREUR : $TABLE introuvable. Lancez depuis la racine." >&2; exit 1; }
-[ -f "$PROPS" ] || { echo "ERREUR : $PROPS introuvable. Lancez depuis la racine." >&2; exit 1; }
+[ -f "$REGISTRE" ] || { echo "ERREUR : $REGISTRE introuvable. Lancez depuis la racine." >&2; exit 1; }
 
-CLE=$(grep -E '^[[:space:]]*simpleswap\.key[[:space:]]*=' "$PROPS" | head -1 | cut -d'=' -f2- | tr -d ' \r\n')
-[ -n "$CLE" ] || { echo "ERREUR : aucune ligne 'simpleswap.key=...' dans $PROPS." >&2; exit 1; }
+# LA CLE N'EST EXIGEE QUE SI L'ON APPELLE L'API. Avec SSWAP_CATALOGUE, le
+# catalogue vient d'un fichier : reclamer la cle interdirait d'essayer la
+# comparaison sur une machine qui ne l'a pas.
+CLE=""
+if [ -z "$CATALOGUE" ]; then
+  [ -f "$PROPS" ] || { echo "ERREUR : $PROPS introuvable. Lancez depuis la racine." >&2; exit 1; }
+  CLE=$(grep -E '^[[:space:]]*simpleswap\.key[[:space:]]*=' "$PROPS" | head -1 | cut -d'=' -f2- | tr -d ' \r\n')
+  [ -n "$CLE" ] || { echo "ERREUR : aucune ligne 'simpleswap.key=...' dans $PROPS." >&2; exit 1; }
+elif [ ! -f "$CATALOGUE" ]; then
+  echo "ERREUR : SSWAP_CATALOGUE pointe sur un fichier absent : $CATALOGUE" >&2
+  exit 1
+fi
+
+# --------------------------------------------------------------------------
+# LE CONTRAT ATTENDU, LU DANS LE REGISTRE DE L'ECRAN DE SWAP
+# --------------------------------------------------------------------------
+#
+# C'est SwapViewModel.kt qui decide quelle monnaie l'ecran propose et sur
+# quel contrat il la lit. C'est donc LUI la reference, et pas une liste
+# recopiee dans ce script — une liste recopiee se desynchronise, et elle se
+# desynchronise sans bruit.
+#
+# `contract = com.vaultex.core.tx.SolanaSpl.MINT_USDT` n'est pas une chaine
+# litterale : la constante est resolue depuis SolanaSpl.kt, sinon l'USDT de
+# Solana serait le seul jeton a contrat que la comparaison sauterait — et
+# c'est justement celui qui a deja coute une panne en production.
+MINT_USDT=$(sed -n 's/.*MINT_USDT[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$SOLANA" | head -1)
+
+ATTENDUS=$(awk -v mint="$MINT_USDT" '
+  /SwapAsset\("/ {
+    if (match($0, /SwapAsset\("[A-Z0-9-]+"/)) cle = substr($0, RSTART + 11, RLENGTH - 12)
+  }
+  /contract[ \t]*=[ \t]*"/ {
+    if (cle != "" && match($0, /contract[ \t]*=[ \t]*"[^"]+"/)) {
+      v = substr($0, RSTART, RLENGTH)
+      sub(/^contract[ \t]*=[ \t]*"/, "", v); sub(/"$/, "", v)
+      print cle "|" v; cle = ""
+    }
+  }
+  /contract[ \t]*=[ \t]*com\.vaultex\.core\.tx\.SolanaSpl\.MINT_USDT/ {
+    if (cle != "" && mint != "") { print cle "|" mint; cle = "" }
+  }
+' "$REGISTRE")
+
+NB_ATTENDUS=$(printf '%s\n' "$ATTENDUS" | grep -c . || true)
+if [ "$NB_ATTENDUS" -eq 0 ]; then
+  echo "ERREUR : aucun contrat lu dans $REGISTRE." >&2
+  echo "         Le registre a change de forme : c'est ce script a corriger." >&2
+  echo "         Sans reference, la comparaison dirait JUSTE sur tout — donc" >&2
+  echo "         on s'arrete plutot que de rassurer a tort." >&2
+  exit 1
+fi
 
 # Les paires « "CLE" -> "ticker" » de la table. Le filtre sur les guillemets
 # ecarte le repli `else -> token.lowercase()`, qui n'est pas un ticker.
@@ -61,11 +142,21 @@ if [ "$NB" -eq 0 ]; then
 fi
 
 echo
-echo "  $NB tickers lus dans FournisseurSimpleSwap.kt — interrogation du catalogue…"
+echo "  $NB tickers lus dans FournisseurSimpleSwap.kt,"
+echo "  $NB_ATTENDUS contrats de reference lus dans SwapViewModel.kt."
+if [ -n "$CATALOGUE" ]; then
+  echo "  Catalogue lu dans $CATALOGUE (SimpleSwap n'est PAS appele)."
+else
+  echo "  Interrogation du catalogue SimpleSwap…"
+fi
 echo
 
-REPONSE=$(curl -s --max-time 30 \
-  "https://api.simpleswap.io/get_all_currencies?api_key=${CLE}" 2>/dev/null)
+if [ -n "$CATALOGUE" ]; then
+  REPONSE=$(cat "$CATALOGUE")
+else
+  REPONSE=$(curl -s --max-time 30 \
+    "https://api.simpleswap.io/get_all_currencies?api_key=${CLE}" 2>/dev/null)
+fi
 
 [ -n "$REPONSE" ] || { echo "  Aucune reponse de SimpleSwap. On ne conclut RIEN." >&2; exit 1; }
 
@@ -132,7 +223,7 @@ if [ "$NB_PLAT" -lt 10 ]; then
 fi
 
 printf '  %-11s %-14s %-9s %-11s %s\n' CLE TICKER ETAT RESEAU CONTRAT
-echo "  ----------------------------------------------------------------------"
+echo "  ----------------------------------------------------------------------------"
 
 # La liste passe par un FICHIER et non par un tube : dans un tube la boucle
 # tourne dans un sous-shell, et ABSENTS y mourrait — le script rendrait 0
@@ -141,18 +232,49 @@ echo "  ----------------------------------------------------------------------"
 LISTE=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswappaires.$$")
 PLAT=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswapplat.$$")
 trap 'rm -f "$TMP" "$LISTE" "$PLAT"' EXIT
+REF=$(mktemp 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}/sswapref.$$")
+trap 'rm -f "$TMP" "$LISTE" "$PLAT" "$REF"' EXIT
 printf '%s\n' "$PAIRES" > "$LISTE"
 printf '%s\n' "$APLAT" > "$PLAT"
+printf '%s\n' "$ATTENDUS" > "$REF"
+
+# `tr` plutot que ${x,,} : cette derniere forme est du bash 4, et le bash de
+# Git pour Windows n'est pas garanti de l'etre. Un script de verification qui
+# ne demarre pas sur la machine de deploiement ne verifie rien.
+minuscules() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
 ABSENTS=0
+ECARTS=0
+SANS_REF=0
 while read -r cle ticker; do
   [ -n "$ticker" ] || continue
+
+  # Le contrat que le registre attend pour cette cle, s'il en porte un.
+  attendu=""
+  while IFS='|' read -r rcle rctr; do
+    [ "$rcle" = "$cle" ] || continue
+    attendu="$rctr"
+    break
+  done < "$REF"
+
   trouve=""
   while IFS='|' read -r sym net ctr; do
     [ "$sym" = "$ticker" ] || continue
     trouve="oui"
+    if [ -z "$attendu" ]; then
+      etat="SANS CTR"
+      SANS_REF=$((SANS_REF + 1))
+      suffixe="${ctr:-(natif)}"
+    elif [ "$(minuscules "$ctr")" = "$(minuscules "$attendu")" ]; then
+      etat="JUSTE"
+      suffixe="$ctr"
+    else
+      etat="ECART"
+      ECARTS=$((ECARTS + 1))
+      suffixe="${ctr:-(aucun)}  <<< attendu ${attendu}"
+    fi
     printf '  %-11s %-14s %-9s %-11s %s\n' \
-      "$cle" "$ticker" "TROUVE" "${net:--}" "${ctr:-(natif ou absent)}"
+      "$cle" "$ticker" "$etat" "${net:--}" "$suffixe"
     break
   done < "$PLAT"
 
@@ -162,16 +284,31 @@ while read -r cle ticker; do
   fi
 done < "$LISTE"
 
-echo "  ----------------------------------------------------------------------"
+echo "  ----------------------------------------------------------------------------"
 echo
+if [ "$ECARTS" -gt 0 ]; then
+  echo "  /!\\ $ECARTS ECART(S) — UN TICKER DESIGNE UNE AUTRE MONNAIE QUE LA NOTRE."
+  echo "  C'est le seul etat dangereux de cette sortie : le devis aboutit, une"
+  echo "  adresse de depot valide s'affiche, et les fonds partent vers le mauvais"
+  echo "  jeton. Corrigez la table AVANT de distribuer une version."
+  echo
+fi
 if [ "$ABSENTS" -gt 0 ]; then
   echo "  $ABSENTS ticker(s) ABSENT(S) du catalogue — le devis echouera avec"
   echo "  « Not Found » pour ces monnaies. Aucune perte possible : sans devis,"
   echo "  il n'y a pas d'adresse de depot."
   echo
 fi
-echo "  TROUVE ne veut pas dire JUSTE. Le ticker existe, il reste a verifier"
-echo "  qu'il designe LA BONNE monnaie : lisez le RESEAU et le CONTRAT, pas"
-echo "  le nom. « usdt » tout court existe aussi, et c'est Tether Omni."
-echo
-exit $([ "$ABSENTS" -gt 0 ] && echo 1 || echo 0)
+if [ "$SANS_REF" -gt 0 ]; then
+  echo "  $SANS_REF ligne(s) SANS CTR : le registre ne porte pas de contrat pour"
+  echo "  elles — ce sont les monnaies natives (BTC, ETH, BNB, SOL, TRX) et"
+  echo "  l'USDT Tron. La comparaison ne peut rien en dire : pour celles-la, et"
+  echo "  pour elles seules, lisez la colonne RESEAU a l'oeil."
+  echo
+fi
+if [ "$ECARTS" -eq 0 ] && [ "$ABSENTS" -eq 0 ]; then
+  echo "  Aucun ecart, aucun ticker absent. Les contrats du catalogue sont ceux"
+  echo "  du registre, compares un a un — et non plus supposes."
+  echo
+fi
+exit $([ $((ECARTS + ABSENTS)) -gt 0 ] && echo 1 || echo 0)
