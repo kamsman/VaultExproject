@@ -120,6 +120,32 @@ ATTENDUS=$(awk -v mint="$MINT_USDT" '
   }
 ' "$REGISTRE")
 
+# --------------------------------------------------------------------------
+# L'USDT DE TRON N'EST PAS DANS LE REGISTRE, ET IL NE DOIT PAS Y ETRE
+# --------------------------------------------------------------------------
+#
+# C'est l'actif PRINCIPAL de l'activite, et c'etait la seule ligne a contrat
+# que la comparaison ne pouvait pas trancher : sa SwapAsset ne porte pas de
+# champ `contract`.
+#
+# LE LUI AJOUTER CASSERAIT QUELQUE CHOSE. `tokenEntityFor`, dans le meme
+# fichier, fabrique a partir de ce champ une TokenEntity dont la blockchain
+# vaut « ETH » ou « BNB » — jamais « TRX ». On enregistrerait donc dans le
+# portefeuille un faux jeton Ethereum portant une adresse Tron. C'est
+# exactement le defaut que ce fichier decrit deja pour USDT-SOL, et c'est
+# pour cette raison que les variantes d'USDT y sont explicitement exclues.
+#
+# La reference est donc prise la ou elle est VRAIMENT porteuse :
+# SendCryptoUseCase.USDT_TRC20_CONTRACT, la constante qui part sur le reseau
+# quand on envoie des USDT Tron. Si elle etait fausse, les envois le
+# seraient — elle ne peut pas pourrir en silence.
+ENVOI="app/src/main/java/com/vaultex/domain/usecase/SendCryptoUseCase.kt"
+if [ -f "$ENVOI" ]; then
+  USDT_TRC20=$(sed -n 's/.*USDT_TRC20_CONTRACT[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$ENVOI" | head -1)
+  [ -n "$USDT_TRC20" ] && ATTENDUS="$ATTENDUS
+USDT|$USDT_TRC20"
+fi
+
 NB_ATTENDUS=$(printf '%s\n' "$ATTENDUS" | grep -c . || true)
 if [ "$NB_ATTENDUS" -eq 0 ]; then
   echo "ERREUR : aucun contrat lu dans $REGISTRE." >&2
@@ -143,7 +169,7 @@ fi
 
 echo
 echo "  $NB tickers lus dans FournisseurSimpleSwap.kt,"
-echo "  $NB_ATTENDUS contrats de reference lus dans SwapViewModel.kt."
+echo "  $NB_ATTENDUS contrats de reference lus dans le code de l'app."
 if [ -n "$CATALOGUE" ]; then
   echo "  Catalogue lu dans $CATALOGUE (SimpleSwap n'est PAS appele)."
 else
@@ -301,9 +327,10 @@ if [ "$ABSENTS" -gt 0 ]; then
 fi
 if [ "$SANS_REF" -gt 0 ]; then
   echo "  $SANS_REF ligne(s) SANS CTR : le registre ne porte pas de contrat pour"
-  echo "  elles — ce sont les monnaies natives (BTC, ETH, BNB, SOL, TRX) et"
-  echo "  l'USDT Tron. La comparaison ne peut rien en dire : pour celles-la, et"
-  echo "  pour elles seules, lisez la colonne RESEAU a l'oeil."
+  echo "  elles — ce sont les monnaies natives : BTC, ETH, BNB, SOL, TRX. Une"
+  echo "  monnaie native n'a pas de contrat, il n'y a donc rien a comparer."
+  echo "  Pour ces cinq lignes, et pour elles seules, lisez la colonne RESEAU"
+  echo "  a l'oeil : btc, eth, bsc, sol, trx."
   echo
 fi
 if [ "$ECARTS" -eq 0 ] && [ "$ABSENTS" -eq 0 ]; then
