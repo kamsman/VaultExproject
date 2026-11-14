@@ -206,6 +206,9 @@
     <string name="token_detail_refresh">Refresh</string>
     <string name="token_detail_change_24h">%1$s (24h)</string>
     <string name="token_detail_market_cap">Market cap: %1$s</string>
+    <string name="token_detail_chart_24h">24-hour trend</string>
+    <string name="token_detail_chart_1m">1-month trend</string>
+    <string name="token_detail_chart_1y">1-year trend</string>
     <string name="token_detail_chart_7d">7-day trend</string>
     <string name="token_detail_my_wallet">My wallet</string>
     <string name="token_detail_wallet_not_initialized">Wallet not initialized</string>
@@ -704,6 +707,9 @@
     <string name="swap_secure_title">Secure transactions</string>
     <string name="swap_secure_desc">Your funds are protected with bank-grade encryption.</string>
     <string name="coin_view_only">View only — not swappable yet</string>
+    <string name="fcm_copy_token">Copy token</string>
+    <string name="fcm_not_configured">Firebase is not configured yet.</string>
+    <string name="fcm_loading">Loading token…</string>
     <string name="coin_checking_network">Checking network…</string>
     <string name="coin_receive_only">Send and receive via %1$s — no swap yet</string>
     <string name="notif_swap_started_title">Swap started</string>

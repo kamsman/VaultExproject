@@ -237,6 +237,9 @@
     <string name="token_detail_refresh">Actualiser</string>
     <string name="token_detail_change_24h">%1$s (24h)</string>
     <string name="token_detail_market_cap">Cap. marché : %1$s</string>
+    <string name="token_detail_chart_24h">Évolution 24 heures</string>
+    <string name="token_detail_chart_1m">Évolution 1 mois</string>
+    <string name="token_detail_chart_1y">Évolution 1 an</string>
     <string name="token_detail_chart_7d">Évolution 7 jours</string>
     <string name="token_detail_my_wallet">Mon portefeuille</string>
     <string name="token_detail_wallet_not_initialized">Wallet non initialisé</string>
@@ -844,6 +847,9 @@
     <string name="swap_secure_title">Transactions sécurisées</string>
     <string name="swap_secure_desc">Vos fonds sont protégés par un chiffrement de niveau bancaire.</string>
     <string name="coin_view_only">Consultation seulement — pas encore échangeable</string>
+    <string name="fcm_copy_token">Copier le jeton</string>
+    <string name="fcm_not_configured">Firebase n\'est pas encore configuré.</string>
+    <string name="fcm_loading">Chargement du jeton…</string>
     <string name="coin_checking_network">Vérification du réseau…</string>
     <string name="coin_receive_only">Envoi et réception via %1$s — pas de swap</string>
     <string name="wallet_mgr_none_title">Aucun portefeuille</string>

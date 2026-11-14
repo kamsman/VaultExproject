@@ -206,6 +206,9 @@
     <string name="token_detail_refresh">تحديث</string>
     <string name="token_detail_change_24h">%1$s (24 ساعة)</string>
     <string name="token_detail_market_cap">القيمة السوقية: %1$s</string>
+    <string name="token_detail_chart_24h">التغير خلال 24 ساعة</string>
+    <string name="token_detail_chart_1m">التغير خلال شهر</string>
+    <string name="token_detail_chart_1y">التغير خلال سنة</string>
     <string name="token_detail_chart_7d">التغير خلال 7 أيام</string>
     <string name="token_detail_my_wallet">محفظتي</string>
     <string name="token_detail_wallet_not_initialized">المحفظة غير مهيّأة</string>
@@ -704,6 +707,9 @@
     <string name="swap_secure_title">معاملات آمنة</string>
     <string name="swap_secure_desc">أموالك محمية بتشفير بمستوى مصرفي.</string>
     <string name="coin_view_only">للاطّلاع فقط — غير قابلة للمبادلة بعد</string>
+    <string name="fcm_copy_token">نسخ الرمز</string>
+    <string name="fcm_not_configured">لم يتم إعداد Firebase بعد.</string>
+    <string name="fcm_loading">جارٍ تحميل الرمز…</string>
     <string name="coin_checking_network">جارٍ التحقق من الشبكة…</string>
     <string name="coin_receive_only">إرسال واستقبال عبر %1$s — دون مبادلة</string>
     <string name="notif_swap_started_title">بدأ التبادل</string>
