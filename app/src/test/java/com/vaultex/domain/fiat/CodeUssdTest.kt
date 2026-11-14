@@ -26,7 +26,6 @@ class CodeUssdTest {
 
     // ─── Ce qui doit marcher ────────────────────────────────────────
 
-    @Test
     /*
     ═══════════════════════════════════════════════════════════════════
     LE MODÈLE RÉEL D'ORANGE MONEY BURKINA
