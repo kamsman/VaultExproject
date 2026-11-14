@@ -782,12 +782,41 @@ private fun daysForPeriod(period: String): Int = when (period) {
     else -> 7
 }
 
-/** Titre du bloc graphique, accordé à la période choisie. */
+/**
+ * Titre du bloc graphique, accordé à la période choisie.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * QUATRE TITRES ÉCRITS EN DUR, SUR UN ÉCRAN QUI EXISTE EN TROIS LANGUES
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * CONSTATÉ SUR L'ÉCRAN, et c'est la seule façon dont ça pouvait se voir :
+ * une capture de la fiche Dogecoin, application en ANGLAIS — « My wallet »,
+ * « View only — not swappable yet » — surmontée d'un « Évolution 7 jours »
+ * en français. Deux langues dans la même fenêtre.
+ *
+ * Rien ne pouvait le signaler avant : du texte écrit en dur compile,
+ * s'affiche, et ne manque à aucune vérification. C'est le défaut de
+ * traduction qui ne lève jamais d'erreur — il attend d'être vu.
+ *
+ * ─── « token_detail_chart_7d » EXISTAIT DÉJÀ, TRADUIT TROIS FOIS ──────
+ *
+ * Et il n'était pas utilisé ici. La chaîne était prête, dans les trois
+ * langues, pendant que la fonction juste à côté écrivait la même phrase
+ * en dur. Les trois autres périodes, elles, n'avaient aucune chaîne.
+ *
+ * ─── D'OÙ `@Composable` ───────────────────────────────────────────────
+ *
+ * `stringResource` lit la langue courante, donc il lui faut le contexte
+ * de composition. Une fonction ordinaire ne peut pas l'appeler : c'est
+ * précisément ce qui avait poussé à écrire le texte en dur.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+@Composable
 private fun titrePeriode(period: String): String = when (period) {
-    "24h" -> "Évolution 24 heures"
-    "7j" -> "Évolution 7 jours"
-    "1M" -> "Évolution 1 mois"
-    else -> "Évolution 1 an"
+    "24h" -> stringResource(R.string.token_detail_chart_24h)
+    "7j" -> stringResource(R.string.token_detail_chart_7d)
+    "1M" -> stringResource(R.string.token_detail_chart_1m)
+    else -> stringResource(R.string.token_detail_chart_1y)
 }
 
 

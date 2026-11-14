@@ -402,14 +402,14 @@ fun FcmTokenCard() {
                     ) {
                         Icon(Icons.Default.ContentCopy, null, tint = AccentBlue, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Copier le jeton", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue)
+                        Text(stringResource(R.string.fcm_copy_token), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue)
                     }
                 }
                 failed -> Text(
-                    "Firebase n'est pas encore configuré.",
+                    stringResource(R.string.fcm_not_configured),
                     fontSize = 12.sp, color = AccentOrange
                 )
-                else -> Text("Chargement du jeton…", fontSize = 12.sp, color = TextSecondary)
+                else -> Text(stringResource(R.string.fcm_loading), fontSize = 12.sp, color = TextSecondary)
             }
         }
     }
