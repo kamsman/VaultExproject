@@ -80,14 +80,20 @@
 # Blockchair sort de la liste tant qu'une mesure repetee ne le rehabilite
 # pas.
 #
-# ─── LA PROCHAINE MESURE, ET ELLE DEMANDE UNE VRAIE CLE ───────────────────
+# ─── NOWNODES EST HORS JEU ────────────────────────────────────────────────
 #
-# Ouvrir un compte gratuit chez NOWNodes, copier la cle du tableau de
-# bord, puis — en remplacant le mot ci-dessous par cette cle :
+# MESURE, 16 NOVEMBRE : le compte s'ouvre, mais le tableau de bord et la
+# cle restent desactives tant qu'on n'a pas paye. Leur « trial » ne
+# delivre pas de cle.
 #
-#   NOWNODES_CLE=<collez-ici-la-cle-NOWNodes> ./tools/doge-sondes.sh --vivante
+# Ce n'est donc plus une question technique. On ne reviendra chez eux que
+# si la decision de payer est prise, et elle n'appartient pas a ce
+# fichier.
 #
-# C'est la derniere inconnue : le quota qu'un Blockbook joignable annonce.
+# ─── CE QUI RESTE GRATUIT, ET N'A PAS ENCORE ETE MESURE ───────────────────
+#
+# Les deux autres hotes Blockbook de Trezor, dogechain.info, chain.so, et
+# BlockCypher avec un jeton de compte. Cinq mesures, aucun paiement.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -244,6 +250,32 @@ if [ "${1:-}" = "--vivante" ]; then
     echo "  Trouvee : $ADRESSE"
     echo "  (passez-la en argument aux prochaines relances pour economiser"
     echo "   les trois appels de recherche)"
+
+    # ------------------------------------------------------------------
+    # UNE TRANSACTION REELLE, GARDEE SUR DISQUE
+    # ------------------------------------------------------------------
+    #
+    # Construire et signer une transaction Dogecoin ne demande AUCUN
+    # fournisseur : c'est de la serialisation et de la signature. Mais
+    # l'ecrire sans rien contre quoi la verifier, c'est ecrire une
+    # supposition de quatre cents lignes.
+    #
+    # Une transaction reelle, avec son hexadecimal, est le vecteur de
+    # test qui manque : on reconstruit ses octets a partir de ses
+    # champs, et on compare. Si un seul octet differe — un entier ecrit
+    # a l'envers, une longueur sur le mauvais nombre d'octets — ca se
+    # voit immediatement, et c'est exactement ce que le reseau refuserait
+    # en silence.
+    #
+    # LE FICHIER NE CONTIENT RIEN DE PRIVE : une transaction deja
+    # publiee, et une adresse prise dans un bloc public. On ne fait que
+    # lire ce que toute la chaine expose.
+    MESURES="doge-mesures.json"
+    if etape "tx + hex" "https://api.blockcypher.com/v1/doge/main/txs/$txid?includeHex=true"; then
+      printf '%s' "$DERNIER" > "$MESURES"
+      echo "  Transaction reelle enregistree dans $MESURES"
+      echo "  ($(wc -c < "$MESURES") octets — envoyez-moi ce fichier)"
+    fi
   else
     echo
     echo "  Recherche infructueuse — on retombe sur l'adresse de test, vide."
@@ -334,11 +366,60 @@ sonder "blockbook / frais 6 blocs"         "https://doge1.trezor.io/api/v2/estim
 sonder "blockbook / diffusion (invalide)"  "https://doge1.trezor.io/api/v2/sendtx/00"
 echo
 
+# --------------------------------------------------------------------------
+# LE JETON BLOCKCYPHER EST GRATUIT, ET C'EST LA PISTE LA MOINS RISQUEE
+# --------------------------------------------------------------------------
+#
+# BlockCypher est le seul service mesure qui reponde VITE et JUSTE depuis
+# ici, sur les trois besoins. Son seul defaut est le quota ANONYME — une
+# requete restante — et ce quota n'est pas celui d'un compte.
+#
+# On connait deja sa joignabilite, ce qui en fait le candidat le moins
+# risque : il ne reste qu'un chiffre a verifier, la ou les autres
+# demandent de tout remesurer.
+#
+#   BLOCKCYPHER_JETON=<le-jeton-de-votre-tableau-de-bord> \
+#     ./tools/doge-sondes.sh --vivante
+#
+# Sans jeton, les appels partent en anonyme, exactement comme avant.
+# Deux formes, parce que le separateur depend de l'URL : « & » quand elle
+# porte deja des parametres, « ? » quand elle n'en a aucun. Coller un « & »
+# sur une URL nue donne un parametre que le service ignore — ou refuse.
+JETON_BC_ET=""   # a coller sur une URL qui a deja un « ? »
+JETON_BC_QM=""   # a coller sur une URL qui n'en a pas
+if [ -n "${BLOCKCYPHER_JETON:-}" ]; then
+  JETON_BC_ET="&token=${BLOCKCYPHER_JETON}"
+  JETON_BC_QM="?token=${BLOCKCYPHER_JETON}"
+fi
+
 echo "── BlockCypher ───────────────────────────────────────────────────────"
-sonder "blockcypher / sorties"  "https://api.blockcypher.com/v1/doge/main/addrs/$ADRESSE?unspentOnly=true&includeScript=true"
-sonder "blockcypher / chaine"   "https://api.blockcypher.com/v1/doge/main"
+[ -n "$JETON_BC_ET" ] && echo "  (jeton fourni)" || echo "  (anonyme — quota minimal)"
+sonder "blockcypher / sorties"  "https://api.blockcypher.com/v1/doge/main/addrs/$ADRESSE?unspentOnly=true&includeScript=true$JETON_BC_ET"
+sonder "blockcypher / chaine"   "https://api.blockcypher.com/v1/doge/main$JETON_BC_QM"
 sonder "blockcypher / diffusion (invalide)" \
-       "https://api.blockcypher.com/v1/doge/main/txs/push" POST '{"tx":"00"}'
+       "https://api.blockcypher.com/v1/doge/main/txs/push$JETON_BC_QM" POST '{"tx":"00"}'
+echo
+
+# --------------------------------------------------------------------------
+# TROIS AUTRES SERVICES SANS CLE, DONT LA FORME EST A CONFIRMER
+# --------------------------------------------------------------------------
+#
+# Ils n'avaient pas ete essayes. Leurs points d'entree sont ecrits ici
+# d'apres ce qu'ils publient, et c'est precisement ce que la sonde est la
+# pour verifier : si l'un rend 404, c'est l'adresse qui est fausse, pas le
+# service qui est mort. Lisez le code ET le debut de la reponse.
+#
+# LES AUTRES HOTES DE TREZOR valent le coup : le 403 mesure la politique
+# d'UNE machine, et rien ne dit que toutes la partagent.
+echo "── Autres hotes Blockbook de Trezor ──────────────────────────────────"
+sonder "doge2.trezor / sorties" "https://doge2.trezor.io/api/v2/utxo/$ADRESSE"
+sonder "doge5.trezor / sorties" "https://doge5.trezor.io/api/v2/utxo/$ADRESSE"
+echo
+
+echo "── Services independants ─────────────────────────────────────────────"
+sonder "dogechain / sorties"    "https://dogechain.info/api/v1/address/unspent/$ADRESSE"
+sonder "dogechain / solde"      "https://dogechain.info/api/v1/address/balance/$ADRESSE"
+sonder "sochain / sorties"      "https://chain.so/api/v2/get_tx_unspent/DOGE/$ADRESSE"
 echo
 
 echo "── Blockchair ────────────────────────────────────────────────────────"
