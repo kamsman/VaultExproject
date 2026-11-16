@@ -192,11 +192,47 @@
 #                           ne dit pas ce qu'on croit. A ne pas prendre
 #                           pour argent comptant.
 #
-# ─── LA DERNIERE INCONNUE ─────────────────────────────────────────────────
+# --------------------------------------------------------------------------
+# HUITIEME MESURE — LA REPONSE, ET ELLE N'EST PAS CELLE QU'ON CHERCHAIT
+# --------------------------------------------------------------------------
 #
-# Sochain sait-il DIFFUSER ? Il a le meilleur quota et rend les sorties.
-# S'il pousse aussi les transactions, la question du fournisseur est
-# reglee et le moteur d'envoi peut s'ecrire contre lui.
+#   sochain / diffusion      HTTP 404 : « Broadcasting transactions is not
+#                            available. » Explicite. Sochain LIT, il ne
+#                            pousse pas.
+#   dogechain / diffusion    405 sur les DEUX formes, JSON et formulaire.
+#                            Le chemin n'est pas le bon ; peu importe
+#                            desormais.
+#   blockcypher / diffusion  REJET, avec un message qui nomme le defaut du
+#                            corps envoye. SEUL SERVICE MESURE QUI DIFFUSE.
+#
+# ON CHERCHAIT UN FOURNISSEUR ; IL EN FAUT DEUX, ET C'EST MIEUX.
+#
+# Aucun service gratuit ne fait les deux. Mais les deux besoins n'ont rien
+# en commun : lire se fait souvent — a chaque ouverture d'ecran, a chaque
+# preparation d'envoi — tandis que diffuser se fait UNE fois par envoi.
+# Les confier au meme service, c'est faire payer a la diffusion le quota
+# que les lectures consomment.
+#
+#   LIRE      sochain v3     2500 par fenetre, sans cle, 0,9 s
+#   DIFFUSER  blockcypher    compteur SEPARE de ses lectures, 0,6 s
+#
+# Le compteur separe de BlockCypher, mesure au tour precedent — 96 et 95
+# sur les lectures pendant que la diffusion restait a 99 — devient ici
+# l'argument central : on ne consommera JAMAIS son quota de lecture,
+# puisqu'on ne lira pas chez lui.
+#
+# LA FENETRE DE SOCHAIN EST UN DECOMPTE. reset est passe de 23841 a 22597
+# entre deux mesures espacees d'environ vingt minutes, et remaining de
+# 2499 a 2498. C'est donc une fenetre fixe d'environ six heures et demie,
+# qui se vide a la requete — pres de quatre cents lectures par heure. Un
+# portefeuille n'en demande pas le dixieme.
+#
+# ─── CE QU'IL RESTE A VERIFIER, ET CA NE SE VERIFIE QU'EN VRAI ────────────
+#
+# Que BlockCypher accepte une transaction Dogecoin VALIDE. Il refuse
+# proprement un corps invalide, ce qui prouve qu'il analyse — pas qu'il
+# diffuse. Seul un envoi reel le dira, avec un montant qu'on accepte de
+# perdre, le jour ou le moteur d'envoi existera.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -338,10 +374,30 @@ if [ "${1:-}" = "--vivante" ]; then
   if etape "dernier bloc" "https://api.blockcypher.com/v1/doge/main"; then
     hash=$(sed -n 's/.*"hash"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
     if [ -n "$hash" ] && etape "bloc" "https://api.blockcypher.com/v1/doge/main/blocks/$hash"; then
-      # `txids` est un tableau de chaines : on prend la premiere, sans
-      # analyseur JSON — aucun n'est garanti present sur une machine
-      # Windows.
-      txid=$(sed -n 's/.*"txids"[^]]*\[[^"]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+      # ------------------------------------------------------------
+      # LA PREMIERE TRANSACTION D'UN BLOC EST TOUJOURS LA COINBASE
+      # ------------------------------------------------------------
+      #
+      # MESURE : le vecteur rapporte etait une coinbase — entree au
+      # prevout nul, index ffffffff, sortie en pay-to-pubkey, frais a
+      # zero. Parfait pour verifier la SERIALISATION, inutile comme
+      # modele de depense : rien de ce qu'un portefeuille signe ne lui
+      # ressemble.
+      #
+      # On prend donc la SECONDE, qui est une transaction ordinaire.
+      # `head -2 | tail -1` plutot que `head -1`, et un repli sur la
+      # premiere si le bloc n'en contient qu'une — ca arrive sur un
+      # bloc vide, et mieux vaut un vecteur imparfait que pas de
+      # vecteur.
+      # ON COUPE AVANT DE CHERCHER. Le `hash` DU BLOC est lui aussi
+      # soixante-quatre caracteres hexadecimaux, et il arrive avant le
+      # tableau : chercher dans toute la reponse le ramenait en tete, et
+      # « la seconde entree » redevenait la coinbase. Mon propre essai
+      # l'a montre avant que ca parte chez l'utilisateur.
+      liste=${DERNIER#*\"txids\"}
+      tous=$(sed 's/"/\n/g' <<<"$liste" | grep -E '^[0-9a-f]{64}$' | head -2)
+      txid=$(printf '%s\n' "$tous" | sed -n '2p')
+      [ -z "$txid" ] && txid=$(printf '%s\n' "$tous" | sed -n '1p')
       if [ -n "$txid" ] && etape "transaction" "https://api.blockcypher.com/v1/doge/main/txs/$txid"; then
         trouvee=$(sed -n 's/.*"addresses"[^]]*\[[^"]*"\(D[1-9A-HJ-NP-Za-km-z]\{25,33\}\)".*/\1/p' <<<"$DERNIER" | head -1)
       fi
@@ -640,13 +696,16 @@ else
   echo "  NOWNodes : le compte s'ouvre, la cle reste desactivee sans paiement."
   echo "  Hors jeu tant que la decision de payer n'est pas prise."
   echo
-  echo "  LE CLASSEMENT MESURE, A CE JOUR :"
-  echo "    sochain v3   2500 par fenetre, sans cle  — meilleur quota"
-  echo "    dogechain     120 annonces, 0,7 s        — le plus rapide"
-  echo "    blockcypher   ~100 avec un jeton gratuit — compteurs separes"
+  echo "  LA REPARTITION RETENUE, APRES MESURE :"
+  echo "    LIRE      sochain v3   2500 par fenetre, sans cle"
+  echo "    DIFFUSER  blockcypher  seul service mesure qui pousse,"
+  echo "                           et son compteur de diffusion est"
+  echo "                           separe de celui des lectures"
   echo
-  echo "  Il reste a savoir lequel sait DIFFUSER. Lire les sorties ne sert"
-  echo "  a rien si la transaction signee ne part pas."
+  echo "  Sochain le dit lui-meme : « Broadcasting transactions is not"
+  echo "  available ». Aucun service gratuit ne fait les deux — mais lire"
+  echo "  arrive a chaque ecran et diffuser une fois par envoi, donc les"
+  echo "  separer coute moins que de les reunir."
   echo
 fi
 
