@@ -367,7 +367,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 99
+const VERSION = 100
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2167,8 +2167,25 @@ async function diagnostic(env, params) {
           : r.status === 401
             ? 'CLE REFUSEE — l\'assistance est hors service pour tout ce qui descend au modele'
             : `reponse inattendue ${r.status}`,
-        fournisseur: String(env?.CHANGE_IA_FOURNISSEUR ?? 'anthropic'),
-        modele: String(env?.CHANGE_IA_MODELE || IA_MODELE),
+        fournisseur: fournisseurIa,
+        /*
+        LE MODELE PAR DEFAUT SUIT LE FOURNISSEUR, ET CETTE LIGNE
+        L'OUBLIAIT.
+
+        MESURE : avec « openai » regle et aucun CHANGE_IA_MODELE, le
+        diagnostic annoncait « claude-haiku-5-5 ». L'appel reel employait
+        pourtant le bon defaut — c'est l'affichage qui mentait.
+
+        Une sonde qui se trompe est pire qu'aucune sonde : elle fait
+        chercher un reglage qu'on croirait mal pose, alors que tout
+        marche. Celle-ci existe justement parce qu'une panne etait restee
+        invisible ; lui laisser dire des choses fausses la viderait de son
+        sens.
+        */
+        modele: String(
+          env?.CHANGE_IA_MODELE ||
+          (fournisseurIa === 'openai' ? IA_MODELE_OPENAI : IA_MODELE)
+        ),
         plafondJour: IA_MAX_JOUR,
         appelsAujourdhui: await compteur('ia', new Date().toISOString().slice(0, 10)),
       }
