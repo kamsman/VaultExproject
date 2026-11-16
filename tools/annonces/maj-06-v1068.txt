@@ -1,0 +1,2 @@
+⬆️ Nouvelle version disponible — 1.0.1068
+Un fil d'actualités crypto et finance s'ajoute à l'application. Une page présente l'équipe VaultEx, avec les vrais noms et les vrais visages. L'assistance porte maintenant un prénom, et sait répondre sur le réseau Pi, sur le Swap, et sur la sauvegarde de tes douze mots. Plusieurs corrections d'affichage. Installe la nouvelle version.

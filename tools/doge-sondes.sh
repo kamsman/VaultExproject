@@ -234,6 +234,44 @@
 # diffuse. Seul un envoi reel le dira, avec un montant qu'on accepte de
 # perdre, le jour ou le moteur d'envoi existera.
 #
+# --------------------------------------------------------------------------
+# NEUVIEME MESURE — SOCHAIN NE SAIT MONTRER QUE DIX PIECES
+# --------------------------------------------------------------------------
+#
+# L'adresse DBx8K8iX… detient 5 907 762,898 DOGE — dogechain le dit en un
+# appel. Sochain en rend DIX sorties de 0,01, soit 0,10 DOGE. Et « page=2 »
+# rend EXACTEMENT les memes dix : le parametre est ignore.
+#
+# UN PORTEFEUILLE ECRIT CONTRE CETTE REPONSE AURAIT AFFICHE 0,10 DOGE a
+# quelqu'un qui en detient six millions, et refuse tout envoi depassant dix
+# centiemes. Rien dans la reponse ne le signale : « status: success », dix
+# lignes, et c'est tout.
+#
+# Sochain sort donc, malgre son quota de 2500 — le meilleur mesure. Un
+# quota genereux sur une reponse tronquee ne vaut rien.
+#
+#   dogechain   la pagination MARCHE : /unspent/<adresse>/2 rend d'autres
+#               hachages. Et /address/balance/<adresse> rend le solde
+#               TOTAL en un seul appel.
+#
+# ─── CE QUE CA CHANGE DANS L'ARCHITECTURE ────────────────────────────────
+#
+#   SOLDE      dogechain /address/balance   — UN appel, a chaque ecran
+#   PIECES     dogechain /address/unspent   — pagine, SEULEMENT a l'envoi
+#   DIFFUSER   blockcypher                  — seul service qui pousse
+#
+# Separer le solde des pieces n'est pas une elegance : c'est ce qui permet
+# a un portefeuille de cinquante pieces de ne pas faire cinq appels a
+# chaque ouverture d'ecran. On ne parcourt les pages qu'au moment ou
+# quelqu'un envoie vraiment, et seulement jusqu'a couvrir le montant.
+#
+# ─── ET UNE GARDE QUE CETTE MESURE IMPOSE ────────────────────────────────
+#
+# Sochain a ignore « page » EN SILENCE. Un parcours qui fait confiance au
+# numero de page tournerait indefiniment sur un service qui se comporte
+# ainsi. Le lecteur devra donc s'arreter des qu'une page rend un hachage
+# deja vu — pas seulement quand elle rend zero.
+#
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
 #
