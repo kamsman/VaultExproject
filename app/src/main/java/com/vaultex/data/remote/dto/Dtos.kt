@@ -797,13 +797,45 @@ data class DogechainSoldeDto(
     val success: Int = 0
 )
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+DEUX CONVENTIONS OPPOSÉES, ET ELLES SE MESURENT
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ sur les réponses réelles des deux services :
+
+  sochain     "value": "0.01000000"   une CHAÎNE, en DOGE
+  dogechain   "value": 1000000        un ENTIER, en UNITÉS
+
+La même pièce. Deux écritures qui n'ont rien en commun, et rien dans la
+réponse ne dit laquelle on lit.
+
+CE CHAMP ÉTAIT DÉCLARÉ EN CHAÎNE ET PASSÉ PAR LA CONVERSION DÉCIMALE.
+Gson, sur un champ String recevant un nombre, convertit sans rien dire :
+`1000000` devenait "1000000", puis 1 000 000 DOGE. Une pièce de 0,01 DOGE
+lue cent millions de fois trop grande.
+
+Le portefeuille aurait affiché une fortune, et tout envoi aurait été
+refusé par le réseau — des entrées qui ne couvrent pas ce qu'on prétend
+dépenser. Sans erreur lisible nulle part.
+
+PIRE : LE MÊME SERVICE EMPLOIE LES DEUX CONVENTIONS. `/address/balance`
+rend "5907762.89812679" — une chaîne décimale en DOGE. `/address/unspent`
+rend un entier en unités. Deux points d'entrée de la même maison.
+
+D'où un `Long` ici et une chaîne là, chacun lu comme il est écrit.
+═══════════════════════════════════════════════════════════════════════════
+*/
 data class DogechainSortieDto(
     val address: String? = null,
     @SerializedName("tx_hash") val txHash: String? = null,
     @SerializedName("tx_output_n") val sortieIndex: Int? = null,
     val script: String? = null,
-    /** En DOGE, sous forme de texte. Jamais en Double — voir le pavé. */
-    val value: String? = null,
+    /**
+     * EN UNITÉS, et déjà un entier. Surtout pas une chaîne en DOGE : voir
+     * le pavé ci-dessus, qui chiffre ce que la confusion coûtait.
+     */
+    val value: Long? = null,
     val confirmations: Long? = null
 )
 

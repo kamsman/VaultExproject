@@ -162,13 +162,33 @@ class DogeDepot @Inject constructor(
         data class Injoignable(val raison: String) : Diffusion()
     }
 
-    private fun lue(
+    /**
+     * Traduit une sortie du fournisseur. `null` si elle est inutilisable.
+     *
+     * `internal` POUR ETRE TESTABLE : c'est ici que se joue la confusion
+     * des conventions de montant, qui a failli multiplier chaque piece
+     * par cent millions. Une fonction qu'on ne peut pas eprouver sur une
+     * vraie reponse est une fonction qu'on croit sur parole.
+     */
+    internal fun lue(
         dto: com.vaultex.data.remote.dto.DogechainSortieDto,
         confirmationsMinimum: Int,
     ): DogeLecture.PieceLue? {
         val txid = dto.txHash?.takeIf { it.length == 64 } ?: return null
         val index = dto.sortieIndex ?: return null
-        val unites = DogeLecture.unitesDepuisTexte(dto.value) ?: return null
+        /*
+        LA VALEUR ARRIVE DEJA EN UNITES, ET ON NE LA CONVERTIT PAS.
+
+        Elle passait par `unitesDepuisTexte`, qui lit une chaine decimale
+        en DOGE — la convention de sochain. Celle de dogechain est un
+        entier en unites, et la confusion multipliait chaque piece par
+        cent millions.
+
+        Le SOLDE, lui, reste une chaine decimale en DOGE : meme maison,
+        autre point d'entree, autre convention. Voir le pave dans
+        DogechainSortieDto.
+        */
+        val unites = dto.value ?: return null
         if (unites <= 0) return null
         /*
         DÉPENSER UNE PIÈCE NON CONFIRMÉE produit une transaction qui dépend
