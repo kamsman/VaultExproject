@@ -37,9 +37,15 @@ annoncent soit livrée.
 
 | fichier | en attente de quoi |
 |---------|--------------------|
+| `maj-06-v1068.txt` | **prête** — la version 1.0.1068 est construite et vérifiée ; reste à décider comment les 223 récupèrent l'APK |
 | `change-01-bientot.txt` | l'annonce Orange Money — à envoyer quand la décision est prise |
 | `evenement-01-siao.txt` | daté : ne vaut que pendant le SIAO |
 | `evenement-02-bon-weekend.txt` | un vendredi |
+
+Les cinq `maj-*` antérieures sont **périmées** : elles datent du
+25 septembre ou nomment la V1.0.604. Ne pas les renvoyer telles quelles —
+une annonce qui parle d'une version dépassée fait douter de toutes les
+autres. `maj-06-v1068.txt` les remplace.
 
 Le reste du dossier — `swap-*`, `esprit-*`, `depot-*`, `citation-*`,
 `frais-*`, `pi-*` — est du fonds de roulement, à envoyer au rythme qu'on
