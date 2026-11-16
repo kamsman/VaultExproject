@@ -268,6 +268,19 @@ internal fun chainKeyOf(b: Blockchain): String = when (b) {
     Blockchain.SOLANA -> "SOL"
     Blockchain.TRON -> "TRX"
     Blockchain.PI -> "PI"
+    /*
+    BRANCHE RECLAMEE PAR LE COMPILATEUR, ET INATTEIGNABLE AUJOURD'HUI.
+
+    Cette liste ne vient PAS de l'enumeration : elle vient des jetons
+    detenus, et aucun jeton ne porte DOGECOIN tant que l'envoi n'est pas
+    branche. La branche existe donc pour que le fichier compile, pas pour
+    qu'un ecran propose de recevoir du DOGE.
+
+    Le jour ou elle deviendra atteignable, ce sera parce qu'on l'aura
+    decide ailleurs — c'est exactement ce que l'entree dans l'enumeration
+    sert a garantir.
+    */
+    Blockchain.DOGECOIN -> "DOGE"
 }
 
 internal fun receiveCoinTitle(symbol: String, isCustom: Boolean, b: Blockchain): String = when {
