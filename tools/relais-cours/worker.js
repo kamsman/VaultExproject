@@ -305,6 +305,15 @@ avec `verifier-version.mjs`, avant de déployer.
                        reste.
   CHANGE_IA_MODELE     Modèle employé. Défaut : le moins cher qui réponde
                        bien à ces questions-là.
+  CHANGE_IA_FOURNISSEUR Quelle maison interroger : « anthropic » (défaut)
+                       ou « openai ». Tout le reste — la consigne, les
+                       réponses toutes faites, le filtre de sortie, le
+                       plafond quotidien — ne change pas. Un seul
+                       fournisseur est un seul point de panne, et ça s'est
+                       vu : une clé refusée a mis l'assistance hors service
+                       sans qu'on puisse la remettre en marche. Le modèle
+                       par défaut suit le fournisseur ; CHANGE_IA_MODELE le
+                       remplace dans les deux cas.
   CHANGE_DIAG_CLE      ⚠️ SECRET. Ouvre le texte des trente dernières
                        questions sur /diag?cle=… . SANS ELLE, /diag n'en
                        donne que le NOMBRE : /diag n'est protégé par rien,
@@ -358,7 +367,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 98
+const VERSION = 99
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2129,10 +2138,27 @@ async function diagnostic(env, params) {
       verdict: 'AUCUNE CLE — l\'assistance ne repond qu\'aux questions francaises courantes',
     }
   } else {
+    /*
+    LA SONDE SUIT LE FOURNISSEUR, SINON ELLE MENT.
+
+    Elle interrogeait Anthropic en dur. Avec `CHANGE_IA_FOURNISSEUR` a
+    « openai », elle aurait presente une cle OpenAI a Anthropic, recu un
+    401, et annonce « CLE REFUSEE » sur une cle parfaitement valide.
+
+    Une sonde qui se trompe de maison est pire qu'aucune sonde : celle-ci
+    existe justement parce qu'une panne etait restee invisible, et un
+    faux positif ferait chercher un defaut qui n'existe pas.
+    */
+    const fournisseurIa = String(env?.CHANGE_IA_FOURNISSEUR ?? 'anthropic')
+      .trim().toLowerCase()
     try {
-      const r = await fetchBorne('https://api.anthropic.com/v1/models?limit=1', {
-        headers: { 'x-api-key': cleIa, 'anthropic-version': '2023-06-01' },
-      }, 8000)
+      const r = fournisseurIa === 'openai'
+        ? await fetchBorne('https://api.openai.com/v1/models', {
+            headers: { authorization: `Bearer ${cleIa}` },
+          }, 8000)
+        : await fetchBorne('https://api.anthropic.com/v1/models?limit=1', {
+            headers: { 'x-api-key': cleIa, 'anthropic-version': '2023-06-01' },
+          }, 8000)
       sondes.assistance = {
         cleReglee: true,
         http: r.status,
@@ -2141,6 +2167,7 @@ async function diagnostic(env, params) {
           : r.status === 401
             ? 'CLE REFUSEE — l\'assistance est hors service pour tout ce qui descend au modele'
             : `reponse inattendue ${r.status}`,
+        fournisseur: String(env?.CHANGE_IA_FOURNISSEUR ?? 'anthropic'),
         modele: String(env?.CHANGE_IA_MODELE || IA_MODELE),
         plafondJour: IA_MAX_JOUR,
         appelsAujourdhui: await compteur('ia', new Date().toISOString().slice(0, 10)),
@@ -9833,6 +9860,130 @@ async function questionsSansReponse() {
   }
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+DEUX FOURNISSEURS DE MODÈLE, ET UN SEUL RÉGLAGE POUR EN CHANGER
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI CETTE FONCTION EXISTE. La clé Anthropic a été refusée —
+« invalid x-api-key » — parce que le compte n'en portait plus aucune et
+que la vérification d'identité avait échoué. L'assistance est restée
+hors service sans que personne le sache, et elle ne pouvait pas être
+remise en marche : un seul fournisseur est un seul point de panne.
+
+CE QUI NE CHANGE PAS EN CHANGEANT DE MAISON. La consigne — deux mille
+six cents jetons, écrits et corrigés sur des mois —, les réponses toutes
+faites, le filtre de sortie qui masque adresses et numéros, le plafond
+de trois cents appels par jour, la fiche d'équipe. Tout cela vit
+AILLEURS, et c'est ce qui rend ce remplacement petit.
+
+─── LES TROIS DIFFÉRENCES, ET ELLES SONT TOUTES DANS CETTE FONCTION ──────
+
+  L'ADRESSE et l'en-tête : `x-api-key` chez l'un, `Authorization: Bearer`
+  chez l'autre.
+
+  LA CONSIGNE : un champ `system` à part chez Anthropic ; un premier
+  message de rôle `system` dans la liste chez OpenAI.
+
+  LA RÉPONSE : `content[].text` chez l'un, `choices[0].message.content`
+  chez l'autre.
+
+─── LE PIÈGE DU NOM DU CHAMP DE JETONS ───────────────────────────────────
+
+OpenAI a renommé `max_tokens` en `max_completion_tokens`, et les modèles
+récents REFUSENT l'ancien nom avec un 400. Les anciens refusent le
+nouveau. Deviner lequel employer d'après le nom du modèle reviendrait à
+tenir une liste qui vieillit.
+
+ON ESSAIE DONC, ET ON CORRIGE. Si la réponse est un 400 qui nomme le
+paramètre, on recommence avec l'autre. Un aller-retour perdu la première
+fois, et seulement sur l'erreur — jamais sur le chemin normal.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const IA_MODELE_OPENAI = 'gpt-4o-mini'
+
+async function appelerModele(env, systeme, messages) {
+  const cle = String(env?.CHANGE_IA_CLE ?? '')
+  const fournisseur = String(env?.CHANGE_IA_FOURNISSEUR ?? 'anthropic')
+    .trim().toLowerCase()
+
+  if (fournisseur === 'openai') return await appelerOpenAi(cle, env, systeme, messages)
+  return await appelerAnthropic(cle, env, systeme, messages)
+}
+
+async function appelerAnthropic(cle, env, systeme, messages) {
+  const r = await fetchBorne('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': cle,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: String(env?.CHANGE_IA_MODELE || IA_MODELE),
+      max_tokens: 2000,
+      output_config: { effort: 'high' },
+      system: systeme,
+      messages,
+    }),
+  }, 20000)
+
+  if (!r.ok) {
+    return { ok: false, status: r.status, detail: (await r.text()).slice(0, 200) }
+  }
+  const o = await r.json()
+  const texte = Array.isArray(o?.content)
+    ? o.content.filter((b) => b?.type === 'text').map((b) => b.text).join('\n')
+    : ''
+  return { ok: true, texte }
+}
+
+async function appelerOpenAi(cle, env, systeme, messages) {
+  const modele = String(env?.CHANGE_IA_MODELE || IA_MODELE_OPENAI)
+
+  const envoyer = async (champJetons) => await fetchBorne(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${cle}`,
+      },
+      body: JSON.stringify({
+        model: modele,
+        // LA CONSIGNE EST UN MESSAGE, pas un champ a part : c'est toute
+        // la difference de forme avec Anthropic.
+        messages: [{ role: 'system', content: systeme }, ...messages],
+        [champJetons]: 2000,
+      }),
+    },
+    20000
+  )
+
+  let r = await envoyer('max_completion_tokens')
+  let detail = ''
+
+  if (r.status === 400) {
+    detail = (await r.text()).slice(0, 400)
+    /*
+    ON NE RECOMMENCE QUE SI LE REFUS NOMME LE PARAMETRE. Reessayer sur
+    n'importe quel 400 doublerait les appels sur une consigne trop longue
+    ou un modele inconnu, sans aucune chance d'aboutir.
+    */
+    if (detail.includes('max_completion_tokens') || detail.includes('max_tokens')) {
+      r = await envoyer('max_tokens')
+      detail = ''
+    }
+  }
+
+  if (!r.ok) {
+    return { ok: false, status: r.status, detail: detail || (await r.text()).slice(0, 200) }
+  }
+  const o = await r.json()
+  const texte = String(o?.choices?.[0]?.message?.content ?? '')
+  return { ok: true, texte }
+}
+
 /**
  * Répond à un client, ou transmet sa question au changeur.
  */
@@ -10052,93 +10203,27 @@ async function assistance(requete, env) {
   }
 
   try {
-    const r = await fetchBorne('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': cle,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: String(env?.CHANGE_IA_MODELE || IA_MODELE),
-        /*
-        SEPT CENTS PLUTOT QUE QUATRE CENTS.
+    const appel = await appelerModele(
+      env,
+      systemeAssistance(env, corps?.langue, corps?.prenom),
+      propres
+    )
 
-        Quatre cents jetons coupaient net les reponses a etapes — « comment
-        je restaure mon portefeuille » tient en six ou sept etapes, et la
-        reponse s'arretait au milieu. Une reponse tronquee fait reposer la
-        question : deux appels au lieu d'un, donc plus cher que la limite
-        ne faisait economiser.
-
-        La consigne, elle, continue de demander court quand c'est court.
-        C'est elle qui regle la longueur ; ceci n'est qu'un plafond de
-        securite.
-        */
-        /*
-        ═══════════════════════════════════════════════════════════════
-        DEUX MILLE JETONS, PARCE QUE LA REFLEXION PARTAGE CE BUDGET
-        ═══════════════════════════════════════════════════════════════
-
-        C'etait sept cents, et ca suffisait tant que le modele ne
-        reflechissait pas : les sept cents allaient entierement a la
-        reponse.
-
-        Depuis `effort: high`, ils se partagent. Le raisonnement passe
-        d'abord, et ce qui reste va au texte — une reponse a six etapes
-        se ferait couper au milieu, exactement la panne que le passage
-        de quatre cents a sept cents avait corrigee.
-
-        DEUX MILLE N'EST PAS UNE DEPENSE, C'EST UN PLAFOND. On ne paie
-        que ce qui est produit, et la consigne continue de demander
-        court quand c'est court. Ce nombre ne sert qu'a ne pas couper.
-        ═══════════════════════════════════════════════════════════════
-        */
-        max_tokens: 2000,
-        /*
-        ═══════════════════════════════════════════════════════════════
-        EFFORT ELEVE — LE LEVIER LE MOINS CHER
-        ═══════════════════════════════════════════════════════════════
-
-        Claude Haiku 5.5 reflechit par defaut, mais a l'effort `medium`.
-        Le passer a `high` ne change pas le prix du jeton : il en fait
-        produire davantage, et seulement sur les questions qui le
-        demandent.
-
-        C'est a essayer AVANT de changer de modele. Un modele superieur
-        coute vingt fois le jeton ; l'effort coute ce que la reflexion
-        consomme, sur les questions difficiles uniquement.
-
-        POUR ALLER PLUS LOIN, IL N'Y A RIEN A DEPLOYER : le modele se
-        regle par CHANGE_IA_MODELE dans le tableau de bord. Mettre
-        `claude-sonnet-5-5` y suffit, et revenir en arriere aussi.
-        ═══════════════════════════════════════════════════════════════
-        */
-        output_config: { effort: 'high' },
-        system: systemeAssistance(env, corps?.langue, corps?.prenom),
-        messages: propres,
-      }),
-    }, 20000)
-
-    if (!r.ok) {
-      const detail = (await r.text()).slice(0, 200)
+    if (!appel.ok) {
       return json({
         ok: false,
-        raison: `le modele a repondu ${r.status}`,
-        detail,
+        raison: `le modele a repondu ${appel.status}`,
+        detail: appel.detail,
         humain: true,
       }, 0, 502)
     }
 
-    const o = await r.json()
-    const brut = Array.isArray(o?.content)
-      ? o.content.filter((b) => b?.type === 'text').map((b) => b.text).join('\n')
-      : ''
-    if (!brut.trim()) {
+    if (!appel.texte.trim()) {
       return json({ ok: false, raison: 'reponse vide', humain: true }, 0, 502)
     }
 
     await incrementer('ia', jour, 2 * 86400)
-    return json({ ok: true, reponse: nettoyerIa(brut, env), membre })
+    return json({ ok: true, reponse: nettoyerIa(appel.texte, env), membre })
   } catch (e) {
     return json({
       ok: false,
