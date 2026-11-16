@@ -764,3 +764,66 @@ data class EquipeDto(
     val equipe: List<MembreEquipeDto>? = null,
     val quand: Long? = null
 )
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+DOGECOIN — DEUX MAISONS, PARCE QU'AUCUNE NE FAIT LES DEUX
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ depuis Ouagadougou, et chaque ligne de ces classes vient d'une
+réponse réelle, pas d'une documentation.
+
+  LIRE      dogechain.com  — pagine vraiment, et donne le solde total en
+                             un appel
+  DIFFUSER  blockcypher    — seul service mesuré qui pousse ; sochain
+                             répond « Broadcasting transactions is not
+                             available »
+
+SOCHAIN A ÉTÉ ÉCARTÉ malgré le meilleur quota mesuré (2500 contre 120) :
+il ne rend que DIX sorties et ignore le numéro de page. Une adresse
+détenant 5 907 762 DOGE y apparaît avec 0,10.
+
+LES MONTANTS SONT DES CHAÎNES, EN DOGE. « 0.01000000 », pas 1000000. Ils
+ne sont PAS déclarés en Double ici : la conversion passe par
+`DogeLecture.unitesDepuisTexte`, qui lit les chiffres comme du texte. Un
+Double dérive d'une unité sur les gros montants, et une unité suffit à
+produire une transaction que le réseau refuse.
+═══════════════════════════════════════════════════════════════════════════
+*/
+data class DogechainSoldeDto(
+    val balance: String? = null,
+    val confirmed: String? = null,
+    val unconfirmed: String? = null,
+    val success: Int = 0
+)
+
+data class DogechainSortieDto(
+    val address: String? = null,
+    @SerializedName("tx_hash") val txHash: String? = null,
+    @SerializedName("tx_output_n") val sortieIndex: Int? = null,
+    val script: String? = null,
+    /** En DOGE, sous forme de texte. Jamais en Double — voir le pavé. */
+    val value: String? = null,
+    val confirmations: Long? = null
+)
+
+data class DogechainSortiesDto(
+    val success: Int = 0,
+    @SerializedName("unspent_outputs") val sorties: List<DogechainSortieDto>? = null,
+    val error: String? = null
+)
+
+/** Ce que BlockCypher attend pour diffuser : la transaction en hexadécimal. */
+data class BlockCypherPousseeDto(val tx: String)
+
+data class BlockCypherResultatDto(
+    val tx: BlockCypherTxDto? = null,
+    val error: String? = null,
+    val errors: List<Map<String, String>>? = null
+)
+
+data class BlockCypherTxDto(
+    val hash: String? = null,
+    val size: Int? = null,
+    val fees: Long? = null
+)

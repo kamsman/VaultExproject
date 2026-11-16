@@ -560,6 +560,32 @@ object NetworkModule {
     @Provides @Singleton
     fun providePriceRepository(api: CoinGeckoApi): PriceRepository = PriceRepository(api)
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    DOGECOIN — DEUX FOURNISSEURS, UN POUR LIRE ET UN POUR DIFFUSER
+    ═══════════════════════════════════════════════════════════════════
+
+    Aucun service gratuit mesuré ne fait les deux. Les confier au même
+    ferait payer à la diffusion le quota que les lectures consomment —
+    or lire arrive à chaque écran, et diffuser une fois par envoi.
+
+    LES DEUX HÔTES VIENNENT DE MESURES PRISES DEPUIS OUAGADOUGOU, pas
+    d'une documentation. Blockbook de Trezor répond 403 sur ses trois
+    hôtes, sochain ne montre que dix pièces et ne diffuse pas.
+
+    `dogechain.COM` et non `.info` : le second redirige, et payer une
+    redirection à chaque appel sur une connexion lente est un coût qu'on
+    peut simplement ne pas avoir.
+    */
+    @Provides @Singleton
+    fun provideDogechainApi(client: OkHttpClient): DogechainApi =
+        retrofit("https://dogechain.com/", client).create(DogechainApi::class.java)
+
+    @Provides @Singleton
+    fun provideBlockCypherDogeApi(client: OkHttpClient): BlockCypherDogeApi =
+        retrofit("https://api.blockcypher.com/", client)
+            .create(BlockCypherDogeApi::class.java)
+
     // ─── Helpers ─────────────────────────────────────────────────────
 
     private fun rpcPrefs(ctx: Context): SharedPreferences =

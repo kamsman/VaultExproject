@@ -465,3 +465,67 @@ interface GeckoTerminalApi {
         @Path("contrats") contrats: String
     ): com.vaultex.data.remote.dto.GeckoTerminalDto
 }
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+DOGECOIN — LECTURE CHEZ DOGECHAIN
+═══════════════════════════════════════════════════════════════════════════
+
+L'HÔTE EST dogechain.COM, PAS .INFO. Le .info répond 301 vers le .com, et
+suivre une redirection à chaque appel ferait payer un aller-retour de plus
+sur une connexion lente. C'est l'adresse d'ARRIVÉE qu'on écrit dans le
+code, jamais celle du départ — mesuré, pas supposé.
+
+LE SOLDE ET LES PIÈCES SONT DEUX APPELS DIFFÉRENTS, et c'est volontaire.
+Le solde arrive complet en UN appel ; les pièces, elles, sont paginées. Un
+portefeuille à cinquante pièces ferait donc cinq appels à chaque ouverture
+d'écran s'il les confondait. On affiche le solde partout, et on ne
+parcourt les pièces qu'au moment d'un envoi.
+*/
+interface DogechainApi {
+    @GET("api/v1/address/balance/{adresse}")
+    suspend fun solde(
+        @Path("adresse") adresse: String
+    ): com.vaultex.data.remote.dto.DogechainSoldeDto
+
+    /**
+     * [page] commence à 1. La pagination de ce service a été vérifiée :
+     * la page 2 rend d'autres identifiants que la page 1 — contrairement à
+     * sochain, qui ignore le paramètre en silence.
+     *
+     * Le parcours et sa garde contre un service qui mentirait vivent dans
+     * `DogeLecture.parcourir`, pas ici.
+     */
+    @GET("api/v1/address/unspent/{adresse}/{page}")
+    suspend fun sortiesNonDepensees(
+        @Path("adresse") adresse: String,
+        @Path("page") page: Int
+    ): com.vaultex.data.remote.dto.DogechainSortiesDto
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+DOGECOIN — DIFFUSION CHEZ BLOCKCYPHER
+═══════════════════════════════════════════════════════════════════════════
+
+SEUL SERVICE MESURÉ QUI POUSSE. Sochain répond « Broadcasting transactions
+is not available », dogechain répond 405 sur les deux formes essayées.
+BlockCypher, lui, refuse un corps invalide EN NOMMANT le défaut :
+« Transaction missing input or output » — donc il analyse, donc il diffuse.
+
+SON COMPTEUR DE DIFFUSION EST SÉPARÉ DE CELUI DES LECTURES. Mesuré : 96
+puis 95 sur les lectures pendant que la diffusion restait à 99. Comme on
+ne lit pas chez lui, son quota de lecture ne sera jamais entamé — et un
+envoi par personne et par jour reste très en dessous.
+
+CE QUI N'EST PAS PROUVÉ : qu'il accepte une transaction VALIDE que nous
+fabriquons. Refuser proprement un corps invalide montre qu'il analyse, pas
+qu'il relaie. Seul un envoi réel le dira.
+*/
+interface BlockCypherDogeApi {
+    @POST("v1/doge/main/txs/push")
+    suspend fun diffuser(
+        @Body corps: com.vaultex.data.remote.dto.BlockCypherPousseeDto,
+        @Query("token") jeton: String? = null
+    ): com.vaultex.data.remote.dto.BlockCypherResultatDto
+}
