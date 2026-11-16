@@ -80,14 +80,20 @@
 # Blockchair sort de la liste tant qu'une mesure repetee ne le rehabilite
 # pas.
 #
-# ─── LA PROCHAINE MESURE, ET ELLE DEMANDE UNE VRAIE CLE ───────────────────
+# ─── NOWNODES EST HORS JEU ────────────────────────────────────────────────
 #
-# Ouvrir un compte gratuit chez NOWNodes, copier la cle du tableau de
-# bord, puis — en remplacant le mot ci-dessous par cette cle :
+# MESURE, 16 NOVEMBRE : le compte s'ouvre, mais le tableau de bord et la
+# cle restent desactives tant qu'on n'a pas paye. Leur « trial » ne
+# delivre pas de cle.
 #
-#   NOWNODES_CLE=<collez-ici-la-cle-NOWNodes> ./tools/doge-sondes.sh --vivante
+# Ce n'est donc plus une question technique. On ne reviendra chez eux que
+# si la decision de payer est prise, et elle n'appartient pas a ce
+# fichier.
 #
-# C'est la derniere inconnue : le quota qu'un Blockbook joignable annonce.
+# ─── CE QUI RESTE GRATUIT, ET N'A PAS ENCORE ETE MESURE ───────────────────
+#
+# Les deux autres hotes Blockbook de Trezor, dogechain.info, chain.so, et
+# BlockCypher avec un jeton de compte. Cinq mesures, aucun paiement.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -244,6 +250,32 @@ if [ "${1:-}" = "--vivante" ]; then
     echo "  Trouvee : $ADRESSE"
     echo "  (passez-la en argument aux prochaines relances pour economiser"
     echo "   les trois appels de recherche)"
+
+    # ------------------------------------------------------------------
+    # UNE TRANSACTION REELLE, GARDEE SUR DISQUE
+    # ------------------------------------------------------------------
+    #
+    # Construire et signer une transaction Dogecoin ne demande AUCUN
+    # fournisseur : c'est de la serialisation et de la signature. Mais
+    # l'ecrire sans rien contre quoi la verifier, c'est ecrire une
+    # supposition de quatre cents lignes.
+    #
+    # Une transaction reelle, avec son hexadecimal, est le vecteur de
+    # test qui manque : on reconstruit ses octets a partir de ses
+    # champs, et on compare. Si un seul octet differe — un entier ecrit
+    # a l'envers, une longueur sur le mauvais nombre d'octets — ca se
+    # voit immediatement, et c'est exactement ce que le reseau refuserait
+    # en silence.
+    #
+    # LE FICHIER NE CONTIENT RIEN DE PRIVE : une transaction deja
+    # publiee, et une adresse prise dans un bloc public. On ne fait que
+    # lire ce que toute la chaine expose.
+    MESURES="doge-mesures.json"
+    if etape "tx + hex" "https://api.blockcypher.com/v1/doge/main/txs/$txid?includeHex=true"; then
+      printf '%s' "$DERNIER" > "$MESURES"
+      echo "  Transaction reelle enregistree dans $MESURES"
+      echo "  ($(wc -c < "$MESURES") octets — envoyez-moi ce fichier)"
+    fi
   else
     echo
     echo "  Recherche infructueuse — on retombe sur l'adresse de test, vide."
