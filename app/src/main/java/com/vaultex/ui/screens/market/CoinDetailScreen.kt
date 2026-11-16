@@ -888,8 +888,33 @@ private fun PriceLineChart(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.End
         ) {
+            /*
+            ═══════════════════════════════════════════════════════════
+            L'AXE DES PRIX N'EST PAS UN AXE DE CAPITALISATIONS
+            ═══════════════════════════════════════════════════════════
+
+            CONSTATE SUR UNE CAPTURE de la fiche Dogecoin : cinq fois
+            « 0 » pour un cours de 0,0592 $. `compact()` est fait pour
+            les grands nombres — « 9Md », « 530M » — et sa derniere
+            branche arrondit a l'entier. Juste pour une capitalisation,
+            faux pour un prix.
+
+            ET FAUX EN SILENCE : un axe gradue de zeros ressemble a un
+            graphique en panne, pas a une erreur de format. Toutes les
+            monnaies sous un dollar etaient concernees — DOGE, TRX, et
+            tout le bas du marche.
+
+            `nombrePrix` applique la regle qui existait DEJA dans
+            CurrencyFormat, celle dont le commentaire decrit ce defaut
+            sur SHIB. Sans symbole monetaire : il est deja deux cartes
+            plus haut, et le repeter cinq fois sur un axe l'encombre.
+            ═══════════════════════════════════════════════════════════
+            */
             paliers.forEach { v ->
-                Text(compact(v.toDouble()), fontSize = 9.sp, color = TextMuted, maxLines = 1)
+                Text(
+                    com.vaultex.core.util.CurrencyFormat.nombrePrix(v.toDouble()),
+                    fontSize = 9.sp, color = TextMuted, maxLines = 1
+                )
             }
         }
 

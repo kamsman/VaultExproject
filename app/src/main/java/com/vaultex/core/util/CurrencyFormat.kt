@@ -62,6 +62,37 @@ object CurrencyFormat {
      * donne « $0,00001234 » pour SHIB sans allonger inutilement « $64 030 ».
      */
     fun formatPrice(amount: Double, code: String): String {
+        val s = nombrePrix(amount)
+        return when (code) {
+            "XOF" -> "$s FCFA"
+            "EUR" -> "$s €"
+            else -> "$$s"
+        }
+    }
+
+    /**
+     * Le NOMBRE seul, sans symbole monétaire, avec la règle ci-dessus.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * POURQUOI CETTE FONCTION EXISTE SÉPARÉMENT
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * CONSTATÉ SUR UNE CAPTURE de la fiche Dogecoin : l'axe vertical du
+     * graphique affichait cinq fois « 0 » pour un cours de 0,0592 $. Il
+     * passait par le formateur des CAPITALISATIONS — celui qui rend
+     * « 9Md » et « 530M » — dont la dernière branche arrondit à l'entier.
+     *
+     * Juste, donc, pour une capitalisation. Faux pour un prix, et faux en
+     * silence : un axe gradué de zéros ressemble à un graphique en panne,
+     * pas à une erreur de format.
+     *
+     * LA RÈGLE EXISTAIT DÉJÀ ICI, et le commentaire du dessus décrit
+     * exactement ce défaut sur SHIB. L'axe ne l'employait simplement pas.
+     * En écrire une seconde version aurait garanti qu'elles divergent : un
+     * jour quelqu'un corrige l'une, et l'autre continue d'afficher zéro.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    fun nombrePrix(amount: Double): String {
         val n = nf()
         n.minimumFractionDigits = 0
         n.maximumFractionDigits = when {
@@ -75,11 +106,6 @@ object CurrencyFormat {
             }
             else -> 2
         }
-        val s = n.format(amount)
-        return when (code) {
-            "XOF" -> "$s FCFA"
-            "EUR" -> "$s €"
-            else -> "$$s"
-        }
+        return n.format(amount)
     }
 }
