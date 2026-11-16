@@ -534,6 +534,29 @@ RESPONSE=$(curl -s -X POST \
 if echo "$RESPONSE" | grep -q '"name"'; then
   echo "ENVOYE."
   echo "$RESPONSE"
+  # ------------------------------------------------------------------
+  # LE RAPPEL ARRIVE AU SEUL MOMENT OU IL SERT
+  # ------------------------------------------------------------------
+  #
+  # MESURE : l'alerte sur gbash.tools est restee seize jours sans
+  # partir, et personne ne pouvait le savoir — le dossier des annonces
+  # explique en 517 lignes QUOI envoyer et POURQUOI, et ne note nulle
+  # part ce qui A ETE envoye.
+  #
+  # Une liste qu'on tient a la main se tient tant qu'on y pense. Ce
+  # rappel s'affiche juste apres un envoi reussi, c'est-a-dire a la
+  # seconde ou l'information existe et ou la noter coute une ligne.
+  # `JETON` vide = diffusion au canal ; rempli = `--moi`, un seul
+  # appareil. C'est la variable qui porte deja cette distinction plus
+  # haut, et en inventer une seconde ferait diverger les deux.
+  if [ -z "$JETON" ]; then
+    echo
+    echo "─── A NOTER ───"
+    echo "Ajoutez une ligne a tools/annonces/JOURNAL-ENVOIS.md :"
+    echo "  | $(date +%Y-%m-%d) | $(basename "${FICHIER:-?}") | tous |"
+    echo "Sans ce journal, personne ne saura dans deux semaines si cette"
+    echo "annonce est partie — c'est ainsi qu'une alerte a dormi seize jours."
+  fi
 else
   echo "ECHEC :" >&2
   echo "$RESPONSE" >&2
