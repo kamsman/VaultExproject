@@ -293,6 +293,9 @@ private fun sendChainKey(b: Blockchain): String = when (b) {
     Blockchain.SOLANA -> "SOL"
     Blockchain.TRON -> "TRX"
     Blockchain.PI -> "PI"
+    // Reclamee par le compilateur, inatteignable : la liste vient des
+    // jetons detenus, et aucun ne porte DOGECOIN. Voir ReceiveScreen.
+    Blockchain.DOGECOIN -> "DOGE"
 }
 
 private fun networkTicker(key: String): String = when (key) {

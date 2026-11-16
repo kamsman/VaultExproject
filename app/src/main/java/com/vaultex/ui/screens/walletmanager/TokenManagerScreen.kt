@@ -60,6 +60,8 @@ private fun chainKey(b: Blockchain): String = when (b) {
     Blockchain.ETHEREUM -> "ETH"; Blockchain.BNB_CHAIN -> "BNB"
     Blockchain.SOLANA -> "SOL"; Blockchain.TRON -> "TRX"; Blockchain.BITCOIN -> "BTC"
     Blockchain.PI -> "PI"
+    // Reclamee par le compilateur, inatteignable. Voir ReceiveScreen.
+    Blockchain.DOGECOIN -> "DOGE"
 }
 private fun iconSymbol(sym: String) = if (sym.startsWith("USDT")) "USDT" else sym
 
