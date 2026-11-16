@@ -134,6 +134,34 @@
 # faudra soit un service payant, soit un cache cote relais — ce dernier
 # etant deja ce que fait le Worker pour les cours.
 #
+# --------------------------------------------------------------------------
+# SIXIEME MESURE — DOGECHAIN REPOND, SANS CLE, ET ANNONCE SON PLAFOND
+# --------------------------------------------------------------------------
+#
+#   dogechain / sorties   OK en 1,9 s, « unspent_outputs » rendu
+#   dogechain / solde     OK en 1,2 s
+#   en-tetes              ratelimit-limit: 120, ratelimit-remaining: 29
+#   arrivee               https://dogechain.COM/... (le .info redirige)
+#
+# C'est le premier candidat qui rende les sorties non depensees sans
+# compte, sans jeton et sans paiement. Il annonce lui-meme son plafond, ce
+# qu'aucun autre n'a fait.
+#
+# DEUX CHOSES A VERIFIER AVANT DE LE RETENIR. Sait-il DIFFUSER — lire les
+# sorties ne sert a rien si l'on ne peut pas pousser la transaction. Et que
+# vaut ce « remaining: 29 sur 120 » : il etait deja a 29 avant tout appel
+# de cette sonde, donc le compteur est partage, ou la fenetre est longue.
+# Deux relances espacees trancheront.
+#
+#   sochain   HTTP 404, et son propre message l'explique : « API v2 was
+#             retired. Every v2 call has a v3 replacement ». Ce n'etait pas
+#             une panne, c'etait mon adresse. La v3 est maintenant sondee.
+#
+#   blockcypher avec jeton : 96 puis 95 sur les lectures, mais 99 sur la
+#             diffusion — les deux points d'entree ont donc des compteurs
+#             SEPARES. Bonne nouvelle pour un portefeuille, dont les
+#             lectures sont bien plus nombreuses que les envois.
+#
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
 #
