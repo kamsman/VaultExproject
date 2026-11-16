@@ -128,7 +128,7 @@ fun AssistanceScreen(navController: NavController) {
     }
 
     Scaffold(
-        topBar = { EnTete(state.erreur == null) { navController.popBackStack() } },
+        topBar = { EnTete(!state.enEchec) { navController.popBackStack() } },
         containerColor = BgPrimary
     ) { padding ->
         /*
@@ -166,7 +166,21 @@ fun AssistanceScreen(navController: NavController) {
 
                 if (state.enCours) Reflexion()
 
-                state.erreur?.let { Alerte(it, AccentRed, Icons.Default.Warning) }
+                /*
+                LE TEXTE VIENT DES TRADUCTIONS, PAS DU RELAIS.
+
+                Il affichait `state.erreur`, c'est-a-dire la raison
+                renvoyee par le Worker — donc toujours en francais, et
+                toujours technique. Vu sur un ecran en anglais : « le
+                modele a repondu 401 », en rouge, a quelqu'un qui
+                demandait comment acheter de la crypto.
+                */
+                if (state.enEchec) {
+                    Alerte(
+                        stringResource(R.string.assistance_indisponible),
+                        AccentRed, Icons.Default.Warning
+                    )
+                }
 
                 /*
                 « PARLER AU CHANGEUR » N'EST PAS UN ÉCHEC.
