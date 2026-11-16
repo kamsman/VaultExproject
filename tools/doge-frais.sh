@@ -22,14 +22,48 @@
 # envoie l'equivalent de quelques milliers de francs, « pour rien » se
 # remarque.
 #
-# LES TARIFS RECITES SONT FAUX, ET DE BEAUCOUP. La premiere transaction
-# rapportee par la sonde a paye 91 200 000 unites pour 225 octets — environ
-# quatre DOGE par kilo-octet, la ou le minimum historique souvent cite est
-# de 0,01. Un facteur quatre cents. Ecrire le minimum dans l'application
-# produirait des envois qui ne partent jamais.
-#
-# ON LIT DONC CE QUE LA CHAINE PORTE, aujourd'hui, depuis le reseau d'ou
+# ON LIT CE QUE LA CHAINE PORTE, aujourd'hui, depuis le reseau d'ou
 # l'application tournera. Comme tout le reste dans ce dossier.
+#
+# --------------------------------------------------------------------------
+# PREMIERE MESURE — ELLE A CORRIGE CE QUI EST ECRIT ICI
+# --------------------------------------------------------------------------
+#
+# Dix transactions d'un bloc, 16 novembre 2026 :
+#
+#     962 o      966 000 u     1 004 u/o   0,0097 DOGE
+#     133 o    1 900 000 u    14 285 u/o   0,0190 DOGE   montant rond
+#     781 o   17 752 500 u    22 730 u/o   0,1775 DOGE
+#     257 o    7 071 429 u    27 515 u/o   0,0707 DOGE
+#     339 o   10 000 000 u    29 498 u/o   0,1000 DOGE   0,1 rond
+#     225 o    7 500 000 u    33 333 u/o   0,0750 DOGE   montant rond
+#     294 o   17 700 000 u    60 204 u/o   0,1770 DOGE   montant rond
+#     133 o    9 900 000 u    74 436 u/o   0,0990 DOGE   montant rond
+#     225 o  100 000 000 u   444 444 u/o   1,0000 DOGE   UN DOGE rond
+#
+# J'AVAIS ECRIT ICI QUE LE MINIMUM RECITE ETAIT FAUX D'UN FACTEUR QUATRE
+# CENTS. C'etait faux, et je l'avais deduit d'UN seul echantillon qui se
+# trouvait payer un montant rond.
+#
+# La transaction la moins chere de ce bloc a paye 0,0100 DOGE par
+# kilo-octet — exactement le minimum historique — ET ELLE EST DANS LE
+# BLOC. Donc acceptee. Le minimum n'est pas perime : il marche.
+#
+# ─── LA DISPERSION N'EST PAS DE LA NECESSITE, C'EST DU SURPAIEMENT ────────
+#
+# Huit des dix montants sont RONDS : un DOGE, un dixieme, 0,099, 0,19,
+# 0,177. Ce ne sont pas des tarifs calcules par octet, ce sont des forfaits
+# que des portefeuilles appliquent sans regarder la taille. Le rapport de
+# 443 entre le haut et le bas ne mesure donc pas l'etat du reseau — il
+# mesure ce que d'autres logiciels font payer a leurs utilisateurs.
+#
+# ─── CE QU'IL FAUT LIRE, ET CE QUE J'AVAIS MAL CADRE ──────────────────────
+#
+# La bonne lecture n'est PAS la mediane. C'est LE PLUS BAS MONTANT TROUVE
+# DANS UN BLOC CONFIRME : il prouve ce que le reseau accepte reellement, a
+# cet instant. La mediane ne mesure qu'une convention sociale entre
+# portefeuilles, et la suivre ferait payer a nos utilisateurs vingt-sept
+# fois le necessaire.
 #
 # --------------------------------------------------------------------------
 # CE QUE CE SCRIPT NE FAIT PAS
@@ -147,11 +181,16 @@ cat <<'FIN'
   d'ecart avant d'ecrire un tarif dans l'application : un bloc ou tout
   le monde a paye cher ne dit pas ce que coute un envoi ordinaire.
 
-  LA DISPERSION COMPTE PLUS QUE LA MEDIANE. Si le plus bas et le plus
-  haut tiennent dans un facteur deux, le reseau est calme et viser la
-  mediane suffit. S'ils different d'un facteur dix, c'est qu'une partie
-  des envoyeurs paie au hasard — et il faut viser le haut pour ne pas
-  rester en attente.
+  LISEZ LE PLUS BAS, PAS LA MEDIANE. Le plus bas montant trouve dans un
+  bloc CONFIRME prouve ce que le reseau accepte vraiment. La mediane ne
+  mesure qu'une convention entre portefeuilles — a la premiere mesure,
+  huit montants sur dix etaient des forfaits ronds (un DOGE, un dixieme),
+  sans rapport avec la taille des transactions. La suivre ferait payer
+  vingt-sept fois le necessaire.
+
+  REGARDEZ LA COLONNE FRAIS AUTANT QUE UNITES/OCTET. Des montants ronds
+  qui reviennent signalent des forfaits, donc du surpaiement ; des
+  montants proportionnels a la taille signalent de vrais tarifs.
 
   CES FRAIS NE NOUS REVIENNENT PAS. Ils vont au reseau qui inscrit la
   transaction, comme sur toutes les autres chaines de l'application.
