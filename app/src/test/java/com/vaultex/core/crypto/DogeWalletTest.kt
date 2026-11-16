@@ -118,6 +118,29 @@ class DogeWalletTest {
         )
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE CABLAGE, ET PAS SEULEMENT LA MECANIQUE
+    ═══════════════════════════════════════════════════════════════════
+
+    Les tests du dessus prouvent que DogeWallet derive juste. Celui-ci
+    prouve que l'APPLICATION l'appelle avec la bonne graine.
+
+    La difference n'est pas theorique : `deriveAddresses` pourrait passer
+    une graine derivee autrement, ou une passphrase differente, et toutes
+    les adresses seraient valides — simplement pas celles que les douze
+    mots de l'utilisateur restaurent ailleurs. Il le decouvrirait en
+    important sa phrase dans un autre portefeuille et en n'y trouvant
+    rien.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    @Test
+    fun `l application derive la meme adresse que DogeWallet`() {
+        val parApplication = WalletManager.deriveAddresses(ABANDON, "").doge
+        assertEquals("DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC", parApplication)
+        assertEquals(DogeWallet.deriveAddress(graine(ABANDON)), parApplication)
+    }
+
     @Test
     fun `toutes les adresses commencent par D`() {
         for (phrase in listOf(ABANDON, LEGAL, ZOO, LETTER)) {

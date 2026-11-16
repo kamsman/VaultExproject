@@ -11,6 +11,7 @@ object Bip44Paths {
     const val COIN_TYPE_BNB = 60   // BSC partage le coin_type ETH (EVM compatible)
     const val COIN_TYPE_SOL = 501
     const val COIN_TYPE_TRX = 195
+    const val COIN_TYPE_DOGE = 3
 
     /**
      * Construit le path BIP44 standard pour une chaîne donnée.
@@ -25,6 +26,14 @@ object Bip44Paths {
     fun bnbPath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_BNB, 0, addressIndex)
     fun solPath(addressIndex: Int = 0): String = "m/44'/$COIN_TYPE_SOL'/$addressIndex'/0'"  // Solana spec
     fun trxPath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_TRX, 0, addressIndex)
+
+    /*
+    DOGECOIN EST EN m/44', PAS EN m/84'. Bitcoin derive en BIP-84 parce
+    qu'il produit du SegWit ; Dogecoin n'en a pas, et reste sur le BIP-44
+    historique. Recopier btcPath en changeant le type de piece donnerait
+    une adresse valide et FAUSSE — personne n'y trouverait les fonds.
+    */
+    fun dogePath(addressIndex: Int = 0): String = pathFor(COIN_TYPE_DOGE, 0, addressIndex)
 }
 
 enum class Blockchain(
@@ -63,7 +72,33 @@ enum class Blockchain(
     donc à l'étape de l'envoi. À confirmer sur appareil à ce moment-là,
     plutôt que de laisser croire qu'elle l'a déjà été.
     */
-    PI("Pi Network", "PI", 314159, 7, "https://blockexplorer.minepi.com/mainnet/transactions/");
+    PI("Pi Network", "PI", 314159, 7, "https://blockexplorer.minepi.com/mainnet/transactions/"),
+
+    /*
+    ─── LE DOGE SE LIT ET SE SIGNE, IL NE S'ENVOIE PAS ENCORE ─────────────
+
+    Même raison d'être que l'entrée PI juste au-dessus, et même effet
+    voulu : le compilateur réclame désormais une branche « DOGECOIN » dans
+    chaque `when (blockchain)` exhaustif. Aucun écran ne peut traiter le
+    Dogecoin par défaut sans qu'on l'ait décidé.
+
+    Les briques existent et sont vérifiées — dérivation d'adresse,
+    sérialisation, signature, choix des pièces, lecture des montants — mais
+    AUCUN écran ne les appelle. L'envoi n'est pas branché.
+
+    TANT QUE L'ENVOI N'EXISTE PAS, AUCUN ÉCRAN NE DOIT PROPOSER DE
+    RECEVOIR DU DOGE. Une adresse qui reçoit sans pouvoir rendre est un
+    piège : les fonds y entrent et n'en sortent plus.
+
+    HUIT DÉCIMALES, comme Bitcoin — et le type de pièce est 3, pas 0.
+    Recopier celui de Bitcoin produirait une adresse valide et fausse.
+
+    L'ADRESSE D'EXPLORATEUR N'EST PAS VÉRIFIÉE, et rien ne la lit : aucun
+    code de ce dépôt ne consulte `explorerUrl` aujourd'hui. À confirmer
+    quand une transaction Dogecoin figurera dans l'historique, plutôt que
+    de laisser croire qu'elle l'a déjà été.
+    */
+    DOGECOIN("Dogecoin", "DOGE", 3, 8, "https://dogechain.com/tx/");
 
     fun isEvm(): Boolean = this == ETHEREUM || this == BNB_CHAIN
 }

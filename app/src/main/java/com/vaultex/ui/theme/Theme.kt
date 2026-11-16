@@ -123,6 +123,8 @@ val NetworkBnb = Color(0xFFF0B90B)
 val NetworkSol = Color(0xFF9945FF)
 val NetworkTrx = Color(0xFFFF060A)
 val NetworkPi  = Color(0xFF7D4698)
+// Le jaune-or de Dogecoin, tel que le projet l'emploie sur son logo.
+val NetworkDoge = Color(0xFFC2A633)
 
 // ─── Schémas Material 3 dérivés des palettes ──────────────────
 internal val LightColorScheme = lightColorScheme(
