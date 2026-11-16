@@ -162,6 +162,42 @@
 #             SEPARES. Bonne nouvelle pour un portefeuille, dont les
 #             lectures sont bien plus nombreuses que les envois.
 #
+# --------------------------------------------------------------------------
+# SEPTIEME MESURE — SOCHAIN V3 ANNONCE VINGT FOIS LE QUOTA DES AUTRES
+# --------------------------------------------------------------------------
+#
+#   sochain v3   OK en 1,4 s, « outputs » rendu
+#                x-ratelimit-limit: 2500, remaining: 2499, reset: 23841
+#
+# Deux mille cinq cents requetes par fenetre, contre 120 chez dogechain et
+# une centaine chez BlockCypher avec un compte. Sans cle, et il rend les
+# sorties non depensees. C'est le meilleur chiffre mesure jusqu'ici.
+#
+# LE « reset: 23841 » EST A CONFIRMER : environ six heures et demie. Si
+# c'est la duree de la fenetre, cela fait pres de quatre cents requetes par
+# heure ; si c'est le temps restant d'une fenetre quotidienne, c'est 2500
+# par jour. Deux relances espacees le diront, et la difference compte.
+#
+#   dogechain / diffusion   HTTP 405 — ET CE N'EST PAS UN REFUS.
+#
+# Un 405 dit « pas comme ca », pas « je ne sais pas faire ». Le point
+# d'entree existe et n'accepte simplement pas un corps JSON. Conclure a
+# l'incapacite sur ce code aurait raye le seul service sans cle qui
+# reponde en moins d'une seconde. La sonde essaie donc les deux formes, et
+# METHODE est desormais un etat distinct de REJET.
+#
+#   dogechain / remaining   29 sur 120, inchange sur QUATRE appels
+#                           d'affilee. Le compteur ne descend donc pas par
+#                           requete : soit il est partage, soit l'en-tete
+#                           ne dit pas ce qu'on croit. A ne pas prendre
+#                           pour argent comptant.
+#
+# ─── LA DERNIERE INCONNUE ─────────────────────────────────────────────────
+#
+# Sochain sait-il DIFFUSER ? Il a le meilleur quota et rend les sorties.
+# S'il pousse aussi les transactions, la question du fournisseur est
+# reglee et le moteur d'envoi peut s'ecrire contre lui.
+#
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
 #
@@ -422,7 +458,19 @@ sonder() {
   # redirection vers « https:// » ou vers un autre hote est une
   # information a garder : c'est l'adresse qu'il faudra ecrire dans
   # l'application, pas celle d'ou l'on est parti.
-  if [ "$methode" = "POST" ]; then
+  if [ "$methode" = "FORM" ]; then
+    # --------------------------------------------------------------
+    # TOUT LE MONDE N'ATTEND PAS DU JSON
+    # --------------------------------------------------------------
+    #
+    # MESURE : dogechain a rendu 405 « Method Not Allowed » sur sa
+    # diffusion. Un 405 ne dit pas « je ne sais pas diffuser » — il dit
+    # « pas comme ca ». Leur point d'entree attend un formulaire, pas un
+    # corps JSON, et conclure a l'incapacite sur ce code aurait raye le
+    # seul service sans cle qui reponde vite.
+    sortie=$(curl -sSL -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total} %{url_effective}' \
+             --data-urlencode "$corps" "$url" 2>&1)
+  elif [ "$methode" = "POST" ]; then
     sortie=$(curl -sSL -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total} %{url_effective}' \
              -H 'content-type: application/json' -d "$corps" "$url" 2>&1)
   else
@@ -441,6 +489,7 @@ sonder() {
   case "$code" in
     200|201) etat="OK" ;;
     400|422) etat="REJET" ;;   # attendu, et souhaite, sur la diffusion
+    405)     etat="METHODE" ;; # le point d'entree existe, la forme est fausse
     000)     etat="MUET"; temps="—" ;;
     *)       etat="HTTP$code" ;;
   esac
@@ -553,8 +602,10 @@ echo
 echo "── Services independants ─────────────────────────────────────────────"
 sonder "dogechain / sorties"    "https://dogechain.com/api/v1/address/unspent/$ADRESSE"
 sonder "dogechain / solde"      "https://dogechain.com/api/v1/address/balance/$ADRESSE"
-sonder "dogechain / diffusion (invalide)" \
+sonder "dogechain / diffusion (JSON)" \
        "https://dogechain.com/api/v1/pushtx" POST '{"tx":"00"}'
+sonder "dogechain / diffusion (formulaire)" \
+       "https://dogechain.com/api/v1/pushtx" FORM 'tx=00'
 # `unspent` d'une adresse, autre forme publiee par la meme maison : si les
 # deux repondent, on prendra la plus bavarde — celle qui porte le script
 # de verrouillage, dont la signature a besoin.
@@ -563,7 +614,12 @@ sonder "dogechain / tx d une adresse" "https://dogechain.com/api/v1/address/tran
 # SOCHAIN A RETIRE SA V2, et c'est son propre message qui le dit :
 # « API v2 was retired. Every v2 call has a v3 replacement ». On sonde
 # donc la v3 — qui demande peut-etre une cle, et le code le dira.
-sonder "sochain v3 / sorties"   "https://chain.so/api/v3/unspent_outputs/DOGE/$ADRESSE"
+sonder "sochain v3 / sorties"   "https://sochain.com/api/v3/unspent_outputs/DOGE/$ADRESSE"
+# LA DIFFUSION EST LA DERNIERE INCONNUE DU MEILLEUR CANDIDAT. Sochain
+# annonce 2500 requetes par fenetre — vingt fois dogechain — et rend les
+# sorties. S'il diffuse aussi, la question du fournisseur est reglee.
+sonder "sochain v3 / diffusion" \
+       "https://sochain.com/api/v3/broadcast_transaction/DOGE" POST '{"tx_hex":"00"}'
 echo
 
 echo "── Blockchair ────────────────────────────────────────────────────────"
@@ -584,11 +640,13 @@ else
   echo "  NOWNodes : le compte s'ouvre, la cle reste desactivee sans paiement."
   echo "  Hors jeu tant que la decision de payer n'est pas prise."
   echo
-  echo "  LA MESURE QUI MANQUE EST CELLE DU JETON BLOCKCYPHER. En anonyme le"
-  echo "  service annonce une requete restante ; un compte n'a pas le meme"
-  echo "  quota, et c'est le seul service qui reponde vite et juste d'ici."
+  echo "  LE CLASSEMENT MESURE, A CE JOUR :"
+  echo "    sochain v3   2500 par fenetre, sans cle  — meilleur quota"
+  echo "    dogechain     120 annonces, 0,7 s        — le plus rapide"
+  echo "    blockcypher   ~100 avec un jeton gratuit — compteurs separes"
   echo
-  echo "    BLOCKCYPHER_JETON=le_jeton ./tools/doge-sondes.sh --vivante"
+  echo "  Il reste a savoir lequel sait DIFFUSER. Lire les sorties ne sert"
+  echo "  a rien si la transaction signee ne part pas."
   echo
 fi
 
