@@ -374,10 +374,30 @@ if [ "${1:-}" = "--vivante" ]; then
   if etape "dernier bloc" "https://api.blockcypher.com/v1/doge/main"; then
     hash=$(sed -n 's/.*"hash"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
     if [ -n "$hash" ] && etape "bloc" "https://api.blockcypher.com/v1/doge/main/blocks/$hash"; then
-      # `txids` est un tableau de chaines : on prend la premiere, sans
-      # analyseur JSON — aucun n'est garanti present sur une machine
-      # Windows.
-      txid=$(sed -n 's/.*"txids"[^]]*\[[^"]*"\([0-9a-f]\{64\}\)".*/\1/p' <<<"$DERNIER" | head -1)
+      # ------------------------------------------------------------
+      # LA PREMIERE TRANSACTION D'UN BLOC EST TOUJOURS LA COINBASE
+      # ------------------------------------------------------------
+      #
+      # MESURE : le vecteur rapporte etait une coinbase — entree au
+      # prevout nul, index ffffffff, sortie en pay-to-pubkey, frais a
+      # zero. Parfait pour verifier la SERIALISATION, inutile comme
+      # modele de depense : rien de ce qu'un portefeuille signe ne lui
+      # ressemble.
+      #
+      # On prend donc la SECONDE, qui est une transaction ordinaire.
+      # `head -2 | tail -1` plutot que `head -1`, et un repli sur la
+      # premiere si le bloc n'en contient qu'une — ca arrive sur un
+      # bloc vide, et mieux vaut un vecteur imparfait que pas de
+      # vecteur.
+      # ON COUPE AVANT DE CHERCHER. Le `hash` DU BLOC est lui aussi
+      # soixante-quatre caracteres hexadecimaux, et il arrive avant le
+      # tableau : chercher dans toute la reponse le ramenait en tete, et
+      # « la seconde entree » redevenait la coinbase. Mon propre essai
+      # l'a montre avant que ca parte chez l'utilisateur.
+      liste=${DERNIER#*\"txids\"}
+      tous=$(sed 's/"/\n/g' <<<"$liste" | grep -E '^[0-9a-f]{64}$' | head -2)
+      txid=$(printf '%s\n' "$tous" | sed -n '2p')
+      [ -z "$txid" ] && txid=$(printf '%s\n' "$tous" | sed -n '1p')
       if [ -n "$txid" ] && etape "transaction" "https://api.blockcypher.com/v1/doge/main/txs/$txid"; then
         trouvee=$(sed -n 's/.*"addresses"[^]]*\[[^"]*"\(D[1-9A-HJ-NP-Za-km-z]\{25,33\}\)".*/\1/p' <<<"$DERNIER" | head -1)
       fi
