@@ -358,7 +358,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 97
+const VERSION = 98
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2095,6 +2095,64 @@ async function diagnostic(env, params) {
   `refusees` dit qu'une adresse ne ressemble pas à sa chaîne. Les deux
   champs vides avec `adressesReglees: 0` : la variable n'existe pas.
   */
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA CLÉ DU MODÈLE RÉPOND-ELLE VRAIMENT ?
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ, ET DÉCOUVERT PAR UNE CAPTURE D'ÉCRAN : la clé avait été
+  supprimée du compte, le relais en présentait une qui n'existait plus, et
+  l'API répondait « invalid x-api-key ». L'assistance était hors service
+  pour toutes les questions qui descendent au modèle — c'est-à-dire
+  toutes celles qui ne sont pas en français, les réponses toutes faites
+  étant françaises par conception.
+
+  PERSONNE NE LE SAVAIT. Il a fallu qu'un utilisateur envoie une capture.
+  Ce diagnostic existe pour que ça ne se reproduise pas.
+
+  ─── POURQUOI `/v1/models` ET PAS UNE VRAIE QUESTION ──────────────────
+
+  Parce qu'il valide la clé sans consommer un seul jeton. Poser une vraie
+  question coûterait de l'argent à chaque consultation de /diag, sur un
+  point d'entrée que rien ne protège — et quelqu'un qui le rafraîchirait
+  en boucle viderait le crédit.
+
+  Ce qu'il ne dit pas : qu'il reste du crédit. Une clé valide sur un
+  compte à zéro répond ici et échoue sur une vraie question. C'est écrit
+  dans la réponse plutôt que laissé à deviner.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const cleIa = String(env?.CHANGE_IA_CLE ?? '')
+  if (!cleIa) {
+    sondes.assistance = {
+      cleReglee: false,
+      verdict: 'AUCUNE CLE — l\'assistance ne repond qu\'aux questions francaises courantes',
+    }
+  } else {
+    try {
+      const r = await fetchBorne('https://api.anthropic.com/v1/models?limit=1', {
+        headers: { 'x-api-key': cleIa, 'anthropic-version': '2023-06-01' },
+      }, 8000)
+      sondes.assistance = {
+        cleReglee: true,
+        http: r.status,
+        verdict: r.ok
+          ? 'la cle repond — reste a verifier qu\'il y a du credit'
+          : r.status === 401
+            ? 'CLE REFUSEE — l\'assistance est hors service pour tout ce qui descend au modele'
+            : `reponse inattendue ${r.status}`,
+        modele: String(env?.CHANGE_IA_MODELE || IA_MODELE),
+        plafondJour: IA_MAX_JOUR,
+        appelsAujourdhui: await compteur('ia', new Date().toISOString().slice(0, 10)),
+      }
+    } catch (e) {
+      sondes.assistance = {
+        cleReglee: true,
+        verdict: 'injoignable : ' + String(e?.message ?? '').slice(0, 80),
+      }
+    }
+  }
+
   sondes.adressesChangeur = {
     jsonLisible: triAdresses.lisible,
     adressesReglees: Object.keys(adressesPosees).length,
