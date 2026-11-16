@@ -30,7 +30,19 @@ object WalletManager {
          * la phrase du Pi Wallet, qui est une autre phrase. Celle-ci est une
          * adresse Pi de plus, qui appartient au portefeuille VaultEx.
          */
-        val pi: String
+        val pi: String,
+        /**
+         * Adresse Dogecoin, dérivée de la MÊME graine que les autres.
+         *
+         * Elle est calculée dès maintenant parce qu'elle ne coûte rien et
+         * qu'elle vient de la même phrase : quelqu'un qui restaure son
+         * portefeuille avec ses douze mots retrouvera ce qu'on lui aura
+         * envoyé ici, même si l'application ne l'affiche pas encore.
+         *
+         * AUCUN ÉCRAN NE LA MONTRE, et c'est voulu : tant que l'envoi
+         * n'existe pas, proposer de recevoir du DOGE serait un piège.
+         */
+        val doge: String
     )
 
     /** Génère 12 mots BIP39 (128 bits d'entropie via SecureRandom). */
@@ -60,7 +72,8 @@ object WalletManager {
             bnb = deriveEvmAddress(seed, coinType = 60), // BSC partage le coin_type EVM
             sol = deriveSolanaAddress(seed),
             trx = deriveTronAddress(seed),
-            pi = PiWallet.deriveAddress(seed)
+            pi = PiWallet.deriveAddress(seed),
+            doge = DogeWallet.deriveAddress(seed)
         )
     }
 
