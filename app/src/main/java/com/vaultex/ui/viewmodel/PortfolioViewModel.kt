@@ -102,6 +102,7 @@ class PortfolioViewModel @Inject constructor(
     private val pushRegistrar: com.vaultex.service.PushRegistrar,
     private val notificationCenter: com.vaultex.core.session.NotificationCenter,
     private val piCompte: com.vaultex.domain.pi.PiCompteService,
+    private val dogeDepot: com.vaultex.core.tx.DogeDepot,
     private val transactionDao: com.vaultex.data.local.dao.TransactionDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
@@ -579,12 +580,24 @@ class PortfolioViewModel @Inject constructor(
                             fetchPiBalance(addresses.pi)
                         } else null
                     }
+                    /*
+                    ETEINT, ON N'INTERROGE MEME PAS DOGECHAIN. Meme raison
+                    que pour le Pi et l'USDT de Solana : l'appel couterait
+                    une requete par rafraichissement, sur chaque telephone,
+                    pour une ligne qui ne sera pas construite — et le
+                    service n'en annonce que cent vingt par fenetre.
+                    */
+                    val dogeD    = async(Dispatchers.IO) {
+                        if (com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF) {
+                            fetchDogeBalance(addresses.doge)
+                        } else null
+                    }
                     val btc = btcD.await(); val eth = ethD.await()
                     val bnb = bnbD.await(); val sol = solD.await()
                     val trx = trxD.await(); val usdtTrc = usdtTrcD.await()
                     val usdtEth = usdtEthD.await(); val usdtBnb = usdtBnbD.await()
                     val usdtSol = usdtSolD.await()
-                    val pi = piD.await()
+                    val pi = piD.await(); val doge = dogeD.await()
 
                     fun usd(id: String) = prices[id]?.usd ?: 0.0
                     fun eur(id: String) = prices[id]?.eur ?: 0.0
@@ -705,6 +718,22 @@ class PortfolioViewModel @Inject constructor(
                         */
                         build("PI",       "Pi Network",   pi,      4, "PI",   "pi-network",  "#7D4698", Blockchain.PI)
                             .takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF },
+                        /*
+                        LE DOGECOIN, DERRIERE LE MEME INTERRUPTEUR EN AMONT.
+
+                        Il passe par le meme `build` que les autres : meme
+                        cours, meme contrevaleur, meme variation. Une
+                        monnaie listee a l'accueil doit s'y lire comme ses
+                        voisines.
+
+                        L'ECHANGE RESTE FERME SANS RIEN A ECRIRE ICI : le
+                        selecteur lit son propre registre (SWAP_ASSETS), ou
+                        le Dogecoin ne figure pas. Et l'ENVOI n'a pas
+                        d'ecran — allumer cette ligne ouvre la lecture et la
+                        reception, pas le depart des fonds.
+                        */
+                        build("DOGE",     "Dogecoin",     doge,    4, "DOGE", "dogecoin",    "#C2A633", Blockchain.DOGECOIN)
+                            .takeIf { com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF },
                     )
                 }
 
@@ -1318,6 +1347,24 @@ class PortfolioViewModel @Inject constructor(
             com.vaultex.domain.pi.SoldePi.JamaisCredite -> 0.0
             com.vaultex.domain.pi.SoldePi.Inconnu -> null
         }
+
+    /**
+     * Le solde Dogecoin, en DOGE. `null` si on n'a pas pu regarder.
+     *
+     * UN SEUL APPEL, et c'est pourquoi [DogeDepot] separe le solde des
+     * pieces : le solde arrive complet, les pieces sont paginees. Un
+     * portefeuille a cinquante pieces ferait cinq appels a chaque
+     * rafraichissement si on les confondait.
+     *
+     * `null` DIT « JE N'AI PAS PU REGARDER », ET CE N'EST PAS ZERO : la
+     * ligne affiche alors « — » plutot qu'un solde nul, comme pour les
+     * autres chaines. Afficher zero a quelqu'un dont le reseau a hoquete
+     * lui ferait croire ses fonds disparus.
+     */
+    private suspend fun fetchDogeBalance(address: String): Double? {
+        val unites = dogeDepot.solde(address) ?: return null
+        return unites / 100_000_000.0
+    }
 
     private suspend fun fetchUsdtTrc20Balance(address: String): Double? {
         return try {
