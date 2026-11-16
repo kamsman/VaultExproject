@@ -48,7 +48,31 @@ data class AssistanceState(
     val saisie: String = "",
     val enCours: Boolean = false,
     /** Motif du dernier échec, ou null. */
-    val erreur: String? = null,
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    UN BOOLEEN, PAS LE TEXTE DU RELAIS
+    ═══════════════════════════════════════════════════════════════════
+
+    CONSTATE SUR L'ECRAN : « le modele a repondu 401 », en rouge, en
+    FRANCAIS, sur une application en anglais, a quelqu'un qui demandait
+    comment acheter de la crypto.
+
+    Deux fautes dans une seule ligne. Le texte venait du relais, donc
+    toujours en francais quelle que soit la langue de l'application. Et
+    c'etait un detail technique — un code HTTP, le mot « modele » — que
+    rien ne rend utile a qui lit. Il ne dit meme pas ce qu'il faut
+    faire : la carte des canaux juste en dessous le dit deja, et mieux.
+
+    L'etat ne porte donc plus qu'un BOOLEEN. Le texte vient des
+    traductions, donc de la langue de l'application, et il est ecrit pour
+    etre lu par quelqu'un.
+
+    LA RAISON TECHNIQUE N'EST PAS PERDUE : elle part dans le journal,
+    ou elle sert — c'est elle qui a permis de voir que la cle etait
+    refusee.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    val enEchec: Boolean = false,
     /**
      * Vrai quand le relais conseille de passer au changeur.
      *
@@ -128,7 +152,7 @@ class AssistanceViewModel @Inject constructor(
     private val _state = MutableStateFlow(AssistanceState())
     val state: StateFlow<AssistanceState> = _state.asStateFlow()
 
-    fun onSaisie(v: String) = _state.update { it.copy(saisie = v, erreur = null) }
+    fun onSaisie(v: String) = _state.update { it.copy(saisie = v, enEchec = false) }
     fun onNumero(v: String) = _state.update { it.copy(numero = v) }
 
     /** « Continuer sans donner mon numéro ». */
@@ -160,7 +184,7 @@ class AssistanceViewModel @Inject constructor(
      */
     fun poser(question: String) {
         if (_state.value.enCours) return
-        _state.update { it.copy(saisie = question, erreur = null) }
+        _state.update { it.copy(saisie = question, enEchec = false) }
         envoyer()
     }
 
@@ -179,7 +203,7 @@ class AssistanceViewModel @Inject constructor(
         */
         val avec = s.messages + MessageAssistance(deMoi = true, texte = question)
         _state.update {
-            it.copy(messages = avec, saisie = "", enCours = true, erreur = null, passerAuChangeur = false)
+            it.copy(messages = avec, saisie = "", enCours = true, enEchec = false, passerAuChangeur = false)
         }
 
         viewModelScope.launch {
@@ -263,6 +287,22 @@ class AssistanceViewModel @Inject constructor(
                     )
                 }
 
+                /*
+                LA RAISON TECHNIQUE VA AU JOURNAL, PAS A L'ECRAN.
+
+                C'est elle qui a permis de voir qu'une cle etait refusee —
+                « le modele a repondu 401 ». Elle vaut donc d'etre gardee,
+                mais pas affichee : un code HTTP ne dit rien a qui demande
+                comment acheter de la crypto, et la carte des canaux juste
+                en dessous dit deja quoi faire.
+                */
+                if (reponse == null) {
+                    android.util.Log.w(
+                        "VaultEx/Assistance",
+                        "sans reponse — raison du relais : " + (r?.raison ?: "aucune")
+                    )
+                }
+
                 val suite = if (reponse != null) {
                     etat.messages + MessageAssistance(
                         deMoi = false, texte = reponse, membre = fiche
@@ -272,9 +312,7 @@ class AssistanceViewModel @Inject constructor(
                 etat.copy(
                     messages = suite,
                     enCours = false,
-                    erreur = if (reponse == null) {
-                        r?.raison ?: "L'assistance n'a pas répondu. Vérifiez votre connexion."
-                    } else null,
+                    enEchec = reponse == null,
                     // `humain` vient du relais ; sans réponse du tout, on le
                     // propose aussi — c'est le moment où un humain sert.
                     passerAuChangeur = reponse == null || r?.humain == true,

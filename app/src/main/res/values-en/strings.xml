@@ -1103,6 +1103,7 @@
     <string name="pi_contrevaleur">≈ %1$s FCFA · 1 Pi ≈ %2$s FCFA (market average, varies by platform)</string>
     <string name="pi_fiche_limites">Sending and receiving both work. Swapping stays closed: no exchanger opens a Pi pair — that is not up to VaultEx.</string>
     <string name="doge_fiche_limites">Receiving works. Sending and swapping DOGE are not available yet.</string>
+    <string name="assistance_indisponible">Support is unreachable right now. Try again in a moment, or write to us — someone will answer.</string>
     <string name="pi_prix_moyenne">Market average price. Pi trades at different prices depending on the platform.</string>
     <string name="pi_envoi_titre">Send Pi</string>
     <string name="pi_envoi_bouton">Send</string>
