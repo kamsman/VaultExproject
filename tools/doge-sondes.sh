@@ -90,10 +90,32 @@
 # si la decision de payer est prise, et elle n'appartient pas a ce
 # fichier.
 #
-# ─── CE QUI RESTE GRATUIT, ET N'A PAS ENCORE ETE MESURE ───────────────────
+# --------------------------------------------------------------------------
+# QUATRIEME MESURE — TREZOR EST UNE POLITIQUE, PAS UNE MACHINE
+# --------------------------------------------------------------------------
 #
-# Les deux autres hotes Blockbook de Trezor, dogechain.info, chain.so, et
-# BlockCypher avec un jeton de compte. Cinq mesures, aucun paiement.
+#   doge.trezor.io, doge2, doge5 : HTTP 403 sur les TROIS, en 0,2 a 0,4 s.
+#
+# L'hypothese etait que le 403 mesurait la politique d'UNE machine. Trois
+# hotes, trois refus : c'est la politique de la maison. Blockbook servi
+# par Trezor est raye, definitivement, et avec lui l'idee d'obtenir cette
+# forme d'API sans compte.
+#
+#   dogechain.info, chain.so : HTTP 301 — ET C'ETAIT MA FAUTE.
+#
+# Pas un echec de leur part : une redirection que `curl` ne suivait pas,
+# faute de `-L`. J'allais rayer deux candidats pour une option manquante
+# dans l'outil cense les juger. Corrige ; ils sont a remesurer.
+#
+#   blockchair : OK en 1,2 s cette fois — apres 2,9 s, 1,9 s, puis un
+#                delai depasse a 20 s. Quatre mesures, quatre resultats.
+#                L'intermittence est confirmee, pas levee.
+#
+# ─── LA MESURE QUI MANQUE TOUJOURS ────────────────────────────────────────
+#
+# BlockCypher avec un jeton de compte. Le jeton a ete obtenu ; la sonde a
+# tourne en ANONYME — elle l'a dit elle-meme, « (anonyme — quota
+# minimal) » — donc le quota mesure est encore celui d'avant.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -305,19 +327,37 @@ echo
 # sonde qu'on ne lit pas ne sert a rien.
 sonder() {
   local nom="$1" url="$2" methode="${3:-GET}" corps="${4:-}"
-  local sortie code duree
+  local sortie code duree arrivee
   : > "$ENTETES"
+  # --------------------------------------------------------------------
+  # LES REDIRECTIONS SE SUIVENT, SINON ON RAYE UN CANDIDAT POUR RIEN
+  # --------------------------------------------------------------------
+  #
+  # MESURE : dogechain.info et chain.so ont rendu « 301 Moved
+  # Permanently ». Sans `-L`, curl s'arrete la et la colonne affiche un
+  # code d'echec — on allait rayer deux services qui repondaient
+  # peut-etre parfaitement une redirection plus loin.
+  #
+  # C'est la faute que cette sonde existe pour eviter, commise par la
+  # sonde elle-meme : rendre un verdict sur un service a partir d'une
+  # limite de l'outil qui le mesure.
+  #
+  # `%{url_effective}` est affiche quand l'arrivee differe du depart. Une
+  # redirection vers « https:// » ou vers un autre hote est une
+  # information a garder : c'est l'adresse qu'il faudra ecrire dans
+  # l'application, pas celle d'ou l'on est parti.
   if [ "$methode" = "POST" ]; then
-    sortie=$(curl -sS -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total}' \
+    sortie=$(curl -sSL -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total} %{url_effective}' \
              -H 'content-type: application/json' -d "$corps" "$url" 2>&1)
   else
-    sortie=$(curl -sS -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total}' "$url" 2>&1)
+    sortie=$(curl -sSL -m "$DELAI" -D "$ENTETES" -w '\n%{http_code} %{time_total} %{url_effective}' "$url" 2>&1)
   fi
   code=$(printf '%s' "$sortie" | tail -1 | cut -d' ' -f1)
   # TRONQUEE AU CARACTERE, ET NON ARRONDIE PAR printf : « %.2f » depend de
   # LC_NUMERIC, et sur une machine en francais il attend une virgule — la
   # colonne se briserait la ou le script est justement cense tourner.
   duree=$(printf '%s' "$sortie" | tail -1 | cut -d' ' -f2 | cut -c1-5)
+  arrivee=$(printf '%s' "$sortie" | tail -1 | cut -d' ' -f3-)
   local contenu etat temps
   contenu=$(printf '%s' "$sortie" | sed '$d')
   temps="${duree}s"
@@ -330,6 +370,9 @@ sonder() {
   esac
   printf '  %-34s %-8s %7s  %s\n' \
     "$nom" "$etat" "$temps" "$(printf '%s' "$contenu" | tr -d '\n' | cut -c1-100)"
+  if [ -n "$arrivee" ] && [ "$arrivee" != "$url" ]; then
+    printf '        arrivee : %s\n' "$arrivee"
+  fi
 
   # --------------------------------------------------------------------
   # LE QUOTA SE LIT DANS LES EN-TETES, ET C'EST LA QUESTION DECISIVE
@@ -436,19 +479,15 @@ if [ -n "${NOWNODES_CLE:-}" ]; then
     "https://dogebook.nownodes.io/api/v2/utxo/$ADRESSE?api_key=${NOWNODES_CLE}"
   echo
 else
-  echo "── Non sondes, faute de cle ──────────────────────────────────────────"
-  echo "  NOWNodes, GetBlock, Tatum : comptes a ouvrir."
+  echo "── Non sondes ────────────────────────────────────────────────────────"
+  echo "  NOWNodes : le compte s'ouvre, la cle reste desactivee sans paiement."
+  echo "  Hors jeu tant que la decision de payer n'est pas prise."
   echo
-  echo "  C'EST MAINTENANT LA MESURE QUI MANQUE. La fourniture gratuite de"
-  echo "  BlockCypher annonce une requete restante : c'est un bac a sable,"
-  echo "  pas un fournisseur pour 223 utilisateurs."
+  echo "  LA MESURE QUI MANQUE EST CELLE DU JETON BLOCKCYPHER. En anonyme le"
+  echo "  service annonce une requete restante ; un compte n'a pas le meme"
+  echo "  quota, et c'est le seul service qui reponde vite et juste d'ici."
   echo
-  echo "  NOWNodes sert du Blockbook sur SON hote, derriere une cle — donc"
-  echo "  sans le mur anti-robot qui a refuse l'instance publique de Trezor."
-  echo "  La forme d'API y est la meme, et elle couvre les trois besoins."
-  echo
-  echo "    NOWNODES_CLE=<la-cle-de-votre-tableau-de-bord> \\"
-  echo "      ./tools/doge-sondes.sh --vivante"
+  echo "    BLOCKCYPHER_JETON=le_jeton ./tools/doge-sondes.sh --vivante"
   echo
 fi
 
