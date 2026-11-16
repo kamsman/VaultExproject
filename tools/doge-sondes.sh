@@ -507,10 +507,35 @@ sonder "doge2.trezor / sorties" "https://doge2.trezor.io/api/v2/utxo/$ADRESSE"
 sonder "doge5.trezor / sorties" "https://doge5.trezor.io/api/v2/utxo/$ADRESSE"
 echo
 
+# --------------------------------------------------------------------------
+# DOGECHAIN.COM, ET NON .INFO : L'ADRESSE D'ARRIVEE EST CELLE QUI COMPTE
+# --------------------------------------------------------------------------
+#
+# MESURE : `dogechain.info` rend 301 vers `dogechain.com`. Suivre la
+# redirection marche, mais la payer a chaque appel serait absurde dans une
+# application — c'est l'adresse d'ARRIVEE qu'on ecrit dans le code, jamais
+# celle du depart.
+#
+# C'est exactement pourquoi la sonde affiche `url_effective` : sans elle on
+# aurait recopie le `.info` dans l'application, et chaque envoi aurait paye
+# un aller-retour de plus sur une connexion lente.
+#
+# LA DIFFUSION EST LA DERNIERE INCONNUE DE CE CANDIDAT. Lire les sorties ne
+# sert a rien si l'on ne peut pas pousser la transaction signee.
 echo "── Services independants ─────────────────────────────────────────────"
-sonder "dogechain / sorties"    "https://dogechain.info/api/v1/address/unspent/$ADRESSE"
-sonder "dogechain / solde"      "https://dogechain.info/api/v1/address/balance/$ADRESSE"
-sonder "sochain / sorties"      "https://chain.so/api/v2/get_tx_unspent/DOGE/$ADRESSE"
+sonder "dogechain / sorties"    "https://dogechain.com/api/v1/address/unspent/$ADRESSE"
+sonder "dogechain / solde"      "https://dogechain.com/api/v1/address/balance/$ADRESSE"
+sonder "dogechain / diffusion (invalide)" \
+       "https://dogechain.com/api/v1/pushtx" POST '{"tx":"00"}'
+# `unspent` d'une adresse, autre forme publiee par la meme maison : si les
+# deux repondent, on prendra la plus bavarde — celle qui porte le script
+# de verrouillage, dont la signature a besoin.
+sonder "dogechain / tx d une adresse" "https://dogechain.com/api/v1/address/transactions/$ADRESSE/1"
+
+# SOCHAIN A RETIRE SA V2, et c'est son propre message qui le dit :
+# « API v2 was retired. Every v2 call has a v3 replacement ». On sonde
+# donc la v3 — qui demande peut-etre une cle, et le code le dira.
+sonder "sochain v3 / sorties"   "https://chain.so/api/v3/unspent_outputs/DOGE/$ADRESSE"
 echo
 
 echo "── Blockchair ────────────────────────────────────────────────────────"
