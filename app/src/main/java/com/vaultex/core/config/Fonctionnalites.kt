@@ -101,4 +101,54 @@ object Fonctionnalites {
     ═══════════════════════════════════════════════════════════════════════
     */
     const val USDT_SOL_ACTIF = true
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE DOGECOIN SE CONSTRUIT, ET IL EST ÉTEINT PENDANT CE TEMPS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Même raison que l'USDT de Solana au-dessus, et la leçon y est déjà
+    écrite : UNE OPTION VISIBLE QUI NE MARCHE PAS EST PIRE QUE PAS
+    D'OPTION. Quelqu'un la choisit PARCE QU'ELLE EST LÀ, et découvre
+    qu'elle ne mène nulle part — au milieu d'une opération d'argent.
+
+    ─── CE QUI EST PRÊT, ET CE QUI NE L'EST PAS ──────────────────────────
+
+    La mécanique est écrite et prouvée hors ligne : l'adresse se dérive des
+    douze mots, une transaction se construit, se signe — vérifié contre une
+    signature réellement publiée sur la chaîne — les pièces se choisissent
+    avec les bons frais, et les deux fournisseurs sont mesurés depuis
+    Ouagadougou.
+
+    CE QUI N'EXISTE PAS : aucun écran d'envoi. Et DEUX FAITS NE SONT PAS
+    VÉRIFIÉS, parce qu'aucun test ne peut les établir — le seuil de
+    poussière, et le fait que BlockCypher accepte une transaction que NOUS
+    fabriquons. Seul un envoi réel les tranchera.
+
+    ─── POURQUOI L'ALLUMER QUAND MÊME, ET DANS CET ORDRE ─────────────────
+
+    Mettre `true` fait apparaître le solde, la fiche et la RÉCEPTION. Pas
+    l'envoi : il n'y a pas d'écran pour ça, et la fiche continue
+    d'afficher « Consultation seulement ».
+
+    C'est délibérément le bon ordre. Recevoir n'engage que soi : on
+    s'envoie un peu de DOGE depuis un exchange, et on voit si le solde
+    apparaît. Ça éprouve la lecture — dogechain, la pagination, la
+    conversion des montants — sans qu'aucun fonds ne puisse partir vers le
+    vide.
+
+    C'EST AUSSI CE QUI REND L'ESSAI D'ENVOI POSSIBLE. On ne peut pas
+    éprouver un envoi sans avoir d'abord reçu quelque chose.
+
+    ─── CE QUE ÇA COÛTE ──────────────────────────────────────────────────
+
+    Un appel à dogechain par rafraîchissement du portefeuille, sur chaque
+    téléphone. Le service annonce 120 requêtes par fenêtre ; c'est le
+    chiffre à surveiller si l'on allume ceci pour les 223.
+
+    Tant que l'essai de réception n'a pas abouti sur un vrai transfert,
+    cette ligne reste `false`.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    const val DOGE_ACTIF = false
 }

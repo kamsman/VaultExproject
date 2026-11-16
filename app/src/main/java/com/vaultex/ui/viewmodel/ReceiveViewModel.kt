@@ -63,7 +63,25 @@ class ReceiveViewModel @Inject constructor(
                     c'est déjà ce dont quelqu'un a besoin pour faire venir
                     ses Pi dans VaultEx.
                     */
-                    "PI" to derived.pi
+                    "PI" to derived.pi,
+                    /*
+                    LE DOGECOIN SUIT EXACTEMENT LE RAISONNEMENT DU PI
+                    ci-dessus : recevoir ne demande qu'une adresse, envoyer
+                    demande une signature et un ecran.
+
+                    La difference est qu'ici la signature EXISTE et est
+                    prouvee — ce qui manque, c'est l'ecran d'envoi et un
+                    vrai transfert d'essai. Proposer la reception d'abord
+                    est donc le bon ordre : elle n'engage que soi, et c'est
+                    elle qui rendra l'essai d'envoi possible, puisqu'on ne
+                    peut pas eprouver un envoi sans avoir recu.
+
+                    CETTE LIGNE NE REND RIEN VISIBLE A ELLE SEULE. L'ecran
+                    Recevoir liste les actifs DETENUS, et aucun actif
+                    Dogecoin n'est construit tant que
+                    `Fonctionnalites.DOGE_ACTIF` vaut false.
+                    */
+                    "DOGE" to derived.doge
                 )
             }
             _state.update { it.copy(addresses = addresses, isLoading = false) }

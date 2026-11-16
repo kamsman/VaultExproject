@@ -611,10 +611,40 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             LaunchedEffect(coinId, supported) {
                 // Inutile de chercher un contrat EVM au Pi : il n'en a pas,
                 // et cet appel ne pourrait que coûter une requête pour rien.
-                if (supported == null && !estPi) viewModel.checkReceivable(coinId)
+                // Ni au Dogecoin : il n'a pas plus de contrat EVM que le Pi.
+                if (supported == null && !estPi && !estDoge) viewModel.checkReceivable(coinId)
             }
             val receiveOnlyKey = receivable?.symbol
-            val transferable = estPi || supported != null || receiveOnlyKey != null
+
+            /*
+            ═══════════════════════════════════════════════════════════════
+            DEUX BOUTONS, DEUX CONDITIONS — ET C'EST LE DOGECOIN QUI
+            L'IMPOSE
+            ═══════════════════════════════════════════════════════════════
+
+            `transferable` gouvernait Envoyer ET Recevoir ensemble. Pour
+            toutes les monnaies vues jusqu'ici c'etait juste : ce qui
+            s'envoie se recoit.
+
+            LE DOGECOIN CASSE CETTE EQUIVALENCE, et c'est voulu. Sa
+            RECEPTION marche — l'adresse se derive des douze mots, et c'est
+            verifie contre deux implementations independantes. Son ENVOI
+            n'a pas d'ecran, et deux faits n'y sont pas verifies : le seuil
+            de poussiere, et qu'un diffuseur accepte une transaction que
+            NOUS fabriquons.
+
+            Les fusionner forcerait a choisir entre deux fautes : ouvrir
+            l'envoi avant qu'il marche, ou fermer la reception qui marche —
+            et la reception est precisement ce qui rendra l'essai d'envoi
+            possible, puisqu'on ne peut pas eprouver un envoi sans avoir
+            recu.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val estDoge = com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF &&
+                (symbol.equals("DOGE", ignoreCase = true) || coinId == "dogecoin")
+
+            val envoyable = estPi || supported != null || receiveOnlyKey != null
+            val recevable = envoyable || estDoge
             /*
             LA VARIANTE DÉTENUE PASSE DEVANT CELLE DU REGISTRE.
 
@@ -634,12 +664,16 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 // cette ligne, les ecrans Envoyer et Recevoir s'ouvriraient
                 // sans monnaie preselectionnee.
                 ?: "PI".takeIf { estPi }
+                // Le Dogecoin non plus n'est dans aucun des trois : sans
+                // cette ligne, l'ecran Recevoir s'ouvrirait sans monnaie
+                // preselectionnee.
+                ?: "DOGE".takeIf { estDoge }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionFiche(
                         Icons.Default.Send, stringResource(R.string.action_send),
-                        plein = true, actif = transferable, modifier = Modifier.weight(1f)
+                        plein = true, actif = envoyable, modifier = Modifier.weight(1f)
                     ) {
                         // C'EST ICI que le jeton entre dans le portefeuille, et
                         // nulle part avant : consulter une fiche ne doit rien y
@@ -654,9 +688,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                     }
                     ActionFiche(
                         Icons.Default.ArrowDownward, stringResource(R.string.action_receive),
-                        plein = false, actif = transferable, modifier = Modifier.weight(1f)
+                        plein = false, actif = recevable, modifier = Modifier.weight(1f)
                     ) {
-                        if (supported == null && !estPi) viewModel.enregistrerPourUsage()
+                        if (supported == null && !estPi && !estDoge) viewModel.enregistrerPourUsage()
                         bufferKey?.let { com.vaultex.core.session.TokenSelectionBuffer.set(it) }
                         navController.navigate(Routes.RECEIVE)
                     }
@@ -697,6 +731,20 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 */
                 estPi -> Text(
                     stringResource(R.string.pi_fiche_limites),
+                    fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
+                    lineHeight = 15.sp
+                )
+                /*
+                MEME RAISON QUE LA BRANCHE DU PI : sans elle, le Dogecoin
+                retomberait sur « consultation seulement » juste sous un
+                bouton Recevoir actif. La phrase contredirait le bouton sur
+                le meme ecran, et c'est elle qu'on croirait.
+
+                Elle dit donc la seule chose vraie ici : on peut recevoir,
+                on ne peut pas encore envoyer ni echanger.
+                */
+                estDoge -> Text(
+                    stringResource(R.string.doge_fiche_limites),
                     fontSize = 11.sp, color = TextSecondary.copy(alpha = 0.8f),
                     lineHeight = 15.sp
                 )
