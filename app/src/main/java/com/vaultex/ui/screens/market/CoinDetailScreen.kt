@@ -606,6 +606,9 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             // qu'on peut consulter sans la detenir.
             val estPi = com.vaultex.core.config.Fonctionnalites.PI_ACTIF &&
                 (symbol.equals("PI", ignoreCase = true) || coinId == "pi-network")
+            val estDoge = com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF &&
+                (symbol.equals("DOGE", ignoreCase = true) || coinId == "dogecoin")
+
             val receivable by viewModel.receivableToken.collectAsState()
             val receivableChecking by viewModel.receivableChecking.collectAsState()
             LaunchedEffect(coinId, supported) {
@@ -640,9 +643,6 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             recu.
             ═══════════════════════════════════════════════════════════════
             */
-            val estDoge = com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF &&
-                (symbol.equals("DOGE", ignoreCase = true) || coinId == "dogecoin")
-
             val envoyable = estPi || supported != null || receiveOnlyKey != null
             val recevable = envoyable || estDoge
             /*
