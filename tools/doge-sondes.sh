@@ -111,11 +111,28 @@
 #                delai depasse a 20 s. Quatre mesures, quatre resultats.
 #                L'intermittence est confirmee, pas levee.
 #
-# ─── LA MESURE QUI MANQUE TOUJOURS ────────────────────────────────────────
+# --------------------------------------------------------------------------
+# CINQUIEME MESURE — LE JETON BLOCKCYPHER MULTIPLIE LE QUOTA PAR CENT
+# --------------------------------------------------------------------------
 #
-# BlockCypher avec un jeton de compte. Le jeton a ete obtenu ; la sonde a
-# tourne en ANONYME — elle l'a dit elle-meme, « (anonyme — quota
-# minimal) » — donc le quota mesure est encore celui d'avant.
+#   anonyme        x-ratelimit-remaining: 1
+#   avec jeton     x-ratelimit-remaining: 99, puis 99, puis 98
+#
+# Le compteur descend d'une unite par requete : la fenetre contient donc
+# une centaine d'appels, la ou l'anonyme en laissait un. C'est mesure, et
+# non lu dans une documentation.
+#
+# CENT APPELS PAR FENETRE, EST-CE ASSEZ ? Ca ne se decide pas ici, mais
+# l'ordre de grandeur se pose : un envoi coute au moins deux appels —
+# lire les sorties, diffuser. Cent appels tiennent donc une cinquantaine
+# d'envois, a condition que RIEN d'autre n'interroge le service. Afficher
+# un solde Dogecoin a chaque ouverture de l'ecran, pour 223 personnes, le
+# viderait avant midi.
+#
+# La conclusion technique est donc : utilisable pour l'ENVOI, pas pour la
+# consultation permanente. Si le solde doit s'afficher en continu, il
+# faudra soit un service payant, soit un cache cote relais — ce dernier
+# etant deja ce que fait le Worker pour les cours.
 #
 # L'argument est une adresse Dogecoin a interroger. Sans lui, la sonde
 # emploie l'adresse du vecteur de test de DogeWalletTest, qui est VIDE.
@@ -306,6 +323,37 @@ if [ "${1:-}" = "--vivante" ]; then
     echo "  Sinon, donnez simplement une adresse en argument."
     ADRESSE="$ADRESSE_TEST"
   fi
+fi
+
+# --------------------------------------------------------------------------
+# UNE ADRESSE QUI N'EN EST PAS UNE DOIT ARRETER LA SONDE
+# --------------------------------------------------------------------------
+#
+# MESURE : un « ~ » colle par le terminal a transforme `--vivante` en
+# `--vivante~`. L'argument n'etant plus reconnu, il est devenu l'adresse a
+# interroger — et la sonde a consciencieusement demande aux fournisseurs
+# des nouvelles d'une adresse nommee « --vivante~ ».
+#
+# Ils ont repondu ce qu'il fallait : « wallet not found », « Invalid
+# request ». Mais dans la colonne, ca se lit comme un echec DU SERVICE,
+# et c'est la pire sortie possible — une sonde qui accuse autrui de sa
+# propre faute de saisie.
+#
+# Une adresse Dogecoin commence par D, fait 34 caracteres, et n'emploie
+# ni 0 ni O ni I ni l. Ce controle ne vaut pas une somme de controle ; il
+# vaut contre une faute de frappe, et c'est de ca qu'il s'agit ici.
+if ! printf '%s' "$ADRESSE" | grep -qE '^D[1-9A-HJ-NP-Za-km-z]{25,33}$'; then
+  echo
+  echo "  « $ADRESSE » n'est pas une adresse Dogecoin."
+  echo
+  echo "  Une adresse Dogecoin commence par D et fait 34 caracteres."
+  echo "  Si vous vouliez passer une option, verifiez qu'aucun caractere"
+  echo "  ne s'y est colle : certains terminaux ajoutent un « ~ » en fin"
+  echo "  de collage, et « --vivante~ » n'est plus « --vivante »."
+  echo
+  echo "  Rien n'a ete mesure : interroger les fournisseurs avec ceci"
+  echo "  ferait passer leurs refus pour des pannes." >&2
+  exit 1
 fi
 
 echo
