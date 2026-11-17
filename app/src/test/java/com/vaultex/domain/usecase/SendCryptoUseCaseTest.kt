@@ -85,6 +85,16 @@ class SendCryptoUseCaseTest {
         com.vaultex.R.string.tx_err_adresse_btc to "tx_err_adresse_btc",
         com.vaultex.R.string.tx_err_adresse_tron to "tx_err_adresse_tron",
         com.vaultex.R.string.tx_err_adresse_solana to "tx_err_adresse_solana",
+        /*
+        LES DEUX RESSOURCES DU DOGECOIN. Les oublier ne casse pas la
+        compilation : `cle()` retombe sur « @id_inconnu_<N> », et le test
+        echoue sur une comparaison dont le message n'explique rien.
+
+        C'est ce qui vient d'arriver, et un balayage des ressources
+        employees par sendDoge a montre qu'il en manquait deux, pas une.
+        */
+        com.vaultex.R.string.tx_err_adresse_doge to "tx_err_adresse_doge",
+        com.vaultex.R.string.tx_err_solde_insuffisant to "tx_err_solde_insuffisant",
         com.vaultex.R.string.tx_err_destination_interdite to "tx_err_destination_interdite",
         com.vaultex.R.string.tx_err_wallet_absent to "tx_err_wallet_absent",
         com.vaultex.R.string.tx_err_token_perso_invalide to "tx_err_token_perso_invalide",
