@@ -166,6 +166,41 @@ class DogeWalletTest {
         assertFalse(DogeWallet.estAdresseValide("DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgA"))
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE VALIDATEUR DE L'APPLICATION DOIT EMPLOYER CE CONTROLE
+    ═══════════════════════════════════════════════════════════════════
+
+    `AddressValidator` retombe par defaut sur « plus de 26 caracteres »,
+    qui accepte presque tout. Tant que le Dogecoin ne s'envoyait pas, ca
+    n'avait pas de consequence ; depuis que `sendDoge` existe, c'est un
+    chemin d'argent.
+
+    Ce test ferme la boucle : il interroge le validateur de
+    l'application, pas DogeWallet directement. Si la branche « DOGE »
+    disparaissait, une adresse d'une autre chaine passerait — et les
+    fonds partiraient a une adresse que personne ne controle.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    @Test
+    fun `le validateur de l application refuse une adresse DOGE fausse`() {
+        val valide = DogeWallet.deriveAddress(graine(ABANDON))
+        assertTrue(
+            com.vaultex.core.validation.AddressValidator.isValid(valide, "DOGE")
+        )
+        for (mauvaise in listOf(
+            "DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgA",          // un caractere change
+            "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",          // Bitcoin
+            "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",          // Tron
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" // Solana
+        )) {
+            assertFalse(
+                "« $mauvaise » aurait du etre refusee pour DOGE",
+                com.vaultex.core.validation.AddressValidator.isValid(mauvaise, "DOGE")
+            )
+        }
+    }
+
     @Test
     fun `une adresse d une autre chaine est refusee`() {
         // Bitcoin hérité (version 0x00), Bitcoin SegWit, Tron, Solana.

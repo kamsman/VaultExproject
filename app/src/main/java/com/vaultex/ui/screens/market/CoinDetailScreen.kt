@@ -643,8 +643,14 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             recu.
             ═══════════════════════════════════════════════════════════════
             */
-            val envoyable = estPi || supported != null || receiveOnlyKey != null
-            val recevable = envoyable || estDoge
+            /*
+            LE DOGECOIN REJOINT L'ENVOI. La separation des deux boutons
+            reste — elle a servi tant que seule la reception marchait — et
+            elle resservira a la prochaine chaine qu'on branchera dans cet
+            ordre.
+            */
+            val envoyable = estPi || estDoge || supported != null || receiveOnlyKey != null
+            val recevable = envoyable
             /*
             LA VARIANTE DÉTENUE PASSE DEVANT CELLE DU REGISTRE.
 
