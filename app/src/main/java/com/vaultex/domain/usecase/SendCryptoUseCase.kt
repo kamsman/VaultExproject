@@ -814,6 +814,22 @@ class SendCryptoUseCase @Inject constructor(
     ═══════════════════════════════════════════════════════════════════════
     */
     suspend fun sendDoge(toAddress: String, unites: Long): Result {
+        /*
+        L'ADRESSE EST VERIFIEE AVANT TOUT LE RESTE, et c'est la convention
+        de ce fichier : les autres chaines court-circuitent AVANT de
+        toucher au portefeuille. Je l'avais placee apres la lecture des
+        pieces, ce qui faisait payer un appel reseau — sur un fournisseur
+        qui annonce cent vingt requetes par fenetre — pour refuser une
+        adresse qu'on pouvait refuser sans bouger.
+
+        `DogeEnvoi.preparer` la verifie de nouveau, et c'est voulu : ce
+        controle-la protege ses propres appelants, celui-ci evite un appel
+        inutile. Aucun des deux n'est de trop.
+        */
+        if (!com.vaultex.core.crypto.DogeWallet.estAdresseValide(toAddress)) {
+            return Result.Error(str(com.vaultex.R.string.tx_err_adresse_doge))
+        }
+
         val mnemonic = secureStorage.getMnemonic()
             ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
         val seed = org.web3j.crypto.MnemonicUtils.generateSeed(

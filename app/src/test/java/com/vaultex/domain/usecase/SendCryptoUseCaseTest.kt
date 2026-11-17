@@ -159,8 +159,38 @@ class SendCryptoUseCaseTest {
 
     // ─── Chaîne non supportée ────────────────────────────────────────
 
+    /*
+    « DOGE » SERVAIT D'EXEMPLE DE CHAINE INCONNUE, et il ne l'est plus :
+    l'envoi Dogecoin est branche. Le test ne mesurait donc plus ce qu'il
+    annoncait — il passait DANS le chemin d'envoi au lieu d'en etre
+    refuse.
+
+    C'est le bon echec : il signale qu'une chaine a change de camp, ce
+    qu'aucune relecture n'aurait rappele. L'exemple devient « LTC », qui
+    n'est branche nulle part.
+    */
     @Test fun `chaine inconnue rejetee`() = runBlocking {
-        assertEquals("@tx_err_chaine_non_supportee", message(useCase.sendByChain("DOGE", validEvm, "1.0")))
+        assertEquals("@tx_err_chaine_non_supportee", message(useCase.sendByChain("LTC", validEvm, "1.0")))
+    }
+
+    /*
+    ET LE DOGECOIN EST DESORMAIS CONNU, avec son propre controle
+    d'adresse. Ce test vaut double : il prouve que la branche existe, et
+    que l'adresse est refusee AVANT toute lecture reseau — le depot
+    simule ne doit jamais etre sollicite ici.
+    */
+    @Test fun `doge adresse invalide`() = runBlocking {
+        assertEquals(
+            "@tx_err_adresse_doge",
+            message(useCase.sendByChain("DOGE", validEvm, "1.0"))
+        )
+    }
+
+    @Test fun `doge montant invalide`() = runBlocking {
+        assertEquals(
+            "@tx_err_montant_invalide",
+            message(useCase.sendByChain("DOGE", "DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC", "abc"))
+        )
     }
 
     // ─── Adresse invalide (montant valide, court-circuit avant SecureStorage) ──
