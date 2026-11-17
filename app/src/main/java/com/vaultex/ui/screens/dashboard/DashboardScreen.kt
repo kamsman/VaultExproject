@@ -1712,8 +1712,6 @@ private fun PortfolioDonutCard(tokensBruts: List<TokenBalance>) {
 
 /* ───────────────────── Composants du modèle (en-tête / marché / activité) ───────────────────── */
 
-/** Bouton carré arrondi (scan · cloche · réglages). */
-@Composable
 /**
  * Le bouton du scanner — motif blanc, équerres bleues.
  *
@@ -1798,6 +1796,8 @@ private fun BoutonScanner(onClick: () -> Unit) {
     }
 }
 
+/** Bouton carré arrondi (scan · cloche · réglages). */
+@Composable
 private fun HeaderSquareButton(
     icon: ImageVector,
     /**
