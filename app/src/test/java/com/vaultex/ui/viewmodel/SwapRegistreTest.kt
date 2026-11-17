@@ -105,23 +105,65 @@ class SwapRegistreTest {
     }
 
     /*
-    L'ERREUR QU'ON A FAILLI FAIRE : rendre l'adresse Ethereum pour le
-    Dogecoin. Les deux sont des chaînes non vides et bien formées ; seule
-    leur DIFFÉRENCE prouve que le branchement est le bon. Un test qui
-    vérifierait seulement « non vide » passerait aussi avec le défaut.
+    ═══════════════════════════════════════════════════════════════════
+    L'ERREUR QU'ON A FAILLI FAIRE : L'ADRESSE ETHEREUM POUR LE DOGECOIN
+    ═══════════════════════════════════════════════════════════════════
+
+    C'est ce que faisait l'ancien `else -> addresses.eth`. Les deux
+    adresses sont non vides et bien formées ; seule leur DIFFÉRENCE prouve
+    que le branchement est le bon. Un test qui vérifierait « non vide »
+    passerait aussi avec le défaut.
+
+    ─── CE TEST A D'ABORD ÉTÉ ÉCRIT FAUX ──────────────────────────────
+
+    Il exigeait SIX adresses distinctes pour six chaînes. Il y en a cinq,
+    et c'est correct : `deriveAddresses` appelle
+    `deriveEvmAddress(seed, coinType = 60)` pour ETH **et** pour BNB.
+    BNB Chain partage le coin_type d'Ethereum, donc la même phrase donne
+    la même adresse sur les deux — ce n'est pas un défaut, c'est le
+    standard, et c'est aussi pour cela que l'USDT-BNB et l'USDT-ETH se
+    reçoivent au même endroit.
+
+    J'avais écrit « six » sans le vérifier. Le fichier qui dérive les
+    adresses le dit en commentaire, à la ligne même.
+
+    D'où la forme ci-dessous : l'égalité ETH = BNB est ÉPINGLÉE au lieu
+    d'être contournée. Si quelqu'un donnait un jour à BNB un chemin
+    distinct, ce test tomberait — et il devrait, parce que les soldes
+    BEP-20 déjà reçus seraient devenus inatteignables.
+    ═══════════════════════════════════════════════════════════════════
     */
     @Test
-    fun `les six chaines rendent six adresses distinctes`() {
+    fun `chaque chaine rend sa propre adresse et pas celle d une autre`() {
         val parChaine = listOf("BTC", "ETH", "BNB", "SOL", "TRX", "DOGE")
             .associateWith { SwapViewModel.adressePour(adresses, it) }
         for ((chaine, adresse) in parChaine) {
             assertNotNull("« $chaine » sans adresse", adresse)
         }
-        val distinctes = parChaine.values.toSet()
+
+        // ETH et BNB : même coin_type EVM, donc une seule adresse pour deux.
         assertEquals(
-            "deux chaînes partagent une adresse : $parChaine",
-            parChaine.size, distinctes.size
+            "BNB Chain partage le coin_type 60 d'Ethereum",
+            parChaine["ETH"], parChaine["BNB"]
         )
+
+        // Tout le reste doit être deux à deux différent — cinq valeurs.
+        assertEquals(
+            "des chaînes distinctes partagent une adresse : $parChaine",
+            5, parChaine.values.toSet().size
+        )
+
+        /*
+        ET LE DOGECOIN EN PARTICULIER, puisque c'est lui que l'ancien repli
+        aurait confondu. Nommément, pour que l'échec dise quoi chercher.
+        */
+        for (autre in listOf("BTC", "ETH", "BNB", "SOL", "TRX")) {
+            assertFalse(
+                "l'adresse DOGE est identique à celle de « $autre » — " +
+                    "c'est exactement ce que faisait « else -> addresses.eth »",
+                parChaine["DOGE"] == parChaine[autre]
+            )
+        }
     }
 
     /*
