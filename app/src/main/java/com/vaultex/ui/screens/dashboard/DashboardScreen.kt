@@ -539,7 +539,7 @@ fun DashboardScreen(navController: NavHostController) {
                         navController.navigate(Routes.ASSISTANCE)
                     }
                     Spacer(Modifier.weight(1f))
-                    HeaderSquareButton(Icons.Default.QrCodeScanner) { navController.navigate(Routes.SCANNER) }
+                    BoutonScanner { navController.navigate(Routes.SCANNER) }
                     BadgedBox(
                         badge = {
                             if (unreadNotifs > 0) Badge(containerColor = Color(0xFFE53935), contentColor = Color.White) {
@@ -1714,6 +1714,90 @@ private fun PortfolioDonutCard(tokensBruts: List<TokenBalance>) {
 
 /** Bouton carré arrondi (scan · cloche · réglages). */
 @Composable
+/**
+ * Le bouton du scanner — motif blanc, équerres bleues.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DEUX COULEURS DANS UNE ICÔNE, CE QU'UN `tint` NE SAIT PAS FAIRE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * `Icons.Default.QrCodeScanner` porte déjà ses équerres, mais c'est UN
+ * seul tracé : il prend une couleur et une seule. Les équerres et le
+ * motif sortaient donc du même gris que le scanner et la cloche, et rien
+ * ne disait qu'on vise quelque chose.
+ *
+ * On sépare les deux : le motif reste une icône Material — net à toutes
+ * les densités, aucun fichier ajouté — et les quatre équerres sont
+ * TRACÉES par-dessus, dans l'accent. C'est le viseur d'un appareil photo,
+ * et c'est ce que le geste veut dire.
+ *
+ * ─── POURQUOI DES TRAITS PLUTÔT QU'UNE SECONDE ICÔNE ──────────────────
+ *
+ * Aucune icône Material ne porte un cadre d'angles seul. En superposer
+ * deux obligerait à les aligner au pixel près, et l'alignement dépendrait
+ * de leurs marges internes respectives — invisibles, et différentes d'une
+ * version de la bibliothèque à l'autre.
+ *
+ * Quatre traits se placent par rapport au carré qui les contient. Rien à
+ * deviner, rien à réajuster quand la taille change.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+@Composable
+private fun BoutonScanner(onClick: () -> Unit) {
+    val accent = AccentBlue
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = com.vaultex.ui.theme.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.size(40.dp)
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(21.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    /*
+                    TOUT EST EXPRIMÉ EN FRACTION DU CÔTÉ, pas en pixels :
+                    le dessin suit la taille du carré sans qu'aucune
+                    valeur ne soit à reprendre si elle change.
+                    */
+                    val cote = size.minDimension
+                    val trait = cote * 0.105f
+                    val bras = cote * 0.30f
+                    // Le tracé déborde de la moitié de son épaisseur : on
+                    // rentre d'autant pour que les équerres restent dans le
+                    // carré au lieu d'être rognées.
+                    val m = trait / 2f
+                    // Haut-gauche, haut-droite, bas-gauche, bas-droite.
+                    for ((dx, sx) in listOf(m to 1f, (cote - m) to -1f)) {
+                        for ((dy, sy) in listOf(m to 1f, (cote - m) to -1f)) {
+                            drawLine(
+                                accent,
+                                androidx.compose.ui.geometry.Offset(dx, dy),
+                                androidx.compose.ui.geometry.Offset(dx + sx * bras, dy),
+                                strokeWidth = trait,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            drawLine(
+                                accent,
+                                androidx.compose.ui.geometry.Offset(dx, dy),
+                                androidx.compose.ui.geometry.Offset(dx, dy + sy * bras),
+                                strokeWidth = trait,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
+                    }
+                }
+                Icon(
+                    Icons.Default.QrCode,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+    }
+}
+
 private fun HeaderSquareButton(
     icon: ImageVector,
     /**
