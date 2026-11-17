@@ -40,6 +40,7 @@ class SendCryptoUseCase @Inject constructor(
     private val bitcoinApi: BitcoinApi,
     private val solanaRpc: SolanaRpcApi,
     private val tronApi: TronApi,
+    private val dogeDepot: com.vaultex.core.tx.DogeDepot,
     @dagger.hilt.android.qualifiers.ApplicationContext
     private val appContext: android.content.Context
 ) {
@@ -67,6 +68,43 @@ class SendCryptoUseCase @Inject constructor(
         com.vaultex.core.session.LocaleManager.wrap(appContext).getString(id, *args)
 
     companion object {
+        /*
+        ═══════════════════════════════════════════════════════════════
+        LE TARIF DOGECOIN EST MESURE, PAS RECITE — ET ON PAIE LE DOUBLE
+        ═══════════════════════════════════════════════════════════════
+
+        MESURE le 16 novembre 2026 sur dix transactions d'un bloc, avec
+        `tools/doge-frais.sh` : la moins chere a paye 1 004 unites par
+        octet — soit 0,0100 DOGE par kilo-octet, le minimum historique —
+        ET ELLE ETAIT DANS LE BLOC, donc acceptee.
+
+        Les huit autres payaient des forfaits ronds, jusqu'a UN DOGE pour
+        225 octets. C'est du surpaiement par d'autres portefeuilles, pas
+        une exigence du reseau : suivre leur mediane ferait payer
+        vingt-sept fois le necessaire.
+
+        ON DOUBLE QUAND MEME. Pas parce que le minimum ne suffirait pas,
+        mais parce qu'un reseau charge un autre jour le ferait monter, et
+        qu'une transaction sous-payee NE LEVE AUCUNE ERREUR : elle reste
+        en attente, et l'utilisateur ne comprend pas pourquoi. La marge
+        coute environ deux milliemes de DOGE sur un envoi ordinaire.
+
+        A REMESURER avec le meme outil si des envois tardent.
+        */
+        const val DOGE_UNITES_PAR_OCTET = 2_008L
+
+        /*
+        LE SEUIL DE POUSSIERE N'EST PAS VERIFIE, et c'est dit ici plutot
+        que suppose ailleurs. 0,01 DOGE est la valeur couramment citee, et
+        c'est aussi le montant des pieces qu'on a observees sur la chaine.
+
+        Trop bas, une sortie de rendu serait refusee par le reseau. Trop
+        haut, un rendu legitime partirait aux frais. Seul un envoi reel le
+        tranchera — c'est l'une des deux inconnues que la premiere
+        transaction doit lever.
+        */
+        const val DOGE_SEUIL_POUSSIERE = 1_000_000L
+
         const val USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
         const val USDT_ERC20_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
         const val USDT_BEP20_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
@@ -315,6 +353,22 @@ class SendCryptoUseCase @Inject constructor(
                     BigDecimal(amount).multiply(BigDecimal("1000000000")).toLong()
                 } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
                 sendSol(toAddress = toAddress, lamports = lamports)
+            }
+            /*
+            LE DOGECOIN PASSE PAR LE MEME POINT D'ENTREE QUE LES AUTRES, et
+            c'est tout l'interet : il herite sans rien ecrire du controle
+            des destinations a perte certaine, de la protection contre
+            l'empoisonnement d'adresse, du formulaire, de la confirmation
+            et de l'historique.
+
+            Ecrire un ecran a part aurait voulu dire refaire ces quatre
+            protections, ou les oublier.
+            */
+            "DOGE" -> {
+                val unites = try {
+                    BigDecimal(amount).multiply(BigDecimal("100000000")).toLong()
+                } catch (_: Exception) { return Result.Error(str(com.vaultex.R.string.tx_err_montant_invalide)) }
+                sendDoge(toAddress = toAddress, unites = unites)
             }
             "USDT" -> sendUsdtTrc20(toAddress = toAddress, amountUsdt = amount)
             /*
@@ -719,6 +773,103 @@ class SendCryptoUseCase @Inject constructor(
     }
 
     // ─── TRON (TRX natif) — flux : Créer → Signer → Broadcast → Hash ──
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ENVOI DOGECOIN — LA PREMIERE FOIS QUE CETTE CHAINE SORT DES TESTS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Cinq briques prouvees separement s'enchainent ici : DogeDepot lit les
+    pieces chez dogechain, DogeSelection choisit lesquelles depenser et
+    calcule les frais, DogeTransaction serialise, DogeSigner signe, et
+    DogeDepot pousse chez BlockCypher.
+
+    AUCUN SERVICE GRATUIT MESURE NE FAIT LES DEUX. Dogechain pagine et
+    donne le solde mais ne diffuse pas ; BlockCypher diffuse et c'est le
+    seul. Separer les deux roles n'est pas une complication : lire arrive a
+    chaque ecran, diffuser une fois par envoi.
+
+    ─── LE TARIF, ET POURQUOI IL EST DOUBLE ──────────────────────────────
+
+    MESURE le 16 novembre sur dix transactions d'un bloc : la moins chere a
+    paye 1 004 unites par octet — 0,0100 DOGE par kilo-octet, le minimum
+    historique — ET ELLE ETAIT DANS LE BLOC, donc acceptee.
+
+    On paie le DOUBLE. Pas parce que le minimum ne suffirait pas, mais
+    parce qu'un reseau charge un autre jour le ferait monter, et qu'une
+    transaction sous-payee ne leve aucune erreur : elle reste en attente, et
+    l'utilisateur ne comprend pas pourquoi. La marge coute environ deux
+    milliemes de DOGE sur un envoi ordinaire — moins qu'un centieme de
+    centime.
+
+    ─── CE QUI N'EST PAS PROUVE, ET NE L'EST QU'EN ENVOYANT ──────────────
+
+    Que le reseau accepte une transaction que NOUS fabriquons. BlockCypher
+    refuse proprement un corps invalide en nommant le defaut, donc il
+    analyse — pas qu'il relaie. Et le seuil de poussiere ci-dessous est
+    pose, pas verifie.
+
+    Le premier envoi reel tranchera les deux, et c'est pour ca que le
+    message d'erreur du diffuseur est remonte tel quel plutot qu'avale.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    suspend fun sendDoge(toAddress: String, unites: Long): Result {
+        val mnemonic = secureStorage.getMnemonic()
+            ?: return Result.Error(str(com.vaultex.R.string.tx_err_wallet_absent))
+        val seed = org.web3j.crypto.MnemonicUtils.generateSeed(
+            mnemonic, secureStorage.getPassphrase()
+        )
+        val adresse = com.vaultex.core.crypto.DogeWallet.deriveAddress(seed)
+
+        /*
+        ON NE LIT QUE CE QU'IL FAUT. Le plafond arrete le parcours des
+        pages des qu'il y a de quoi couvrir le montant et ses frais :
+        inutile d'en lire cinquante pour en depenser deux, sur un
+        fournisseur qui annonce cent vingt requetes par fenetre.
+
+        La marge grossiere — le montant plus un dixieme — evite de
+        rappeler une page de plus quand les frais font juste basculer.
+        */
+        val pieces = dogeDepot.pieces(
+            adresse,
+            plafondUnites = unites + unites / 10 + 1_000_000L,
+        )
+        if (pieces.isEmpty()) {
+            return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
+        }
+
+        val pret = com.vaultex.core.tx.DogeEnvoi.preparer(
+            seed = seed,
+            destinataire = toAddress,
+            unites = unites,
+            pieces = pieces,
+            unitesParOctet = DOGE_UNITES_PAR_OCTET,
+            seuilPoussiere = DOGE_SEUIL_POUSSIERE,
+        )
+
+        when (pret) {
+            is com.vaultex.core.tx.DogeEnvoi.Resultat.AdresseInvalide ->
+                return Result.Error(str(com.vaultex.R.string.tx_err_adresse_doge))
+            is com.vaultex.core.tx.DogeEnvoi.Resultat.Refus ->
+                return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
+            is com.vaultex.core.tx.DogeEnvoi.Resultat.Ok -> {
+                /*
+                LE MESSAGE DU DIFFUSEUR EST REMONTE TEL QUEL. C'est le seul
+                endroit ou l'on apprendra, au premier envoi reel, si
+                BlockCypher accepte une transaction que nous fabriquons.
+                L'avaler derriere un message generique reviendrait a jeter
+                la seule information qu'on attend.
+                */
+                return when (val d = dogeDepot.diffuser(pret.pret.hex)) {
+                    is com.vaultex.core.tx.DogeDepot.Diffusion.Ok -> Result.Success(d.txid)
+                    is com.vaultex.core.tx.DogeDepot.Diffusion.Refus ->
+                        Result.Error(d.raison.take(160))
+                    is com.vaultex.core.tx.DogeDepot.Diffusion.Injoignable ->
+                        Result.Error(d.raison.take(160))
+                }
+            }
+        }
+    }
 
     suspend fun sendTrx(toAddress: String, amountSun: Long): Result {
         if (!AddressValidator.isValidTron(toAddress)) return Result.Error(str(com.vaultex.R.string.tx_err_adresse_tron))

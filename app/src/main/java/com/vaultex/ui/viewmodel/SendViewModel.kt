@@ -225,6 +225,7 @@ class SendViewModel @Inject constructor(
                 val a = com.vaultex.core.crypto.WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
                 when (chain) {
                     "BTC" -> a.btc; "ETH" -> a.eth; "BNB" -> a.bnb; "SOL" -> a.sol; "TRX" -> a.trx
+                    "DOGE" -> a.doge
                     else -> ""
                 }
             } catch (_: Exception) { "" }

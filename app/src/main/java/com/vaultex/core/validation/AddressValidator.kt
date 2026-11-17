@@ -35,6 +35,17 @@ object AddressValidator {
         dépendra.
         */
         "PI"         -> com.vaultex.core.crypto.PiWallet.adresseValide(address)
+        /*
+        MEME RAISON QUE LES DEUX BRANCHES AU-DESSUS, et maintenant sur un
+        chemin d'argent : sans elle, « DOGE » tombait sur la regle par
+        defaut — plus de 26 caracteres — qui accepte presque tout.
+
+        `estAdresseValide` verifie l'octet de version ET la somme de
+        controle. C'est le seul controle capable de refuser une adresse
+        recopiee a la main avec un caractere faux : elle garde sa
+        longueur, son « D » et son alphabet, et seule la somme la demasque.
+        */
+        "DOGE"       -> com.vaultex.core.crypto.DogeWallet.estAdresseValide(address)
         else         -> address.length >= 26
     }
 
