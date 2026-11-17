@@ -532,7 +532,10 @@ fun DashboardScreen(navController: NavHostController) {
                     image JPEG aurait pose un carre blanc sur un fond
                     sombre, faute de transparence.
                     */
-                    HeaderSquareButton(Icons.Default.SupportAgent) {
+                    HeaderSquareButton(
+                        Icons.Default.SupportAgent,
+                        pastille = com.vaultex.ui.theme.AccentGreen,
+                    ) {
                         navController.navigate(Routes.ASSISTANCE)
                     }
                     Spacer(Modifier.weight(1f))
@@ -1711,7 +1714,29 @@ private fun PortfolioDonutCard(tokensBruts: List<TokenBalance>) {
 
 /** Bouton carré arrondi (scan · cloche · réglages). */
 @Composable
-private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
+private fun HeaderSquareButton(
+    icon: ImageVector,
+    /**
+     * Pastille posée DANS le carré, ou `null` pour aucune.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * DEDANS, PAS À CHEVAL SUR LE BORD
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * La façon habituelle de poser un indicateur est de le faire déborder
+     * du coin — c'est ce que fait `BadgedBox`, juste à côté, pour le
+     * compteur de notifications. Ça marche sur une icône seule ; sur un
+     * carré bordé, le débordement coupe la bordure et le point flotte
+     * entre deux boutons.
+     *
+     * Il est donc posé À L'INTÉRIEUR, avec assez de marge pour ne pas
+     * toucher le coin arrondi. Le symbole, lui, n'est pas touché : il
+     * reste centré et à sa taille.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    pastille: Color? = null,
+    onClick: () -> Unit,
+) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -1719,8 +1744,28 @@ private fun HeaderSquareButton(icon: ImageVector, onClick: () -> Unit) {
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = Modifier.size(40.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(19.dp))
+            if (pastille != null) {
+                /*
+                UN LISERÉ DE LA COULEUR DU CARRÉ sépare la pastille du
+                symbole. Sans lui, le point se confond avec le trait de
+                l'icône dès qu'ils se touchent — et sur un écran de
+                téléphone, quatre pixels suffisent à rendre les deux
+                illisibles.
+                */
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(com.vaultex.ui.theme.Surface)
+                        .padding(1.dp)
+                        .clip(CircleShape)
+                        .background(pastille)
+                )
+            }
         }
     }
 }
