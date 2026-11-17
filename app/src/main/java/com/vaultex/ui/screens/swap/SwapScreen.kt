@@ -57,6 +57,7 @@ import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.BorderColor
 import com.vaultex.ui.theme.NetworkBnb
 import com.vaultex.ui.theme.NetworkBtc
+import com.vaultex.ui.theme.NetworkDoge
 import com.vaultex.ui.theme.NetworkEth
 import com.vaultex.ui.theme.NetworkSol
 import com.vaultex.ui.theme.NetworkTrx
@@ -96,6 +97,7 @@ private fun tokenColor(token: String): Color = when (token.uppercase()) {
     "BNB" -> NetworkBnb
     "SOL" -> NetworkSol
     "TRX", "USDT" -> NetworkTrx
+    "DOGE" -> NetworkDoge
     else -> SwapPurple
 }
 
@@ -2612,6 +2614,7 @@ private fun swapFullName(key: String): String = when (SwapViewModel.assetOf(key)
     "TRX" -> "Tron"; "USDT" -> "Tether USD"; "USDC" -> "USD Coin"; "DAI" -> "Dai Stablecoin"
     "LINK" -> "Chainlink"; "SHIB" -> "Shiba Inu"; "PEPE" -> "Pepe"; "UNI" -> "Uniswap"
     "AAVE" -> "Aave"; "WBTC" -> "Wrapped Bitcoin"; "CAKE" -> "PancakeSwap"
+    "DOGE" -> "Dogecoin"
     else -> SwapViewModel.assetOf(key).base
 }
 

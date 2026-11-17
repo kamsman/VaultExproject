@@ -165,6 +165,36 @@ class FournisseurChangeNow @Inject constructor(
         */
         "USDT-SOL" -> "usdtsol"
         "BNB"      -> "bnbbsc"
+        /*
+        LE DOGECOIN N'A PAS DE LIGNE ICI, ET C'EST DÉLIBÉRÉ.
+
+        Le repli rend « doge », qui est le bon ticker CHEZ SIMPLESWAP —
+        vérifié contre leur catalogue, 12 correspondances sur 3215 lues.
+        Chez ChangeNOW, personne ne l'a vérifié : leur catalogue n'est pas
+        joignable d'où ce code a été écrit, et le paragraphe de l'USDT
+        Solana juste au-dessus raconte ce que coûte de supposer que les
+        deux maisons écrivent pareil.
+
+        Écrire « DOGE -> doge » ici ne vérifierait rien ; ça donnerait
+        seulement à une valeur non contrôlée l'apparence d'une valeur
+        contrôlée, au milieu de quatre lignes qui, elles, le sont. Le repli
+        fait exactement la même chose en l'annonçant.
+
+        ─── CE QU'IL FAUDRAIT CONTRÔLER, LE JOUR OÙ ────────────────────
+
+        Pas « est-ce que doge existe » — mais « est-ce qu'il existe chez
+        eux un deuxième candidat plus tentant ». Chez SimpleSwap le piège
+        n'était pas un ticker manquant : c'était « dogecoin », qui a l'air
+        plus juste que « doge » et qui désigne un memecoin de BNB Chain
+        portant un contrat. Un catalogue qui contient l'un contient
+        souvent l'autre.
+
+        SANS DANGER EN ATTENDANT : un ticker refusé fait échouer le devis,
+        et il n'y a pas d'adresse de dépôt sans devis. Ce qu'on risque est
+        une paire sans cours, pas des fonds perdus. Le symptôme à
+        reconnaître est décrit plus haut — « Not Found » SANS minimum
+        affiché, l'écran disant ChangeNOW.
+        */
         else       -> token.lowercase()
     }
 

@@ -220,6 +220,57 @@ class SwapViewModel @Inject constructor(
             SwapAsset("CAKE", "CAKE", "BEP20", "BNB Chain (BEP20)", "cake", "BNB",
                 "ERC20:BNB:0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82:18",
                 contract = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals = 18)
+        ) + listOfNotNull(
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE DOGECOIN MANQUAIT ICI, ET C'EST LE MÊME OUBLI QUE L'USDT-SOL
+            ═══════════════════════════════════════════════════════════════
+
+            Le chantier Dogecoin a branché la dérivation, la lecture des
+            pièces, la signature, l'envoi, la réception et le validateur
+            d'adresse. Pas ce registre — qui est la SEULE liste que l'écran
+            de change consulte. Le commentaire de l'USDT-SOL, vingt lignes
+            plus haut, décrit exactement ce mode de panne ; il s'est
+            reproduit sur la monnaie suivante.
+
+            ─── LE TICKER EST « doge », ET LE PIÈGE EST INHABITUEL ────────
+
+                tools/simpleswap-ticker.sh doge
+
+                doge       Dogecoin        doge  (aucun contrat)
+                dogecoin   Buff Doge Coin  bsc   0x23125108...
+
+            La ligne de résumé dit « 12 monnaies sur 3215 » : le catalogue
+            entier a été lu, donc ces douze sont bien TOUTES les
+            correspondances, et aucun meilleur candidat n'est resté caché.
+
+            CE QUI REND CE CAS DIFFÉRENT des autres pièges de cette table :
+            d'habitude le mauvais ticker a l'air faux (« usdtbsc » qui
+            n'existe pas). Ici le mauvais ticker a l'air PLUS JUSTE que le
+            bon. Quelqu'un qui « précise » `dogecoin` en trouvant `doge`
+            trop court tombe sur un memecoin de BNB Chain.
+
+            L'absence de contrat n'est pas un manque : une monnaie native
+            n'en a pas, pas plus que BTC ou ETH. C'est le contraire qui
+            aurait dû alerter.
+
+            Le ticker ne vient pas d'ici mais de la table de
+            [FournisseurSimpleSwap] — le champ `cn` de ce registre n'est lu
+            par rien, comme dit sa propre documentation. Les deux portent
+            « doge » quand même, pour qu'une relecture ne voie pas deux
+            valeurs différentes et ne cherche pas laquelle gagne.
+
+            ─── SOUS LE MÊME INTERRUPTEUR QUE LE RESTE ────────────────────
+
+            `DOGE_ACTIF` à false, l'actif n'apparaît pas dans le sélecteur,
+            et `SWAPPABLE_SYMBOLS` — qui se calcule à partir de cette
+            liste — ne porte pas le badge « Échangeable » dans le Marché.
+            Proposer un échange vers une monnaie qu'on ne sait ni recevoir
+            ni envoyer enverrait des fonds dans un écran désactivé.
+            ═══════════════════════════════════════════════════════════════
+            */
+            SwapAsset("DOGE", "DOGE", "Dogecoin", "Dogecoin", "doge", "DOGE", "DOGE")
+                .takeIf { com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF }
         )
 
         /**
@@ -229,6 +280,36 @@ class SwapViewModel @Inject constructor(
          * mille fois moins que la précision de ce que l'écran affiche.
          */
         private val STABLES_DOLLAR = setOf("USDT", "USDC", "DAI", "BUSD")
+
+        /**
+         * Adresse de notre portefeuille sur une chaîne du registre, ou null
+         * si cette chaîne n'en a pas.
+         *
+         * ─── POURQUOI CE N'EST PLUS UNE FONCTION LOCALE ────────────────
+         *
+         * Elle vivait dans le corps de la coroutine de création d'échange,
+         * donc hors d'atteinte de tout test — et elle rendait
+         * `addresses.eth` pour une chaîne inconnue. Le commentaire posé à
+         * l'endroit de l'appel raconte ce que ça aurait fait du Dogecoin ;
+         * remontée ici, la règle devient vérifiable, et [SwapRegistreTest]
+         * la vérifie pour CHAQUE actif du registre au lieu de la décrire.
+         *
+         * C'est tout l'écart entre un commentaire et un test : le
+         * commentaire aurait été lu après coup, le test refuse de compiler
+         * un registre incohérent.
+         */
+        fun adressePour(
+            adresses: com.vaultex.core.crypto.WalletManager.WalletAddresses,
+            chaine: String
+        ): String? = when (chaine) {
+            "ETH"  -> adresses.eth
+            "BNB"  -> adresses.bnb
+            "BTC"  -> adresses.btc
+            "SOL"  -> adresses.sol
+            "TRX"  -> adresses.trx
+            "DOGE" -> adresses.doge
+            else   -> null
+        }
 
         fun assetOf(key: String): SwapAsset =
             SWAP_ASSETS.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SWAP_ASSETS[0]
@@ -1242,19 +1323,53 @@ class SwapViewModel @Inject constructor(
                     return@launch
                 }
                 val addresses = withContext(Dispatchers.IO) { WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase()) }
-                fun addrFor(chain: String) = when (chain) {
-                    "ETH" -> addresses.eth
-                    "BNB" -> addresses.bnb
-                    "BTC" -> addresses.btc
-                    "SOL" -> addresses.sol
-                    "TRX" -> addresses.trx
-                    else  -> addresses.eth
-                }
+                /*
+                ═══════════════════════════════════════════════════════════
+                « else -> addresses.eth » ÉTAIT UN CHEMIN D'ARGENT MUET
+                ═══════════════════════════════════════════════════════════
+
+                Cette branche existait pour satisfaire le compilateur : les
+                cinq chaînes du registre étaient couvertes, et le repli ne
+                servait jamais. Il devait servir à la sixième.
+
+                CE QUE L'ANCIEN REPLI AURAIT FAIT DU DOGECOIN : `toAddress`
+                est l'adresse où le courtier VERSE la monnaie reçue. Avec
+                `chain = "DOGE"` non couvert, cette adresse devenait notre
+                adresse Ethereum — un « 0x… » donné comme adresse de
+                destination Dogecoin. Et `refundAddress`, l'adresse de
+                remboursement en cas d'échange échoué, pareil.
+
+                SimpleSwap refuserait probablement un « 0x… » pour du DOGE,
+                et dans ce cas rien ne partirait. Mais « probablement » est
+                le mot qui n'a pas sa place ici : ce repli ne protège de
+                rien et se contente de rendre une adresse FAUSSE mais bien
+                formée, que plus personne ne questionne en aval.
+
+                Un actif dont on ne sait pas calculer l'adresse n'est pas
+                échangeable, et c'est ce que dit maintenant le message. Le
+                silence coûte plus cher que le refus : une paire indisponible
+                se voit, une mauvaise adresse ne se voit qu'après.
+                ═══════════════════════════════════════════════════════════
+                */
+                fun addrFor(chain: String): String? = adressePour(addresses, chain)
                 val toAddress = addrFor(assetOf(s.toToken).chain)
                 // Adresse de REMBOURSEMENT = notre adresse sur la chaîne source.
                 // Sans elle, un swap échoué/expiré côté ChangeNOW laisse les
                 // fonds chez eux (récupération uniquement via leur support).
                 val refundAddress = addrFor(assetOf(s.fromToken).chain)
+                if (toAddress == null || refundAddress == null) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = str(
+                                com.vaultex.R.string.swap_msg_pair_unavailable,
+                                assetOf(s.fromToken).base,
+                                assetOf(s.toToken).base
+                            )
+                        )
+                    }
+                    return@launch
+                }
 
                 /*
                 Le minimum vient du fournisseur, et peut être ABSENT.

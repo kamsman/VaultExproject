@@ -255,6 +255,29 @@ class FournisseurSimpleSwap @Inject constructor(
         "BNB"      -> "bnb-bsc"    // trait d'union ; « bnb » seul = Beacon Chain
         "SOL"      -> "sol"
         "TRX"      -> "trx"
+        /*
+        « DOGECOIN » EST LE MAUVAIS, « DOGE » EST LE BON.
+
+        Le pavé du dessus dit qu'un ticker inventé finit par désigner autre
+        chose. Ici il n'y a même pas besoin de l'inventer : le catalogue
+        porte LES DEUX, et c'est le plus explicite qui est faux.
+
+            tools/simpleswap-ticker.sh doge   (12 lignes sur 3215 lues)
+
+            doge       Dogecoin        doge  (aucun contrat)
+            dogecoin   Buff Doge Coin  bsc   0x23125108bc4c63E4677b2E253Fa498cCb4B3298b
+
+        L'absence de contrat sur la première ligne est la marque d'une
+        monnaie native, comme btc et eth plus haut. La seconde porte un
+        contrat BNB Chain : c'est un jeton, et pas celui qu'on croit.
+
+        Cette ligne ne change pourtant RIEN au comportement : le repli
+        `token.lowercase()` rendait déjà « doge ». Elle est écrite parce que
+        ce repli avait raison par hasard, et que le hasard ne se relit pas.
+        Un correctif du repli — y ajouter un suffixe de réseau, par
+        exemple — l'emporterait sans que personne y pense.
+        */
+        "DOGE"     -> "doge"       // et non « dogecoin » : memecoin BSC
         // Tether — trois jetons distincts sur trois chaînes
         "USDT"     -> "usdttrc20"  // notre USDT = Tron
         "USDT-ETH" -> "usdterc20"
