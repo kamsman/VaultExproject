@@ -1371,6 +1371,33 @@ class SendCryptoUseCase @Inject constructor(
                 ?: identiques(0.3)
             "USDT" -> runCatching { fraisTron(true, adresseTron) }.getOrNull() ?: identiques(27.0)
             "USDT-SOL" -> fraisUsdtSolana(destinationSolana)
+            /*
+            ═══════════════════════════════════════════════════════════
+            LES FRAIS DOGECOIN SE CALCULENT, ILS NE SE DEMANDENT PAS
+            ═══════════════════════════════════════════════════════════
+
+            Sur une chaine UTXO ils ne dependent pas du montant mais de
+            la TAILLE de la transaction, donc du nombre de pieces a
+            reunir. Aucun service n'a besoin d'etre interroge : c'est le
+            meme calcul que fait DogeSelection au moment d'envoyer.
+
+            ATTENDU : une entree et deux sorties, le cas courant.
+            PLAFOND : trois entrees, qui couvre un portefeuille rempli en
+            plusieurs fois. Au-dela, le bouton MAX reserverait trop et
+            l'utilisateur ne pourrait pas tout envoyer — c'est le defaut
+            inverse, et le moins grave.
+
+            L'ECART ENTRE LES DEUX EST INFIME en valeur : environ cinq
+            milliemes de DOGE. On ne cherche pas la precision au centieme,
+            on cherche a ne jamais SOUS-estimer — une transaction
+            sous-payee reste en attente sans rien dire.
+            */
+            "DOGE" -> FraisReseau(
+                attendu = com.vaultex.core.tx.DogeSelection.tailleEstimee(1, 2) *
+                    DOGE_UNITES_PAR_OCTET / 100_000_000.0,
+                plafond = com.vaultex.core.tx.DogeSelection.tailleEstimee(3, 2) *
+                    DOGE_UNITES_PAR_OCTET / 100_000_000.0,
+            )
             else   -> null
         }
     } catch (_: Exception) { null }
