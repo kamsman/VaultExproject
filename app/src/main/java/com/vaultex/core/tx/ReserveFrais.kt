@@ -94,7 +94,10 @@ object ReserveFrais {
         "ETH" to 0.0003,
         "BNB" to 0.00005,
         "SOL" to 0.00001,
-        "TRX" to 1.1
+        "TRX" to 1.1,
+        // Dogecoin : une entree, deux sorties, au tarif mesure et double
+        // (227 octets x 2008 unites). Voir SendCryptoUseCase.
+        "DOGE" to 0.00456
     )
 
     private const val FRAIS_FIXE_SOLANA = 0.000005

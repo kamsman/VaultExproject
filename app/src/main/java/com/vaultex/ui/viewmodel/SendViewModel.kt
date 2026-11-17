@@ -1526,7 +1526,23 @@ class SendViewModel @Inject constructor(
         private const val PART_MAX_SOURCE = 0.25
 
         private val NATIVE_CHAINS = setOf(
-            "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB", "USDT-SOL"
+            "BTC", "ETH", "BNB", "TRX", "SOL", "USDT", "USDT-ETH", "USDT-BNB", "USDT-SOL",
+            /*
+            LE DOGECOIN MANQUAIT ICI, ET L'ECRAN NE LE DISAIT PAS.
+
+            CONSTATE : depuis la fiche Dogecoin, « Envoyer » ouvrait
+            « Send USDT (Solana) ». Le bouton posait pourtant bien « DOGE »
+            dans le tampon de selection — mais `selectAsset` ne reconnait
+            un symbole que s'il est une chaine native OU un actif du
+            registre d'echange. Le Dogecoin n'etait ni l'un ni l'autre, et
+            la fonction ABANDONNAIT EN SILENCE : la monnaie precedente
+            restait affichee.
+
+            Un abandon silencieux sur un ecran d'envoi est le pire des
+            defauts : rien n'est signale, et l'utilisateur part remplir un
+            formulaire pour une autre monnaie que celle qu'il a choisie.
+            */
+            "DOGE"
         )
 
         // Réserve de frais retranchée par MAX sur les monnaies NATIVES, pour que
@@ -1590,7 +1606,20 @@ class SendViewModel @Inject constructor(
          * entièrement économique, donc entièrement calculé.
          */
         private val MINIMUM_PROTOCOLE = mapOf(
-            "BTC" to 0.00000546
+            "BTC" to 0.00000546,
+            /*
+            LE SEUIL DE POUSSIERE DU DOGECOIN, et il est a confirmer.
+
+            0,01 DOGE est la valeur couramment citee, et c'est aussi le
+            montant des pieces observees sur la chaine. La meme constante
+            vit dans SendCryptoUseCase.DOGE_SEUIL_POUSSIERE, ou elle sert
+            au CHOIX des pieces ; ici elle sert a prevenir AVANT la saisie.
+
+            Les deux doivent rester d'accord. Seul un envoi reel dira si
+            le chiffre est bon — c'est l'une des deux inconnues que la
+            premiere transaction doit lever.
+            */
+            "DOGE" to 0.01
         )
 
         /**
