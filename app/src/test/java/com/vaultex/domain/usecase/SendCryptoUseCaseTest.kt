@@ -48,6 +48,16 @@ class SendCryptoUseCaseTest {
         bitcoinApi = mockk(relaxed = true),
         solanaRpc = mockk(relaxed = true),
         tronApi = tronApiMock,
+        /*
+        LE DEPOT DOGECOIN EST SIMULE ET N'EST JAMAIS SOLLICITE ICI : ces
+        tests verifient QUELLE garde tombe avant tout appel reseau —
+        destination interdite, adresse invalide, montant aberrant — et
+        aucune de ces gardes n'atteint le depot.
+
+        Le laisser `relaxed` plutot que de l'omettre evite qu'un futur cas
+        Dogecoin ajoute ici parte silencieusement chercher le reseau.
+        */
+        dogeDepot = mockk(relaxed = true),
         appContext = contextMock
     )
 
