@@ -280,6 +280,13 @@ avec `verifier-version.mjs`, avant de déployer.
                        Couvrent le coût d'envoi de la crypto, quel que
                        soit le montant. Convertis au cours du MARCHÉ, sans
                        marge : c'est un coût répercuté, pas un bénéfice.
+  CHANGE_FRAIS_USD_PAR_MONNAIE
+                       Le même frais, mais PAR MONNAIE, en dollars.
+                       Format {"USDT-SOL": 0.01, "USDT": 1}. Une monnaie
+                       absente retombe sur CHANGE_FRAIS_USD.
+                       UNE VALEUR DE ZÉRO EST UN RÉGLAGE, PAS UN VIDE :
+                       elle rend l'envoi gratuit pour cette monnaie, au
+                       lieu de la renvoyer au forfait.
   CHANGE_FACTEUR_MARGE Multiplie la marge sur les ACHATS seulement
                        (défaut 1 — même marge qu'à la vente).
   CHANGE_MINIMUMS_USD  Minimum par monnaie en DOLLARS, quand le seuil
@@ -367,7 +374,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 100
+const VERSION = 101
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3283,6 +3290,31 @@ function parametresChange(env) {
       ═══════════════════════════════════════════════════════════════════
       */
       fraisUsdAchat: nombre(env?.CHANGE_FRAIS_USD, 0),
+      /*
+      ═══════════════════════════════════════════════════════════════════
+      LE MEME FRAIS, MAIS PAR MONNAIE
+      ═══════════════════════════════════════════════════════════════════
+
+      UN DOLLAR FORFAITAIRE NE CORRESPOND AU COUT REEL SUR AUCUNE CHAINE
+      EN PARTICULIER. Mesure faite sur l'app le 18 novembre : le frais
+      servi valait 1,00 $ pour un achat d'USDT sur SOLANA, ou l'envoi
+      coute quelques milliemes de dollar. Sur Ethereum le meme dollar est
+      a peu pres juste. Un seul nombre ne peut pas etre les deux.
+
+      CE QUE CA COUTAIT AUX PLUS PETITS CLIENTS. Le frais ne suit pas le
+      montant : au plancher de 5 000 FCFA il pesait 12 % de l'operation,
+      contre 1,2 % au plafond de 50 000. Le tarif frappait donc le plus
+      fort ceux qui changent le moins — et ce sont eux qui comparent.
+
+      ─── LES ANCIENNES INSTALLATIONS NE VOIENT PAS CE CHAMP ───────────
+
+      Elles lisent `fraisUsdAchat` et continuent de payer le forfait.
+      C'est voulu : un champ ajoute ne doit jamais changer le prix d'un
+      telephone qui ne sait pas le lire. Le tarif par monnaie arrive avec
+      l'APK qui le comprend, pas avant.
+      ═══════════════════════════════════════════════════════════════════
+      */
+      fraisUsdAchatParMonnaie: fraisUsdChange(env),
       // Bornes par opération. Le plafond est bas tant que la confiance se
       // construit : c'est l'utilisateur qui envoie en premier.
       minimumFcfa: nombre(env?.CHANGE_MIN, 5000),
@@ -3551,6 +3583,53 @@ APPLIQUE ICI ET DANS L'APPLICATION. Voir le bloc des bornes dans
 `ordreChange` : le telephone l'affiche, le relais le refuse.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE FRAIS D'ENVOI PAR MONNAIE, EN DOLLARS
+═══════════════════════════════════════════════════════════════════════════
+
+Format : {"USDT-SOL": 0.01, "USDT-BNB": 0.05, "USDT": 1}. Illisible ou
+vide, c'est `CHANGE_FRAIS_USD` qui s'applique seul.
+
+LA CLE EST LA MONNAIE ENTIERE, PAS SA CHAINE — meme regle que
+`minimumsUsdChange`, et meme piege : {"SOL": 0} ne tarife pas
+« USDT-SOL ». La recherche est une egalite exacte.
+
+─── ZERO EST UNE VALEUR, PAS UNE ABSENCE ─────────────────────────────────
+
+C'est la SEULE difference avec les minimums, et elle est deliberee.
+`minimumsUsdChange` jette les valeurs nulles, parce qu'un minimum de zero
+ne borne rien et ne veut donc rien dire. Un FRAIS de zero, lui, veut dire
+quelque chose de tres precis : « l'envoi sur cette chaine ne coute rien,
+ne facture rien ». Le filtrer renverrait la monnaie au forfait d'un
+dollar, c'est-a-dire exactement l'inverse de ce qui a ete demande.
+
+Le worker a deja paye cette lecon ailleurs — voir `margeParDollar`, qui
+emploie `nombre(...)` et non `|| 25` pour la meme raison : une marge de
+zero est un reglage legitime. On accepte donc `>= 0`, et c'est la PRESENCE
+DE LA CLE qui decide, pas sa valeur.
+
+Les valeurs negatives restent refusees : un frais negatif paierait le
+client pour acheter.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function fraisUsdChange(env) {
+  const brut = env?.CHANGE_FRAIS_USD_PAR_MONNAIE
+  if (!brut) return {}
+  try {
+    const o = JSON.parse(String(brut))
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return {}
+    const sortie = {}
+    for (const [cle, valeur] of Object.entries(o)) {
+      const n = Number(valeur)
+      if (Number.isFinite(n) && n >= 0) sortie[String(cle).trim().toUpperCase()] = n
+    }
+    return sortie
+  } catch (_) {
+    return {}
+  }
+}
+
 function minimumsUsdChange(env) {
   const brut = env?.CHANGE_MINIMUMS_USD
   if (!brut) return {}
@@ -8207,6 +8286,7 @@ export {
   minimumsChange,
   minimumPourMonnaie,
   minimumsUsdChange,
+  fraisUsdChange,
   plafondsUsdChange,
   trierAdresses,
   txidValide,

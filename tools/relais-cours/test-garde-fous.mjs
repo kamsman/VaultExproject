@@ -730,6 +730,7 @@ import {
   minimumsChange,
   minimumPourMonnaie,
   minimumsUsdChange,
+  fraisUsdChange,
   plafondsUsdChange,
 } from './worker.js'
 
@@ -854,6 +855,48 @@ verifie(
   'USD : la cle est la monnaie entiere, pas sa chaine',
   minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"BNB":10}' })['USDT-BNB'] === undefined &&
     minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"USDT-BNB":10}' })['USDT-BNB'] === 10
+)
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE FRAIS PAR MONNAIE : ZERO EST UNE VALEUR, PAS UNE ABSENCE
+═══════════════════════════════════════════════════════════════════════════
+
+C'est la SEULE regle qui separe `fraisUsdChange` de ses deux voisins, et
+c'est celle qu'une relecture distraite alignerait sur eux.
+
+Un minimum de zero ne borne rien : le jeter est juste. Un FRAIS de zero
+dit « cette chaine ne coute rien a servir, on ne facture rien ». Le jeter
+renverrait la monnaie au forfait d'un dollar — l'inverse exact du reglage
+pose, et personne ne le verrait : le prix resterait simplement celui
+d'avant.
+
+Le premier controle ci-dessous est donc le plus important du lot.
+═══════════════════════════════════════════════════════════════════════════
+*/
+verifie(
+  'FRAIS : un zero est garde, la ou un minimum a zero serait jete',
+  fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{"USDT-SOL":0}' })['USDT-SOL'] === 0 &&
+    minimumsUsdChange({ CHANGE_MINIMUMS_USD: '{"USDT-SOL":0}' })['USDT-SOL'] === undefined
+)
+
+verifie(
+  'FRAIS : un frais negatif est refuse — il paierait le client',
+  fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{"USDT":-1}' })['USDT'] === undefined
+)
+
+verifie(
+  'FRAIS : la cle est la monnaie entiere, pas sa chaine',
+  fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{"SOL":0}' })['USDT-SOL'] === undefined &&
+    fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{"USDT-SOL":0}' })['USDT-SOL'] === 0
+)
+
+verifie(
+  'FRAIS : casse, espaces, et une table absente ou cassee reste vide',
+  fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{" usdt-sol ":0.01}' })['USDT-SOL'] === 0.01 &&
+    Object.keys(fraisUsdChange({})).length === 0 &&
+    Object.keys(fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '{casse' })).length === 0 &&
+    Object.keys(fraisUsdChange({ CHANGE_FRAIS_USD_PAR_MONNAIE: '[1,2]' })).length === 0
 )
 
 verifie(

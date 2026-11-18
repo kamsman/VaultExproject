@@ -430,7 +430,14 @@ data class ChangeState(
     val fraisFixesFcfa: Double
         get() {
             if (sens != SensChange.ACHAT) return 0.0
-            val usd = parametres?.fraisUsdAchat ?: return 0.0
+            /*
+            LE FRAIS DEPEND DE LA MONNAIE, depuis qu'il n'est plus un
+            forfait. `fraisUsdAchatPour` retombe sur l'ancien reglage pour
+            toute monnaie que le relais ne tarife pas nommement — donc ce
+            changement ne touche aucun prix tant que
+            CHANGE_FRAIS_USD_PAR_MONNAIE n'est pas posee.
+            */
+            val usd = parametres?.fraisUsdAchatPour(monnaie) ?: return 0.0
             val taux = fcfaParDollar ?: return 0.0
             if (usd <= 0.0 || taux <= 0.0) return 0.0
             return usd * taux

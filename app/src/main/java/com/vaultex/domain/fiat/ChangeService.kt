@@ -71,6 +71,11 @@ data class ParametresChange(
      * ═══════════════════════════════════════════════════════════════════
      */
     val fraisUsdAchat: Double = 0.0,
+    /**
+     * Le meme frais, par monnaie. Une monnaie absente retombe sur
+     * [fraisUsdAchat] ; interrogee par [fraisUsdAchatPour].
+     */
+    val fraisUsdAchatParMonnaie: Map<String, Double> = emptyMap(),
     val minimumFcfa: Double,
     val plafondFcfa: Double,
     val numeroMobileMoney: String,
@@ -216,6 +221,38 @@ data class ParametresChange(
      * sans taux donnerait un chiffre invente, et c'est sur lui qu'une
      * operation serait refusee.
      */
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * LE FRAIS D'ENVOI DE CETTE MONNAIE, EN DOLLARS
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * UN DOLLAR FORFAITAIRE N'EST LE COUT REEL D'AUCUNE CHAINE. Mesure
+     * faite sur l'app : le frais servi valait 1,00 $ pour un achat d'USDT
+     * sur SOLANA, ou l'envoi coute quelques milliemes de dollar. Sur
+     * Ethereum ce meme dollar est a peu pres juste. Un seul nombre ne peut
+     * pas etre les deux, et c'est le petit acheteur qui payait l'ecart :
+     * le frais ne suivant pas le montant, il pesait 12 % au plancher de
+     * 5 000 FCFA contre 1,2 % au plafond de 50 000.
+     *
+     * ─── PAS DE `takeIf { it > 0.0 }` ─────────────────────────────────
+     *
+     * [minimumPour] en met un, et a raison : un minimum de zero ne borne
+     * rien. Ici ce serait un defaut. Un frais regle a zero dit « cette
+     * chaine ne coute rien a servir » ; le traiter comme une absence
+     * renverrait la monnaie au forfait, c'est-a-dire a un dollar.
+     *
+     * C'est la PRESENCE DE LA CLE qui decide. Le nettoyage du DTO garde
+     * donc `>= 0`, et cette fonction ne refiltre pas.
+     *
+     * ─── UN RELAIS PLUS ANCIEN NE DIT RIEN ────────────────────────────
+     *
+     * La table est alors vide et tout retombe sur [fraisUsdAchat] : le
+     * tarif d'avant, a l'identique. Un champ ajoute ne doit jamais
+     * changer un prix tout seul.
+     */
+    fun fraisUsdAchatPour(monnaie: String): Double =
+        fraisUsdAchatParMonnaie[monnaie.uppercase()] ?: fraisUsdAchat
+
     fun minimumPour(
         monnaie: String,
         fcfaParDollar: Double? = null,
@@ -561,6 +598,23 @@ class ChangeService @Inject constructor(
                 minimumsUsdParMonnaie = dto.minimumsUsdParMonnaie
                     ?.mapKeys { (k, _) -> k.uppercase() }
                     ?.filterValues { v -> v > 0.0 }
+                    .orEmpty(),
+                /*
+                ET ICI « >= 0 », LA OU LES TROIS TABLES DU DESSUS FILTRENT
+                « > 0 ». Ce n'est pas une inattention.
+
+                Un minimum ou un plafond de zero ne borne rien : le jeter
+                est la bonne lecture. Un FRAIS de zero dit au contraire
+                quelque chose de precis — « cette chaine ne coute rien a
+                servir, on ne facture rien ». Le jeter renverrait la
+                monnaie au forfait, soit l'inverse exact du reglage pose.
+
+                Les valeurs negatives restent refusees des deux cotes : un
+                frais negatif paierait le client pour acheter.
+                */
+                fraisUsdAchatParMonnaie = dto.fraisUsdAchatParMonnaie
+                    ?.mapKeys { (k, _) -> k.uppercase() }
+                    ?.filterValues { v -> v >= 0.0 }
                     .orEmpty(),
                 /*
                 UN FACTEUR ABSENT PROTEGE, UN FACTEUR NEGATIF AUSSI.
