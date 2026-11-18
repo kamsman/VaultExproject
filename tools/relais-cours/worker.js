@@ -387,7 +387,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 101
+const VERSION = 102
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1648,6 +1648,81 @@ async function servirImage(url, env) {
 
 async function diagnostic(env, params) {
   const sondes = { version: VERSION }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LES REGLAGES JSON, ET POURQUOI « {} » NE SUFFIT PAS A DIAGNOSTIQUER
+  ═══════════════════════════════════════════════════════════════════════
+
+  Les quatre lecteurs de tables — minimums, minimums en dollars, plafonds
+  en dollars, frais par monnaie — rendent TOUS `{}` dans trois situations
+  qui n'ont rien a voir :
+
+      la variable n'est pas posee
+      elle est posee mais son JSON ne s'analyse pas
+      elle s'analyse mais aucune valeur ne passe le filtre
+
+  Vu de /change/parametres, les trois donnent la meme chose. On a passe
+  une demi-heure sur CHANGE_FRAIS_USD_PAR_MONNAIE sans pouvoir dire
+  laquelle des trois on regardait.
+
+  C'est la forme generale d'un defaut que ce fichier connait deja :
+  `{"BNB": 10}` est reste des semaines en place sans rien borner, parce
+  qu'un reglage inerte ressemble exactement a un reglage absent.
+
+  ─── CE QUE CETTE SONDE REND, ET CE QU'ELLE NE REND PAS ──────────────
+
+  Pour chaque reglage : s'il est pose, s'il s'analyse, combien de cles
+  ont ete RETENUES, et lesquelles. Pas les valeurs — elles n'aident pas
+  a trouver la panne, et ce point d'entree se partage pour depanner.
+
+  `clesIgnorees` est le cas le plus utile : une cle ecrite mais rejetee
+  par le filtre. C'est ce qui arrive a un frais negatif, ou a un minimum
+  pose a zero.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const lecteurs = {
+    CHANGE_MINIMUMS: minimumsChange,
+    CHANGE_MINIMUMS_USD: minimumsUsdChange,
+    CHANGE_PLAFONDS_USD: plafondsUsdChange,
+    CHANGE_FRAIS_USD_PAR_MONNAIE: fraisUsdChange,
+  }
+  sondes.reglagesJson = {}
+  for (const [nom, lire] of Object.entries(lecteurs)) {
+    const brut = env?.[nom]
+    if (!brut) {
+      sondes.reglagesJson[nom] = { pose: false }
+      continue
+    }
+    let analyse = null
+    try {
+      analyse = JSON.parse(String(brut))
+    } catch (e) {
+      sondes.reglagesJson[nom] = {
+        pose: true,
+        analyse: false,
+        // La raison exacte : « Unexpected token » ne dit pas la meme chose
+        // qu'une apostrophe droite prise pour une apostrophe typographique.
+        erreur: String(e?.message || e).slice(0, 120),
+        octets: String(brut).length,
+      }
+      continue
+    }
+    const estObjet = analyse && typeof analyse === 'object' && !Array.isArray(analyse)
+    const retenues = Object.keys(lire(env))
+    const ecrites = estObjet ? Object.keys(analyse) : []
+    sondes.reglagesJson[nom] = {
+      pose: true,
+      analyse: true,
+      estObjet,
+      clesRetenues: retenues,
+      // Une cle ecrite que le filtre a rejetee : le reglage inerte qu'on
+      // croit avoir pose. C'est la ligne qu'il faut regarder en premier.
+      clesIgnorees: ecrites
+        .map((c) => String(c).trim().toUpperCase())
+        .filter((c) => !retenues.includes(c)),
+    }
+  }
 
   /*
   ═══════════════════════════════════════════════════════════════════════
