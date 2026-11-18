@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -117,7 +116,7 @@ fun PiEnvoiScreen(navController: NavController) {
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate(com.vaultex.ui.navigation.Routes.SCANNER) }) {
-                        Icon(Icons.Default.QrCodeScanner, null, tint = AccentBlue)
+                        com.vaultex.ui.components.MotifScanner()
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)

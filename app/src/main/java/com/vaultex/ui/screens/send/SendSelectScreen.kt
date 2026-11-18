@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -126,7 +125,7 @@ fun SendSelectScreen(navController: NavController) {
                         BoutonRecherche(etatRecherche, Modifier.padding(end = 8.dp))
                     }
                     IconButton(onClick = { navController.navigate(Routes.SCANNER) }) {
-                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = AccentBlue)
+                        com.vaultex.ui.components.MotifScanner()
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
