@@ -199,7 +199,9 @@ fun TokenManagerScreen(navController: NavController) {
                             leadingIcon = { Icon(Icons.Default.Description, null, tint = TextMuted, modifier = Modifier.size(20.dp)) },
                             trailingIcon = {
                                 IconButton(onClick = { navController.navigate(Routes.SCANNER) }) {
-                                    Icon(Icons.Default.QrCodeScanner, contentDescription = stringResource(R.string.scan_qr), tint = AccentBlue)
+                                    com.vaultex.ui.components.MotifScanner(
+                                        contentDescription = stringResource(R.string.scan_qr)
+                                    )
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,11 +104,9 @@ fun SendFormScreen(navController: NavHostController) {
                             .background(BgTertiary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.QrCodeScanner,
-                            contentDescription = stringResource(R.string.qr_label),
-                            tint = AccentBlue,
-                            modifier = Modifier.size(22.dp)
+                        com.vaultex.ui.components.MotifScanner(
+                            taille = 22.dp,
+                            contentDescription = stringResource(R.string.qr_label)
                         )
                     }
                 }
