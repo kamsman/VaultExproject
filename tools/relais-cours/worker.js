@@ -287,8 +287,21 @@ avec `verifier-version.mjs`, avant de déployer.
                        UNE VALEUR DE ZÉRO EST UN RÉGLAGE, PAS UN VIDE :
                        elle rend l'envoi gratuit pour cette monnaie, au
                        lieu de la renvoyer au forfait.
-  CHANGE_FACTEUR_MARGE Multiplie la marge sur les ACHATS seulement
-                       (défaut 1 — même marge qu'à la vente).
+  CHANGE_FACTEUR_MARGE Combien de fois la marge doit COUVRIR LES FRAIS
+                       d'envoi, sur un ACHAT (défaut 1).
+
+                       CE N'EST PAS UN MULTIPLICATEUR DE PRIX, et cette
+                       ligne a dit le contraire. Elle ne touche NI le prix
+                       d'achat NI le prix de vente : elle sert uniquement
+                       au plancher de montant — `plancherMargeFcfa` dans
+                       l'application — qui refuse un achat trop petit pour
+                       que la marge couvre le gaz.
+
+                       Lire « multiplie la marge » conduit a poser 2 en
+                       croyant monter le prix, et a ne rien voir changer
+                       d'autre que le minimum accepte. Le seul levier de
+                       prix est CHANGE_MARGE, et il agit des DEUX cotes :
+                       achat = cours + marge, vente = cours - marge.
   CHANGE_MINIMUMS_USD  Minimum par monnaie en DOLLARS, quand le seuil
                        dépend du coût réseau plutôt que d'un montant en
                        francs. {"USDT-ETH":15}
