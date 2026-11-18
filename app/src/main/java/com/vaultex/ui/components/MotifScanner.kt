@@ -90,14 +90,21 @@ fun MotifScanner(
             doit annoncer « scanner un QR », pas « code QR ».
             */
             /*
-            `description` plutôt que le paramètre directement : à
-            l'intérieur de `semantics`, `contentDescription` désigne la
-            propriété du récepteur, pas notre argument. Les deux noms
-            entreraient en collision.
+            `this.` N'EST PAS DÉCORATIF ICI, ET SON ABSENCE A CASSÉ UN BUILD.
+
+            Le paramètre de cette fonction s'appelle `contentDescription`,
+            et la propriété sémantique aussi. Dans le bloc `semantics`, le
+            paramètre est le plus proche : il MASQUE la propriété. Écrire
+            `contentDescription = texte` revient donc à réaffecter un
+            paramètre — « Val cannot be reassigned ».
+
+            `this.` désigne explicitement le récepteur sémantique. Et
+            `texte` évite d'avoir à relire le paramètre, dont le type est
+            nullable.
             */
             .then(
                 description?.let { texte ->
-                    Modifier.semantics { contentDescription = texte }
+                    Modifier.semantics { this.contentDescription = texte }
                 } ?: Modifier
             ),
         contentAlignment = Alignment.Center
