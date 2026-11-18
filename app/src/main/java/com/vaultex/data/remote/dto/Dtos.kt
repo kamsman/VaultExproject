@@ -499,6 +499,17 @@ data class ParametresChangeDto(
     /** Minimum par monnaie, EN DOLLARS — symetrique du plafond. */
     val minimumsUsdParMonnaie: Map<String, Double>? = null,
     /**
+     * Frais d'envoi par monnaie, EN DOLLARS — remplace [fraisUsdAchat]
+     * pour les monnaies qu'il nomme.
+     *
+     * ZERO EST UNE VALEUR ICI, contrairement aux minimums et aux plafonds
+     * voisins. Un minimum de zero ne borne rien et ne veut rien dire ; un
+     * FRAIS de zero veut dire « l'envoi sur cette chaine ne coute rien ».
+     * C'est donc la PRESENCE DE LA CLE qui decide, pas sa valeur — et le
+     * nettoyage ci-dessous garde `>= 0` la ou les autres gardent `> 0`.
+     */
+    val fraisUsdAchatParMonnaie: Map<String, Double>? = null,
+    /**
      * Combien de fois la marge doit couvrir les frais, sur un ACHAT.
      *
      * Sur un achat, c'est le changeur qui envoie et qui paie le gaz. Ce
