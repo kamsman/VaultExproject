@@ -79,7 +79,7 @@ private enum class MarketFilter { ALL, SWAPPABLE, GAINERS, LOSERS, FAVORITES }
 private const val SEUIL_PREFETCH = 10
 
 /**
- * Bouton rond de l'en-tête — recherche, cloche.
+ * Bouton rond de l'en-tête — recherche, actualités, cloche.
  *
  * Un IconButton nu se perd sur un fond sombre : rien ne dit qu'il se touche.
  * Le disque lui donne une cible visible et une surface de frappe confortable.
@@ -89,18 +89,62 @@ private fun BoutonRond(
     icone: ImageVector,
     description: String,
     pastille: Boolean = false,
+    /**
+     * Teinte du disque, de 0 (comme les voisins) à 1 (plein accent).
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UN SEUL DES TROIS PEUT RESSORTIR
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * La règle vaut ici comme pour les tuiles d'action de l'accueil :
+     * trois disques tous teintés se liraient comme un seul bloc et plus
+     * aucun ne ressortirait. C'est le gris des deux voisins qui donne sa
+     * valeur au troisième.
+     *
+     * Les actualités la prennent. La recherche et la cloche sont des
+     * gestes qu'on fait quand on les a déjà décidés ; les actualités, il
+     * faut d'abord savoir qu'elles existent — et rien sur cet écran ne le
+     * disait.
+     *
+     * ─── TEINTE ET PASTILLE DISENT DEUX CHOSES DIFFÉRENTES ────────────
+     *
+     * La teinte est permanente : « il y a des actualités ici ». La
+     * pastille est conditionnelle : « il y en a des nouvelles ». Les
+     * confondre ferait disparaître le bouton dans la masse dès qu'on a
+     * tout lu, c'est-à-dire exactement quand il faut encore pouvoir le
+     * retrouver.
+     *
+     * ─── UN MÉLANGE, PAS UNE COULEUR ÉCRITE ───────────────────────────
+     *
+     * `Surface` et `AccentBlue` changent entre thème clair et thème
+     * sombre. `lerp` part des valeurs vivantes, donc une seule valeur
+     * tient pour les deux. Et le mélange rend une couleur OPAQUE, ce qui
+     * compte pour l'anneau de la pastille juste en dessous : il doit
+     * masquer le disque, pas le tamiser.
+     */
+    teinte: Float = 0f,
     onClick: () -> Unit
 ) {
+    val fond = androidx.compose.ui.graphics.lerp(Surface, AccentBlue, teinte)
     Box(Modifier.size(40.dp)) {
         Box(
             Modifier
                 .matchParentSize()
                 .clip(CircleShape)
-                .background(Surface)
+                .background(fond)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
+            Icon(
+                icone, description,
+                // L'icône suit le disque : sur un fond teinté, le blanc
+                // seul paraîtrait posé dessus plutôt que dedans.
+                // Borné à 1 : `lerp` extrapole au-delà et sortirait du gamut.
+                tint = androidx.compose.ui.graphics.lerp(
+                    TextPrimary, AccentBlue, (teinte * 3f).coerceIn(0f, 1f)
+                ),
+                modifier = Modifier.size(20.dp)
+            )
         }
         /*
         ═══════════════════════════════════════════════════════════════════
@@ -331,7 +375,10 @@ fun MarketScreen(navController: NavHostController) {
                                 if (actusNouvelles) R.string.actus_ouvrir_nouveau
                                 else R.string.actus_ouvrir
                             ),
-                            pastille = actusNouvelles
+                            pastille = actusNouvelles,
+                            // 0.18 : assez pour se détacher de la loupe et
+                            // de la cloche, pas assez pour crier.
+                            teinte = 0.18f
                         ) { navController.navigate(Routes.ACTUS) }
                         Spacer(Modifier.width(8.dp))
                         BoutonRond(
