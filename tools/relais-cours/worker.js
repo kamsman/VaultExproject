@@ -325,15 +325,25 @@ avec `verifier-version.mjs`, avant de déployer.
                        reste.
   CHANGE_IA_MODELE     Modèle employé. Défaut : le moins cher qui réponde
                        bien à ces questions-là.
-  CHANGE_IA_FOURNISSEUR Quelle maison interroger : « anthropic » (défaut)
-                       ou « openai ». Tout le reste — la consigne, les
-                       réponses toutes faites, le filtre de sortie, le
-                       plafond quotidien — ne change pas. Un seul
-                       fournisseur est un seul point de panne, et ça s'est
-                       vu : une clé refusée a mis l'assistance hors service
-                       sans qu'on puisse la remettre en marche. Le modèle
-                       par défaut suit le fournisseur ; CHANGE_IA_MODELE le
-                       remplace dans les deux cas.
+  CHANGE_IA_FOURNISSEUR Quelle maison interroger : « anthropic » (défaut),
+                       « openai » ou « gemini ». Tout le reste — la
+                       consigne, les réponses toutes faites, le filtre de
+                       sortie, le plafond quotidien — ne change pas. Un
+                       seul fournisseur est un seul point de panne, et ça
+                       s'est vu : une clé refusée a mis l'assistance hors
+                       service sans qu'on puisse la remettre en marche. Le
+                       modèle par défaut suit le fournisseur ;
+                       CHANGE_IA_MODELE le remplace dans les trois cas.
+
+                       « gemini » EST LE SEUL GRATUIT. Mesuré le 19
+                       novembre sur gemini-3.5-flash-lite : 15 requêtes
+                       par minute, 250 000 jetons par minute, et 500 par
+                       JOUR en palier gratuit. Le relais s'arrête à 300
+                       (IA_MAX_JOUR) : le gratuit couvre donc tout ce que
+                       ce relais peut émettre. La clé se crée sur
+                       aistudio.google.com sans carte bancaire — ce qui
+                       règle aussi le cas Anthropic, dont la vérification
+                       d'identité avait échoué.
   CHANGE_DIAG_CLE      ⚠️ SECRET. Ouvre le texte des trente dernières
                        questions sur /diag?cle=… . SANS ELLE, /diag n'en
                        donne que le NOMBRE : /diag n'est protégé par rien,
@@ -387,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 102
+const VERSION = 103
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -2251,9 +2261,13 @@ async function diagnostic(env, params) {
         ? await fetchBorne('https://api.openai.com/v1/models', {
             headers: { authorization: `Bearer ${cleIa}` },
           }, 8000)
-        : await fetchBorne('https://api.anthropic.com/v1/models?limit=1', {
-            headers: { 'x-api-key': cleIa, 'anthropic-version': '2023-06-01' },
-          }, 8000)
+        : fournisseurIa === 'gemini'
+          ? await fetchBorne('https://generativelanguage.googleapis.com/v1beta/models', {
+              headers: { 'x-goog-api-key': cleIa },
+            }, 8000)
+          : await fetchBorne('https://api.anthropic.com/v1/models?limit=1', {
+              headers: { 'x-api-key': cleIa, 'anthropic-version': '2023-06-01' },
+            }, 8000)
       sondes.assistance = {
         cleReglee: true,
         http: r.status,
@@ -2278,8 +2292,11 @@ async function diagnostic(env, params) {
         sens.
         */
         modele: String(
-          env?.CHANGE_IA_MODELE ||
-          (fournisseurIa === 'openai' ? IA_MODELE_OPENAI : IA_MODELE)
+          env?.CHANGE_IA_MODELE || (
+            fournisseurIa === 'openai' ? IA_MODELE_OPENAI
+              : fournisseurIa === 'gemini' ? IA_MODELE_GEMINI
+                : IA_MODELE
+          )
         ),
         plafondJour: IA_MAX_JOUR,
         appelsAujourdhui: await compteur('ia', new Date().toISOString().slice(0, 10)),
@@ -10087,12 +10104,29 @@ fois, et seulement sur l'erreur — jamais sur le chemin normal.
 */
 const IA_MODELE_OPENAI = 'gpt-4o-mini'
 
+/*
+UNE VERSION EPINGLEE, PAS « gemini-flash-lite-latest ».
+
+Le catalogue de la cle propose les deux. L'alias suit la derniere
+version : il change de modele tout seul, donc de comportement, de
+longueur de reponse et de tarif, sans qu'aucun deploiement ne le dise.
+Sur un service qui repond a des clients, on veut savoir ce qui a change
+quand quelque chose change.
+
+MESURE du 19 novembre, sur la cle du projet : RPM 15, TPM 250 000,
+RPD 500 en palier GRATUIT. Le relais plafonne a 300 appels par jour
+(IA_MAX_JOUR), donc le gratuit couvre le maximum que ce relais peut
+emettre — avec deux cents de marge.
+*/
+const IA_MODELE_GEMINI = 'gemini-3.5-flash-lite'
+
 async function appelerModele(env, systeme, messages) {
   const cle = String(env?.CHANGE_IA_CLE ?? '')
   const fournisseur = String(env?.CHANGE_IA_FOURNISSEUR ?? 'anthropic')
     .trim().toLowerCase()
 
   if (fournisseur === 'openai') return await appelerOpenAi(cle, env, systeme, messages)
+  if (fournisseur === 'gemini') return await appelerGemini(cle, env, systeme, messages)
   return await appelerAnthropic(cle, env, systeme, messages)
 }
 
@@ -10166,6 +10200,89 @@ async function appelerOpenAi(cle, env, systeme, messages) {
   }
   const o = await r.json()
   const texte = String(o?.choices?.[0]?.message?.content ?? '')
+  return { ok: true, texte }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+GEMINI — TROISIEME MAISON, TROISIEME FORME
+═══════════════════════════════════════════════════════════════════════════
+
+Les trois fournisseurs ne different pas par la difficulte mais par le
+VOCABULAIRE, et c'est la que se glissent les fautes muettes :
+
+                     consigne          messages        role de la machine
+    Anthropic        `system`          `messages`      « assistant »
+    OpenAI           un message        `messages`      « assistant »
+    Gemini           `systemInstruction` `contents`    « model »
+
+« assistant » envoye a Gemini n'est pas un role valide. L'API ne rend pas
+toujours une erreur claire pour autant — d'ou la conversion explicite
+ci-dessous plutot qu'un passage tel quel.
+
+─── LA CLE VA DANS UN EN-TETE, PAS DANS L'ADRESSE ────────────────────────
+
+Beaucoup d'exemples montrent `?key=…`. Ca marche, et ca ecrit la cle dans
+toutes les traces de requete que traverse l'appel. `x-goog-api-key` fait
+la meme chose sans la laisser derriere.
+
+─── LES PARTIES « THOUGHT » NE SONT PAS LA REPONSE ───────────────────────
+
+Les modeles recents rendent des parties de raisonnement melees au texte.
+On ne garde que celles qui portent un `text` ET ne sont pas marquees
+`thought`. Sans ce filtre, le client lirait le brouillon du modele.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function appelerGemini(cle, env, systeme, messages) {
+  const modele = String(env?.CHANGE_IA_MODELE || IA_MODELE_GEMINI)
+
+  const contents = messages.map((m) => ({
+    role: m?.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m?.content ?? '') }],
+  }))
+
+  const r = await fetchBorne(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': cle,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systeme }] },
+        contents,
+        generationConfig: { maxOutputTokens: 2000 },
+      }),
+    },
+    20000
+  )
+
+  if (!r.ok) {
+    return { ok: false, status: r.status, detail: (await r.text()).slice(0, 200) }
+  }
+  const o = await r.json()
+  const parties = o?.candidates?.[0]?.content?.parts
+  const texte = Array.isArray(parties)
+    ? parties
+        .filter((b) => typeof b?.text === 'string' && b?.thought !== true)
+        .map((b) => b.text)
+        .join('\n')
+    : ''
+  /*
+  UN TEXTE VIDE N'EST PAS UNE REUSSITE. Gemini rend 200 avec zero partie
+  utile quand il s'arrete sur un filtre de securite ou sur la limite de
+  jetons. Repondre « ok » avec une bulle vide ferait chercher un defaut
+  d'affichage ; `finishReason` dit la vraie raison.
+  */
+  if (!texte) {
+    return {
+      ok: false,
+      status: r.status,
+      detail: 'reponse vide — finishReason: ' +
+        String(o?.candidates?.[0]?.finishReason ?? 'inconnu'),
+    }
+  }
   return { ok: true, texte }
 }
 
