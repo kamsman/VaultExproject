@@ -61,14 +61,6 @@ fun DashboardScreen(navController: NavHostController) {
     val balanceHidden by viewModel.balanceHidden.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val visibleAssets by viewModel.visibleAssets.collectAsState()
-    /*
-    UN LECTEUR À PART, ET SURTOUT PAS `ActusViewModel` : celui-là éteint
-    la pastille « nouveaux articles » à chaque lecture réussie. Branché
-    ici, il l'éteindrait depuis l'accueil, sans que personne ait ouvert
-    les actualités — et le point bleu du Marché ne signalerait plus rien.
-    */
-    val derniereActu by hiltViewModel<com.vaultex.ui.viewmodel.BandeauActusViewModel>()
-        .derniere.collectAsState()
     val pendingSymbols by viewModel.pendingSymbols.collectAsState()
     val unreadNotifs by viewModel.unreadNotifs.collectAsState()
     val recentTxs by viewModel.recentTxs.collectAsState()
@@ -775,40 +767,6 @@ fun DashboardScreen(navController: NavHostController) {
                         androidx.compose.ui.graphics.Color.White, Modifier.weight(1f),
                         fond = AccentBlue
                     ) { navController.navigate(Routes.CHANGE) }
-                }
-            }
-
-            /*
-            ═══════════════════════════════════════════════════════════════
-            LE BANDEAU D'ACTUALITÉS, ICI ET PAS AILLEURS
-            ═══════════════════════════════════════════════════════════════
-
-            Les actualités existaient déjà, derrière un petit bouton rond
-            dans l'en-tête du Marché. Il fallait savoir qu'elles étaient
-            là : aucun écran ne les annonçait.
-
-            Cette place-ci est la charnière de l'accueil — au-dessus, ce
-            que l'utilisateur POSSÈDE ; en dessous, ce que fait le MARCHÉ.
-            « Pourquoi ça bouge » appartient au second, et se lit juste
-            avant les cours.
-
-            ─── IL NE COÛTE PAS D'OCTETS EN PLUS ─────────────────────────
-
-            Des titres, une source, une date. Aucune image d'article — le
-            commentaire de `CarteArticle` dit pourquoi, et ça vaut encore
-            plus ici : l'accueil s'ouvre à chaque lancement.
-
-            ─── ET S'IL N'Y A RIEN, IL N'Y A RIEN ────────────────────────
-
-            Pas de squelette, pas de « chargement », pas de message
-            d'échec. Une panne d'actualités n'est pas une nouvelle : la
-            ligne n'apparaît tout simplement pas, et l'accueil garde sa
-            forme.
-            ═══════════════════════════════════════════════════════════════
-            */
-            derniereActu?.let { actu ->
-                item(key = "actus_bandeau") {
-                    BandeauActus(actu) { navController.navigate(Routes.ACTUS) }
                 }
             }
 
@@ -1781,89 +1739,6 @@ private fun BoutonScanner(onClick: () -> Unit) {
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             com.vaultex.ui.components.MotifScanner(taille = 21.dp, accent = accent)
-        }
-    }
-}
-
-/**
- * Le bandeau d'actualités : une ligne, le dernier titre, et c'est tout.
- *
- * ═══════════════════════════════════════════════════════════════════════
- * UN SEUL TITRE, PAS TROIS
- * ═══════════════════════════════════════════════════════════════════════
- *
- * La tentation est d'en mettre plusieurs, puisqu'ils sont déjà
- * téléchargés. Mais l'accueil n'est pas l'écran de lecture : il doit dire
- * « il y a du nouveau, c'est par là » et rendre la place. Trois titres
- * repoussent les cours plus bas et transforment une invitation en liste.
- *
- * Le titre tient sur deux lignes au plus. Coupé net au milieu d'un mot,
- * il ne donnerait pas envie ; les points de suspension disent qu'il
- * continue ailleurs, ce qui est exactement le message.
- * ═══════════════════════════════════════════════════════════════════════
- */
-@Composable
-private fun BandeauActus(
-    article: com.vaultex.ui.viewmodel.Actualite,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            /*
-            LE ROND TEINTÉ reprend celui des cartes d'articles, pour que
-            les deux écrans se reconnaissent. Le logo de la source n'y est
-            PAS : ici le sujet est « des actualités existent », pas « qui
-            l'a écrit ».
-            */
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(AccentBlue.copy(alpha = 0.13f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Newspaper,
-                    contentDescription = null,
-                    tint = AccentBlue,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.actus_titre),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AccentBlue
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    article.titre,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
-                    lineHeight = 17.sp,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = stringResource(R.string.actus_ouvrir),
-                tint = TextMuted,
-                modifier = Modifier.size(18.dp)
-            )
         }
     }
 }
