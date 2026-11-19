@@ -43,98 +43,6 @@ data class EtatActus(
     val erreur: Boolean = false
 )
 
-/**
- * Les articles RETENUS d'une réponse du relais.
- *
- * ═══════════════════════════════════════════════════════════════════════
- * LE FILTRAGE EST STRICT, ET IL N'EST ÉCRIT QU'UNE FOIS
- * ═══════════════════════════════════════════════════════════════════════
- *
- * Un titre vide ou un lien qui n'est pas une adresse ne donne rien
- * d'utile : une ligne grise qu'on touche et qui n'ouvre rien. Mieux vaut
- * trois articles que cinq dont deux sont morts.
- *
- * ─── POURQUOI HORS DU VIEWMODEL ────────────────────────────────────────
- *
- * Deux écrans lisent ce flux : la liste des actualités, et le bandeau
- * d'une ligne sur l'accueil. Recopier le filtrage leur ferait afficher
- * des choses différentes au premier ajustement — l'accueil montrerait un
- * titre que la liste écarte, et personne ne comprendrait pourquoi le
- * bandeau n'ouvre rien.
- * ═══════════════════════════════════════════════════════════════════════
- */
-internal fun actualitesDepuis(
-    lus: com.vaultex.data.remote.dto.ActualitesDto
-): List<Actualite> = lus.articles.orEmpty().mapNotNull { a ->
-    val titre = a.titre?.trim().orEmpty()
-    val lien = a.lien?.trim().orEmpty()
-    if (titre.isEmpty() || !lien.startsWith("https://")) return@mapNotNull null
-    Actualite(
-        titre = titre,
-        lien = lien,
-        source = a.source?.trim().orEmpty().ifEmpty { "—" },
-        finance = a.theme == "finance",
-        /*
-        HTTPS SEULEMENT, comme pour les photos de l'equipe. Le relais
-        construit lui-meme ces adresses et ne peut donc pas en produire
-        d'autres — c'est precisement pourquoi on verifie : la barriere qui
-        ne sert jamais est celle qui tient le jour ou l'autre cede.
-        */
-        logo = a.logo?.trim().orEmpty()
-            .takeIf { it.startsWith("https://") }.orEmpty(),
-        quand = a.quand ?: 0L
-    )
-}
-
-/**
- * Le dernier article, pour le bandeau de l'accueil.
- *
- * ═══════════════════════════════════════════════════════════════════════
- * POURQUOI UN LECTEUR À PART, ET NON [ActusViewModel]
- * ═══════════════════════════════════════════════════════════════════════
- *
- * Parce que `charger()` ÉTEINT LA PASTILLE à la fin d'une lecture
- * réussie. Brancher l'accueil dessus marquerait les articles comme vus
- * sans que personne les ait ouverts : le point bleu du Marché
- * disparaîtrait tout seul, et la seule chose qui signale du nouveau ne
- * signalerait plus rien.
- *
- * Le défaut serait silencieux — rien ne casse, l'écran s'affiche, et
- * c'est l'indicateur qui ment. Ce lecteur-ci ne touche donc pas à
- * `PastilleActus`, et c'est toute sa raison d'être.
- *
- * ─── IL NE RAFRAÎCHIT PAS, ET C'EST VOULU ─────────────────────────────
- *
- * Une seule lecture à l'ouverture. Le relais garde sa liste quinze
- * minutes ; redemander à chaque retour sur l'accueil paierait du forfait
- * mobile pour la même réponse.
- * ═══════════════════════════════════════════════════════════════════════
- */
-@HiltViewModel
-class BandeauActusViewModel @Inject constructor(
-    private val api: ChangeApi
-) : ViewModel() {
-
-    private val _derniere = MutableStateFlow<Actualite?>(null)
-    val derniere: StateFlow<Actualite?> = _derniere.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            val lus = try {
-                withContext(Dispatchers.IO) { api.actus() }
-            } catch (_: Exception) {
-                /*
-                UN ÉCHEC NE LAISSE RIEN. Le bandeau disparaît au lieu
-                d'afficher une ligne vide ou un message d'erreur : sur
-                l'accueil, une panne d'actualités n'est pas une nouvelle.
-                */
-                return@launch
-            }
-            _derniere.value = actualitesDepuis(lus).maxByOrNull { it.quand }
-        }
-    }
-}
-
 @HiltViewModel
 class ActusViewModel @Inject constructor(
     private val api: ChangeApi,
@@ -175,7 +83,34 @@ class ActusViewModel @Inject constructor(
                 _etat.update { it.copy(chargement = false, erreur = true) }
                 return@launch
             }
-            val articles = actualitesDepuis(lus)
+            /*
+            LE FILTRAGE EST ICI, ET IL EST STRICT.
+
+            Un titre vide ou un lien qui n'est pas une adresse ne donne
+            rien d'utile : une ligne grise qu'on touche et qui n'ouvre
+            rien. Mieux vaut trois articles que cinq dont deux sont morts.
+            */
+            val articles = lus.articles.orEmpty().mapNotNull { a ->
+                val titre = a.titre?.trim().orEmpty()
+                val lien = a.lien?.trim().orEmpty()
+                if (titre.isEmpty() || !lien.startsWith("https://")) return@mapNotNull null
+                Actualite(
+                    titre = titre,
+                    lien = lien,
+                    source = a.source?.trim().orEmpty().ifEmpty { "—" },
+                    finance = a.theme == "finance",
+                    /*
+                    HTTPS SEULEMENT, comme pour les photos de l'equipe. Le
+                    relais construit lui-meme ces adresses et ne peut donc
+                    pas en produire d'autres — c'est precisement pourquoi
+                    on verifie : la barriere qui ne sert jamais est celle
+                    qui tient le jour ou l'autre cede.
+                    */
+                    logo = a.logo?.trim().orEmpty()
+                        .takeIf { it.startsWith("https://") }.orEmpty(),
+                    quand = a.quand ?: 0L
+                )
+            }
             _etat.update {
                 it.copy(chargement = false, articles = articles, erreur = articles.isEmpty())
             }
