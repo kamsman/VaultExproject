@@ -535,6 +535,10 @@ fun DashboardScreen(navController: NavHostController) {
                     HeaderSquareButton(
                         Icons.Default.SupportAgent,
                         pastille = com.vaultex.ui.theme.AccentGreen,
+                        // 0.18 : assez pour se détacher de la cloche, pas
+                        // assez pour concurrencer la tuile « Acheter »,
+                        // qui est le bleu plein de cet écran.
+                        teinte = 0.18f,
                     ) {
                         navController.navigate(Routes.ASSISTANCE)
                     }
@@ -1762,13 +1766,58 @@ private fun HeaderSquareButton(
      * ═══════════════════════════════════════════════════════════════════
      */
     pastille: Color? = null,
+    /**
+     * Teinte du carré, de 0 (comme les voisins) à 1 (plein accent).
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * UN SEUL DES TROIS PEUT RESSORTIR
+     * ═══════════════════════════════════════════════════════════════════
+     *
+     * La règle est déjà écrite plus bas, pour les quatre tuiles d'action :
+     * « quatre tuiles toutes coloriées se liraient comme un seul bloc et
+     * plus aucune ne ressortirait ». Les trois boutons d'en-tête ne font
+     * pas exception — teinter l'assistance ET le scanner reviendrait à
+     * n'en distinguer aucun.
+     *
+     * C'est l'assistance qui prend la teinte, et pas le scanner, sur une
+     * mesure et non sur un goût : le journal du relais montre DOUZE
+     * « How do I buy crypto? » restées sans réponse. L'assistance est où
+     * va quelqu'un de perdu ; le scanner sert à qui sait déjà quoi faire.
+     *
+     * Les équerres du scanner restent bleues sans contredire ça : elles
+     * ne sont pas un accent, elles dessinent un viseur. C'est la forme de
+     * l'outil, pas une mise en avant.
+     *
+     * ─── POURQUOI UN MÉLANGE ET NON UNE COULEUR ÉCRITE ────────────────
+     *
+     * `Surface`, `AccentBlue` et `BorderColor` changent entre le thème
+     * clair et le thème sombre. Une teinte écrite en dur serait juste sur
+     * l'un et fausse sur l'autre. `lerp` part des valeurs VIVANTES, donc
+     * le bouton suit le thème sans qu'on ait deux constantes à tenir.
+     *
+     * Et le mélange rend une couleur OPAQUE, là où `copy(alpha = …)`
+     * laisserait voir au travers — ce qui compte pour le liseré de la
+     * pastille, qui doit masquer le trait de l'icône, pas le tamiser.
+     */
+    teinte: Float = 0f,
     onClick: () -> Unit,
 ) {
+    val fond = androidx.compose.ui.graphics.lerp(
+        com.vaultex.ui.theme.Surface, AccentBlue, teinte
+    )
+    /*
+    LE BORD PREND PLUS QUE LE FOND — deux fois et demie — parce qu'un
+    trait d'un pixel teinté comme son fond ne se voit tout simplement
+    pas. Borné à 1 : `lerp` extrapole au-delà et sortirait du gamut.
+    */
+    val bord = androidx.compose.ui.graphics.lerp(
+        BorderColor, AccentBlue, (teinte * 2.5f).coerceIn(0f, 1f)
+    )
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = com.vaultex.ui.theme.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        color = fond,
+        border = androidx.compose.foundation.BorderStroke(1.dp, bord),
         modifier = Modifier.size(40.dp)
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1787,7 +1836,10 @@ private fun HeaderSquareButton(
                         .padding(4.dp)
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(com.vaultex.ui.theme.Surface)
+                        // Le liseré prend le fond du carré, teinte comprise :
+                        // écrit en dur, il dessinerait un anneau gris sur
+                        // un carré bleu.
+                        .background(fond)
                         .padding(1.dp)
                         .clip(CircleShape)
                         .background(pastille)
