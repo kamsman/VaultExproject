@@ -798,30 +798,6 @@ passe, et que la plupart des portefeuilles paient un forfait rond tres
 au-dessus. Celui-ci en est un de plus.
 ═══════════════════════════════════════════════════════════════════════════
 */
-/*
-L'ETAT D'UNE TRANSACTION DOGECOIN, VU PAR BLOCKCYPHER.
-
-Releve du 20 novembre, sur un hash reel :
-
-    "block_height": 6465609,
-    "confirmed": "2026-11-20T15:13:13Z",
-    "confirmations": 392
-
-Seul `confirmations` sert : il dit tout, et il est deja un compte. Les
-deux autres sont declares parce qu'ils aident a lire une reponse quand
-quelque chose cloche, pas parce que le code les emploie.
-
-UNE TRANSACTION DIFFUSEE MAIS PAS ENCORE MINEE existe deja chez
-BlockCypher, avec `confirmations` a zero. C'est ce qui permet de
-distinguer « en attente » de « introuvable » — et donc de ne pas
-declarer perdue une transaction qui vient de partir.
-*/
-data class BlockCypherTxDto(
-    val hash: String? = null,
-    @SerializedName("block_height") val hauteurBloc: Long? = null,
-    val confirmations: Int? = null
-)
-
 data class DogechainTransactionsDto(
     val success: Int? = null,
     val transactions: List<DogechainTxDto>? = null
@@ -953,8 +929,37 @@ data class BlockCypherResultatDto(
     val errors: List<Map<String, String>>? = null
 )
 
+/*
+LA TRANSACTION VUE PAR BLOCKCYPHER — DIFFUSION ET SUIVI.
+
+UN SEUL DTO POUR LES DEUX, parce que c'est un seul objet : BlockCypher
+rend la meme forme qu'on lui POUSSE une transaction ou qu'on la LISE.
+J'en avais ecrit un second pour le suivi des confirmations, et le
+compilateur a refuse — « Redeclaration ». Il avait raison, et pas
+seulement sur le nom : deux descriptions du meme objet divergent au
+premier champ ajoute, et rien ne dit laquelle est a jour.
+
+─── `confirmations`, RELEVE DU 20 NOVEMBRE SUR UN HASH REEL ──────────────
+
+    "block_height": 6465609,
+    "confirmed": "2026-11-20T15:13:13Z",
+    "confirmations": 392
+
+C'est lui que lit `ConfirmationChecker.checkDoge`. Il dit tout, et il est
+deja un compte — rien a soustraire d'une hauteur de chaine.
+
+UNE TRANSACTION DIFFUSEE MAIS PAS ENCORE MINEE existe deja chez eux, avec
+`confirmations` a zero. C'est ce qui permet de distinguer « en attente »
+d'« introuvable », donc de ne pas declarer perdue une transaction qui
+vient de partir.
+
+`hauteurBloc` n'est lu par rien. Il est declare parce qu'il aide a
+comprendre une reponse quand quelque chose cloche.
+*/
 data class BlockCypherTxDto(
     val hash: String? = null,
     val size: Int? = null,
-    val fees: Long? = null
+    val fees: Long? = null,
+    @SerializedName("block_height") val hauteurBloc: Long? = null,
+    val confirmations: Int? = null
 )
