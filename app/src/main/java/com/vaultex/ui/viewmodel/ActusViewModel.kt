@@ -134,3 +134,43 @@ class ActusViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * Le seul drapeau « il y a du nouveau », pour la barre du bas.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * POURQUOI UN LECTEUR DE PLUS, ET POURQUOI IL NE COÛTE RIEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * La barre de navigation n'est pas un écran : elle n'a pas de ViewModel,
+ * et elle ne peut pas recevoir [PastilleActus] par injection — un
+ * composable ne s'injecte pas.
+ *
+ * Celui-ci est une coquille. Tout l'état vit dans `PastilleActus`, qui
+ * est un `@Singleton` : qu'il existe une instance de ce ViewModel par
+ * écran ou une seule, elles lisent toutes le MÊME flux. Le point
+ * s'allume et s'éteint partout en même temps.
+ *
+ * ─── IL DÉCLENCHE AUSSI LA VÉRIFICATION, ET C'EST LE POINT ────────────
+ *
+ * Avant, `verifier()` n'était appelée que par l'écran Marché. Le
+ * raisonnement se mordait la queue : le point devait dire « ouvre le
+ * Marché », mais il ne pouvait apparaître que si on l'avait déjà ouvert.
+ *
+ * La barre, elle, est affichée partout. L'appel est freiné dans
+ * `PastilleActus` (une fois par intervalle) et la réponse du relais est
+ * en cache un quart d'heure : le poser ici ne multiplie pas les requêtes,
+ * il les déplace là où elles servent.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+@HiltViewModel
+class PastilleActusViewModel @Inject constructor(
+    private val pastille: com.vaultex.core.session.PastilleActus
+) : ViewModel() {
+
+    val aDuNouveau: StateFlow<Boolean> = pastille.aDuNouveau
+
+    init {
+        viewModelScope.launch { pastille.verifier() }
+    }
+}

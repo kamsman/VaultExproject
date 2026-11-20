@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,6 +99,39 @@ fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modi
 
     /*
     ═══════════════════════════════════════════════════════════════════════
+    LE POINT DES ACTUALITES SUR L'ONGLET « MARCHE »
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les actualites vivent DANS le Marche — c'est l'ecran ou l'on regarde
+    deja les prix, et lire « pourquoi ca bouge » appartient au meme geste.
+    Mais rien, depuis l'accueil, ne disait qu'il s'y passait quelque chose.
+
+    Un onglet de plus aurait coute une place permanente a un ecran qu'on
+    ouvre de temps en temps. Un point sur l'onglet existant ne coute rien
+    et dit la meme chose.
+
+    ─── UN POINT, PAS UN NOMBRE ──────────────────────────────────────────
+
+    Le pave de la pastille du bouton actualites le dit deja : « il n'y a
+    rien d'urgent a lire un article ; on informe, on ne presse pas. » Un
+    compteur « 3 » transforme une lecture en liste de taches, et un badge
+    rouge dit « regle ca ». Ni l'un ni l'autre n'est vrai ici.
+
+    ─── ET IL FALLAIT SORTIR D'UN CERCLE ─────────────────────────────────
+
+    `verifier()` n'etait appelee que par l'ecran Marche. Le point devait
+    donc inviter a l'ouvrir, mais ne pouvait apparaitre que si on l'avait
+    deja ouvert. Le lecteur pose ici declenche la verification depuis
+    n'importe quel ecran — freinee dans `PastilleActus`, et la reponse du
+    relais est en cache un quart d'heure.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val actusNouvelles by androidx.hilt.navigation.compose
+        .hiltViewModel<com.vaultex.ui.viewmodel.PastilleActusViewModel>()
+        .aDuNouveau.collectAsState()
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
     « ACCUEIL » OUVRAIT L'ÉCHANGE
     ═══════════════════════════════════════════════════════════════════════
 
@@ -174,7 +208,23 @@ fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modi
             verticalAlignment = Alignment.CenterVertically
         ) {
             NavTabImage(R.drawable.logorond, stringResource(R.string.tab_home), currentRoute == Routes.DASHBOARD, Modifier.weight(1f)) { go(Routes.DASHBOARD) }
-            NavTab(Icons.Default.TrendingUp, stringResource(R.string.tab_market), currentRoute == Routes.MARKET, Modifier.weight(1f)) { go(Routes.MARKET) }
+            NavTab(
+                Icons.Default.TrendingUp, stringResource(R.string.tab_market),
+                currentRoute == Routes.MARKET, Modifier.weight(1f),
+                /*
+                PAS DE POINT QUAND ON Y EST DEJA.
+
+                Sur l'ecran Marche, le bouton journal porte sa propre
+                pastille, a trente points au-dessus. Deux signaux pour la
+                meme information, dont un qui n'apprend plus rien : le
+                point de l'onglet dit « va voir la-bas », et on y est.
+
+                Le chemin reste lisible et se passe le relais — depuis
+                ailleurs c'est l'onglet qui appelle, une fois arrive c'est
+                le bouton qui dit « c'est ici ».
+                */
+                pastille = actusNouvelles && currentRoute != Routes.MARKET
+            ) { go(Routes.MARKET) }
             // Emplacement central : uniquement le libellé (le bouton flotte au-dessus).
             Box(Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
                 Text(
@@ -220,7 +270,15 @@ fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modi
 }
 
 @Composable
-private fun NavTab(icon: ImageVector, label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun NavTab(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    modifier: Modifier,
+    /** Point « il y a du nouveau », pose sur le coin de l'icone. */
+    pastille: Boolean = false,
+    onClick: () -> Unit
+) {
     val color = if (selected) NavBlue else TextMuted
     Column(
         modifier = modifier
@@ -234,7 +292,40 @@ private fun NavTab(icon: ImageVector, label: String, selected: Boolean, modifier
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(22.dp))
+        /*
+        LA BOITE FAIT LA TAILLE DE L'ICONE, ET LE POINT DEBORDE DEDANS.
+
+        Pose en dehors, il decalerait l'icone de quelques points quand il
+        apparait — l'onglet bougerait tout seul a l'arrivee d'un article.
+        Ici la boite garde sa taille, qu'il y ait un point ou non.
+        */
+        Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, tint = color, modifier = Modifier.matchParentSize())
+            if (pastille) {
+                /*
+                DEUX CERCLES, comme sur le bouton des actualites : l'anneau
+                exterieur reprend le fond de la barre et separe le point du
+                trait de l'icone. Sans lui, les deux se touchent et le point
+                se lit comme une bavure du dessin.
+
+                BLEU ET NON ROUGE, pour la meme raison qu'ailleurs : on
+                informe, on ne presse pas.
+                */
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        Modifier.size(6.dp).clip(CircleShape)
+                            .background(com.vaultex.ui.theme.AccentBlue)
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(2.dp))
         Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = color)
         // Indicateur de sélection (petit trait violet).
