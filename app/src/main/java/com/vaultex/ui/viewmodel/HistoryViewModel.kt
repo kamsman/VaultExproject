@@ -86,6 +86,28 @@ class HistoryViewModel @Inject constructor(
                             fixPrefs.edit().putBoolean("addr_fix_v1", true).apply()
                         } catch (_: Exception) { }
                     }
+                    /*
+                    PURGE DES LIGNES BITCOIN DATEES DE 1970.
+
+                    `block_time` de Blockstream est en SECONDES, et il
+                    etait ecrit tel quel dans un champ relu en
+                    millisecondes. Les lignes deja en base portent donc une
+                    date de janvier 1970, et `insertIgnore` ne les
+                    corrigera jamais — c'est tout le principe d'un insert
+                    qui ignore les doublons.
+
+                    Une purge, une fois, et la synchro juste apres les
+                    reecrit avec la bonne date. Meme mecanique que
+                    `addr_fix_v1` au-dessus, et meme raison : un defaut
+                    d'ecriture ne se repare pas en corrigeant l'ecriture,
+                    il faut aussi effacer ce qui a ete mal ecrit.
+                    */
+                    if (!fixPrefs.getBoolean("horodatage_btc_v1", false)) {
+                        try {
+                            transactionDao.deleteByBlockchain("BTC")
+                            fixPrefs.edit().putBoolean("horodatage_btc_v1", true).apply()
+                        } catch (_: Exception) { }
+                    }
                     // Récupération/insertion/notification déléguées à un service
                     // PARTAGÉ (TransactionSyncService) : DepositCheckWorker appelle
                     // la même logique dès qu'un solde bouge, pour que « Récent »
@@ -95,6 +117,15 @@ class HistoryViewModel @Inject constructor(
                     syncService.syncEth(addresses.eth)
                     syncService.syncBnb(addresses.bnb)
                     syncService.syncSol(addresses.sol)
+                    /*
+                    SOUS LE MEME INTERRUPTEUR QUE LE RESTE. Drapeau ferme,
+                    on n'appelle pas dogechain : ce serait une requete par
+                    ouverture de l'ecran, sur chaque telephone, pour une
+                    chaine que l'application n'affiche pas.
+                    */
+                    if (com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF) {
+                        syncService.syncDoge(addresses.doge)
+                    }
                     // Transferts de TOKENS (SHIB, USDC…) — APRÈS la synchro
                     // native : leur REPLACE remplace la ligne « 0 ETH » porteuse.
                     syncService.syncEthTokens(addresses.eth)

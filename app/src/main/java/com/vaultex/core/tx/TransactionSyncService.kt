@@ -34,6 +34,7 @@ import javax.inject.Singleton
 class TransactionSyncService @Inject constructor(
     private val transactionDao: TransactionDao,
     private val bitcoinApi: BitcoinApi,
+    private val dogechainApi: com.vaultex.data.remote.api.DogechainApi,
     private val tronApi: TronApi,
     private val solanaRpc: SolanaRpcApi,
     @Named("etherscan") private val etherscanApi: EtherscanApi,
@@ -201,7 +202,26 @@ class TransactionSyncService @Inject constructor(
                     tokenSymbol = "BTC",
                     fee = "%.6f".format(tx.fee / 1e8),
                     status = if (tx.status.confirmed) "confirmed" else "pending",
-                    timestamp = tx.status.blockTime ?: System.currentTimeMillis(),
+                    /*
+                    DES SECONDES DANS UN CHAMP LU EN MILLISECONDES.
+
+                    `block_time` de Blockstream est en secondes Unix.
+                    L'ecran fait `Date(timestamp)`, qui attend des
+                    millisecondes : une transaction de 2026 s'affichait
+                    donc datee de JANVIER 1970.
+
+                    Trouve en branchant le Dogecoin, pas en cherchant : il
+                    a fallu verifier la convention de temps pour la
+                    nouvelle chaine, et la ligne voisine ne la respectait
+                    pas. Les quatre autres synchros multiplient bien par
+                    mille — Etherscan et Solana le font explicitement.
+
+                    Personne ne l'avait vu parce que ce portefeuille n'a
+                    jamais detenu de bitcoin. Le defaut attendait le
+                    premier.
+                    */
+                    timestamp = tx.status.blockTime?.times(1000L)
+                        ?: System.currentTimeMillis(),
                     confirmations = if (tx.status.confirmed) 1 else 0,
                     blockNumber = tx.status.blockHeight
                 )
@@ -224,6 +244,102 @@ class TransactionSyncService @Inject constructor(
             failed = true
         }
         if (firstScan && !failed) markBackfilled("BTC", address)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    DOGECOIN — CE QUE LE SERVICE DONNE, ET CE QU'IL NE DONNE PAS
+    ═══════════════════════════════════════════════════════════════════════
+
+    Une ligne mesuree le 20 novembre :
+
+        {"block":6465609,"hash":"2a7b0b44…","time":1795187593,
+         "value":"53.98840569"}
+
+    `value` EST UNE CHAINE DECIMALE EN DOGE — l'inverse du point d'entree
+    `unspent` de la meme maison, qui rend un entier en unites. Reutiliser
+    le parseur de l'autre donnerait un montant cent millions de fois trop
+    grand, sans lever la moindre exception.
+
+    `time` EST EN SECONDES, et l'historique compte en millisecondes.
+
+    ─── NI CONTREPARTIE, NI FRAIS ────────────────────────────────────────
+
+    La reponse n'en porte pas. On ecrit donc notre propre adresse du cote
+    connu et une chaine vide en face, plutot qu'inventer. L'ecran montrera
+    une operation sans adresse en vis-a-vis : c'est moins que pour
+    Bitcoin, et c'est tout ce que ce service rend.
+
+    Les frais restent vides pour la meme raison. Mettre « 0 » affirmerait
+    une gratuite qui n'existe pas.
+
+    ─── LE SENS VIENT DU SIGNE, ET CE POINT N'EST PAS MESURE ─────────────
+
+    Sur le depot observe, `value` est positif. On en deduit qu'une sortie
+    le rend negatif. C'est la convention habituelle d'un historique par
+    adresse, qui porte l'effet NET sur cette adresse — mais l'adresse
+    d'essai n'a reçu qu'un depot, donc rien ne le prouve.
+
+    LE PREMIER ENVOI DOGE REEL TRANCHERA, et c'est la premiere chose a
+    regarder ce jour-la : si le signe n'y est pas, tout s'affichera comme
+    « reçu », y compris ce qui est parti.
+
+    ─── UNE SEULE PAGE ───────────────────────────────────────────────────
+
+    Comme les autres synchros, qui ne remontent pas non plus l'historique
+    entier. La page 1 porte les plus recentes, et c'est ce que l'ecran
+    montre.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    suspend fun syncDoge(address: String) {
+        if (address.isBlank()) return
+        val firstScan = !isBackfilled("DOGE", address)
+        var failed = false
+        try {
+            val reponse = dogechainApi.transactions(address, 1)
+            for (tx in reponse.transactions.orEmpty()) {
+                val hash = tx.hash?.trim().orEmpty()
+                val brut = tx.value?.trim().orEmpty()
+                if (hash.isEmpty() || brut.isEmpty()) continue
+                val montant = brut.toBigDecimalOrNull() ?: continue
+
+                val entrant = montant.signum() >= 0
+                // `abs` : le signe a deja dit le sens, la ligne affiche un
+                // montant et c'est l'icone qui porte la direction.
+                val texte = montant.abs().stripTrailingZeros().toPlainString()
+
+                val entity = TransactionEntity(
+                    hash = hash,
+                    type = if (entrant) "received" else "sent",
+                    blockchain = "DOGE",
+                    fromAddress = if (entrant) "" else address,
+                    toAddress = if (entrant) address else "",
+                    amount = texte,
+                    tokenSymbol = "DOGE",
+                    fee = "",
+                    // Elle est dans un bloc, donc elle est confirmee.
+                    status = if (tx.block != null) "confirmed" else "pending",
+                    timestamp = tx.time?.times(1000L) ?: System.currentTimeMillis(),
+                    confirmations = if (tx.block != null) 1 else 0,
+                    blockNumber = tx.block
+                )
+                val inserted = transactionDao.insertIgnore(entity)
+                if (inserted > 0 && entrant) {
+                    notify(
+                        "Vous avez reçu $texte DOGE", "Transaction Dogecoin confirmée",
+                        "DOGE", entity.timestamp, texte, "DOGE", address, entity.hash
+                    )
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Relancee, comme pour les autres : une annulation n'est pas une
+            // panne, et l'avaler romprait la concurrence structuree.
+            throw e
+        } catch (e: Exception) {
+            com.vaultex.core.monitoring.AdminBot.historyReadFailed("DOGE", e.message)
+            failed = true
+        }
+        if (firstScan && !failed) markBackfilled("DOGE", address)
     }
 
     // ─── ETH / BNB via API compatible Etherscan ────────────────────────
