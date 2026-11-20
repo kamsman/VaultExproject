@@ -135,16 +135,23 @@ private fun BoutonRond(
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                icone, description,
-                // L'icône suit le disque : sur un fond teinté, le blanc
-                // seul paraîtrait posé dessus plutôt que dedans.
-                // Borné à 1 : `lerp` extrapole au-delà et sortirait du gamut.
-                tint = androidx.compose.ui.graphics.lerp(
-                    TextPrimary, AccentBlue, (teinte * 3f).coerceIn(0f, 1f)
-                ),
-                modifier = Modifier.size(20.dp)
-            )
+            /*
+            L'ICONE RESTE BLANCHE, ET C'EST UN RETOUR EN ARRIERE ASSUME.
+
+            Elle suivait d'abord le fond, teintee trois fois plus. A 0,18
+            c'etait joli. Mais pousser le fond pour qu'il se voie mieux
+            poussait l'icone avec lui : a 0,35 on obtenait du bleu sur du
+            bleu, donc un bouton PLUS visible de loin et MOINS lisible de
+            pres.
+
+            Et il y a un troisieme bleu dans ce carre : la pastille. Trois
+            nuances de la meme couleur ne se distinguent plus.
+
+            Blanc sur fond teinte, c'est aussi le motif du bouton
+            d'assistance sur l'accueil. Les deux boutons « il se passe
+            quelque chose ici » se ressemblent, ce qui est le but.
+            */
+            Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
         }
         /*
         ═══════════════════════════════════════════════════════════════════
@@ -376,9 +383,10 @@ fun MarketScreen(navController: NavHostController) {
                                 else R.string.actus_ouvrir
                             ),
                             pastille = actusNouvelles,
-                            // 0.18 : assez pour se détacher de la loupe et
-                            // de la cloche, pas assez pour crier.
-                            teinte = 0.18f
+                            // 0,35 : 0,18 se voyait trop peu sur un ecran de
+                            // telephone en plein jour. Avec une icone blanche,
+                            // on peut monter sans perdre en lisibilite.
+                            teinte = 0.35f
                         ) { navController.navigate(Routes.ACTUS) }
                         Spacer(Modifier.width(8.dp))
                         BoutonRond(
