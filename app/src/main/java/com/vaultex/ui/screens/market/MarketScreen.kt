@@ -170,30 +170,6 @@ private fun BoutonRond(
         un bouton.
         ═══════════════════════════════════════════════════════════════════
         */
-        if (pastille) {
-            val respiration = rememberInfiniteTransition(label = "actus")
-            val avancement by respiration.animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1800, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "anneau"
-            )
-            Canvas(Modifier.matchParentSize()) {
-                val moitie = size.minDimension / 2f
-                // De 0,80 a 1,00 du rayon : l'anneau nait SOUS le bord du
-                // disque et finit juste dessus, sans jamais deborder de la
-                // zone du bouton ni toucher ses voisins.
-                val rayon = moitie * (0.80f + 0.20f * avancement)
-                drawCircle(
-                    color = AccentBlue.copy(alpha = (1f - avancement) * 0.55f),
-                    radius = rayon,
-                    style = Stroke(width = 1.6.dp.toPx())
-                )
-            }
-        }
         Box(
             Modifier
                 .matchParentSize()
@@ -219,6 +195,43 @@ private fun BoutonRond(
             quelque chose ici » se ressemblent, ce qui est le but.
             */
             Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
+        }
+        /*
+        L'ANNEAU PASSE PAR-DESSUS LE DISQUE, et ce n'est pas un detail de
+        rendu : dessine DESSOUS, avec un rayon qui n'atteint que le bord,
+        il etait integralement cache. Invisible, donc inexistant.
+
+        Trouve en dessinant un apercu pour le montrer — pas a la lecture.
+        Une animation qui ne se voit pas ne leve aucune erreur et passe
+        tous les controles de structure.
+
+        IL PART DE 0,62 DU RAYON, soit juste au-dela de l'icone (20 dp de
+        large dans un bouton de 40, donc un demi-rayon). Il ne la croise
+        jamais : il nait autour d'elle et meurt sur le bord du disque.
+        */
+        if (pastille) {
+            val respiration = rememberInfiniteTransition(label = "actus")
+            val avancement by respiration.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1800, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "anneau"
+            )
+            Canvas(Modifier.matchParentSize()) {
+                val moitie = size.minDimension / 2f
+                // De 0,62 a 1,00 du rayon : il nait autour de l'icone et
+                // meurt sur le bord du disque, sans jamais deborder du
+                // bouton ni toucher ses voisins.
+                val rayon = moitie * (0.62f + 0.38f * avancement)
+                drawCircle(
+                    color = AccentBlue.copy(alpha = (1f - avancement) * 0.55f),
+                    radius = rayon,
+                    style = Stroke(width = 1.6.dp.toPx())
+                )
+            }
         }
     }
 }
