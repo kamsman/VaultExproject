@@ -211,7 +211,19 @@ fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modi
             NavTab(
                 Icons.Default.TrendingUp, stringResource(R.string.tab_market),
                 currentRoute == Routes.MARKET, Modifier.weight(1f),
-                pastille = actusNouvelles
+                /*
+                PAS DE POINT QUAND ON Y EST DEJA.
+
+                Sur l'ecran Marche, le bouton journal porte sa propre
+                pastille, a trente points au-dessus. Deux signaux pour la
+                meme information, dont un qui n'apprend plus rien : le
+                point de l'onglet dit « va voir la-bas », et on y est.
+
+                Le chemin reste lisible et se passe le relais — depuis
+                ailleurs c'est l'onglet qui appelle, une fois arrive c'est
+                le bouton qui dit « c'est ici ».
+                */
+                pastille = actusNouvelles && currentRoute != Routes.MARKET
             ) { go(Routes.MARKET) }
             // Emplacement central : uniquement le libellé (le bouton flotte au-dessus).
             Box(Modifier.weight(1f), contentAlignment = Alignment.BottomCenter) {
