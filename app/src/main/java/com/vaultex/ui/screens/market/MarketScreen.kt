@@ -220,6 +220,22 @@ private fun BoutonRond(
                 ),
                 label = "anneau"
             )
+            /*
+            LA COULEUR SE LIT AVANT D'ENTRER DANS LE DESSIN.
+
+            `AccentBlue` n'est pas une constante : c'est une propriete
+            `@Composable` qui lit `LocalAppColors` — c'est ce qui lui
+            permet de suivre le theme clair et le theme sombre.
+
+            Or `Canvas { }` ouvre un `DrawScope`, qui n'est PAS un
+            contexte composable. L'y lire donne « @Composable invocations
+            can only happen from the context of a @Composable function »,
+            et le compilateur pointe la couleur, pas le Canvas.
+
+            On la capture donc ici, ou l'on est encore composable, et le
+            dessin ne manipule plus qu'une valeur.
+            */
+            val couleurAnneau = AccentBlue
             Canvas(Modifier.matchParentSize()) {
                 val moitie = size.minDimension / 2f
                 // De 0,62 a 1,00 du rayon : il nait autour de l'icone et
@@ -227,7 +243,7 @@ private fun BoutonRond(
                 // bouton ni toucher ses voisins.
                 val rayon = moitie * (0.62f + 0.38f * avancement)
                 drawCircle(
-                    color = AccentBlue.copy(alpha = (1f - avancement) * 0.55f),
+                    color = couleurAnneau.copy(alpha = (1f - avancement) * 0.55f),
                     radius = rayon,
                     style = Stroke(width = 1.6.dp.toPx())
                 )
