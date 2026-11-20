@@ -72,7 +72,30 @@ object CoinIds {
         l'application. Prévenir d'une hausse sans offrir le moindre moyen
         d'en profiter serait une notification pour rien.
         */
-        "PI" to "pi-network"
+        "PI" to "pi-network",
+        /*
+        ═══════════════════════════════════════════════════════════════
+        SANS CETTE LIGNE, LA FICHE DOGECOIN N'AVAIT PAS DE GRAPHIQUE
+        ═══════════════════════════════════════════════════════════════
+
+        CONSTATE SUR APPAREIL, en comparant deux fiches cote a cote :
+        l'Ethereum montrait capitalisation, volume, offre en circulation,
+        courbe sept jours et « En direct ». Le Dogecoin, rien de tout
+        cela — et son nom s'affichait « DOGE » au lieu de « Dogecoin ».
+
+        `TokenDetailViewModel` cherche ici l'identifiant de cotation.
+        Absent, `coinGeckoId` vaut null, et TOUT ce qui en depend
+        disparait en silence : aucune erreur, juste un ecran plus pauvre
+        que les autres.
+
+        VOLONTAIREMENT ABSENT D'[ALERTABLE], en revanche. Les alertes de
+        variation surveillent toute cette liste-la et se declenchent a
+        5 % ; le Dogecoin franchit ce seuil presque tous les jours. C'est
+        le meme raisonnement qui en ecarte SHIB et PEPE — ou plutot qui
+        aurait du les en ecarter, comme le dit le commentaire d'ALERTABLE.
+        ═══════════════════════════════════════════════════════════════
+        */
+        "DOGE" to "dogecoin"
     )
 
     /**
