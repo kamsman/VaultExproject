@@ -1,5 +1,11 @@
 package com.vaultex.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -303,26 +309,80 @@ private fun NavTab(
             Icon(icon, contentDescription = label, tint = color, modifier = Modifier.matchParentSize())
             if (pastille) {
                 /*
-                DEUX CERCLES, comme sur le bouton des actualites : l'anneau
-                exterieur reprend le fond de la barre et separe le point du
-                trait de l'icone. Sans lui, les deux se touchent et le point
-                se lit comme une bavure du dessin.
+                ═══════════════════════════════════════════════════════════
+                UN POINT QUI RESPIRE, PARCE QU'IL EST MINUSCULE
+                ═══════════════════════════════════════════════════════════
 
-                BLEU ET NON ROUGE, pour la meme raison qu'ailleurs : on
-                informe, on ne presse pas.
+                Six points de diametre au coin d'une icone de vingt-deux,
+                dans une barre qui en fait trois cent vingt-huit : immobile,
+                il se voit quand on le cherche. Le halo fait le travail que
+                sa taille ne peut pas faire.
+
+                LE POINT NE BOUGE PAS, c'est le halo qui s'etend et
+                s'efface. Un point qui grossit et retrecit se lit comme un
+                defaut d'affichage ; une onde qui en part se lit comme un
+                signal.
+
+                ─── LA BOITE EST PLUS GRANDE QUE CE QU'ON VOIT ────────────
+
+                Seize points, pour laisser la place au halo, avec un decalage
+                qui remet le point exactement ou il etait. Sans ce decalage,
+                centrer une boite plus grande au meme coin deplacerait le
+                point de trois points vers l'interieur.
+
+                Le debordement sur les voisins est sans risque : chaque
+                onglet occupe une part de soixante-trois points, le halo en
+                demande huit.
+
+                ─── MEME RYTHME QUE L'ANNEAU DU BOUTON JOURNAL ────────────
+
+                1800 ms. Les deux signaux appartiennent a la meme chaine —
+                l'onglet appelle, le bouton prend le relais — et deux
+                cadences differentes se liraient comme deux choses sans
+                rapport.
+                ═══════════════════════════════════════════════════════════
                 */
+                val respiration = rememberInfiniteTransition(label = "actus-onglet")
+                val avancement by respiration.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1800, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "halo"
+                )
+                // Lue ICI : `AccentBlue` est une propriete @Composable, et le
+                // DrawScope du Canvas n'est pas un contexte composable.
+                val bleu = com.vaultex.ui.theme.AccentBlue
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
-                        .size(9.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceColor),
+                        .offset(x = 3.5.dp, y = (-3.5).dp)
+                        .size(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    Canvas(Modifier.matchParentSize()) {
+                        drawCircle(
+                            color = bleu.copy(alpha = (1f - avancement) * 0.45f),
+                            radius = (size.minDimension / 2f) * (0.30f + 0.70f * avancement)
+                        )
+                    }
+                    /*
+                    DEUX CERCLES, comme sur le bouton des actualites :
+                    l'anneau exterieur reprend le fond de la barre et separe
+                    le point du trait de l'icone. Sans lui, les deux se
+                    touchent et le point se lit comme une bavure.
+
+                    BLEU ET NON ROUGE, pour la meme raison qu'ailleurs : on
+                    informe, on ne presse pas.
+                    */
                     Box(
-                        Modifier.size(6.dp).clip(CircleShape)
-                            .background(com.vaultex.ui.theme.AccentBlue)
-                    )
+                        Modifier.size(9.dp).clip(CircleShape).background(SurfaceColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(bleu))
+                    }
                 }
             }
         }
