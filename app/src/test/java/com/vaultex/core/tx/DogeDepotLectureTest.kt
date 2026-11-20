@@ -62,6 +62,18 @@ class DogeDepotLectureTest {
                 corps: com.vaultex.data.remote.dto.BlockCypherPousseeDto,
                 jeton: String?
             ) = com.vaultex.data.remote.dto.BlockCypherResultatDto()
+            /*
+            JAMAIS APPELEE ICI. `DogeDepot` diffuse, il ne suit pas les
+            confirmations — c'est le travail de `ConfirmationChecker`.
+            Lever nomme ce qu'il faut ecrire si quelqu'un branche un jour
+            ce chemin sur DogeDepot.
+            */
+            override suspend fun transaction(
+                hash: String, jeton: String?
+            ): com.vaultex.data.remote.dto.BlockCypherTxDto =
+                throw UnsupportedOperationException(
+                    "DogeDepot ne suit pas les confirmations — voir ConfirmationChecker"
+                )
         }
     )
 

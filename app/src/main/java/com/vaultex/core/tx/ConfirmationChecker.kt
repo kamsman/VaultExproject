@@ -21,7 +21,8 @@ class ConfirmationChecker @Inject constructor(
     @Named("bnb") private val bnbRpc: EvmRpcApi,
     private val tronApi: TronApi,
     private val solanaRpc: SolanaRpcApi,
-    private val bitcoinApi: BitcoinApi
+    private val bitcoinApi: BitcoinApi,
+    private val blockcypherDoge: com.vaultex.data.remote.api.BlockCypherDogeApi
 ) {
     data class Status(
         val confirmations: Int,
@@ -38,6 +39,20 @@ class ConfirmationChecker @Inject constructor(
             "TRX" -> 19
             "BTC" -> 3
             "SOL" -> 32
+            /*
+            SIX, PARCE QU'UN BLOC PAR MINUTE.
+
+            Le defaut etait 12, et c'est ce que l'ecran d'envoi affichait :
+            « 0/12 » sur une chaine ou douze confirmations se comptent en
+            douze minutes — sans que personne ait decide ce chiffre.
+
+            Six est le seuil conventionnel sur Dogecoin, soit environ six
+            minutes. C'est aussi ce qui borne le nombre d'appels : le
+            suivi interroge toutes les douze secondes, donc une trentaine
+            de requetes par envoi chez BlockCypher, qui est AUSSI le
+            service qui diffuse. Monter la cible monterait les deux.
+            */
+            "DOGE" -> 6
             else -> 12
         }
     }
@@ -51,6 +66,7 @@ class ConfirmationChecker @Inject constructor(
                 "TRX" -> checkTron(hash, target)
                 "SOL" -> checkSol(hash, target)
                 "BTC" -> checkBtc(hash, target)
+                "DOGE" -> checkDoge(hash, target)
                 else -> Status(0, target, false)
             }
         } catch (_: Exception) {
@@ -110,5 +126,52 @@ class ConfirmationChecker @Inject constructor(
     private suspend fun checkBtc(hash: String, target: Int): Status {
         val tx = bitcoinApi.getTransaction(hash)
         return if (tx.status.confirmed) Status(target, target, true) else Status(0, target, false)
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    SANS CETTE BRANCHE, LE DOGECOIN RESTAIT « EN ATTENTE » POUR TOUJOURS
+    ═══════════════════════════════════════════════════════════════════════
+
+    CONSTATE SUR APPAREIL : un envoi parti a 21 h 49, encore marque
+    « En attente » a 21 h 57 — sur une chaine qui produit un bloc par
+    minute. Le `else` de `check` rendait `Status(0, target, false)`, donc
+    « jamais confirme », indefiniment.
+
+    Rien ne se bloquait pour autant : un garde abandonne la transaction au
+    bout de 45 minutes et le badge disparaissait. Mais il ne passait
+    jamais au vert, et le destinataire n'avait aucun moyen de savoir que
+    c'etait arrive.
+
+    ─── BLOCKCYPHER, ET PAS DOGECHAIN ────────────────────────────────────
+
+    Mesure : dogechain n'a pas de point d'entree par hash. Ni
+    `/api/v1/transaction/{hash}` ni `/api/v1/tx/{hash}` ne trouvent un
+    hash pourtant inscrit dans un bloc — les deux rendent
+    « Not found ». Son API est organisee par ADRESSE.
+
+    BlockCypher rend `confirmations` directement, en un appel. Et c'est
+    lui qui a diffuse la transaction : il la connait avant meme qu'elle
+    soit minee, avec `confirmations` a zero. C'est ce qui permet de
+    distinguer « en attente » d'« introuvable ».
+
+    ─── UNE ABSENCE N'EST PAS UN ECHEC ───────────────────────────────────
+
+    `confirmations` nul est traite comme zero, pas comme une erreur. Une
+    transaction que BlockCypher n'a pas encore vue est en attente, pas
+    perdue — et `failed` fait disparaitre la ligne, ce qui serait un
+    mensonge sur une transaction qui vient de partir.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private suspend fun checkDoge(hash: String, target: Int): Status {
+        /*
+        SANS JETON, comme la diffusion : `DogeDepot.diffuser` est appelee
+        sans en passer non plus. On reste donc sur le palier anonyme de
+        BlockCypher — cent requetes par heure — et c'est une raison de
+        plus de garder la cible a six : trente appels par envoi, pas
+        soixante.
+        */
+        val n = blockcypherDoge.transaction(hash).confirmations ?: 0
+        return Status(n.coerceAtMost(target), target, n >= target)
     }
 }

@@ -541,4 +541,22 @@ interface BlockCypherDogeApi {
         @Body corps: com.vaultex.data.remote.dto.BlockCypherPousseeDto,
         @Query("token") jeton: String? = null
     ): com.vaultex.data.remote.dto.BlockCypherResultatDto
+
+    /**
+     * L'ETAT D'UNE TRANSACTION, POUR LE BADGE « EN ATTENTE ».
+     *
+     * CHEZ BLOCKCYPHER ET NON CHEZ DOGECHAIN, pour une raison mesuree :
+     * dogechain n'a pas de point d'entree par hash. `/api/v1/transaction/`
+     * et `/api/v1/tx/` repondent tous deux « Not found » sur un hash
+     * pourtant bien inscrit dans un bloc.
+     *
+     * BlockCypher rend `confirmations` directement, en un appel — c'est
+     * aussi lui qui a diffuse la transaction, donc il la connait des la
+     * premiere seconde.
+     */
+    @GET("v1/doge/main/txs/{hash}")
+    suspend fun transaction(
+        @Path("hash") hash: String,
+        @Query("token") jeton: String? = null
+    ): com.vaultex.data.remote.dto.BlockCypherTxDto
 }

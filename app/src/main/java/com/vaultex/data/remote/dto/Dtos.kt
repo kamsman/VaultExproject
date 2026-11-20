@@ -798,6 +798,30 @@ passe, et que la plupart des portefeuilles paient un forfait rond tres
 au-dessus. Celui-ci en est un de plus.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/*
+L'ETAT D'UNE TRANSACTION DOGECOIN, VU PAR BLOCKCYPHER.
+
+Releve du 20 novembre, sur un hash reel :
+
+    "block_height": 6465609,
+    "confirmed": "2026-11-20T15:13:13Z",
+    "confirmations": 392
+
+Seul `confirmations` sert : il dit tout, et il est deja un compte. Les
+deux autres sont declares parce qu'ils aident a lire une reponse quand
+quelque chose cloche, pas parce que le code les emploie.
+
+UNE TRANSACTION DIFFUSEE MAIS PAS ENCORE MINEE existe deja chez
+BlockCypher, avec `confirmations` a zero. C'est ce qui permet de
+distinguer « en attente » de « introuvable » — et donc de ne pas
+declarer perdue une transaction qui vient de partir.
+*/
+data class BlockCypherTxDto(
+    val hash: String? = null,
+    @SerializedName("block_height") val hauteurBloc: Long? = null,
+    val confirmations: Int? = null
+)
+
 data class DogechainTransactionsDto(
     val success: Int? = null,
     val transactions: List<DogechainTxDto>? = null
