@@ -15,6 +15,57 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * L'ADRESSE A MONTRER POUR CE SYMBOLE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * SANS LA LIGNE « PI », LA FICHE PI AFFICHAIT UNE ADRESSE ETHEREUM. Le
+ * commentaire ecrit ce jour-la disait :
+ *
+ *   « Un `else` qui devine est sur tant que toutes les chaines se
+ *     ressemblent. Le jour ou l'une d'elles ne ressemble pas aux autres,
+ *     il devient un piege. »
+ *
+ * LE DOGECOIN A ETE CE JOUR-LA. Constate sur appareil : la fiche
+ * affichait « Adresse DOGE » au-dessus d'un
+ * « 0xbde137a9684f0bc437294b2cf2ab7295831e327e » — l'adresse Ethereum du
+ * portefeuille, parfaitement valide, et pour une autre chaine. Quiconque
+ * la copie et y envoie des DOGE les perd definitivement : rien ne
+ * recupere des Dogecoin envoyes a une adresse Ethereum.
+ *
+ * Le defaut etait decrit en toutes lettres a cote du code qui le
+ * contient, et il s'est reproduit quand meme. Un commentaire previent le
+ * lecteur ; il n'empeche personne d'oublier une ligne.
+ *
+ * ─── D'OU CETTE FONCTION, ET LE TEST QUI VA AVEC ───────────────────────
+ *
+ * Elle vivait dans le corps d'une coroutine, hors d'atteinte de tout
+ * test. Remontee au niveau du fichier, [TokenDetailAdresseTest] verifie
+ * que CHAQUE monnaie native rend bien la sienne — et surtout qu'aucune
+ * ne rend celle d'Ethereum par accident.
+ *
+ * Le `else` reste, et il reste juste : un jeton importe par adresse de
+ * contrat vit sur une chaine EVM, et c'est l'adresse Ethereum qu'il lui
+ * faut. Ce qui ne doit plus arriver, c'est qu'une monnaie NATIVE y
+ * tombe. C'est cela que le test tient, et un commentaire ne le tenait
+ * pas.
+ */
+internal fun adressePourSymbole(
+    a: com.vaultex.core.crypto.WalletManager.WalletAddresses,
+    symbol: String
+): String = when (symbol) {
+    "BTC" -> a.btc
+    "ETH", "USDT-ETH" -> a.eth
+    "BNB", "USDT-BNB" -> a.bnb
+    "USDT-SOL" -> a.sol
+    "SOL" -> a.sol
+    "TRX", "USDT" -> a.trx
+    "PI" -> a.pi
+    "DOGE" -> a.doge
+    else -> a.eth
+}
+
 @HiltViewModel
 class TokenDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -143,38 +194,7 @@ class TokenDetailViewModel @Inject constructor(
                 val address = withContext(Dispatchers.IO) {
                     val mnemonic = secureStorage.getMnemonic() ?: return@withContext ""
                     val a = WalletManager.deriveAddresses(mnemonic, secureStorage.getPassphrase())
-                    when (symbol) {
-                        "BTC" -> a.btc
-                        "ETH", "USDT-ETH" -> a.eth
-                        "BNB", "USDT-BNB" -> a.bnb
-                        "USDT-SOL" -> a.sol
-                        "SOL" -> a.sol
-                        "TRX", "USDT" -> a.trx
-                        /*
-                        ═══════════════════════════════════════════════════
-                        SANS CETTE LIGNE, LA FICHE PI AFFICHAIT UNE ADRESSE
-                        ETHEREUM
-                        ═══════════════════════════════════════════════════
-
-                        Le `else` ci-dessous rend l'adresse EVM, et c'est un
-                        choix raisonnable pour un jeton importé — ils vivent
-                        tous sur une chaîne EVM. Le Pi, non.
-
-                        « PI » y serait donc tombé, et l'écran aurait écrit
-                        « Adresse PI » au-dessus d'un 0x… parfaitement
-                        valide — pour une autre chaîne. Quelqu'un le copie,
-                        y envoie ses Pi depuis OKX, et les perd : il n'y a
-                        aucune façon de récupérer des Pi envoyés à une
-                        adresse Ethereum.
-
-                        Un `else` qui devine est sûr tant que toutes les
-                        chaînes se ressemblent. Le jour où l'une d'elles ne
-                        ressemble pas aux autres, il devient un piège.
-                        ═══════════════════════════════════════════════════
-                        */
-                        "PI" -> a.pi
-                        else -> a.eth
-                    }
+                    adressePourSymbole(a, symbol)
                 }
 
                 // Solde détenu : lu dans l'instantané portefeuille (aucun appel réseau).
