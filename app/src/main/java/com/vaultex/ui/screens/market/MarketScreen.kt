@@ -1,5 +1,11 @@
 package com.vaultex.ui.screens.market
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -88,6 +94,11 @@ private const val SEUIL_PREFETCH = 10
 private fun BoutonRond(
     icone: ImageVector,
     description: String,
+    /**
+     * « Il y a du nouveau » — dessine un anneau qui respire autour du
+     * disque. C'etait un point dans le coin ; le nom est reste, pas la
+     * forme. Voir le pave dans le corps.
+     */
     pastille: Boolean = false,
     /**
      * Teinte du disque, de 0 (comme les voisins) à 1 (plein accent).
@@ -127,6 +138,62 @@ private fun BoutonRond(
 ) {
     val fond = androidx.compose.ui.graphics.lerp(Surface, AccentBlue, teinte)
     Box(Modifier.size(40.dp)) {
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        UN ANNEAU QUI RESPIRE, PLUTOT QU'UN POINT DANS LE COIN
+        ═══════════════════════════════════════════════════════════════════
+
+        Le point disait la meme chose et le disait bien, mais il etait
+        petit et pose au coin : on le voit quand on regarde deja le bouton.
+        Or ce qu'on veut, c'est qu'il attire l'oeil de quelqu'un qui
+        regarde ailleurs.
+
+        L'anneau part du bord du disque, s'elargit et s'efface. Il
+        n'ajoute aucun element a lire — c'est le bouton lui-meme qui
+        bouge, et le regard y va sans qu'on ait rien a dechiffrer.
+
+        ─── LE MOTIF EXISTE DEJA DANS L'APPLICATION ───────────────────────
+
+        Le bouton Swap central porte un anneau pointille. Celui-ci en est
+        la version vivante : meme langage, meme famille, et l'ecran ne
+        gagne pas un vocabulaire de plus.
+
+        ─── LENT, ET AVEC UNE RESPIRATION ─────────────────────────────────
+
+        1800 ms, et l'anneau passe l'essentiel du cycle invisible. Une
+        pulsation rapide ou permanente devient du bruit au bout de dix
+        secondes — et ce bouton reste a l'ecran tout le temps qu'on lit
+        les cours.
+
+        L'animation ne tourne que quand il y a du nouveau. Lue, elle
+        s'arrete : `marquerVu` eteint le drapeau, et le bouton redevient
+        un bouton.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        if (pastille) {
+            val respiration = rememberInfiniteTransition(label = "actus")
+            val avancement by respiration.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1800, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "anneau"
+            )
+            Canvas(Modifier.matchParentSize()) {
+                val moitie = size.minDimension / 2f
+                // De 0,80 a 1,00 du rayon : l'anneau nait SOUS le bord du
+                // disque et finit juste dessus, sans jamais deborder de la
+                // zone du bouton ni toucher ses voisins.
+                val rayon = moitie * (0.80f + 0.20f * avancement)
+                drawCircle(
+                    color = AccentBlue.copy(alpha = (1f - avancement) * 0.55f),
+                    radius = rayon,
+                    style = Stroke(width = 1.6.dp.toPx())
+                )
+            }
+        }
         Box(
             Modifier
                 .matchParentSize()
@@ -152,45 +219,6 @@ private fun BoutonRond(
             quelque chose ici » se ressemblent, ce qui est le but.
             */
             Icon(icone, description, tint = TextPrimary, modifier = Modifier.size(20.dp))
-        }
-        /*
-        ═══════════════════════════════════════════════════════════════════
-        LE POINT « IL Y A DU NOUVEAU »
-        ═══════════════════════════════════════════════════════════════════
-
-        BLEU ET NON ROUGE. Le rouge dit « problème » — c'est la couleur des
-        baisses dans la liste juste en dessous. Or il n'y a rien d'urgent à
-        lire un article, et c'est précisément l'argument qui a fait écarter
-        la notification : on informe, on ne presse pas.
-
-        DEUX CERCLES ET NON UN. L'anneau extérieur reprend le fond de
-        l'écran et sépare le point du disque gris du bouton. Sans lui, les
-        deux gris se touchent et le point se lit comme une bavure du
-        dessin plutôt que comme un signal.
-
-        IL NE PORTE AUCUN CLIC ni aucune description : le bouton en dessous
-        les porte déjà, et doubler la cible de frappe ne ferait que créer
-        une zone morte au coin de l'icône. Ce que la pastille annonce est
-        dit à la synthèse vocale par la description du bouton, qui change
-        quand il y a du nouveau.
-        ═══════════════════════════════════════════════════════════════════
-        */
-        if (pastille) {
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .size(11.dp)
-                    .clip(CircleShape)
-                    .background(BgPrimary),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(AccentBlue)
-                )
-            }
         }
     }
 }
