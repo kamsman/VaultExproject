@@ -244,7 +244,40 @@ class PortfolioViewModel @Inject constructor(
             "bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether",
             // Le Pi est listé à l'accueil comme les autres : il lui faut donc
             // un cours dans le MÊME appel, pas un appel de plus.
-            "pi-network"
+            "pi-network",
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE DOGECOIN MANQUAIT ICI, ET ÇA SE VOYAIT AILLEURS
+            ═══════════════════════════════════════════════════════════════
+
+            CONSTATÉ SUR APPAREIL, premier dépôt réel : 53,98840569 DOGE
+            bien lus sur l'adresse, et « ≈ $0 » juste en dessous — sur un
+            écran qui affichait lui-même « $0,0532 » en haut.
+
+            `build("DOGE", …, "dogecoin", …)` cherche son cours dans la
+            réponse de CET appel. L'identifiant n'y était pas, donc pas de
+            prix, donc `valueUsd = 0`.
+
+            ─── ET LE DEUXIÈME SYMPTÔME EN DÉCOULAIT ──────────────────────
+
+            L'accueil filtre ses lignes sur
+            `valueUsd > 0 || symbol in visibleAssets`. Une valeur à zéro
+            écartait donc le Dogecoin de « Mes actifs » ET de la
+            répartition, qui annonçait « SOL 100 % » à quelqu'un qui
+            détenait aussi des DOGE.
+
+            Deux défauts visibles, une seule cause, et aucun des deux ne
+            levait d'erreur.
+
+            ─── AJOUTÉ SANS CONDITION, ET SANS COÛT ───────────────────────
+
+            C'est un identifiant de plus dans une requête qui part de toute
+            façon : zéro appel supplémentaire. Le conditionner à
+            `DOGE_ACTIF` ne ferait qu'ajouter un moyen de reproduire le
+            défaut le jour où le drapeau bouge.
+            ═══════════════════════════════════════════════════════════════
+            */
+            "dogecoin"
         )
 
         /*
