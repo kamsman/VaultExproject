@@ -778,15 +778,24 @@ Ni contrepartie, ni frais, ni nombre de confirmations. L'ecran affichera
 donc une operation sans adresse en face. C'est moins que pour Bitcoin, et
 c'est tout ce que ce service donne.
 
-─── LE SIGNE DIT LE SENS, ET CE POINT N'EST PAS VERIFIE ───────────────────
+─── LE SIGNE DIT LE SENS, ET C'EST MESURE ─────────────────────────────────
 
-Sur un DEPOT, `value` est positif. On en deduit qu'une sortie le rend
-negatif — c'est la convention habituelle d'un historique par adresse, qui
-porte l'effet NET sur cette adresse.
+La MEME transaction, interrogee depuis les deux adresses qu'elle relie :
 
-MAIS ON NE L'A PAS MESURE : l'adresse d'essai n'a recu qu'un depot. Le
-premier envoi DOGE reel le dira, et c'est la premiere chose a regarder
-ce jour-la. Si le signe n'y est pas, tout apparaitra comme reçu.
+    adresse qui reçoit   "value":"53.98840569"
+    adresse qui envoie   "value":"-54.08646127"
+
+Le champ porte donc l'effet NET sur l'adresse interrogee, frais compris.
+C'etait une deduction ; c'est maintenant un releve, pris sans depenser un
+DOGE — il suffisait d'interroger l'adresse source, qui avait forcement
+une sortie.
+
+AU PASSAGE, L'ECART DONNE LES FRAIS : 54,08646127 moins 53,98840569 font
+0,09805558 DOGE. Notre estimation pour une entree et deux sorties est de
+0,00456 — vingt et une fois moins. Rien d'alarmant : les dix
+transactions mesurees au debut du chantier avaient montre que le minimum
+passe, et que la plupart des portefeuilles paient un forfait rond tres
+au-dessus. Celui-ci en est un de plus.
 ═══════════════════════════════════════════════════════════════════════════
 */
 data class DogechainTransactionsDto(
