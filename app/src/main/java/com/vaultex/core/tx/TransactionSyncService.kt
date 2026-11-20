@@ -273,16 +273,24 @@ class TransactionSyncService @Inject constructor(
     Les frais restent vides pour la meme raison. Mettre « 0 » affirmerait
     une gratuite qui n'existe pas.
 
-    ─── LE SENS VIENT DU SIGNE, ET CE POINT N'EST PAS MESURE ─────────────
+    ─── LE SENS VIENT DU SIGNE, ET C'EST MESURE ──────────────────────────
 
-    Sur le depot observe, `value` est positif. On en deduit qu'une sortie
-    le rend negatif. C'est la convention habituelle d'un historique par
-    adresse, qui porte l'effet NET sur cette adresse — mais l'adresse
-    d'essai n'a reçu qu'un depot, donc rien ne le prouve.
+    La MEME transaction, vue des deux adresses qu'elle relie :
 
-    LE PREMIER ENVOI DOGE REEL TRANCHERA, et c'est la premiere chose a
-    regarder ce jour-la : si le signe n'y est pas, tout s'affichera comme
-    « reçu », y compris ce qui est parti.
+        celle qui reçoit   "value":"53.98840569"
+        celle qui envoie   "value":"-54.08646127"
+
+    Le champ porte l'effet NET sur l'adresse interrogee, frais compris.
+
+    VERIFIE SANS DEPENSER UN DOGE, et sans attendre : l'adresse SOURCE du
+    depot avait forcement une sortie — celle-la meme qui a finance le
+    portefeuille. Le code etait juste ; il ne le savait pas.
+
+    AU PASSAGE, L'ECART DONNE LES FRAIS REELS : 0,09805558 DOGE, contre
+    0,00456 estime pour une entree et deux sorties. Vingt et une fois
+    plus, et ça ne dit rien de ce que le reseau EXIGE — c'est le forfait
+    rond qu'a choisi le portefeuille d'en face, comme huit des dix
+    transactions mesurees au debut du chantier.
 
     ─── UNE SEULE PAGE ───────────────────────────────────────────────────
 
