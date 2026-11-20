@@ -240,7 +240,13 @@ class PortfolioViewModel @Inject constructor(
          */
         private const val DELAI_RESCAN = 3 * 60 * 1000L
 
-        private val COIN_IDS = listOf(
+        /*
+        `internal` ET NON `private` : [ChainesCoherentesTest] la compare
+        aux autres tables. C'est la seule facon de tenir l'invariant qui
+        a manque cinq fois en deux jours — une chaine branchee dans le
+        portefeuille et oubliee dans une liste voisine.
+        */
+        internal val COIN_IDS = listOf(
             "bitcoin", "ethereum", "binancecoin", "solana", "tron", "tether",
             // Le Pi est listé à l'accueil comme les autres : il lui faut donc
             // un cours dans le MÊME appel, pas un appel de plus.
