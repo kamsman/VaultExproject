@@ -38,6 +38,24 @@ class DogeDepotLectureTest {
                 com.vaultex.data.remote.dto.DogechainSoldeDto()
             override suspend fun sortiesNonDepensees(adresse: String, page: Int) =
                 com.vaultex.data.remote.dto.DogechainSortiesDto()
+            /*
+            JAMAIS APPELEE ICI, ET ELLE LE DIT.
+
+            `DogeDepot` ne lit que le solde et les pieces ; l'historique
+            est le travail de `TransactionSyncService`. Rendre un objet
+            vide laisserait croire qu'il n'y a pas de transactions, et un
+            test qui s'appuierait dessus passerait pour une mauvaise
+            raison.
+
+            Lever est plus honnete : si quelqu'un branche un jour ce
+            chemin sur DogeDepot, l'echec nomme ce qu'il faut ecrire.
+            */
+            override suspend fun transactions(
+                adresse: String, page: Int
+            ): com.vaultex.data.remote.dto.DogechainTransactionsDto =
+                throw UnsupportedOperationException(
+                    "DogeDepot ne lit pas l'historique — voir TransactionSyncService.syncDoge"
+                )
         },
         blockcypher = object : com.vaultex.data.remote.api.BlockCypherDogeApi {
             override suspend fun diffuser(
