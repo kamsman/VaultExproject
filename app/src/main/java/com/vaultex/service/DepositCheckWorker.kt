@@ -206,6 +206,17 @@ class DepositCheckWorker @AssistedInject constructor(
                         "BNB" -> syncService.syncBnb(addr.bnb)
                         "SOL" -> syncService.syncSol(addr.sol)
                         "TRX" -> syncService.syncTron(addr.trx)
+                        /*
+                        PAS DE GARDE SUR DOGE_ACTIF ICI, et c'est voulu :
+                        « DOGE » n'entre dans `toSync` que par
+                        `else -> toSync.add(c.symbol)`, c'est-a-dire a
+                        partir d'une ligne du portefeuille — que
+                        PortfolioViewModel ne construit que si le drapeau
+                        est ouvert. La branche est donc inatteignable
+                        autrement, et une garde de plus ne ferait que
+                        suggerer qu'elle pourrait l'etre.
+                        */
+                        "DOGE" -> syncService.syncDoge(addr.doge)
                         "ETH_TOKENS" -> syncService.syncEthTokens(addr.eth)
                         "BNB_TOKENS" -> syncService.syncBnbTokens(addr.bnb)
                     }

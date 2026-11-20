@@ -501,6 +501,19 @@ interface DogechainApi {
         @Path("adresse") adresse: String,
         @Path("page") page: Int
     ): com.vaultex.data.remote.dto.DogechainSortiesDto
+
+    /**
+     * L'HISTORIQUE DE L'ADRESSE, pour l'ecran Historique.
+     *
+     * Ce n'est pas `unspent` : celui-la rend les pieces a depenser, et il
+     * ne voit ni les sorties ni les entrees deja consommees. Pour une
+     * LISTE d'operations il faut ce point d'entree-ci.
+     */
+    @GET("api/v1/address/transactions/{adresse}/{page}")
+    suspend fun transactions(
+        @Path("adresse") adresse: String,
+        @Path("page") page: Int
+    ): com.vaultex.data.remote.dto.DogechainTransactionsDto
 }
 
 /*

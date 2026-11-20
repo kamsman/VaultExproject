@@ -748,6 +748,61 @@ data class ArticleDto(
 )
 
 /** La reponse de /actus : les articles, et l'etat de chaque source. */
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'HISTORIQUE DOGECOIN — ET LE PIEGE DES DEUX « value »
+═══════════════════════════════════════════════════════════════════════════
+
+MESURE du 20 novembre, sur une adresse reelle :
+
+    {"success":1,"transactions":[{
+       "block":6465609,
+       "hash":"2a7b0b44…",
+       "price":"0.05633370",
+       "time":1795187593,
+       "value":"53.98840569"
+    }]}
+
+« value » EST UNE CHAINE DECIMALE EN DOGE. C'est l'inverse exact du point
+d'entree `unspent` de la MEME maison, qui rend `"value": 1000000`, un
+ENTIER en unites — voir le pave de DogechainSortiesDto plus haut, ecrit
+apres une lecture fausse d'un facteur cent millions.
+
+Deux points d'entree du meme service, deux conventions. Reutiliser le
+parseur de l'un pour l'autre est l'erreur evidente, et elle ne leverait
+aucune exception.
+
+─── CE QUI N'EST PAS DANS LA REPONSE ──────────────────────────────────────
+
+Ni contrepartie, ni frais, ni nombre de confirmations. L'ecran affichera
+donc une operation sans adresse en face. C'est moins que pour Bitcoin, et
+c'est tout ce que ce service donne.
+
+─── LE SIGNE DIT LE SENS, ET CE POINT N'EST PAS VERIFIE ───────────────────
+
+Sur un DEPOT, `value` est positif. On en deduit qu'une sortie le rend
+negatif — c'est la convention habituelle d'un historique par adresse, qui
+porte l'effet NET sur cette adresse.
+
+MAIS ON NE L'A PAS MESURE : l'adresse d'essai n'a recu qu'un depot. Le
+premier envoi DOGE reel le dira, et c'est la premiere chose a regarder
+ce jour-la. Si le signe n'y est pas, tout apparaitra comme reçu.
+═══════════════════════════════════════════════════════════════════════════
+*/
+data class DogechainTransactionsDto(
+    val success: Int? = null,
+    val transactions: List<DogechainTxDto>? = null
+)
+
+data class DogechainTxDto(
+    val hash: String? = null,
+    val block: Long? = null,
+    /** SECONDES Unix — l'historique compte en millisecondes. */
+    val time: Long? = null,
+    /** Chaine decimale EN DOGE, signee. Voir le pave ci-dessus. */
+    val value: String? = null
+)
+
 data class ActualitesDto(
     val articles: List<ArticleDto>? = null,
     val quand: Long? = null
