@@ -43,3 +43,7 @@ __pycache__/
 # s'en aperçoive.
 doge-mesures.json
 doge-sorties.json
+
+# Secrets locaux de wrangler : jamais dans un depot public.
+.dev.vars
+.dev.vars.*

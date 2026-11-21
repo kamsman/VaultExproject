@@ -726,6 +726,39 @@ dans son portefeuille.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
+import { refusDiag } from './worker.js'
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE DIAGNOSTIC NE DOIT PAS ETRE OUVERT A TOUS
+═══════════════════════════════════════════════════════════════════════════
+
+Une seule requete sur /diag declenche vingt-huit appels sortants. Ouvert,
+il laissait n'importe qui epuiser le quota CoinGecko — « Prix : $0 » sur
+tous les telephones — et faire limiter le worker par les noeuds RPC.
+
+Ces trois controles tiennent la regle. Le premier est le plus important :
+SANS CLE REGLEE, C'EST FERME. Un reglage absent ne doit jamais ouvrir.
+═══════════════════════════════════════════════════════════════════════════
+*/
+verifie(
+  'DIAG : sans CHANGE_DIAG_CLE reglee, ferme',
+  refusDiag({}, new URLSearchParams())?.status === 403 &&
+    refusDiag({}, new URLSearchParams('cle=peu-importe'))?.status === 403
+)
+
+verifie(
+  'DIAG : cle absente ou fausse, refuse',
+  refusDiag({ CHANGE_DIAG_CLE: 'bonne' }, new URLSearchParams())?.status === 403 &&
+    refusDiag({ CHANGE_DIAG_CLE: 'bonne' }, new URLSearchParams('cle=mauvaise'))?.status === 403 &&
+    refusDiag({ CHANGE_DIAG_CLE: 'bonne' }, new URLSearchParams('cle=Bonne'))?.status === 403
+)
+
+verifie(
+  'DIAG : la bonne cle passe',
+  refusDiag({ CHANGE_DIAG_CLE: 'bonne' }, new URLSearchParams('cle=bonne')) === null
+)
+
 import {
   minimumsChange,
   minimumPourMonnaie,
