@@ -2753,6 +2753,79 @@ préfixe resterait — une référence à moitié masquée reste une référence
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
+LES ADRESSES DES CHAINES QUE L'ANONYMISATION NE CONNAISSAIT PAS
+═══════════════════════════════════════════════════════════════════════════
+
+`anonymiserQuestion` avait deux motifs d'adresse : l'EVM et TRON. Mesure
+faite en lancant `essai-avis.mjs`, qui imprime le texte transforme : une
+adresse BTC, une bech32, une DOGE et une Solana passaient EN CLAIR, les
+quatre.
+
+Le journal des questions vit avec ce defaut depuis qu'il existe. Le
+formulaire d'avis, lui, s'ouvre APRES UN ENVOI — c'est-a-dire au moment
+exact ou quelqu'un a une adresse sous les yeux et une raison de la
+recopier.
+
+LA CORRECTION PORTE SUR LA FORME, PAS SUR LA LISTE. Quatre motifs de plus
+auraient marche aujourd'hui et rate la cinquieme chaine ajoutee. Ce
+fichier connait le prix d'une liste tenue a la main : le Dogecoin
+manquait dans huit d'entre elles, et aucune n'a leve d'erreur.
+
+CE QUI DOIT SURVIVRE EST TESTE AUSSI, et c'est la moitie qui compte. Une
+regle qui masque tout ne protege rien — elle rend les avis illisibles, et
+un avis illisible ne sert a personne. En particulier `'a'.repeat(400)`
+doit survivre, sinon le controle de la troncature juste au-dessus ne
+mesurerait plus la troncature.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const sorti = (entre) => anonymiserQuestion(entre, 400)
+
+  const adresses = [
+    ['BTC', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'],
+    ['BTC bech32', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'],
+    ['DOGE', 'DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L'],
+    ['SOL', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'],
+    ['TRON', 'TJYeasTPa6gpEEfYYSCCDHxZLBPbEgE1Qp'],
+    ['EVM', `0x${'a1'.repeat(20)}`],
+  ]
+  for (const [chaine, adresse] of adresses) {
+    const s = sorti(`jai envoye a ${adresse} et rien recu`)
+    verifie(`ANONYME : une adresse ${chaine} ne part pas`,
+      !s.includes(adresse) && s.includes('[adresse]'), s)
+  }
+
+  /*
+  UNE EMPREINTE DE TRANSACTION PART AUSSI, et c'est voulu plutot que
+  tolere : elle designe une transaction, donc un montant, deux adresses
+  et un instant. Elle en dit plus qu'une adresse seule.
+  */
+  const hash = '2a7b0b441338b90e378ec9d004c31075844127301ea59c87bf9adf45c3c92385'
+  verifie('ANONYME : une empreinte de transaction ne part pas',
+    sorti(`ma transaction ${hash}`).includes('[adresse]'), sorti(`ma transaction ${hash}`))
+
+  // ─── Et ce qui doit RESTER ────────────────────────────────────────────
+  verifie('ANONYME : une phrase ordinaire traverse intacte',
+    sorti('lappli est rapide mais je nai pas compris les frais') ===
+      'lappli est rapide mais je nai pas compris les frais',
+    sorti('lappli est rapide mais je nai pas compris les frais'))
+  verifie('ANONYME : un montant de cinq chiffres reste — il ne designe personne',
+    sorti('jai paye 10000 FCFA et rien recu').includes('10000'),
+    sorti('jai paye 10000 FCFA et rien recu'))
+  /*
+  VINGT-SIX CARACTERES EST LE SEUIL, et aucun mot francais ne l'atteint.
+  Celui-ci fait trente-quatre lettres sans un chiffre : il doit passer,
+  sinon la regle mangerait la langue.
+  */
+  verifie('ANONYME : un mot tres long sans chiffre survit',
+    sorti('anticonstitutionnellementgrandiose').includes('anticonstitutionnellementgrandiose'),
+    sorti('anticonstitutionnellementgrandiose'))
+  verifie('ANONYME : 400 caracteres identiques ne sont pas une adresse',
+    sorti('a'.repeat(400)) === 'a'.repeat(400), sorti('a'.repeat(400)).slice(0, 30))
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
 LES AVIS : CE QUI PART DU TELEPHONE, ET DANS QUEL CANAL IL ARRIVE
 ═══════════════════════════════════════════════════════════════════════════
 

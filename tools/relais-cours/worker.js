@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 105
+const VERSION = 106
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -10132,6 +10132,40 @@ function anonymiserQuestion(texte, limite = 160) {
     .replace(/0x[0-9a-fA-F]{40}/g, '[adresse]')
     .replace(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/g, '[adresse]')
     .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[email]')
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    TOUTE ADRESSE, Y COMPRIS CELLES DES CHAÎNES QU'ON N'A PAS ENCORE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Les deux lignes au-dessus ne connaissent que l'EVM et TRON. Mesuré :
+    une adresse BTC, bech32, DOGE et Solana passaient EN CLAIR toutes les
+    quatre. Le journal des questions vit avec ce défaut depuis qu'il
+    existe, et le formulaire d'avis — qui s'ouvre après un envoi sur
+    n'importe laquelle de ces chaînes — en aurait fait la règle.
+
+    LA RÈGLE EST DONC ÉCRITE SUR LA FORME, PAS SUR LA CHAÎNE. Quatre
+    motifs de plus auraient marché aujourd'hui et raté la cinquième
+    chaîne ajoutée ; ce dépôt a déjà payé huit fois le prix d'une liste
+    tenue à la main — le Dogecoin manquait dans huit d'entre elles, et
+    aucune n'a levé d'erreur en le ratant.
+
+    CE QUI DÉFINIT UNE ADRESSE ICI : vingt-six caractères ou plus, sans
+    espace, alphanumériques, AVEC AU MOINS UN CHIFFRE.
+
+    Le chiffre n'est pas décoratif, il protège deux choses. Aucun mot
+    français n'atteint vingt-six lettres, mais `'a'.repeat(400)` les
+    atteint — et le contrôle de la troncature à 160 caractères repose
+    là-dessus. Une adresse base58, elle, contient presque toujours un
+    chiffre : sur trente-trois caractères tirés d'un alphabet qui en
+    compte neuf, n'en avoir aucun arrive une fois sur deux cents.
+
+    C'est donc une passoire à très gros trous plutôt qu'un filet parfait,
+    et c'est assumé : elle attrape les quatre formats mesurés, celles des
+    chaînes à venir, et les empreintes de transaction par la même
+    occasion — qu'on ne regrette pas de voir partir d'un avis.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    .replace(/\b[0-9A-Za-z]{26,}\b/g, (bloc) => (/\d/.test(bloc) ? '[adresse]' : bloc))
     /* Huit chiffres d'affilée sont un numéro au Burkina Faso. Au-delà aussi. */
     .replace(/(?<!\d)\d{8,}(?!\d)/g, '[numero]')
     .trim()

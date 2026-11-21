@@ -78,15 +78,27 @@ qu'on ne puisse pas croire qu'il suffit.
 
 ─── CE QUI SE VOIT ET CE QU'IL FAUT CROIRE ────────────────────────────────
 
-La ligne « ni montant, ni adresse, ni numéro ne partent » est AFFICHÉE,
-et elle est VRAIE : `recevoirAvis`, dans le relais, passe le texte par la
-même fonction d'anonymisation que les questions de l'assistance. Elle
-n'est pas une promesse de l'écran — elle est appliquée après lui, par le
-serveur, et épinglée par les tests du relais.
+La ligne affichée dit « ni votre adresse, ni votre numéro, ni la
+référence ne partent ». Elle est VRAIE, et elle a dû être RÉÉCRITE pour
+l'être : ma première version promettait aussi « ni montant », ce que
+l'anonymisation ne fait pas — un montant de cinq chiffres ne désigne
+personne, et le retirer priverait la plainte de son sens. C'est l'outil
+`essai-avis.mjs` qui l'a montré, en imprimant le texte transformé au lieu
+de me laisser raisonner dessus.
+
+Le même essai a révélé plus grave : la fonction ne masquait que les
+adresses EVM et TRON. Une adresse BTC, bech32, DOGE ou Solana partait en
+clair, alors que ce formulaire s'ouvre après un envoi sur n'importe
+laquelle de ces chaînes. Le relais applique désormais une règle écrite
+sur la FORME d'une adresse et non sur la liste des chaînes.
+
+Ce qu'elle promet est appliqué APRÈS cet écran, par le serveur, et
+épinglé par les tests du relais : une promesse que l'écran tiendrait
+lui-même ne vaudrait rien, puisque l'écran est dans l'APK.
 
 Si cette ligne mentait, elle ferait exactement le contraire de son but :
-quelqu'un qui écrit « j'ai envoyé 10 000 au 70… » en croyant que ça
-reste entre nous mérite que ce soit le cas.
+quelqu'un qui écrit « j'ai envoyé à DH5… et rien reçu » en croyant que
+ça reste entre nous mérite que ce soit le cas.
 
 ─── NON MODALE, FLOTTANTE, COMME « QUOI DE NEUF » ─────────────────────────
 

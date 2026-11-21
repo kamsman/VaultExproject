@@ -1000,7 +1000,7 @@
     <string name="avis_aide">جملة واحدة تكفي. هي الطريقة الوحيدة لنعرف ما يزعجكم.</string>
     <string name="avis_invite">ما أعجبكم، وما أزعجكم…</string>
     <string name="avis_envoyer">إرسال</string>
-    <string name="avis_prive">لا يُرسل مع رسالتكم أي مبلغ ولا عنوان ولا رقم هاتف.</string>
+    <string name="avis_prive">لا يُرسل مع رسالتكم أي عنوان ولا رقم هاتف ولا مرجع للعملية.</string>
     <string name="avis_merci">شكرًا. تم التسجيل.</string>
     <string name="avis_echec">لم تُرسَل ملاحظتكم. تحققوا من اتصالكم.</string>
     <string name="avis_etoiles">التقييم من خمس</string>

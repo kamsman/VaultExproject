@@ -1026,7 +1026,7 @@
     <string name="avis_aide">Une phrase suffit. C\'est la seule façon qu\'on a de savoir ce qui vous gêne.</string>
     <string name="avis_invite">Ce qui vous a plu, ce qui vous a gêné…</string>
     <string name="avis_envoyer">Envoyer</string>
-    <string name="avis_prive">Ni montant, ni adresse, ni numéro ne partent avec votre message.</string>
+    <string name="avis_prive">Ni votre adresse, ni votre numéro, ni la référence ne partent avec votre message.</string>
     <string name="avis_merci">Merci. C\'est noté.</string>
     <string name="avis_echec">L\'avis n\'est pas parti. Vérifiez votre connexion.</string>
     <string name="avis_etoiles">Note sur cinq</string>
