@@ -101,4 +101,50 @@ enum class Blockchain(
     DOGECOIN("Dogecoin", "DOGE", 3, 8, "https://dogechain.com/tx/");
 
     fun isEvm(): Boolean = this == ETHEREUM || this == BNB_CHAIN
+
+    companion object {
+        /**
+         * ═══════════════════════════════════════════════════════════════
+         * L'ADRESSE D'EXPLORATEUR D'UN SYMBOLE — UNE SEULE FOIS
+         * ═══════════════════════════════════════════════════════════════
+         *
+         * TROIS COPIES DE LA MEME TABLE vivaient dans le depot :
+         * `TransactionDetailScreen`, `SendScreen`, et cet enum — dont le
+         * commentaire disait lui-meme que `explorerUrl` « n'est consulte
+         * par aucun code ». Une source de verite dormante pendant que
+         * deux ecrans en maintenaient des copies a la main.
+         *
+         * ELLES AVAIENT DEJA DIVERGE. Aucune des deux copies ne
+         * connaissait le Dogecoin, et leurs replis differaient :
+         * `TransactionDetailScreen` rendait `null` — le bouton
+         * disparaissait — tandis que `SendScreen` rendait ETHERSCAN. Un
+         * hash Dogecoin ouvrait donc l'explorateur d'Ethereum, qui
+         * repondait « introuvable ».
+         *
+         * Le repli vers Etherscan est le plus couteux des deux : il ne
+         * dit pas « je ne sais pas », il affirme une mauvaise chaine.
+         *
+         * ─── LES VARIANTES SUIVENT LEUR CHAINE ─────────────────────────
+         *
+         * « USDT-ETH » n'est pas un ticker de cet enum : c'est un jeton
+         * SUR Ethereum, et sa transaction se lit chez Etherscan. On
+         * ramene donc le symbole a sa chaine native avant de chercher.
+         *
+         * ─── NULL QUAND ON NE SAIT PAS ─────────────────────────────────
+         *
+         * Un jeton importe par contrat vit sur une chaine EVM et retombe
+         * sur Ethereum — c'est juste. Tout le reste rend `null`, et
+         * l'appelant masque le bouton. Mieux vaut pas de bouton qu'un
+         * bouton qui ment.
+         */
+        fun explorateurPour(symbole: String, hash: String): String? {
+            // `natifDe` resout deja les « ERC20:… » en « ETH » ou « BNB » :
+            // il n'y a pas de cas a rattraper ici.
+            val natif = com.vaultex.core.tx.ReserveFrais.natifDe(symbole.uppercase())
+            // `values()` et non `entries` : ce dernier demande Kotlin 1.9,
+            // et rien dans ce depot ne prouve qu'on l'a.
+            val chaine = values().firstOrNull { it.ticker == natif } ?: return null
+            return chaine.explorerUrl + hash
+        }
+    }
 }

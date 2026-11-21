@@ -1513,17 +1513,21 @@ private fun explorerName(chain: String, custom: CustomTokenLite?): String {
     }
 }
 
+/**
+ * L'adresse d'explorateur vient de [com.vaultex.core.crypto.Blockchain].
+ *
+ * CETTE FONCTION AVAIT SA PROPRE TABLE, et son repli etait Etherscan :
+ * un hash Dogecoin ouvrait donc l'explorateur d'Ethereum, qui repondait
+ * « introuvable ». Un repli qui AFFIRME une mauvaise chaine coute plus
+ * cher qu'un bouton absent.
+ *
+ * Le jeton importe garde son traitement : il n'a pas de ticker a lui, et
+ * c'est sa chaine d'accueil qui porte la transaction.
+ */
 private fun explorerUrl(chain: String, custom: CustomTokenLite?, hash: String): String {
-    val evm = custom?.blockchain
-    val base = when {
-        evm == "BNB" || chain == "BNB" || chain == "USDT-BNB" -> "https://bscscan.com/tx/"
-        evm == "ETH" || chain == "ETH" || chain == "USDT-ETH" -> "https://etherscan.io/tx/"
-        chain == "BTC" -> "https://blockstream.info/tx/"
-        chain == "SOL" || chain == "USDT-SOL" -> "https://solscan.io/tx/"
-        chain == "TRX" || chain == "USDT" -> "https://tronscan.org/#/transaction/"
-        else -> "https://etherscan.io/tx/"
-    }
-    return base + hash
+    val cle = custom?.blockchain ?: chain
+    return com.vaultex.core.crypto.Blockchain.explorateurPour(cle, hash)
+        ?: "https://etherscan.io/tx/$hash"
 }
 
 private fun shareReceipt(context: android.content.Context, d: SendDetail, hash: String) {
