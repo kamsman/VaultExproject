@@ -613,7 +613,6 @@ fun SwapScreen(navController: NavHostController) {
             },
             onEchangerSurPlace = confirmerSurPlace,
             minimumPaire = viewModel.minimumLisible(),
-            commissionPourcent = viewModel.commissionPourcent,
             nomFournisseur = viewModel.nomFournisseur
         )
     }
@@ -643,8 +642,23 @@ private fun SwapFormScreen(
     onEchangerSurPlace: () -> Unit,
     /** Minimum de la paire, mis en forme par le ViewModel. */
     minimumPaire: String?,
-    /** Commission réellement appliquée par le fournisseur en service. */
-    commissionPourcent: Double,
+    /*
+    LA COMMISSION N'EST PAS SUR CE FORMULAIRE, ET C'EST ASSUME.
+
+    Elle y etait passee — avec le commentaire « commission reellement
+    appliquee par le fournisseur » — et JETEE. Le compilateur l'a dit :
+    « Parameter 'commissionPourcent' is never used ».
+
+    Un parametre ignore fait mentir le code qui l'entoure. Celui-ci
+    laissait croire que le formulaire affichait la commission, alors que
+    c'est l'ecran de CONFIRMATION qui s'en charge — et c'est le bon
+    endroit : on montre ce qu'on prend au moment ou l'on demande
+    l'accord, pas pendant que l'utilisateur explore des montants.
+
+    Le parametre disparait donc plutot que d'etre employe. Si on veut un
+    jour l'afficher ici aussi, on le remettra — une ligne, et elle sera
+    vraie.
+    */
     /** Nom de l'échangeur — ChangeNOW ou SimpleSwap. */
     nomFournisseur: String
 ) {
