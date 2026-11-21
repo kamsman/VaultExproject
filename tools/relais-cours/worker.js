@@ -10291,8 +10291,8 @@ async function separationCanaux(env) {
       'Qui ouvre l APK peut ecrire dans le canal des ordres. A REGENERER.'
   } else if (memeBot === false) {
     verdict =
-      'Deux bots distincts. Le jeton de l APK n atteint pas le canal des ' +
-      'ordres — ce qui reste a verifier est le groupe, ci-dessous.'
+      'Deux bots distincts : le jeton de l APK n atteint pas le canal des ' +
+      'ordres. Reste a verifier que les deux GROUPES sont distincts aussi.'
   } else {
     verdict =
       'Indeterminable : au moins un jeton n a pas repondu. Voir les raisons.'
