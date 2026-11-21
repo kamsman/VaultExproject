@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 103
+const VERSION = 104
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -917,6 +917,51 @@ export default {
           ? 'actif'
           : 'INACTIF — regle CHANGE_MARQUAGE (16 caracteres au moins)',
       })
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    TOUT CE QUI COMMENCE PAR /diag DEMANDE LA CLE
+    ═══════════════════════════════════════════════════════════════════════
+
+    `/diag` ETAIT OUVERT A TOUS, et une seule requete y declenche VINGT-HUIT
+    appels sortants : huit sources de cours, douze noeuds RPC, TronGrid,
+    Blockstream, trois noeuds Solana, deux appels Telegram, un au
+    fournisseur d'assistance.
+
+    L'adresse de ce relais figure dans un depot public. N'importe qui
+    pouvait donc l'appeler en boucle et :
+
+      — epuiser le quota CoinGecko, que ce fichier designe lui-meme comme
+        « le poste de depense principal » — et un quota epuise, c'est
+        « Prix : $0 » sur tous les telephones ;
+      — faire limiter le worker par les noeuds RPC, qui comptent par IP et
+        voient une adresse Cloudflare partagee ;
+      — marteler l'API Telegram avec getMe et getChat.
+
+    Aucune de ces trois consequences n'est une fuite de donnees. Toutes
+    les trois cassent le service pour les utilisateurs, sans rien laisser
+    voir dans les journaux d'erreur — les appels reussissent, c'est le
+    quota qui tombe.
+
+    CE QU'IL REVELAIT AUSSI : le nom du bot Telegram, le titre du groupe,
+    l'etat du lecteur de SMS, le fournisseur et le modele d'assistance.
+    Rien de fatal, mais rien qui regarde un inconnu.
+
+    ─── SANS CLE, FERME ──────────────────────────────────────────────────
+
+    C'est la regle que ce fichier applique deja au journal des questions :
+    « Un reglage absent ferme. » Elle vaut d'autant plus ici que l'ouvert
+    ne coute pas qu'un secret — il coute un quota.
+
+    `/sante` reste public : il ne fait AUCUN appel sortant et ne rend que
+    la version et l'etat de la memoire. C'est la sonde de disponibilite,
+    et la fermer n'aurait protege de rien.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (url.pathname.startsWith('/diag')) {
+      const refus = refusDiag(env, url.searchParams)
+      if (refus) return refus
     }
 
     if (url.pathname === '/diag') {
@@ -1654,6 +1699,31 @@ async function servirImage(url, env) {
       'x-content-type-options': 'nosniff',
     },
   })
+}
+
+/**
+ * Refuse un appel de diagnostic, ou rend `null` s'il est autorise.
+ *
+ * LA CLE EST LA MEME QUE CELLE DU JOURNAL DES QUESTIONS. Un seul secret
+ * a poser, un seul a retenir — et celui qui diagnostique a de toute
+ * facon besoin des deux.
+ *
+ * LE REFUS DIT CE QU'IL FAUT FAIRE, parce que le premier a le rencontrer
+ * sera le proprietaire du relais, pas un inconnu. Et il ne revele rien :
+ * sans cle reglee, l'endpoint est ferme de toute maniere.
+ */
+function refusDiag(env, params) {
+  const cle = String(env?.CHANGE_DIAG_CLE ?? '')
+  if (!cle) {
+    return json({
+      ok: false,
+      raison: 'diagnostic ferme : CHANGE_DIAG_CLE n\'est pas reglee sur ce relais',
+    }, 0, 403)
+  }
+  if (String(params?.get('cle') ?? '') !== cle) {
+    return json({ ok: false, raison: 'diagnostic : cle absente ou incorrecte' }, 0, 403)
+  }
+  return null
 }
 
 async function diagnostic(env, params) {
@@ -8392,6 +8462,7 @@ export {
   minimumPourMonnaie,
   minimumsUsdChange,
   fraisUsdChange,
+  refusDiag,
   plafondsUsdChange,
   trierAdresses,
   txidValide,
