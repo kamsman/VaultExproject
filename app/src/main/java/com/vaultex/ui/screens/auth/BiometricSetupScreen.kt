@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -75,7 +75,7 @@ fun BiometricSetupScreen(navController: NavController) {
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Icon(
-                    Icons.Default.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.back),
                     tint = AccentBlue
                 )

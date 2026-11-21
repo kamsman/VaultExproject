@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -500,7 +502,7 @@ fun SendScreen(navController: NavController) {
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
@@ -1585,7 +1587,7 @@ private fun SendDetailCard(detail: SendDetail, showTotal: Boolean, onCopyAddress
                 }
             }
             HorizontalDivider(color = BorderColor)
-            DetailLine(Icons.Default.Send, stringResource(R.string.send_recipient_label), shorten(detail.toAddress),
+            DetailLine(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send_recipient_label), shorten(detail.toAddress),
                 onCopy = onCopyAddress)
             HorizontalDivider(color = BorderColor)
             DetailLine(Icons.Default.Hub, stringResource(R.string.send_summary_network), detail.netFull)
@@ -1699,7 +1701,7 @@ private fun SendStatusScaffold(
                     onRetour?.let { retour ->
                         IconButton(onClick = retour) {
                             Icon(
-                                Icons.Default.ArrowBack,
+                                Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
                                 tint = AccentBlue
                             )
@@ -2362,7 +2364,7 @@ internal fun SendConfirmScreen(
             summary = if (detail.feeNative.isEmpty()) null
                 else stringResource(R.string.send_summary_fee) + " : " + detail.feeNative
         ) {
-            ConfirmRowLeft(Icons.Default.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
+            ConfirmRowLeft(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send_summary_network), detail.netFull, trailingBadge = badge)
             Spacer(Modifier.height(8.dp))
             ConfirmRowRight(Icons.Default.CreditCard, stringResource(R.string.amount), "${detail.amount} ${detail.coinShort}", detail.amountFiat?.let { "≈ $it" })
             Spacer(Modifier.height(8.dp))
@@ -2901,7 +2903,7 @@ internal fun SendSuccessScreen(
             if (!vente) {
                 HorizontalDivider(color = BorderColor)
                 StatusRow(
-                    Icons.Default.Send, stringResource(R.string.send_recipient_label),
+                    Icons.AutoMirrored.Filled.Send, stringResource(R.string.send_recipient_label),
                     shorten(detail.toAddress),
                     onCopy = { copier(detail.toAddress) }
                 )

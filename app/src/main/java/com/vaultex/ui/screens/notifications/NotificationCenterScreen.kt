@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -58,7 +58,7 @@ fun NotificationCenterScreen(navController: NavHostController) {
                 title = { Text("Notifications", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Retour", tint = AccentBlue)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour", tint = AccentBlue)
                     }
                 },
                 actions = {

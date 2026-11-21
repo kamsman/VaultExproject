@@ -7,11 +7,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,8 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
@@ -233,7 +233,7 @@ fun ChangeScreen(navController: NavController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            Icons.Default.ArrowBack, stringResource(R.string.back),
+                            Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back),
                             tint = AccentBlue
                         )
                     }
@@ -672,7 +672,7 @@ private fun ColumnScope.SansReglages(
     ) {
         Text(stringResource(R.string.change_continuer), fontWeight = FontWeight.Bold)
         Spacer(Modifier.width(8.dp))
-        Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(18.dp))
+        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -1051,7 +1051,7 @@ private fun ColumnScope.EtapeCalcul(
         // bouton nu laisse craindre une validation.
         Spacer(Modifier.width(8.dp))
         Icon(
-            Icons.Default.ArrowForward, null,
+            Icons.AutoMirrored.Filled.ArrowForward, null,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -2617,7 +2617,7 @@ private fun ColumnScope.EtapePaiement(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.change_vendre_maintenant),
@@ -2870,7 +2870,7 @@ private fun ColumnScope.EtapePaiement(
         modifier = Modifier.fillMaxWidth().height(50.dp)
     ) {
         Icon(
-            Icons.Default.ArrowBack, null,
+            Icons.AutoMirrored.Filled.ArrowBack, null,
             tint = AccentBlue, modifier = Modifier.size(18.dp)
         )
         Spacer(Modifier.width(8.dp))
@@ -4406,7 +4406,7 @@ private fun AssistanceChange(reference: String) {
                     modifier = Modifier.weight(1f).height(42.dp)
                 ) {
                     Icon(
-                        Icons.Default.Chat, null,
+                        Icons.AutoMirrored.Filled.Chat, null,
                         tint = VertWhatsApp, modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(7.dp))

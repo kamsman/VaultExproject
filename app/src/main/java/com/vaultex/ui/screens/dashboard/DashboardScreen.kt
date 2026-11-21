@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
@@ -326,7 +327,7 @@ fun DashboardScreen(navController: NavHostController) {
         ) add {
             DashboardBanner(
                 accent = Color(0xFF229ED9),   // bleu Telegram (communauté)
-                icon = Icons.Default.Chat,
+                icon = Icons.AutoMirrored.Filled.Chat,
                 title = stringResource(R.string.dashboard_telegram_title),
                 ctaLabel = stringResource(R.string.dashboard_telegram_cta),
                 onDismiss = { TelegramBannerState.dismiss(bannerContext) },
