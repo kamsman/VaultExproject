@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -144,8 +145,6 @@ fun SendScreen(navController: NavController) {
     // Regroupement par RÉSEAU (blockchain) : chaque réseau liste toutes ses
     // monnaies (natives + tokens personnalisés ajoutés par contrat).
     val networks = buildSendNetworks(customTokens)
-    val selectedNetworkKey = networks.firstOrNull { state.selectedChain in it.coins }?.key
-        ?: networks.first().key
 
     // ─ Données d'affichage « pro » (titre, conversions fiat, récapitulatif) ─
     val coinShort = coinLabel(state.selectedChain)                          // ex: USDT
@@ -2622,6 +2621,51 @@ internal fun SendSuccessScreen(
                     Text(stringResource(R.string.send_success_done), color = Color.White,
                         fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
                 }
+            }
+            /*
+            ═══════════════════════════════════════════════════════════════
+            LE PARTAGE EXISTAIT ENTIEREMENT, SAUF LE BOUTON
+            ═══════════════════════════════════════════════════════════════
+
+            Trouve par un avertissement du compilateur : « Parameter
+            'onShare' is never used ».
+
+            Tout etait pourtant la. `shareReceipt` construit un recu
+            complet — montant, monnaie, destinataire, hash. L'appelant le
+            cable : `onShare = { shareReceipt(context, detail, hash) }`.
+            La chaine « Partager » est traduite dans les trois langues.
+            Seul l'element qui permet de le declencher manquait.
+
+            C'est le meme defaut que le `tint` passe et jete, decrit
+            ailleurs dans ce fichier : un parametre ignore ne leve aucune
+            erreur, il fait seulement mentir le code qui l'entoure.
+
+            ─── POURQUOI CE RECU COMPTE ICI ──────────────────────────────
+
+            Un client qui envoie de la crypto a un changeur a besoin de le
+            PROUVER, et la preuve se transmet par WhatsApp ou Telegram —
+            c'est ainsi que se traite le change a Ouagadougou. Le recu
+            porte le hash, donc il est verifiable par celui qui le reçoit.
+
+            ─── UN TROISIEME BOUTON, MAIS PAS DE LA MEME TAILLE ──────────
+
+            Les deux du dessus font 54 points et se partagent la largeur :
+            en ajouter un troisieme les reduirait tous, et « Voir sur
+            Explorer » ne tient deja qu'a une ligne. Celui-ci est un
+            bouton de texte, en dessous, discret — le partage est utile,
+            il n'est pas l'action principale.
+            ═══════════════════════════════════════════════════════════════
+            */
+            TextButton(
+                onClick = onShare,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Share, null, tint = TextSecondary, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.share),
+                    color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
             }
             /*
             ═══════════════════════════════════════════════════════════════
