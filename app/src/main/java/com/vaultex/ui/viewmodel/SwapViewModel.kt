@@ -1789,7 +1789,6 @@ class SwapViewModel @Inject constructor(
                                 // Jalon de MONÉTISATION : tout premier swap abouti.
                                 com.vaultex.core.monitoring.AdminBot.milestoneFirstSwap(
                                     assetOf(st.fromToken).key, assetOf(st.toToken).key, usdFee)
-                                com.vaultex.core.session.MemoireAvis.marquerOperation(appContext)
                             }
                             else
                                 com.vaultex.core.monitoring.AdminBot.swapFailed(
