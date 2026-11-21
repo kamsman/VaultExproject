@@ -409,7 +409,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, recevoirAvis, AVIS_MAX_JOUR, contactsVaultex, equipeVaultex } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, recevoirAvis, AVIS_MAX_JOUR, separationCanaux, contactsVaultex, equipeVaultex } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -2822,6 +2822,123 @@ mesurerait plus la troncature.
     sorti('anticonstitutionnellementgrandiose'))
   verifie('ANONYME : 400 caracteres identiques ne sont pas une adresse',
     sorti('a'.repeat(400)) === 'a'.repeat(400), sorti('a'.repeat(400)).slice(0, 30))
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES DEUX CANAUX TELEGRAM SONT-ILS VRAIMENT DEUX ?
+═══════════════════════════════════════════════════════════════════════════
+
+LA SONDE QUI EXISTAIT NE POUVAIT PAS LE DIRE. `canalChange` lit
+`TG_CHANGE_TOKEN || TG_ADMIN_TOKEN` : un seul jeton regarde, un seul nom
+de bot rendu. Deux bots distincts et un seul jeton pose produisent la
+MEME sortie — c'est le defaut classique du repli, qui rend une reponse
+plausible a une question qu'on n'a pas posee.
+
+POURQUOI CETTE QUESTION MERITE UNE SONDE A ELLE. `TG_ADMIN_TOKEN` est
+compile dans l'APK : `AdminBot.kt` le tire de `BuildConfig`, et R8
+renomme les classes sans chiffrer les chaines. `TG_CHANGE_CHAT` porte les
+ordres que l'exploitant execute, avec les boutons de copie du montant et
+de l'adresse. Le relais ecrit dans ce canal et ne le relit jamais : rien
+ne verifie qu'un message y vient bien de lui.
+
+Meme bot pour les deux = le canal des ordres est joignable avec un secret
+extractible, et le chemin de l'argent passe par l'exploitant qui lit,
+copie et envoie.
+
+CE QUI EST TESTE ICI, et chaque cas a sa raison :
+
+  · deux bots distincts se voient comme distincts ;
+  · le MEME bot se voit comme le meme, par IDENTIFIANT et non par nom —
+    un nom d'utilisateur se libere et se reprend, un id non ;
+  · un jeton absent rend `null` et JAMAIS `false`. « Je ne sais pas »
+    doit se lire autrement que « non » : rendre `false` ferait conclure
+    « les canaux sont separes » a quelqu'un dont la configuration n'est
+    pas lisible ;
+  · aucun jeton ne sort dans la reponse. C'est le seul controle de ce
+    bloc qui porte sur une fuite, et il porte sur la sonde elle-meme.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  /*
+  UN FAUX TELEGRAM QUI DISTINGUE LES JETONS.
+
+  Le `installer()` de ce fichier rend `{ ok: true }` sans `result` a tout
+  api.telegram.org : avec lui, `getMe` ne rendrait aucun identifiant et
+  les quatre cas ci-dessous se ressembleraient tous. On pose donc un faux
+  qui LIT le jeton dans l'URL et rend une identite par jeton — sans quoi
+  ce bloc testerait le stub et non la fonction.
+  */
+  const BOTS = {
+    'jeton-changeur': { id: 111, username: 'vaultex_change_bot' },
+    'jeton-admin': { id: 222, username: 'vaultex_admin_bot' },
+    'jeton-partage': { id: 333, username: 'vaultex_tout_bot' },
+  }
+  const vraiFetch = globalThis.fetch
+  globalThis.fetch = async (url) => {
+    const m = String(url).match(/\/bot([^/]+)\/getMe/)
+    const bot = m ? BOTS[m[1]] : null
+    if (!bot) {
+      return new Response(JSON.stringify({ ok: false, description: 'Unauthorized' }), { status: 401 })
+    }
+    return new Response(JSON.stringify({ ok: true, result: bot }), { status: 200 })
+  }
+
+  const deux = await separationCanaux({
+    TG_CHANGE_TOKEN: 'jeton-changeur', TG_ADMIN_TOKEN: 'jeton-admin',
+    TG_CHANGE_CHAT: '-100111', TG_ADMIN_CHAT: '-100222',
+  })
+  verifie('CANAUX : deux bots distincts sont vus distincts',
+    deux.memeBot === false && deux.memeGroupe === false, deux)
+  verifie('CANAUX : et le verdict le dit en mots',
+    deux.verdict.includes('distincts'), deux.verdict)
+
+  const partage = await separationCanaux({
+    TG_CHANGE_TOKEN: 'jeton-partage', TG_ADMIN_TOKEN: 'jeton-partage',
+    TG_CHANGE_CHAT: '-100111', TG_ADMIN_CHAT: '-100111',
+  })
+  verifie('CANAUX : le meme bot est vu comme le meme',
+    partage.memeBot === true, partage)
+  verifie('CANAUX : le meme groupe aussi',
+    partage.memeGroupe === true, partage)
+  /*
+  LE VERDICT DOIT NOMMER L'APK ET DEMANDER UNE ACTION. Ce point d'entree
+  rend une quarantaine de champs ; un booleen perdu au milieu ne fait
+  regenerer aucun bot.
+  */
+  verifie('CANAUX : le verdict du cas grave nomme l APK et l action',
+    /APK/.test(partage.verdict) && /REGENERER/.test(partage.verdict), partage.verdict)
+
+  const sansChangeur = await separationCanaux({ TG_ADMIN_TOKEN: 'jeton-admin' })
+  verifie('CANAUX : sans TG_CHANGE_TOKEN, memeBot est null et pas false',
+    sansChangeur.memeBot === null, sansChangeur)
+  verifie('CANAUX : et le verdict dit que tout passe par le jeton de l APK',
+    /SEPARER/.test(sansChangeur.verdict), sansChangeur.verdict)
+
+  const aucun = await separationCanaux({})
+  verifie('CANAUX : sans aucun jeton, rien n est affirme',
+    aucun.memeBot === null && aucun.memeGroupe === null &&
+      /aucun jeton/.test(aucun.verdict), aucun)
+
+  const refuse = await separationCanaux({
+    TG_CHANGE_TOKEN: 'jeton-revoque', TG_ADMIN_TOKEN: 'jeton-admin',
+  })
+  verifie('CANAUX : un jeton refuse par Telegram rend sa raison, pas une egalite',
+    refuse.memeBot === null && refuse.changeur.valide === false &&
+      refuse.changeur.raison === 'Unauthorized', refuse)
+
+  /*
+  AUCUN JETON NE SORT. Le controle est grossier — on cherche les chaines
+  dans le JSON rendu — et c'est voulu : il attraperait n'importe quel
+  champ ajoute plus tard qui recopierait un jeton « pour le diagnostic ».
+  */
+  const rendu = JSON.stringify([deux, partage, sansChangeur, refuse])
+  for (const jeton of ['jeton-changeur', 'jeton-admin', 'jeton-partage', 'jeton-revoque']) {
+    verifie(`CANAUX : « ${jeton} » n apparait pas dans la reponse`,
+      !rendu.includes(jeton), rendu.slice(0, 200))
+  }
+
+  globalThis.fetch = vraiFetch
 }
 
 /*
