@@ -103,6 +103,31 @@ fun marquerDemarrage(contexte: Context, aUnPortefeuille: Boolean) {
 }
 
 /**
+ * Vrai si la carte des nouveautés a quelque chose à dire — SANS RIEN
+ * MARQUER.
+ *
+ * ELLE EXISTE PARCE QUE DEUX CARTES SE DISPUTENT LE MÊME EMPLACEMENT.
+ * Celle-ci et [CarteAvis] se posent toutes deux juste au-dessus de la
+ * barre du bas ; affichées ensemble, elles se recouvrent. L'accueil
+ * tranche donc avant de composer, et il a besoin de poser la question
+ * sans consommer la réponse — [CarteNouveautes] marque la version dès sa
+ * première composition, et une lecture qui marquerait aussi ferait
+ * disparaître la carte à l'instant où l'on demande si elle doit paraître.
+ *
+ * LA RÈGLE N'EST ÉCRITE QU'ICI, et [CarteNouveautes] l'appelle. Deux
+ * copies de « vue in 1 until courante » divergeraient le jour où l'une
+ * change, et la carte s'afficherait alors pour une raison différente de
+ * celle qui a décidé de lui faire de la place.
+ */
+fun nouveautesAAfficher(contexte: Context): Boolean {
+    val prefs = contexte.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val vue = prefs.getInt(CLE_VERSION_VUE, 0)
+    // vue == 0 : marquerDemarrage() n'est jamais passé. Voir plus bas —
+    // on ne sait pas à qui l'on parle, donc on se tait.
+    return vue in 1 until BuildConfig.VERSION_CODE
+}
+
+/**
  * Carte des nouveautés, au premier lancement suivant une mise à jour.
  *
  * NON MODALE, et c'est le point. La première version était une feuille qui
@@ -135,10 +160,10 @@ fun CarteNouveautes(modifier: Modifier = Modifier) {
         val vue = prefs.getInt(CLE_VERSION_VUE, 0)
         val courante = BuildConfig.VERSION_CODE
 
-        // vue == 0 : marquerDemarrage() n'est jamais passé. On ne sait pas à
-        // qui l'on parle, donc on se tait — se taire à tort est sans
-        // conséquence, parler à tort déroute.
-        val doitAfficher = vue in 1 until courante
+        // La règle vit dans `nouveautesAAfficher`, que l'accueil interroge
+        // aussi pour départager cette carte et celle des avis. Une seule
+        // copie : voir l'en-tête de cette fonction.
+        val doitAfficher = nouveautesAAfficher(contexte)
 
         // Enregistré tout de suite, y compris quand on n'affiche rien, pour
         // qu'un lecteur ne revoie pas la carte au prochain lancement.

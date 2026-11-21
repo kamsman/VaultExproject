@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 104
+const VERSION = 105
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1270,6 +1270,15 @@ export default {
     */
     if (url.pathname === '/assistance' && requete.method === 'POST') {
       return await assistance(requete, env)
+    }
+
+    /*
+    L'AVIS D'UN UTILISATEUR. Voir `recevoirAvis` : le texte est anonymisé
+    ici et non dans l'application, et il part d'ici et non de l'APK,
+    parce que le jeton Telegram de l'APK est lisible par qui l'ouvre.
+    */
+    if (url.pathname === '/avis' && requete.method === 'POST') {
+      return await recevoirAvis(requete, env)
     }
 
     if (url.pathname === '/change/otp' && requete.method === 'POST') {
@@ -8480,6 +8489,8 @@ export {
   systemeAssistance,
   reponseConnue,
   anonymiserQuestion,
+  recevoirAvis,
+  AVIS_MAX_JOUR,
   contactsVaultex,
   equipeVaultex,
   equipeTexte,
@@ -9004,6 +9015,20 @@ malveillance : une boucle dans une application suffit.
 const IA_MAX_JOUR = 300        // appels par jour, tous clients confondus
 const IA_MAX_TOURS = 20        // messages gardés d'une conversation
 const IA_MAX_CARACTERES = 1500 // par message entrant
+
+/*
+LES AVIS. Le formulaire n'est proposé qu'UNE fois par installation, et
+seulement après une opération réussie — donc sur 223 installations, le
+volume attendu se compte en dizaines au total, pas par jour.
+
+Soixante par jour laisse donc toute la marge voulue tout en bornant ce
+qu'un point d'entrée public peut déverser dans le canal.
+
+Quatre cents caractères : assez pour une pensée formulée, trop peu pour
+qu'un seul message remplisse l'écran de l'exploitant.
+*/
+const AVIS_MAX_JOUR = 60
+const AVIS_MAX_CARACTERES = 400
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
@@ -10087,8 +10112,19 @@ const JOURNAL_MAX = 30
 const JOURNAL_GARDE_S = 30 * 86400
 
 /** Retire d'une question tout ce qui pourrait désigner quelqu'un. */
-function anonymiserQuestion(texte) {
+function anonymiserQuestion(texte, limite = 160) {
   return String(texte ?? '')
+    /*
+    L'ÉCRASEMENT DES BLANCS N'EST PAS DE LA MISE EN FORME.
+
+    Il ramène tout à UNE SEULE LIGNE, et c'est une défense. Ce texte finit
+    dans un message Telegram que l'exploitant lit ; sans cette ligne, un
+    texte de plusieurs lignes pourrait y dessiner ce qui ressemble à un
+    ordre complet — en-tête, montant, adresse — au milieu d'un canal où
+    les vrais ordres ont exactement cette forme.
+
+    Un seul paragraphe sur une seule ligne ne peut pas imiter ça.
+    */
     .replace(/\s+/g, ' ')
     /* L'ordre compte : la référence avant les chiffres, sinon « VX-12345678 »
        perdrait sa queue et resterait reconnaissable. */
@@ -10099,7 +10135,18 @@ function anonymiserQuestion(texte) {
     /* Huit chiffres d'affilée sont un numéro au Burkina Faso. Au-delà aussi. */
     .replace(/(?<!\d)\d{8,}(?!\d)/g, '[numero]')
     .trim()
-    .slice(0, 160)
+    /*
+    LA LIMITE EST UN PARAMÈTRE PARCE QUE DEUX USAGES N'ONT PAS LE MÊME
+    BESOIN, ET LE DÉFAUT N'A PAS BOUGÉ.
+
+    Une question notée au journal tient en 160 caractères : on y cherche
+    un motif qui revient, pas une pensée. Un avis, lui, EST la pensée —
+    le couper à 160 jetterait la moitié de ce qu'on a demandé.
+
+    Le défaut reste 160 pour que `noterQuestionSansReponse` et tous les
+    appels existants se comportent exactement comme avant.
+    */
+    .slice(0, Math.max(1, Number(limite) || 160))
 }
 
 /** Note une question à laquelle aucune réponse toute faite ne répondait. */
@@ -10131,6 +10178,139 @@ async function questionsSansReponse() {
   } catch (_) {
     return []
   }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'AVIS D'UN UTILISATEUR, ANONYMISÉ, VERS LE CANAL DE L'ADMINISTRATEUR
+═══════════════════════════════════════════════════════════════════════════
+
+POURQUOI CE CHEMIN PASSE PAR LE RELAIS ET NON PAR L'APPLICATION.
+
+L'application sait déjà parler à Telegram : `AdminBot` le fait pour les
+installations et pour les crashs. Y brancher l'avis aurait pris deux
+lignes.
+
+C'eût été deux lignes de trop. `AdminBot` tire son jeton de
+`BuildConfig.TG_ADMIN_TOKEN`, donc de l'APK, donc de quiconque ouvre
+l'APK. Le relais le tire d'une variable de Worker que personne ne lit.
+Ajouter une fonctionnalité du côté de l'application, c'est l'ajouter du
+côté où le secret est déjà perdu.
+
+Ce chemin-ci ne répare pas ce problème — il ne l'étend pas.
+
+─── CE QUI PART, ET CE QUI NE PART PAS ───────────────────────────────────
+
+PART : le texte passé par `anonymiserQuestion`, les étoiles, l'âge de
+l'installation, la version, le modèle d'appareil.
+
+NE PART PAS : la référence de l'opération, le montant, l'adresse, le
+numéro. Ce n'est pas une politesse. Un avis écrit juste après une
+opération dit très souvent « j'ai envoyé 10 000 au 70… », et le canal de
+l'administrateur n'est pas l'endroit où ces chiffres doivent reparaître.
+
+LE MODÈLE D'APPAREIL EST UN COMPROMIS ASSUMÉ. Sur 223 installations, il
+restreint un peu le champ. Je le garde : « le bouton est coupé » ne se
+corrige pas sans savoir sur quel écran. Il figure déjà dans le message
+d'installation, donc il n'apprend rien de neuf au canal.
+
+─── POURQUOI L'EN-TÊTE VIENT AVANT LE TEXTE ──────────────────────────────
+
+Parce que ce canal porte aussi les ORDRES que l'exploitant exécute, et
+qu'un point d'entrée public laisse n'importe qui écrire ici. Trois
+choses empêchent un avis de passer pour un ordre :
+
+  — l'en-tête est la PREMIÈRE ligne, toujours ;
+  — le texte est sur UNE seule ligne, entre guillemets (voir
+    l'écrasement des blancs dans `anonymiserQuestion`) ;
+  — aucun `parse_mode` n'est posé, donc rien ne se met en forme.
+
+Un ordre réel a un en-tête, plusieurs lignes et des boutons de copie.
+Un avis ne peut avoir aucun des trois.
+
+─── LE PLAFOND EST GLOBAL, COMME CELUI DE L'ASSISTANCE ───────────────────
+
+Et pour la raison écrite dans `assistance` : il n'y a pas d'identité
+fiable ici, une application peut dire ce qu'elle veut. Le plafond protège
+le canal de l'inondation.
+
+Il n'empêche pas d'épuiser la journée au détriment des autres. Mais un
+avis perdu n'est pas un paiement perdu, et l'épuisement se voit.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function recevoirAvis(requete, env) {
+  let corps = null
+  try {
+    corps = await requete.json()
+  } catch (_) {
+    return json({ ok: false, raison: 'corps illisible' }, 0, 400)
+  }
+
+  const texte = anonymiserQuestion(corps?.texte, AVIS_MAX_CARACTERES)
+  /*
+  TROIS CARACTÈRES, le même seuil que le journal des questions. En
+  dessous il n'y a pas d'avis, il y a un doigt qui a glissé.
+  */
+  if (texte.length < 3) return json({ ok: false, raison: 'avis vide' }, 0, 400)
+
+  const jour = new Date().toISOString().slice(0, 10)
+  if ((await compteur('avis', jour)) >= AVIS_MAX_JOUR) {
+    return json({ ok: false, raison: "assez d'avis pour aujourd'hui" }, 0, 429)
+  }
+
+  const token = env?.TG_ADMIN_TOKEN || env?.TG_CHANGE_TOKEN
+  const chat = env?.TG_ADMIN_CHAT
+  /*
+  SANS CANAL CONFIGURÉ, ON RÉPOND QUAND MÊME « REÇU ».
+
+  L'application a déjà refermé son formulaire et ne le repropose jamais.
+  Lui rendre un échec lui ferait afficher une erreur sur un geste qu'elle
+  ne peut plus refaire — pour une cause qui est chez nous, pas chez elle.
+  */
+  if (!token || !chat) return json({ ok: true, note: 'canal absent' })
+
+  const etoiles = Number(corps?.etoiles)
+  const note = Number.isFinite(etoiles) && etoiles >= 1 && etoiles <= 5
+    ? '⭐'.repeat(Math.round(etoiles))
+    : ''
+
+  const jours = Number(corps?.jours)
+  const borne = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)
+  const version = borne(corps?.version)
+  const contexte = [
+    Number.isFinite(jours) && jours >= 0 ? `J+${Math.round(jours)}` : '',
+    borne(corps?.modele),
+    version ? `v${version}` : '',
+  ].filter(Boolean).join(' · ')
+
+  const lignes = ['\u{1F4AC} Avis d’un utilisateur' + (note ? ' — ' + note : ''), '']
+  lignes.push('« ' + texte + ' »')
+  if (contexte) lignes.push('', contexte)
+
+  /*
+  ON COMPTE AVANT D'ENVOYER, PAS APRÈS.
+
+  Un envoi qui échoue sans être compté se laisse rejouer sans fin, et le
+  plafond ne protège plus rien. Compter d'abord peut perdre un avis le
+  jour où Telegram est injoignable ; c'est le bon sens de l'erreur.
+  */
+  await incrementer('avis', jour, 2 * 86400)
+
+  try {
+    const envoi = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        chat_id: String(chat),
+        text: lignes.join('\n'),
+      }).toString(),
+    })
+    if (!envoi.ok) return json({ ok: false, raison: 'telegram a refuse' }, 0, 502)
+  } catch (_) {
+    return json({ ok: false, raison: 'telegram injoignable' }, 0, 502)
+  }
+
+  return json({ ok: true })
 }
 
 /*

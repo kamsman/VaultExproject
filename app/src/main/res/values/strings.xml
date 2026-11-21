@@ -1020,6 +1020,16 @@
     <string name="whats_new_2">Swap : le taux reste lisible sur les monnaies de très faible valeur</string>
     <string name="whats_new_3">Marché triable par blockchain : Ethereum, BNB, Solana, Tron</string>
     <string name="whats_new_4">Consulter une monnaie ne l\'ajoute plus à l\'accueil</string>
+
+    <!-- Avis : propose UNE fois, apres une operation reussie -->
+    <string name="avis_titre">Comment ça s\'est passé ?</string>
+    <string name="avis_aide">Une phrase suffit. C\'est la seule façon qu\'on a de savoir ce qui vous gêne.</string>
+    <string name="avis_invite">Ce qui vous a plu, ce qui vous a gêné…</string>
+    <string name="avis_envoyer">Envoyer</string>
+    <string name="avis_prive">Ni montant, ni adresse, ni numéro ne partent avec votre message.</string>
+    <string name="avis_merci">Merci. C\'est noté.</string>
+    <string name="avis_echec">L\'avis n\'est pas parti. Vérifiez votre connexion.</string>
+    <string name="avis_etoiles">Note sur cinq</string>
     <!-- Seed present mais illisible : le Keystore de l'appareil a perdu la cle -->
     <string name="seed_unreadable_title">Vos fonds sont intacts.\nCe téléphone ne peut plus lire votre clé.</string>
     <string name="seed_unreadable_body">Rien n\'a été perdu sur la blockchain. C\'est la copie chiffrée de votre clé, sur cet appareil, qui est devenue illisible. Votre phrase de récupération vous rend l\'accès immédiatement.</string>

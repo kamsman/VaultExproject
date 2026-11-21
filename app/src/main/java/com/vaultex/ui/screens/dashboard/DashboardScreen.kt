@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +46,9 @@ import androidx.navigation.NavHostController
 import com.vaultex.R
 import kotlinx.coroutines.launch
 import com.vaultex.ui.components.BottomBarSpace
+import com.vaultex.ui.components.CarteAvis
 import com.vaultex.ui.components.CarteNouveautes
+import com.vaultex.ui.components.nouveautesAAfficher
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -884,15 +887,39 @@ fun DashboardScreen(navController: NavHostController) {
         elle la recouvrirait, et fermer la carte deviendrait le seul moyen de
         changer d'onglet.
         */
-        CarteNouveautes(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp)
-                // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
-                // que la barre occupe, marge système comprise. Lui retrancher
-                // quelque chose, c'était rogner sur la place dont on a besoin.
-                .padding(bottom = BottomBarSpace)
-        )
+        val emplacementCarte = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(horizontal = 16.dp)
+            // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
+            // que la barre occupe, marge système comprise. Lui retrancher
+            // quelque chose, c'était rogner sur la place dont on a besoin.
+            .padding(bottom = BottomBarSpace)
+
+        /*
+        UNE SEULE CARTE À LA FOIS, ET LES NOUVEAUTÉS PASSENT D'ABORD.
+
+        Les deux visent cet emplacement unique ; affichées ensemble, elles
+        se recouvriraient. L'ordre n'est pas arbitraire : les nouveautés
+        sont liées à une VERSION et ne repasseront jamais, tandis que la
+        carte d'avis attend seulement qu'on lui laisse la place — elle ne
+        se marque qu'en s'affichant, donc ne rien composer ici ne lui coûte
+        rien, et elle reviendra à la prochaine visite de l'accueil.
+
+        LE `remember` N'EST PAS UNE OPTIMISATION, IL EST NÉCESSAIRE.
+        `CarteNouveautes` marque la version dès sa première composition :
+        sans mémoire ici, la condition deviendrait fausse à la
+        recomposition suivante et la carte disparaîtrait sous les yeux de
+        celui qui la lit — remplacée par la carte d'avis, par-dessus le
+        marché.
+        */
+        val contexteCartes = LocalContext.current
+        val montrerNouveautes = remember { nouveautesAAfficher(contexteCartes) }
+
+        if (montrerNouveautes) {
+            CarteNouveautes(emplacementCarte)
+        } else {
+            CarteAvis(emplacementCarte)
+        }
 
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }

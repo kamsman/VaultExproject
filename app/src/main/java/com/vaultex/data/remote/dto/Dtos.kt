@@ -722,6 +722,50 @@ data class ReponseAssistance(
     val membre: MembreEquipeDto? = null
 )
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'AVIS
+═══════════════════════════════════════════════════════════════════════════
+
+CE QUI N'EST PAS DANS CETTE CLASSE EST LE POINT PRINCIPAL.
+
+Pas de reference, pas de montant, pas d'adresse, pas de numero, pas
+d'identifiant d'installation. Un avis ecrit juste apres une operation
+n'a aucun besoin de les porter pour etre utile, et les porter suffirait
+a rattacher une opinion a une transaction.
+
+ET LE TEXTE EST ANONYMISE PAR LE RELAIS, PAS ICI. L'application ne peut
+pas se faire confiance pour cela : un filtre cote telephone se contourne
+en modifiant le telephone, et c'est le serveur qui ecrit dans Telegram.
+Voir `recevoirAvis` dans worker.js — la meme fonction que pour les
+questions, avec une limite plus large.
+═══════════════════════════════════════════════════════════════════════════
+*/
+data class DemandeAvis(
+    /** Ce que la personne a ecrit, brut. Le relais s'occupe du reste. */
+    val texte: String,
+    /**
+     * De 1 a 5, ou nul.
+     *
+     * DECORATIF, ET C'EST ASSUME. Les etoiles sont la pour donner envie
+     * de repondre — un formulaire qui s'ouvre sur une question nue fait
+     * fuir, cinq etoiles s'appuient sans y penser. Mais une note sur
+     * cinq, sur 223 installations, ne dit rien qu'on puisse corriger.
+     * C'est la PHRASE qui vaut quelque chose.
+     */
+    val etoiles: Int? = null,
+    /** Jours depuis l'installation. Dit « au bout de combien de temps ». */
+    val jours: Int? = null,
+    /** Le modele d'appareil : « le bouton est coupe » exige de savoir ou. */
+    val modele: String? = null,
+    val version: String? = null
+)
+
+data class ReponseAvis(
+    val ok: Boolean? = null,
+    val raison: String? = null
+)
+
 /**
  * Une actualite, telle que le relais la rend.
  *

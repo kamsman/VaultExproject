@@ -154,6 +154,16 @@ class DepositCheckWorker @AssistedInject constructor(
                     // Jalon d'ACTIVATION : sans seuil de montant (le tout premier
                     // dépôt compte même s'il est minuscule).
                     com.vaultex.core.monitoring.AdminBot.milestoneFirstDeposit(amt, c.symbol, usd)
+                    /*
+                    LA PORTE DU FORMULAIRE D'AVIS.
+
+                    Posée ICI et non ailleurs : c'est le seul endroit du
+                    fichier où l'on sait qu'une opération a ABOUTI, et non
+                    qu'elle a été tentée. Voir `MemoireAvis` — il n'ouvre
+                    que la porte, l'accueil decide du reste, et l'appel ne
+                    peut rien casser sur ce chemin de succes.
+                    */
+                    com.vaultex.core.session.MemoireAvis.marquerOperation(applicationContext)
                 }
             }
 

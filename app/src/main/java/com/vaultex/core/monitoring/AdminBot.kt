@@ -132,6 +132,27 @@ object AdminBot {
     private fun deviceModel(): String =
         "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim()
 
+    /*
+    ─── CES DEUX-CI SONT OUVERTES, ET POUR UNE RAISON PRÉCISE ────────────
+
+    Le formulaire d'avis a besoin du même âge d'installation et du même
+    modèle d'appareil que les messages d'ici. Il n'a PAS besoin — et ne
+    doit surtout pas avoir — du jeton Telegram que porte ce fichier :
+    l'avis part par le relais, qui tient le sien hors de l'APK.
+
+    Les rouvrir évite la seule autre option, qui était de recopier la clé
+    « install_at » ailleurs. Ce dépôt a déjà payé trois fois le prix d'une
+    table recopiée à la main (les explorateurs, les adresses par symbole,
+    les listes de monnaies) : deux copies finissent toujours par dire deux
+    choses différentes, et aucune ne lève d'erreur en le faisant.
+    */
+
+    /** Jours depuis l'installation, ou -1 si la date est inconnue. */
+    fun joursDepuisInstallation(): Int = daysSinceInstall()
+
+    /** Marque et modèle de l'appareil. */
+    fun modeleAppareil(): String = deviceModel()
+
     /** 🎉 ACTIVATION : tout premier dépôt reçu (quel que soit le montant). */
     fun milestoneFirstDeposit(amount: String, symbol: String, usd: Double) {
         if (!firstTime("ms_first_deposit")) return
