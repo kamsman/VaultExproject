@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 106
+const VERSION = 107
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1871,6 +1871,7 @@ async function diagnostic(env, params) {
     }
   }
   sondes.canalChange = canal
+  sondes.separationCanaux = await separationCanaux(env)
 
   /*
   Mesuré, pas supposé : api.binance.com répond 403 depuis un Worker, avec
@@ -8490,6 +8491,7 @@ export {
   reponseConnue,
   anonymiserQuestion,
   recevoirAvis,
+  separationCanaux,
   AVIS_MAX_JOUR,
   contactsVaultex,
   equipeVaultex,
@@ -10181,6 +10183,128 @@ function anonymiserQuestion(texte, limite = 160) {
     appels existants se comportent exactement comme avant.
     */
     .slice(0, Math.max(1, Number(limite) || 160))
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES DEUX CANAUX SONT-ILS VRAIMENT DEUX ?
+═══════════════════════════════════════════════════════════════════════════
+
+LA SONDE `canalChange` NE PEUT PAS RÉPONDRE À ÇA, ET C'EST STRUCTUREL.
+Elle lit `TG_CHANGE_TOKEN || TG_ADMIN_TOKEN` : elle regarde donc UN jeton
+et rend UN nom de bot. Deux jetons distincts et un seul jeton posé lui
+donnent exactement la même sortie.
+
+Or la question compte, et elle compte pour une raison précise.
+
+`TG_ADMIN_TOKEN` EST COMPILÉ DANS L'APK. `AdminBot.kt` le tire de
+`BuildConfig`, et R8 renomme les classes sans chiffrer les chaînes
+constantes : qui ouvre l'APK lit le jeton. Un audit de ce dépôt avait
+cherché les secrets dans l'historique git sans rien trouver, parce que
+ces clés viennent de `local.properties`, ignoré par git — elles n'en sont
+pas moins en clair dans les installations distribuées.
+
+`TG_CHANGE_CHAT` porte les ORDRES que l'exploitant exécute : « TU
+ENVOIES », le montant, l'adresse, le numéro, avec des boutons de copie.
+Le relais écrit dans ce canal ; il ne le relit jamais. Rien ne vérifie
+donc qu'un message y est bien de lui.
+
+SI LES DEUX JETONS SONT LE MÊME BOT, le canal des ordres est joignable
+avec un secret que n'importe qui peut extraire — et le chemin de l'argent
+ne passe pas par du code, il passe par l'exploitant qui lit, copie et
+envoie.
+
+─── POURQUOI L'IDENTIFIANT ET PAS LE NOM ──────────────────────────────────
+
+`getMe` rend un `username` et un `id`. On compare les IDENTIFIANTS : un
+nom d'utilisateur se libère quand un bot est supprimé et peut être repris
+par un autre, tandis que l'identifiant numérique ne se réattribue pas.
+
+─── CE QUI N'EST JAMAIS IMPRIMÉ ───────────────────────────────────────────
+
+Les jetons, évidemment. Mais les identifiants de groupe non plus : les
+connaître, avec un jeton, suffit à écrire dans le canal. On rend donc
+l'ÉGALITÉ des deux, jamais leurs valeurs — ce qui répond à la question
+sans rien divulguer de plus.
+
+Et `/diag` est fermé derrière `CHANGE_DIAG_CLE` de toute façon : voir
+`refusDiag`.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function separationCanaux(env) {
+  const identite = async (jeton) => {
+    if (!jeton) return { pose: false }
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${jeton}/getMe`)
+      const o = await r.json()
+      if (!o?.ok) return { pose: true, valide: false, raison: String(o?.description ?? `HTTP ${r.status}`) }
+      return {
+        pose: true,
+        valide: true,
+        id: Number(o.result?.id) || null,
+        bot: String(o.result?.username ?? ''),
+      }
+    } catch (_) {
+      return { pose: true, valide: false, raison: 'injoignable' }
+    }
+  }
+
+  const changeur = await identite(env?.TG_CHANGE_TOKEN)
+  const admin = await identite(env?.TG_ADMIN_TOKEN)
+
+  /*
+  NULL N'EST PAS FAUX, ET LA DIFFÉRENCE EST TOUT L'INTÉRÊT.
+
+  « Je ne sais pas » doit se lire autrement que « non ». Rendre `false`
+  quand un jeton manque ferait conclure « les canaux sont séparés » à
+  quelqu'un dont la configuration n'est tout simplement pas lisible — le
+  genre de rassurance qu'un diagnostic ne doit jamais donner.
+  */
+  const memeBot =
+    changeur.id && admin.id ? changeur.id === admin.id : null
+
+  const chatChangeur = String(env?.TG_CHANGE_CHAT ?? '').trim()
+  const chatAdmin = String(env?.TG_ADMIN_CHAT ?? '').trim()
+  const memeGroupe =
+    chatChangeur && chatAdmin ? chatChangeur === chatAdmin : null
+
+  /*
+  LE VERDICT EST EN MOTS, et ce n'est pas de la décoration.
+
+  Ce point d'entrée rend une quarantaine de champs. Celui-ci demande une
+  ACTION, et une action ne se déduit pas d'un booléen perdu au milieu
+  d'un JSON — surtout pas celle-là, qui consiste à régénérer un bot.
+  */
+  let verdict
+  if (!changeur.pose && !admin.pose) {
+    verdict = 'aucun jeton pose : rien ne part vers Telegram.'
+  } else if (!changeur.pose) {
+    verdict =
+      'TG_CHANGE_TOKEN absente : tout passe par TG_ADMIN_TOKEN, qui est ' +
+      "compile dans l'APK. Le canal des ordres est donc joignable avec un " +
+      'secret extractible. A SEPARER.'
+  } else if (!admin.pose) {
+    verdict = 'TG_ADMIN_TOKEN absente : le tableau de bord ne part nulle part.'
+  } else if (memeBot === true) {
+    verdict =
+      "MEME BOT pour les deux canaux, et celui-ci est compile dans l'APK. " +
+      'Qui ouvre l APK peut ecrire dans le canal des ordres. A REGENERER.'
+  } else if (memeBot === false) {
+    verdict =
+      'Deux bots distincts. Le jeton de l APK n atteint pas le canal des ' +
+      'ordres — ce qui reste a verifier est le groupe, ci-dessous.'
+  } else {
+    verdict =
+      'Indeterminable : au moins un jeton n a pas repondu. Voir les raisons.'
+  }
+
+  if (memeGroupe === true) {
+    verdict +=
+      ' ET LE MEME GROUPE : les avis, le tableau de bord et les ordres ' +
+      'arrivent au meme endroit.'
+  }
+
+  return { changeur, admin, memeBot, memeGroupe, verdict }
 }
 
 /** Note une question à laquelle aucune réponse toute faite ne répondait. */
