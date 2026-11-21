@@ -317,8 +317,53 @@ object AdminBot {
                     .joinToString(" ← ") {
                         "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
                     }
+                /*
+                ═══════════════════════════════════════════════════════════
+                QUAND LA PILE NE CONTIENT AUCUNE LIGNE A NOUS
+                ═══════════════════════════════════════════════════════════
+
+                MESURE : un plantage reel a rendu
+
+                  IndexOutOfBoundsException : Index -1 out of bounds for
+                  length 0
+                  📍 jdk.internal.util.Preconditions.outOfBounds(…:64)
+
+                `Preconditions.outOfBounds` est le verificateur de bornes
+                du JDK. Il est present dans TOUTES les
+                IndexOutOfBoundsException de l'univers : ce rapport ne
+                disait donc rien du tout.
+
+                Le repli prenait `stackTrace.first()`, c'est-a-dire la
+                ligne la plus profonde — celle qui a le moins de chances
+                d'etre informative. Le cadre utile est le premier qui
+                n'appartient PAS a la bibliotheque standard.
+
+                ─── ET UNE PILE SANS `com.vaultex` EST UNE INFORMATION ────
+
+                `enableR8.fullMode=false` garde la hierarchie des paquets :
+                le prefixe survit a l'obfuscation. N'en trouver aucun
+                signifie donc vraiment que l'exception est nee dans du
+                code de framework — Compose, AndroidX, les coroutines.
+
+                C'est exactement ce qu'on veut lire, et c'est ce que
+                l'ancien repli cachait.
+                ═══════════════════════════════════════════════════════════
+                */
+                val socle = listOf(
+                    "java.", "javax.", "jdk.", "sun.", "dalvik.", "libcore.",
+                    "com.android.internal.", "kotlin.jvm.internal."
+                )
                 val where = cadre.ifEmpty {
-                    e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                    val horsSocle = e.stackTrace
+                        .filterNot { c -> socle.any { c.className.startsWith(it) } }
+                        .take(3)
+                        .joinToString(" ← ") {
+                            "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
+                        }
+                    // « (hors VaultEx) » est dit, et pas sous-entendu : sans
+                    // cette mention on lirait ces cadres comme les notres.
+                    if (horsSocle.isNotEmpty()) "(hors VaultEx) $horsSocle"
+                    else e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
                 }
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
                     "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
@@ -438,6 +483,7 @@ object AdminBot {
      * (1,5 % du montant, en contre-valeur USD) — suivi du revenu.
      */
     fun swapFinished(amount: String, from: String, to: String, usdFee: Double = 0.0) {
+        operationAboutie()
         val feeTxt = if (usdFee > 0.0) String.format(Locale.US, "\n💰 Commission ≈ $%.2f", usdFee) else ""
         send("✅ Swap terminé : $amount $from → $to$feeTxt")
     }
@@ -581,7 +627,54 @@ object AdminBot {
         send("❌ Envoi échoué : $symbol" + (reason?.take(RAISON_MAX)?.let { "\n$it" } ?: ""))
 
     /** 💸 Envoi rapporté dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UNE OPÉRATION A ABOUTI — LA PORTE DU FORMULAIRE D'AVIS
+    ═══════════════════════════════════════════════════════════════════════
+
+    ELLE EST ICI PARCE QUE MA LISTE ÉCRITE À LA MAIN EN AVAIT RATÉ DEUX.
+
+    J'avais posé `MemoireAvis.marquerOperation` à trois endroits choisis :
+    l'envoi, le dépôt d'une monnaie native, le swap terminé dans le
+    ViewModel. Il en manquait deux, et rien ne l'a signalé :
+
+      · `DepositCheckWorker:199` — le dépôt d'un JETON (USDT, USDC, SHIB).
+        Qui reçoit de l'USDT et n'envoie jamais rien n'aurait jamais vu
+        la carte.
+      · `SwapTrackingWorker:184` — le swap qui se termine pendant que
+        l'application est FERMÉE, détecté par le travailleur de fond et
+        non par le ViewModel.
+
+    C'est la faute que ce dépôt a déjà payée huit fois avec le Dogecoin,
+    absent de huit listes tenues à la main sans qu'aucune ne lève
+    d'erreur. La corriger en ajoutant deux appels de plus en aurait
+    manqué un troisième à la prochaine fonctionnalité.
+
+    Ces trois fonctions sont le point de passage obligé : rapporter une
+    opération à l'administrateur et constater qu'elle a abouti sont le
+    MÊME événement, et il n'y a qu'un endroit où il se produit.
+
+    ─── AVANT LE SEUIL, ET C'EST TOUT L'INTÉRÊT DE LA PLACE ───────────────
+
+    `reportSend` et `reportReceive` sortent tôt sous `belowThreshold`. Ce
+    seuil existe pour ne pas inonder le canal Telegram de micro-montants,
+    pas pour décider qu'une opération n'a pas eu lieu. Appeler ceci après
+    lui priverait de la carte exactement ceux qui essaient l'application
+    avec de petites sommes — c'est-à-dire les nouveaux, dont l'avis est
+    le plus utile.
+
+    ─── À DÉPLACER AVEC ELLES ─────────────────────────────────────────────
+
+    Si `AdminBot` passe un jour par le relais, cet appel doit suivre. Il
+    ne dépend pas de Telegram : il écrit une préférence locale.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    private fun operationAboutie() {
+        appContext?.let { com.vaultex.core.session.MemoireAvis.marquerOperation(it) }
+    }
+
     fun reportSend(amount: String, symbol: String, usd: Double) {
+        operationAboutie()
         if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Gros envoi" else "💸 Envoi"
         send("$head : $amount $symbol${usdTxt(usd)}")
@@ -589,6 +682,7 @@ object AdminBot {
 
     /** 📥 Réception rapportée dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
     fun reportReceive(amount: String, symbol: String, usd: Double) {
+        operationAboutie()
         if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Grosse réception" else "📥 Réception"
         send("$head : $amount $symbol${usdTxt(usd)}")

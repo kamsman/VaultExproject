@@ -1948,16 +1948,6 @@ class SendViewModel @Inject constructor(
                     // Événement admin (Telegram) : envoi ≥ 1 $ (🚨 si ≥ 20 $).
                     val usdValue = (s.amount.toDoubleOrNull() ?: 0.0) * priceFor(s.selectedChain, "USD")
                     com.vaultex.core.monitoring.AdminBot.reportSend(s.amount, sym, usdValue)
-                    /*
-                    LA PORTE DU FORMULAIRE D'AVIS.
-
-                    Posée ICI et non ailleurs : c'est le seul endroit du
-                    fichier où l'on sait qu'une opération a ABOUTI, et non
-                    qu'elle a été tentée. Voir `MemoireAvis` — il n'ouvre
-                    que la porte, l'accueil decide du reste, et l'appel ne
-                    peut rien casser sur ce chemin de succes.
-                    */
-                    com.vaultex.core.session.MemoireAvis.marquerOperation(appContext)
                     // Cloche ET barre système : un envoi est un mouvement de
                     // fonds, il doit s'afficher en haut de l'écran comme une
                     // réception. La clé porte le hash : chaque envoi est unique,

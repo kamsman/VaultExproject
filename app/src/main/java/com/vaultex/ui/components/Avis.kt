@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -125,8 +126,47 @@ fun CarteAvis(modifier: Modifier = Modifier) {
         mutableStateOf(doit)
     }
 
-    if (!visible) return
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN `if`, ET NON UN `return` SUIVI D'APPELS COMPOSABLES
+    ═══════════════════════════════════════════════════════════════════════
 
+    CE N'EST PAS UNE QUESTION DE STYLE. La version précédente écrivait :
+
+        if (!visible) return
+        val vm: AvisViewModel = hiltViewModel()
+        val s by vm.state.collectAsState()
+        LaunchedEffect(s.etat) { … }
+
+    Quand `visible` passait à faux, cette fonction perdait d'un coup
+    QUATRE appels composables — un ViewModel, un abonnement d'état, un
+    effet et tout l'affichage — dans une seule recomposition.
+    `CarteNouveautes` emploie le même `return`, mais sans RIEN après lui :
+    la différence est là, et c'est elle qui compte.
+
+    Un plantage est arrivé sur l'appareil, en `IndexOutOfBoundsException :
+    Index -1 out of bounds for length 0`, SANS AUCUNE IMAGE `com.vaultex`
+    dans la pile — l'exception venait entièrement du framework. Or
+    `enableR8.fullMode=false` garde la hiérarchie des paquets : si une
+    ligne de ce dépôt avait été impliquée, elle aurait figuré au rapport.
+    Une pile sans notre code, sur un écran qu'on vient d'ajouter, désigne
+    la façon dont on y entre et on en sort.
+
+    JE N'AI PAS PROUVÉ QUE C'EST LA CAUSE, et je ne le prétends pas : il
+    faudrait la pile complète par logcat pour trancher. Mais un `if`
+    rend cette fonction structurellement stable — ce qui est à
+    l'intérieur est présent ou absent en bloc, l'idiome normal de Compose
+    — et il ne coûte rien. Si le plantage revient, on aura au moins
+    écarté celle-ci.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (visible) {
+        CarteAvisOuverte(modifier) { visible = false }
+    }
+}
+
+@Composable
+private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
     val vm: AvisViewModel = hiltViewModel()
     val s by vm.state.collectAsState()
 
@@ -140,15 +180,38 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     LaunchedEffect(s.etat) {
         if (s.etat == EtatAvis.MERCI) {
             delay(2200)
-            visible = false
+            onFermer()
         }
     }
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    OPAQUE, ET POSEE SUR L'ECRAN PAR UNE OMBRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    La premiere version reprenait le fond translucide de `CarteNouveautes`
+    — `alpha = 0.96f`. Vu sur l'appareil, ca ne marche pas ICI, et la
+    raison tient a ce que les deux cartes demandent.
+
+    « Quoi de neuf » ne demande RIEN : on la lit, on la ferme. Laisser la
+    page transparaitre derriere elle la pose joliment sur le contenu.
+
+    Celle-ci demande qu'on ECRIVE. Elle tombe sur la liste des actifs, et
+    les lignes de soldes passaient au travers du texte et du champ de
+    saisie. Un formulaire a travers lequel on voit des chiffres n'a pas
+    l'air d'attendre une reponse : il a l'air d'un reste d'affichage.
+
+    Fond plein, donc, et une OMBRE plutot qu'une simple bordure : c'est
+    l'ombre qui dit « ceci est au-dessus », bien plus qu'un trait de 1 dp.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = BgSecondary.copy(alpha = 0.96f),
-        border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.45f)),
-        modifier = modifier.fillMaxWidth()
+        shape = RoundedCornerShape(20.dp),
+        color = BgSecondary,
+        border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.55f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(20.dp, RoundedCornerShape(20.dp), clip = false)
     ) {
         Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 14.dp)) {
 
@@ -169,16 +232,21 @@ fun CarteAvis(modifier: Modifier = Modifier) {
 
             // ─── Titre, étoiles, croix ───────────────────────────────────
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Le meme marqueur que le 🚀 de « Quoi de neuf » : deux
+                // cartes au meme endroit doivent se reconnaitre d'un coup
+                // d'oeil, sans etre lues.
+                Text("💬", fontSize = 17.sp)
+                Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.avis_titre),
-                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                 )
                 Spacer(Modifier.weight(1f))
                 Box(
                     Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .clickable { visible = false },
+                        .clickable { onFermer() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -297,8 +365,15 @@ private fun Etoiles(note: Int, onNoter: (Int) -> Unit) {
                     rien de la note.
                     */
                     if (i == 1) stringResource(R.string.avis_etoiles) else null,
-                    tint = if (pleine) AccentOrange else TextMuted,
-                    modifier = Modifier.size(23.dp)
+                    /*
+                    CHAUDES MEME VIDES. En gris (`TextMuted`), les cinq
+                    etoiles se lisaient comme desactivees : elles avaient
+                    la couleur des textes secondaires de cette carte. Un
+                    contour orange pale dit « a remplir » ; le gris disait
+                    « indisponible ».
+                    */
+                    tint = if (pleine) AccentOrange else AccentOrange.copy(alpha = 0.40f),
+                    modifier = Modifier.size(27.dp)
                 )
             }
         }
