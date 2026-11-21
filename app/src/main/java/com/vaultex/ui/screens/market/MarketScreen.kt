@@ -1,6 +1,6 @@
 package com.vaultex.ui.screens.market
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -215,7 +215,7 @@ private fun BoutonRond(
                 initialValue = 0f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(1800, easing = FastOutSlowInEasing),
+                    animation = tween(1800, easing = LinearEasing),
                     repeatMode = RepeatMode.Restart
                 ),
                 label = "anneau"
@@ -235,7 +235,36 @@ private fun BoutonRond(
             On la capture donc ici, ou l'on est encore composable, et le
             dessin ne manipule plus qu'une valeur.
             */
-            val couleurAnneau = AccentBlue
+            /*
+            ═══════════════════════════════════════════════════════════════
+            UN ANNEAU BLEU SUR UN DISQUE BLEU NE SE VOIT PAS
+            ═══════════════════════════════════════════════════════════════
+
+            C'est la faute que j'avais deja identifiee pour l'icone — et
+            corrigee en la passant au blanc — sans l'appliquer a l'anneau
+            trace juste a cote. Bleu accent sur un disque teinte a 35 % du
+            meme bleu : les deux valeurs sont trop proches.
+
+            L'anneau prend donc la couleur du SYMBOLE. Les deux elements
+            clairs sur fond teinte forment un ensemble, et l'onde se lit
+            comme venant de l'icone plutot que du bord.
+
+            ─── ET IL S'EFFACAIT TROP TOT ────────────────────────────────
+
+            `FastOutSlowInEasing` avance vite au debut : l'opacite, qui
+            suit `1 - avancement`, tombait dans le premier tiers du cycle.
+            On voyait donc un eclair, puis plus rien pendant une seconde.
+
+            `LinearEasing` fait une onde reguliere, visible sur toute sa
+            course. C'est le contraire d'une bonne courbe d'animation pour
+            un deplacement ; c'est la bonne pour une pulsation, qui doit
+            avoir un rythme et non un elan.
+
+            L'opacite monte aussi de 0,55 a 0,70, et le trait de 1,6 a
+            2 points.
+            ═══════════════════════════════════════════════════════════════
+            */
+            val couleurAnneau = TextPrimary
             Canvas(Modifier.matchParentSize()) {
                 val moitie = size.minDimension / 2f
                 // De 0,62 a 1,00 du rayon : il nait autour de l'icone et
@@ -243,9 +272,9 @@ private fun BoutonRond(
                 // bouton ni toucher ses voisins.
                 val rayon = moitie * (0.62f + 0.38f * avancement)
                 drawCircle(
-                    color = couleurAnneau.copy(alpha = (1f - avancement) * 0.55f),
+                    color = couleurAnneau.copy(alpha = (1f - avancement) * 0.70f),
                     radius = rayon,
-                    style = Stroke(width = 1.6.dp.toPx())
+                    style = Stroke(width = 2.dp.toPx())
                 )
             }
         }

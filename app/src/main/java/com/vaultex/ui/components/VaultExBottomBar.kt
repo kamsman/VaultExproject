@@ -1,6 +1,6 @@
 package com.vaultex.ui.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -347,7 +347,14 @@ private fun NavTab(
                     initialValue = 0f,
                     targetValue = 1f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(1800, easing = FastOutSlowInEasing),
+                        /*
+                        LINEAIRE, comme l'anneau du bouton journal.
+                        `FastOutSlowInEasing` avance vite au debut :
+                        l'opacite tombait dans le premier tiers et on ne
+                        voyait qu'un eclair. Une pulsation veut un rythme,
+                        pas un elan.
+                        */
+                        animation = tween(1800, easing = LinearEasing),
                         repeatMode = RepeatMode.Restart
                     ),
                     label = "halo"
