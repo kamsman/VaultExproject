@@ -115,7 +115,21 @@ telegram.admin.chat=
 debug.force.gas.shortfall=false
 
 # ─── Mobile Money (non branché à ce jour) ────────────────────────────────
-flutterwave.key=
+#
+# `flutterwave.key` A ÉTÉ RETIRÉE, ET NE DOIT PAS REVENIR ICI.
+#
+# Flutterwave documente cette valeur comme sa « Secret key » : une clé de
+# PAIEMENT. Elle arrivait dans l'APK par `buildConfigField`, donc en clair
+# dans chaque installation — R8 renomme les classes, il ne chiffre pas les
+# chaînes constantes.
+#
+# Et pour rien : aucun ViewModel, aucun dépôt, aucun cas d'usage
+# n'injectait `FlutterwaveApi`. L'interface et ses DTO restent dans le
+# dépôt, dormants ; seuls la clé et son fournisseur Hilt sont partis.
+#
+# Le jour où ce chemin s'ouvre, la clé ira sur le RELAIS et l'application
+# l'appellera par là — comme le jeton Telegram du formulaire d'avis. Une
+# clé de paiement n'a rien à faire dans un binaire qu'on distribue.
 
 # ─── Play Integrity (facultatif) ─────────────────────────────────────────
 # Numéro de projet Google Cloud. 0 ou absent = désactivé.

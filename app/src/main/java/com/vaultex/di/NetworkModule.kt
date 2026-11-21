@@ -536,20 +536,35 @@ object NetworkModule {
             .create(SimpleSwapApi::class.java)
     }
 
-    @Provides @Singleton
-    fun provideFlutterwaveApi(client: OkHttpClient): FlutterwaveApi {
-        val authedClient = client.newBuilder()
-            .addInterceptor { chain ->
-                chain.proceed(
-                    chain.request().newBuilder()
-                        .addHeader("Authorization", "Bearer ${ApiKeys.FLUTTERWAVE}")
-                        .addHeader("Content-Type", "application/json")
-                        .build()
-                )
-            }.build()
-        return retrofit("https://api.flutterwave.com/v3/", authedClient)
-            .create(FlutterwaveApi::class.java)
-    }
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE FOURNISSEUR FLUTTERWAVE A ETE RETIRE, ET SA CLE AVEC
+    ═══════════════════════════════════════════════════════════════════════
+
+    `ApiKeys.kt` documentait `flutterwave.key` comme la « Secret key » du
+    tableau de bord Flutterwave — c'est-a-dire une cle de PAIEMENT. Elle
+    arrivait par `buildConfigField`, donc en clair dans l'APK distribue :
+    R8 renomme les classes, il ne chiffre pas les chaines constantes.
+
+    Pour rien. MESURE : aucun ViewModel, aucun depot, aucun cas d'usage
+    n'injectait `FlutterwaveApi`. Ce fournisseur etait le SEUL lecteur de
+    la cle, et personne ne lisait le fournisseur. Le commentaire du
+    certificat, plus haut dans ce fichier, le disait deja : « l'API est
+    cablee mais jamais appelee ».
+
+    Une cle secrete publiee dans 223 telephones pour alimenter du code
+    que personne n'appelle : il n'y a aucun arbitrage a faire.
+
+    ─── CE QUI RESTE, ET POURQUOI ─────────────────────────────────────────
+
+    `FlutterwaveApi` et ses DTO restent dans le depot. C'est l'echafaudage
+    du Mobile Money UEMOA, et il ne coute rien : une interface que
+    personne n'injecte ne produit aucun code. Le jour ou ce chemin
+    s'ouvre, il manquera ce fournisseur — dix lignes — et une cle posee
+    AILLEURS QUE DANS L'APK : le relais, comme pour le jeton Telegram des
+    avis.
+    ═══════════════════════════════════════════════════════════════════════
+    */
 
     @Provides @Singleton
     fun provideMarketRepository(

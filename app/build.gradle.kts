@@ -454,7 +454,6 @@ android {
             "boolean", "FORCE_GAS_SHORTFALL",
             reglage("debug.force.gas.shortfall", "false")
         )
-        buildConfigField("String", "FLUTTERWAVE_KEY", "\"${secret("flutterwave.key")}\"")
         // Optionnelle — améliore les limites de débit TronGrid (header TRON-PRO-API-KEY)
         buildConfigField("String", "TRONGRID_KEY",    "\"${secret("trongrid.key")}\"")
         // Optionnelle — clé CoinGecko Demo (gratuite) : supprime quasiment le

@@ -13,7 +13,6 @@ import com.vaultex.BuildConfig
  *   swap.provider=changenow    → revient à l'ancien échangeur (défaut : simpleswap)
  *   simpleswap.commission=1.5  → le taux porté par la clé, pour l'affichage
  *   simpleswap.taux.fixe=false → repasse en taux flottant (défaut : fixe)
- *   flutterwave.key=YOUR_KEY   → Flutterwave dashboard → API → Secret key
  *   trongrid.key=YOUR_KEY      → https://www.trongrid.io (optionnel, anti rate-limit)
  *   oneinch.key=YOUR_KEY       → https://portal.1inch.dev (devis d'échange sur place)
  *   coingecko.key=YOUR_KEY     → https://www.coingecko.com/en/developers/dashboard (Demo gratuit, anti rate-limit)
@@ -84,7 +83,15 @@ object ApiKeys {
      */
     val FORCE_GAS_SHORTFALL: Boolean = BuildConfig.DEBUG && BuildConfig.FORCE_GAS_SHORTFALL
 
-    val FLUTTERWAVE: String = BuildConfig.FLUTTERWAVE_KEY
+    /*
+    FLUTTERWAVE A DISPARU D'ICI. C'etait une cle de PAIEMENT — la
+    « Secret key » du tableau de bord — embarquee dans l'APK pour
+    alimenter une API que personne n'appelait. Voir `NetworkModule`.
+
+    Ne pas la remettre ici le jour ou le Mobile Money s'ouvre : une cle
+    de paiement n'a rien a faire dans un binaire qu'on distribue. Elle
+    ira sur le relais, comme le jeton Telegram des avis.
+    */
     val TRONGRID:    String = BuildConfig.TRONGRID_KEY
     val COINGECKO:   String = BuildConfig.COINGECKO_KEY
 
