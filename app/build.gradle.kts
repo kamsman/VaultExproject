@@ -689,8 +689,38 @@ dependencies {
      *
      * jdk18on est la denomination courante ; elle n'est pas visee par les
      * exclusions, qui ciblent les anciennes (jdk15on, jdk15to18).
+     *
+     * ─── 1.78.1 → 1.85, SUR MESURE ────────────────────────────────────
+     *
+     * `node tools/audit-dependances.mjs` rend CINQ avis sur 1.78.1, dont
+     * deux critiques :
+     *
+     *   GHSA-574f-3g2m-x479  CRITIQUE  GOST 28147 CTR, reutilisation du
+     *                                  flux de cle apres 255 blocs
+     *   GHSA-9pwp-9qqc-pr26  CRITIQUE  contournement des contraintes de
+     *                                  nom X.509 (point final)
+     *   GHSA-p93r-85wp-75v3  HAUTE     canal temporel cache
+     *   GHSA-qp49-qgx5-5m26  HAUTE     ASN.1 paresseux, garde de
+     *                                  profondeur remise a zero
+     *   GHSA-c3fc-8qff-9hwx  MODEREE   injection LDAP
+     *
+     * AUCUN NE TOUCHE CE QUE NOUS EMPLOYONS. Ce depot n'utilise que deux
+     * classes de cette bibliotheque — Ed25519Signer et
+     * Ed25519PrivateKeyParameters — et ne nomme nulle part GOST, LDAP,
+     * X509, NameConstraint, ASN1 ni PKIX. Mesure faite par balayage du
+     * code, pas par supposition.
+     *
+     * ON MONTE QUAND MEME. Une bibliotheque qu'on laisse derriere devient
+     * exploitable le jour ou quelqu'un emploie l'API vulnerable sans
+     * savoir qu'elle l'est. Et 1.85 corrige les cinq d'un coup.
+     *
+     * LA MONTEE N'EST SURE QUE PARCE QUE `Ed25519UtilsTest` EXISTE. Il a
+     * ete ecrit AVANT, et verifie vert sur 1.78.1, sur les vecteurs de la
+     * RFC 8032 — pas sur notre propre sortie. Si 1.85 changeait de
+     * comportement, il tombe. Sans lui, une signature cassee ne se serait
+     * vue qu'au premier envoi Solana reel.
      */
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
     implementation("org.bitcoinj:bitcoinj-core:0.16.2")
 
     // ❌ SUPPRIMÉ (IMPORTANT)
