@@ -312,23 +312,47 @@ async function rapport() {
   if (atteint === true) {
     console.log('\n🔴 LE JETON COMPILE DANS L APK EST CELUI QUI ECRIT LES ORDRES.')
     console.log('')
-    console.log('   R8 renomme les classes, il ne chiffre pas les chaines : qui')
-    console.log('   ouvre un APK distribue lit ce jeton. Il peut alors poster')
-    console.log('   dans le canal un message de la forme d un ordre, avec son')
-    console.log('   adresse dans le bouton « Adresse ». Le relais ecrit dans ce')
-    console.log('   canal, il ne le relit jamais : rien ne verifie qu un message')
-    console.log('   y vient bien de lui.')
+    /*
+    LA PREMIERE VERSION DE CE TEXTE SURESTIMAIT LE RISQUE.
+
+    Elle disait « il peut poster dans le canal un message de la forme
+    d'un ordre ». Mesure faite : `TG_CHANGE_CHAT` n'est PAS dans l'APK,
+    il ne vit que sur le Worker. Il manque donc l'identifiant du groupe.
+
+    Une alerte exageree se paie la fois suivante : celui qui verifie et
+    trouve moins grave que ce qu'on lui annoncait croit moins la
+    prochaine. On separe donc ce qui est CERTAIN de ce qui demande un
+    cran de plus.
+    */
+    console.log('   CERTAIN : l APK porte AUSSI telegram.admin.chat. Qui l ouvre a')
+    console.log('   donc le jeton ET l identifiant du groupe d administration. Il')
+    console.log('   peut y ecrire sous l identite du bot — faux depot, faux crash,')
+    console.log('   faux avis. C est la que tu lis ton monitoring : un message')
+    console.log('   force y est une consigne que tu lis et que rien ne distingue.')
+    console.log('')
+    console.log('   PAS DIRECT : le groupe des ORDRES (TG_CHANGE_CHAT) n est pas')
+    console.log('   dans l APK, il ne vit que sur le Worker. Forger un ordre')
+    console.log('   demande d obtenir cet identifiant d abord — un cran de plus,')
+    console.log('   pas une barriere.')
+    console.log('')
+    console.log('   A CORRIGER QUAND MEME, pour une raison simple : un jeton')
+    console.log('   public est administrateur des deux groupes, dont celui ou')
+    console.log('   passent les ordres. Rien ne justifie que ca dure.')
     console.log('')
     console.log('   CE QU IL FAUT FAIRE, dans cet ordre :')
-    console.log('     1. @BotFather → /newbot → un bot NEUF, uniquement pour le')
-    console.log('        tableau de bord. Son jeton va dans telegram.admin.token')
-    console.log('        de local.properties, et dans TG_ADMIN_TOKEN du Worker.')
-    console.log('     2. Ajouter ce nouveau bot au groupe d administration.')
-    console.log('     3. Reconstruire et redistribuer l APK.')
-    console.log('     4. SEULEMENT APRES : @BotFather → /revoke sur l ancien.')
-    console.log('        Revoquer avant couperait les 223 installations en')
-    console.log('        service, qui portent encore l ancien jeton.')
-    console.log('     5. Relancer cet outil : il doit afficher « non ».')
+    console.log('     1. @BotFather → /newbot → un bot NEUF pour le tableau de')
+    console.log('        bord. Son jeton va dans TG_ADMIN_TOKEN du Worker.')
+    console.log('     2. L ajouter au groupe d administration.')
+    console.log('     3. RETIRER le jeton de l APK plutot que de le remplacer :')
+    console.log('        depuis le formulaire d avis, le relais sait ecrire dans')
+    console.log('        Telegram a la place du telephone. Un jeton qui n est pas')
+    console.log('        dans l APK ne fuit jamais. C est le seul correctif qui')
+    console.log('        ne se repose pas la question a la version suivante.')
+    console.log('     4. Reconstruire et redistribuer.')
+    console.log('     5. SEULEMENT APRES : @BotFather → /revoke sur l ancien.')
+    console.log('        Revoquer avant couperait le monitoring des installations')
+    console.log('        en service, qui portent encore l ancien jeton.')
+    console.log('     6. Relancer cet outil : il doit afficher « non ».')
     console.log('')
     return 1
   }
