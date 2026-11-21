@@ -2915,6 +2915,33 @@ CE QUI EST TESTE ICI, et chaque cas a sa raison :
   verifie('CANAUX : et le verdict dit que tout passe par le jeton de l APK',
     /SEPARER/.test(sansChangeur.verdict), sansChangeur.verdict)
 
+  /*
+  TG_ADMIN_TOKEN ABSENTE SUR LE WORKER — la branche que personne ne
+  testait, et dont le verdict etait FAUX.
+
+  Il disait « le tableau de bord ne part nulle part ». C'est faux :
+  `surveillerRobot` et `majTableau` lisent `TG_ADMIN_TOKEN ||
+  TG_CHANGE_TOKEN`, donc le repli joue et le tableau part. J'avais lu
+  l'absence de la variable comme l'absence de l'envoi.
+
+  Et surtout, le verdict doit dire ce que cette sonde NE VOIT PAS : le
+  jeton compile dans l'APK est une TROISIEME valeur, posee dans
+  `local.properties`. Une vraie configuration a rendu « TG_ADMIN_TOKEN :
+  ABSENTE » — ce qui se lit comme rassurant — alors que l'APK en portait
+  un. Les deux noms se ressemblent et designent deux choses.
+  */
+  const sansAdmin = await separationCanaux({
+    TG_CHANGE_TOKEN: 'jeton-changeur', TG_CHANGE_CHAT: '-100111', TG_ADMIN_CHAT: '-100222',
+  })
+  verifie('CANAUX : sans TG_ADMIN_TOKEN, memeBot reste null',
+    sansAdmin.memeBot === null && sansAdmin.admin.pose === false, sansAdmin)
+  verifie('CANAUX : le verdict ne pretend plus que le tableau ne part nulle part',
+    !/ne part nulle part/.test(sansAdmin.verdict) && /repli/.test(sansAdmin.verdict),
+    sansAdmin.verdict)
+  verifie('CANAUX : et il renvoie vers l APK, que cette sonde ne voit pas',
+    /APK/.test(sansAdmin.verdict) && /local\.properties/.test(sansAdmin.verdict),
+    sansAdmin.verdict)
+
   const aucun = await separationCanaux({})
   verifie('CANAUX : sans aucun jeton, rien n est affirme',
     aucun.memeBot === null && aucun.memeGroupe === null &&

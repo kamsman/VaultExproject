@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 108
+const VERSION = 109
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -10284,7 +10284,28 @@ async function separationCanaux(env) {
       "compile dans l'APK. Le canal des ordres est donc joignable avec un " +
       'secret extractible. A SEPARER.'
   } else if (!admin.pose) {
-    verdict = 'TG_ADMIN_TOKEN absente : le tableau de bord ne part nulle part.'
+    /*
+    « NE PART NULLE PART » ETAIT FAUX, et c'est une vraie configuration
+    qui l'a montre.
+
+    `surveillerRobot` et `majTableau` lisent `TG_ADMIN_TOKEN ||
+    TG_CHANGE_TOKEN`. Le tableau de bord part donc tres bien, par repli,
+    des que TG_ADMIN_CHAT existe. J'avais lu l'absence de la variable
+    comme l'absence de l'envoi, sans relire le repli.
+
+    ET LE POINT IMPORTANT EST AILLEURS : cette sonde ne voit QUE le
+    Worker. Le jeton compile dans l'APK est une valeur DISTINCTE, posee
+    dans `local.properties` sous `telegram.admin.token`. Dire ici que
+    « TG_ADMIN_TOKEN est absente » ne dit donc rien du jeton qui circule
+    dans les telephones — c'est `voir-canaux.mjs`, cote machine, qui lit
+    les deux et les compare.
+    */
+    verdict =
+      'TG_ADMIN_TOKEN absente SUR LE WORKER : le tableau de bord part ' +
+      'quand meme, par repli sur TG_CHANGE_TOKEN. Attention, cette sonde ' +
+      "ne voit pas le jeton compile dans l'APK, qui est une autre valeur " +
+      '(telegram.admin.token dans local.properties) : seul voir-canaux.mjs ' +
+      'les compare.'
   } else if (memeBot === true) {
     verdict =
       "MEME BOT pour les deux canaux, et celui-ci est compile dans l'APK. " +

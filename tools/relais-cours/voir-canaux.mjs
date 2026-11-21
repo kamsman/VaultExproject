@@ -53,20 +53,73 @@ import { createInterface } from 'node:readline'
  * de passe du magasin de signature : rien d'autre que `prix.relay.url`
  * n'est extrait, et rien d'autre n'est imprimé.
  */
-function relaisDepuisProprietes() {
+function propriete(nom) {
   for (const chemin of ['local.properties', '../../local.properties']) {
     try {
       const ligne = readFileSync(chemin, 'utf8')
         .split('\n')
-        .find((l) => l.trim().startsWith('prix.relay.url'))
+        .find((l) => l.trim().startsWith(`${nom}=`) || l.trim().startsWith(`${nom} =`))
       if (!ligne) continue
       const valeur = ligne.split('=').slice(1).join('=').trim()
-      if (valeur) return valeur.replace(/\/?api\/v3\/?$/, '').replace(/\/$/, '')
+      if (valeur) return valeur
     } catch (_) {
       /* fichier absent à cet endroit : on essaie le suivant */
     }
   }
   return ''
+}
+
+function relaisDepuisProprietes() {
+  const v = propriete('prix.relay.url')
+  return v ? v.replace(/\/?api\/v3\/?$/, '').replace(/\/$/, '') : ''
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LE JETON DE L'APK, QUE LA SONDE DU WORKER NE PEUT PAS VOIR
+═══════════════════════════════════════════════════════════════════════════
+
+CE MANQUE EST LA RAISON D'ETRE DE CETTE FONCTION, et il m'a echappe.
+
+`separationCanaux` tourne DANS le Worker : elle ne connait que
+`TG_CHANGE_TOKEN` et `TG_ADMIN_TOKEN`, les variables Cloudflare. Or le
+jeton qui part dans les telephones est une TROISIEME valeur — posee dans
+`local.properties` sous `telegram.admin.token`, lue a la compilation par
+`build.gradle.kts`, gravee dans `BuildConfig`.
+
+Mesure faite sur une vraie configuration : le Worker a repondu
+« TG_ADMIN_TOKEN : ABSENTE », ce qui se lit comme rassurant, alors que
+l'APK en porte un. Les deux noms se ressemblent et designent deux choses.
+
+J'avais donc construit, pour repondre a « le jeton de l'APK atteint-il le
+canal des ordres ? », une sonde qui ne regarde pas l'APK. C'est la meme
+faute, un cran plus haut, que celle que je reprochais a `canalChange`.
+
+SEULE CETTE MACHINE PEUT LES COMPARER : le Worker ne voit pas
+`local.properties`, et `local.properties` ne voit pas le Worker.
+
+LE JETON N'EST JAMAIS IMPRIME. Il part vers api.telegram.org, qui en est
+le proprietaire legitime, et seul le nom du bot revient a l'ecran.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function botDeLApk() {
+  const jeton = propriete('telegram.admin.token')
+  if (!jeton) return { pose: false }
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${jeton}/getMe`)
+    const o = await r.json()
+    if (!o?.ok) {
+      return { pose: true, valide: false, raison: String(o?.description ?? `HTTP ${r.status}`) }
+    }
+    return {
+      pose: true,
+      valide: true,
+      id: Number(o.result?.id) || null,
+      bot: String(o.result?.username ?? ''),
+    }
+  } catch (_) {
+    return { pose: true, valide: false, raison: 'injoignable' }
+  }
 }
 
 /**
@@ -213,50 +266,96 @@ async function rapport() {
     return 1
   }
 
-  /*
-  LES DEUX LIGNES SONT ALIGNEES, et l'annotation est a DROITE.
+  const apk = await botDeLApk()
 
-  Collee au nom — « TG_ADMIN_TOKEN (compile dans l'APK) : @bot » — elle
-  decalait la seconde ligne et cassait la comparaison, qui est la seule
-  chose qu'on vient faire ici : lire deux noms de bots l'un sous l'autre.
+  /*
+  QUEL BOT ECRIT LES ORDRES ? Celui de `TG_CHANGE_TOKEN`, ou celui de
+  `TG_ADMIN_TOKEN` quand la premiere manque — `worker.js:4033` fait
+  `TG_CHANGE_TOKEN || TG_ADMIN_TOKEN`. On suit le MEME repli ici, sinon
+  on comparerait l'APK a un bot qui n'ecrit rien.
   */
+  const botOrdres = s.changeur?.pose ? s.changeur : s.admin
+
   const etat = (c, nom, note) => {
     const valeur =
       !c?.pose ? 'ABSENTE'
       : c.valide === false ? `refusee par Telegram — ${c.raison}`
       : `@${c.bot}`
-    return `${nom.padEnd(15)} : ${valeur}${note ? `   ← ${note}` : ''}`
+    return `${nom.padEnd(27)} : ${valeur}${note ? `   ← ${note}` : ''}`
   }
 
-  console.log('\n' + '─'.repeat(70))
-  console.log(etat(s.changeur, 'TG_CHANGE_TOKEN', 'porte les ordres a executer'))
-  console.log(etat(s.admin, 'TG_ADMIN_TOKEN', "compile dans l'APK, donc public"))
-  console.log('─'.repeat(70))
-  console.log(
-    `Meme bot    : ${s.memeBot === null ? 'indeterminable' : s.memeBot ? 'OUI' : 'non'}`
-  )
-  console.log(
-    `Meme groupe : ${s.memeGroupe === null ? 'indeterminable' : s.memeGroupe ? 'OUI' : 'non'}`
-  )
-  console.log('─'.repeat(70))
+  console.log('\n' + '─'.repeat(74))
+  console.log(etat(apk, 'APK  telegram.admin.token', 'distribue dans les telephones'))
+  console.log(etat(s.changeur, 'Worker TG_CHANGE_TOKEN', 'porte les ordres a executer'))
+  console.log(etat(s.admin, 'Worker TG_ADMIN_TOKEN',
+    s.admin?.pose ? 'tableau de bord' : 'absente : repli sur TG_CHANGE_TOKEN'))
+  console.log('─'.repeat(74))
 
-  const grave = s.memeBot === true || !s.changeur?.pose || s.memeGroupe === true
-  console.log(`\n${grave ? '🔴' : s.memeBot === false ? '✅' : '⚠️ '} ${s.verdict}`)
+  /*
+  LA QUESTION EST POSEE EN TOUTES LETTRES, parce que c'est la seule
+  qu'on vient poser. « Meme bot : OUI » obligeait a se rappeler pourquoi
+  ca comptait ; la phrase le porte.
+  */
+  const atteint =
+    apk.id && botOrdres?.id ? apk.id === botOrdres.id : null
+  console.log(
+    "Le jeton de l'APK atteint-il le canal des ordres ?  " +
+    (atteint === null ? 'INDETERMINABLE' : atteint ? 'OUI' : 'non')
+  )
+  if (s.memeGroupe !== null) {
+    console.log(
+      `Les deux groupes Telegram sont-ils distincts ?      ${s.memeGroupe ? 'NON' : 'oui'}`
+    )
+  }
+  console.log('─'.repeat(74))
 
-  if (grave) {
-    console.log('\nCE QU IL FAUT FAIRE, dans cet ordre :')
-    console.log('  1. Creer un bot NEUF chez @BotFather pour le tableau de bord')
-    console.log('     admin, et le mettre dans TG_ADMIN_TOKEN du Worker.')
-    console.log('  2. Revoquer l ancien jeton (/revoke chez @BotFather) : tant')
-    console.log("     qu il vit, les APK deja distribues le portent en clair.")
-    console.log('  3. Verifier que TG_CHANGE_TOKEN et TG_CHANGE_CHAT sont posees,')
-    console.log('     pour que le canal des ordres ne depende plus du repli.')
-    console.log('  4. Relancer cet outil : il doit afficher « Deux bots distincts ».')
+  if (atteint === true) {
+    console.log('\n🔴 LE JETON COMPILE DANS L APK EST CELUI QUI ECRIT LES ORDRES.')
+    console.log('')
+    console.log('   R8 renomme les classes, il ne chiffre pas les chaines : qui')
+    console.log('   ouvre un APK distribue lit ce jeton. Il peut alors poster')
+    console.log('   dans le canal un message de la forme d un ordre, avec son')
+    console.log('   adresse dans le bouton « Adresse ». Le relais ecrit dans ce')
+    console.log('   canal, il ne le relit jamais : rien ne verifie qu un message')
+    console.log('   y vient bien de lui.')
+    console.log('')
+    console.log('   CE QU IL FAUT FAIRE, dans cet ordre :')
+    console.log('     1. @BotFather → /newbot → un bot NEUF, uniquement pour le')
+    console.log('        tableau de bord. Son jeton va dans telegram.admin.token')
+    console.log('        de local.properties, et dans TG_ADMIN_TOKEN du Worker.')
+    console.log('     2. Ajouter ce nouveau bot au groupe d administration.')
+    console.log('     3. Reconstruire et redistribuer l APK.')
+    console.log('     4. SEULEMENT APRES : @BotFather → /revoke sur l ancien.')
+    console.log('        Revoquer avant couperait les 223 installations en')
+    console.log('        service, qui portent encore l ancien jeton.')
+    console.log('     5. Relancer cet outil : il doit afficher « non ».')
     console.log('')
     return 1
   }
+
+  if (atteint === false) {
+    console.log('\n✅ Non : le jeton de l APK est un autre bot que celui des ordres.')
+    console.log('   Il reste lisible dans l APK et peut ecrire dans le canal')
+    console.log('   d administration — du bruit, pas de l argent. A regenerer')
+    console.log('   quand tu veux, sans urgence.')
+    console.log('')
+    return 0
+  }
+
+  console.log('\n⚠️  Indeterminable.')
+  if (!apk.pose) {
+    console.log('   `telegram.admin.token` est absent de local.properties sur')
+    console.log('   CETTE machine. Si les APK distribues ont ete compiles ici,')
+    console.log('   ils ne portent aucun jeton et il n y a rien a corriger.')
+    console.log('   Sinon, la question reste ouverte : relance depuis la machine')
+    console.log('   qui a produit les APK en circulation.')
+  } else if (apk.valide === false) {
+    console.log(`   Le jeton de l APK a ete refuse par Telegram : ${apk.raison}.`)
+    console.log('   Un jeton revoque ne vaut plus rien, ce qui est une bonne')
+    console.log('   nouvelle — verifie seulement que le monitoring fonctionne.')
+  }
   console.log('')
-  return 0
+  return 1
 }
 
 process.exitCode = await rapport()
