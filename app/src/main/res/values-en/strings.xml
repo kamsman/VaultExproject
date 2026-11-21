@@ -1000,7 +1000,7 @@
     <string name="avis_aide">One sentence is enough. It\'s the only way we get to know what bothers you.</string>
     <string name="avis_invite">What you liked, what got in your way…</string>
     <string name="avis_envoyer">Send</string>
-    <string name="avis_prive">No amount, no address and no phone number leaves with your message.</string>
+    <string name="avis_prive">No address, no phone number and no reference leaves with your message.</string>
     <string name="avis_merci">Thank you. Noted.</string>
     <string name="avis_echec">Your feedback did not go through. Check your connection.</string>
     <string name="avis_etoiles">Rating out of five</string>
