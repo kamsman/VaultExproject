@@ -19,7 +19,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -215,7 +215,7 @@ fun VaultExBottomBar(navController: NavHostController, modifier: Modifier = Modi
         ) {
             NavTabImage(R.drawable.logorond, stringResource(R.string.tab_home), currentRoute == Routes.DASHBOARD, Modifier.weight(1f)) { go(Routes.DASHBOARD) }
             NavTab(
-                Icons.Default.TrendingUp, stringResource(R.string.tab_market),
+                Icons.AutoMirrored.Filled.TrendingUp, stringResource(R.string.tab_market),
                 currentRoute == Routes.MARKET, Modifier.weight(1f),
                 /*
                 PAS DE POINT QUAND ON Y EST DEJA.

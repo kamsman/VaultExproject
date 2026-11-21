@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -175,7 +175,7 @@ fun UnlockScreen(navController: NavHostController) {
                                     onClick = { viewModel.onBackspace() }
                                 ) {
                                     Icon(
-                                        Icons.Filled.Backspace,
+                                        Icons.AutoMirrored.Filled.Backspace,
                                         contentDescription = stringResource(R.string.back),
                                         tint = AccentBlue,
                                         modifier = Modifier.size(24.dp)

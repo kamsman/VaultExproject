@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -961,7 +961,7 @@ private fun SwapFormScreen(
                         Modifier.size(32.dp).clip(CircleShape).background(swapPurpleDim),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Outlined.TrendingUp, null, tint = SwapPurple, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {

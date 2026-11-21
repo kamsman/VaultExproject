@@ -8,6 +8,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
@@ -115,7 +117,7 @@ fun TokenDetailScreen(navController: NavController, symbol: String = "ETH") {
                             val isPositive = state.change24h >= 0
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Icon(
-                                    if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                    if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                     null,
                                     tint = if (isPositive) VaultExColors.Success else VaultExColors.Error,
                                     modifier = Modifier.size(18.dp)

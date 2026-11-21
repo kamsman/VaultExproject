@@ -10,8 +10,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -140,8 +140,8 @@ private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier =
             Icon(
                 when {
                     estEchange -> Icons.Default.Repeat
-                    incoming -> Icons.Default.CallReceived
-                    else -> Icons.Default.CallMade
+                    incoming -> Icons.AutoMirrored.Filled.CallReceived
+                    else -> Icons.AutoMirrored.Filled.CallMade
                 },
                 contentDescription = null,
                 tint = accent,
