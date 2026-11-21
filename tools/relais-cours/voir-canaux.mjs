@@ -93,6 +93,32 @@ function demanderCle() {
     }
     rl.question('Cle de diagnostic (CHANGE_DIAG_CLE) : ', (reponse) => {
       rl.close()
+      /*
+      ═══════════════════════════════════════════════════════════════════
+      SANS CES DEUX LIGNES, NODE HURLE EN SORTANT — SOUS WINDOWS
+      ═══════════════════════════════════════════════════════════════════
+
+      MESURE :
+
+        Assertion failed: !(handle->flags & UV_HANDLE_CLOSING),
+        file src\win\async.c, line 76
+
+      Ca s'imprime APRES le verdict, en rouge, et ca ressemble a un
+      plantage de l'outil. Ce n'en est pas un : le resultat est deja
+      affiche et juste. Mais quelqu'un qui vient verifier un point de
+      securite et lit « Assertion failed » ne croira pas la ligne du
+      dessus, et c'est tout ce qui compte ici.
+
+      La cause : `rl.close()` ne rend pas `process.stdin` inactif. Le
+      handle reste arme, et `process.exit()` le ferme pendant que libuv
+      le fermait deja. `pause()` l'arrete, `unref()` l'empeche de retenir
+      la boucle d'evenements.
+      ═══════════════════════════════════════════════════════════════════
+      */
+      try {
+        process.stdin.pause()
+        process.stdin.unref()
+      } catch (_) { /* pas de stdin : rien a liberer */ }
       if (muet) process.stdout.write('\n')
       resolve(String(reponse).trim())
     })
@@ -113,95 +139,124 @@ if (!relais.startsWith('https://')) {
 
 console.log(`\nRelais : ${relais}`)
 
-const cle = (cleArg || process.env.CHANGE_DIAG_CLE || '').trim() || (await demanderCle())
-if (!cle) {
-  console.log('\n❌ Aucune cle saisie. /diag est ferme sans elle.')
-  process.exit(2)
-}
-
-let reponse
-try {
-  const r = await fetch(`${relais}/diag?cle=${encodeURIComponent(cle)}`)
-  const brut = await r.text()
-  /*
-  LE 403 SE DISTINGUE DU RESTE, parce que ses deux causes demandent deux
-  gestes differents : une mauvaise cle se retape, une variable absente se
-  pose sur le Worker. `refusDiag` les separe deja dans sa raison — on la
-  relaie plutot que de dire « acces refuse ».
-  */
-  if (r.status === 403) {
-    let raison = ''
-    try { raison = JSON.parse(brut)?.raison ?? '' } catch (_) { raison = brut.slice(0, 160) }
-    console.log(`\n❌ 403 — ${raison}`)
-    process.exit(1)
-  }
-  if (!r.ok) {
-    console.log(`\n❌ HTTP ${r.status} — ${brut.slice(0, 200)}`)
-    process.exit(1)
-  }
-  reponse = JSON.parse(brut)
-} catch (e) {
-  const cause = e?.cause?.code || e?.code || e?.message || 'inconnue'
-  console.log(`\n❌ reseau : ${cause}`)
-  process.exit(1)
-}
-
-if (tout) {
-  console.log(JSON.stringify(reponse, null, 2))
-  process.exit(0)
-}
-
-const v = reponse?.version ?? reponse?.sondes?.version ?? null
-console.log(`Version : ${v ?? 'illisible'}`)
-
-const s = reponse?.sondes?.separationCanaux ?? reponse?.separationCanaux
-if (!s) {
-  console.log('\n⚠️  Ce relais ne rend pas `separationCanaux`.')
-  console.log('   Elle est arrivee en 107 : deploie et relance.')
-  console.log('     cd tools/relais-cours')
-  console.log('     npx.cmd wrangler deploy --config wrangler.toml')
-  process.exit(1)
-}
-
 /*
-LES DEUX LIGNES SONT ALIGNEES, et l'annotation est a DROITE.
+TOUT CE QUI SUIT LE PROMPT VIT DANS UNE FONCTION, et ce n'est pas du
+rangement.
 
-Collee au nom — « TG_ADMIN_TOKEN (compile dans l'APK) : @bot » — elle
-decalait la seconde ligne et cassait la comparaison, qui est la seule
-chose qu'on vient faire ici : lire deux noms de bots l'un sous l'autre.
+`process.exit()` apres une lecture au clavier declenche l'assertion libuv
+decrite plus haut. Remplacer chaque `exit` par un `exitCode` ne suffit
+pas : le code CONTINUERAIT, et la branche 403 irait lire une reponse qui
+n'existe pas. Il faut pouvoir SORTIR — donc `return`, donc une fonction.
+
+Le code de sortie est rendu, pose une seule fois a la fin, et le
+processus se termine tout seul.
 */
-const etat = (c, nom, note) => {
-  const valeur =
-    !c?.pose ? 'ABSENTE'
-    : c.valide === false ? `refusee par Telegram — ${c.raison}`
-    : `@${c.bot}`
-  return `${nom.padEnd(15)} : ${valeur}${note ? `   ← ${note}` : ''}`
+async function rapport() {
+  const cle = (cleArg || process.env.CHANGE_DIAG_CLE || '').trim() || (await demanderCle())
+  if (!cle) {
+    console.log('\n❌ Aucune cle saisie. /diag est ferme sans elle.')
+    return 2
+  }
+
+  let reponse
+  try {
+    const r = await fetch(`${relais}/diag?cle=${encodeURIComponent(cle)}`)
+    const brut = await r.text()
+    /*
+    LE 403 SE DISTINGUE DU RESTE, parce que ses deux causes demandent deux
+    gestes differents : une mauvaise cle se retape, une variable absente se
+    pose sur le Worker. `refusDiag` les separe deja dans sa raison — on la
+    relaie plutot que de dire « acces refuse ».
+    */
+    if (r.status === 403) {
+      let raison = ''
+      try { raison = JSON.parse(brut)?.raison ?? '' } catch (_) { raison = brut.slice(0, 160) }
+      console.log(`\n❌ 403 — ${raison}`)
+      if (/n.est pas reglee/i.test(raison)) {
+        console.log('\n   Elle n a JAMAIS ete posee sur ce relais. Pour en poser une :')
+        console.log('     npx wrangler secret put CHANGE_DIAG_CLE --config wrangler.toml')
+        console.log('   La valeur est de ton choix : rien ne la valide, c est un mot')
+        console.log('   de passe que tu inventes. Un secret survit aux deploiements.')
+      } else {
+        console.log('\n   Elle EXISTE sur le relais, mais ce n est pas celle-la.')
+        console.log('   Cloudflare ne reaffiche jamais un secret : si tu l as perdue,')
+        console.log('   pose-en une neuve par-dessus, c est sans consequence.')
+        console.log('     npx wrangler secret put CHANGE_DIAG_CLE --config wrangler.toml')
+      }
+      return 1
+    }
+    if (!r.ok) {
+      console.log(`\n❌ HTTP ${r.status} — ${brut.slice(0, 200)}`)
+      return 1
+    }
+    reponse = JSON.parse(brut)
+  } catch (e) {
+    const cause = e?.cause?.code || e?.code || e?.message || 'inconnue'
+    console.log(`\n❌ reseau : ${cause}`)
+    return 1
+  }
+
+  if (tout) {
+    console.log(JSON.stringify(reponse, null, 2))
+    return 0
+  }
+
+  const v = reponse?.version ?? reponse?.sondes?.version ?? null
+  console.log(`Version : ${v ?? 'illisible'}`)
+
+  const s = reponse?.sondes?.separationCanaux ?? reponse?.separationCanaux
+  if (!s) {
+    console.log('\n⚠️  Ce relais ne rend pas `separationCanaux`.')
+    console.log('   Elle est arrivee en 107 : deploie et relance.')
+    console.log('     cd tools/relais-cours')
+    console.log('     npx wrangler deploy --config wrangler.toml')
+    return 1
+  }
+
+  /*
+  LES DEUX LIGNES SONT ALIGNEES, et l'annotation est a DROITE.
+
+  Collee au nom — « TG_ADMIN_TOKEN (compile dans l'APK) : @bot » — elle
+  decalait la seconde ligne et cassait la comparaison, qui est la seule
+  chose qu'on vient faire ici : lire deux noms de bots l'un sous l'autre.
+  */
+  const etat = (c, nom, note) => {
+    const valeur =
+      !c?.pose ? 'ABSENTE'
+      : c.valide === false ? `refusee par Telegram — ${c.raison}`
+      : `@${c.bot}`
+    return `${nom.padEnd(15)} : ${valeur}${note ? `   ← ${note}` : ''}`
+  }
+
+  console.log('\n' + '─'.repeat(70))
+  console.log(etat(s.changeur, 'TG_CHANGE_TOKEN', 'porte les ordres a executer'))
+  console.log(etat(s.admin, 'TG_ADMIN_TOKEN', "compile dans l'APK, donc public"))
+  console.log('─'.repeat(70))
+  console.log(
+    `Meme bot    : ${s.memeBot === null ? 'indeterminable' : s.memeBot ? 'OUI' : 'non'}`
+  )
+  console.log(
+    `Meme groupe : ${s.memeGroupe === null ? 'indeterminable' : s.memeGroupe ? 'OUI' : 'non'}`
+  )
+  console.log('─'.repeat(70))
+
+  const grave = s.memeBot === true || !s.changeur?.pose || s.memeGroupe === true
+  console.log(`\n${grave ? '🔴' : s.memeBot === false ? '✅' : '⚠️ '} ${s.verdict}`)
+
+  if (grave) {
+    console.log('\nCE QU IL FAUT FAIRE, dans cet ordre :')
+    console.log('  1. Creer un bot NEUF chez @BotFather pour le tableau de bord')
+    console.log('     admin, et le mettre dans TG_ADMIN_TOKEN du Worker.')
+    console.log('  2. Revoquer l ancien jeton (/revoke chez @BotFather) : tant')
+    console.log("     qu il vit, les APK deja distribues le portent en clair.")
+    console.log('  3. Verifier que TG_CHANGE_TOKEN et TG_CHANGE_CHAT sont posees,')
+    console.log('     pour que le canal des ordres ne depende plus du repli.')
+    console.log('  4. Relancer cet outil : il doit afficher « Deux bots distincts ».')
+    console.log('')
+    return 1
+  }
+  console.log('')
+  return 0
 }
 
-console.log('\n' + '─'.repeat(70))
-console.log(etat(s.changeur, 'TG_CHANGE_TOKEN', 'porte les ordres a executer'))
-console.log(etat(s.admin, 'TG_ADMIN_TOKEN', "compile dans l'APK, donc public"))
-console.log('─'.repeat(70))
-console.log(
-  `Meme bot    : ${s.memeBot === null ? 'indeterminable' : s.memeBot ? 'OUI' : 'non'}`
-)
-console.log(
-  `Meme groupe : ${s.memeGroupe === null ? 'indeterminable' : s.memeGroupe ? 'OUI' : 'non'}`
-)
-console.log('─'.repeat(70))
-
-const grave = s.memeBot === true || !s.changeur?.pose || s.memeGroupe === true
-console.log(`\n${grave ? '🔴' : s.memeBot === false ? '✅' : '⚠️ '} ${s.verdict}`)
-
-if (grave) {
-  console.log('\nCE QU IL FAUT FAIRE, dans cet ordre :')
-  console.log('  1. Creer un bot NEUF chez @BotFather pour le tableau de bord')
-  console.log('     admin, et le mettre dans TG_ADMIN_TOKEN du Worker.')
-  console.log('  2. Revoquer l ancien jeton (/revoke chez @BotFather) : tant')
-  console.log("     qu il vit, les APK deja distribues le portent en clair.")
-  console.log('  3. Verifier que TG_CHANGE_TOKEN et TG_CHANGE_CHAT sont posees,')
-  console.log('     pour que le canal des ordres ne depende plus du repli.')
-  console.log('  4. Relancer cet outil : il doit afficher « Deux bots distincts ».')
-  process.exitCode = 1
-}
-console.log('')
+process.exitCode = await rapport()
