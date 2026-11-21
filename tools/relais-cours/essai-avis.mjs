@@ -205,7 +205,23 @@ if (sonde.statut === 400) {
   console.log('   Rien n a ete ecrit dans le canal, aucun avis consomme.')
 } else if (sonde.statut === 404) {
   console.log('❌ 404 — la route est absente : le deploiement n a pas pris.')
-  console.log('   Relance : npx wrangler deploy --config wrangler.toml')
+  /*
+  LES QUATRE LIGNES, PAS LA DERNIERE SEULE.
+
+  La version precedente de ce message n'imprimait que `npx wrangler
+  deploy --config wrangler.toml`. Lancee depuis la RACINE du depot, ou
+  `wrangler.toml` n'existe pas, elle echoue sur un chemin double et
+  incomprehensible — et c'est arrive. Le `cd` est la marche qu'on omet
+  parce qu'elle va de soi pour celui qui ecrit la commande.
+
+  La procedure complete vit dans l'en-tete de `wrangler.toml`.
+  */
+  console.log('')
+  console.log('   Deployer :')
+  console.log('     cd tools/relais-cours')
+  console.log('     node verifier-version.mjs')
+  console.log('     npx wrangler deploy --config wrangler.toml')
+  console.log('     (npx.cmd sous PowerShell)')
   process.exitCode = 1
 } else if (sonde.statut === 0) {
   console.log(`❌ ${sonde.texte}`)
