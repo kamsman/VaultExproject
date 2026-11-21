@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -141,8 +143,8 @@ private fun TxCard(tx: TxDisplay, onClick: () -> Unit) {
     val bgColor = iconColor.copy(alpha = 0.1f)
     val icon = when {
         tx.estEchange -> Icons.Default.Repeat
-        tx.isIncoming -> Icons.Default.CallReceived
-        else -> Icons.Default.CallMade
+        tx.isIncoming -> Icons.AutoMirrored.Filled.CallReceived
+        else -> Icons.AutoMirrored.Filled.CallMade
     }
     val chainColor = chainColor(tx.chain)
 

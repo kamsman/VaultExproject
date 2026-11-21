@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -432,7 +433,7 @@ internal fun SecurityVerifDialog(
                                 modifier = Modifier.size(58.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    if (d == "⌫") Icon(Icons.Default.Backspace, null, tint = TextPrimary, modifier = Modifier.size(20.dp))
+                                    if (d == "⌫") Icon(Icons.AutoMirrored.Filled.Backspace, null, tint = TextPrimary, modifier = Modifier.size(20.dp))
                                     else Text(d, fontSize = 19.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
                                 }
                             }

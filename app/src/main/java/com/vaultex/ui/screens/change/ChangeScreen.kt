@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Calculate
@@ -1214,7 +1214,7 @@ private fun CarteDetailChange(
             Ligne(
                 stringResource(R.string.change_prix_marche, state.monnaie),
                 "${fcfa(prix.baseFcfa)} FCFA",
-                icone = Icons.Default.ShowChart
+                icone = Icons.AutoMirrored.Filled.ShowChart
             )
             Ligne(
                 stringResource(R.string.change_taux_applique, state.monnaie),
@@ -5085,13 +5085,46 @@ nommer le mauvais réseau.
 ═══════════════════════════════════════════════════════════════════════════
 */
 private fun reseauDe(monnaie: String): String? = when (monnaie.uppercase()) {
-    "USDT", "USDT-TRX", "TRX" -> "TRC20 · TRON"
-    "USDT-BNB", "BNB" -> "BEP20 · BNB Smart Chain"
-    "USDT-SOL", "SOL" -> "SPL · Solana"
-    "USDT-ETH", "ETH" -> "ERC20 · Ethereum"
-    "BTC" -> "Bitcoin"
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN STANDARD DE JETON N'EST PAS LE NOM D'UNE CHAINE
+    ═══════════════════════════════════════════════════════════════════════
+
+    Le compilateur a signale « Duplicate label in when » : « SOL » figurait
+    DEUX fois. La seconde ligne, « SOL -> Solana », ne s'executait jamais —
+    la premiere, groupee avec USDT-SOL, l'avait deja prise.
+
+    Quelqu'un avait donc deja juge que « Solana » etait le bon libelle pour
+    le SOL natif, et l'avait ecrit a un endroit ou il ne pouvait pas
+    servir. C'est le compilateur qui l'a dit, pas une relecture.
+
+    ET LES TROIS AUTRES LIGNES AVAIENT LE MEME DEFAUT. TRC20, BEP20, ERC20
+    et SPL sont des standards de JETON. Le TRX natif n'est pas un jeton
+    TRC20 ; le SOL natif n'est pas un jeton SPL. L'ecran annonçait pourtant
+    « TRC20 · TRON » a quelqu'un qui envoie du TRX.
+
+    Ce n'est pas dangereux — le reseau est le bon dans les deux cas — mais
+    c'est faux, et sur un ecran dont le seul role est de dire « envoyez sur
+    CE reseau », une imprecision se paie en questions a l'assistance.
+
+    Chaque monnaie native porte donc le nom de sa chaine, et chaque jeton
+    le standard qui le transporte.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    "USDT", "USDT-TRX" -> "TRC20 · TRON"
+    "USDT-BNB" -> "BEP20 · BNB Smart Chain"
+    "USDT-SOL" -> "SPL · Solana"
+    "USDT-ETH" -> "ERC20 · Ethereum"
+
+    "TRX" -> "TRON"
+    "BNB" -> "BNB Smart Chain"
     "SOL" -> "Solana"
+    "ETH" -> "Ethereum"
+    "BTC" -> "Bitcoin"
     "PI" -> "Pi Network"
+    // Huitieme liste ou le Dogecoin manquait : `reseauDe("DOGE")` rendait
+    // null, donc l'ecran de change ne nommait aucun reseau.
+    "DOGE" -> "Dogecoin"
     else -> null
 }
 

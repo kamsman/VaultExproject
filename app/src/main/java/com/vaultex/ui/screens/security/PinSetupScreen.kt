@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Backspace
+import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -220,7 +220,7 @@ internal fun PinNumPad(
                         ) {
                             if (key == "⌫") {
                                 Icon(
-                                    imageVector = Icons.Outlined.Backspace,
+                                    imageVector = Icons.AutoMirrored.Outlined.Backspace,
                                     contentDescription = stringResource(R.string.back),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(24.dp)

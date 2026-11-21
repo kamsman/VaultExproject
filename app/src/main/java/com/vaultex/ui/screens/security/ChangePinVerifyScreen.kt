@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Shield
@@ -125,7 +125,7 @@ fun ChangePinVerifyScreen(
                                 }
                             } else Spacer(Modifier.size(72.dp))
                             "del" -> PinKey(enabled = state.pin.isNotEmpty(), onClick = { viewModel.onBackspace() }) {
-                                Icon(Icons.Filled.Backspace, null, tint = AccentBlue, modifier = Modifier.size(24.dp))
+                                Icon(Icons.AutoMirrored.Filled.Backspace, null, tint = AccentBlue, modifier = Modifier.size(24.dp))
                             }
                             else -> PinKey(enabled = state.lockedSeconds == 0L, onClick = { viewModel.onDigit(key) }) {
                                 Text(key, color = AccentBlue, fontSize = 26.sp, fontWeight = FontWeight.Medium)

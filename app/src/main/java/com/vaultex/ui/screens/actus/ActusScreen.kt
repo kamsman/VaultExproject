@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Newspaper
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -334,7 +334,7 @@ private fun CarteUne(article: Actualite, onClick: () -> Unit) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Icon(
-                    Icons.Default.OpenInNew, null,
+                    Icons.AutoMirrored.Filled.OpenInNew, null,
                     tint = TextSecondary, modifier = Modifier.size(15.dp)
                 )
             }
@@ -443,7 +443,7 @@ private fun CarteArticle(article: Actualite, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(8.dp))
             Icon(
-                Icons.Default.OpenInNew, null,
+                Icons.AutoMirrored.Filled.OpenInNew, null,
                 tint = TextSecondary, modifier = Modifier.size(15.dp)
             )
         }
