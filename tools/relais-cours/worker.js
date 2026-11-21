@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 107
+const VERSION = 108
 
 const COINGECKO = 'https://api.coingecko.com'
 
