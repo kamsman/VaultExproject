@@ -56,6 +56,7 @@ private fun chainColor(chain: String): Color = when (chain.uppercase()) {
     "BNB" -> NetworkBnb
     "SOL" -> NetworkSol
     "TRX" -> NetworkTrx
+    "DOGE" -> com.vaultex.ui.theme.NetworkDoge
     else -> Color(0xFF1A6FE8)
 }
 
@@ -169,7 +170,10 @@ fun AddressBookScreen(navController: NavHostController) {
 
             // ─── Filtre par réseau (maquette) ───
             var chainFilter by remember { mutableStateOf("Tous") }
-            val chains = listOf("Tous", "ETH", "BNB", "TRX", "SOL", "BTC", "USDT")
+            val chains = listOfNotNull(
+                "Tous", "ETH", "BNB", "TRX", "SOL", "BTC", "USDT",
+                "DOGE".takeIf { com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF }
+            )
             Row(
                 Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

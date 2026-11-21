@@ -39,7 +39,14 @@ class AssetVisibilityController @Inject constructor(
         val SUPPORTED = listOfNotNull(
             "BTC", "ETH", "BNB", "SOL", "TRX", "USDT", "USDT-ETH", "USDT-BNB",
             "USDT-SOL".takeIf { com.vaultex.core.config.Fonctionnalites.USDT_SOL_ACTIF },
-            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF }
+            "PI".takeIf { com.vaultex.core.config.Fonctionnalites.PI_ACTIF },
+            /*
+            SANS CETTE LIGNE, LE DOGECOIN N'EST NI EPINGLABLE NI MASQUABLE.
+            Il n'apparait dans « Mes actifs » que par le filtre
+            `valueUsd > 0` — donc il disparait des que le solde tombe a
+            zero, et « Gerer les actifs » ne permet pas de le ramener.
+            */
+            "DOGE".takeIf { com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF }
         )
     }
 }

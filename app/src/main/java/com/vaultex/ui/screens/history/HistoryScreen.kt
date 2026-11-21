@@ -36,7 +36,12 @@ fun HistoryScreen(navController: NavController) {
     val filteredChain by viewModel.filteredChain.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    val chains = listOf("Tous", "BTC", "ETH", "BNB", "TRX", "USDT", "SOL")
+    // « DOGE » sous son interrupteur : un filtre pour une chaine que
+    // l'application ne lit pas ne rendrait jamais rien.
+    val chains = listOfNotNull(
+        "Tous", "BTC", "ETH", "BNB", "TRX", "USDT", "SOL",
+        "DOGE".takeIf { com.vaultex.core.config.Fonctionnalites.DOGE_ACTIF }
+    )
 
     Scaffold(
         topBar = {
@@ -184,5 +189,6 @@ private fun chainColor(chain: String): Color = when (chain) {
     "SOL"  -> Color(0xFF9945FF)
     "TRX"  -> Color(0xFFFF060A)
     "USDT" -> Color(0xFF26A17B)
+    "DOGE" -> Color(0xFFC2A633)
     else   -> Color(0xFF64748B)
 }
