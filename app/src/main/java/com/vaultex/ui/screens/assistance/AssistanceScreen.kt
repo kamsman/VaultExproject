@@ -24,15 +24,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -333,7 +333,7 @@ private fun JoindreEquipe() {
             ═══════════════════════════════════════════════════════════
             */
             Canal(
-                Icons.Default.Chat,
+                Icons.AutoMirrored.Filled.Chat,
                 stringResource(R.string.assistance_canal_whatsapp),
                 ContactsVaultex.WHATSAPP_AFFICHE
             ) { ouvrir(Intent.ACTION_VIEW, ContactsVaultex.LIEN_WHATSAPP) }
@@ -822,7 +822,7 @@ private fun EnTete(enService: Boolean, onRetour: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onRetour) {
                 Icon(
-                    Icons.Default.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBack,
                     stringResource(R.string.back),
                     tint = Color.White
                 )
@@ -1004,7 +1004,7 @@ private fun Saisie(vm: AssistanceViewModel, valeur: String, peutEnvoyer: Boolean
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.Send,
+                    Icons.AutoMirrored.Filled.Send,
                     stringResource(R.string.assistance_envoyer),
                     tint = if (peutEnvoyer) Color.White else TextMuted,
                     modifier = Modifier.size(19.dp)

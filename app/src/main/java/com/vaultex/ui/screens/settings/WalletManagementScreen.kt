@@ -13,7 +13,7 @@ import androidx.compose.material3.Button
 
 // ✅ IMPORT ICÔNE CORRECT
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 import com.vaultex.ui.theme.BgPrimary
 import com.vaultex.ui.theme.TextPrimary
@@ -29,7 +29,7 @@ fun WalletManagementScreen(navController: NavHostController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )

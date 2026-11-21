@@ -11,12 +11,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -83,7 +83,7 @@ fun PanicPinScreen(navController: NavHostController) {
                 title = { Text(stringResource(R.string.panic_pin_title), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = P)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = P)
                     }
                 },
                 actions = {
@@ -210,7 +210,7 @@ fun PanicPinScreen(navController: NavHostController) {
                     HorizontalDivider(color = SurfaceLight)
                     HowRow(Icons.Default.Delete, stringResource(R.string.panic2_how2))
                     HorizontalDivider(color = SurfaceLight)
-                    HowRow(Icons.Default.Logout, stringResource(R.string.panic2_how3))
+                    HowRow(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.panic2_how3))
                     HorizontalDivider(color = SurfaceLight)
                     HowRow(Icons.Default.Shield, stringResource(R.string.panic2_how4))
                 }

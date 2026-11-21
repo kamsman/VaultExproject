@@ -11,7 +11,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
@@ -20,10 +20,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Pin
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
@@ -99,7 +99,7 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
                 title = { Text(stringResource(R.string.notif_security_title), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.back), tint = P)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = P)
                     }
                 },
                 actions = {
@@ -153,10 +153,10 @@ fun SecurityNotificationsScreen(navController: NavHostController) {
             Text(stringResource(R.string.secnotif_section_alerts).uppercase(), fontSize = 12.sp,
                 fontWeight = FontWeight.Bold, color = TextMuted, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
 
-            AlertCard(Icons.Default.Send, P, stringResource(R.string.notif_tx_alerts),
+            AlertCard(Icons.AutoMirrored.Filled.Send, P, stringResource(R.string.notif_tx_alerts),
                 stringResource(R.string.secnotif_tx_desc), txAlerts, viewModel::setTx)
 
-            AlertCard(Icons.Default.Login, AccentBlue, stringResource(R.string.notif_login_alerts),
+            AlertCard(Icons.AutoMirrored.Filled.Login, AccentBlue, stringResource(R.string.notif_login_alerts),
                 stringResource(R.string.secnotif_login_desc), loginAlerts, viewModel::setLogin)
 
             // Solde bas + seuil éditable

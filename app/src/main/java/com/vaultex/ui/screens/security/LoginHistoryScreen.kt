@@ -8,9 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,7 +51,7 @@ fun LoginHistoryScreen(navController: NavHostController) {
                 title = { Text(stringResource(R.string.secnotif_history), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = P)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = P)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgPrimary)
@@ -77,7 +77,7 @@ fun LoginHistoryScreen(navController: NavHostController) {
                     Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor, border = BorderStroke(1.dp, BorderColor), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(38.dp).clip(CircleShape).background(P.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Login, null, tint = P, modifier = Modifier.size(17.dp))
+                                Icon(Icons.AutoMirrored.Filled.Login, null, tint = P, modifier = Modifier.size(17.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                             Column {

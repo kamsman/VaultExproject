@@ -15,7 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
@@ -743,7 +743,7 @@ private fun SwapFormScreen(
             lui-même.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
+                BoxIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart)) { navController.popBackStack() }
                 // Titre seul : « Échangez vos cryptos » redisait ce que le mot
                 // « Swap » et l'écran entier disent déjà.
                 Text(
@@ -1252,7 +1252,7 @@ private fun SwapConfirmScreen(
             la première chose qu'on lit pour savoir où l'on est.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart), onClick = onBack)
+                BoxIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(com.vaultex.R.string.back), Modifier.align(Alignment.CenterStart), onClick = onBack)
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stringResource(com.vaultex.R.string.tab_swap), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = swapText)
                     Text(stringResource(com.vaultex.R.string.swap_verify_confirm), fontSize = 12.sp, color = swapTextDim)
@@ -1943,7 +1943,7 @@ private fun SwapTrackingScreen(
             la première chose qu'on lit pour savoir où l'on est.
             */
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                BoxIconButton(Icons.Default.ArrowBack, stringResource(com.vaultex.R.string.close), Modifier.align(Alignment.CenterStart), onClick = onClose)
+                BoxIconButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(com.vaultex.R.string.close), Modifier.align(Alignment.CenterStart), onClick = onClose)
                 Text(
                     stringResource(
                         if (finished) com.vaultex.R.string.swap_title_done

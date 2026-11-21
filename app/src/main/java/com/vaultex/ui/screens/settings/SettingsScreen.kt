@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -279,7 +281,7 @@ fun SettingsScreen(navController: NavHostController) {
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Default.Logout,
+                                Icons.AutoMirrored.Filled.Logout,
                                 contentDescription = stringResource(R.string.settings_lock_now),
                                 tint = AccentRed,
                                 modifier = Modifier.size(20.dp)
@@ -500,7 +502,7 @@ fun SettingsScreen(navController: NavHostController) {
                         languageLabel(currentLang)
                     ) { showLanguageDialog = true }
                     RowDivider()
-                    SettingsRow(Icons.Default.Help, stringResource(R.string.settings_help)) {
+                    SettingsRow(Icons.AutoMirrored.Filled.Help, stringResource(R.string.settings_help)) {
                         navController.navigate(Routes.HELP)
                     }
                     RowDivider()

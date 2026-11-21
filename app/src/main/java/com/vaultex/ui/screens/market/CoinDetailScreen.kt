@@ -7,13 +7,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
@@ -106,7 +106,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
                 actions = {
@@ -678,7 +678,7 @@ fun CoinDetailScreen(navController: NavHostController, coinId: String = "bitcoin
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionFiche(
-                        Icons.Default.Send, stringResource(R.string.action_send),
+                        Icons.AutoMirrored.Filled.Send, stringResource(R.string.action_send),
                         plein = true, actif = envoyable, modifier = Modifier.weight(1f)
                     ) {
                         // C'EST ICI que le jeton entre dans le portefeuille, et

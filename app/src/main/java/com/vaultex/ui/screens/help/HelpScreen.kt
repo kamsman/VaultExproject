@@ -11,16 +11,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,7 +86,7 @@ fun HelpScreen(navController: NavHostController) {
                 title = { Text(stringResource(R.string.settings_help), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = AccentBlue)
                     }
                 },
                 actions = {
@@ -125,7 +125,7 @@ fun HelpScreen(navController: NavHostController) {
                 color = TextSecondary, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
 
             ContactRow(
-                icon = Icons.Default.Chat,
+                icon = Icons.AutoMirrored.Filled.Chat,
                 iconBg = Color(0xFF22C55E),
                 title = stringResource(R.string.help_whatsapp),
                 subtitle = stringResource(R.string.help_whatsapp_subtitle)
@@ -138,7 +138,7 @@ fun HelpScreen(navController: NavHostController) {
                 }
             }
             ContactRow(
-                icon = Icons.Default.Send,
+                icon = Icons.AutoMirrored.Filled.Send,
                 iconBg = Color(0xFF229ED9),
                 title = "Telegram",
                 subtitle = ContactsVaultex.TELEGRAM_AFFICHE
@@ -212,7 +212,7 @@ private fun FaqCard(question: String, answer: String) {
         Column(Modifier.clickable { expanded = !expanded }.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(32.dp).clip(CircleShape).background(AccentBlue.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.HelpOutline, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, null, tint = AccentBlue, modifier = Modifier.size(17.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(question, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.weight(1f))

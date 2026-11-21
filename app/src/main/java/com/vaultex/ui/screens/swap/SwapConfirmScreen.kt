@@ -8,8 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -63,7 +63,7 @@ fun SwapConfirmScreen(navController: NavHostController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             tint = AccentBlue
                         )
@@ -105,7 +105,7 @@ fun SwapConfirmScreen(navController: NavHostController) {
                         ) {
                             TokenCircle(fromToken.take(2), NetworkEth)
                             Icon(
-                                Icons.Default.ArrowForward,
+                                Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = TextPrimary,
                                 modifier = Modifier.size(22.dp)

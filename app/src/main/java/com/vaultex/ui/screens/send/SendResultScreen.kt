@@ -10,7 +10,7 @@ import androidx.navigation.NavHostController
 
 // ✅ IMPORT ICÔNE CORRECT
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 import com.vaultex.R
 import com.vaultex.ui.theme.BgPrimary
@@ -30,7 +30,7 @@ fun SendResultScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
