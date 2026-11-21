@@ -887,13 +887,32 @@ fun DashboardScreen(navController: NavHostController) {
         elle la recouvrirait, et fermer la carte deviendrait le seul moyen de
         changer d'onglet.
         */
+        /*
+        LE CLAVIER PASSAIT PAR-DESSUS LA CARTE D'AVIS.
+
+        Vu sur l'appareil : on touche le champ de saisie, le clavier monte,
+        et la carte disparait derriere lui — il restait le haut du titre.
+        Un formulaire qu'on ne voit plus des qu'on veut y ecrire ne recolte
+        rien.
+
+        `adjustResize` est bien pose au manifeste, mais cette carte est
+        posee en superposition dans un Box : elle reste collee au bas de la
+        fenetre, la ou le clavier arrive.
+
+        LE MAXIMUM DES DEUX, ET NON LEUR SOMME. `imePadding()` seul
+        ajouterait la hauteur du clavier PAR-DESSUS `BottomBarSpace`, et la
+        carte sauterait trop haut. Les deux marges protegent la meme chose
+        — le bas de l'ecran — et l'une remplace l'autre : quand le clavier
+        est ouvert, la barre de navigation n'est plus ce qu'il faut eviter.
+        */
+        val hauteurClavier = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val emplacementCarte = Modifier
             .align(Alignment.BottomCenter)
             .padding(horizontal = 16.dp)
             // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
             // que la barre occupe, marge système comprise. Lui retrancher
             // quelque chose, c'était rogner sur la place dont on a besoin.
-            .padding(bottom = BottomBarSpace)
+            .padding(bottom = maxOf(BottomBarSpace, hauteurClavier))
 
         /*
         UNE SEULE CARTE À LA FOIS, ET LES NOUVEAUTÉS PASSENT D'ABORD.
