@@ -254,14 +254,16 @@ private fun TransactionDetailContent(tx: TransactionEntity, modifier: Modifier =
 private fun String.ellipsize(max: Int = 28): String =
     if (length <= max) this else take(max) + "…"
 
-private fun explorerUrl(chain: String, hash: String): String? = when (chain.uppercase()) {
-    "BTC" -> "https://blockstream.info/tx/$hash"
-    "ETH", "USDT-ETH" -> "https://etherscan.io/tx/$hash"
-    "BNB", "USDT-BNB" -> "https://bscscan.com/tx/$hash"
-    "SOL", "USDT-SOL" -> "https://solscan.io/tx/$hash"
-    "TRX", "USDT" -> "https://tronscan.org/#/transaction/$hash"
-    else -> null
-}
+/**
+ * L'adresse d'explorateur vient de [com.vaultex.core.crypto.Blockchain],
+ * et plus d'ici.
+ *
+ * Cette fonction portait sa propre table — une des TROIS que le depot
+ * maintenait en parallele. Elles avaient deja diverge : celle-ci rendait
+ * `null` pour le Dogecoin, celle de l'ecran d'envoi rendait Etherscan.
+ */
+private fun explorerUrl(chain: String, hash: String): String? =
+    com.vaultex.core.crypto.Blockchain.explorateurPour(chain, hash)
 
 @Composable
 private fun DetailField(label: String, value: String) {

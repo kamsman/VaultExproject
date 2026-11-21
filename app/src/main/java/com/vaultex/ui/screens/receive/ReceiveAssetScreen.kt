@@ -219,7 +219,12 @@ fun ReceiveAssetScreen(navController: NavController, symbol: String, chain: Stri
             // Avertissement FORT pour les tokens (USDT* / ERC20 / BEP20) : un
             // envoi sur le mauvais réseau peut être perdu. Inutile pour les
             // natifs (une adresse BTC ne reçoit que du BTC, pas d'ambiguïté).
-            val isToken = symbol.startsWith("USDT") || symbol !in listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+            // Le Dogecoin est NATIF : son adresse ne recoit que du DOGE, et
+            // l'avertissement de reseau n'a pas d'objet. Affiche sans raison,
+            // il dilue ceux qui en ont une — c'est l'argument du pave
+            // ci-dessous, applique a la chaine suivante.
+            val isToken = symbol.startsWith("USDT") ||
+                symbol !in listOf("BTC", "ETH", "BNB", "SOL", "TRX", "DOGE")
             if (isToken) {
                 Spacer(Modifier.height(8.dp))
                 /*
