@@ -994,6 +994,16 @@
     <string name="whats_new_2">Swap: the rate stays readable on very low-value coins</string>
     <string name="whats_new_3">Filter the market by blockchain: Ethereum, BNB, Solana, Tron</string>
     <string name="whats_new_4">Viewing a coin no longer adds it to your home screen</string>
+
+    <!-- Avis : propose UNE fois, apres une operation reussie -->
+    <string name="avis_titre">How did that go?</string>
+    <string name="avis_aide">One sentence is enough. It\'s the only way we get to know what bothers you.</string>
+    <string name="avis_invite">What you liked, what got in your way…</string>
+    <string name="avis_envoyer">Send</string>
+    <string name="avis_prive">No amount, no address and no phone number leaves with your message.</string>
+    <string name="avis_merci">Thank you. Noted.</string>
+    <string name="avis_echec">Your feedback did not go through. Check your connection.</string>
+    <string name="avis_etoiles">Rating out of five</string>
     <!-- Seed present but unreadable: the device Keystore lost the key -->
     <string name="seed_unreadable_title">Your funds are safe.\nThis phone can no longer read your key.</string>
     <string name="seed_unreadable_body">Nothing was lost on the blockchain. It is the encrypted copy of your key, on this device, that has become unreadable. Your recovery phrase restores access immediately.</string>

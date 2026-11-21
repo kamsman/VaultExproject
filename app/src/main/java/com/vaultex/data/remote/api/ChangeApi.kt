@@ -185,6 +185,26 @@ interface ChangeApi {
         @Body corps: com.vaultex.data.remote.dto.DemandeAssistance
     ): com.vaultex.data.remote.dto.ReponseAssistance
 
+    /**
+     * Envoie un avis d'utilisateur.
+     *
+     * IL PASSE PAR LE RELAIS ALORS QUE L'APPLICATION SAIT DEJA PARLER A
+     * TELEGRAM — `AdminBot` le fait pour les installations et les crashs.
+     * C'est volontaire, et c'est la meme raison que pour `assistance`
+     * juste au-dessus : le jeton que porte `AdminBot` vient de
+     * `BuildConfig`, donc de l'APK, donc de quiconque l'ouvre. Le relais
+     * tient le sien dans une variable de Worker.
+     *
+     * Ajouter une fonctionnalite du cote de l'application, c'etait
+     * l'ajouter du cote ou le secret est deja perdu.
+     *
+     * Le relais anonymise le texte avant de l'ecrire dans le canal.
+     */
+    @POST("avis")
+    suspend fun avis(
+        @Body corps: com.vaultex.data.remote.dto.DemandeAvis
+    ): com.vaultex.data.remote.dto.ReponseAvis
+
     @GET("change/consigne")
     suspend fun consigne(
         @Query("monnaie") monnaie: String,

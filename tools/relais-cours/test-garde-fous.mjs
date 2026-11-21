@@ -409,7 +409,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, contactsVaultex, equipeVaultex } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, recevoirAvis, AVIS_MAX_JOUR, contactsVaultex, equipeVaultex } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -2749,6 +2749,154 @@ préfixe resterait — une référence à moitié masquée reste une référence
     sorti('je veux vendre 50000 FCFA'))
   verifie('JOURNAL : le texte est borne a 160 caracteres',
     sorti('a'.repeat(400)).length === 160, sorti('a'.repeat(400)).length)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES AVIS : CE QUI PART DU TELEPHONE, ET DANS QUEL CANAL IL ARRIVE
+═══════════════════════════════════════════════════════════════════════════
+
+Ce formulaire existe parce que 223 personnes ont installe VaultEx et que
+personne n'a jamais dit pourquoi il ne s'en sert pas. Il porte donc du
+TEXTE ECRIT PAR UN CLIENT, juste apres une operation — c'est-a-dire au
+moment ou ce texte a le plus de chances de contenir un montant, une
+reference ou un numero.
+
+TROIS CHOSES SONT EPINGLEES ICI, et chacune a deja mal tourne ailleurs
+dans ce fichier :
+
+  1. LE TEXTE EST ANONYMISE. Meme fonction que le journal, limite plus
+     large — et le DEFAUT de cette limite ne doit pas bouger, sinon le
+     journal des questions changerait de comportement en silence.
+
+  2. L'AVIS N'ARRIVE PAS DANS LE CANAL DU CHANGEUR. `recevoirAvis` lit
+     `TG_ADMIN_CHAT` SANS REPLI. Voir le commentaire de `majTableau` :
+     un `TG_ADMIN_CHAT || TG_CHANGE_CHAT` ecrit « par symetrie » avait
+     deja fait tomber le tableau de bord dans le canal du changeur. Un
+     avis d'utilisateur au milieu des ordres a payer serait pire.
+
+  3. UN AVIS NE PEUT PAS RESSEMBLER A UN ORDRE. Le point d'entree est
+     public : n'importe qui peut y poster. L'en-tete est donc la premiere
+     ligne, et l'ecrasement des blancs interdit au texte d'en dessiner
+     d'autres.
+═══════════════════════════════════════════════════════════════════════════
+*/
+const ENV_AVIS = { TG_ADMIN_TOKEN: 'jeton-admin', TG_ADMIN_CHAT: '-100999' }
+
+async function posterAvis(corps, env, cache) {
+  installer(cache || faireCache())
+  const requete = new Request('https://relais.vaultex/avis', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(corps),
+  })
+  const rep = await recevoirAvis(requete, env === undefined ? { ...ENV, ...ENV_AVIS } : env)
+  return { statut: rep.status, corps: await rep.json(), textes: textesEnvoyes() }
+}
+
+{
+  const r = await posterAvis({
+    texte: 'lappli est rapide mais je nai pas compris les frais',
+    etoiles: 4, jours: 12, modele: 'Tecno KG5', version: '1.0.68',
+  })
+  verifie('AVIS : un avis complet est accepte et parti',
+    r.statut === 200 && r.corps.ok === true && r.textes.length === 1, r)
+
+  const m = r.textes[0] ?? ''
+  verifie('AVIS : l en-tete est la PREMIERE ligne',
+    m.split('\n')[0].startsWith('\u{1F4AC} Avis'), m.split('\n')[0])
+  verifie('AVIS : le texte du client est bien la',
+    m.includes('je nai pas compris les frais'), m)
+  verifie('AVIS : les etoiles accompagnent l en-tete',
+    m.split('\n')[0].includes('⭐'.repeat(4)), m.split('\n')[0])
+  verifie('AVIS : le contexte porte l age, l appareil et la version',
+    m.includes('J+12') && m.includes('Tecno KG5') && m.includes('v1.0.68'), m)
+  /*
+  AUCUN `parse_mode` : un avis contenant « *gras* » ou « [lien](http://…) »
+  doit arriver tel quel. Poser `parse_mode` ferait de tout texte client un
+  petit langage de mise en forme dans le canal de l'exploitant.
+  */
+  verifie('AVIS : aucun parse_mode n est pose',
+    !corpsEnvoyes.some((c) => new URLSearchParams(c).has('parse_mode')), corpsEnvoyes)
+}
+
+{
+  // Ce que quelqu'un ecrirait pour se plaindre — et qui le designe.
+  const r = await posterAvis({
+    texte: 'jai paye 10000 pour VX-ABCD1234 au 70123456 et rien recu',
+  })
+  const m = r.textes[0] ?? ''
+  verifie('AVIS : le numero ne part pas', !m.includes('70123456'), m)
+  verifie('AVIS : la reference ne part pas', !m.includes('ABCD1234'), m)
+  verifie('AVIS : la plainte reste comprehensible',
+    m.includes('rien recu'), m)
+}
+
+{
+  /*
+  LA TENTATIVE D'IMITATION D'UN ORDRE. Le texte essaie de se donner un
+  en-tete, des lignes et une adresse a copier. Il doit ressortir en une
+  seule ligne, apres l'en-tete reel, adresse masquee.
+  */
+  const r = await posterAvis({
+    texte: `\u{1F4B0} DEMANDE DE CHANGE\nTU ENVOIES 16 USDT\nAdresse TJYeasTPa6gpEEfYYSCCDHxZLBPbEgE1Qp`,
+  })
+  const m = r.textes[0] ?? ''
+  const lignes = m.split('\n').filter((l) => l.trim() !== '')
+  verifie('AVIS : une imitation d ordre ne garde pas ses lignes',
+    lignes.length === 2, lignes)
+  verifie('AVIS : l imitation passe APRES l en-tete reel',
+    lignes[0].startsWith('\u{1F4AC} Avis'), lignes[0])
+  verifie('AVIS : l adresse de l imitation est masquee',
+    !m.includes('TJYeasTPa6gpEEfYYSCCDHxZLBPbEgE1Qp'), m)
+}
+
+{
+  const vide = await posterAvis({ texte: '   ' })
+  verifie('AVIS : un texte vide est refuse', vide.statut === 400, vide)
+  const court = await posterAvis({ texte: 'ok' })
+  verifie('AVIS : deux caracteres sont refuses', court.statut === 400, court)
+  verifie('AVIS : un refus n envoie rien', court.textes.length === 0, court.textes)
+}
+
+{
+  const long = await posterAvis({ texte: 'b'.repeat(900) })
+  const m = long.textes[0] ?? ''
+  verifie('AVIS : le texte est borne a 400 caracteres',
+    (m.match(/b+/)?.[0] ?? '').length === 400, (m.match(/b+/)?.[0] ?? '').length)
+  verifie('AVIS : la limite du JOURNAL reste a 160',
+    anonymiserQuestion('c'.repeat(900)).length === 160,
+    anonymiserQuestion('c'.repeat(900)).length)
+}
+
+{
+  /*
+  LE CANAL DU CHANGEUR N'EST PAS UN REPLI. `ENV` seul porte
+  `TG_CHANGE_CHAT` et pas `TG_ADMIN_CHAT` : rien ne doit partir.
+  */
+  const r = await posterAvis({ texte: 'un avis quelconque' }, { ...ENV })
+  verifie('AVIS : sans TG_ADMIN_CHAT, rien ne part dans le canal du changeur',
+    r.textes.length === 0, r.textes)
+  verifie('AVIS : et on repond quand meme « recu »',
+    r.statut === 200 && r.corps.ok === true, r)
+}
+
+{
+  /*
+  LE PLAFOND. Il compte dans le MEME cache d'un bout a l'autre, sinon on
+  mesurerait soixante caches neufs et le plafond ne serait jamais atteint
+  — c'est le genre de test qui reste vert en ne testant rien.
+  */
+  const cache = faireCache()
+  const env = { ...ENV, ...ENV_AVIS }
+  let dernier = null
+  for (let i = 0; i < AVIS_MAX_JOUR + 1; i++) {
+    dernier = await posterAvis({ texte: `avis numero ${i} sur la lenteur` }, env, cache)
+  }
+  verifie('AVIS : le plafond du jour finit par refuser',
+    dernier.statut === 429, dernier)
+  verifie('AVIS : et le refus n envoie rien',
+    dernier.textes.length === 0, dernier.textes)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
