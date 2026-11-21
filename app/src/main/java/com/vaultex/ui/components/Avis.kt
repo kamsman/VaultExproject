@@ -126,8 +126,47 @@ fun CarteAvis(modifier: Modifier = Modifier) {
         mutableStateOf(doit)
     }
 
-    if (!visible) return
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    UN `if`, ET NON UN `return` SUIVI D'APPELS COMPOSABLES
+    ═══════════════════════════════════════════════════════════════════════
 
+    CE N'EST PAS UNE QUESTION DE STYLE. La version précédente écrivait :
+
+        if (!visible) return
+        val vm: AvisViewModel = hiltViewModel()
+        val s by vm.state.collectAsState()
+        LaunchedEffect(s.etat) { … }
+
+    Quand `visible` passait à faux, cette fonction perdait d'un coup
+    QUATRE appels composables — un ViewModel, un abonnement d'état, un
+    effet et tout l'affichage — dans une seule recomposition.
+    `CarteNouveautes` emploie le même `return`, mais sans RIEN après lui :
+    la différence est là, et c'est elle qui compte.
+
+    Un plantage est arrivé sur l'appareil, en `IndexOutOfBoundsException :
+    Index -1 out of bounds for length 0`, SANS AUCUNE IMAGE `com.vaultex`
+    dans la pile — l'exception venait entièrement du framework. Or
+    `enableR8.fullMode=false` garde la hiérarchie des paquets : si une
+    ligne de ce dépôt avait été impliquée, elle aurait figuré au rapport.
+    Une pile sans notre code, sur un écran qu'on vient d'ajouter, désigne
+    la façon dont on y entre et on en sort.
+
+    JE N'AI PAS PROUVÉ QUE C'EST LA CAUSE, et je ne le prétends pas : il
+    faudrait la pile complète par logcat pour trancher. Mais un `if`
+    rend cette fonction structurellement stable — ce qui est à
+    l'intérieur est présent ou absent en bloc, l'idiome normal de Compose
+    — et il ne coûte rien. Si le plantage revient, on aura au moins
+    écarté celle-ci.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (visible) {
+        CarteAvisOuverte(modifier) { visible = false }
+    }
+}
+
+@Composable
+private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
     val vm: AvisViewModel = hiltViewModel()
     val s by vm.state.collectAsState()
 
@@ -141,7 +180,7 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     LaunchedEffect(s.etat) {
         if (s.etat == EtatAvis.MERCI) {
             delay(2200)
-            visible = false
+            onFermer()
         }
     }
 
@@ -207,7 +246,7 @@ fun CarteAvis(modifier: Modifier = Modifier) {
                     Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .clickable { visible = false },
+                        .clickable { onFermer() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

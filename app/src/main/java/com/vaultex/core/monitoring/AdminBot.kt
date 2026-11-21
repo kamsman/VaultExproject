@@ -317,8 +317,53 @@ object AdminBot {
                     .joinToString(" ← ") {
                         "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
                     }
+                /*
+                ═══════════════════════════════════════════════════════════
+                QUAND LA PILE NE CONTIENT AUCUNE LIGNE A NOUS
+                ═══════════════════════════════════════════════════════════
+
+                MESURE : un plantage reel a rendu
+
+                  IndexOutOfBoundsException : Index -1 out of bounds for
+                  length 0
+                  📍 jdk.internal.util.Preconditions.outOfBounds(…:64)
+
+                `Preconditions.outOfBounds` est le verificateur de bornes
+                du JDK. Il est present dans TOUTES les
+                IndexOutOfBoundsException de l'univers : ce rapport ne
+                disait donc rien du tout.
+
+                Le repli prenait `stackTrace.first()`, c'est-a-dire la
+                ligne la plus profonde — celle qui a le moins de chances
+                d'etre informative. Le cadre utile est le premier qui
+                n'appartient PAS a la bibliotheque standard.
+
+                ─── ET UNE PILE SANS `com.vaultex` EST UNE INFORMATION ────
+
+                `enableR8.fullMode=false` garde la hierarchie des paquets :
+                le prefixe survit a l'obfuscation. N'en trouver aucun
+                signifie donc vraiment que l'exception est nee dans du
+                code de framework — Compose, AndroidX, les coroutines.
+
+                C'est exactement ce qu'on veut lire, et c'est ce que
+                l'ancien repli cachait.
+                ═══════════════════════════════════════════════════════════
+                */
+                val socle = listOf(
+                    "java.", "javax.", "jdk.", "sun.", "dalvik.", "libcore.",
+                    "com.android.internal.", "kotlin.jvm.internal."
+                )
                 val where = cadre.ifEmpty {
-                    e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                    val horsSocle = e.stackTrace
+                        .filterNot { c -> socle.any { c.className.startsWith(it) } }
+                        .take(3)
+                        .joinToString(" ← ") {
+                            "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
+                        }
+                    // « (hors VaultEx) » est dit, et pas sous-entendu : sans
+                    // cette mention on lirait ces cadres comme les notres.
+                    if (horsSocle.isNotEmpty()) "(hors VaultEx) $horsSocle"
+                    else e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
                 }
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
                     "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
