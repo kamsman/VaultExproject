@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -47,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vaultex.BuildConfig
 import com.vaultex.R
 import com.vaultex.core.monitoring.AdminBot
+import com.vaultex.core.session.GenreOperation
 import com.vaultex.core.session.MemoireAvis
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentGreen
@@ -54,6 +56,7 @@ import com.vaultex.ui.theme.AccentOrange
 import com.vaultex.ui.theme.BgSecondary
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.SurfaceLight
+import com.vaultex.ui.theme.ThemeSombre
 import com.vaultex.ui.theme.TextMuted
 import com.vaultex.ui.theme.TextPrimary
 import com.vaultex.ui.theme.TextSecondary
@@ -120,11 +123,20 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     recomposition ferait disparaître la carte à l'instant où on la pose,
     puisque la valeur changerait sous elle.
     */
-    var visible by remember {
+    /*
+    LE GENRE EST LU EN MEME TEMPS QUE LA DECISION, et retenu avec elle.
+
+    Le relire plus tard le ferait disparaitre sous la carte : la fenetre
+    de 24 h peut expirer pendant qu'elle est a l'ecran, et le titre
+    deviendrait vide au milieu d'une saisie.
+    */
+    val genre = remember {
+        val g = MemoireAvis.operationRecente(contexte)
         val doit = MemoireAvis.aProposer(contexte)
         if (doit) MemoireAvis.nePlusProposer(contexte)
-        mutableStateOf(doit)
+        mutableStateOf(if (doit) g else null)
     }
+    var visible by remember { mutableStateOf(genre.value != null) }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -161,12 +173,16 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     ═══════════════════════════════════════════════════════════════════════
     */
     if (visible) {
-        CarteAvisOuverte(modifier) { visible = false }
+        CarteAvisOuverte(modifier, genre.value) { visible = false }
     }
 }
 
 @Composable
-private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
+private fun CarteAvisOuverte(
+    modifier: Modifier,
+    genre: GenreOperation?,
+    onFermer: () -> Unit
+) {
     val vm: AvisViewModel = hiltViewModel()
     val s by vm.state.collectAsState()
 
@@ -205,13 +221,78 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
     l'ombre qui dit « ceci est au-dessus », bien plus qu'un trait de 1 dp.
     ═══════════════════════════════════════════════════════════════════════
     */
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LE FOND DEPEND DU THEME, PARCE QUE LA TECHNIQUE N'EST PAS LA MEME
+    ═══════════════════════════════════════════════════════════════════════
+
+    MESURES, contre la page de chaque theme :
+
+      SOMBRE   page #0B1120
+        BgSecondary  #111827   1,06  ← invisible (premiere version)
+        SurfaceLight #243044   1,42
+        + bleu 8 %   #263752   1,57  ← retenu
+        + bleu 12 %  #273A59   1,65  mais texte secondaire a 4,46,
+                                      sous le seuil de 4,5
+
+      CLAIR    page #F5F8FF
+        SurfaceLight #F1F5F9   1,03  ← PLUS SOMBRE que la page
+        BgSecondary  #FFFFFF   1,06  ← retenu
+
+    DEUX LECONS, ET LA SECONDE EST UNE REGRESSION QUE J'AI FAITE.
+
+    En sombre, l'elevation est une surface plus claire : une ombre y est
+    du noir sur du presque-noir. J'avais d'abord juge la carte sur une
+    maquette ou l'ombre etait dessinee en CSS, bien plus marquee qu'un
+    `shadow` de Compose — un reflexe de theme clair au mauvais endroit.
+
+    Puis, en corrigeant le sombre avec `SurfaceLight`, j'ai CASSE LE
+    CLAIR sans le voir : la, `SurfaceLight` est plus sombre que la page
+    et ne separe plus rien. Je n'avais mesure qu'un seul theme.
+
+    En clair, aucune surface n'est plus claire qu'une page deja blanche.
+    C'est l'OMBRE qui y fait tout le travail — et elle y fonctionne,
+    justement parce que le fond est clair.
+
+    LE BLEU N'EST PAS DECORATIF : il eloigne la carte des lignes de
+    soldes, qui sont neutres, et il la rattache a ce qu'elle demande.
+    Huit pour cent et pas douze : au-dela, le texte secondaire tombe
+    sous le seuil de lisibilite.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val sombre = ThemeSombre
+    val fondCarte =
+        if (sombre) AccentBlue.copy(alpha = 0.08f).compositeOver(SurfaceLight)
+        else BgSecondary
+
+    /*
+    CE QUI EST CREUSE DANS LA CARTE — le champ de saisie, et le bouton
+    tant qu'il est inactif.
+
+    IL DOIT ETRE PLUS SOMBRE QUE LA CARTE DANS LES DEUX THEMES, et la
+    couleur qui le donne n'est pas la meme :
+
+      sombre : `Surface`      #1A2234  sous la carte #263752  ✓
+      clair  : `SurfaceLight` #F1F5F9  sous la carte #FFFFFF  ✓
+
+    Pris tel quel, `Surface` vaut #FFFFFF en theme clair — exactement la
+    couleur de la carte. Le champ y aurait disparu, et le bouton inactif
+    avec lui. C'est la meme asymetrie que celle qui a casse le fond, et
+    elle se serait vue au meme endroit : nulle part, jusqu'a ce que
+    quelqu'un ouvre l'application en clair.
+    */
+    val fondCreux = if (sombre) SurfaceColor else SurfaceLight
+
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = BgSecondary,
-        border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.55f)),
+        color = fondCarte,
+        // Plus epaisse et plus franche qu'avant : sur un fond sombre, un
+        // bord net ajoute autant que le fond lui-meme, et il ne coute
+        // aucun contraste de texte.
+        border = BorderStroke(1.5.dp, AccentBlue.copy(alpha = if (sombre) 0.80f else 0.55f)),
         modifier = modifier
             .fillMaxWidth()
-            .shadow(20.dp, RoundedCornerShape(20.dp), clip = false)
+            .shadow(if (sombre) 14.dp else 20.dp, RoundedCornerShape(20.dp), clip = false)
     ) {
         Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 14.dp)) {
 
@@ -231,15 +312,39 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
             }
 
             // ─── Titre, étoiles, croix ───────────────────────────────────
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            /*
+            ALIGNE EN HAUT, PAS AU CENTRE. Le titre nomme maintenant
+            l'operation, donc il se replie sur deux lignes sur beaucoup
+            d'ecrans. Centree, la croix se retrouvait alors a cheval
+            entre les deux — elle doit rester en face de la premiere.
+            */
+            Row(verticalAlignment = Alignment.Top) {
                 // Le meme marqueur que le 🚀 de « Quoi de neuf » : deux
                 // cartes au meme endroit doivent se reconnaitre d'un coup
                 // d'oeil, sans etre lues.
                 Text("💬", fontSize = 17.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.avis_titre),
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    /*
+                    TROIS PHRASES ENTIERES, PAS UN GABARIT A TROU.
+
+                    « Comment s'est passé votre %1$s ? » aurait produit
+                    « passé votre réception » : en français l'accord suit
+                    le genre du nom, qu'un trou ne porte pas. Le repli
+                    générique sert quand la préférence est illisible.
+                    */
+                    stringResource(
+                        when (genre) {
+                            GenreOperation.ENVOI -> R.string.avis_titre_envoi
+                            GenreOperation.RECEPTION -> R.string.avis_titre_reception
+                            GenreOperation.ECHANGE -> R.string.avis_titre_echange
+                            null -> R.string.avis_titre
+                        }
+                    ),
+                    // 16 sp et non 17 : « Comment s'est passée votre
+                    // reception ? » tient alors sur une ligne de plus
+                    // d'ecrans. Au-dela elle se replie, ce qui reste lisible.
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                 )
                 Spacer(Modifier.weight(1f))
                 Box(
@@ -269,7 +374,13 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
 
             // ─── La question ouverte ─────────────────────────────────────
             Spacer(Modifier.height(10.dp))
-            Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
+            /*
+            LE CHAMP EST PLUS SOMBRE QUE LA CARTE, et c'est le bon sens :
+            la carte est posee SUR la page, le champ est creuse DANS la
+            carte. La couleur vient de `fondCreux`, qui change avec le
+            theme — voir sa definition plus haut.
+            */
+            Surface(shape = RoundedCornerShape(14.dp), color = fondCreux) {
                 Box(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
                     contentAlignment = Alignment.CenterStart
@@ -316,7 +427,7 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(10.dp))
-                BoutonEnvoyerAvis(s.peutEnvoyer, s.etat == EtatAvis.ENVOI) {
+                BoutonEnvoyerAvis(s.peutEnvoyer, s.etat == EtatAvis.ENVOI, fondCreux) {
                     vm.envoyer(
                         /*
                         PRIS À LA SOURCE D'`AdminBot`, et non recopiés
@@ -381,10 +492,18 @@ private fun Etoiles(note: Int, onNoter: (Int) -> Unit) {
 }
 
 @Composable
-private fun BoutonEnvoyerAvis(actif: Boolean, enCours: Boolean, onClick: () -> Unit) {
+private fun BoutonEnvoyerAvis(
+    actif: Boolean,
+    enCours: Boolean,
+    fondInactif: Color,
+    onClick: () -> Unit
+) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (actif) AccentBlue else SurfaceLight,
+        // `SurfaceLight` en dur se confondait avec la carte en theme
+        // sombre : le bouton inactif y devenait invisible. Il recoit
+        // maintenant la meme couleur creusee que le champ.
+        color = if (actif) AccentBlue else fondInactif,
         modifier = Modifier.clip(RoundedCornerShape(12.dp))
             .clickable(enabled = actif, onClick = onClick)
     ) {

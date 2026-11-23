@@ -997,6 +997,10 @@
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
     <string name="avis_titre">كيف جرت العملية؟</string>
+    <!-- Trois phrases entieres : voir le commentaire de values/strings.xml -->
+    <string name="avis_titre_envoi">كيف جرى الإرسال؟</string>
+    <string name="avis_titre_reception">كيف جرى الاستلام؟</string>
+    <string name="avis_titre_echange">كيف جرى التبادل؟</string>
     <string name="avis_aide">جملة واحدة تكفي. هي الطريقة الوحيدة لنعرف ما يزعجكم.</string>
     <string name="avis_invite">ما أعجبكم، وما أزعجكم…</string>
     <string name="avis_envoyer">إرسال</string>

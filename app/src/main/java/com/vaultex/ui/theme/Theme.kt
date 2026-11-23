@@ -65,6 +65,19 @@ val LocalAppColors = staticCompositionLocalOf { LightColors }
 
 // ─── Constantes réactives (lues par les écrans existants) ──────
 // Ces propriétés @Composable suivent automatiquement le thème actif.
+/*
+LE THEME ACTIF, pour le petit nombre de cas ou la bonne valeur n'est pas
+une couleur du theme mais un CHOIX entre deux techniques.
+
+Exemple vecu : une carte posee sur la page. En sombre, elle doit etre
+PLUS CLAIRE que le fond — une ombre y est du noir sur du presque-noir,
+donc invisible. En clair, aucune surface n'est plus claire qu'une page
+deja blanche, et c'est l'OMBRE qui fait tout le travail.
+
+Aucune couleur ne porte cette distinction : il faut connaitre le theme.
+*/
+val ThemeSombre: Boolean @Composable get() = LocalAppColors.current.isDark
+
 val BgPrimary: Color    @Composable get() = LocalAppColors.current.bgPrimary
 val BgSecondary: Color  @Composable get() = LocalAppColors.current.bgSecondary
 val BgTertiary: Color   @Composable get() = LocalAppColors.current.bgTertiary

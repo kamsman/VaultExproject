@@ -1023,6 +1023,12 @@
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
     <string name="avis_titre">Comment ça s\'est passé ?</string>
+    <!-- La carte NOMME l'operation : trois phrases entieres et non un
+         gabarit a trou, parce que « passe votre reception » serait faux —
+         l'accord suit le genre du nom, qu'un %1$s ne porte pas. -->
+    <string name="avis_titre_envoi">Comment s\'est passé votre envoi ?</string>
+    <string name="avis_titre_reception">Comment s\'est passée votre réception ?</string>
+    <string name="avis_titre_echange">Comment s\'est passé votre échange ?</string>
     <string name="avis_aide">Une phrase suffit. C\'est la seule façon qu\'on a de savoir ce qui vous gêne.</string>
     <string name="avis_invite">Ce qui vous a plu, ce qui vous a gêné…</string>
     <string name="avis_envoyer">Envoyer</string>
