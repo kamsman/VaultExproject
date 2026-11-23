@@ -299,24 +299,38 @@ fun CarteAvis(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     /*
-                    TROIS PHRASES ENTIERES, PAS UN GABARIT A TROU.
+                    LE TITRE EST GENERAL, ET C'EST UN CHOIX DE FOND.
 
-                    « Comment s'est passé votre %1$s ? » aurait produit
-                    « passé votre réception » : en français l'accord suit
-                    le genre du nom, qu'un trou ne porte pas. Le repli
-                    générique sert quand la préférence est illisible.
+                    Il a d'abord nomme l'operation — « Comment s'est passé
+                    votre envoi ? » — parce qu'une question sans referent
+                    oblige a deviner de quoi on parle.
+
+                    MAIS CE N'EST PAS LA QUESTION QU'ON SE POSE. 223
+                    installations, zero transaction en francs : ce qu'il
+                    faut trouver n'est pas le defaut d'un envoi, c'est
+                    celui de l'application. Une question sur une operation
+                    recoit une reponse sur une operation — le premier vrai
+                    retour recu l'a prouve : « c'est bien », deux etoiles,
+                    inexploitable.
+
+                    LE RISQUE EST ASSUME : une question large attire
+                    aussi des reponses larges, et on ne fait rien pour
+                    l'orienter.
+
+                    J'avais d'abord mis le travail de diagnostic dans
+                    l'invite du champ — « ce qui vous bloque, ce qui
+                    manque ». Ecarte, et a juste titre : ca se lit comme
+                    une enquete, et on ne demande pas a quelqu'un de
+                    remplir un formulaire de plainte. On lui demande ce
+                    qu'il pense. Ce qui le gene sortira de lui-meme, ou
+                    ne sortira pas — mais au moins il aura parle.
+
+                    LE GENRE DE L'OPERATION N'EST PAS PERDU POUR AUTANT :
+                    il part au relais et s'affiche dans Telegram. Savoir
+                    qu'un avis suit un envoi plutot qu'une reception se
+                    lit a la lecture, pas a l'ecriture.
                     */
-                    stringResource(
-                        when (genre) {
-                            GenreOperation.ENVOI -> R.string.avis_titre_envoi
-                            GenreOperation.RECEPTION -> R.string.avis_titre_reception
-                            GenreOperation.ECHANGE -> R.string.avis_titre_echange
-                            null -> R.string.avis_titre
-                        }
-                    ),
-                    // 16 sp et non 17 : « Comment s'est passée votre
-                    // reception ? » tient alors sur une ligne de plus
-                    // d'ecrans. Au-dela elle se replie, ce qui reste lisible.
+                    stringResource(R.string.avis_titre),
                     fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                 )
                 Spacer(Modifier.weight(1f))
@@ -409,7 +423,13 @@ fun CarteAvis(
                         */
                         jours = AdminBot.joursDepuisInstallation(),
                         modele = AdminBot.modeleAppareil(),
-                        version = BuildConfig.VERSION_NAME
+                        version = BuildConfig.VERSION_NAME,
+                        /*
+                        En minuscules et sans accent : ce texte traverse
+                        un JSON, un Worker et Telegram. Le nom de l'enum
+                        suffit, le relais le met en francais.
+                        */
+                        apres = genre?.name?.lowercase()
                     )
                 }
             }

@@ -84,7 +84,7 @@ class AvisViewModel @Inject constructor(
         _state.update { it.copy(etoiles = if (it.etoiles == etoiles) 0 else etoiles) }
     }
 
-    fun envoyer(jours: Int, modele: String, version: String) {
+    fun envoyer(jours: Int, modele: String, version: String, apres: String?) {
         val s = _state.value
         if (!s.peutEnvoyer) return
         _state.update { it.copy(etat = EtatAvis.ENVOI) }
@@ -104,6 +104,7 @@ class AvisViewModel @Inject constructor(
                             écarterait sans le dire.
                             */
                             jours = jours.takeIf { it >= 0 },
+                            apres = apres?.takeIf { it.isNotBlank() },
                             modele = modele.takeIf { it.isNotBlank() },
                             version = version.takeIf { it.isNotBlank() }
                         )

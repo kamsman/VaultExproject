@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 109
+const VERSION = 110
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -10456,7 +10456,31 @@ async function recevoirAvis(requete, env) {
   const jours = Number(corps?.jours)
   const borne = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)
   const version = borne(corps?.version)
+  /*
+  CE QUI VENAIT DE SE PASSER, EN TOUTES LETTRES.
+
+  Le titre de la carte ne le dit plus a l'utilisateur : la question est
+  devenue generale, parce que ce qu'on cherche est le defaut de
+  l'APPLICATION et non celui d'un virement.
+
+  Mais A LA LECTURE, dans ce canal, ca change tout. « J'ai attendu
+  longtemps » ne veut pas dire la meme chose apres un envoi (le reseau
+  etait lent) et apres une reception (la detection a tarde).
+
+  UNE LISTE FERMEE, ET PAS LE TEXTE RECU. Ce point d'entree est public :
+  accepter une chaine libre ici laisserait ecrire n'importe quoi dans la
+  ligne de contexte, juste sous l'en-tete — a l'endroit meme ou le
+  lecteur ne s'attend pas a du texte d'utilisateur. Trois valeurs
+  connues, tout le reste est ignore.
+  */
+  const APRES = {
+    envoi: 'apres un envoi',
+    reception: 'apres une reception',
+    echange: 'apres un echange',
+  }
+  const apres = APRES[String(corps?.apres ?? '').toLowerCase()] ?? ''
   const contexte = [
+    apres,
     Number.isFinite(jours) && jours >= 0 ? `J+${Math.round(jours)}` : '',
     borne(corps?.modele),
     version ? `v${version}` : '',

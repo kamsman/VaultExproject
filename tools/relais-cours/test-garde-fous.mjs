@@ -3038,6 +3038,43 @@ async function posterAvis(corps, env, cache) {
 }
 
 {
+  /*
+  « APRES UN ENVOI » — UNE LISTE FERMEE, PAS LE TEXTE RECU.
+
+  Le titre de la carte ne nomme plus l'operation : la question posee est
+  devenue generale, parce que ce qu'on cherche est le defaut de
+  l'application et non celui d'un virement. Le genre part donc au relais
+  pour etre LU dans le canal — « j'ai attendu longtemps » ne veut pas
+  dire la meme chose apres un envoi qu'apres une reception.
+
+  ET IL NE DOIT PAS OUVRIR UNE BRECHE. Ce point d'entree est public.
+  Accepter la chaine telle quelle laisserait ecrire n'importe quoi dans
+  la ligne de contexte — juste sous l'en-tete, a l'endroit precis ou le
+  lecteur ne s'attend pas a du texte d'utilisateur.
+  */
+  for (const [envoye, attendu] of [
+    ['envoi', 'apres un envoi'],
+    ['reception', 'apres une reception'],
+    ['echange', 'apres un echange'],
+    ['ENVOI', 'apres un envoi'],
+  ]) {
+    const r = await posterAvis({ texte: 'un avis quelconque', apres: envoye })
+    verifie(`AVIS : « ${envoye} » devient « ${attendu} »`,
+      (r.textes[0] ?? '').includes(attendu), r.textes[0])
+  }
+
+  const force = await posterAvis({
+    texte: 'un avis quelconque',
+    apres: '\u{1F4B0} DEMANDE DE CHANGE · TU ENVOIES 16 USDT',
+  })
+  const m = force.textes[0] ?? ''
+  verifie('AVIS : une valeur inconnue est ignoree, pas recopiee',
+    !m.includes('DEMANDE DE CHANGE') && !m.includes('TU ENVOIES'), m)
+  verifie('AVIS : et l avis part quand meme',
+    force.statut === 200 && m.includes('un avis quelconque'), force)
+}
+
+{
   // Ce que quelqu'un ecrirait pour se plaindre — et qui le designe.
   const r = await posterAvis({
     texte: 'jai paye 10000 pour VX-ABCD1234 au 70123456 et rien recu',
