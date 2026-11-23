@@ -47,8 +47,8 @@ import com.vaultex.R
 import kotlinx.coroutines.launch
 import com.vaultex.ui.components.BottomBarSpace
 import com.vaultex.ui.components.CarteAvis
+import com.vaultex.ui.components.rememberEtatAvis
 import com.vaultex.ui.components.CarteNouveautes
-import com.vaultex.ui.components.nouveautesAAfficher
 import com.vaultex.ui.components.VaultExBottomBar
 import com.vaultex.ui.navigation.Routes
 import com.vaultex.ui.theme.*
@@ -109,6 +109,12 @@ fun DashboardScreen(navController: NavHostController) {
     ──────────────────────────────────────────────────────────────────────
      */
     val offline = com.vaultex.core.session.NetworkMonitor.observeOffline()
+    /*
+    L'AVIS EST HISSE ICI POUR LA RAISON ECRITE JUSTE AU-DESSUS : il vit
+    dans un `item { }`, que LazyColumn detruit et recree a chaque
+    aller-retour de defilement. Son etat ne peut donc pas y vivre.
+    */
+    val etatAvis = rememberEtatAvis()
     val bannerContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) { TelegramBannerState.init(bannerContext) }
     // Statut PAR WALLET, relu à chaque retour sur le Dashboard (voir ON_RESUME
@@ -429,7 +435,16 @@ fun DashboardScreen(navController: NavHostController) {
             modifier = Modifier.fillMaxSize(),
             // Marge basse = hauteur de la barre flottante : le dernier élément
             // reste atteignable au lieu de disparaître dessous.
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = BottomBarSpace),
+            /*
+            LA MARGE BASSE SUIT LE CLAVIER, car l'accueil porte desormais
+            un champ de saisie. Le maximum des deux et non leur somme :
+            les deux protegent le meme bord, et clavier ouvert la barre de
+            navigation n'est plus ce qu'il faut eviter.
+            */
+            contentPadding = PaddingValues(
+                start = 16.dp, end = 16.dp, top = 16.dp,
+                bottom = maxOf(BottomBarSpace, WindowInsets.ime.asPaddingValues().calculateBottomPadding())
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ─── Bandeau HORS CONNEXION : se met à jour EN DIRECT (pas un
@@ -802,6 +817,35 @@ fun DashboardScreen(navController: NavHostController) {
             }
 
             // ─── Mes actifs ───
+            /*
+            ═══════════════════════════════════════════════════════════════
+            DANS LE FLUX, ET JUSTE SOUS LES BOUTONS D'ACTION
+            ═══════════════════════════════════════════════════════════════
+
+            Elle flottait d'abord au-dessus de la barre du bas, au meme
+            endroit que « Quoi de neuf ». Vu sur l'appareil : elle
+            recouvrait BTC, SOL et USDT.
+
+            CE N'EST PAS LE MEME BESOIN QUE « QUOI DE NEUF ». Une nouvelle
+            doit etre vue AVANT qu'on fasse autre chose, donc elle flotte
+            — posee dans le flux, elle defilerait et personne ne la
+            lirait. Un avis n'a pas cette urgence ; il a besoin d'etre vu
+            SANS CACHER ce que la personne est venue regarder.
+
+            Or apres une operation, ce qu'on vient regarder est son SOLDE.
+            Une carte qui le couvre arrive au pire moment possible.
+
+            Ici elle POUSSE le contenu au lieu de le masquer : le solde
+            reste au-dessus, les actifs descendent de sa hauteur, et elle
+            est visible sans avoir a defiler.
+            ═══════════════════════════════════════════════════════════════
+            */
+            item(key = "avis") {
+                etatAvis.value?.let { genre ->
+                    CarteAvis(genre = genre) { etatAvis.value = null }
+                }
+            }
+
             item(key = "assets") {
                 SectionCard(
                     title = stringResource(R.string.my_assets),
@@ -887,58 +931,15 @@ fun DashboardScreen(navController: NavHostController) {
         elle la recouvrirait, et fermer la carte deviendrait le seul moyen de
         changer d'onglet.
         */
-        /*
-        LE CLAVIER PASSAIT PAR-DESSUS LA CARTE D'AVIS.
-
-        Vu sur l'appareil : on touche le champ de saisie, le clavier monte,
-        et la carte disparait derriere lui — il restait le haut du titre.
-        Un formulaire qu'on ne voit plus des qu'on veut y ecrire ne recolte
-        rien.
-
-        `adjustResize` est bien pose au manifeste, mais cette carte est
-        posee en superposition dans un Box : elle reste collee au bas de la
-        fenetre, la ou le clavier arrive.
-
-        LE MAXIMUM DES DEUX, ET NON LEUR SOMME. `imePadding()` seul
-        ajouterait la hauteur du clavier PAR-DESSUS `BottomBarSpace`, et la
-        carte sauterait trop haut. Les deux marges protegent la meme chose
-        — le bas de l'ecran — et l'une remplace l'autre : quand le clavier
-        est ouvert, la barre de navigation n'est plus ce qu'il faut eviter.
-        */
-        val hauteurClavier = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-        val emplacementCarte = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(horizontal = 16.dp)
-            // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
-            // que la barre occupe, marge système comprise. Lui retrancher
-            // quelque chose, c'était rogner sur la place dont on a besoin.
-            .padding(bottom = maxOf(BottomBarSpace, hauteurClavier))
-
-        /*
-        UNE SEULE CARTE À LA FOIS, ET LES NOUVEAUTÉS PASSENT D'ABORD.
-
-        Les deux visent cet emplacement unique ; affichées ensemble, elles
-        se recouvriraient. L'ordre n'est pas arbitraire : les nouveautés
-        sont liées à une VERSION et ne repasseront jamais, tandis que la
-        carte d'avis attend seulement qu'on lui laisse la place — elle ne
-        se marque qu'en s'affichant, donc ne rien composer ici ne lui coûte
-        rien, et elle reviendra à la prochaine visite de l'accueil.
-
-        LE `remember` N'EST PAS UNE OPTIMISATION, IL EST NÉCESSAIRE.
-        `CarteNouveautes` marque la version dès sa première composition :
-        sans mémoire ici, la condition deviendrait fausse à la
-        recomposition suivante et la carte disparaîtrait sous les yeux de
-        celui qui la lit — remplacée par la carte d'avis, par-dessus le
-        marché.
-        */
-        val contexteCartes = LocalContext.current
-        val montrerNouveautes = remember { nouveautesAAfficher(contexteCartes) }
-
-        if (montrerNouveautes) {
-            CarteNouveautes(emplacementCarte)
-        } else {
-            CarteAvis(emplacementCarte)
-        }
+        CarteNouveautes(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp)
+                // Pas de « - 16.dp » ici : BottomBarSpace couvre exactement ce
+                // que la barre occupe, marge système comprise. Lui retrancher
+                // quelque chose, c'était rogner sur la place dont on a besoin.
+                .padding(bottom = BottomBarSpace)
+        )
 
         VaultExBottomBar(navController, Modifier.align(Alignment.BottomCenter))
     }
