@@ -106,18 +106,16 @@ fun marquerDemarrage(contexte: Context, aUnPortefeuille: Boolean) {
  * Vrai si la carte des nouveautés a quelque chose à dire — SANS RIEN
  * MARQUER.
  *
- * ELLE EXISTE PARCE QUE DEUX CARTES SE DISPUTENT LE MÊME EMPLACEMENT.
- * Celle-ci et [CarteAvis] se posent toutes deux juste au-dessus de la
- * barre du bas ; affichées ensemble, elles se recouvrent. L'accueil
- * tranche donc avant de composer, et il a besoin de poser la question
- * sans consommer la réponse — [CarteNouveautes] marque la version dès sa
- * première composition, et une lecture qui marquerait aussi ferait
- * disparaître la carte à l'instant où l'on demande si elle doit paraître.
+ * ELLE A SERVI À DÉPARTAGER DEUX CARTES, ET CE N'EST PLUS LE CAS.
+ * Celle-ci et celle des avis visaient un temps le même emplacement
+ * flottant ; l'accueil appelait donc cette fonction pour trancher avant
+ * de composer. La carte d'avis est depuis passée DANS LE FLUX de la
+ * liste — elle ne cachait plus les soldes de cette façon — et le
+ * conflit a disparu avec elle.
  *
- * LA RÈGLE N'EST ÉCRITE QU'ICI, et [CarteNouveautes] l'appelle. Deux
- * copies de « vue in 1 until courante » divergeraient le jour où l'une
- * change, et la carte s'afficherait alors pour une raison différente de
- * celle qui a décidé de lui faire de la place.
+ * Elle reste séparée parce qu'elle nomme la règle : « vue in 1 until
+ * courante » se lit mal au milieu d'un `remember`, et une règle qui a
+ * un nom se retrouve.
  */
 fun nouveautesAAfficher(contexte: Context): Boolean {
     val prefs = contexte.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -160,9 +158,7 @@ fun CarteNouveautes(modifier: Modifier = Modifier) {
         val vue = prefs.getInt(CLE_VERSION_VUE, 0)
         val courante = BuildConfig.VERSION_CODE
 
-        // La règle vit dans `nouveautesAAfficher`, que l'accueil interroge
-        // aussi pour départager cette carte et celle des avis. Une seule
-        // copie : voir l'en-tête de cette fonction.
+        // La règle vit dans `nouveautesAAfficher`, qui la nomme.
         val doitAfficher = nouveautesAAfficher(contexte)
 
         // Enregistré tout de suite, y compris quand on n'affiche rien, pour

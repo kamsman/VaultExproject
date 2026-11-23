@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -111,75 +112,47 @@ pour une chose qui n'exige aucune décision se referme sans être lue, et
 une note posée dans le flux d'une liste disparaît dès qu'on descend.
 ═══════════════════════════════════════════════════════════════════════════
 */
+/**
+ * L'état de la carte, DÉCIDÉ UNE FOIS et à hisser HORS de la LazyColumn.
+ *
+ * ─── POURQUOI CE N'EST PAS UN `remember` DANS LA CARTE ─────────────────
+ *
+ * La carte vit maintenant dans le flux de l'accueil, c'est-à-dire dans un
+ * `item { }` de LazyColumn. Or l'en-tête de `DashboardScreen` le dit déjà,
+ * et pour l'avoir payé : « LazyColumn détruit un item dès qu'il sort de
+ * l'écran et le recrée dès qu'il revient ».
+ *
+ * Un `remember` posé dans l'item se rejouerait donc à chaque aller-retour
+ * de défilement. Et il se rejouerait FAUX : la marque « déjà proposé »
+ * ayant été posée au premier passage, `aProposer` rendrait false et la
+ * carte s'effacerait toute seule en revenant à l'écran.
+ *
+ * Hissé dans l'écran, cet état est calculé une fois et survit au
+ * défilement. Le texte en cours de frappe, lui, vit dans le ViewModel,
+ * qui est porté par la destination de navigation — il survit déjà.
+ *
+ * Nul = rien à proposer, ou la carte a été fermée.
+ */
 @Composable
-fun CarteAvis(modifier: Modifier = Modifier) {
+fun rememberEtatAvis(): MutableState<GenreOperation?> {
     val contexte = LocalContext.current
-
-    /*
-    DÉCIDÉ UNE SEULE FOIS, à la première composition — et la marque est
-    posée dans le même geste.
-
-    Même piège que dans `CarteNouveautes` : relire la préférence à chaque
-    recomposition ferait disparaître la carte à l'instant où on la pose,
-    puisque la valeur changerait sous elle.
-    */
-    /*
-    LE GENRE EST LU EN MEME TEMPS QUE LA DECISION, et retenu avec elle.
-
-    Le relire plus tard le ferait disparaitre sous la carte : la fenetre
-    de 24 h peut expirer pendant qu'elle est a l'ecran, et le titre
-    deviendrait vide au milieu d'une saisie.
-    */
-    val genre = remember {
-        val g = MemoireAvis.operationRecente(contexte)
+    return remember {
+        /*
+        LE GENRE EST LU EN MEME TEMPS QUE LA DECISION, et retenu avec elle.
+        Le relire plus tard le ferait disparaitre sous la carte : la
+        fenetre de 24 h peut expirer pendant qu'elle est a l'ecran, et le
+        titre deviendrait vide au milieu d'une saisie.
+        */
+        val genre = MemoireAvis.operationRecente(contexte)
         val doit = MemoireAvis.aProposer(contexte)
         if (doit) MemoireAvis.nePlusProposer(contexte)
-        mutableStateOf(if (doit) g else null)
-    }
-    var visible by remember { mutableStateOf(genre.value != null) }
-
-    /*
-    ═══════════════════════════════════════════════════════════════════════
-    UN `if`, ET NON UN `return` SUIVI D'APPELS COMPOSABLES
-    ═══════════════════════════════════════════════════════════════════════
-
-    CE N'EST PAS UNE QUESTION DE STYLE. La version précédente écrivait :
-
-        if (!visible) return
-        val vm: AvisViewModel = hiltViewModel()
-        val s by vm.state.collectAsState()
-        LaunchedEffect(s.etat) { … }
-
-    Quand `visible` passait à faux, cette fonction perdait d'un coup
-    QUATRE appels composables — un ViewModel, un abonnement d'état, un
-    effet et tout l'affichage — dans une seule recomposition.
-    `CarteNouveautes` emploie le même `return`, mais sans RIEN après lui :
-    la différence est là, et c'est elle qui compte.
-
-    Un plantage est arrivé sur l'appareil, en `IndexOutOfBoundsException :
-    Index -1 out of bounds for length 0`, SANS AUCUNE IMAGE `com.vaultex`
-    dans la pile — l'exception venait entièrement du framework. Or
-    `enableR8.fullMode=false` garde la hiérarchie des paquets : si une
-    ligne de ce dépôt avait été impliquée, elle aurait figuré au rapport.
-    Une pile sans notre code, sur un écran qu'on vient d'ajouter, désigne
-    la façon dont on y entre et on en sort.
-
-    JE N'AI PAS PROUVÉ QUE C'EST LA CAUSE, et je ne le prétends pas : il
-    faudrait la pile complète par logcat pour trancher. Mais un `if`
-    rend cette fonction structurellement stable — ce qui est à
-    l'intérieur est présent ou absent en bloc, l'idiome normal de Compose
-    — et il ne coûte rien. Si le plantage revient, on aura au moins
-    écarté celle-ci.
-    ═══════════════════════════════════════════════════════════════════════
-    */
-    if (visible) {
-        CarteAvisOuverte(modifier, genre.value) { visible = false }
+        mutableStateOf(if (doit) genre else null)
     }
 }
 
 @Composable
-private fun CarteAvisOuverte(
-    modifier: Modifier,
+fun CarteAvis(
+    modifier: Modifier = Modifier,
     genre: GenreOperation?,
     onFermer: () -> Unit
 ) {
