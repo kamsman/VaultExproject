@@ -996,13 +996,9 @@
     <string name="whats_new_4">الاطلاع على عملة لم يعد يضيفها إلى الشاشة الرئيسية</string>
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
-    <string name="avis_titre">كيف جرت العملية؟</string>
-    <!-- Trois phrases entieres : voir le commentaire de values/strings.xml -->
-    <string name="avis_titre_envoi">كيف جرى الإرسال؟</string>
-    <string name="avis_titre_reception">كيف جرى الاستلام؟</string>
-    <string name="avis_titre_echange">كيف جرى التبادل؟</string>
-    <string name="avis_aide">جملة واحدة تكفي. هي الطريقة الوحيدة لنعرف ما يزعجكم.</string>
-    <string name="avis_invite">ما أعجبكم، وما أزعجكم…</string>
+    <string name="avis_titre">ما رأيكم في VaultEx؟</string>
+    <string name="avis_aide">كلمتكم تهمّنا. جملة واحدة تكفي — خاصة إن كان شيء ما يعيقكم.</string>
+    <string name="avis_invite">ما يعيقكم، وما ينقص، وما أعجبكم…</string>
     <string name="avis_envoyer">إرسال</string>
     <string name="avis_prive">لا يُرسل مع رسالتكم أي عنوان ولا رقم هاتف ولا مرجع للعملية.</string>
     <string name="avis_merci">شكرًا. تم التسجيل.</string>

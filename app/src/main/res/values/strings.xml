@@ -1022,15 +1022,9 @@
     <string name="whats_new_4">Consulter une monnaie ne l\'ajoute plus à l\'accueil</string>
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
-    <string name="avis_titre">Comment ça s\'est passé ?</string>
-    <!-- La carte NOMME l'operation : trois phrases entieres et non un
-         gabarit a trou, parce que « passe votre reception » serait faux —
-         l'accord suit le genre du nom, qu'un %1$s ne porte pas. -->
-    <string name="avis_titre_envoi">Comment s\'est passé votre envoi ?</string>
-    <string name="avis_titre_reception">Comment s\'est passée votre réception ?</string>
-    <string name="avis_titre_echange">Comment s\'est passé votre échange ?</string>
-    <string name="avis_aide">Une phrase suffit. C\'est la seule façon qu\'on a de savoir ce qui vous gêne.</string>
-    <string name="avis_invite">Ce qui vous a plu, ce qui vous a gêné…</string>
+    <string name="avis_titre">Que pensez-vous de VaultEx ?</string>
+    <string name="avis_aide">Votre parole compte. Une phrase suffit — surtout si quelque chose vous bloque.</string>
+    <string name="avis_invite">Ce qui vous bloque, ce qui manque, ce qui vous a plu…</string>
     <string name="avis_envoyer">Envoyer</string>
     <string name="avis_prive">Ni votre adresse, ni votre numéro, ni la référence ne partent avec votre message.</string>
     <string name="avis_merci">Merci. C\'est noté.</string>

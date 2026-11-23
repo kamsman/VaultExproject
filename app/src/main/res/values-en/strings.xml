@@ -996,13 +996,9 @@
     <string name="whats_new_4">Viewing a coin no longer adds it to your home screen</string>
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
-    <string name="avis_titre">How did that go?</string>
-    <!-- Trois phrases entieres : voir le commentaire de values/strings.xml -->
-    <string name="avis_titre_envoi">How did your transfer go?</string>
-    <string name="avis_titre_reception">How did your deposit go?</string>
-    <string name="avis_titre_echange">How did your swap go?</string>
-    <string name="avis_aide">One sentence is enough. It\'s the only way we get to know what bothers you.</string>
-    <string name="avis_invite">What you liked, what got in your way…</string>
+    <string name="avis_titre">What do you think of VaultEx?</string>
+    <string name="avis_aide">Your voice counts. One sentence is enough — especially if something is blocking you.</string>
+    <string name="avis_invite">What blocks you, what is missing, what you liked…</string>
     <string name="avis_envoyer">Send</string>
     <string name="avis_prive">No address, no phone number and no reference leaves with your message.</string>
     <string name="avis_merci">Thank you. Noted.</string>

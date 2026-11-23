@@ -756,6 +756,21 @@ data class DemandeAvis(
     val etoiles: Int? = null,
     /** Jours depuis l'installation. Dit « au bout de combien de temps ». */
     val jours: Int? = null,
+    /**
+     * Ce qui venait de se passer : « envoi », « reception », « echange ».
+     *
+     * LE TITRE DE LA CARTE NE LE DIT PLUS, et c'est pour ca qu'il est ici.
+     * La question posee a l'utilisateur est devenue generale — « que
+     * pensez-vous de VaultEx ? » — parce que ce qu'on cherche est le
+     * defaut de l'application, pas celui d'un virement. Mais A LA
+     * LECTURE, savoir qu'un avis suit un envoi plutot qu'une reception
+     * change tout : « j'ai attendu longtemps » ne veut pas dire la meme
+     * chose dans les deux cas.
+     *
+     * Ce n'est pas une donnee personnelle : trois valeurs possibles, et
+     * le canal recoit deja la notification de l'operation elle-meme.
+     */
+    val apres: String? = null,
     /** Le modele d'appareil : « le bouton est coupe » exige de savoir ou. */
     val modele: String? = null,
     val version: String? = null
