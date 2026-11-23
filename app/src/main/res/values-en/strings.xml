@@ -997,8 +997,8 @@
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
     <string name="avis_titre">What do you think of VaultEx?</string>
-    <string name="avis_aide">Your voice counts. One sentence is enough — especially if something is blocking you.</string>
-    <string name="avis_invite">What blocks you, what is missing, what you liked…</string>
+    <string name="avis_aide">Your voice counts. One sentence is enough.</string>
+    <string name="avis_invite">Tell us what you think…</string>
     <string name="avis_envoyer">Send</string>
     <string name="avis_prive">No address, no phone number and no reference leaves with your message.</string>
     <string name="avis_merci">Thank you. Noted.</string>

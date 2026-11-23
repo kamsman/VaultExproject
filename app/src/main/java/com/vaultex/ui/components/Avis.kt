@@ -313,11 +313,17 @@ fun CarteAvis(
                     retour recu l'a prouve : « c'est bien », deux etoiles,
                     inexploitable.
 
-                    LE RISQUE EST ASSUME : une question large attire aussi
-                    des reponses larges. C'est l'INVITE DU CHAMP qui porte
-                    desormais le travail de diagnostic — « ce qui vous
-                    bloque, ce qui manque » — parce qu'on peut y etre
-                    precis sans durcir le ton du titre.
+                    LE RISQUE EST ASSUME : une question large attire
+                    aussi des reponses larges, et on ne fait rien pour
+                    l'orienter.
+
+                    J'avais d'abord mis le travail de diagnostic dans
+                    l'invite du champ — « ce qui vous bloque, ce qui
+                    manque ». Ecarte, et a juste titre : ca se lit comme
+                    une enquete, et on ne demande pas a quelqu'un de
+                    remplir un formulaire de plainte. On lui demande ce
+                    qu'il pense. Ce qui le gene sortira de lui-meme, ou
+                    ne sortira pas — mais au moins il aura parle.
 
                     LE GENRE DE L'OPERATION N'EST PAS PERDU POUR AUTANT :
                     il part au relais et s'affiche dans Telegram. Savoir

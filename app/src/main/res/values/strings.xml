@@ -1023,8 +1023,8 @@
 
     <!-- Avis : propose UNE fois, apres une operation reussie -->
     <string name="avis_titre">Que pensez-vous de VaultEx ?</string>
-    <string name="avis_aide">Votre parole compte. Une phrase suffit — surtout si quelque chose vous bloque.</string>
-    <string name="avis_invite">Ce qui vous bloque, ce qui manque, ce qui vous a plu…</string>
+    <string name="avis_aide">Votre parole compte. Une phrase suffit.</string>
+    <string name="avis_invite">Dites-nous ce que vous en pensez…</string>
     <string name="avis_envoyer">Envoyer</string>
     <string name="avis_prive">Ni votre adresse, ni votre numéro, ni la référence ne partent avec votre message.</string>
     <string name="avis_merci">Merci. C\'est noté.</string>
