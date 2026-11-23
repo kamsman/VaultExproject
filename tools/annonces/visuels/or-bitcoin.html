@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1024px;height:512px;background:#0B1120;font-family:"Inter Display","Inter",sans-serif;
+     color:#F1F5F9;overflow:hidden;position:relative;display:flex}
+.halo{position:absolute;border-radius:50%;filter:blur(120px)}
+.hg{width:430px;height:430px;background:#F7931A;left:-170px;top:40px;opacity:.26}
+.hd{width:430px;height:430px;background:#C9A227;right:-170px;top:40px;opacity:.26}
+/* 112 px en bas : le bandeau fait ~70 px et il est pose en absolu, donc
+   il NE POUSSE RIEN. Sans cette reserve il recouvrait les etiquettes,
+   qui sont justement collees en bas par margin-top:auto. */
+.moitie{flex:1;padding:46px 44px 112px;display:flex;flex-direction:column;position:relative;z-index:1}
+.d{border-left:1px solid rgba(255,255,255,.13)}
+.ico{font-size:52px;line-height:1}
+.nom{font-size:42px;font-weight:800;letter-spacing:-.02em;margin-top:16px}
+.g .nom{color:#F7931A}.d .nom{color:#D9B637}
+.txt{font-size:23px;line-height:1.45;color:#C3CEDE;margin-top:14px;font-weight:400}
+.tag{margin-top:auto;align-self:flex-start;font-size:14px;letter-spacing:.18em;text-transform:uppercase;
+     font-weight:700;padding:9px 16px;border-radius:999px}
+.g .tag{background:rgba(247,147,26,.16);color:#F7931A}
+.d .tag{background:rgba(201,162,39,.16);color:#D9B637}
+.bas{position:absolute;left:0;right:0;bottom:0;z-index:2;background:rgba(5,9,18,.80);
+     border-top:1px solid rgba(255,255,255,.10);padding:20px 44px;display:flex;align-items:center;gap:14px}
+.q{font-size:25px;font-weight:700;letter-spacing:-.01em}
+.q span{background:linear-gradient(95deg,#F7931A,#D9B637);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.m{margin-left:auto;display:flex;align-items:center;gap:10px}
+.pt{width:10px;height:10px;border-radius:3px;background:#3B82F6;transform:rotate(45deg)}
+.mn{font-size:19px;font-weight:800}
+</style></head><body>
+<div class="halo hg"></div><div class="halo hd"></div>
+<div class="moitie g"><div class="ico">⚡</div><div class="nom">Bitcoin</div>
+  <div class="txt">Extrait grâce à l'énergie<br>et à la puissance informatique.</div>
+  <div class="tag">Technologie</div></div>
+<div class="moitie d"><div class="ico">⛏️</div><div class="nom">L'or</div>
+  <div class="txt">Extrait des profondeurs<br>de la Terre.</div>
+  <div class="tag">Géologie</div></div>
+<div class="bas"><div class="q">Rares tous les deux. <span>Lequel dominera l'avenir&nbsp;?</span></div>
+  <div class="m"><div class="pt"></div><div class="mn">VaultEx</div></div></div>
+</body></html>
