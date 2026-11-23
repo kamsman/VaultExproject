@@ -47,11 +47,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vaultex.BuildConfig
 import com.vaultex.R
 import com.vaultex.core.monitoring.AdminBot
+import com.vaultex.core.session.GenreOperation
 import com.vaultex.core.session.MemoireAvis
 import com.vaultex.ui.theme.AccentBlue
 import com.vaultex.ui.theme.AccentGreen
 import com.vaultex.ui.theme.AccentOrange
-import com.vaultex.ui.theme.BgSecondary
 import com.vaultex.ui.theme.Surface as SurfaceColor
 import com.vaultex.ui.theme.SurfaceLight
 import com.vaultex.ui.theme.TextMuted
@@ -120,11 +120,20 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     recomposition ferait disparaître la carte à l'instant où on la pose,
     puisque la valeur changerait sous elle.
     */
-    var visible by remember {
+    /*
+    LE GENRE EST LU EN MEME TEMPS QUE LA DECISION, et retenu avec elle.
+
+    Le relire plus tard le ferait disparaitre sous la carte : la fenetre
+    de 24 h peut expirer pendant qu'elle est a l'ecran, et le titre
+    deviendrait vide au milieu d'une saisie.
+    */
+    val genre = remember {
+        val g = MemoireAvis.operationRecente(contexte)
         val doit = MemoireAvis.aProposer(contexte)
         if (doit) MemoireAvis.nePlusProposer(contexte)
-        mutableStateOf(doit)
+        mutableStateOf(if (doit) g else null)
     }
+    var visible by remember { mutableStateOf(genre.value != null) }
 
     /*
     ═══════════════════════════════════════════════════════════════════════
@@ -161,12 +170,16 @@ fun CarteAvis(modifier: Modifier = Modifier) {
     ═══════════════════════════════════════════════════════════════════════
     */
     if (visible) {
-        CarteAvisOuverte(modifier) { visible = false }
+        CarteAvisOuverte(modifier, genre.value) { visible = false }
     }
 }
 
 @Composable
-private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
+private fun CarteAvisOuverte(
+    modifier: Modifier,
+    genre: GenreOperation?,
+    onFermer: () -> Unit
+) {
     val vm: AvisViewModel = hiltViewModel()
     val s by vm.state.collectAsState()
 
@@ -207,11 +220,29 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
     */
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = BgSecondary,
-        border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.55f)),
+        /*
+        SUR FOND SOMBRE, L'ELEVATION EST UNE SURFACE PLUS CLAIRE — PAS UNE
+        OMBRE.
+
+        MESURE : `BgSecondary` (#111827) contre la page (#0B1120) donne un
+        rapport de contraste de 1,06. C'est-a-dire RIEN : l'oeil ne separe
+        pas deux surfaces a 1,06, et l'ombre que j'avais ajoutee est du
+        noir sur du presque-noir, donc invisible elle aussi.
+
+        J'avais juge la carte sur une maquette ou l'ombre etait dessinee
+        en CSS, bien plus marquee qu'un `shadow` de Compose sur un theme
+        sombre — un reflexe de theme clair, applique au mauvais endroit.
+
+        `SurfaceLight` (#243044) donne 1,42. La, la carte se detache.
+
+        L'OMBRE RESTE, mais pour ce qu'elle fait encore : adoucir le bord.
+        Ce n'est plus elle qui porte la separation.
+        */
+        color = SurfaceLight,
+        border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.70f)),
         modifier = modifier
             .fillMaxWidth()
-            .shadow(20.dp, RoundedCornerShape(20.dp), clip = false)
+            .shadow(16.dp, RoundedCornerShape(20.dp), clip = false)
     ) {
         Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 14.dp)) {
 
@@ -238,8 +269,26 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
                 Text("💬", fontSize = 17.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.avis_titre),
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+                    /*
+                    TROIS PHRASES ENTIERES, PAS UN GABARIT A TROU.
+
+                    « Comment s'est passé votre %1$s ? » aurait produit
+                    « passé votre réception » : en français l'accord suit
+                    le genre du nom, qu'un trou ne porte pas. Le repli
+                    générique sert quand la préférence est illisible.
+                    */
+                    stringResource(
+                        when (genre) {
+                            GenreOperation.ENVOI -> R.string.avis_titre_envoi
+                            GenreOperation.RECEPTION -> R.string.avis_titre_reception
+                            GenreOperation.ECHANGE -> R.string.avis_titre_echange
+                            null -> R.string.avis_titre
+                        }
+                    ),
+                    // 16 sp et non 17 : « Comment s'est passée votre
+                    // reception ? » tient alors sur une ligne de plus
+                    // d'ecrans. Au-dela elle se replie, ce qui reste lisible.
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                 )
                 Spacer(Modifier.weight(1f))
                 Box(
@@ -269,6 +318,12 @@ private fun CarteAvisOuverte(modifier: Modifier, onFermer: () -> Unit) {
 
             // ─── La question ouverte ─────────────────────────────────────
             Spacer(Modifier.height(10.dp))
+            /*
+            LE CHAMP EST PLUS SOMBRE QUE LA CARTE, et c'est le bon sens :
+            la carte est posee SUR la page, le champ est creuse DANS la
+            carte. `Surface` (#1A2234) sous `SurfaceLight` (#243044) donne
+            exactement cette lecture.
+            */
             Surface(shape = RoundedCornerShape(14.dp), color = SurfaceColor) {
                 Box(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),

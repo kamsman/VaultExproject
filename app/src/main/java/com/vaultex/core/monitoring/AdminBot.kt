@@ -483,7 +483,7 @@ object AdminBot {
      * (1,5 % du montant, en contre-valeur USD) — suivi du revenu.
      */
     fun swapFinished(amount: String, from: String, to: String, usdFee: Double = 0.0) {
-        operationAboutie()
+        operationAboutie(com.vaultex.core.session.GenreOperation.ECHANGE)
         val feeTxt = if (usdFee > 0.0) String.format(Locale.US, "\n💰 Commission ≈ $%.2f", usdFee) else ""
         send("✅ Swap terminé : $amount $from → $to$feeTxt")
     }
@@ -663,18 +663,25 @@ object AdminBot {
     avec de petites sommes — c'est-à-dire les nouveaux, dont l'avis est
     le plus utile.
 
+    ─── ET CHACUNE DIT LAQUELLE ELLE EST ──────────────────────────────────
+
+    Le genre remonte jusqu'ici parce que la carte le NOMME : « Comment
+    s'est passé votre envoi ? » se répond, « comment ça s'est passé ? »
+    demande d'abord de deviner de quoi on parle. Ces trois fonctions sont
+    le seul endroit qui le sache sans avoir à le reconstituer.
+
     ─── À DÉPLACER AVEC ELLES ─────────────────────────────────────────────
 
     Si `AdminBot` passe un jour par le relais, cet appel doit suivre. Il
     ne dépend pas de Telegram : il écrit une préférence locale.
     ═══════════════════════════════════════════════════════════════════════
     */
-    private fun operationAboutie() {
-        appContext?.let { com.vaultex.core.session.MemoireAvis.marquerOperation(it) }
+    private fun operationAboutie(genre: com.vaultex.core.session.GenreOperation) {
+        appContext?.let { com.vaultex.core.session.MemoireAvis.marquerOperation(it, genre) }
     }
 
     fun reportSend(amount: String, symbol: String, usd: Double) {
-        operationAboutie()
+        operationAboutie(com.vaultex.core.session.GenreOperation.ENVOI)
         if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Gros envoi" else "💸 Envoi"
         send("$head : $amount $symbol${usdTxt(usd)}")
@@ -682,7 +689,7 @@ object AdminBot {
 
     /** 📥 Réception rapportée dès [REPORT_MIN_USD] ; 🚨 au-delà de [BIG_SWAP_USD]. */
     fun reportReceive(amount: String, symbol: String, usd: Double) {
-        operationAboutie()
+        operationAboutie(com.vaultex.core.session.GenreOperation.RECEPTION)
         if (belowThreshold(usd)) return
         val head = if (usd >= BIG_SWAP_USD) "🚨 Grosse réception" else "📥 Réception"
         send("$head : $amount $symbol${usdTxt(usd)}")
