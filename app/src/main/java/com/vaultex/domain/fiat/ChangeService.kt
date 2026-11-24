@@ -82,6 +82,19 @@ data class ParametresChange(
     val nomChangeur: String,
     val operateur: String,
     val delaiMinutes: Int,
+    /**
+     * Minutes de garantie du prix. Voir le DTO : distinct du delai annonce.
+     *
+     * SON DEFAUT EST [delaiMinutes], ET CE N'EST PAS UNE COMMODITE : c'est
+     * exactement la regle de repli. Un relais plus ancien ne rend pas ce
+     * champ, et le comportement doit alors etre celui d'avant — le prix
+     * garanti pendant le delai annonce.
+     *
+     * Ecrit comme defaut plutot que recopie a chaque construction, la
+     * regle ne peut pas diverger d'un appelant a l'autre. Les fixtures de
+     * test l'obtiennent sans rien savoir de ce champ.
+     */
+    val prixMinutes: Int = delaiMinutes,
     /** Monnaies acceptees a l'achat. */
     val monnaies: List<String> = emptyList(),
     /** Adresses du changeur pour les ventes, par monnaie. */
@@ -582,6 +595,9 @@ class ChangeService @Inject constructor(
                 nomChangeur = dto.nomChangeur.orEmpty(),
                 operateur = dto.operateur ?: "Mobile Money",
                 delaiMinutes = dto.delaiMinutes ?: 30,
+                // Un relais plus ancien ne rend pas `prixMinutes` : on
+                // retombe sur le delai, donc rien ne change pour lui.
+                prixMinutes = dto.prixMinutes ?: dto.delaiMinutes ?: 30,
                 monnaies = dto.monnaies?.map { m -> m.uppercase() }.orEmpty(),
                 adresses = dto.adresses?.mapKeys { (k, _) -> k.uppercase() }.orEmpty(),
                 ussdModele = dto.ussdModele.orEmpty(),
