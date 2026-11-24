@@ -207,7 +207,20 @@ Un tableau de prix qui omet la monnaie principale est pire que pas de
 tableau : on le lit en croyant avoir tout vu.
 */
 const acceptees = Array.isArray(params?.monnaies) ? params.monnaies : []
+/*
+ET ON DIT LESQUELLES SONT REELLEMENT ACHETABLES.
+
+Premiere version : une simple union. Vu sur la vraie configuration, elle
+affichait « USDT-BNB 648,6 » alors que cette monnaie n'etait PAS dans
+`CHANGE_MONNAIES` — elle n'apparaissait que parce qu'un frais lui avait
+ete pose. Le tableau annoncait donc un prix pour quelque chose que le
+relais aurait refuse de vendre.
+
+Un prix affiche pour une monnaie indisponible est pire qu'une absence :
+on croit le reglage fait.
+*/
 const monnaies = [...new Set([...acceptees, ...Object.keys(fraisParMonnaie)])]
+const estAcceptee = (m) => acceptees.length === 0 || acceptees.includes(m)
 
 console.log(`\n${'─'.repeat(72)}`)
 console.log(`CE QUE PAIE UN CLIENT POUR ${montant} USD`)
@@ -220,7 +233,7 @@ if (monnaies.length === 0) {
 console.log('')
 const g = (v, n) => String(v).padEnd(n)
 const d = (v, n) => String(v).padStart(n)
-console.log(`${g('monnaie', 12)} ${d('frais $', 8)} ${g('', 9)} ${d('frais FCFA', 11)} ${d('total', 9)} ${d('par unite', 10)}`)
+console.log(`${g('monnaie', 12)} ${d('frais $', 8)} ${g('', 9)} ${d('frais FCFA', 11)} ${d('total', 9)} ${d('par unite', 10)}  etat`)
 for (const m of monnaies) {
   const propre = Object.prototype.hasOwnProperty.call(fraisParMonnaie, m)
   const f = m === '(toutes)' ? forfait : propre ? Number(fraisParMonnaie[m]) : forfait
@@ -228,11 +241,33 @@ for (const m of monnaies) {
   // Converti au COURS, pas au prix client : voir l'en-tete.
   const fFcfa = f * cours
   const total = montant * client + fFcfa
+  const etat = estAcceptee(m) ? '' : '  ⚠ PAS dans CHANGE_MONNAIES — invendable'
   console.log(
-    `${g(m, 12)} ${d(f.toFixed(2), 8)} ${g('  ' + source, 9)} ${d(fFcfa.toFixed(0), 11)} ${d(Math.round(total), 9)} ${d((total / montant).toFixed(1), 10)}`
+    `${g(m, 12)} ${d(f.toFixed(2), 8)} ${g('  ' + source, 9)} ${d(fFcfa.toFixed(0), 11)} ${d(Math.round(total), 9)} ${d((total / montant).toFixed(1), 10)}${etat}`
   )
 }
 console.log('')
+/*
+UN FRAIS POSE SANS MONNAIE ACCEPTEE, ou l'inverse, est un reglage a
+moitie fait. On le dit a la fin, la ou on regarde apres avoir lu le
+tableau.
+*/
+const orphelines = monnaies.filter((m) => !estAcceptee(m))
+const sansFrais = acceptees.filter(
+  (m) => !Object.prototype.hasOwnProperty.call(fraisParMonnaie, m)
+)
+if (orphelines.length) {
+  console.log(`⚠  Frais pose mais monnaie NON acceptee : ${orphelines.join(', ')}`)
+  console.log('   Ajoute-la a CHANGE_MONNAIES, et donne-lui une adresse dans')
+  console.log('   CHANGE_ADRESSES — sans adresse, le relais ecarte la monnaie.')
+}
+if (sansFrais.length && Object.keys(fraisParMonnaie).length) {
+  console.log(`⚠  Acceptee mais sans frais propre : ${sansFrais.join(', ')}`)
+  console.log(`   Elle retombe sur le forfait CHANGE_FRAIS_USD = ${forfait} $,`)
+  console.log('   ce qui est rarement le bon chiffre pour une chaine precise.')
+}
+if (orphelines.length || sansFrais.length) console.log('')
+
 console.log('« par USDT » est ce que le client paie reellement par unite recue.')
 console.log("C'est ce chiffre-la qu'il comparera a la concurrence, pas le taux.")
 console.log('')
