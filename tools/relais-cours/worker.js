@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 111
+const VERSION = 112
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -4236,22 +4236,30 @@ async function ordreChange(requete, env) {
   CHANGE_MAX_PREMIER = 10000, par exemple. Non réglé, il vaut le plafond
   ordinaire, donc il ne fait rien.
 
-  ─── POURQUOI ÉTEINT, ALORS QUE C'EST LE MEILLEUR LEVIER ──────────────
+  ─── IL ÉTAIT DÉCONSEILLÉ, ET CE N'EST PLUS VRAI ──────────────────────
 
-  Parce que « ce numéro est connu » est une information qui doit tenir des
-  SEMAINES, et que `caches.default` ne tient pas des semaines : il est par
-  centre de données et évictable.
+  CE PARAGRAPHE DISAIT DE NE PAS L'ACTIVER. La raison : « ce numéro est
+  connu » doit tenir des SEMAINES, et `caches.default` ne tient pas des
+  semaines — il est par centre de données et évictable. Un client
+  régulier dont la marque avait été évincée se retrouvait plafonné comme
+  un inconnu.
 
-  La conséquence est bénigne mais réelle : un client régulier dont la
-  marque a été évincée se retrouve plafonné comme un inconnu. Ce n'est pas
-  dangereux — ça échoue dans le sens sûr — c'est agaçant, et ça se traduit
-  en appels au changeur pour un plafond qui a bougé sans raison visible.
+  Ce texte annonçait lui-même son remède : « une mémoire durable (Workers
+  KV) supprimerait le compromis, et c'est ce qu'il faudra faire quand le
+  volume le justifiera. »
 
-  À lui de choisir, donc. L'activer, c'est accepter ce désagrément contre
-  une vraie protection ; une mémoire durable (Workers KV) supprimerait le
-  compromis, et c'est ce qu'il faudra faire quand le volume le justifiera.
-  C'est écrit ici pour que ce réglage ne soit pas activé en croyant qu'il
-  est exact.
+  C'EST FAIT. `lireBrut` passe par `MEMOIRE` — Workers KV, durable et
+  global — et ne retombe sur le cache que si KV est indisponible. La
+  marque « connu » est posée pour TRENTE JOURS (voir `marquer('connu',
+  numero, 30 * 86400)`).
+
+  Le désagrément a donc disparu avec sa cause, et ce réglage est
+  redevenu ce que la première ligne de ce commentaire dit qu'il est : le
+  meilleur levier anti-fraude du pair-à-pair.
+
+  Il reste éteint PAR DÉFAUT, et c'est un choix différent : un plafond
+  qu'on n'a pas voulu ne doit pas s'imposer. Mais plus rien ne
+  déconseille de le poser.
   ═══════════════════════════════════════════════════════════════════════
   */
   const plafondPremier = nombreRegle(env?.CHANGE_MAX_PREMIER, plafond)
