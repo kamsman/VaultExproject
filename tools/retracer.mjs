@@ -154,6 +154,31 @@ function retracerCadre(cadre, classes) {
       : meth.origine
     return `${cadre}  →  ${cl.origine}.${meth.signature}:${dOrigine}`
   }
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  « INCONNU » NE SUFFIT PAS : IL FAUT DIRE POURQUOI
+  ═══════════════════════════════════════════════════════════════════════
+
+  Deux causes, et elles demandent deux gestes opposes :
+
+    · le mapping vient d'un AUTRE BUILD — alors AUCUNE classe du paquet
+      cherche n'y figure, et il faut retrouver l'archive de la bonne
+      version ;
+    · le paquet existe mais pas cette classe-la — alors le mapping est
+      probablement le bon et c'est la pile qui a ete mal recopiee.
+
+  Rendre « inconnu » dans les deux cas laisse chercher au hasard.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const paquet = nom.includes('.') ? nom.slice(0, nom.indexOf('.')) : null
+  if (paquet) {
+    const voisines = [...classes.keys()].filter((c) => c.startsWith(paquet + '.'))
+    if (voisines.length === 0) {
+      return `${cadre}  →  le paquet « ${paquet} » n'existe pas dans ce mapping` +
+        `  (il vient d'un AUTRE build)`
+    }
+    return `${cadre}  →  « ${paquet} » existe (${voisines.length} classes) mais pas « ${nom} »`
+  }
   return `${cadre}  →  inconnu de ce mapping.txt`
 }
 
@@ -233,7 +258,26 @@ LE SEPARATEUR DU RAPPORT EST « ← », MAIS UNE PILE COLLEE DEPUIS LOGCAT
 emploie « at ... » sur des lignes separees. On accepte les deux plutot
 que d'imposer un format a quelqu'un qui vient de recevoir un crash.
 */
+const lignes = []
 for (const cadre of pile.split(/\s*(?:←|<-|\n)\s*/).filter(Boolean)) {
-  console.log('  ' + retracerCadre(cadre.replace(/^\s*at\s+/, ''), classes))
+  lignes.push(retracerCadre(cadre.replace(/^\s*at\s+/, ''), classes))
+}
+for (const l of lignes) console.log('  ' + l)
+
+/*
+QUAND RIEN N'A ETE TROUVE, ON MONTRE A QUOI RESSEMBLENT LES NOMS DE CE
+MAPPING. C'est la facon la plus rapide de voir qu'on cherche « j.T »
+dans un fichier qui n'emploie pas du tout cette forme.
+*/
+if (lignes.every((l) => /n'existe pas|inconnu|pas « /.test(l))) {
+  const apercu = [...classes.keys()].filter((c) => c.length <= 6).slice(0, 8)
+  console.log('')
+  console.log("  Aucun cadre n'a ete retrouve. Les noms obfusques de ce mapping")
+  console.log('  ressemblent a :')
+  console.log('    ' + (apercu.length ? apercu.join('  ') : '(aucun nom court — paquets peut-etre conserves)'))
+  console.log('')
+  console.log('  Si la forme ne correspond pas a ta pile, ce mapping vient')
+  console.log("  d'un autre build. Celui de la version qui a plante est le seul")
+  console.log('  qui puisse la decoder.')
 }
 console.log('')
