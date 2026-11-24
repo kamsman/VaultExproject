@@ -5998,14 +5998,52 @@ private fun borne(
     versLeHaut: Boolean
 ): String {
     val v = prix?.venteFcfa ?: 0.0
+    val enFrancsArrondi = seuilAffiche(seuilFcfa, versLeHaut)
     // A l'achat on tape des francs : le seuil est deja dans la bonne
     // unite. Sans cours, on ne convertit pas — un chiffre invente servirait
     // a decider d'un montant a envoyer.
-    if (achat || v <= 0.0) return stringResource(enFrancs, fcfa(seuilFcfa))
+    if (achat || v <= 0.0) return stringResource(enFrancs, fcfa(enFrancsArrondi))
     val n = if (versLeHaut) kotlin.math.ceil(seuilFcfa / v) else kotlin.math.floor(seuilFcfa / v)
-    if (n < 1.0) return stringResource(enFrancs, fcfa(seuilFcfa))
+    if (n < 1.0) return stringResource(enFrancs, fcfa(enFrancsArrondi))
     return stringResource(enCrypto, fcfa(n), monnaie)
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * UN SEUIL AFFICHE DOIT ETRE UN SEUIL ACCEPTABLE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * VU SUR L'APPAREIL. L'ecran annonce « Minimum : 6 958 FCFA » sur l'achat
+ * en USDT-ERC20. On tape 6 958 — refuse, avec le MEME message et le MEME
+ * nombre. Il faut deviner qu'il en faut un de plus.
+ *
+ * La cause tient en une ligne : le minimum reel vaut 6 958,38 — dix
+ * dollars a 660 plus 0,60 $ de gaz converti — et `fcfa()` arrondissait au
+ * PLUS PROCHE, donc vers le bas. Le controle, lui, compare au reel.
+ *
+ * `borne` recevait pourtant deja `versLeHaut`, mais ne le consultait que
+ * sur la branche CRYPTO. A l'achat, ou la saisie est en francs, le seuil
+ * partait brut a l'affichage.
+ *
+ * ─── LES DEUX SENS SONT CONCERNES ───────────────────────────────────────
+ *
+ * Le defaut est symetrique et personne ne l'avait vu du cote du plafond :
+ * un maximum de 49 999,6 affiche « 50 000 » se ferait refuser tout pareil,
+ * pour depassement.
+ *
+ * LA REGLE : l'arrondi va dans le sens qui rend le nombre AFFICHE
+ * acceptable. Vers le haut pour un plancher, vers le bas pour un plafond.
+ * Jamais vers le plus proche — c'est le seul qui puisse trahir.
+ *
+ * ─── POURQUOI UNE FONCTION A PART ───────────────────────────────────────
+ *
+ * Parce qu'elle est testable, et que `borne` ne l'est pas : elle appelle
+ * `stringResource`, donc elle exige un contexte Android. Une regle qui a
+ * deja echoue une fois merite un test qui la tienne.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+internal fun seuilAffiche(seuilFcfa: Double, versLeHaut: Boolean): Double =
+    if (versLeHaut) kotlin.math.ceil(seuilFcfa) else kotlin.math.floor(seuilFcfa)
 
 /**
  * Un montant de jeton de gaz, lisible.

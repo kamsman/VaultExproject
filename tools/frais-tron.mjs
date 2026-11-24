@@ -205,27 +205,40 @@ if (avecHistorique && adresse) {
       let n = 0
       /*
       ═══════════════════════════════════════════════════════════════
-      « ZERO MESURE » ET « CHAMP ABSENT » S'IMPRIMENT PAREIL
+      TRON OMET LES CHAMPS NULS — L'ABSENCE N'EST PAS UN TROU
       ═══════════════════════════════════════════════════════════════
 
-      `Number(info?.fee ?? 0)` vaut zero dans les deux cas. Sur dix
-      envois rendus a 0,00 TRX, impossible de dire si la chaine a
-      vraiment enregistre un cout nul ou si je lis le mauvais champ.
+      Premiere version de ce garde-fou : `fee` absent ⇒ « ne mesure
+      rien, ne regle aucun prix dessus ». Trop prudent, et faux.
 
-      Et la difference decide d'un prix : annoncer 0 $ alors que
-      chaque envoi en coute 2 reviendrait a offrir deux dollars par
-      transaction sur une marge de vingt francs.
+      La sortie JSON de TronGrid vient de protobuf, qui N'EMET PAS
+      les champs valant zero. Un envoi reellement gratuit rend donc
+      un recu SANS `fee` et SANS `energy_fee` — exactement ce qu'on
+      a lu sur dix envois reels.
 
-      On imprime donc le DETAIL du recu, et on dit explicitement
-      quand un champ manque.
+      CE QUI TRANCHE EST LA COHERENCE INTERNE DU RECU :
+
+          energie possedee + deleguee == energie totale
+          et aucun frais d'energie
+
+      alors toute l'energie venait d'ailleurs que d'une combustion,
+      et le cout est VRAIMENT nul. Si la somme ne boucle pas, une
+      part a ete brulee et l'absence de `fee` devient suspecte.
+
+      On ne refuse donc de conclure que dans ce second cas.
       ═══════════════════════════════════════════════════════════════
       */
-      let champManquant = 0
+      let incoherents = 0
       for (const e of envois) {
         const info = await tron('/wallet/gettransactioninfobyid', { value: e.transaction_id })
         const r = info?.receipt ?? {}
         const feeBrut = info?.fee
-        if (feeBrut === undefined) champManquant += 1
+        const totalE = Number(r.energy_usage_total ?? 0)
+        const couverte = Number(r.energy_usage ?? 0) + Number(r.origin_energy_usage ?? 0)
+        const brulee = Number(r.energy_fee ?? 0)
+        // Le recu boucle : toute l'energie est expliquee sans combustion.
+        const boucle = totalE > 0 && couverte === totalE && brulee === 0
+        if (feeBrut === undefined && !boucle) incoherents += 1
         const fraisTrx = Number(feeBrut ?? 0) / SUN
         const detail = [
           `energie ${Number(r.energy_usage_total ?? 0).toLocaleString('fr-FR')}`,
@@ -236,20 +249,24 @@ if (avecHistorique && adresse) {
         ].join(' · ')
         const date = new Date(Number(e.block_timestamp)).toISOString().slice(0, 10)
         console.log(`  ${date}  ${fraisTrx.toFixed(2).padStart(7)} TRX${enUsd(fraisTrx)}`)
-        console.log(`              ${detail}${feeBrut === undefined ? '   ⚠ champ « fee » ABSENT' : ''}`)
+        const note =
+          boucle ? '   ✓ energie entierement couverte, rien brule'
+          : feeBrut === undefined ? '   ⚠ champ « fee » absent ET recu incoherent'
+          : ''
+        console.log(`              ${detail}${note}`)
         total += fraisTrx
         n += 1
       }
-      if (champManquant > 0) {
+      if (incoherents > 0) {
         console.log('')
-        console.log(`⚠  ${champManquant} transaction(s) sans champ « fee ». Le zero affiche`)
-        console.log('   pour celles-la ne mesure RIEN — ne regle aucun prix dessus.')
+        console.log(`⚠  ${incoherents} recu(s) sans champ « fee » ET dont l energie ne boucle pas.`)
+        console.log('   Le zero affiche pour ceux-la ne mesure rien.')
         process.exitCode = 1
       }
       const moyenne = total / n
       console.log('')
       console.log(`Moyenne sur ${n} envoi(s) : ${moyenne.toFixed(2)} TRX${enUsd(moyenne)}`)
-      if (trx && champManquant === 0) {
+      if (trx && incoherents === 0) {
         console.log('')
         console.log(`➜  CHANGE_FRAIS_USD_PAR_MONNAIE devrait porter environ`)
         console.log(`   ${(moyenne * trx).toFixed(2)} $ pour « USDT », et non un chiffre pose d avance.`)
@@ -264,10 +281,21 @@ if (avecHistorique && adresse) {
           cout remonte a 2 $ sans prevenir.
           */
           console.log('')
-          console.log('   MAIS REGARDE LE DETAIL AVANT DE POSER ZERO. De l energie a')
-          console.log('   bien ete consommee sans rien bruler : elle etait donc GELEE')
-          console.log('   ou DELEGUEE. Une delegation louee s arrete — et le cout')
-          console.log('   remonte a 2 $ le jour ou elle cesse, sans prevenir.')
+          console.log('   CE ZERO EST REEL, mais il a une CAUSE, et la cause peut')
+          console.log('   cesser. De l energie a ete consommee sans rien bruler :')
+          console.log('   elle etait donc gelee, ou deleguee au moment de l envoi.')
+          console.log('')
+          console.log(`   Or le compte affiche ${energieDispo.toLocaleString('fr-FR')} d energie disponible MAINTENANT.`)
+          if (energieDispo === 0) {
+            console.log('   Zero. Elle n est donc pas gelee a demeure : quelque chose')
+            console.log('   la fournit au moment de chaque envoi — un service de')
+            console.log('   location, ou le portefeuille lui-meme.')
+            console.log('')
+            console.log('   CE QUE CE SERVICE TE COUTE EST TON VRAI FRAIS. Il ne se lit')
+            console.log('   pas sur la chaine, seulement sur ta facture. Zero sur la')
+            console.log(`   chaine ne veut pas dire zero pour toi — et le jour ou ca`)
+            console.log(`   s arrete, l envoi coute ${((ENERGIE_HABITUELLE * sunParEnergie) / SUN * (trx || 0)).toFixed(2)} $ sans prevenir.`)
+          }
         }
       }
     }
