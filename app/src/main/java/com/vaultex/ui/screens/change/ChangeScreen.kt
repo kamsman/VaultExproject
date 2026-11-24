@@ -5740,16 +5740,74 @@ private fun Ligne(
             }
             Spacer(Modifier.width(12.dp))
         }
-        Text(libelle, fontSize = 14.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
+        /*
+        ═══════════════════════════════════════════════════════════════
+        C'EST LA COLONNE DE DROITE QUI FLECHIT, PAS L'ETIQUETTE
+        ═══════════════════════════════════════════════════════════════
+
+        VU SUR L'APPAREIL, le jour ou le changeur a change de
+        beneficiaire : « Numero a crediter » A DISPARU de l'ecran de
+        paiement. Plus d'etiquette du tout — une pastille, un grand vide,
+        puis le numero.
+
+        L'etiquette portait `weight(1f)`, donc elle prenait CE QUI RESTE.
+        La colonne de droite, elle, n'avait aucun poids : elle se
+        dimensionnait sur son contenu. Et son contenu venait de grandir —
+        « ACCEPTEUR LINDCONCEPT OUEDRAOGO WENDYAM C PELAGIE », quarante-
+        huit caracteres la ou l'ancien nom en faisait quinze.
+
+        La colonne a pris toute la largeur, il n'est rien reste, et
+        l'etiquette s'est reduite a zero sans un mot.
+
+        ─── LE BON SENS DE LA PRIORITE ────────────────────────────────
+
+        L'etiquette est COURTE ET FIXE : « Numero a crediter », « Montant
+        exact ». Elle doit avoir sa largeur naturelle, toujours.
+
+        La valeur et son nom sont VARIABLES, et c'est eux qui doivent
+        ceder — un nom tronque reste utile, une etiquette absente ne l'est
+        pas. `maxLines = 1` etait deja la pour ca ; il lui manquait une
+        largeur a respecter.
+
+        Le defaut ne touchait que cette branche : `LigneACopier` renvoie
+        les valeurs LONGUES vers une autre mise en page, donc ici la
+        valeur est courte par construction et peut tenir.
+        ═══════════════════════════════════════════════════════════════
+        */
+        Text(libelle, fontSize = 14.sp, color = TextSecondary)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text(
                 valeur,
                 fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
                 fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
-                color = teinte ?: if (vedette) AccentGreen else TextPrimary
+                color = teinte ?: if (vedette) AccentGreen else TextPrimary,
+                maxLines = 1
             )
             sous?.let {
-                Text(it, fontSize = 12.sp, color = TextSecondary, maxLines = 1)
+                Text(
+                    it, fontSize = 12.sp, color = TextSecondary,
+                    /*
+                    DEUX LIGNES, PAS UNE.
+
+                    Ce nom a UN SEUL role : que le client verifie qu'Orange
+                    Money affiche bien le meme apres avoir compose le
+                    numero. Coupe a « ACCEPTEUR LI… », il ne sert plus a
+                    rien — et une verification qu'on ne peut pas faire vaut
+                    moins que pas de verification du tout, parce qu'elle
+                    occupe la place de celle qui marcherait.
+
+                    Deux lignes laissent passer une trentaine de
+                    caracteres, de quoi reconnaitre « ACCEPTEUR
+                    LINDCONCEPT OUEDRAOGO… ». Au-dela on empieterait sur
+                    un ecran qu'on demande deja de tenir sans defiler.
+                    */
+                    maxLines = 2,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    // Coupe a la FIN et non au milieu : le debut d'un nom
+                    // suffit a reconnaitre celui qu'Orange Money affichera.
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
         }
     }
