@@ -11,10 +11,23 @@ voudront jamais rien dire : l'information est perdue, pas cachée.
 ## À faire après chaque build que tu distribues
 
 ```bash
-V=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1 | cut -d+ -f1)
-mkdir -p "tools/mappings/$V"
-cp app/build/outputs/mapping/release/mapping.txt "tools/mappings/$V/"
+node tools/archiver-mapping.mjs
+git add tools/mappings && git commit -m "mapping <version>"
 ```
+
+### Pourquoi pas une ligne de shell
+
+J'en avais donné une, qui lisait `versionName` dans `app/build.gradle.kts`.
+Elle a créé un dossier nommé `1.0.$versionCodeCalcule$suffixeCommit` — parce
+que `versionName` n'y est **pas un littéral** : il vaut
+`"1.0.$versionCodeCalcule$suffixeCommit"`, et les deux variables sont
+calculées depuis git à la compilation. Lire le fichier de build revenait à
+lire la recette au lieu du plat.
+
+L'outil lit `output-metadata.json`, que Gradle écrit à côté de l'APK **une
+fois le calcul fait**. Il refuse aussi d'archiver un nom contenant `$`, et
+refuse d'écraser une archive existante dont le contenu diffère — deux
+binaires sous un même numéro, c'est le premier qu'on rendrait illisible.
 
 ## Pour lire une pile
 
