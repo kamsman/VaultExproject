@@ -222,6 +222,59 @@ on croit le reglage fait.
 const monnaies = [...new Set([...acceptees, ...Object.keys(fraisParMonnaie)])]
 const estAcceptee = (m) => acceptees.length === 0 || acceptees.includes(m)
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES BORNES, ET LAQUELLE MORD VRAIMENT
+═══════════════════════════════════════════════════════════════════════════
+
+Deux reglages bornent chaque cote, et ils ne se remplacent pas :
+
+    plancher : CHANGE_MIN   et CHANGE_MINIMUMS_USD  → LE PLUS HAUT gagne
+    plafond  : CHANGE_MAX   et CHANGE_PLAFONDS_USD  → LE PLUS BAS gagne
+
+« Les deux bornes se resserrent ; aucune des deux ne doit pouvoir ouvrir
+ce que l'autre ferme », dit `ChangeService`.
+
+CONSEQUENCE QU'ON OUBLIE : monter CHANGE_MAX ne sert A RIEN tant qu'un
+plafond en dollars plus bas existe pour la monnaie. Le reglage est pose,
+il a l'air fait, et l'ecran refuse toujours au meme montant.
+
+On affiche donc les deux, et laquelle s'applique.
+═══════════════════════════════════════════════════════════════════════════
+*/
+// Mise en forme des colonnes, partagee par les deux tableaux.
+const g = (v, n) => String(v).padEnd(n)
+const d = (v, n) => String(v).padStart(n)
+
+const minFcfa = Number(params?.minimumFcfa ?? 0)
+const maxFcfa = Number(params?.plafondFcfa ?? 0)
+const minUsd = params?.minimumsUsdParMonnaie ?? {}
+const maxUsd = params?.plafondsUsdParMonnaie ?? {}
+
+console.log(`\n${'─'.repeat(72)}`)
+console.log('LES BORNES PAR MONNAIE')
+console.log('─'.repeat(72))
+console.log(`CHANGE_MIN ${minFcfa} FCFA  ·  CHANGE_MAX ${maxFcfa} FCFA\n`)
+console.log(`${g('monnaie', 12)} ${d('minimum', 10)} ${g('', 10)} ${d('plafond', 10)} ${g('', 10)}`)
+for (const m of (acceptees.length ? acceptees : Object.keys(fraisParMonnaie))) {
+  const mu = Number(minUsd[m] ?? 0)
+  const xu = Number(maxUsd[m] ?? 0)
+  // Le plancher en dollars borne la CRYPTO : il se convertit au prix client.
+  const minConverti = mu > 0 ? mu * client : 0
+  const maxConverti = xu > 0 ? xu * client : 0
+  const minRetenu = Math.max(minFcfa, minConverti)
+  const maxRetenu = maxConverti > 0 ? Math.min(maxFcfa, maxConverti) : maxFcfa
+  const quiMin = minConverti > minFcfa ? `${mu} $` : 'CHANGE_MIN'
+  const quiMax = maxConverti > 0 && maxConverti < maxFcfa ? `${xu} $` : 'CHANGE_MAX'
+  console.log(
+    `${g(m, 12)} ${d(Math.round(minRetenu), 10)} ${g('  ' + quiMin, 10)}` +
+    ` ${d(Math.round(maxRetenu), 10)} ${g('  ' + quiMax, 10)}`
+  )
+}
+console.log('')
+console.log('La colonne a droite de chaque borne dit QUI la fixe. Un reglage')
+console.log("qu'on monte sans voir ce nom ne change parfois rien.")
+
 console.log(`\n${'─'.repeat(72)}`)
 console.log(`CE QUE PAIE UN CLIENT POUR ${montant} USD`)
 console.log('─'.repeat(72))
@@ -231,8 +284,6 @@ if (monnaies.length === 0) {
   monnaies.push('(toutes)')
 }
 console.log('')
-const g = (v, n) => String(v).padEnd(n)
-const d = (v, n) => String(v).padStart(n)
 console.log(`${g('monnaie', 12)} ${d('frais $', 8)} ${g('', 9)} ${d('frais FCFA', 11)} ${d('total', 9)} ${d('par unite', 10)}  etat`)
 for (const m of monnaies) {
   const propre = Object.prototype.hasOwnProperty.call(fraisParMonnaie, m)
