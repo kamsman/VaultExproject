@@ -6,6 +6,7 @@ CE QU'UN CLIENT PAIERAIT AUJOURD'HUI, RÉSEAU PAR RÉSEAU
     node tools/relais-cours/prix-achat.mjs
     node tools/relais-cours/prix-achat.mjs --cible 660
     node tools/relais-cours/prix-achat.mjs --cible 660 --montant 10
+    node tools/relais-cours/prix-achat.mjs --fournisseur 640
 
 `--cible` : le taux client visé, en FCFA par dollar. L'outil dit alors
 quelle valeur de `CHANGE_MARGE` l'atteint aujourd'hui.
@@ -65,6 +66,7 @@ const nomme = (nom, defaut) => {
 }
 const cible = nomme('--cible', null)
 const montant = nomme('--montant', 10)
+const fournisseur = nomme('--fournisseur', null)
 const relaisArg = args.find((a) => a.startsWith('https://'))
 const relais = (relaisArg || relaisDepuisProprietes()).replace(/\/$/, '')
 
@@ -136,9 +138,76 @@ if (cible !== null) {
   console.log('  Une marge en francs fixes ne tient pas un prix fixe.')
 }
 
+/*
+═══════════════════════════════════════════════════════════════════════════
+CE QUE TU GAGNES VRAIMENT, ET A QUEL MOMENT TU PERDS
+═══════════════════════════════════════════════════════════════════════════
+
+`CHANGE_MARGE` N'EST PAS LE BENEFICE. Le prix client vaut
+`cours + CHANGE_MARGE`, mais la crypto s'achete chez un fournisseur a un
+prix FIXE en francs. La marge paie donc d'abord LA MARGE DU
+FOURNISSEUR, et seul le reste revient au changeur.
+
+ET LA MARGE DU FOURNISSEUR N'EST PAS FIXE : elle vaut `prix fournisseur
+− cours`, donc elle enfle quand le dollar baisse. Un prix fournisseur
+fixe en face d'un prix client indexe sur le marche, ca S'INVERSE.
+
+Le point de bascule :
+
+    benefice = cours + marge − fournisseur > 0
+    donc le cours doit rester au-dessus de (fournisseur − marge)
+
+Comme le franc est arrime a l'euro, ce plancher de cours se lit
+directement en euro — et c'est le chiffre a surveiller.
+═══════════════════════════════════════════════════════════════════════════
+*/
+if (fournisseur !== null) {
+  const sienne = fournisseur - cours
+  const tienne = client - fournisseur
+  const plancher = fournisseur - marge
+  const euroBascule = PEG / plancher
+  const euroJour = PEG / cours
+  const sousLeau = tienne <= 0
+  const proche = !sousLeau && euroBascule / euroJour - 1 < 0.05
+
+  console.log(`\n${'─'.repeat(72)}`)
+  console.log(`AVEC UN FOURNISSEUR A ${fournisseur} FCFA/USD`)
+  console.log('─'.repeat(72))
+  console.log(`Sa marge a lui   : ${sienne.toFixed(1)} FCFA/USD   (prix fixe − cours du jour)`)
+  console.log(`TON benefice net : ${tienne.toFixed(1)} FCFA/USD   (prix client − son prix)`)
+  console.log(`Bascule a        : cours ${plancher.toFixed(0)}, soit EUR/USD ${euroBascule.toFixed(3)}`)
+  console.log(`Euro aujourd'hui : ${euroJour.toFixed(3)}`)
+  if (sousLeau) {
+    console.log(`\n🔴 TU VENDS SOUS TON PRIX D'ACHAT. Chaque dollar echange te coute`)
+    console.log(`   ${(-tienne).toFixed(1)} FCFA. Il faut ${Math.ceil(fournisseur - cours)} de marge rien que pour rentrer`)
+    console.log(`   dans tes frais, avant le moindre benefice.`)
+    process.exitCode = 1
+  } else if (proche) {
+    console.log(`\n🟠 A ${(100 * (euroBascule / euroJour - 1)).toFixed(1)} % de hausse de l'euro, tu passes sous ton prix`)
+    console.log(`   d'achat. Un prix fournisseur fixe contre un prix client indexe`)
+    console.log(`   sur le marche finit toujours par s'inverser ; la seule question`)
+    console.log(`   est quand.`)
+  } else {
+    console.log(`\n✅ Il faudrait ${(100 * (euroBascule / euroJour - 1)).toFixed(1)} % de hausse de l'euro pour basculer.`)
+  }
+}
+
 const fraisParMonnaie = params?.fraisUsdAchatParMonnaie ?? {}
 const forfait = Number(params?.fraisUsdAchat ?? 0)
-const monnaies = Object.keys(fraisParMonnaie)
+/*
+ON LISTE CE QUE LE CHANGEUR ACCEPTE, PAS CE QUI A UN FRAIS PROPRE.
+
+Premiere version : `Object.keys(fraisParMonnaie)`. Sur la vraie
+configuration, elle n'affichait qu'une ligne — « USDT-SOL » — parce que
+c'est la seule monnaie tarifee nommement. L'USDT TRC20, qui EST le
+commerce, n'apparaissait nulle part : il retombe sur le forfait, donc
+il n'a pas de cle.
+
+Un tableau de prix qui omet la monnaie principale est pire que pas de
+tableau : on le lit en croyant avoir tout vu.
+*/
+const acceptees = Array.isArray(params?.monnaies) ? params.monnaies : []
+const monnaies = [...new Set([...acceptees, ...Object.keys(fraisParMonnaie)])]
 
 console.log(`\n${'─'.repeat(72)}`)
 console.log(`CE QUE PAIE UN CLIENT POUR ${montant} USD`)
@@ -151,14 +220,16 @@ if (monnaies.length === 0) {
 console.log('')
 const g = (v, n) => String(v).padEnd(n)
 const d = (v, n) => String(v).padStart(n)
-console.log(`${g('monnaie', 12)} ${d('frais $', 8)} ${d('frais FCFA', 11)} ${d('total', 9)} ${d('par USDT', 10)}`)
+console.log(`${g('monnaie', 12)} ${d('frais $', 8)} ${g('', 9)} ${d('frais FCFA', 11)} ${d('total', 9)} ${d('par unite', 10)}`)
 for (const m of monnaies) {
-  const f = m === '(toutes)' ? forfait : Number(fraisParMonnaie[m])
+  const propre = Object.prototype.hasOwnProperty.call(fraisParMonnaie, m)
+  const f = m === '(toutes)' ? forfait : propre ? Number(fraisParMonnaie[m]) : forfait
+  const source = m === '(toutes)' ? '' : propre ? 'propre' : 'forfait'
   // Converti au COURS, pas au prix client : voir l'en-tete.
   const fFcfa = f * cours
   const total = montant * client + fFcfa
   console.log(
-    `${g(m, 12)} ${d(f.toFixed(2), 8)} ${d(fFcfa.toFixed(0), 11)} ${d(Math.round(total), 9)} ${d((total / montant).toFixed(1), 10)}`
+    `${g(m, 12)} ${d(f.toFixed(2), 8)} ${g('  ' + source, 9)} ${d(fFcfa.toFixed(0), 11)} ${d(Math.round(total), 9)} ${d((total / montant).toFixed(1), 10)}`
   )
 }
 console.log('')
