@@ -98,7 +98,30 @@ l'écran de change ne propose rien, ce qui est le comportement voulu.
   CHANGE_NUMERO     Numéro Mobile Money du changeur, pour les ACHATS.
   CHANGE_NOM        Son nom, tel qu'il s'affiche.
   CHANGE_OPERATEUR  « Orange Money », « Moov »…
-  CHANGE_DELAI      Délai annoncé, en minutes (défaut 30).
+  CHANGE_DELAI      Délai de LIVRAISON annoncé, en minutes (défaut 30).
+                    C'est la promesse commerciale : l'assistance répond
+                    « ton échange prend N minutes » avec ce chiffre.
+  CHANGE_PRIX_MINUTES
+                    Combien de temps le PRIX reste garanti sur l'écran de
+                    paiement. Non réglé, il vaut CHANGE_DELAI.
+
+                    ─── POURQUOI DEUX RÉGLAGES ─────────────────────────
+
+                    Il n'y en avait qu'un, et l'application s'en servait
+                    pour son compte à rebours pendant que l'assistance
+                    s'en servait pour annoncer le délai. Deux sens
+                    opposés dans un seul nombre : allonger la garantie de
+                    prix allongeait la promesse de livraison.
+
+                    Or ils ne répondent pas à la même question. La
+                    garantie borne le RISQUE DE MARCHÉ du changeur — plus
+                    elle est longue, plus le cours peut bouger contre
+                    lui. Le délai annoncé borne l'ATTENTE DU CLIENT, et
+                    plus il est court, mieux c'est.
+
+                    Les séparer permet de laisser au client le temps
+                    d'aller payer sans promettre une livraison plus
+                    lente.
   CHANGE_FENETRE_MINUTES
                     Ancienneté maximale d'un versement pour qu'il puisse
                     justifier une demande. Défaut 180 (trois heures), borné
@@ -397,7 +420,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 112
+const VERSION = 113
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -3560,6 +3583,12 @@ function parametresChange(env) {
       // Délai annoncé à l'utilisateur, en minutes. Une promesse tenue vaut
       // mieux qu'une promesse courte.
       delaiMinutes: nombre(env?.CHANGE_DELAI, 30),
+      /*
+      LE PRIX GARANTI RETOMBE SUR LE DELAI, et c'est ce qui rend ce
+      nouveau reglage sans effet tant qu'on ne le pose pas : toute
+      installation existante garde exactement le comportement d'avant.
+      */
+      prixMinutes: nombre(env?.CHANGE_PRIX_MINUTES, nombre(env?.CHANGE_DELAI, 30)),
       /*
       LES MONNAIES ACCEPTEES, et les adresses ou le changeur les recoit.
 

@@ -1694,7 +1694,7 @@ private fun ColumnScope.EtapePaiement(
             c'est une soiree. Elle devient une ligne parmi les montants, la
             ou on la lit sans effort.
             */
-            CompteARebours(state.confirmeA, p.delaiMinutes)
+            CompteARebours(state.confirmeA, p.prixMinutes)
             /*
             COPIER LA REFERENCE, PAS LE NUMERO.
 
@@ -2511,7 +2511,7 @@ private fun ColumnScope.EtapePaiement(
         remplace pas : ca evite d'y arriver.
         ═══════════════════════════════════════════════════════════════════
         */
-        val expire = prixExpire(state.confirmeA, p.delaiMinutes)
+        val expire = prixExpire(state.confirmeA, p.prixMinutes)
         if (state.txidSaisi.isNotBlank()) {
             Note(stringResource(R.string.change_crypto_partie), AccentGreen)
         } else if (expire) {
@@ -5710,105 +5710,118 @@ private fun Ligne(
             thickness = 1.dp
         )
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        icone?.let {
-            /*
-            L'ICONE DANS UNE PASTILLE TEINTEE.
+    /*
+    ═══════════════════════════════════════════════════════════════════
+    LE NOM DU BENEFICIAIRE PREND TOUTE LA LARGEUR, SOUS LA LIGNE
+    ═══════════════════════════════════════════════════════════════════
 
-            Posee a nu, elle se confond avec le texte et n'ancre rien. Sur
-            un fond legerement colore elle devient un repere, et c'est tout
-            ce qu'on lui demande : permettre de retrouver « ce que je
-            recois » sans relire les quatre lignes.
-            */
-            /*
-            QUARANTE POINTS, ET NON VINGT-HUIT.
+    Il etait dans la colonne de droite, sous la valeur. Avec un nom court
+    — « KOANDA MOUMOUNI » — c'etait elegant et ca economisait une ligne.
 
-            La maquette donne aux pastilles des lignes de detail la MEME
-            taille qu'a celle du champ de saisie, plus bas sur le meme
-            ecran. A vingt-huit elles paraissaient etre d'un autre
-            inventaire — deux familles d'icones dans une colonne, et le
-            regard bute dessus avant de lire quoi que ce soit.
-            */
-            val couleurIcone = teinte ?: if (vedette) AccentGreen else AccentBlue
-            Box(
-                Modifier.size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(couleurIcone.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(it, null, tint = couleurIcone, modifier = Modifier.size(20.dp))
+    Avec « ACCEPTEUR LINDCONCEPT OUEDRAOGO WENDYAM C PELAGIE », quarante-
+    huit caracteres dans une colonne qui en tient quinze, il se coupait a
+    « ACCEPTEUR LINDCONCEPT O… ». LUI DONNER DEUX LIGNES N'A RIEN CHANGE :
+    cette colonne est etroite PAR CONSTRUCTION, puisque la pastille et
+    l'etiquette occupent la gauche. On ne gagnait que des coupures plus
+    tardives.
+
+    OR CE NOM NE TOLERE PAS LA TRONCATURE. Le client compose le numero,
+    Orange Money lui affiche un nom, et il doit verifier que c'est LE
+    MEME. Coupe, il transforme cette verification en devinette — et une
+    verification qu'on ne peut pas faire est pire qu'absente, parce
+    qu'elle occupe la place de celle qui marcherait.
+
+    Sous la ligne, il a toute la largeur de la carte, et plus aucune
+    limite de lignes. Le cout est d'une ligne de douze points, sur
+    l'ecran qu'on regarde le plus longtemps de toute l'application.
+    ═══════════════════════════════════════════════════════════════════
+    */
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            icone?.let {
+                /*
+                L'ICONE DANS UNE PASTILLE TEINTEE.
+
+                Posee a nu, elle se confond avec le texte et n'ancre rien. Sur
+                un fond legerement colore elle devient un repere, et c'est tout
+                ce qu'on lui demande : permettre de retrouver « ce que je
+                recois » sans relire les quatre lignes.
+                */
+                /*
+                QUARANTE POINTS, ET NON VINGT-HUIT.
+
+                La maquette donne aux pastilles des lignes de detail la MEME
+                taille qu'a celle du champ de saisie, plus bas sur le meme
+                ecran. A vingt-huit elles paraissaient etre d'un autre
+                inventaire — deux familles d'icones dans une colonne, et le
+                regard bute dessus avant de lire quoi que ce soit.
+                */
+                val couleurIcone = teinte ?: if (vedette) AccentGreen else AccentBlue
+                Box(
+                    Modifier.size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(couleurIcone.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(it, null, tint = couleurIcone, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(12.dp))
             }
+            /*
+            ═══════════════════════════════════════════════════════════════
+            C'EST LA COLONNE DE DROITE QUI FLECHIT, PAS L'ETIQUETTE
+            ═══════════════════════════════════════════════════════════════
+
+            VU SUR L'APPAREIL, le jour ou le changeur a change de
+            beneficiaire : « Numero a crediter » A DISPARU de l'ecran de
+            paiement. Plus d'etiquette du tout — une pastille, un grand vide,
+            puis le numero.
+
+            L'etiquette portait `weight(1f)`, donc elle prenait CE QUI RESTE.
+            La colonne de droite, elle, n'avait aucun poids : elle se
+            dimensionnait sur son contenu. Et son contenu venait de grandir —
+            « ACCEPTEUR LINDCONCEPT OUEDRAOGO WENDYAM C PELAGIE », quarante-
+            huit caracteres la ou l'ancien nom en faisait quinze.
+
+            La colonne a pris toute la largeur, il n'est rien reste, et
+            l'etiquette s'est reduite a zero sans un mot.
+
+            ─── LE BON SENS DE LA PRIORITE ────────────────────────────────
+
+            L'etiquette est COURTE ET FIXE : « Numero a crediter », « Montant
+            exact ». Elle doit avoir sa largeur naturelle, toujours.
+
+            La valeur et son nom sont VARIABLES, et c'est eux qui doivent
+            ceder — un nom tronque reste utile, une etiquette absente ne l'est
+            pas. `maxLines = 1` etait deja la pour ca ; il lui manquait une
+            largeur a respecter.
+
+            Le defaut ne touchait que cette branche : `LigneACopier` renvoie
+            les valeurs LONGUES vers une autre mise en page, donc ici la
+            valeur est courte par construction et peut tenir.
+            ═══════════════════════════════════════════════════════════════
+            */
+            Text(libelle, fontSize = 14.sp, color = TextSecondary)
             Spacer(Modifier.width(12.dp))
-        }
-        /*
-        ═══════════════════════════════════════════════════════════════
-        C'EST LA COLONNE DE DROITE QUI FLECHIT, PAS L'ETIQUETTE
-        ═══════════════════════════════════════════════════════════════
-
-        VU SUR L'APPAREIL, le jour ou le changeur a change de
-        beneficiaire : « Numero a crediter » A DISPARU de l'ecran de
-        paiement. Plus d'etiquette du tout — une pastille, un grand vide,
-        puis le numero.
-
-        L'etiquette portait `weight(1f)`, donc elle prenait CE QUI RESTE.
-        La colonne de droite, elle, n'avait aucun poids : elle se
-        dimensionnait sur son contenu. Et son contenu venait de grandir —
-        « ACCEPTEUR LINDCONCEPT OUEDRAOGO WENDYAM C PELAGIE », quarante-
-        huit caracteres la ou l'ancien nom en faisait quinze.
-
-        La colonne a pris toute la largeur, il n'est rien reste, et
-        l'etiquette s'est reduite a zero sans un mot.
-
-        ─── LE BON SENS DE LA PRIORITE ────────────────────────────────
-
-        L'etiquette est COURTE ET FIXE : « Numero a crediter », « Montant
-        exact ». Elle doit avoir sa largeur naturelle, toujours.
-
-        La valeur et son nom sont VARIABLES, et c'est eux qui doivent
-        ceder — un nom tronque reste utile, une etiquette absente ne l'est
-        pas. `maxLines = 1` etait deja la pour ca ; il lui manquait une
-        largeur a respecter.
-
-        Le defaut ne touchait que cette branche : `LigneACopier` renvoie
-        les valeurs LONGUES vers une autre mise en page, donc ici la
-        valeur est courte par construction et peut tenir.
-        ═══════════════════════════════════════════════════════════════
-        */
-        Text(libelle, fontSize = 14.sp, color = TextSecondary)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(
-                valeur,
-                fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
-                fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
-                color = teinte ?: if (vedette) AccentGreen else TextPrimary,
-                maxLines = 1
-            )
-            sous?.let {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text(
-                    it, fontSize = 12.sp, color = TextSecondary,
-                    /*
-                    DEUX LIGNES, PAS UNE.
-
-                    Ce nom a UN SEUL role : que le client verifie qu'Orange
-                    Money affiche bien le meme apres avoir compose le
-                    numero. Coupe a « ACCEPTEUR LI… », il ne sert plus a
-                    rien — et une verification qu'on ne peut pas faire vaut
-                    moins que pas de verification du tout, parce qu'elle
-                    occupe la place de celle qui marcherait.
-
-                    Deux lignes laissent passer une trentaine de
-                    caracteres, de quoi reconnaitre « ACCEPTEUR
-                    LINDCONCEPT OUEDRAOGO… ». Au-dela on empieterait sur
-                    un ecran qu'on demande deja de tenir sans defiler.
-                    */
-                    maxLines = 2,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                    // Coupe a la FIN et non au milieu : le debut d'un nom
-                    // suffit a reconnaitre celui qu'Orange Money affichera.
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    valeur,
+                    fontSize = if (vedette) 20.sp else if (fort) 16.sp else 14.sp,
+                    fontWeight = if (vedette || fort) FontWeight.Bold else FontWeight.Medium,
+                    color = teinte ?: if (vedette) AccentGreen else TextPrimary,
+                    maxLines = 1
                 )
             }
+        }
+
+        sous?.let {
+            Text(
+                it,
+                fontSize = 12.sp,
+                color = TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+            )
         }
     }
 }

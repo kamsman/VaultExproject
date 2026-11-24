@@ -467,6 +467,19 @@ data class ParametresChangeDto(
     val nomChangeur: String? = null,
     val operateur: String? = null,
     val delaiMinutes: Int? = null,
+    /**
+     * Combien de minutes le PRIX reste garanti sur l'ecran de paiement.
+     *
+     * DISTINCT DE [delaiMinutes], qui est le delai de LIVRAISON annonce.
+     * Les deux sortaient du meme reglage, et ils tirent en sens opposes :
+     * une garantie longue laisse le temps d'aller payer mais expose le
+     * changeur au marche ; un delai annonce court est une meilleure
+     * promesse. Les confondre obligeait a sacrifier l'un pour l'autre.
+     *
+     * Nul : un relais plus ancien ne le rend pas, et l'appelant retombe
+     * sur `delaiMinutes` — exactement le comportement d'avant.
+     */
+    val prixMinutes: Int? = null,
     /** Monnaies acceptees a l'achat. */
     val monnaies: List<String>? = null,
     /**
