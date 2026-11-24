@@ -203,25 +203,72 @@ if (avecHistorique && adresse) {
     } else {
       let total = 0
       let n = 0
+      /*
+      ═══════════════════════════════════════════════════════════════
+      « ZERO MESURE » ET « CHAMP ABSENT » S'IMPRIMENT PAREIL
+      ═══════════════════════════════════════════════════════════════
+
+      `Number(info?.fee ?? 0)` vaut zero dans les deux cas. Sur dix
+      envois rendus a 0,00 TRX, impossible de dire si la chaine a
+      vraiment enregistre un cout nul ou si je lis le mauvais champ.
+
+      Et la difference decide d'un prix : annoncer 0 $ alors que
+      chaque envoi en coute 2 reviendrait a offrir deux dollars par
+      transaction sur une marge de vingt francs.
+
+      On imprime donc le DETAIL du recu, et on dit explicitement
+      quand un champ manque.
+      ═══════════════════════════════════════════════════════════════
+      */
+      let champManquant = 0
       for (const e of envois) {
         const info = await tron('/wallet/gettransactioninfobyid', { value: e.transaction_id })
-        const fraisTrx = Number(info?.fee ?? 0) / SUN
-        const energie = Number(info?.receipt?.energy_usage_total ?? 0)
+        const r = info?.receipt ?? {}
+        const feeBrut = info?.fee
+        if (feeBrut === undefined) champManquant += 1
+        const fraisTrx = Number(feeBrut ?? 0) / SUN
+        const detail = [
+          `energie ${Number(r.energy_usage_total ?? 0).toLocaleString('fr-FR')}`,
+          `brulee ${(Number(r.energy_fee ?? 0) / SUN).toFixed(2)} TRX`,
+          `possedee ${Number(r.energy_usage ?? 0).toLocaleString('fr-FR')}`,
+          `deleguee ${Number(r.origin_energy_usage ?? 0).toLocaleString('fr-FR')}`,
+          `bande ${(Number(r.net_fee ?? 0) / SUN).toFixed(2)} TRX`,
+        ].join(' · ')
         const date = new Date(Number(e.block_timestamp)).toISOString().slice(0, 10)
-        console.log(
-          `  ${date}  ${fraisTrx.toFixed(2).padStart(8)} TRX${enUsd(fraisTrx)}` +
-          `   energie ${energie.toLocaleString('fr-FR')}`
-        )
+        console.log(`  ${date}  ${fraisTrx.toFixed(2).padStart(7)} TRX${enUsd(fraisTrx)}`)
+        console.log(`              ${detail}${feeBrut === undefined ? '   ⚠ champ « fee » ABSENT' : ''}`)
         total += fraisTrx
         n += 1
+      }
+      if (champManquant > 0) {
+        console.log('')
+        console.log(`⚠  ${champManquant} transaction(s) sans champ « fee ». Le zero affiche`)
+        console.log('   pour celles-la ne mesure RIEN — ne regle aucun prix dessus.')
+        process.exitCode = 1
       }
       const moyenne = total / n
       console.log('')
       console.log(`Moyenne sur ${n} envoi(s) : ${moyenne.toFixed(2)} TRX${enUsd(moyenne)}`)
-      if (trx) {
+      if (trx && champManquant === 0) {
         console.log('')
         console.log(`➜  CHANGE_FRAIS_USD_PAR_MONNAIE devrait porter environ`)
         console.log(`   ${(moyenne * trx).toFixed(2)} $ pour « USDT », et non un chiffre pose d avance.`)
+        if (moyenne === 0) {
+          /*
+          UN COUT NUL AVEC DE L'ENERGIE CONSOMMEE VEUT DIRE QU'ELLE
+          VENAIT D'AILLEURS — gelee, ou DELEGUEE par un tiers le temps
+          de la transaction. Le detail au-dessus dit laquelle.
+
+          Ca compte, parce qu'une delegation s'arrete : si elle vient
+          d'un service de location, le jour ou on ne paie plus, le
+          cout remonte a 2 $ sans prevenir.
+          */
+          console.log('')
+          console.log('   MAIS REGARDE LE DETAIL AVANT DE POSER ZERO. De l energie a')
+          console.log('   bien ete consommee sans rien bruler : elle etait donc GELEE')
+          console.log('   ou DELEGUEE. Une delegation louee s arrete — et le cout')
+          console.log('   remonte a 2 $ le jour ou elle cesse, sans prevenir.')
+        }
       }
     }
   } catch (e) {
