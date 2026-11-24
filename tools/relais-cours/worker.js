@@ -397,7 +397,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 110
+const VERSION = 111
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -491,7 +491,55 @@ monnaie — l'erreur exacte qui a déjà touché ce projet, où SHIB et DAI
 affichaient tous deux le prix de l'Ethereum.
 */
 const SYMBOLE_BINANCE = {
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE TETHER MANQUAIT, ET C'EST LA MONNAIE DE TOUT LE COMMERCE
+  ═══════════════════════════════════════════════════════════════════════
+
+  Les DEUX MOITIES du traitement de l'USDT etaient ecrites :
+
+    · `b !== 'USDT'` plus bas l'exclut de l'appel a Binance, parce que
+      la paire USDTUSDT n'existe pas ;
+    · `if (base === 'USDT')` le valorise a 1 dollar, ce qui est la
+      definition meme de ce jeton, et en deduit l'euro puis le franc.
+
+  Il ne manquait que cette ligne-ci. Sans elle, `tether` n'etait jamais
+  reconnu, tombait dans le repli CoinGecko, et la branche a 1 dollar
+  n'etait JAMAIS atteinte — du code mort qui attendait son entree de
+  table.
+
+  CE QUE CA COUTAIT, mesure le 24 novembre :
+
+      HTTP 429 — « You've reached 10,000 calls limit »
+
+  Le plan Demo de CoinGecko plafonne a 10 000 appels par mois. Epuise,
+  il emportait le prix de l'USDT — donc le TAUX FCFA, qui s'en deduit
+  (voir `TauxFcfa.fcfaParDollar`), donc TOUT l'ecran de change. Le
+  commerce entier de cette application dependait d'un quota gratuit,
+  pour une valeur qui vaut un dollar par definition et n'a jamais eu
+  besoin d'etre demandee a quiconque.
+
+  Huitieme fois dans ce depot qu'une liste tenue a la main rate une
+  entree sans lever la moindre erreur.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  tether: 'USDT',
   bitcoin: 'BTC',
+  /*
+  LE DOGECOIN MANQUAIT AUSSI, et le test qui vient d'etre ecrit pour le
+  tether l'a trouve du meme coup, des son premier passage.
+
+  Neuvieme fois dans ce depot qu'une liste tenue a la main oublie cette
+  chaine. Elle est branchee dans le portefeuille, l'historique, la
+  cloche, l'echange, l'explorateur — et son COURS basculait encore sur
+  CoinGecko a chaque rafraichissement.
+
+  Il reste dans `incertains` plutot que dans `PAIRES_SURES` : un symbole
+  inconnu fait rejeter l'appel ENTIER par Binance, et ce groupe-la porte
+  le prix du Bitcoin. DOGEUSDT ne disparaitra sans doute jamais, mais
+  « sans doute » ne vaut pas la peine de risquer les cinq autres.
+  */
+  dogecoin: 'DOGE',
   ethereum: 'ETH',
   binancecoin: 'BNB',
   solana: 'SOL',
@@ -8492,6 +8540,7 @@ export {
   anonymiserQuestion,
   recevoirAvis,
   separationCanaux,
+  SYMBOLE_BINANCE,
   AVIS_MAX_JOUR,
   contactsVaultex,
   equipeVaultex,

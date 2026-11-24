@@ -409,7 +409,7 @@ et plus rien ne se retrouve. Sans erreur, sans trace.
 ═══════════════════════════════════════════════════════════════════════════
 */
 
-import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, recevoirAvis, AVIS_MAX_JOUR, separationCanaux, contactsVaultex, equipeVaultex } from './worker.js'
+import { recevoirSms, verifierVente, marquerValeur, recevoirOtp, marqueOtp, nettoyerIa, systemeAssistance, reponseConnue, anonymiserQuestion, recevoirAvis, AVIS_MAX_JOUR, separationCanaux, SYMBOLE_BINANCE, contactsVaultex, equipeVaultex } from './worker.js'
 
 const ENV_SMS = { CHANGE_SMS_TOKEN: 'jeton-du-robot' }
 
@@ -3151,6 +3151,71 @@ async function posterAvis(corps, env, cache) {
     dernier.statut === 429, dernier)
   verifie('AVIS : et le refus n envoie rien',
     dernier.textes.length === 0, dernier.textes)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES MONNAIES QUE L'APPLICATION DEMANDE DOIVENT ETRE DANS LA TABLE
+═══════════════════════════════════════════════════════════════════════════
+
+`SYMBOLE_BINANCE` traduit un identifiant CoinGecko en symbole Binance. Une
+monnaie absente n'est pas une erreur : elle bascule sur CoinGecko, et le
+commentaire du worker le dit — « mieux vaut ca qu'une correspondance
+devinee ».
+
+SAUF QUE CE REPLI A UN PLAFOND. Mesure le 24 novembre :
+
+    HTTP 429 — « You've reached 10,000 calls limit »
+
+Le plan Demo de CoinGecko plafonne a 10 000 appels par mois. `tether`
+manquait de la table, basculait donc sur CoinGecko a chaque
+rafraichissement, et le quota epuise a emporte le prix de l'USDT — donc
+le TAUX FCFA qui s'en deduit, donc tout l'ecran de change.
+
+Le pire : les deux moities du traitement local de l'USDT etaient deja
+ecrites — l'exclusion de l'appel Binance, et la valorisation a 1 dollar.
+Seule l'entree de table manquait, et la branche a 1 dollar etait du code
+mort.
+
+CE TEST EPINGLE LA LISTE QUE `PortfolioViewModel` DEMANDE. Elle est
+recopiee ici a la main, et c'est assume : la copie ne peut pas lire le
+Kotlin, mais elle FAIT TOMBER LE BUILD le jour ou la table perd une
+entree — ce qu'aucune erreur ne faisait jusqu'ici.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  /*
+  LES DEUX SENS SONT EPINGLES, et c'est necessaire.
+
+  Exiger que TOUT `COIN_IDS` figure dans la table serait faux : le Pi
+  n'est pas cote chez Binance, et son repli sur CoinGecko est le
+  comportement voulu. Un test qui le reclamerait forcerait a inventer
+  une correspondance — exactement l'erreur que le worker dit avoir deja
+  commise, « ou SHIB et DAI affichaient tous deux le prix de
+  l'Ethereum ».
+
+  On epingle donc : ce qui DOIT y etre, et ce qui ne doit PAS y etre.
+  */
+  const servablesParBinance = [
+    'bitcoin', 'ethereum', 'binancecoin', 'solana', 'tron', 'tether', 'dogecoin',
+  ]
+  for (const id of servablesParBinance) {
+    const sym = SYMBOLE_BINANCE[id]
+    verifie(`COURS : « ${id} » est dans la table Binance`,
+      typeof sym === 'string' && sym.length > 0, sym)
+  }
+
+  verifie('COURS : « pi-network » reste HORS de la table — Binance ne le cote pas',
+    SYMBOLE_BINANCE['pi-network'] === undefined, SYMBOLE_BINANCE['pi-network'])
+
+  /*
+  L'USDT EST LE SEUL A NE PAS ETRE DEMANDE A BINANCE, et c'est voulu :
+  la paire USDTUSDT n'existe pas. Sa valeur est posee localement a 1
+  dollar — la definition du jeton — et le franc s'en deduit par la
+  parite fixe de l'euro. Aucun appel reseau, donc aucun quota.
+  */
+  verifie('COURS : tether pointe bien sur USDT, traite localement',
+    SYMBOLE_BINANCE.tether === 'USDT', SYMBOLE_BINANCE.tether)
 }
 
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
