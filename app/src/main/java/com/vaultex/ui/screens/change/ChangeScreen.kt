@@ -4766,7 +4766,31 @@ private fun CarteMontantChange(
     l'entree de la sortie avant qu'on lise un seul mot.
     ═══════════════════════════════════════════════════════════════════════
     */
-    Surface(shape = RoundedCornerShape(18.dp), color = SurfaceColor) {
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LA CARTE REDEVIENT TRANSPARENTE — ET CE N'EST PAS UN RETOUR EN ARRIÈRE
+    ═══════════════════════════════════════════════════════════════════════
+
+    DEMANDÉ SUR MAQUETTE, le 25 novembre 2026 : le libellé posé à même la
+    page, un seul rectangle au trait fin autour du nombre et de son unité,
+    aucun aplat gris.
+
+    Ce fichier porte au-dessus le commentaire qui justifiait l'inverse —
+    « LA CARTE REVIENT » — et son argument reste vrai : quand la carte des
+    détails apparaît plus bas avec un fond plein, deux blocs nus au-dessus
+    d'un bloc dessiné se lisent mal. Je le laisse exprès : il dit ce qu'il
+    faut regarder une fois un montant tapé, parce que la maquette, elle,
+    montre l'écran VIDE.
+
+    ─── TRANSPARENT PLUTÔT QUE SUPPRIMÉ ──────────────────────────────────
+
+    La `Surface` reste, sa couleur devient nulle. Retirer le composant
+    aurait demandé de déplacer une accolade fermante dans une fonction de
+    cinq cent trente-neuf lignes — pour exactement le même rendu. Le
+    risque n'avait rien à gagner.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    Surface(shape = RoundedCornerShape(18.dp), color = Color.Transparent) {
       Box(Modifier.fillMaxWidth().heightIn(min = 92.dp)) {
         Column(
             Modifier.fillMaxWidth().padding(14.dp),
@@ -4861,9 +4885,29 @@ private fun CarteMontantChange(
                 // Grise quand le montant ne passe pas : le vert est la
                 // couleur de ce qu'on va recevoir, et on ne va rien
                 // recevoir de cette saisie-la.
-                color = if (onMontant != null) BgTertiary
-                        else if (horsBornes) TextSecondary.copy(alpha = 0.08f)
-                        else AccentGreen.copy(alpha = 0.10f),
+                /*
+                LE TRAIT REMPLACE L'APLAT.
+
+                L'aplat distinguait les deux blocs par sa teinte — bleu sur
+                ce qu'on remplit, vert sur ce qu'on lit. LA MAQUETTE LEUR
+                DONNE LE MÊME TRAIT, et c'est tenable : la distinction est
+                déjà portée par l'encre du nombre, blanche en haut et verte
+                en bas. Deux signaux pour une seule différence, dont l'un
+                encadre et l'autre colore, chargent la page sans rien
+                ajouter.
+
+                UNE SEULE EXCEPTION, ET ELLE N'EST PAS DÉCORATIVE : hors
+                bornes, le trait s'éteint. Sans ça, un montant refusé
+                garderait un cadre franc pendant que le message rouge dit
+                qu'il ne passera pas — le cadre affirmerait le contraire du
+                texte.
+                */
+                color = Color.Transparent,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (horsBornes) TextSecondary.copy(alpha = 0.30f)
+                    else AccentBlue.copy(alpha = 0.55f)
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
             Row(
@@ -4981,7 +5025,17 @@ private fun CarteMontantChange(
                 Box {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = SurfaceColor,
+                        /*
+                        PLUS D'APLAT SOUS LA MONNAIE NON PLUS. Sur la
+                        maquette, le logo, le nom et le réseau sont posés
+                        directement dans le rectangle : une pastille grise
+                        DANS un rectangle au trait fin ferait deux cadres
+                        imbriqués pour une seule information.
+
+                        La zone cliquable ne change pas : `clickable` porte
+                        sur la Surface, pas sur sa couleur.
+                        */
+                        color = Color.Transparent,
                         modifier = if (choix) {
                             Modifier.clickable { listeOuverte = true }
                         } else Modifier
