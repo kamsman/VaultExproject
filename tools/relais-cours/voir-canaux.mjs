@@ -10,10 +10,21 @@ LES DEUX CANAUX TELEGRAM SONT-ILS LE MÊME BOT ?
     node voir-canaux.mjs --tout
       └── imprime tout /diag, pas seulement cette réponse
 
+    node voir-canaux.mjs --transferts=bnb
+      └── LE CHEMIN PRINCIPAL de la vérification des ventes. Dit si le
+          nœud sert `alchemy_getAssetTransfers` et si la FORME des champs
+          permet au tri de fonctionner. C'est celui-ci qu'il faut
+          regarder d'abord.
+
     node voir-canaux.mjs --plages=bnb
-      └── ne pose plus la question des canaux : sonde les NŒUDS du réseau
-          et dit lequel répond, jusqu'à quelle largeur de blocs.
-          `--plages` seul vaut `--plages=bnb`.
+      └── LE CHEMIN DE SECOURS, `eth_getLogs`, et la largeur de plage que
+          chaque nœud accepte. Son verdict ne dit rien du principal :
+          `eth_getLogs` peut être refusé partout sans que la
+          vérification des ventes en souffre.
+
+    Les deux acceptent `--plages` / `--transferts` seuls, qui valent
+    `=bnb`. Les lancer ensemble est refusé : leurs résultats ne se
+    déduisent pas l'un de l'autre.
 
 ─── POURQUOI CET OUTIL ET PAS UN curl ────────────────────────────────────
 
@@ -226,6 +237,32 @@ const plages =
     ? null
     : (plagesArg.split('=')[1] || 'bnb').trim().toLowerCase()
 
+/*
+`--transferts` SONDE LE CHEMIN PRINCIPAL, `--plages` LE SECOURS, et
+confondre les deux coûte une fausse alerte.
+
+MESURÉ ce soir : `--plages=bnb` a conclu « TRANCHE_EVM (500) est TROP
+GRANDE », ce qui se lit comme une panne de la vérification des ventes.
+Or `eth_getLogs` n'est que le secours. Quand un nœud Alchemy est réglé —
+et il l'est — la vérification passe d'abord par
+`alchemy_getAssetTransfers`, qui ne connaît AUCUNE limite de plage.
+
+Les deux sondes existaient déjà dans le Worker. Une seule était
+atteignable sans coller la clé dans une URL, donc une seule était
+regardée — et c'était celle qui décrit le chemin le moins emprunté.
+*/
+const transfertsArg = args.find((a) => a === '--transferts' || a.startsWith('--transferts='))
+const transferts =
+  transfertsArg === undefined
+    ? null
+    : (transfertsArg.split('=')[1] || 'bnb').trim().toLowerCase()
+
+if (plages !== null && transferts !== null) {
+  console.log('\n❌ --plages et --transferts sondent deux chemins differents.')
+  console.log('   Lance-les separement : le resultat de l un ne dit rien de l autre.')
+  process.exit(2)
+}
+
 if (!relais.startsWith('https://')) {
   console.log('\n❌ Adresse du relais introuvable.')
   console.log('   Lance la commande depuis le depot, ou passe l adresse en argument.')
@@ -396,6 +433,82 @@ async function rapportPlages(cle) {
 }
 
 /*
+═══════════════════════════════════════════════════════════════════════════
+LE CHEMIN PRINCIPAL SERT-IL LES TRANSFERTS ENRICHIS, ET SOUS QUELLE FORME ?
+═══════════════════════════════════════════════════════════════════════════
+
+CE QUE CETTE SONDE DÉCIDE, ET QUE `--plages` NE DÉCIDE PAS : si la
+vérification des ventes peut marcher. Elle appelle
+`alchemy_getAssetTransfers` sur le nœud nominatif, puis contrôle la FORME
+de ce qui revient — les champs présents, et les décimales lues.
+
+LA FORME COMPTE AUTANT QUE LA DISPONIBILITÉ. Un nœud peut servir la
+méthode et rendre un objet dont `rawContract.decimal` manque : le tri
+rendrait alors « rien trouvé » sur TOUT versement, sans erreur et sans
+trace. C'est le pire des échecs — celui qui ressemble à « le client n'a
+rien envoyé ».
+
+UN CAS N'EST NI BON NI MAUVAIS : zéro transfert lu. Le nœud répond, mais
+l'adresse du changeur n'a encore rien reçu — ce qui est exactement ta
+situation aujourd'hui, avec zéro transaction. La forme reste alors non
+vérifiée, et la sonde le dit plutôt que de rassurer.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function rapportTransferts(cle) {
+  const res = await interroger(`/diag/transferts?reseau=${encodeURIComponent(transferts)}`, cle)
+  if (res.code !== undefined) return res.code
+  const d = res.reponse
+
+  if (tout) {
+    console.log(JSON.stringify(d, null, 2))
+    return 0
+  }
+
+  console.log(`Version : ${d?.version ?? 'illisible'}`)
+  console.log('\n' + '─'.repeat(74))
+  console.log(`Reseau            : ${d?.reseau ?? transferts}`)
+  console.log(`Monnaie           : ${d?.monnaie ?? '(aucune)'}`)
+  console.log(`Noeud interroge   : ${d?.noeud ?? '(aucun)'}`)
+  console.log(`Adresse changeur  : ${d?.adresse_du_changeur ?? '(aucune)'}`)
+  console.log('─'.repeat(74))
+
+  /*
+  LE `ok: false` DE CETTE SONDE N'EST PAS UN ÉCHEC DE TRANSPORT : le
+  Worker a répondu, et sa raison est la réponse. `interroger` ne l'a donc
+  pas interceptée — il ne regarde que le code HTTP.
+  */
+  if (d?.ok === false) {
+    console.log(`\n❌ ${d?.erreur ?? 'raison non precisee'}`)
+    if (d?.remede) console.log(`\n   ${d.remede}`)
+    console.log('')
+    return 1
+  }
+
+  console.log(`\nTransferts lus    : ${d?.transferts_lus ?? '?'}`)
+  console.log(`Decimales lues    : ${d?.decimales_lues ?? '(aucune)'}  ` +
+    `(attendues : ${d?.decimales_attendues ?? '?'})`)
+  const manquants = Array.isArray(d?.champs_manquants) ? d.champs_manquants : []
+  console.log(`Champs manquants  : ${manquants.length === 0 ? 'aucun' : manquants.join(', ')}`)
+
+  if (d?.conclusion) {
+    console.log('\n' + '─'.repeat(74))
+    console.log(String(d.conclusion))
+  }
+  console.log('')
+
+  /*
+  ZÉRO TRANSFERT REND 0, PAS 1. Ce n'est pas une panne : c'est une
+  adresse encore vierge. Rendre 1 ferait echouer un script de controle
+  tant que la premiere vente n'a pas eu lieu, et on finirait par ne plus
+  le lancer.
+  */
+  if (manquants.length > 0) return 1
+  if (d?.decimales_lues !== null && d?.decimales_lues !== undefined &&
+      d?.decimales_lues !== d?.decimales_attendues) return 1
+  return 0
+}
+
+/*
 TOUT CE QUI SUIT LE PROMPT VIT DANS UNE FONCTION, et ce n'est pas du
 rangement.
 
@@ -420,6 +533,7 @@ async function rapport() {
   répond à l'une ou à l'autre serait absurde.
   */
   if (plages !== null) return await rapportPlages(cle)
+  if (transferts !== null) return await rapportTransferts(cle)
 
   const res = await interroger('/diag', cle)
   if (res.code !== undefined) return res.code
