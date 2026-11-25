@@ -925,6 +925,47 @@ private fun ColumnScope.EtapeCalcul(
 
     /*
     ═══════════════════════════════════════════════════════════════════════
+    LE COÛT DU RÉSEAU SE LIT AVANT DE TAPER UN MONTANT
+    ═══════════════════════════════════════════════════════════════════════
+
+    IL ÉTAIT DÉJÀ AFFICHÉ, mais dans la carte « Marge » — qui n'existe
+    qu'une fois un montant saisi, et dont le détail est replié. Quelqu'un
+    qui ouvre l'écran, voit « USDT · TRC20 » et tape son montant a donc
+    choisi son réseau AVANT d'en connaître le prix.
+
+    MESURÉ au cours du 25 novembre 2026, sur un achat de 10 dollars :
+
+        TRC20    2,00 $   1 195 FCFA     18 % de la commande
+        ERC20    0,60 $     358 FCFA      5 %
+        BEP20    0,01 $       6 FCFA    0,1 %
+
+    Deux cents fois l'écart entre le premier et le dernier, pour le même
+    USDT reçu. Ce n'est pas un détail de tarification, c'est le premier
+    chiffre à connaître — et il se décide dans la liste déroulante juste
+    au-dessus.
+
+    ─── CE N'EST PAS UN AVERTISSEMENT, ET LE TON COMPTE ─────────────────
+
+    La ligne s'affiche pour TOUTES les monnaies tarifées, pas seulement
+    les chères. Sur BEP20 elle annonce six francs, ce qui rassure et
+    confirme le bon choix ; n'apparaître que sur TRON en ferait une alarme
+    qu'on apprend à ignorer.
+
+    La seconde phrase ne s'ajoute que s'il existe vraiment moins cher
+    ailleurs dans la liste. Elle nomme le réseau et son prix plutôt que de
+    conseiller : le lecteur compare deux nombres et décide.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    if (donneFcfa) {
+        NoteFraisReseau(
+            monnaie = state.monnaie,
+            parametres = p,
+            fcfaParDollar = state.fcfaParDollar
+        )
+    }
+
+    /*
+    ═══════════════════════════════════════════════════════════════════════
     L'AVERTISSEMENT « PAS AVEC VAULTEX » A ETE RETIRE
     ═══════════════════════════════════════════════════════════════════════
 
@@ -4527,6 +4568,104 @@ private fun tailleMontant(texte: String) = when {
     texte.length <= 8 -> 34.sp
     texte.length <= 12 -> 26.sp
     else -> 20.sp
+}
+
+/**
+ * Le coût du réseau choisi, sous le sélecteur de monnaie.
+ *
+ * ELLE NE DIT RIEN QUAND ELLE N'A RIEN À DIRE. Trois conditions, et
+ * chacune a sa raison :
+ *
+ *   — un tarif nul : le relais ne facture pas ce réseau, il n'y a pas de
+ *     frais à annoncer, et « 0 FCFA » attirerait l'œil sur un non-sujet ;
+ *   — pas de cours : on ne peut pas convertir en francs, et afficher les
+ *     seuls dollars sur un écran qui compte en francs ferait deviner ;
+ *   — hors achat : à la vente, ce frais n'est pas facturé du tout
+ *     (`fraisFixesFcfa` rend zéro), donc l'annoncer serait faux.
+ *
+ * LE SEUIL DE LA SECONDE PHRASE EST UN RAPPORT, PAS UN MONTANT. « Plus de
+ * dix fois moins cher » reste vrai si les frais doublent ou si le franc
+ * bouge ; « plus de 500 FCFA d'écart » aurait vieilli au premier
+ * mouvement du marché.
+ */
+@Composable
+private fun NoteFraisReseau(
+    monnaie: String,
+    parametres: com.vaultex.domain.fiat.ParametresChange,
+    fcfaParDollar: Double?
+) {
+    val usd = parametres.fraisUsdAchatPour(monnaie)
+    val taux = fcfaParDollar ?: return
+    if (usd <= 0.0 || taux <= 0.0) return
+
+    val enFcfa = usd * taux
+    val coutUsd = if (usd < 0.01) "< 0,01 \$" else "%.2f \$".format(usd)
+    val coutFcfa = if (enFcfa < 1.0) "< 1 FCFA" else "${fcfa(enFcfa)} FCFA"
+
+    /*
+    LE MOINS CHER PARMI CEUX RÉELLEMENT OFFERTS, et seulement s'il est
+    nettement moins cher. `minByOrNull` rend le premier minimum, donc le
+    même réseau que celui sur lequel l'écran s'ouvre par défaut : les deux
+    décisions suivent la même règle, et ne peuvent pas se contredire.
+    */
+    val moinsCher = parametres.monnaies
+        .filter { it != monnaie }
+        .minByOrNull { parametres.fraisUsdAchatPour(it) }
+        ?.takeIf { parametres.fraisUsdAchatPour(it) > 0.0 && usd / parametres.fraisUsdAchatPour(it) >= 10.0 }
+
+    Spacer(Modifier.height(6.dp))
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            Icons.Default.Info,
+            contentDescription = null,
+            tint = TextSecondary,
+            modifier = Modifier.size(15.dp).padding(top = 1.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        /*
+        LES DEUX PHRASES SE LISENT AVANT D'ÊTRE ASSEMBLÉES, et ce n'est
+        pas du rangement : `stringResource` est @Composable, et
+        `buildString` prend une lambda qui ne l'est pas. La première
+        version les appelait dedans — elle ne compilait pas.
+        */
+        val phrase = stringResource(
+            R.string.change_frais_reseau_note,
+            reseauLisible(monnaie), coutUsd, coutFcfa
+        )
+        val comparaison =
+            if (moinsCher == null) ""
+            else " " + stringResource(
+                R.string.change_frais_reseau_moins_cher,
+                reseauLisible(moinsCher),
+                "${fcfa(parametres.fraisUsdAchatPour(moinsCher) * taux)} FCFA"
+            )
+
+        Text(
+            phrase + comparaison,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            color = TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/**
+ * « USDT-BNB » n'est pas un nom de réseau, c'est une clé de réglage.
+ *
+ * L'écran du sélecteur affiche déjà « BEP20 · BNB Chain » sous le
+ * symbole : cette note doit parler la MÊME langue, sinon elle renvoie
+ * l'utilisateur à un choix qu'il ne retrouve pas dans la liste.
+ */
+private fun reseauLisible(monnaie: String): String = when (monnaie.uppercase()) {
+    "USDT", "USDT-TRX" -> "TRC20"
+    "USDT-BNB", "BNB" -> "BEP20"
+    "USDT-ETH", "ETH" -> "ERC20"
+    "USDT-SOL" -> "Solana"
+    else -> monnaie
 }
 
 @Composable

@@ -1184,6 +1184,10 @@
     <string name="change_pas_de_rachat">Cette monnaie n\'est pas rachetée pour le moment. Choisissez-en une autre, ou achetez plutôt que vendre.</string>
     <string name="change_frais_trop_eleves">Les frais du réseau %1$s sont trop élevés pour l’instant. Essayez une autre chaîne, ou revenez plus tard.</string>
     <string name="change_minimum_frais_reseau">Les frais du réseau %1$s sont élevés en ce moment : le minimum passe à %2$s. Essayez une autre chaîne, ou revenez plus tard.</string>
+    <!-- Frais du reseau, sous le selecteur de monnaie a l achat. %1$s = le nom du reseau, %2$s = le cout en dollars, %3$s = le meme cout en francs. -->
+    <string name="change_frais_reseau_note">Frais du réseau %1$s : %2$s (%3$s), inclus dans le total.</string>
+    <!-- Ajoute quand un autre reseau offert coute nettement moins cher. %1$s = son nom, %2$s = son cout en francs. -->
+    <string name="change_frais_reseau_moins_cher">%1$s revient à %2$s.</string>
     <string name="change_facture_bouton">Télécharger le reçu</string>
     <string name="change_facture_titre">REÇU D’OPÉRATION</string>
     <string name="change_facture_operation">Opération</string>
