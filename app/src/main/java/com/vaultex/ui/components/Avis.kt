@@ -1,6 +1,7 @@
 package com.vaultex.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -31,7 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +69,7 @@ import com.vaultex.ui.theme.TextSecondary
 import com.vaultex.ui.viewmodel.AvisViewModel
 import com.vaultex.ui.viewmodel.EtatAvis
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /*
 ═══════════════════════════════════════════════════════════════════════════
@@ -150,6 +156,18 @@ fun rememberEtatAvis(): MutableState<GenreOperation?> {
     }
 }
 
+/*
+`BringIntoViewRequester` EST ENCORE EXPÉRIMENTAL dans Compose 1.6, la
+version que porte le BOM 2024.02.00 de ce projet. L'annotation est donc
+obligatoire : sans elle, la compilation échoue sur une erreur qui parle
+d'API « opt-in » et pas du clavier.
+
+C'est la seule API expérimentale de ce fichier, et l'opt-in est posé sur
+cette fonction précise plutôt que sur le module entier : une activation
+globale ferait passer en silence la prochaine, qui ne sera peut-être pas
+aussi stable que celle-ci.
+*/
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CarteAvis(
     modifier: Modifier = Modifier,
@@ -158,6 +176,16 @@ fun CarteAvis(
 ) {
     val vm: AvisViewModel = hiltViewModel()
     val s by vm.state.collectAsState()
+
+    /*
+    DE QUOI FAIRE REMONTER LE CHAMP QUAND LE CLAVIER S'OUVRE. Les deux
+    vivent ici plutôt qu'au champ parce que `remember` leur donne alors la
+    durée de vie de la carte : recréés à chaque recomposition, la demande
+    de défilement porterait sur un objet que plus personne n'écoute.
+    Voir le champ, plus bas, pour la mesure qui a rendu ça nécessaire.
+    */
+    val demandeVisible = remember { BringIntoViewRequester() }
+    val porteeVisible = rememberCoroutineScope()
 
     /*
     LE REMERCIEMENT S'EFFACE TOUT SEUL.
@@ -392,7 +420,57 @@ fun CarteAvis(
                         qu'on est venu chercher.
                         */
                         maxLines = 4,
-                        modifier = Modifier.fillMaxWidth()
+                        /*
+                        ═══════════════════════════════════════════════════
+                        LE CHAMP SE FAIT REMONTER LUI-MÊME
+                        ═══════════════════════════════════════════════════
+
+                        VU SUR L'APPAREIL, deux fois : le clavier s'ouvre
+                        et recouvre le champ. On tape sans voir ce qu'on
+                        écrit, sur l'écran précisément fait pour recueillir
+                        une phrase.
+
+                        LA PREMIÈRE CORRECTION NE POUVAIT PAS MARCHER, et
+                        c'est mesurable plutôt que supposable. Elle ajoutait
+                        au bas de la liste
+
+                            maxOf(BottomBarSpace, WindowInsets.ime...)
+
+                        Or l'application n'appelle NI `enableEdgeToEdge` NI
+                        `setDecorFitsSystemWindows(false)`. Avec
+                        `adjustResize`, le système rétrécit donc la fenêtre
+                        lui-même, et `WindowInsets.ime` rend ZÉRO : le
+                        `maxOf` retombe sur `BottomBarSpace`, et la ligne
+                        entière ne fait rien. Elle avait l'air d'un
+                        correctif, elle n'en était pas un.
+
+                        ─── CE QUI MANQUAIT N'ÉTAIT PAS DE LA PLACE ───────
+
+                        C'était un DÉFILEMENT. Même avec la place en bas,
+                        rien ne remonte la carte : elle vit dans un
+                        `item` de LazyColumn, loin du haut, et la fenêtre
+                        qui rétrécit la pousse hors champ.
+
+                        `bringIntoView` demande au conteneur défilant de
+                        l'amener à l'écran — il traverse la LazyColumn, ce
+                        qu'un `imePadding` ne sait pas faire. Et il ne
+                        dépend d'aucune mesure d'encart, donc il marche que
+                        la fenêtre soit redimensionnée ou non.
+
+                        L'APPEL EST DANS UNE CORUTINE PARCE QU'IL ATTEND :
+                        `bringIntoView()` suspend jusqu'à la fin du
+                        défilement, qui se joue pendant que le clavier
+                        monte encore.
+                        ═══════════════════════════════════════════════════
+                        */
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bringIntoViewRequester(demandeVisible)
+                            .onFocusEvent { etat ->
+                                if (etat.isFocused) {
+                                    porteeVisible.launch { demandeVisible.bringIntoView() }
+                                }
+                            }
                     )
                 }
             }

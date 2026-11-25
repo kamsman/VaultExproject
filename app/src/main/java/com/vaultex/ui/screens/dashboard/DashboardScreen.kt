@@ -441,6 +441,34 @@ fun DashboardScreen(navController: NavHostController) {
             les deux protegent le meme bord, et clavier ouvert la barre de
             navigation n'est plus ce qu'il faut eviter.
             */
+            /*
+            ═══════════════════════════════════════════════════════════════
+            CE `maxOf` NE FAIT RIEN AUJOURD'HUI, ET IL FAUT LE SAVOIR
+            ═══════════════════════════════════════════════════════════════
+
+            Il a été écrit pour que le clavier ne recouvre plus la carte
+            d'avis. Mesuré depuis : il n'y change rien.
+
+            `WindowInsets.ime` rend ZÉRO ici. L'application n'appelle ni
+            `enableEdgeToEdge` ni `setDecorFitsSystemWindows(false)`, donc
+            avec le `adjustResize` du manifeste c'est le SYSTÈME qui
+            rétrécit la fenêtre : l'encart est déjà consommé quand Compose
+            le lit. Le `maxOf` retombe sur `BottomBarSpace`, toujours.
+
+            ─── POURQUOI LA LIGNE RESTE ──────────────────────────────────
+
+            Parce qu'elle redeviendra juste le jour où cet écran passera en
+            bord-à-bord, et que la retirer ferait réapparaître le défaut ce
+            jour-là, sans que personne ne fasse le lien.
+
+            ─── CE QUI CORRIGE VRAIMENT LE CLAVIER ───────────────────────
+
+            Pas de la place en bas : un DÉFILEMENT. Même avec la place,
+            rien ne remonte une carte posée dans un `item` de LazyColumn.
+            C'est `bringIntoView` sur le champ lui-même qui s'en charge —
+            voir `CarteAvis`, dans ui/components/Avis.kt.
+            ═══════════════════════════════════════════════════════════════
+            */
             contentPadding = PaddingValues(
                 start = 16.dp, end = 16.dp, top = 16.dp,
                 bottom = maxOf(BottomBarSpace, WindowInsets.ime.asPaddingValues().calculateBottomPadding())
