@@ -3363,6 +3363,230 @@ import { readFileSync } from 'node:fs'
   )
 }
 
+import { margeAjustee, MARGE_MAX_PROPORTION } from './worker.js'
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MARGE SUIT LE MARCHÉ, OU ELLE EST UN PARI
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ le 25 novembre 2026, EUR/USD à 1,098 : le prix client vaut
+`cours + 63` et le fournisseur prend 640 FIXES. Le bénéfice vaut donc
+`cours − 577` — pas une marge commerciale, un PARI SUR LE DOLLAR.
+
+    EUR/USD   cours   net/USD   sur une commande au plafond
+      1,098     597      +20                      +15 152
+      1,1368    577        0                            0
+      1,18      556      −21                      −16 963
+
+Trois virgule cinq pour cent de change, et l'application vend à perte en
+silence, d'autant plus que la commande est grosse.
+
+CE QUE CES CONTRÔLES TIENNENT, et qui n'est pas « le calcul est juste » :
+
+  1. Sans les nouveaux réglages, RIEN ne change. C'est la propriété la
+     plus importante : 223 installations tournent sur le comportement
+     actuel, et une correction qui bouge un prix sans qu'on l'ait demandé
+     serait pire que le défaut.
+
+  2. Le pourcentage rend la marge indépendante du marché EN PROPORTION.
+     C'est ce que « automatique » veut dire ici : poser une fois, ne plus
+     revenir.
+
+  3. Le plancher ne descend jamais sous le coût fournisseur.
+
+  4. Et la troisième zone : au-delà de 20 % de marge, l'application rend
+     `null` — écran vide. `trop` la signale pour qu'on FERME l'achat avec
+     un motif, au lieu d'afficher du vide ou de vendre à perte.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const XOF = 655.957
+  const cours = (eurUsd) => XOF / eurUsd
+
+  /*
+  LA PROPRIÉTÉ LA PLUS IMPORTANTE EN PREMIER : aucun réglage neuf, aucun
+  changement. Trois cours très différents, pour qu'un passage accidentel
+  au pourcentage se voie.
+  */
+  for (const e of [1.0, 1.098, 1.3]) {
+    const r = margeAjustee({ CHANGE_MARGE: '63' }, cours(e))
+    verifie(
+      `MARGE : sans reglage neuf, EUR/USD ${e} rend le forfait 63`,
+      r.marge === 63 && r.source === 'forfait' && r.mord === false,
+      r
+    )
+  }
+
+  /*
+  MÊME SANS COURS. Une sonde muette ne doit pas changer un prix : elle
+  doit rendre le comportement d'avant, et le DIRE.
+  */
+  for (const sansCours of [null, 0, -1, NaN, undefined]) {
+    const r = margeAjustee({ CHANGE_MARGE: '63', CHANGE_COUT_FOURNISSEUR: '640' }, sansCours)
+    verifie(
+      `MARGE : cours « ${String(sansCours)} » rend le forfait, et l annonce`,
+      r.marge === 63 && r.cours === null && r.mord === false,
+      r
+    )
+  }
+
+  /*
+  LE POURCENTAGE : la marge en FRANCS change avec le cours, mais la part
+  reste la même. C'est exactement ce qu'on veut dire par « je ne reviens
+  plus modifier ».
+  */
+  {
+    const env = { CHANGE_MARGE: '63', CHANGE_MARGE_POURCENT: '10.5' }
+    const parts = []
+    for (const e of [1.0, 1.05, 1.098, 1.2, 1.35]) {
+      const c = cours(e)
+      const r = margeAjustee(env, c)
+      parts.push(Math.round((r.marge / c) * 10000) / 10000)
+      verifie(
+        `MARGE : a EUR/USD ${e}, le pourcentage est la source`,
+        r.source === 'pourcentage',
+        r.source
+      )
+    }
+    verifie(
+      'MARGE : la part reste identique a tous les cours',
+      new Set(parts).size === 1 && parts[0] === 0.105,
+      parts
+    )
+  }
+
+  /*
+  LE PLANCHER. Trois zones, et on les vérifie aux bornes plutôt qu'au
+  milieu : c'est aux bornes qu'un `<` écrit `<=` se voit.
+  */
+  {
+    const env = { CHANGE_MARGE: '63', CHANGE_COUT_FOURNISSEUR: '640' }
+
+    // Zone 1 : le cours est assez haut, le plancher ne sert a rien.
+    const haut = margeAjustee(env, 597.4)
+    verifie(
+      'PLANCHER : a 597,4 le plancher ne mord pas, marge inchangee',
+      haut.marge === 63 && haut.mord === false,
+      haut
+    )
+
+    // Zone 2 : le plancher mord, et le prix tombe EXACTEMENT sur le cout.
+    const bas = margeAjustee(env, 556)
+    verifie(
+      'PLANCHER : a 556 la marge est relevee a 84 (640 − 556)',
+      Math.abs(bas.marge - 84) < 1e-9 && bas.mord === true,
+      bas
+    )
+    verifie(
+      'PLANCHER : le prix publie vaut exactement le cout fournisseur',
+      Math.abs(556 + bas.marge - 640) < 1e-9,
+      556 + bas.marge
+    )
+
+    /*
+    LA BORNE EXACTE : a 577 le prix vaut deja 640, donc le plancher ne
+    doit PAS mordre — un `<=` au lieu de `<` le ferait mordre pour rien et
+    rendrait `mord: true` a chaque requete en regime normal, ce qui
+    declencherait une alerte permanente.
+    */
+    const pile = margeAjustee(env, 577)
+    verifie(
+      'PLANCHER : a 577 exactement, il ne mord pas (prix = cout)',
+      pile.mord === false && pile.marge === 63,
+      pile
+    )
+  }
+
+  /*
+  LE NET MINIMUM : vendre au prix coutant est un choix, pas une
+  obligation. `CHANGE_MARGE_MIN` releve le plancher d'autant.
+  */
+  {
+    const env = { CHANGE_MARGE: '63', CHANGE_COUT_FOURNISSEUR: '640', CHANGE_MARGE_MIN: '5' }
+    const r = margeAjustee(env, 556)
+    verifie(
+      'PLANCHER : avec un net minimum de 5, le prix vise 645',
+      Math.abs(556 + r.marge - 645) < 1e-9 && r.plancher === 645,
+      r
+    )
+  }
+
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA TROISIÈME ZONE — CELLE QUI SE SERAIT VUE SUR UN ÉCRAN VIDE
+  ═══════════════════════════════════════════════════════════════════════
+
+  `TauxFcfa.kt:112` rend `null` si la marge dépasse 20 % du cours. Un
+  plancher à 640 franchit ce seuil sous un cours de 533,3 — EUR/USD
+  au-dessus de 1,2299.
+
+  Sans `trop`, le relais publierait une marge que l'application refuse, et
+  l'écran de change serait VIDE, sans message. Le client ne verrait pas un
+  refus, il verrait une panne.
+  */
+  {
+    const env = { CHANGE_MARGE: '63', CHANGE_COUT_FOURNISSEUR: '640' }
+
+    const dedans = margeAjustee(env, 537)
+    verifie(
+      'LIMITE : a 537, la marge exigee reste sous les 20 % de l application',
+      dedans.trop === false && dedans.marge / 537 <= MARGE_MAX_PROPORTION,
+      { marge: dedans.marge, part: dedans.marge / 537 }
+    )
+
+    const dehors = margeAjustee(env, 525)
+    verifie(
+      'LIMITE : a 525, la marge exigee depasse 20 % et `trop` le dit',
+      dehors.trop === true,
+      { marge: dehors.marge, part: dehors.marge / 525 }
+    )
+
+    /*
+    LA BORNE, CALCULÉE PLUTÔT QUE RECOPIÉE : 640 / 1,20 = 533,33. Écrire
+    533 en dur ferait passer ce test même si MARGE_MAX_PROPORTION changeait
+    côté application — et c'est précisément le genre de constante
+    recopiée qui mentira un jour.
+    */
+    const borne = 640 / (1 + MARGE_MAX_PROPORTION)
+    verifie(
+      'LIMITE : juste au-dessus de la borne calculee, `trop` est faux',
+      margeAjustee(env, borne + 0.5).trop === false,
+      borne
+    )
+    verifie(
+      'LIMITE : juste en dessous, `trop` est vrai',
+      margeAjustee(env, borne - 0.5).trop === true,
+      borne
+    )
+  }
+
+  /*
+  LE POURCENTAGE SEUL PEUT AUSSI DÉPASSER LA LIMITE, et c'est une faute de
+  saisie plausible : 20,5 tapé pour 10,5. Sans ce contrôle, le relais
+  publierait une marge de 20,5 % et l'écran serait vide — le pire des
+  symptômes pour la plus banale des erreurs.
+  */
+  {
+    const r = margeAjustee({ CHANGE_MARGE_POURCENT: '20.5' }, 597.4)
+    verifie(
+      'LIMITE : un pourcentage de 20,5 est signale comme trop grand',
+      r.trop === true,
+      r
+    )
+  }
+
+  /*
+  ET LE CAS QUI A COÛTÉ UN DÉFAUT AILLEURS DANS CE FICHIER : un zéro réglé
+  est un zéro servi. Une marge de zéro est une promotion légitime, pas une
+  valeur absente.
+  */
+  {
+    const r = margeAjustee({ CHANGE_MARGE: '0' }, 597.4)
+    verifie('MARGE : un zero regle reste zero', r.marge === 0, r)
+  }
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les garde-fous tiennent, et dans le bon ordre.')

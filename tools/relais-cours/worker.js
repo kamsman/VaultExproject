@@ -70,7 +70,43 @@ Settings → Variables and Secrets. Aucun n'est obligatoire : sans eux,
 l'écran de change ne propose rien, ce qui est le comportement voulu.
 
   CHANGE_ACTIF      0 ferme le service en une seconde, sans republier.
-  CHANGE_MARGE      Marge en FRANCS PAR DOLLAR (défaut 25).
+  CHANGE_MARGE      Marge en FRANCS PAR DOLLAR (défaut 25). Un forfait :
+                    la part qu'elle représente flotte avec le cours.
+  CHANGE_MARGE_POURCENT
+                    Marge en POURCENTAGE du cours, qui remplace le
+                    forfait quand elle est réglée. 10.5 ≈ la marge
+                    actuelle. C'est la bonne unité : un dollar de service
+                    doit coûter un pourcentage d'un dollar, sinon la même
+                    prestation se facture 10,5 % cette année et 12 % l'an
+                    prochain sans que personne l'ait décidé.
+  CHANGE_COUT_FOURNISSEUR
+                    Ce que le fournisseur prend, en francs par dollar
+                    (640). Pose un PLANCHER : le relais ne publie jamais
+                    une marge qui ferait vendre sous ce prix.
+
+                    ─── POURQUOI CE PLANCHER EXISTE ────────────────────
+
+                    Le franc est arrimé à l'euro par une parité LÉGALE,
+                    donc le cours du dollar vaut 655,957/(EUR/USD). Le
+                    prix client suit le marché ; un coût fournisseur fixe
+                    ne le suit pas. Le bénéfice valait donc
+                    « cours − 577 » — un pari sur le dollar, qui
+                    s'inverse à EUR/USD 1,1368 et perd d'autant plus que
+                    la commande est grosse.
+
+                    MESURÉ au 25/11/2026 : EUR/USD à 1,098, soit 3,5 %
+                    du point mort.
+  CHANGE_MARGE_MIN  Net minimum gardé par dollar quand le plancher mord
+                    (défaut 0 : on vend alors au prix coûtant).
+
+                    ⚠️ AU-DELÀ DE 20 % DE MARGE, L'APPLICATION REFUSE.
+                    `TauxFcfa.MARGE_MAX_PROPORTION = 0.20` lui fait
+                    rendre `null`, donc un écran VIDE sans message. Avec
+                    un coût de 640, ce seuil tombe sous un cours de
+                    533 — EUR/USD au-dessus de 1,2299. Là, le relais
+                    FERME l'achat avec un motif plutôt que d'afficher du
+                    vide ou de vendre à perte. /diag le dit dans
+                    `gardeFous.marge`.
   CHANGE_MIN        UN NOMBRE, en francs (défaut 5000). Sert de repli aux
                     monnaies absentes de CHANGE_MINIMUMS.
 
@@ -420,7 +456,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 114
+const VERSION = 115
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -1181,7 +1217,7 @@ export default {
     ═══════════════════════════════════════════════════════════════════════
     */
     if (url.pathname === '/change/parametres') {
-      return parametresChange(env)
+      return await parametresChange(env)
     }
 
     if (url.pathname === '/change/ordre' && requete.method === 'POST') {
@@ -2248,6 +2284,34 @@ async function diagnostic(env, params) {
     maxParJour: nb(env?.CHANGE_MAX_PAR_JOUR, 10),
     plafondPremiereOperation: premierDiag < plafondDiag ? premierDiag : 'eteint',
     /*
+    LA MARGE TELLE QU'ELLE SERA PUBLIÉE, AU COURS DE CET INSTANT.
+
+    Sans ces lignes, le plancher serait invisible : il protège en silence,
+    et c'est exactement ce qu'on ne veut pas. Quand il mord, le prix
+    devient plus cher que le marché — il faut le SAVOIR pour renégocier
+    avec le fournisseur, pas le découvrir sur les volumes.
+
+    On rejoue `margeAjustee`, on ne la réimplémente pas : un diagnostic
+    qui recopie un calcul finit par décrire un code qui n'est plus celui
+    qui tourne.
+    */
+    marge: await (async () => {
+      const { cours, frais } = await coursDollar()
+      const m = margeAjustee(env, cours)
+      return {
+        cours: cours ? Math.round(cours * 10) / 10 : 'indisponible',
+        cours_frais: frais,
+        source: m.source,
+        marge_publiee: Math.round(m.marge * 100) / 100,
+        prix_client: cours ? Math.round(cours + m.marge) : 'indisponible',
+        pourcent_regle: nb(env?.CHANGE_MARGE_POURCENT, 0) || 'eteint',
+        cout_fournisseur: nb(env?.CHANGE_COUT_FOURNISSEUR, 0) || 'eteint',
+        plancher: m.plancher ?? 'eteint',
+        plancher_mord: m.mord,
+        achat_ferme_par_la_limite: m.trop,
+      }
+    })(),
+    /*
     CE QUI PORTE CES TROIS COMPTEURS, DIT ICI MÊME.
 
     Cette ligne était écrite EN DUR : « cache par centre de données ».
@@ -2835,6 +2899,153 @@ promotion, un lancement — et `Number('0') || 25` rend 25.
 */
 function margeParDollar(env) {
   return nombre(env?.CHANGE_MARGE, 25)
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LA MARGE SUIT LE MARCHÉ TOUTE SEULE — POURCENTAGE ET PLANCHER
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ, ET C'EST LA RAISON D'ÊTRE DE CETTE FONCTION.
+
+Le franc est arrimé à l'euro par une parité LÉGALE : 1 € = 655,957 FCFA.
+Le cours du dollar en francs n'est donc pas un prix de marché, c'est une
+division : `655,957 / (EUR/USD)`. Quand l'euro monte face au dollar, un
+dollar vaut MOINS de francs, mécaniquement.
+
+Or les deux côtés de l'opération n'étaient pas libellés pareil :
+
+    prix client      = cours + CHANGE_MARGE      (63 francs FIXES)
+    coût fournisseur = 640                        (un prix FIXE)
+
+Soustrais : le bénéfice vaut `cours − 577`. Ce n'est pas une marge
+commerciale, c'est un PARI SUR LE DOLLAR. Mesuré au 25 novembre 2026,
+EUR/USD à 1,098 :
+
+    EUR/USD   cours   net/USD   sur une commande au plafond
+      1,098     597      +20                      +15 152
+      1,1368    577        0                            0
+      1,18      556      −21                      −16 963
+      1,25      525      −52                      −32 446
+
+Trois virgule cinq pour cent de variation de change, et l'application
+continuerait de vendre, d'afficher un prix, d'encaisser — à perte, en
+silence, et d'autant plus que la commande est grosse.
+
+─── DEUX RÉGLAGES, ET AUCUN N'EST ALLUMÉ PAR DÉFAUT ──────────────────────
+
+`CHANGE_MARGE_POURCENT` remplace les francs fixes par un pourcentage du
+cours. C'est la bonne unité : un dollar de service doit coûter un
+pourcentage d'un dollar. En francs fixes, la même prestation se facture
+10,5 % cette année et 12 % l'an prochain sans que personne l'ait décidé.
+
+`CHANGE_COUT_FOURNISSEUR` pose le plancher : on ne publie jamais une
+marge qui ferait vendre sous ce prix, plus `CHANGE_MARGE_MIN` si on veut
+garder un net minimum.
+
+AUCUN RÉGLAGE ABSENT NE CHANGE QUOI QUE CE SOIT. Sans eux, cette fonction
+rend exactement `margeParDollar(env)`, et le comportement est celui
+d'avant, au franc près.
+
+─── POURQUOI LA CORRECTION SE FAIT SUR LA MARGE, ET NON SUR LE PRIX ──────
+
+Parce que c'est l'APPLICATION qui calcule le prix — `TauxFcfa.prix` fait
+`cours × (1 + marge/cours)`. Le relais ne publie qu'un nombre.
+
+Publier un nouveau champ « plancher » aurait demandé une application à
+jour. Il y a 223 installations en service, et elles ne se mettront pas à
+jour. Une marge déjà corrigée, elle, tombe juste sur tous les téléphones
+existants : ils font leur addition habituelle.
+
+─── LA LIMITE DURE DE L'APPLICATION, QUI IMPOSE LA TROISIÈME ZONE ────────
+
+MESURÉ dans `TauxFcfa.kt:112` : `if (proportion > MARGE_MAX_PROPORTION)
+return null`, avec `MARGE_MAX_PROPORTION = 0.20`. Une marge au-delà de
+20 % du cours fait rendre `null` — donc AUCUN PRIX AFFICHÉ, un écran vide
+sans explication.
+
+Avec un plancher à 640, la marge exigée franchit ces 20 % sous un cours de
+533, soit EUR/USD au-dessus de 1,2299. Il y a donc trois zones :
+
+    EUR/USD < 1,1368   le plancher ne sert à rien, marge normale
+    1,1368 à 1,2299    le plancher protège, et l'application l'accepte
+    EUR/USD > 1,2299   l'application REFUSERAIT la marge
+
+Dans la troisième, publier la marge exigée donnerait un écran vide, et
+publier moins ferait vendre à perte. On rend donc `trop: true`, et
+l'appelant ferme l'achat avec un motif. Un « indisponible » explicite vaut
+mieux qu'un écran muet, et infiniment mieux qu'une vente à perte.
+═══════════════════════════════════════════════════════════════════════════
+*/
+
+/** La limite de `TauxFcfa.MARGE_MAX_PROPORTION`, côté application. */
+const MARGE_MAX_PROPORTION = 0.20
+
+function margeAjustee(env, cours) {
+  const forfait = margeParDollar(env)
+  const pourcent = nombre(env?.CHANGE_MARGE_POURCENT, 0)
+  const cout = nombre(env?.CHANGE_COUT_FOURNISSEUR, 0)
+  const netMin = nombre(env?.CHANGE_MARGE_MIN, 0)
+
+  /*
+  SANS COURS, ON NE CORRIGE RIEN. Ni le pourcentage ni le plancher ne se
+  calculent sans lui. On rend le forfait — le comportement d'avant — et on
+  le DIT, pour que l'appelant puisse alerter plutôt que de croire que la
+  protection a joué.
+  */
+  if (!(cours > 0)) {
+    return { marge: forfait, source: 'forfait', cours: null, plancher: null, mord: false, trop: false }
+  }
+
+  let marge = pourcent > 0 ? (cours * pourcent) / 100 : forfait
+  const source = pourcent > 0 ? 'pourcentage' : 'forfait'
+
+  let plancher = null
+  let mord = false
+  if (cout > 0) {
+    plancher = cout + netMin
+    if (cours + marge < plancher) {
+      marge = plancher - cours
+      mord = true
+    }
+  }
+
+  return {
+    marge,
+    source,
+    cours,
+    plancher,
+    mord,
+    trop: marge / cours > MARGE_MAX_PROPORTION,
+  }
+}
+
+/*
+LE COURS, AVEC UNE MÉMOIRE — parce qu'une sonde muette ne doit pas
+désarmer le plancher.
+
+`tauxEuroDollar()` sort chez Binance. Si l'appel échoue, la marge
+retomberait au forfait au moment précis où le plancher sert le plus. On
+garde donc le dernier cours connu en KV et on s'en sert : une valeur
+vieille de quelques minutes décrit le marché infiniment mieux que rien.
+
+LE TTL EST COURT ET L'ÉCRITURE EST SILENCIEUSE : ce cours est une
+commodité, pas une vérité. S'il manque, `margeAjustee` rend le forfait et
+le dit.
+*/
+async function coursDollar() {
+  const eurUsd = await tauxEuroDollar()
+  if (eurUsd > 0) {
+    const cours = XOF_PAR_EURO / eurUsd
+    try { await marquerValeur('cours', 'xof-usd', cours) } catch (_) { /* commodité */ }
+    return { cours, frais: true }
+  }
+  try {
+    const garde = await lireValeur('cours', 'xof-usd')
+    const n = nombre(garde, 0)
+    if (n > 0) return { cours: n, frais: false }
+  } catch (_) { /* mémoire muette : on rend null */ }
+  return { cours: null, frais: false }
 }
 
 /*
@@ -3504,18 +3715,49 @@ function json(objet, ttl, statut) {
  * pour un Worker fraîchement déployé, et tournent autour de 25 FCFA par
  * dollar — la moitié de ce que prend FasoChange.
  */
-function parametresChange(env) {
+async function parametresChange(env) {
   const nombre = (v, defaut) => {
     const n = Number(v)
     return Number.isFinite(n) && n >= 0 ? n : defaut
   }
+
+  /*
+  LE COURS EST LU ICI, ET C'EST NOUVEAU. Cette fonction était synchrone et
+  ignorait le marché : elle republiait `CHANGE_MARGE` tel quel. Voir
+  `margeAjustee` pour ce que ça coûtait.
+
+  L'APPEL EST QUASI GRATUIT : `tauxEuroDollar` passe par le cache de
+  Cloudflare (`cacheTtl`, `cacheEverything`), et cette réponse-ci est
+  elle-même mise en cache soixante secondes — `TTL_PARAMETRES_CHANGE`.
+  Donc un appel sortant par minute au plus, pour tous les téléphones.
+  */
+  const { cours } = await coursDollar()
+  const m = margeAjustee(env, cours)
+
+  /*
+  LA TROISIÈME ZONE : la marge exigée dépasse ce que l'application
+  accepte. Publier la marge donnerait un écran vide, publier moins ferait
+  vendre à perte. On ferme, avec un motif que l'écran peut lire.
+  */
+  const ferme = m.trop
   return json(
     {
       // Interrupteur d'arrêt. Mettre CHANGE_ACTIF=0 suffit à retirer le
       // bouton de l'application, sans rien republier.
-      actif: String(env?.CHANGE_ACTIF ?? '1') !== '0',
-      // Marge en FRANCS PAR DOLLAR : la langue du marché local.
-      margeFcfaParDollar: margeParDollar(env),
+      actif: String(env?.CHANGE_ACTIF ?? '1') !== '0' && !ferme,
+      ...(ferme
+        ? {
+            motifFermeture:
+              'Le cours du dollar est trop bas pour notre prix d achat. ' +
+              'Le change rouvre des que le marche remonte.',
+          }
+        : {}),
+      /*
+      Marge en FRANCS PAR DOLLAR : la langue du marché local. Désormais
+      calculée — pourcentage et plancher — par `margeAjustee`. Sans les
+      nouveaux réglages, elle vaut exactement `CHANGE_MARGE`.
+      */
+      margeFcfaParDollar: m.marge,
       /*
       ═══════════════════════════════════════════════════════════════════
       LES FRAIS D'ENVOI, EN DOLLARS ET A PART DE LA MARGE
@@ -8485,7 +8727,20 @@ async function coherenceFcfa(monnaie, montantCrypto, fcfaAnnonce, env) {
   if (!(prixUsd > 0) || !(eurUsd > 0)) return { etat: 'indisponible' }
 
   const tauxXof = XOF_PAR_EURO / eurUsd
-  const margeFcfa = margeParDollar(env)
+  /*
+  LA MÊME MARGE QUE CELLE PUBLIÉE, ET C'EST OBLIGATOIRE.
+
+  Cette fonction vérifie que les francs annoncés par l'application
+  correspondent au montant crypto. L'application les a calculés avec la
+  marge que `/change/parametres` lui a donnée — celle de `margeAjustee`,
+  pas `CHANGE_MARGE` brute.
+
+  Lire `margeParDollar` ici rejetterait donc un ordre PARFAITEMENT
+  légitime dès que le plancher ou le pourcentage joue, avec l'état
+  « ecart ». Le défaut n'aurait eu aucune trace : les deux nombres sont
+  justes, c'est la comparaison qui porterait sur deux réglages différents.
+  */
+  const margeFcfa = margeAjustee(env, tauxXof).marge
   // Même formule que TauxFcfa.prix cote application, y compris l'arrondi
   // au franc du prix unitaire : c'est ce qui rend les deux comparables.
   const unitaire = Math.round(prixUsd * tauxXof - margeFcfa * prixUsd)
@@ -8546,6 +8801,8 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  margeAjustee,
+  MARGE_MAX_PROPORTION,
   verifierVente,
   marquerValeur,
   lireValeur,
@@ -9331,10 +9588,17 @@ par defaut y est le bon comportement, et le `Math.max(1, ...)` qui
 l'entoure le dit deja.
 ═══════════════════════════════════════════════════════════════════════════
 */
-function systemeAssistance(env, langue, prenom) {
+function systemeAssistance(env, langue, prenom, marge = margeParDollar(env)) {
   const min = nombre(env?.CHANGE_MIN, 5000)
   const max = nombre(env?.CHANGE_MAX, 50000)
-  const marge = margeParDollar(env)
+  /*
+  LA MARGE ARRIVE EN PARAMETRE, et son defaut est le comportement
+  d avant. Ces textes citent la marge A UN CLIENT. Depuis que
+  `margeAjustee` peut la relever — pourcentage ou plancher — lire
+  `CHANGE_MARGE` ici ferait annoncer 63 pendant que l application
+  facture 84. Un chiffre faux donne par le bot est pire qu un chiffre
+  absent : le client le repete.
+  */
   const delai = nombre(env?.CHANGE_DELAI, 30)
   const minsParMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
@@ -9811,11 +10075,18 @@ renvoi au modèle : elle a l'air d'une réponse. On le borne en exigeant des
 mots SPÉCIFIQUES — « minimum », jamais « combien ».
 ═══════════════════════════════════════════════════════════════════════════
 */
-function reponsesConnues(env) {
+function reponsesConnues(env, marge = margeParDollar(env)) {
   const min = nombre(env?.CHANGE_MIN, 5000)
   const max = nombre(env?.CHANGE_MAX, 50000)
   const delai = nombre(env?.CHANGE_DELAI, 30)
-  const marge = margeParDollar(env)
+  /*
+  LA MARGE ARRIVE EN PARAMETRE, et son defaut est le comportement
+  d avant. Ces textes citent la marge A UN CLIENT. Depuis que
+  `margeAjustee` peut la relever — pourcentage ou plancher — lire
+  `CHANGE_MARGE` ici ferait annoncer 63 pendant que l application
+  facture 84. Un chiffre faux donne par le bot est pire qu un chiffre
+  absent : le client le repete.
+  */
   const parMonnaie = minimumsChange(env)
   const monnaies = Object.keys(trierAdresses(env?.CHANGE_ADRESSES).bonnes)
   const contacts = contactsVaultex(env)
@@ -10137,10 +10408,10 @@ function reponsesConnues(env) {
  * Ce qui n'est pas reconnu descend au modèle. Mieux vaut laisser passer
  * une question qu'on aurait pu traiter que répondre à côté.
  */
-function reponseConnue(question, env) {
+function reponseConnue(question, env, marge = margeParDollar(env)) {
   const q = sansAccents(question)
   if (q.length < 3) return null
-  for (const entree of reponsesConnues(env)) {
+  for (const entree of reponsesConnues(env, marge)) {
     if (entree.mots.some((m) => q.includes(sansAccents(m)))) return entree.reponse
   }
   return null
@@ -10963,12 +11234,25 @@ async function assistance(requete, env) {
   cher a corriger qu'a laisser.
   ═══════════════════════════════════════════════════════════════════════
   */
+  /*
+  LA MARGE RÉELLEMENT PUBLIÉE, pas le réglage brut — et calculée UNE SEULE
+  FOIS pour les deux usages qui suivent : la réponse toute faite, et le
+  texte système du modèle.
+
+  Elle était d'abord déclarée dans le `if` ci-dessous, et n'atteignait donc
+  pas le second usage. `coursDollar` passe par le cache de Cloudflare puis
+  par KV : le coût est négligeable, et sans cours `margeAjustee` rend le
+  forfait — donc exactement le texte d'avant.
+  */
+  const { cours: coursDit } = await coursDollar()
+  const margeDite = margeAjustee(env, coursDit).marge
+
   if (
     derniere.role === 'user' &&
     !membre &&
     nomLangue(corps?.langue) === 'francais'
   ) {
-    const connue = reponseConnue(derniere.content, env)
+    const connue = reponseConnue(derniere.content, env, margeDite)
     if (connue) return json({ ok: true, reponse: connue, source: 'reglages', membre })
   }
 
@@ -11047,7 +11331,7 @@ async function assistance(requete, env) {
   try {
     const appel = await appelerModele(
       env,
-      systemeAssistance(env, corps?.langue, corps?.prenom),
+      systemeAssistance(env, corps?.langue, corps?.prenom, margeDite),
       propres
     )
 
