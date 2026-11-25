@@ -420,7 +420,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 113
+const VERSION = 114
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -6754,7 +6754,7 @@ async function diagnostiquerPlages(env, params) {
   */
   const hotes = NOEUDS_EVM[reseau] ? noeudsEvm(reseau, env) : null
   if (!hotes) {
-    return json({ ok: false, erreur: `reseau inconnu : ${reseau}`, connus: Object.keys(NOEUDS_EVM) }, 400)
+    return json({ ok: false, erreur: `reseau inconnu : ${reseau}`, connus: Object.keys(NOEUDS_EVM) }, 0, 400)
   }
 
   /*
@@ -6867,14 +6867,14 @@ async function diagnostiquerPourquoi(env, params) {
   const reference = String(params?.get('reference') ?? '').trim()
 
   const cfg = CHAINES_VENTE[monnaie]
-  if (!cfg) return json({ ok: false, erreur: `${monnaie} n'est pas verifiable ici` }, 400)
-  if (!(montantSocle > 0)) return json({ ok: false, erreur: 'montant illisible' }, 400)
+  if (!cfg) return json({ ok: false, erreur: `${monnaie} n'est pas verifiable ici` }, 0, 400)
+  if (!(montantSocle > 0)) return json({ ok: false, erreur: 'montant illisible' }, 0, 400)
   if (cfg.chaine !== 'evm') {
-    return json({ ok: false, erreur: `cette sonde ne couvre que les chaines EVM, pas ${cfg.chaine}` }, 400)
+    return json({ ok: false, erreur: `cette sonde ne couvre que les chaines EVM, pas ${cfg.chaine}` }, 0, 400)
   }
 
   const adresse = adressesChangeur(env)[monnaie]
-  if (!adresse) return json({ ok: false, erreur: `aucune adresse reglee pour ${monnaie}` }, 400)
+  if (!adresse) return json({ ok: false, erreur: `aucune adresse reglee pour ${monnaie}` }, 0, 400)
 
   const marque = marquageActif(env) && reference.length > 0
   const cherche = marque ? await montantMarque(montantSocle, reference, env) : montantSocle
@@ -6884,7 +6884,7 @@ async function diagnostiquerPourquoi(env, params) {
 
   const noeud = noeudsEvm(cfg.reseau, env).find(estAlchemy)
   if (!noeud) {
-    return json({ ok: false, erreur: `aucun noeud servant les transferts enrichis pour ${cfg.reseau}` }, 400)
+    return json({ ok: false, erreur: `aucun noeud servant les transferts enrichis pour ${cfg.reseau}` }, 0, 400)
   }
 
   let liste
@@ -7050,7 +7050,7 @@ const CHAMPS_ALCHEMY = ['hash', 'from', 'to', 'category', 'rawContract', 'metada
 /** Vérifie que le nœud nominatif sert les transferts enrichis, et sous quelle forme. */
 async function diagnostiquerTransferts(env, params) {
   const reseau = (params?.get('reseau') || 'bnb').toLowerCase()
-  if (!NOEUDS_EVM[reseau]) return json({ ok: false, erreur: `reseau inconnu : ${reseau}` }, 400)
+  if (!NOEUDS_EVM[reseau]) return json({ ok: false, erreur: `reseau inconnu : ${reseau}` }, 0, 400)
 
   const noeud = noeudsEvm(reseau, env).find(estAlchemy)
   const nomVariable = `CHANGE_NOEUD_${String(reseau).toUpperCase()}`
@@ -7060,13 +7060,13 @@ async function diagnostiquerTransferts(env, params) {
       version: VERSION,
       erreur: `aucun noeud servant les transferts enrichis dans ${nomVariable}`,
       remede: `Regle ${nomVariable} avec l'URL d'un noeud Alchemy pour ce reseau.`,
-    }, 400)
+    }, 0, 400)
   }
 
   const entree = Object.entries(CHAINES_VENTE).find(
     ([, c]) => c.reseau === reseau && c.contrat && !c.natif
   )
-  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 400)
+  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 0, 400)
   const [monnaie, cfg] = entree
 
   const adresse = trierAdresses(env?.CHANGE_ADRESSES).bonnes[monnaie] || ''
@@ -7076,7 +7076,7 @@ async function diagnostiquerTransferts(env, params) {
       version: VERSION,
       erreur: `aucune adresse reglee pour ${monnaie} dans CHANGE_ADRESSES`,
       remede: 'Sans elle, la sonde ne testerait pas la chaine complete.',
-    }, 400)
+    }, 0, 400)
   }
 
   try {
@@ -7155,7 +7155,7 @@ async function diagnostiquerEtherscan(env, params) {
       remede:
         'Cree une cle gratuite sur etherscan.io/apis, puis ajoute-la dans ' +
         'Cloudflare → Settings → Variables and Secrets, sous le nom CHANGE_CLE_ETHERSCAN.',
-    }, 400)
+    }, 0, 400)
   }
 
   /*
@@ -7167,7 +7167,7 @@ async function diagnostiquerEtherscan(env, params) {
   const entree = Object.entries(CHAINES_VENTE).find(
     ([, c]) => c.reseau === reseau && c.contrat && !c.natif
   )
-  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 400)
+  if (!entree) return json({ ok: false, erreur: `aucun jeton regle pour ${reseau}` }, 0, 400)
   const [monnaie, cfg] = entree
 
   const adresse = trierAdresses(env?.CHANGE_ADRESSES).bonnes[monnaie] || ''
