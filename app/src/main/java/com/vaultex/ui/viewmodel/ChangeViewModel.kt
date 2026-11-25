@@ -1613,6 +1613,37 @@ class ChangeViewModel @Inject constructor(
         val hash: String = ""
     )
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    L'ÉCRAN S'OUVRE SUR LE RÉSEAU LE MOINS CHER, PAS SUR LE PREMIER
+    ═══════════════════════════════════════════════════════════════════════
+
+    C'ÉTAIT `p.monnaies.firstOrNull()` — le premier de la liste du relais,
+    c'est-à-dire l'ordre des clés dans `CHANGE_ADRESSES`. Aucun rapport
+    avec le prix, et aujourd'hui ça tombait sur l'USDT TRON.
+
+    CE QUE ÇA COÛTAIT, MESURÉ au cours du 25 novembre 2026 :
+
+        TRC20    2,00 $   1 195 FCFA    18 % d'un achat de 10 $
+        ERC20    0,60 $     358 FCFA     5 %
+        BEP20    0,01 $       6 FCFA   0,1 %
+
+    Quelqu'un qui ouvrait l'écran, tapait 6 600 et validait payait donc
+    1 195 francs de frais là où 6 suffisaient — sans jamais savoir qu'un
+    autre réseau existait à côté dans la liste déroulante.
+
+    ─── POURQUOI « LE MOINS CHER » ET NON « BEP20 » EN DUR ───────────────
+
+    Parce qu'un nom écrit en dur se périme. Les frais viennent de
+    `CHANGE_FRAIS_USD_PAR_MONNAIE`, qui se règle sans redéployer
+    l'application : le jour où BNB Chain devient cher, ou qu'un réseau
+    moins cher s'ajoute, ce choix suit tout seul.
+
+    `minByOrNull` rend le PREMIER minimum, donc une égalité garde l'ordre
+    du relais — le comportement d'avant, exactement, pour un relais qui ne
+    tarifie rien par monnaie.
+    ═══════════════════════════════════════════════════════════════════════
+    */
     fun charger() {
         viewModelScope.launch {
             _state.update { it.copy(chargement = true, erreur = null) }
@@ -1629,7 +1660,7 @@ class ChangeViewModel @Inject constructor(
                         else -> ""
                     },
                     chargement = false,
-                    monnaie = p?.monnaies?.firstOrNull() ?: it.monnaie
+                    monnaie = p?.let { r -> monnaieParDefaut(r) } ?: it.monnaie
                 )
             }
             recalculer()
@@ -3398,3 +3429,45 @@ class ChangeViewModel @Inject constructor(
         val amountRaw: Double = 0.0
     )
 }
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ÉCRAN S'OUVRE SUR LE RÉSEAU LE MOINS CHER, PAS SUR LE PREMIER
+═══════════════════════════════════════════════════════════════════════════
+
+C'ÉTAIT `p.monnaies.firstOrNull()` — le premier de la liste du relais,
+c'est-à-dire l'ordre des clés dans `CHANGE_ADRESSES`. Aucun rapport avec
+le prix, et ça tombait sur l'USDT TRON.
+
+CE QUE ÇA COÛTAIT, mesuré au cours du 25 novembre 2026, sur un achat de
+dix dollars :
+
+    TRC20    2,00 $   1 195 FCFA    18 % de la commande
+    ERC20    0,60 $     358 FCFA     5 %
+    BEP20    0,01 $       6 FCFA   0,1 %
+
+Deux cents fois l'écart entre le premier et le dernier, pour le même USDT
+reçu. Quelqu'un qui ouvrait l'écran, tapait son montant et validait payait
+1 195 francs de frais là où 6 suffisaient — sans jamais savoir qu'un autre
+réseau l'attendait dans la liste déroulante.
+
+─── POURQUOI « LE MOINS CHER » ET NON « BEP20 » ÉCRIT EN DUR ─────────────
+
+Parce qu'un nom en dur se périme. Les tarifs viennent de
+`CHANGE_FRAIS_USD_PAR_MONNAIE`, qui se règle sur le relais sans
+reconstruire l'application : le jour où BNB Chain devient cher, ou qu'un
+réseau moins cher s'ajoute, ce choix suit tout seul. Un nom en dur, lui,
+aurait demandé un nouvel APK et une redistribution.
+
+`minByOrNull` rend le PREMIER minimum, donc une égalité garde l'ordre du
+relais. Pour un relais qui ne tarifie rien par monnaie, tous les frais
+valent `fraisUsdAchat` et le résultat est le premier de la liste : le
+comportement d'avant, au nom près.
+
+CETTE FONCTION EST HORS DE LA CLASSE pour qu'un test puisse l'atteindre,
+comme `seuilAffiche` ailleurs dans cet écran. Un choix qui décide de ce
+qu'un client paie ne doit pas vivre là où rien ne peut le lire.
+═══════════════════════════════════════════════════════════════════════════
+*/
+internal fun monnaieParDefaut(p: ParametresChange): String? =
+    p.monnaies.minByOrNull { p.fraisUsdAchatPour(it) }
