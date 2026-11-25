@@ -20,6 +20,17 @@
 #   node verifier-version.mjs
 #   npx.cmd wrangler deploy --config wrangler.toml
 #
+# OU, EN UNE SEULE LIGNE DEPUIS N'IMPORTE OU :
+#
+#   ./tools/deployer-relais.sh
+#
+# Il fait le `cd`, lance les garde-fous, refuse de déployer s'ils tombent,
+# déploie, puis vérifie la version en ligne. Il existe parce que la
+# consigne du `cd` écrite ici n'a PAS suffi : la commande a échoué trois
+# fois dans la même soirée, lancée depuis la racine, et le message de
+# wrangler n'a jamais nommé la cause. Une consigne rangée dans le fichier
+# qu'on n'ouvre qu'en cas de problème ne prévient pas le problème.
+#
 # `git pull` D'ABORD — ET C'EST LA MARCHE LA PLUS FACILE À MANQUER.
 #
 # MESURÉ : un déploiement lancé sans `git pull` a publié le worker de la
