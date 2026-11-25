@@ -133,6 +133,17 @@ if [ "$VERIF" = "1" ]; then
 fi
 
 echo
+# ─── LE CONSEIL DOIT ETRE COPIABLE DEPUIS LA OU ON EST ────────────────────
+#
+# PREMIERE VERSION DE CES DEUX LIGNES : « node voir-canaux.mjs --plages=bnb ».
+# Elle supposait le dossier du relais, parce que le script y avait fait son
+# `cd`. Mais le `cd` ne vit QUE dans ce script : celui qui lit le conseil
+# est reste ou il etait, et la commande a echoue « Cannot find module ».
+#
+# C'est exactement la faute que ce script repare, reintroduite par son
+# propre message d'aide. On imprime donc le chemin resolu, qui marche
+# depuis n'importe quel dossier — les outils savent desormais trouver
+# local.properties par eux-memes.
 echo "Pour sonder les noeuds d'un reseau (la cle est demandee sans echo) :"
-echo "  node voir-canaux.mjs --plages=bnb"
+echo "  node $RELAIS/voir-canaux.mjs --plages=bnb"
 echo

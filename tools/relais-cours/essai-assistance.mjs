@@ -41,7 +41,31 @@ const QUESTIONS_CONNUES = [
  * que `prix.relay.url` n'est extrait, et rien d'autre n'est imprimé.
  */
 function relaisDepuisProprietes() {
-  for (const chemin of ['local.properties', '../../local.properties']) {
+  /*
+  LES CHEMINS SONT RESOLUS DEPUIS CE FICHIER, PAS DEPUIS LE DOSSIER
+  COURANT — et la nuance a coute quatre commandes perdues en une soiree.
+
+  La liste precedente, [local.properties, ../../local.properties], decrit
+  deux dossiers : la racine du depot, et tools/relais-cours. Lancer
+  loutil depuis app/, depuis /tmp, ou depuis la racine avec le chemin
+  complet — node tools/relais-cours/cet-outil.mjs — ne trouvait rien, et
+  loutil annoncait une adresse de relais introuvable alors que le fichier
+  etait la.
+
+  import.meta.url ne depend de rien dexterieur. Cest ce que fait deja
+  verifier-deploiement.mjs, et cest pour cela que lui seul marchait
+  depuis les deux dossiers.
+
+  LES DEUX FORMES RELATIVES RESTENT EN DERNIER RECOURS : si quelquun
+  copie cet outil ailleurs, le dossier courant redevient le seul repere.
+  */
+  const candidats = [
+    new URL('../../local.properties', import.meta.url),
+    new URL('./local.properties', import.meta.url),
+    'local.properties',
+    '../../local.properties',
+  ]
+  for (const chemin of candidats) {
     try {
       const ligne = readFileSync(chemin, 'utf8')
         .split('\n')
