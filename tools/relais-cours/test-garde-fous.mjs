@@ -3587,6 +3587,187 @@ CE QUE CES CONTRÔLES TIENNENT, et qui n'est pas « le calcul est juste » :
   }
 }
 
+import { reponsesConnues, faqDisponible } from './worker.js'
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES QUESTIONS ANGLAISES DU JOURNAL, REJOUÉES UNE PAR UNE
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ dans `/diag` le 25 novembre 2026. Le journal des questions sans
+réponse était PLEIN — trente sur trente, donc les plus anciennes déjà
+perdues — et plus de la moitié était en anglais :
+
+    « How do I buy crypto? »              8 fois
+    « What is the minimum to exchange? »  1
+    « How long does it take? »            1
+    « Which network should I choose? »    1
+
+CE QUI LES BLOQUAIT N'ÉTAIT PAS LA LISTE. « minimum », « bep20 »,
+« contact » s'écrivent pareil dans les deux langues : ces questions
+auraient trouvé leur mot. L'appelant refusait tout ce qui n'était pas du
+français AVANT d'essayer, et la liste n'a jamais été consultée.
+
+Les cas ci-dessous sont les questions RÉELLES, recopiées du journal avec
+leur orthographe et leur casse. Un test écrit sur des phrases inventées
+aurait pu passer en laissant « How do I buy crypto? » sans réponse une
+neuvième fois.
+═══════════════════════════════════════════════════════════════════════════
+*/
+{
+  const ENV_FAQ = {
+    CHANGE_MIN: '6000',
+    CHANGE_MAX: '500000',
+    CHANGE_DELAI: '10',
+    CHANGE_MARGE: '63',
+    CHANGE_ADRESSES: JSON.stringify({ USDT: 'TQn9Y2khDD95J42FQtQTdwVVRZqjGBCvpM' }),
+  }
+
+  // Les questions telles qu'elles sont arrivées, et le mot qu'elles doivent
+  // trouver. On vérifie la REPONSE, pas seulement qu'il y en ait une : une
+  // liste mal ordonnée rend la mauvaise, et c'est pire que rien.
+  const duJournal = [
+    ['How do I buy crypto?', 'BUY tab'],
+    ['how do I buy crypto', 'BUY tab'],
+    ['What is the minimum to exchange?', 'minimum depends'],
+    ['How long does it take?', 'announced delay'],
+    ['Which network should I choose?', 'cheapest network'],
+    ['How do I buy crypto?', 'BUY tab'],
+  ]
+  for (const [q, attendu] of duJournal) {
+    const r = reponseConnue(q, ENV_FAQ, 63, 'anglais')
+    verifie(
+      `FAQ EN : « ${q} » trouve sa reponse`,
+      typeof r === 'string' && r.includes(attendu),
+      r ? r.slice(0, 70) : null
+    )
+  }
+
+  /*
+  L'ORDRE DE LA LISTE DÉCIDE, et c'est le piège que ce fichier documente
+  déjà pour Pi Network : `reponseConnue` rend la PREMIÈRE entrée dont un
+  mot apparaît.
+
+  « what are the network fees » contient « network » ET « fee ». La bonne
+  réponse est celle des frais, parce que la question porte sur le coût —
+  et elle ne l'est que parce que l'entrée des frais est placée AVANT
+  celle du choix de chaîne. Inverser les deux casserait ce test, ce qui
+  est exactement ce qu'on veut.
+  */
+  {
+    const r = reponseConnue('what are the network fees', ENV_FAQ, 63, 'anglais')
+    verifie(
+      'FAQ EN : « network fees » tombe sur les FRAIS, pas sur le choix de chaine',
+      typeof r === 'string' && r.includes('margin is 63'),
+      r ? r.slice(0, 70) : null
+    )
+  }
+
+  /*
+  LE FRANÇAIS NE DOIT PAS AVOIR BOUGÉ. C'est la propriété la plus
+  importante du lot : 223 installations posent leurs questions en
+  français, et une traduction qui déplacerait une réponse française
+  serait une régression silencieuse.
+  */
+  for (const [q, attendu] of [
+    ['comment acheter', 'onglet ACHETER'],
+    ['le minimum', 'minimum depend'],
+    ['combien de temps', 'delai annonce'],
+    ['quel reseau choisir', 'moins cher'],
+    ['vos frais', 'marge appliquee'],
+  ]) {
+    const r = reponseConnue(q, ENV_FAQ, 63, 'francais')
+    verifie(
+      `FAQ FR : « ${q} » rend toujours la meme reponse`,
+      typeof r === 'string' && r.includes(attendu),
+      r ? r.slice(0, 70) : null
+    )
+  }
+
+  /*
+  UNE QUESTION ANGLAISE NE DOIT JAMAIS RECEVOIR UN PARAGRAPHE FRANÇAIS.
+  Ce serait pire que le silence : le client verrait un robot cassé plutôt
+  qu'un robot muet. On le vérifie sur une entrée SANS traduction — Pi
+  Network — dont les mots français contiennent pourtant « pi coin », que
+  quelqu'un pourrait écrire en anglais.
+  */
+  /*
+  LA PORTE ELLE-MEME, ET C EST ELLE QUI AVAIT LE DEFAUT. Les controles
+  ci-dessus appellent `reponseConnue` directement : ils passaient tous
+  pendant que l appelant refusait l anglais avant d y arriver. Une
+  mutation l a prouve — remettre « === francais » ne faisait tomber aucun
+  test. On teste donc la condition, pas seulement ce qu elle protege.
+  */
+  for (const [langue, attendu] of [['francais', true], ['anglais', true], ['arabe', false]]) {
+    verifie(
+      `FAQ : la porte ${attendu ? 'laisse passer' : 'refuse'} le ${langue}`,
+      faqDisponible(langue) === attendu,
+      faqDisponible(langue)
+    )
+  }
+
+  {
+    /*
+    LE PIEGE DE L ORDRE, EN ANGLAIS AUSSI — et ce test l a trouve avant
+    qu un client le trouve. « I want to sell my pi coin » tombait sur la
+    reponse VENDRE : ouvre l onglet Vente, envoie a cette adresse. Un
+    conseil impeccable, et impossible a suivre, pour un reseau qu aucun
+    echangeur n ouvre.
+    */
+    const pi = reponseConnue('I want to sell my pi coin', ENV_FAQ, 63, 'anglais')
+    verifie(
+      'FAQ EN : « sell my pi coin » rend la reponse PI, pas celle de la vente',
+      typeof pi === 'string' && pi.includes('cannot do is CONVERT'),
+      pi ? pi.slice(0, 70) : null
+    )
+
+    /*
+    ET UNE ENTREE SANS TRADUCTION DESCEND AU MODELE plutot que de rendre
+    un paragraphe francais. Ce serait pire que le silence : le client
+    verrait un robot casse au lieu d un robot muet.
+    */
+    const sansTraduction = reponseConnue('can I cancel my order', ENV_FAQ, 63, 'anglais')
+    verifie(
+      'FAQ EN : une entree sans traduction ne repond pas en francais',
+      sansTraduction === null,
+      sansTraduction
+    )
+  }
+
+  /*
+  ET LA COHÉRENCE DE LA TABLE ELLE-MÊME — la leçon que ce fichier paie en
+  boucle : une liste écrite à la main à qui il manque une entrée ne se
+  plaint jamais. `motsEn` sans `reponseEn` ne répondrait jamais et ne
+  dirait rien ; `reponseEn` sans `motsEn` non plus.
+  */
+  {
+    const table = reponsesConnues(ENV_FAQ, 63)
+    const boiteuses = table
+      .map((e, i) => ({ i, mots: Boolean(e.motsEn), rep: Boolean(e.reponseEn) }))
+      .filter((e) => e.mots !== e.rep)
+    verifie(
+      'FAQ EN : aucune entree n a motsEn sans reponseEn, ni l inverse',
+      boiteuses.length === 0,
+      boiteuses
+    )
+
+    const traduites = table.filter((e) => e.motsEn && e.reponseEn).length
+    verifie(
+      'FAQ EN : la table porte bien les onze entrees traduites',
+      traduites === 12,
+      traduites
+    )
+
+    // Chaque entrée française reste intacte : aucune n'a perdu ses mots
+    // ni sa réponse en route.
+    verifie(
+      'FAQ : toutes les entrees gardent leur version francaise',
+      table.every((e) => Array.isArray(e.mots) && e.mots.length > 0 && typeof e.reponse === 'string'),
+      table.filter((e) => !Array.isArray(e.mots) || typeof e.reponse !== 'string').length
+    )
+  }
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les garde-fous tiennent, et dans le bon ordre.')

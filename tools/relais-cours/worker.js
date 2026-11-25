@@ -456,7 +456,7 @@ et refuse de se taire quand il est en retard. Lancez-le avant de
 deployer.
 ═══════════════════════════════════════════════════════════════════════════
 */
-const VERSION = 115
+const VERSION = 116
 
 const COINGECKO = 'https://api.coingecko.com'
 
@@ -8801,8 +8801,10 @@ mesure compte.
 ═══════════════════════════════════════════════════════════════════════════
 */
 export {
+  faqDisponible,
   margeAjustee,
   MARGE_MAX_PROPORTION,
+  reponsesConnues,
   verifierVente,
   marquerValeur,
   lireValeur,
@@ -9556,6 +9558,23 @@ function membreEvoque(question, env) {
  */
 const LANGUES_ASSISTANCE = { fr: 'francais', en: 'anglais', ar: 'arabe' }
 
+/*
+LA PORTE DE LA FAQ, SORTIE DE SON `if` POUR POUVOIR ÊTRE TESTÉE.
+
+ELLE ÉTAIT LA CAUSE DU DÉFAUT, et elle n'était testée par rien. Les
+contrôles appelaient `reponseConnue` directement, donc ils passaient tous
+pendant que la porte, elle, refusait l'anglais — exactement la situation
+qui a laissé « How do I buy crypto? » sans réponse huit fois.
+
+Une mutation l'a montré : remettre `=== 'francais'` ici ne faisait tomber
+AUCUN test. Un garde-fou qui ne couvre pas la ligne fautive ne garde rien.
+*/
+const LANGUES_FAQ = ['francais', 'anglais']
+
+function faqDisponible(langue) {
+  return LANGUES_FAQ.includes(langue)
+}
+
 function nomLangue(code) {
   return LANGUES_ASSISTANCE[String(code ?? '').slice(0, 2).toLowerCase()] ||
     LANGUES_ASSISTANCE.fr
@@ -10130,6 +10149,29 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
              'vendre mon pi', 'vendre du pi', 'vendre des pi', 'vendre mes pi',
              'echanger mon pi', 'convertir mon pi', 'retirer mon pi',
              'sortir mon pi', 'mes pi network'],
+      /*
+      LA MÊME PRIORITÉ QU'EN FRANÇAIS, ET POUR LA MÊME RAISON — un test
+      l'a prouvée nécessaire avant qu'un client la paie.
+
+      « I want to sell my pi coin » tombait sur la réponse VENDRE, qui
+      dit d'ouvrir l'onglet Vente et d'envoyer la crypto à une adresse.
+      Conseil impeccable, et impossible à suivre : aucun échangeur
+      n'ouvre ce réseau, l'écran ne propose pas le Pi, et la personne
+      aurait cherché un onglet qui ne la prendra jamais.
+
+      Comme en français, cette entrée est la PREMIÈRE, donc elle attrape
+      la question avant l'entrée de vente. « pi » seul reste absent des
+      déclencheurs : il est contenu dans « pin », « pick », « simple ».
+      */
+      motsEn: ['pi network', 'pinetwork', 'pi coin', 'picoin',
+               'sell my pi', 'sell pi', 'convert my pi', 'withdraw my pi',
+               'cash out my pi', 'exchange my pi'],
+      reponseEn:
+        `VaultEx does show your Pi address and your Pi balance, and it can SEND Pi. ` +
+        `What it cannot do is CONVERT it — neither to USDT nor to FCFA: no exchanger ` +
+        `opens that network to this day, so the Swap screen does not offer it. There ` +
+        `is still a path that works to cash out Pi, and the team wrote it step by step ` +
+        `in the Telegram community: ${contacts.telegram}.`,
       reponse:
         `VaultEx affiche bien ton adresse Pi et ton solde Pi, et sait ENVOYER du Pi. ` +
         `Par contre l'application ne le CONVERTIT pas — ni en USDT, ni en francs : ` +
@@ -10139,12 +10181,21 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['minimum', 'minimom', 'le moins', 'au moins', 'plus petit'],
+      motsEn: ['minimum', 'at least', 'smallest amount', 'lowest amount'],
+      reponseEn:
+        `The minimum depends on the currency — ${minTexte}. ` +
+        `The cap per operation is ${groupeMilliers(max)} FCFA.`,
       reponse:
         `Le minimum depend de la monnaie — ${minTexte}. ` +
         `Le plafond par operation est de ${groupeMilliers(max)} FCFA.`,
     },
     {
       mots: ['delai', 'combien de temps', 'ca prend', 'duree', 'attendre', 'c est long'],
+      motsEn: ['how long', 'how much time', 'how many minutes', 'delay', 'waiting'],
+      reponseEn:
+        `The announced delay is ${delai} minutes. In practice it is often shorter: ` +
+        `your sale is verified automatically on-chain as soon as the transfer lands, ` +
+        `and the technical team sees the confirmation at the same time you do.`,
       reponse:
         `Le delai annonce est de ${delai} minutes. En pratique c'est souvent plus court : ` +
         `ta vente est verifiee automatiquement sur la chaine des que le versement arrive, ` +
@@ -10185,6 +10236,12 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['frais', 'marge', 'commission', 'ca coute', 'vous prenez', 'tu prends'],
+      motsEn: ['fee', 'fees', 'commission', 'margin', 'how much do you', 'what do you charge', 'cost'],
+      reponseEn:
+        `Our margin is ${marge} FCFA per dollar. It is shown in plain sight on the ` +
+        `Exchange screen before you confirm, with the market price next to it so you ` +
+        `can compare. We charge nothing else. Network fees are separate and depend ` +
+        `on the chain you pick.`,
       reponse:
         `La marge appliquee est de ${marge} FCFA par dollar. Elle est affichee en clair ` +
         `dans l'ecran Change avant que tu valides, avec le prix du marche a cote pour que ` +
@@ -10193,6 +10250,13 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['reseau', 'quelle chaine', 'bep20', 'trc20', 'erc20', 'tron ou', 'bnb ou'],
+      motsEn: ['network', 'which chain', 'what chain', 'bep20', 'trc20', 'erc20', 'tron or', 'bnb or'],
+      reponseEn:
+        (monnaies.length ? `Currencies accepted here: ${monnaies.join(', ')}. ` : '') +
+        `Pick the cheapest network you hold: BNB Chain (BEP20) costs a few cents, ` +
+        `TRON (TRC20) often 1 to 3 dollars, Ethereum (ERC20) far more. WARNING: the ` +
+        `network you select on your exchange must be EXACTLY the one shown on the ` +
+        `Exchange screen. A transfer sent on the wrong network is lost.`,
       reponse:
         (monnaies.length ? `Monnaies acceptees ici : ${monnaies.join(', ')}. ` : '') +
         `Choisis le reseau le moins cher que tu possedes : BNB Chain (BEP20) coute ` +
@@ -10203,6 +10267,14 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     {
       mots: ['pas recu', 'rien recu', 'ou est mon argent', 'toujours rien', 'pas arrive',
              'jai envoye', "j'ai envoye", 'pas confirme'],
+      motsEn: ['not received', 'havent received', 'have not received', 'where is my money', 'still nothing', 'didnt arrive', 'did not arrive', 'not confirmed', 'i sent'],
+      reponseEn:
+        `Reopen your request on the Exchange screen: the verification card shows what the ` +
+        `relay has read on-chain, and it refreshes on its own. Three causes, most ` +
+        `frequent first: the amount sent does not match EXACTLY the one requested — an ` +
+        `exchange deducts its own fee, so the « you will receive » line is the one that ` +
+        `counts; the withdrawal is still queued at your exchange; or the network was ` +
+        `the wrong one. If none of these, write to us on WhatsApp at ${contacts.whatsapp}.`,
       reponse:
         `Rouvre ta demande dans l'ecran Change : la carte de verification dit ce que le ` +
         `relais a lu sur la chaine, et elle se met a jour toute seule. Trois causes, dans ` +
@@ -10214,6 +10286,13 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     {
       mots: ['comment vendre', 'je veux vendre', 'pour vendre', 'comment je vend',
              'vendre mes usdt', 'vendre ma crypto'],
+      motsEn: ['how do i sell', 'how to sell', 'i want to sell', 'sell my usdt', 'sell my crypto', 'selling'],
+      reponseEn:
+        `Open the Exchange screen, SELL tab, choose your currency and type the amount. ` +
+        `The app then gives you an ADDRESS and an EXACT AMOUNT, with precise decimals: ` +
+        `send exactly that amount to that address from your wallet or your exchange. ` +
+        `A rounded amount will not be recognised — those decimals are what ties your ` +
+        `transfer to your request.`,
       reponse:
         `Ouvre l'ecran Change, onglet VENDRE, choisis ta monnaie et tape le montant. ` +
         `L'application te donne alors une ADRESSE et un MONTANT EXACT, avec des decimales ` +
@@ -10224,6 +10303,12 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     {
       mots: ['comment acheter', 'je veux acheter', 'pour acheter', 'comment je achete',
              'acheter des usdt', 'acheter de la crypto'],
+      motsEn: ['how do i buy', 'how to buy', 'i want to buy', 'buy crypto', 'buy usdt', 'buying', 'purchase'],
+      reponseEn:
+        `Open the Exchange screen, BUY tab, and type the amount in FCFA. The app gives ` +
+        `you the Mobile Money number to pay and a reference. Pay that exact amount, ` +
+        `then come back and confirm: the team receives your request and sends the ` +
+        `crypto to your address once the payment is verified.`,
       reponse:
         `Ouvre l'ecran Change, onglet ACHETER, et tape le montant en francs. ` +
         `L'application te donne le numero Mobile Money a payer et une reference. ` +
@@ -10259,6 +10344,12 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['orange money', 'moov', 'wave', 'mobile money', 'comment payer', 'je paie comment'],
+      motsEn: ['orange money', 'moov', 'wave', 'mobile money', 'how do i pay', 'how to pay', 'payment method'],
+      reponseEn:
+        `Payments in FCFA go through Mobile Money, to the number shown on the Exchange ` +
+        `screen at the time of purchase. Never send money to a number given to you ` +
+        `anywhere else — by message, by call, or by someone claiming to be support. ` +
+        `Only the number displayed in the app is valid.`,
       reponse:
         `Les paiements en francs se font par Mobile Money, sur le numero affiche dans ` +
         `l'ecran Change au moment de l'achat. N'envoie jamais d'argent a un numero qu'on ` +
@@ -10267,6 +10358,11 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['taux', 'le prix du dollar', 'cours', 'combien vaut'],
+      motsEn: ['the rate', 'exchange rate', 'dollar price', 'price of the dollar', 'how much is a dollar'],
+      reponseEn:
+        `The rate is shown live on the Exchange screen, on TWO lines: the market price, ` +
+        `and the rate actually applied. The gap between them is our margin, shown in ` +
+        `plain sight so you can compare before confirming.`,
       reponse:
         `Le taux s'affiche en direct dans l'ecran Change, avec DEUX lignes : le prix du ` +
         `marche, et le taux reellement applique. L'ecart entre les deux est la marge du ` +
@@ -10342,6 +10438,12 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
     },
     {
       mots: ['phrase secrete', 'douze mots', '12 mots', 'mnemonique', 'seed', 'cle privee'],
+      motsEn: ['seed phrase', 'secret phrase', 'twelve words', '12 words', 'mnemonic', 'private key', 'recovery phrase'],
+      reponseEn:
+        `VaultEx will NEVER ask you for your seed phrase, your twelve words, or your ` +
+        `private key. Not support, not the technical team, nobody. Anyone asking for ` +
+        `them is a scammer, even if they claim to be support. Do not write them ` +
+        `anywhere.`,
       reponse:
         `VaultEx ne te demandera JAMAIS ta phrase secrete, tes douze mots, ni ta cle ` +
         `privee. Ni l'assistance, ni l'equipe technique, ni personne. Quiconque te les reclame ` +
@@ -10367,6 +10469,13 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
       mots: ['contacter', 'contact', 'joindre', 'whatsapp', 'telegram', 'votre mail',
              'votre email', 'adresse mail', 'parler a quelqu un', 'parler a un humain',
              'service client', 'support', 'numero de vaultex', 'vous ecrire'],
+      motsEn: ['contact', 'reach you', 'whatsapp', 'telegram', 'your email', 'talk to a human', 'customer service', 'support', 'write to you'],
+      reponseEn:
+        `Fastest: WhatsApp at ${contacts.whatsapp}. If your question needs a screenshot ` +
+        `or a written trace, write to ${contacts.email}. And to talk with the ` +
+        `community, Telegram: ${contacts.telegram} — it is a group, not a private ` +
+        `desk. You will find all three under Help, in the settings. WARNING: nobody ` +
+        `on the team will ever ask for your seed phrase, on any of these channels.`,
       reponse:
         `Le plus rapide : WhatsApp au ${contacts.whatsapp}. ` +
         `Si ta question demande une capture d'ecran ou une trace ecrite, ecris a ` +
@@ -10408,11 +10517,57 @@ function reponsesConnues(env, marge = margeParDollar(env)) {
  * Ce qui n'est pas reconnu descend au modèle. Mieux vaut laisser passer
  * une question qu'on aurait pu traiter que répondre à côté.
  */
-function reponseConnue(question, env, marge = margeParDollar(env)) {
+/*
+═══════════════════════════════════════════════════════════════════════════
+L'ANGLAIS A SA PROPRE LISTE, ET SES PROPRES RÉPONSES
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ dans `/diag`, le 25 novembre 2026. Le journal des questions sans
+réponse était PLEIN — trente sur trente, donc les plus anciennes déjà
+perdues — et plus de la moitié était en anglais :
+
+    « How do I buy crypto? »              8 fois
+    « What is the minimum to exchange? »  1
+    « How long does it take? »            1
+    « Which network should I choose? »    1
+
+Huit fois la même question. Ce n'est pas du bruit, c'est le signal le plus
+net qu'on ait sur ce que les gens ne trouvent pas dans l'écran.
+
+─── CE QUI LES BLOQUAIT N'ÉTAIT PAS LA LISTE ─────────────────────────────
+
+« minimum », « swap », « contact », « bep20 » s'écrivent pareil dans les
+deux langues : ces questions AURAIENT trouvé leur réponse. Mais l'appelant
+refusait tout ce qui n'était pas du français avant même d'essayer. La
+liste n'a jamais été consultée.
+
+─── POURQUOI DEUX LISTES PLUTÔT QU'UNE ───────────────────────────────────
+
+Parce qu'une correspondance anglaise sur une réponse française serait pire
+que le silence : le client poserait sa question en anglais et recevrait un
+paragraphe en français, l'air d'un robot cassé. Une entrée ne participe
+donc en anglais que si elle porte `reponseEn`.
+
+Les entrées sans traduction descendent au modèle, exactement comme
+aujourd'hui. C'est une perte d'un appel sur les trois cents du jour, pas
+une régression.
+
+─── L'ARABE RESTE AU MODÈLE, ET C'EST ASSUMÉ ─────────────────────────────
+
+Une seule question arabe dans le journal. Écrire vingt réponses pour un
+cas mesuré serait un pari ; le modèle les traite déjà. On y reviendra
+quand le journal le demandera.
+═══════════════════════════════════════════════════════════════════════════
+*/
+function reponseConnue(question, env, marge = margeParDollar(env), langue = 'francais') {
   const q = sansAccents(question)
   if (q.length < 3) return null
+  const anglais = langue === 'anglais'
   for (const entree of reponsesConnues(env, marge)) {
-    if (entree.mots.some((m) => q.includes(sansAccents(m)))) return entree.reponse
+    const mots = anglais ? entree.motsEn : entree.mots
+    const reponse = anglais ? entree.reponseEn : entree.reponse
+    if (!mots || !reponse) continue
+    if (mots.some((m) => q.includes(sansAccents(m)))) return reponse
   }
   return null
 }
@@ -11250,9 +11405,19 @@ async function assistance(requete, env) {
   if (
     derniere.role === 'user' &&
     !membre &&
-    nomLangue(corps?.langue) === 'francais'
+    faqDisponible(nomLangue(corps?.langue))
   ) {
-    const connue = reponseConnue(derniere.content, env, margeDite)
+    /*
+    L'ANGLAIS PASSE DESORMAIS CETTE PORTE. Il était refusé ICI, avant que
+    la liste soit consultée — et c'est ce refus, pas la liste, qui a
+    laissé « How do I buy crypto? » sans réponse huit fois. Plusieurs de
+    ces questions auraient d'ailleurs trouvé leur mot (« minimum »,
+    « bep20 », « contact » s'écrivent pareil dans les deux langues).
+
+    `reponseConnue` ne rend une entrée en anglais que si elle porte une
+    traduction. Les autres descendent au modèle, comme aujourd'hui.
+    */
+    const connue = reponseConnue(derniere.content, env, margeDite, nomLangue(corps?.langue))
     if (connue) return json({ ok: true, reponse: connue, source: 'reglages', membre })
   }
 
