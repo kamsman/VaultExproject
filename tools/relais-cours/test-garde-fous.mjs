@@ -3218,6 +3218,151 @@ entree — ce qu'aucune erreur ne faisait jusqu'ici.
     SYMBOLE_BINANCE.tether === 'USDT', SYMBOLE_BINANCE.tether)
 }
 
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+UN CODE HTTP POSÉ À LA PLACE DE LA DURÉE DE CACHE
+═══════════════════════════════════════════════════════════════════════════
+
+MESURÉ dans le fichier, pas supposé : neuf appels s'écrivaient
+
+    json({ ok: false, erreur: '...' }, 400)
+
+alors que la signature est `json(objet, ttl, statut)`. Le 400 partait donc
+comme DURÉE DE CACHE. Deux conséquences, toutes deux silencieuses :
+
+  1. Le refus sortait en HTTP 200. Le commentaire de `json` dit exactement
+     pourquoi c'est grave : « Un refus doit se lire comme un refus. Rendu
+     en 200, il arriverait dans l'application comme une reponse valide. »
+
+  2. `cache-control: public, max-age=400`. Un refus mis en cache sept
+     minutes — on corrige la cause, on relance, et c'est l'ancien refus
+     qui répond. C'est précisément le piège que l'en-tête d'essai-vente
+     décrit : « se demander si c'est le cache qui repond ».
+
+─── POURQUOI UN TEST SUR LE TEXTE DU FICHIER ─────────────────────────────
+
+Parce qu'aucune de ces neuf lignes ne lève, ne casse un test, ni ne change
+une valeur rendue. Elles sont justes pour JavaScript et fausses pour HTTP.
+Rien à l'exécution ne les distingue d'un appel correct — seule la FORME de
+l'appel les trahit, donc seul un contrôle sur la forme les attrape.
+
+C'est la même leçon que `SYMBOLE_BINANCE` plus haut : une liste écrite à
+la main à qui il manque une entrée ne se plaint jamais.
+═══════════════════════════════════════════════════════════════════════════
+*/
+import { readFileSync } from 'node:fs'
+
+{
+  const source = readFileSync(new URL('./worker.js', import.meta.url), 'utf8')
+  const lignes = source.split('\n')
+
+  /*
+  ─── PREMIÈRE RÈGLE ÉCRITE, ET POURQUOI ELLE ÉTAIT FAUSSE ──────────────
+
+  J'avais d'abord cherché « un second argument supérieur à 300 ». Le test
+  a immédiatement accusé une ligne saine :
+
+      return json(await actualites(env, url.origin), 300)
+
+  Ici 300 est un VRAI cache de cinq minutes. Aucun critère portant sur le
+  nombre seul ne peut les séparer : 400 est à la fois un code HTTP et une
+  durée plausible, et 300 aussi.
+
+  ─── L'INVARIANT QUI, LUI, SE DÉCIDE ──────────────────────────────────
+
+  Ce n'est pas la valeur qui distingue, c'est l'objet rendu : **un refus
+  ne se met jamais en cache**. Donc tout `json()` dont le premier argument
+  porte `ok: false` doit passer `0` en durée. La règle est vraie
+  indépendamment du nombre, et elle attrape exactement la faute — qui
+  consistait à ne pas mettre ce `0`.
+
+  On lit les arguments en comptant les parenthèses plutôt qu'avec une
+  expression régulière, parce que huit de ces appels tiennent sur
+  plusieurs lignes.
+  */
+  const argumentsDe = (texte, depart) => {
+    let p = 0
+    for (let k = depart; k < texte.length; k++) {
+      if (texte[k] === '(') p++
+      else if (texte[k] === ')') {
+        p--
+        if (p === 0) return texte.slice(depart + 1, k)
+      }
+    }
+    return ''
+  }
+
+  const decouper = (liste) => {
+    const parts = []
+    let p = 0, courant = ''
+    for (const c of liste) {
+      if ('([{'.includes(c)) p++
+      else if (')]}'.includes(c)) p--
+      if (c === ',' && p === 0) { parts.push(courant); courant = '' } else courant += c
+    }
+    parts.push(courant)
+    return parts.map((s) => s.trim())
+  }
+
+  const suspectes = []
+  for (let i = 0; i < source.length; i++) {
+    if (!/\bjson\($/.test(source.slice(Math.max(0, i - 5), i + 1))) continue
+    const liste = argumentsDe(source, i)
+    if (!liste) continue
+    const args = decouper(liste)
+    if (!/\bok:\s*false\b/.test(args[0] ?? '')) continue
+    /*
+    UNE DURÉE ABSENTE EST CORRECTE, et ma première version la refusait.
+    `json(objet)` laisse `ttl` à `undefined`, et le ternaire de `json`
+    pose alors `cache-control: no-store` — exactement ce qu'on veut d'un
+    refus. Cinquante des cinquante-sept refus du fichier sont écrits
+    ainsi. Les refuser aurait transformé un garde-fou en bruit, et un
+    garde-fou bruyant finit désactivé.
+    */
+    const ttl = args[1] ?? ''
+    if (ttl === '' || ttl === '0') continue
+    const ligne = source.slice(0, i).split('\n').length
+    suspectes.push(`${ligne} : ttl « ${ttl} » sur un refus`)
+  }
+
+  verifie(
+    'HTTP : un refus json({ ok: false }) passe toujours 0 en duree de cache',
+    suspectes.length === 0,
+    suspectes
+  )
+
+  /*
+  ET LE COMPTE, pour que la règle ci-dessus ne puisse pas devenir muette.
+  Si une refonte renommait `ok` ou déplaçait ces appels, la boucle ne
+  trouverait plus rien et passerait — en ne contrôlant plus rien. On exige
+  donc qu'elle en VOIE un nombre plausible.
+  */
+  let vus = 0
+  for (let i = 0; i < source.length; i++) {
+    if (!/\bjson\($/.test(source.slice(Math.max(0, i - 5), i + 1))) continue
+    const liste = argumentsDe(source, i)
+    if (liste && /\bok:\s*false\b/.test(decouper(liste)[0] ?? '')) vus++
+  }
+  verifie(
+    'HTTP : le controle ci-dessus voit bien les refus du fichier',
+    vus >= 10,
+    vus
+  )
+
+  /*
+  ET LA SIGNATURE ELLE-MÊME, parce que ce test ne vaut que si l'ordre des
+  paramètres est bien celui qu'il suppose. Si `json` devenait un jour
+  `json(objet, statut, ttl)`, le contrôle ci-dessus deviendrait faux sans
+  rien dire — il interdirait la forme correcte.
+  */
+  verifie(
+    'HTTP : la signature de json reste (objet, ttl, statut)',
+    /function json\(objet, ttl, statut\)/.test(source),
+    source.match(/function json\([^)]*\)/)?.[0]
+  )
+}
+
 console.log(`\n${passes} verifications passees, ${echecs} en echec`)
 if (echecs > 0) process.exit(1)
 console.log('✅ Les garde-fous tiennent, et dans le bon ordre.')

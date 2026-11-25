@@ -10,6 +10,11 @@ LES DEUX CANAUX TELEGRAM SONT-ILS LE MÊME BOT ?
     node voir-canaux.mjs --tout
       └── imprime tout /diag, pas seulement cette réponse
 
+    node voir-canaux.mjs --plages=bnb
+      └── ne pose plus la question des canaux : sonde les NŒUDS du réseau
+          et dit lequel répond, jusqu'à quelle largeur de blocs.
+          `--plages` seul vaut `--plages=bnb`.
+
 ─── POURQUOI CET OUTIL ET PAS UN curl ────────────────────────────────────
 
 Parce que la commande équivalente s'écrit
@@ -184,6 +189,19 @@ const relaisArg = args.find((a) => a.startsWith('https://'))
 const cleArg = args.find((a) => a.startsWith('--cle='))?.slice('--cle='.length)
 const relais = (relaisArg || relaisDepuisProprietes()).replace(/\/$/, '')
 
+/*
+`--plages` SEUL VAUT `--plages=bnb`, pour la même raison que le Worker
+pose ce défaut de son côté : le réseau qu'on vient sonder est presque
+toujours celui-là, et une commande qui exige un argument qu'on ne connaît
+pas encore ne se lance pas. `null` signifie « pas demandé » — à
+distinguer d'une chaîne vide, qui serait un `--plages=` mal tapé.
+*/
+const plagesArg = args.find((a) => a === '--plages' || a.startsWith('--plages='))
+const plages =
+  plagesArg === undefined
+    ? null
+    : (plagesArg.split('=')[1] || 'bnb').trim().toLowerCase()
+
 if (!relais.startsWith('https://')) {
   console.log('\n❌ Adresse du relais introuvable.')
   console.log('   Lance la commande depuis le depot, ou passe l adresse en argument.')
@@ -193,27 +211,23 @@ if (!relais.startsWith('https://')) {
 console.log(`\nRelais : ${relais}`)
 
 /*
-TOUT CE QUI SUIT LE PROMPT VIT DANS UNE FONCTION, et ce n'est pas du
-rangement.
+═══════════════════════════════════════════════════════════════════════════
+UN SEUL LECTEUR POUR TOUS LES `/diag*`
+═══════════════════════════════════════════════════════════════════════════
 
-`process.exit()` apres une lecture au clavier declenche l'assertion libuv
-decrite plus haut. Remplacer chaque `exit` par un `exitCode` ne suffit
-pas : le code CONTINUERAIT, et la branche 403 irait lire une reponse qui
-n'existe pas. Il faut pouvoir SORTIR — donc `return`, donc une fonction.
+Les deux questions que cet outil pose — les canaux, les nœuds — partent au
+MÊME endroit, avec la MÊME clé, et butent sur les MÊMES refus. En dupliquer
+la lecture, c'est accepter qu'un jour l'une des deux explique le 403 et
+l'autre dise « acces refuse ».
 
-Le code de sortie est rendu, pose une seule fois a la fin, et le
-processus se termine tout seul.
+Il rend soit `{ reponse }`, soit `{ code }` — et dans le second cas il a
+déjà tout imprimé. L'appelant n'a qu'à relayer le code.
+═══════════════════════════════════════════════════════════════════════════
 */
-async function rapport() {
-  const cle = (cleArg || process.env.CHANGE_DIAG_CLE || '').trim() || (await demanderCle())
-  if (!cle) {
-    console.log('\n❌ Aucune cle saisie. /diag est ferme sans elle.')
-    return 2
-  }
-
-  let reponse
+async function interroger(chemin, cle) {
+  const joint = chemin.includes('?') ? '&' : '?'
   try {
-    const r = await fetch(`${relais}/diag?cle=${encodeURIComponent(cle)}`)
+    const r = await fetch(`${relais}${chemin}${joint}cle=${encodeURIComponent(cle)}`)
     const brut = await r.text()
     /*
     LE 403 SE DISTINGUE DU RESTE, parce que ses deux causes demandent deux
@@ -236,18 +250,156 @@ async function rapport() {
         console.log('   pose-en une neuve par-dessus, c est sans consequence.')
         console.log('     npx wrangler secret put CHANGE_DIAG_CLE --config wrangler.toml')
       }
-      return 1
+      return { code: 1 }
     }
     if (!r.ok) {
-      console.log(`\n❌ HTTP ${r.status} — ${brut.slice(0, 200)}`)
-      return 1
+      /*
+      LE 400 DE `/diag/plages` PORTE UNE RAISON UTILE — « reseau inconnu »
+      et la liste de ceux qu'il connaît. L'imprimer brut obligerait à lire
+      du JSON pour apprendre qu'on a tapé « bsc » au lieu de « bnb ».
+      */
+      let detail = brut.slice(0, 200)
+      try {
+        const o = JSON.parse(brut)
+        detail = o?.erreur || o?.raison || detail
+        if (Array.isArray(o?.connus)) detail += `\n   reseaux connus : ${o.connus.join(', ')}`
+      } catch (_) { /* pas du JSON : on garde le texte brut */ }
+      console.log(`\n❌ HTTP ${r.status} — ${detail}`)
+      return { code: 1 }
     }
-    reponse = JSON.parse(brut)
+    return { reponse: JSON.parse(brut) }
   } catch (e) {
     const cause = e?.cause?.code || e?.code || e?.message || 'inconnue'
     console.log(`\n❌ reseau : ${cause}`)
+    return { code: 1 }
+  }
+}
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+LES NŒUDS DU RÉSEAU RÉPONDENT-ILS, ET JUSQU'OÙ ?
+═══════════════════════════════════════════════════════════════════════════
+
+CE QUE CETTE SONDE MESURE, ET QU'AUCUN RAISONNEMENT NE DONNE : la largeur
+de plage en blocs que chaque nœud accepte sur `eth_getLogs`. Deux limites
+ont été écrites dans le Worker en la supposant — deux mille, puis cinq
+cents, « qui passe partout » — et les deux fois la production a répondu
+« limit exceeded », au milieu d'une vérification de vente.
+
+ELLE TOURNE DANS LE WORKER, PAS ICI, et c'est tout l'intérêt : les points
+d'entrée publics limitent PAR IP, et un Worker sort par des adresses
+Cloudflare partagées avec tous les robots du monde. Une mesure faite
+depuis cette machine décrirait ta connexion, pas celle du relais.
+
+CE QU'ELLE N'IMPRIME PAS : l'URL des nœuds. Le Worker les masque avant de
+les nommer (`hoteMasque`), parce que celle d'un nœud nominatif porte sa
+clé d'API dans son chemin.
+═══════════════════════════════════════════════════════════════════════════
+*/
+async function rapportPlages(cle) {
+  const res = await interroger(`/diag/plages?reseau=${encodeURIComponent(plages)}`, cle)
+  if (res.code !== undefined) return res.code
+  const d = res.reponse
+
+  if (tout) {
+    console.log(JSON.stringify(d, null, 2))
+    return 0
+  }
+
+  console.log(`Version : ${d?.version ?? 'illisible'}`)
+  console.log('\n' + '─'.repeat(74))
+  console.log(`Reseau sonde      : ${d?.reseau ?? plages}`)
+  console.log(`Contrat interroge : ${d?.contrat ?? '(aucun)'}`)
+  console.log(`Tranche en vigueur: ${d?.tranche_actuelle ?? '?'} blocs`)
+  console.log(`Noeud nominatif   : ${d?.noeud_nominatif ?? '?'}`)
+  console.log('─'.repeat(74))
+
+  const noeuds = d?.noeuds ?? {}
+  const noms = Object.keys(noeuds)
+  if (noms.length === 0) {
+    console.log('\n⚠️  Le relais n a sonde aucun noeud pour ce reseau.')
     return 1
   }
+
+  /*
+  `padEnd` SEUL NE SUFFIT PAS, et l'essai l'a montré tout de suite : la
+  hauteur d'un nœud en échec vaut « ✗ 403 forbidden », soit quinze
+  caractères dans une colonne de quatorze. `padEnd` ne tronque pas et ne
+  complète pas — il rend la chaîne telle quelle, collée à la suivante :
+
+      bsc-dataseed.binance.org     ✗ 403 forbidden—
+
+  Une colonne doit donc garantir un séparateur même quand elle débord.
+  */
+  const col = (valeur, largeur) => {
+    const s = String(valeur ?? '')
+    return s.length >= largeur ? `${s}  ` : s.padEnd(largeur)
+  }
+
+  const large = Math.max(24, ...noms.map((n) => n.length))
+  console.log(
+    '\n' + col('noeud', large + 2) + col('hauteur', 16) + col('accepte', 14) + 'refus'
+  )
+  for (const nom of noms) {
+    const n = noeuds[nom] ?? {}
+    console.log(
+      col(nom, large + 2) +
+      col(n.hauteur ?? '?', 16) +
+      col(n.accepte ?? '—', 14) +
+      String(n.refus ?? '')
+    )
+  }
+
+  /*
+  LA CONCLUSION DU WORKER EST RELAYÉE TELLE QUELLE. Elle sait des choses
+  que cette machine ne sait pas — notamment si `CHANGE_NOEUD_<RESEAU>` est
+  réglée, donc si un échec général est attendu ou anormal. La réécrire
+  ici, c'est se donner deux versions de la vérité.
+  */
+  if (d?.conclusion) {
+    console.log('\n' + '─'.repeat(74))
+    console.log(String(d.conclusion))
+  }
+  console.log('')
+
+  /*
+  LE CODE DE SORTIE SUIT CE QUI EST UTILISABLE, pas ce que le HTTP a dit.
+  Un relais qui répond 200 « aucun noeud ne repond » est un échec pour
+  celui qui vient vérifier, et doit pouvoir être enchaîné dans un script.
+  */
+  const vivant = noms.some((n) => typeof noeuds[n]?.hauteur === 'number' && noeuds[n]?.accepte !== 'AUCUNE')
+  return vivant ? 0 : 1
+}
+
+/*
+TOUT CE QUI SUIT LE PROMPT VIT DANS UNE FONCTION, et ce n'est pas du
+rangement.
+
+`process.exit()` apres une lecture au clavier declenche l'assertion libuv
+decrite plus haut. Remplacer chaque `exit` par un `exitCode` ne suffit
+pas : le code CONTINUERAIT, et la branche 403 irait lire une reponse qui
+n'existe pas. Il faut pouvoir SORTIR — donc `return`, donc une fonction.
+
+Le code de sortie est rendu, pose une seule fois a la fin, et le
+processus se termine tout seul.
+*/
+async function rapport() {
+  const cle = (cleArg || process.env.CHANGE_DIAG_CLE || '').trim() || (await demanderCle())
+  if (!cle) {
+    console.log('\n❌ Aucune cle saisie. /diag est ferme sans elle.')
+    return 2
+  }
+
+  /*
+  L'AIGUILLAGE EST APRÈS LA SAISIE DE LA CLÉ, à dessein : les deux
+  questions la demandent, et la demander deux fois pour un outil qui
+  répond à l'une ou à l'autre serait absurde.
+  */
+  if (plages !== null) return await rapportPlages(cle)
+
+  const res = await interroger('/diag', cle)
+  if (res.code !== undefined) return res.code
+  const reponse = res.reponse
 
   if (tout) {
     console.log(JSON.stringify(reponse, null, 2))
