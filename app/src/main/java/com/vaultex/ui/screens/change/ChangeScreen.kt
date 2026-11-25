@@ -4791,15 +4791,35 @@ private fun CarteMontantChange(
     ═══════════════════════════════════════════════════════════════════════
     */
     Surface(shape = RoundedCornerShape(18.dp), color = Color.Transparent) {
-      Box(Modifier.fillMaxWidth().heightIn(min = 92.dp)) {
+      Box(Modifier.fillMaxWidth()) {
+        /*
+        PLUS DE RETRAIT HORIZONTAL, et c'est un alignement, pas un goût.
+
+        Les 14 dp venaient de la carte grise : ils écartaient son contenu
+        de son propre bord. La carte partie, ils écartent maintenant le
+        cadre du bord de la PAGE — donc le cadre ne tombe plus sur la même
+        verticale que les onglets au-dessus ni que « Continuer » en
+        dessous. Trois éléments pleine largeur dont un seul est en retrait
+        se voient immédiatement, même sans savoir pourquoi.
+
+        Le vertical reste : il sépare les deux blocs du trait central.
+        */
         Column(
-            Modifier.fillMaxWidth().padding(14.dp),
+            Modifier.fillMaxWidth().padding(vertical = 2.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                /*
+                LE LIBELLÉ PASSE DE 15 À 19 sp.
+
+                À 15 sp il était la légende d'une carte — il vivait
+                dedans, et la carte portait le poids. Posé à même la page,
+                il devient le titre du bloc : c'est lui qui doit se lire en
+                premier, avant le nombre qu'il annonce.
+                */
                 Text(
                     libelle,
-                    fontSize = 15.sp,
+                    fontSize = 19.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
                     modifier = Modifier.weight(1f)
@@ -4908,10 +4928,37 @@ private fun CarteMontantChange(
                     if (horsBornes) TextSecondary.copy(alpha = 0.30f)
                     else AccentBlue.copy(alpha = 0.55f)
                 ),
-                modifier = Modifier.fillMaxWidth()
+                /*
+                LA HAUTEUR PLANCHER DÉMÉNAGE SUR LE CADRE.
+
+                Elle était sur la boîte extérieure, qui contenait aussi le
+                libellé. Le libellé est sorti, donc elle ne garantissait
+                plus rien du cadre lui-même — et c'est le cadre qu'on voit.
+
+                CE QU'ELLE EMPÊCHE, et qui était déjà écrit dans ce
+                fichier : le bloc du bas porte un sélecteur avec un logo
+                de 44 points, celui du haut un simple drapeau. Sans
+                plancher commun, les deux cadres n'ont pas la même
+                hauteur — et deux rectangles inégaux l'un sous l'autre se
+                lisent comme un défaut d'alignement, pas comme un choix.
+                */
+                modifier = Modifier.fillMaxWidth().heightIn(min = 104.dp)
             ) {
+            /*
+            LA HAUTEUR DU CADRE EST CE QUI MANQUAIT LE PLUS.
+
+            Le remplissage venait d'un bloc POSÉ DANS une carte : serré,
+            parce que la carte tenait déjà l'espace autour. Le cadre est
+            maintenant seul sur la page, et sur la maquette il respire —
+            le nombre flotte au milieu, loin du trait.
+
+            Vingt-quatre points en haut et en bas donnent un cadre d'une
+            centaine de points de haut avec un nombre de 34 sp, ce qui est
+            la proportion de la maquette. Vingt en largeur écartent le
+            chiffre du trait autant que la monnaie l'est de l'autre côté.
+            */
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
