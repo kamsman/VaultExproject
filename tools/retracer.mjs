@@ -136,9 +136,45 @@ function retracerCadre(cadre, classes) {
   crash n'en envoie pas, mais une pile collee depuis logcat, si. On
   essaie la classe entiere, puis la classe sans son dernier segment.
   */
-  const candidats = [nom]
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LE NOM DE LA MÉTHODE EST LA MOITIÉ DE L'INFORMATION, ET JE LE JETAIS
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ le 26 novembre 2026. Pour « s1.j.W:9 », cet outil rendait
+
+      ComposerImpl.<init>(Applier, CompositionContext, ...):1249
+
+  Une méthode nommée `W` à la ligne 9, qui tomberait dans un constructeur
+  à la ligne 1249. Impossible, et affirmé sans la moindre réserve.
+
+  La cause tenait en une ligne :
+
+      cl.methodes.find((x) => ligne >= x.debut && ligne <= x.fin)
+
+  La recherche portait sur le SEUL intervalle de lignes. C'était juste
+  tant que le rapport n'envoyait que la classe — il n'y avait pas de nom
+  de méthode à confronter. Depuis que `AdminBot` envoie
+  « classe.méthode », l'information la plus discriminante arrivait et
+  était ignorée : l'outil rendait la première méthode dont la plage
+  contenait le numéro, au hasard.
+
+  UN OUTIL DE DIAGNOSTIC QUI SE TROMPE AVEC ASSURANCE EST PIRE QU'UN
+  OUTIL QUI DIT « JE NE SAIS PAS ». Celui-ci a envoyé chercher dans un
+  constructeur de Compose.
+
+  ─── CHAQUE CANDIDAT PORTE DÉSORMAIS CE QU'ON SAIT DE LUI ──────────────
+
+  `{ classe, methode }` — et `methode: null` veut dire « le cadre ne
+  nommait pas la méthode », pas « n'importe laquelle convient ». La
+  distinction est exactement celle qui manquait.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const candidats = [{ classe: nom, methode: null }]
   const point = nom.lastIndexOf('.')
-  if (point > 0) candidats.push(nom.slice(0, point))
+  if (point > 0) {
+    candidats.push({ classe: nom.slice(0, point), methode: nom.slice(point + 1) })
+  }
 
   /*
   ═══════════════════════════════════════════════════════════════════════
@@ -204,11 +240,30 @@ function retracerCadre(cadre, classes) {
   }
 
   for (const c of candidats) {
-    const cl = classes.get(c)
+    const cl = classes.get(c.classe)
     if (!cl) continue
-    const meth = cl.methodes.find((x) => ligne >= x.debut && ligne <= x.fin)
+    /*
+    QUAND LE CADRE NOMME LA MÉTHODE, ON L'EXIGE. Deux méthodes d'une même
+    classe partagent souvent une plage de lignes — R8 les replie — et
+    choisir par la seule plage revient à tirer au sort.
+
+    Quand il ne la nomme pas (`methode === null`), la plage est tout ce
+    qu'on a, et c'est le comportement d'avant.
+    */
+    const eligibles =
+      c.methode === null
+        ? cl.methodes
+        : cl.methodes.filter((x) => x.nouveau === c.methode)
+    const meth = eligibles.find((x) => ligne >= x.debut && ligne <= x.fin)
     if (!meth) {
-      // La classe est connue mais pas la ligne : deja utile, on le dit.
+      /*
+      ON DIT LAQUELLE DES DEUX CHOSES MANQUE. « La classe est connue mais
+      pas la ligne » envoyait chercher un mauvais mapping, alors que le
+      vrai cas est souvent « cette classe n'a pas de methode de ce nom ».
+      */
+      if (c.methode !== null && eligibles.length === 0) {
+        return `${cadre}  →  ${cl.origine}  (aucune methode « ${c.methode} » dans cette classe)`
+      }
       return `${cadre}  →  ${cl.origine}  (ligne ${ligne} hors des intervalles connus)`
     }
     const dOrigine =

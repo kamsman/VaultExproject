@@ -358,9 +358,33 @@ object AdminBot {
                 val format = { c: StackTraceElement ->
                     "${c.className}.${c.methodName}:${c.lineNumber}"
                 }
+                /*
+                DOUZE CADRES, ET NON CINQ — MESURE DU 26 NOVEMBRE 2026.
+
+                Le premier rapport lisible a rendu cinq cadres, et les
+                CINQ etaient dans `androidx.compose.runtime`. Le cadre
+                applicatif, lui, etait plus profond : on voyait le moteur
+                refermer ses groupes sans jamais voir qui l'avait appele.
+
+                ET LE FILTRE CI-DESSUS N'Y PEUT RIEN. Il ecarte les noms
+                qui commencent par « androidx. » — or R8 renomme AUSSI
+                androidx, en « s1 ». Le filtre ne reconnait donc le socle
+                que dans un build de debogage, c'est-a-dire precisement
+                quand on n'en a pas besoin.
+
+                C'est la meme lecon qu'il y a deux heures, un cran plus
+                loin : ON NE PEUT PAS RECONNAITRE UN PAQUET PAR SON NOM
+                QUAND R8 L'A RENOMME. Le filtre reste pour `java.*`, que
+                R8 ne touche pas ; pour le reste, la seule reponse est
+                d'en envoyer assez pour que le cadre utile y soit, et de
+                trier au mapping.
+
+                Douze cadres font trois lignes de message Telegram. Une
+                piste perdue en coute trois versions.
+                */
                 val propres = e.stackTrace
                     .filterNot { c -> socleBruit.any { c.className.startsWith(it) } }
-                    .take(5)
+                    .take(12)
                 /*
                 QUAND LA PILE EST ENTIEREMENT DU FRAMEWORK, ON LA GARDE.
 
@@ -376,7 +400,7 @@ object AdminBot {
                 desequilibree. C'est moins bien qu'un cadre a nous, et
                 c'est infiniment mieux que rien.
                 */
-                val cadre = (if (propres.isNotEmpty()) propres else e.stackTrace.take(5))
+                val cadre = (if (propres.isNotEmpty()) propres else e.stackTrace.take(12))
                     .joinToString(" ← ", transform = format)
                 /*
                 ═══════════════════════════════════════════════════════════
