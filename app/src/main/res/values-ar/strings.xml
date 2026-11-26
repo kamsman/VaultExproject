@@ -1037,6 +1037,8 @@
     <string name="tx_err_solde_insuffisant">الرصيد لا يكفي لتغطية المبلغ ورسوم الشبكة</string>
     <string name="tx_err_doge_frais">لا يكفي المتبقي لتغطية رسوم الشبكة. أرسل %1$s على الأكثر، أو اترك قليلاً من DOGE جانبًا.</string>
     <string name="tx_err_doge_poussiere">هذا المبلغ صغير جدًا على شبكة Dogecoin: الحد الأدنى هو %1$s.</string>
+    <string name="tx_err_doge_sans_piece">لا يوجد DOGE قابل للإنفاق حاليًا. قد تكون عملات DOGE الأخيرة في انتظار تأكيد الشبكة.</string>
+    <string name="tx_err_doge_solde">هذا يتطلب %1$s ولديك %2$s. خفّض المبلغ.</string>
     <string name="tx_err_diffusion_refusee">تم رفض البث (HTTP %1$d)</string>
     <string name="tx_err_btc_non_confirme">وصل BTC للتو وينتظر تأكيده على شبكة بيتكوين (غالبًا من 10 إلى 30 دقيقة). أعد المحاولة بعد تأكيده.</string>
     <string name="tx_err_btc_vide">لا يوجد BTC متاح للإرسال.</string>

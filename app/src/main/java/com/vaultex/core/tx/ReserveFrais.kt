@@ -95,9 +95,54 @@ object ReserveFrais {
         "BNB" to 0.00005,
         "SOL" to 0.00001,
         "TRX" to 1.1,
-        // Dogecoin : une entree, deux sorties, au tarif mesure et double
-        // (227 octets x 2008 unites). Voir SendCryptoUseCase.
-        "DOGE" to 0.00456
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        DOGECOIN : SIX ENTRÉES, ET NON UNE — L'ASYMÉTRIE DÉCIDE
+        ═══════════════════════════════════════════════════════════════════
+
+        C'ÉTAIT 0,00456, soit « une entrée, deux sorties ». VU SUR
+        L'APPAREIL le 26 novembre 2026 : MAX proposait 52,74100158 sur un
+        solde dépensable de 52,74555974 — exactement le solde moins cette
+        réserve — et l'envoi était refusé à chaque fois.
+
+        La cause est arithmétique. Une transaction Dogecoin en P2PKH pèse
+        10 octets d'entête, 148 par ENTRÉE et 34 par sortie :
+
+            1 entrée  →  226 o  →  0,00453808 DOGE
+            2 entrées →  374 o  →  0,00750992
+            3 entrées →  522 o  →  0,01048176
+            6 entrées →  966 o  →  0,01939728
+
+        Un portefeuille qui a reçu trois paiements a trois pièces. MAX
+        retranchait les frais d'UNE, la transaction en coûtait trois, et
+        aucun montant proposé par MAX ne pouvait aboutir.
+
+        ─── POURQUOI SIX, ET POURQUOI « TROP » EST LE BON CÔTÉ ────────────
+
+        Cette valeur sert UNIQUEMENT à savoir combien MAX laisse de côté.
+        Les deux erreurs possibles ne coûtent pas la même chose :
+
+          RÉSERVER TROP laisse quelques centièmes de DOGE au portefeuille.
+          À 0,056 $ le DOGE, six entrées au lieu d'une coûtent un
+          dixième de centime — et cet argent n'est pas perdu, il reste
+          là, dépensable au prochain envoi.
+
+          RÉSERVER TROP PEU rend MAX inutilisable. Pas « moins bon » :
+          INUTILISABLE, parce que le montant proposé est refusé et que
+          l'utilisateur n'a aucun moyen de deviner de combien baisser.
+
+        Entre un dixième de centime et un bouton qui ne marche jamais, le
+        choix ne se discute pas.
+
+        ─── CE QUE ÇA NE CORRIGE PAS ──────────────────────────────────────
+
+        Les frais AFFICHÉS restent ceux d'une entrée : le vrai montant ne
+        se connaît qu'une fois les pièces lues, et seul le use-case les
+        lit. La ligne porte un « ≈ », et la différence sort du rendu de
+        monnaie, pas de ce que reçoit le destinataire.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        "DOGE" to 0.0194
     )
 
     private const val FRAIS_FIXE_SOLANA = 0.000005

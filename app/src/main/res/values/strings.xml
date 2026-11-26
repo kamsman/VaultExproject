@@ -1068,6 +1068,10 @@
     <string name="tx_err_doge_frais">Il manque de quoi payer les frais du réseau. Envoie au plus %1$s, ou laisse un peu de DOGE de côté.</string>
     <!-- Refus d un envoi DOGE trop petit pour etre relaye. %1$s = le seuil. -->
     <string name="tx_err_doge_poussiere">Ce montant est trop petit pour le réseau Dogecoin : il faut au moins %1$s.</string>
+    <!-- Aucune piece depensable : souvent des DOGE recus pas encore confirmes. -->
+    <string name="tx_err_doge_sans_piece">Aucun DOGE dépensable pour le moment. Tes derniers DOGE reçus attendent peut-être encore une confirmation du réseau.</string>
+    <!-- Solde insuffisant, avec les deux nombres. %1$s = demande, %2$s = disponible. -->
+    <string name="tx_err_doge_solde">Il faut %1$s et tu disposes de %2$s. Baisse le montant.</string>
     <string name="tx_err_diffusion_refusee">Diffusion refusée (HTTP %1$d)</string>
     <string name="tx_err_btc_non_confirme">Votre BTC vient d\'arriver et attend sa confirmation sur le réseau Bitcoin (souvent 10 à 30 min). Réessayez une fois qu\'il est confirmé.</string>
     <string name="tx_err_btc_vide">Aucun BTC disponible à envoyer.</string>

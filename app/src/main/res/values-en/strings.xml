@@ -1037,6 +1037,8 @@
     <string name="tx_err_solde_insuffisant">Balance too low to cover the amount and the network fee</string>
     <string name="tx_err_doge_frais">Not enough left to cover the network fee. Send at most %1$s, or keep a little DOGE aside.</string>
     <string name="tx_err_doge_poussiere">That amount is too small for the Dogecoin network: the minimum is %1$s.</string>
+    <string name="tx_err_doge_sans_piece">No spendable DOGE right now. Your most recent DOGE may still be waiting for a network confirmation.</string>
+    <string name="tx_err_doge_solde">This needs %1$s and you have %2$s. Lower the amount.</string>
     <string name="tx_err_diffusion_refusee">Broadcast refused (HTTP %1$d)</string>
     <string name="tx_err_btc_non_confirme">Your BTC has just arrived and is waiting for confirmation on the Bitcoin network (often 10 to 30 min). Try again once it is confirmed.</string>
     <string name="tx_err_btc_vide">No BTC available to send.</string>

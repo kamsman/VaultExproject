@@ -851,7 +851,17 @@ class SendCryptoUseCase @Inject constructor(
             plafondUnites = unites + unites / 10 + 1_000_000L,
         )
         if (pieces.isEmpty()) {
-            return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
+            /*
+            « SOLDE INSUFFISANT » ETAIT FAUX ICI, et c'est ce qui a fait
+            chercher du mauvais cote pendant deux essais.
+
+            Une liste de pieces VIDE ne dit rien du solde : elle dit que
+            le fournisseur n'a rendu aucune sortie depensable. La cause la
+            plus frequente est un versement recu mais pas encore confirme
+            — l'ecran affiche alors un solde que la chaine ne laisse pas
+            encore depenser.
+            */
+            return Result.Error(str(com.vaultex.R.string.tx_err_doge_sans_piece))
         }
 
         val pret = com.vaultex.core.tx.DogeEnvoi.preparer(
@@ -908,6 +918,17 @@ class SendCryptoUseCase @Inject constructor(
                             )
                         is com.vaultex.core.tx.DogeSelection.Resultat.MontantTropPetit ->
                             str(com.vaultex.R.string.tx_err_doge_poussiere, doge(r.seuil))
+                        /*
+                        LES DEUX NOMBRES, parce qu'un refus sans chiffre
+                        laisse tatonner. `SoldeInsuffisant` porte le
+                        demande et le disponible : les taire revenait a
+                        jeter la seule information utile du refus.
+                        */
+                        is com.vaultex.core.tx.DogeSelection.Resultat.SoldeInsuffisant ->
+                            str(
+                                com.vaultex.R.string.tx_err_doge_solde,
+                                doge(r.demande), doge(r.disponible)
+                            )
                         else -> str(com.vaultex.R.string.tx_err_solde_insuffisant)
                     }
                 )
