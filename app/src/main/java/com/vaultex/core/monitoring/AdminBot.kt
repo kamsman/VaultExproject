@@ -311,11 +311,55 @@ object AdminBot {
                 conserver pour chaque version distribuée, sans quoi aucune
                 pile ne sera jamais déchiffrable a posteriori.
                 */
+                /*
+                ═══════════════════════════════════════════════════════════
+                DEUX DÉFAUTS ICI GARANTISSAIENT QU'AUCUN CRASH NE SOIT LU
+                ═══════════════════════════════════════════════════════════
+
+                MESURÉ le 26 novembre 2026, mapping de la version qui a
+                planté en main.
+
+                1. `filter { it.className.startsWith("com.vaultex") }`
+                   ne retenait JAMAIS RIEN en release. R8 renomme les
+                   classes en `a.a`, `b.d`, `j.…` — le mapping de
+                   v1.0.1710 le montre ligne après ligne. Chaque crash
+                   tombait donc dans le repli, qui rapporte des cadres
+                   étrangers étiquetés « hors VaultEx ». Le commentaire
+                   ci-dessous affirmait l'inverse — que
+                   `enableR8.fullMode=false` garde la hiérarchie des
+                   paquets. C'est faux, et c'est cette croyance qui a fait
+                   écarter la bonne piste pendant trois versions.
+
+                2. `substringAfterLast('.')` JETAIT LE PAQUET. Le rapport
+                   disait « j.T:1288 », ce qui se lit comme la classe
+                   `j.T` — alors que c'est la classe `…j`, méthode `T`,
+                   ligne 1288. `retracer.mjs` cherchait donc une classe
+                   qui n'a jamais existé, et concluait « aucun cadre
+                   retrouvé ». Deux outils justes, un format entre les
+                   deux qui mentait.
+
+                ─── CE QUI REMPLACE LE FILTRE ─────────────────────────────
+
+                On ne peut PAS reconnaître nos classes par leur nom en
+                release : c'est précisément ce que R8 supprime. On écarte
+                donc le socle — JDK, Android, Kotlin — et on garde les cinq
+                cadres suivants, quels qu'ils soient. Le tri appartient au
+                mapping, pas au téléphone.
+
+                LE NOM COMPLET EST CONSERVÉ, paquet compris. C'est la seule
+                forme que `retracer.mjs` peut décoder, et deux lignes de
+                message de plus valent mieux qu'un rapport illisible.
+                ═══════════════════════════════════════════════════════════
+                */
+                val socleBruit = listOf(
+                    "java.", "javax.", "jdk.", "sun.", "dalvik.", "libcore.",
+                    "android.", "androidx.", "com.android.", "kotlin.", "kotlinx."
+                )
                 val cadre = e.stackTrace
-                    .filter { it.className.startsWith("com.vaultex") }
-                    .take(3)
+                    .filterNot { c -> socleBruit.any { c.className.startsWith(it) } }
+                    .take(5)
                     .joinToString(" ← ") {
-                        "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
+                        "${it.className}.${it.methodName}:${it.lineNumber}"
                     }
                 /*
                 ═══════════════════════════════════════════════════════════
@@ -349,21 +393,20 @@ object AdminBot {
                 l'ancien repli cachait.
                 ═══════════════════════════════════════════════════════════
                 */
-                val socle = listOf(
-                    "java.", "javax.", "jdk.", "sun.", "dalvik.", "libcore.",
-                    "com.android.internal.", "kotlin.jvm.internal."
-                )
+                /*
+                LE REPLI NE PEUT PLUS DIRE « HORS VAULTEX », parce que plus
+                rien ne permet de l'affirmer : le nom d'une classe renommée
+                ne dit pas de qui elle vient. L'ancienne mention était une
+                conclusion tirée d'un filtre qui ne pouvait pas marcher, et
+                elle envoyait chercher ailleurs.
+
+                Il ne reste donc qu'un cas : une pile entièrement faite de
+                socle. On rend alors sa première ligne, en disant ce que
+                c'est.
+                */
                 val where = cadre.ifEmpty {
-                    val horsSocle = e.stackTrace
-                        .filterNot { c -> socle.any { c.className.startsWith(it) } }
-                        .take(3)
-                        .joinToString(" ← ") {
-                            "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
-                        }
-                    // « (hors VaultEx) » est dit, et pas sous-entendu : sans
-                    // cette mention on lirait ces cadres comme les notres.
-                    if (horsSocle.isNotEmpty()) "(hors VaultEx) $horsSocle"
-                    else e.stackTrace.firstOrNull()?.toString()?.take(120) ?: "?"
+                    val premier = e.stackTrace.firstOrNull()?.toString()?.take(120)
+                    if (premier != null) "(pile entierement systeme) $premier" else "?"
                 }
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
                     "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +

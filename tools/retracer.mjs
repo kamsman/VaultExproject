@@ -140,6 +140,69 @@ function retracerCadre(cadre, classes) {
   const point = nom.lastIndexOf('.')
   if (point > 0) candidats.push(nom.slice(0, point))
 
+  /*
+  ═══════════════════════════════════════════════════════════════════════
+  LA TROISIÈME FORME : CELLE QUE LE RAPPORTEUR ENVOYAIT VRAIMENT
+  ═══════════════════════════════════════════════════════════════════════
+
+  MESURÉ le 26 novembre 2026, avec le mapping de la version qui a planté.
+  Le rapport disait « j.T:1288 » et cet outil répondait « « j » existe
+  (16 classes) mais pas « j.T » ». Les deux avaient raison, et pourtant
+  rien ne se décodait.
+
+  La cause était entre les deux. `AdminBot` formatait ses cadres ainsi :
+
+      "${it.className.substringAfterLast('.')}.${it.methodName}:${line}"
+
+  `substringAfterLast('.')` JETTE LE PAQUET. « j.T:1288 » ne désigne donc
+  pas la classe `j.T` : c'est la classe dont le nom court est `j`, la
+  méthode `T`, ligne 1288. Le paquet, lui, est perdu — et c'est justement
+  ce qui identifie la classe dans le mapping.
+
+  ─── ON PEUT LE RETROUVER QUAND MÊME ──────────────────────────────────
+
+  Un nom court seul est ambigu : seize classes s'appellent `j` quelque
+  part. Mais le NOM DE MÉTHODE et le NUMÉRO DE LIGNE, eux, ne le sont
+  presque jamais ensemble. On cherche donc toutes les classes dont le
+  dernier segment vaut `j`, et parmi elles celle qui possède une méthode
+  obfusquée `T` couvrant la ligne 1288.
+
+  S'il en reste plusieurs, on les rend TOUTES plutôt que d'en choisir
+  une : un outil de diagnostic qui tranche au hasard est pire qu'un outil
+  qui montre l'ambiguïté.
+
+  `AdminBot` envoie désormais le nom complet, donc cette recherche ne
+  servira plus aux crashes à venir. Elle reste pour les anciens rapports,
+  qui sont les seuls qu'on ait.
+  ═══════════════════════════════════════════════════════════════════════
+  */
+  const pointNom = nom.lastIndexOf('.')
+  if (pointNom > 0) {
+    const court = nom.slice(0, pointNom)
+    const methode = nom.slice(pointNom + 1)
+    const trouves = []
+    for (const [obfusque, cl] of classes) {
+      const dernier = obfusque.slice(obfusque.lastIndexOf('.') + 1)
+      if (dernier !== court) continue
+      for (const x of cl.methodes) {
+        if (x.nouveau !== methode) continue
+        if (ligne < x.debut || ligne > x.fin) continue
+        const d =
+          x.origine === null ? ligne
+          : x.lineaire ? x.origine + (ligne - x.debut)
+          : x.origine
+        trouves.push(`${cl.origine}.${x.signature}:${d}`)
+      }
+    }
+    if (trouves.length === 1) {
+      return `${cadre}  →  ${trouves[0]}  (paquet reconstitue)`
+    }
+    if (trouves.length > 1) {
+      return `${cadre}  →  ${trouves.length} correspondances possibles :\n` +
+        trouves.map((t) => `                 ${t}`).join('\n')
+    }
+  }
+
   for (const c of candidats) {
     const cl = classes.get(c)
     if (!cl) continue
