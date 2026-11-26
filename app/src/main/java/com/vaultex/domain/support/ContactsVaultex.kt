@@ -112,10 +112,22 @@ object ContactsVaultex {
     jamais à sa place.
     ═══════════════════════════════════════════════════════════════════════
     */
-    const val ASSISTANCE_CHANGE = "+22670470749"
+    /*
+    CHANGÉ LE 26 NOVEMBRE 2026 : +226 70 47 07 49 → +226 67 24 00 06.
+
+    CE NUMÉRO NE CONCERNE QUE L'ÉCRAN DE CHANGE, et c'est voulu. Les deux
+    autres — WHATSAPP et TELEPHONE, plus haut — servent l'assistance
+    générale et n'ont pas bougé. Quelqu'un qui bloque en plein paiement
+    Mobile Money ne doit pas tomber sur la même file qu'une question sur
+    la phrase secrète.
+
+    `grep ASSISTANCE_CHANGE` ne rend que ChangeScreen : la séparation
+    tient, et changer ce numéro ne touche rien d'autre.
+    */
+    const val ASSISTANCE_CHANGE = "+22667240006"
 
     /** La même, telle qu'on la lit — et telle qu'on la recopie. */
-    const val ASSISTANCE_CHANGE_AFFICHE = "+226 70 47 07 49"
+    const val ASSISTANCE_CHANGE_AFFICHE = "+226 67 24 00 06"
 
     const val LIEN_ASSISTANCE_CHANGE_APPEL = "tel:$ASSISTANCE_CHANGE"
 
