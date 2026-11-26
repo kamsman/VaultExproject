@@ -134,11 +134,20 @@ class DogeDepot @Inject constructor(
     /**
      * Pousse une transaction signée. Rend son identifiant, ou `null`.
      *
-     * CE QUI N'EST PAS PROUVÉ : que BlockCypher accepte une transaction
-     * VALIDE que nous fabriquons. Il refuse proprement un corps invalide en
-     * nommant le défaut, donc il analyse — pas qu'il relaie. Seul un envoi
-     * réel le dira, et c'est pour ça que le message d'erreur est remonté
-     * plutôt qu'avalé.
+     * PROUVÉ LE 26 NOVEMBRE 2026 : BlockCypher accepte et relaie une
+     * transaction que NOUS fabriquons. Un envoi réel est passé, depuis un
+     * portefeuille à plusieurs pièces, sur le réseau Dogecoin principal.
+     *
+     * C'est la dernière inconnue de cette chaîne qui tombe. Elle a tenu
+     * longtemps parce qu'aucun essai ne pouvait la lever : BlockCypher
+     * refuse proprement un corps invalide en nommant le défaut, donc on
+     * savait qu'il ANALYSE — jamais qu'il relaie. Seul un envoi réel
+     * pouvait trancher, et il a tranché.
+     *
+     * LE MESSAGE D'ERREUR RESTE REMONTÉ TEL QUEL. Ce qui est prouvé est
+     * qu'une transaction bien formée passe ; rien ne garantit la suivante
+     * — un format de sortie différent, une pièce exotique, un refus de
+     * relai. Avaler le message rendrait le prochain échec muet.
      */
     suspend fun diffuser(hex: String, jeton: String? = null): Diffusion = try {
         val r = blockcypher.diffuser(BlockCypherPousseeDto(hex), jeton)

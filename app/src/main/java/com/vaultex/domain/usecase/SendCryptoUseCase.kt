@@ -802,12 +802,15 @@ class SendCryptoUseCase @Inject constructor(
     milliemes de DOGE sur un envoi ordinaire — moins qu'un centieme de
     centime.
 
-    ─── CE QUI N'EST PAS PROUVE, ET NE L'EST QU'EN ENVOYANT ──────────────
+    ─── PROUVE LE 26 NOVEMBRE 2026, PAR UN ENVOI REEL ────────────────────
 
-    Que le reseau accepte une transaction que NOUS fabriquons. BlockCypher
-    refuse proprement un corps invalide en nommant le defaut, donc il
-    analyse — pas qu'il relaie. Et le seuil de poussiere ci-dessous est
-    pose, pas verifie.
+    Le reseau accepte une transaction que NOUS fabriquons. Un envoi est
+    passe sur le reseau Dogecoin principal, depuis un portefeuille a
+    plusieurs pieces, et BlockCypher l'a relaye.
+
+    CE QUI RESTE POSE SANS ETRE VERIFIE : le seuil de poussiere
+    ci-dessous. Aucun envoi assez petit pour l'atteindre n'a encore ete
+    tente, donc on ignore si le reseau le refuserait exactement la.
 
     Le premier envoi reel tranchera les deux, et c'est pour ca que le
     message d'erreur du diffuseur est remonte tel quel plutot qu'avale.
