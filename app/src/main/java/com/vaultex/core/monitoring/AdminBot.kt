@@ -355,12 +355,29 @@ object AdminBot {
                     "java.", "javax.", "jdk.", "sun.", "dalvik.", "libcore.",
                     "android.", "androidx.", "com.android.", "kotlin.", "kotlinx."
                 )
-                val cadre = e.stackTrace
+                val format = { c: StackTraceElement ->
+                    "${c.className}.${c.methodName}:${c.lineNumber}"
+                }
+                val propres = e.stackTrace
                     .filterNot { c -> socleBruit.any { c.className.startsWith(it) } }
                     .take(5)
-                    .joinToString(" ← ") {
-                        "${it.className}.${it.methodName}:${it.lineNumber}"
-                    }
+                /*
+                QUAND LA PILE EST ENTIEREMENT DU FRAMEWORK, ON LA GARDE.
+
+                MESURE sur le crash du 25 novembre : les trois cadres
+                etaient `ComposerImpl.doCompose`, `endGroup` et
+                `Stack.pop` — tous dans `androidx.compose.runtime`, donc
+                tous ecartes par le filtre ci-dessus.
+
+                Les jeter aurait rendu « (pile entierement systeme) » et
+                rien d'autre. Or ces trois-la DISENT quelque chose de
+                precis : `Stack.pop()` sur une pile vide pendant que
+                Compose referme ses groupes, c'est une composition
+                desequilibree. C'est moins bien qu'un cadre a nous, et
+                c'est infiniment mieux que rien.
+                */
+                val cadre = (if (propres.isNotEmpty()) propres else e.stackTrace.take(5))
+                    .joinToString(" ← ", transform = format)
                 /*
                 ═══════════════════════════════════════════════════════════
                 QUAND LA PILE NE CONTIENT AUCUNE LIGNE A NOUS
@@ -408,9 +425,43 @@ object AdminBot {
                     val premier = e.stackTrace.firstOrNull()?.toString()?.take(120)
                     if (premier != null) "(pile entierement systeme) $premier" else "?"
                 }
+                /*
+                ═══════════════════════════════════════════════════════════
+                LA CAUSE, QU'ON NE REGARDAIT PAS — ET C'EST SOUVENT ELLE
+                ═══════════════════════════════════════════════════════════
+
+                MESURE sur le crash du 25 novembre : l'exception rapportee
+                etait un `IndexOutOfBoundsException` dans
+                `ComposerImpl.Stack.pop()`. Ce n'est pas un defaut, c'est
+                un SYMPTOME — une exception avait leve au milieu d'une
+                composition, laissant des groupes ouverts, et c'est la
+                recomposition suivante qui echoue en les refermant.
+
+                La vraie erreur est alors dans `cause`, et le rapport n'en
+                disait pas un mot. On cherchait donc le defaut dans le
+                moteur de Compose, la ou il n'etait pas.
+
+                TROIS NIVEAUX : une cause a souvent elle-meme une cause,
+                et c'est la plus profonde qui nomme le vrai probleme.
+                Au-dela, on repeterait la meme chose en plus long.
+
+                `generateSequence` S'ARRETE SUR UN CYCLE ? Non — et c'est
+                pourquoi `take(3)` est pose avant le `joinToString` plutot
+                qu'apres : une exception dont la cause est elle-meme
+                existe, et sans borne la sequence tournerait sans fin au
+                moment precis ou l'application est deja en train de
+                mourir.
+                ═══════════════════════════════════════════════════════════
+                */
+                val causes = generateSequence(e.cause) { it.cause }
+                    .take(3)
+                    .joinToString(" ⟸ ") {
+                        "${it.javaClass.simpleName} : ${it.message?.take(90) ?: "(sans message)"}"
+                    }
                 val msg = "💥 Crash VaultEx v${com.vaultex.BuildConfig.VERSION_NAME}" +
                     "\n📱 ${deviceModel()} · Android ${android.os.Build.VERSION.RELEASE}" +
                     "\n${e.javaClass.simpleName} : ${e.message?.take(160) ?: "(sans message)"}" +
+                    (if (causes.isNotEmpty()) "\n⟸ $causes" else "") +
                     "\n📍 $where"
                 // Envoi sur un thread SÉPARÉ, borné à 1,5 s : si le réseau est
                 // lent/bloqué (proxy), on ne fige JAMAIS le thread qui plante —
