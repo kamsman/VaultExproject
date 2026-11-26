@@ -193,11 +193,19 @@ présents pour VaultEx.
 
 2. **Redéployer le Worker**, puis vérifier :
 
-   ```
-   https://<ton-worker>.workers.dev/diag
+   ```bash
+   node tools/relais-cours/voir-canaux.mjs --tout
    ```
 
    Le bloc `lectureSms` doit dire `"configuree": true`.
+
+   > **Pourquoi un outil plutôt qu'une URL.** Cette ligne disait
+   > `https://<ton-worker>.workers.dev/diag`. Un gabarit pareil a été collé
+   > TEL QUEL quatre fois dans ce projet, et la dernière — le 26 novembre
+   > 2026 — a mis la chaîne `LA_NOUVELLE_VALEUR` comme `CHANGE_SMS_TOKEN`
+   > en production. `voir-canaux.mjs` lit l'adresse dans `local.properties`
+   > et demande la clé sans écho : il n'y a rien à remplacer, donc rien à
+   > mal remplacer.
 
 3. **Installer l'APK** sur le téléphone du changeur (transfert par câble, ou
    fichier envoyé puis ouvert ; autoriser les sources inconnues).

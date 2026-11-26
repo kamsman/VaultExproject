@@ -354,7 +354,19 @@ private fun AddContactDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val chains = listOf("ETH", "BNB", "BTC", "SOL", "TRX", "USDT")
+    /*
+    LA LISTE VIENT DU VALIDATEUR, et plus d'ici.
+
+    Elle etait ecrite a la main : six chaines, et DOGE absent — alors que
+    `AddressValidator` sait verifier une adresse Dogecoin depuis le debut.
+    On proposait donc moins que ce qu'on savait faire, et il fallait coller
+    les adresses DOGE a la main ailleurs.
+
+    `CHAINES_VERIFIABLES` est la seule liste qui compte ici : offrir une
+    chaine que le validateur ne connait pas reviendrait a enregistrer
+    n'importe quoi sous couvert de verification.
+    */
+    val chains = com.vaultex.core.validation.AddressValidator.CHAINES_VERIFIABLES
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SurfaceColor,

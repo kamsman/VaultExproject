@@ -5,6 +5,32 @@ import java.security.MessageDigest
 
 object AddressValidator {
 
+    /*
+    ═══════════════════════════════════════════════════════════════════════
+    LES CHAÎNES DONT ON SAIT VRAIMENT VÉRIFIER UNE ADRESSE
+    ═══════════════════════════════════════════════════════════════════════
+
+    `isValid` finit par `else -> address.length >= 26`, c'est-à-dire « on
+    ne sait pas, on laisse passer ». C'est le bon repli pour ne pas bloquer
+    une monnaie nouvelle — mais ça veut dire qu'un écran qui PROPOSE une
+    chaîne absente du `when` ci-dessous n'offre aucune vérification réelle.
+
+    VU LE 26 NOVEMBRE 2026 : le carnet d'adresses proposait six chaînes,
+    écrites à la main chez lui, et DOGE n'y était pas — alors que ce
+    validateur sait le vérifier depuis le début. Un utilisateur venait donc
+    de coller une adresse DOGE à la main, sans pouvoir l'enregistrer.
+
+    Le défaut n'était pas l'absence de DOGE : c'était qu'une liste vive
+    ailleurs. Les écrans qui offrent un choix de chaîne lisent désormais
+    celle-ci, et il n'y a plus qu'un endroit où oublier une monnaie.
+
+    L'ORDRE EST CELUI DE L'USAGE, pas l'alphabet : ce que les gens
+    envoient le plus vient en premier dans les listes déroulantes.
+    ═══════════════════════════════════════════════════════════════════════
+    */
+    val CHAINES_VERIFIABLES: List<String> =
+        listOf("USDT", "USDT-ETH", "USDT-BNB", "ETH", "BNB", "BTC", "TRX", "SOL", "DOGE")
+
     fun isValid(address: String, chain: String): Boolean = when (chain) {
         "ETH", "BNB", "USDT-ETH", "USDT-BNB" -> isValidEvm(address)
         "BTC"        -> isValidBtc(address)
