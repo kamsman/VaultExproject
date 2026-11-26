@@ -866,8 +866,52 @@ class SendCryptoUseCase @Inject constructor(
         when (pret) {
             is com.vaultex.core.tx.DogeEnvoi.Resultat.AdresseInvalide ->
                 return Result.Error(str(com.vaultex.R.string.tx_err_adresse_doge))
-            is com.vaultex.core.tx.DogeEnvoi.Resultat.Refus ->
-                return Result.Error(str(com.vaultex.R.string.tx_err_solde_insuffisant))
+            /*
+            ═══════════════════════════════════════════════════════════════
+            TROIS CAUSES DE REFUS, ET UNE SEULE ETAIT DITE
+            ═══════════════════════════════════════════════════════════════
+
+            VU SUR L'APPAREIL le 26 novembre 2026. L'ecran annoncait :
+
+                Solde        53,06554788 DOGE
+                Montant      52
+                Frais         0,00455816 DOGE
+
+            et refusait avec « Solde insuffisant pour couvrir le montant
+            et les frais reseau ». Or 52,0046 tient largement dans 53,07 :
+            le message accusait une cause qui n'etait pas la sienne, et
+            envoyait chercher du cote du solde.
+
+            `DogeSelection` distingue pourtant TROIS refus, et
+            `DogeEnvoi.Refus` porte lequel dans `raison` — l'information
+            etait la, a une ligne de distance, jetee a l'arrivee.
+
+            CHAQUE CAUSE DEMANDE UN GESTE DIFFERENT : approvisionner,
+            baisser le montant, ou renoncer a un envoi trop petit. Un
+            message unique en designe un seul, donc se trompe deux fois
+            sur trois.
+
+            LE PLUS GRAND MONTANT ENVOYABLE EST DONNE, parce que « il
+            manque de quoi payer les frais » sans dire combien laisse
+            tatonner — et que ce chiffre, le selecteur vient justement de
+            le calculer.
+            ═══════════════════════════════════════════════════════════════
+            */
+            is com.vaultex.core.tx.DogeEnvoi.Resultat.Refus -> {
+                val doge = { u: Long -> "%.8f DOGE".format(u / 100_000_000.0) }
+                return Result.Error(
+                    when (val r = pret.raison) {
+                        is com.vaultex.core.tx.DogeSelection.Resultat.FraisNonCouverts ->
+                            str(
+                                com.vaultex.R.string.tx_err_doge_frais,
+                                doge((r.disponible - r.frais).coerceAtLeast(0L))
+                            )
+                        is com.vaultex.core.tx.DogeSelection.Resultat.MontantTropPetit ->
+                            str(com.vaultex.R.string.tx_err_doge_poussiere, doge(r.seuil))
+                        else -> str(com.vaultex.R.string.tx_err_solde_insuffisant)
+                    }
+                )
+            }
             is com.vaultex.core.tx.DogeEnvoi.Resultat.Ok -> {
                 /*
                 LE MESSAGE DU DIFFUSEUR EST REMONTE TEL QUEL. C'est le seul

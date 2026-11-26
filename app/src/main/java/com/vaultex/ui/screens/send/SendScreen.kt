@@ -150,7 +150,19 @@ fun SendScreen(navController: NavController) {
     val coinShort = coinLabel(state.selectedChain)                          // ex: USDT
     val coinTitle = coinTitleOf(state.selectedChain, state.customToken)     // ex: USDT (TRC20)
     val netFull = networkFullLabel(state.selectedChain, state.customToken)  // ex: TRC20 · Tron
-    val isNative = state.selectedChain in listOf("BTC", "ETH", "BNB", "SOL", "TRX")
+    /*
+    DOGE MANQUAIT DE CETTE LISTE, et ça se voyait sur l'ecran :
+
+        Solde        53,06554788 DOGE
+        Montant      52
+        Frais         0,00455816 DOGE
+        Total debite 52 DOGE          ← les frais n'y etaient pas
+
+    La liste etait ecrite a la main ici meme, et Dogecoin a ete ajoute a
+    l'application apres. Voir `MonnaiesNatives` pour le detail, et pour
+    les quatre autres copies de cette liste qui trainent ailleurs.
+    */
+    val isNative = com.vaultex.core.config.MonnaiesNatives.estNative(state.selectedChain)
 
     val price = state.priceSelected
     val amountNum = state.amount.replace(",", ".").toDoubleOrNull() ?: 0.0
