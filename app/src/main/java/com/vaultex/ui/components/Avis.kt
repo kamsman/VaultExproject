@@ -297,6 +297,55 @@ fun CarteAvis(
     ) {
         Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 14.dp)) {
 
+            /*
+            ═══════════════════════════════════════════════════════════
+            UN `return@Column` FAISAIT PLANTER COMPOSE
+            ═══════════════════════════════════════════════════════════
+
+            MESURÉ le 26 novembre 2026, pile complète lue dans logcat :
+
+                IndexOutOfBoundsException: Index -1 out of bounds for length 0
+                  at java.util.ArrayList.remove
+                  at ComposerImpl … Stack.pop()
+                  at ComposerImpl.endGroup()
+                  at ComposerImpl.doCompose()
+                  at CompositionImpl.recompose()
+
+            Aucun cadre de VaultEx dans toute la pile, et aucune exception
+            antérieure dans le journal. Ce n'était donc pas une erreur de
+            notre code rattrapée trop tard : c'est la STRUCTURE de cette
+            composition qui était fausse.
+
+            ─── CE QUE FAISAIT L'ANCIENNE FORME ───────────────────────
+
+                Column {
+                    if (etat == MERCI) {
+                        Row { … }       // émet des groupes
+                        return@Column   // et sort
+                    }
+                    titre; étoiles; champ; bouton   // jamais émis
+                }
+
+            Au passage à MERCI, la Column cesse d'émettre quatre blocs
+            qu'elle émettait juste avant. Le composeur attend de refermer
+            autant de groupes qu'il en a ouverts ; il dépile du vide, et
+            `ArrayList.remove(-1)` lève.
+
+            Un `return` qualifié depuis la lambda d'un composable INLINE
+            — Column, Row, Box — est un piège connu de Compose : le
+            compilateur n'a aucun moyen de refermer les groupes restés
+            ouverts sur ce chemin de sortie.
+
+            ─── POURQUOI UN `else` SUFFIT ─────────────────────────────
+
+            Les deux branches deviennent des chemins DÉCLARÉS, et le
+            compilateur Compose pose les groupes des deux côtés. Rien ne
+            sort au milieu, donc rien ne reste ouvert.
+
+            Le corps n'a pas changé d'une ligne — seulement d'un cran
+            d'indentation. Le diff est long, la modification ne l'est pas.
+            ═══════════════════════════════════════════════════════════
+            */
             if (s.etat == EtatAvis.MERCI) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -309,206 +358,206 @@ fun CarteAvis(
                         fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
                     )
                 }
-                return@Column
-            }
+            } else {
 
-            // ─── Titre, étoiles, croix ───────────────────────────────────
-            /*
-            ALIGNE EN HAUT, PAS AU CENTRE. Le titre nomme maintenant
-            l'operation, donc il se replie sur deux lignes sur beaucoup
-            d'ecrans. Centree, la croix se retrouvait alors a cheval
-            entre les deux — elle doit rester en face de la premiere.
-            */
-            Row(verticalAlignment = Alignment.Top) {
-                // Le meme marqueur que le 🚀 de « Quoi de neuf » : deux
-                // cartes au meme endroit doivent se reconnaitre d'un coup
-                // d'oeil, sans etre lues.
-                Text("💬", fontSize = 17.sp)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    /*
-                    LE TITRE EST GENERAL, ET C'EST UN CHOIX DE FOND.
+                // ─── Titre, étoiles, croix ───────────────────────────────────
+                /*
+                ALIGNE EN HAUT, PAS AU CENTRE. Le titre nomme maintenant
+                l'operation, donc il se replie sur deux lignes sur beaucoup
+                d'ecrans. Centree, la croix se retrouvait alors a cheval
+                entre les deux — elle doit rester en face de la premiere.
+                */
+                Row(verticalAlignment = Alignment.Top) {
+                    // Le meme marqueur que le 🚀 de « Quoi de neuf » : deux
+                    // cartes au meme endroit doivent se reconnaitre d'un coup
+                    // d'oeil, sans etre lues.
+                    Text("💬", fontSize = 17.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        /*
+                        LE TITRE EST GENERAL, ET C'EST UN CHOIX DE FOND.
 
-                    Il a d'abord nomme l'operation — « Comment s'est passé
-                    votre envoi ? » — parce qu'une question sans referent
-                    oblige a deviner de quoi on parle.
+                        Il a d'abord nomme l'operation — « Comment s'est passé
+                        votre envoi ? » — parce qu'une question sans referent
+                        oblige a deviner de quoi on parle.
 
-                    MAIS CE N'EST PAS LA QUESTION QU'ON SE POSE. 223
-                    installations, zero transaction en francs : ce qu'il
-                    faut trouver n'est pas le defaut d'un envoi, c'est
-                    celui de l'application. Une question sur une operation
-                    recoit une reponse sur une operation — le premier vrai
-                    retour recu l'a prouve : « c'est bien », deux etoiles,
-                    inexploitable.
+                        MAIS CE N'EST PAS LA QUESTION QU'ON SE POSE. 223
+                        installations, zero transaction en francs : ce qu'il
+                        faut trouver n'est pas le defaut d'un envoi, c'est
+                        celui de l'application. Une question sur une operation
+                        recoit une reponse sur une operation — le premier vrai
+                        retour recu l'a prouve : « c'est bien », deux etoiles,
+                        inexploitable.
 
-                    LE RISQUE EST ASSUME : une question large attire
-                    aussi des reponses larges, et on ne fait rien pour
-                    l'orienter.
+                        LE RISQUE EST ASSUME : une question large attire
+                        aussi des reponses larges, et on ne fait rien pour
+                        l'orienter.
 
-                    J'avais d'abord mis le travail de diagnostic dans
-                    l'invite du champ — « ce qui vous bloque, ce qui
-                    manque ». Ecarte, et a juste titre : ca se lit comme
-                    une enquete, et on ne demande pas a quelqu'un de
-                    remplir un formulaire de plainte. On lui demande ce
-                    qu'il pense. Ce qui le gene sortira de lui-meme, ou
-                    ne sortira pas — mais au moins il aura parle.
+                        J'avais d'abord mis le travail de diagnostic dans
+                        l'invite du champ — « ce qui vous bloque, ce qui
+                        manque ». Ecarte, et a juste titre : ca se lit comme
+                        une enquete, et on ne demande pas a quelqu'un de
+                        remplir un formulaire de plainte. On lui demande ce
+                        qu'il pense. Ce qui le gene sortira de lui-meme, ou
+                        ne sortira pas — mais au moins il aura parle.
 
-                    LE GENRE DE L'OPERATION N'EST PAS PERDU POUR AUTANT :
-                    il part au relais et s'affiche dans Telegram. Savoir
-                    qu'un avis suit un envoi plutot qu'une reception se
-                    lit a la lecture, pas a l'ecriture.
-                    */
-                    stringResource(R.string.avis_titre),
-                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Box(
-                    Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { onFermer() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        stringResource(R.string.close),
-                        tint = TextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        LE GENRE DE L'OPERATION N'EST PAS PERDU POUR AUTANT :
+                        il part au relais et s'affiche dans Telegram. Savoir
+                        qu'un avis suit un envoi plutot qu'une reception se
+                        lit a la lecture, pas a l'ecriture.
+                        */
+                        stringResource(R.string.avis_titre),
+                        fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary
                     )
-                }
-            }
-
-            Spacer(Modifier.height(2.dp))
-            Text(
-                stringResource(R.string.avis_aide),
-                fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
-            )
-
-            Spacer(Modifier.height(10.dp))
-            Etoiles(note = s.etoiles, onNoter = vm::noter)
-
-            // ─── La question ouverte ─────────────────────────────────────
-            Spacer(Modifier.height(10.dp))
-            /*
-            LE CHAMP EST PLUS SOMBRE QUE LA CARTE, et c'est le bon sens :
-            la carte est posee SUR la page, le champ est creuse DANS la
-            carte. La couleur vient de `fondCreux`, qui change avec le
-            theme — voir sa definition plus haut.
-            */
-            Surface(shape = RoundedCornerShape(14.dp), color = fondCreux) {
-                Box(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (s.texte.isEmpty()) {
-                        Text(
-                            stringResource(R.string.avis_invite),
-                            fontSize = 13.sp, color = TextMuted
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable { onFermer() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            stringResource(R.string.close),
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    BasicTextField(
-                        value = s.texte,
-                        onValueChange = vm::saisir,
-                        enabled = s.etat != EtatAvis.ENVOI,
-                        textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp, lineHeight = 19.sp),
-                        cursorBrush = SolidColor(AccentBlue),
-                        /*
-                        QUATRE LIGNES, PAS UNE.
+                }
 
-                        Un champ d'une seule ligne dit « réponds court ».
-                        Celui-ci doit dire le contraire : c'est la phrase
-                        qu'on est venu chercher.
-                        */
-                        maxLines = 4,
-                        /*
-                        ═══════════════════════════════════════════════════
-                        LE CHAMP SE FAIT REMONTER LUI-MÊME
-                        ═══════════════════════════════════════════════════
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(R.string.avis_aide),
+                    fontSize = 12.sp, color = TextSecondary, lineHeight = 17.sp
+                )
 
-                        VU SUR L'APPAREIL, deux fois : le clavier s'ouvre
-                        et recouvre le champ. On tape sans voir ce qu'on
-                        écrit, sur l'écran précisément fait pour recueillir
-                        une phrase.
+                Spacer(Modifier.height(10.dp))
+                Etoiles(note = s.etoiles, onNoter = vm::noter)
 
-                        LA PREMIÈRE CORRECTION NE POUVAIT PAS MARCHER, et
-                        c'est mesurable plutôt que supposable. Elle ajoutait
-                        au bas de la liste
+                // ─── La question ouverte ─────────────────────────────────────
+                Spacer(Modifier.height(10.dp))
+                /*
+                LE CHAMP EST PLUS SOMBRE QUE LA CARTE, et c'est le bon sens :
+                la carte est posee SUR la page, le champ est creuse DANS la
+                carte. La couleur vient de `fondCreux`, qui change avec le
+                theme — voir sa definition plus haut.
+                */
+                Surface(shape = RoundedCornerShape(14.dp), color = fondCreux) {
+                    Box(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (s.texte.isEmpty()) {
+                            Text(
+                                stringResource(R.string.avis_invite),
+                                fontSize = 13.sp, color = TextMuted
+                            )
+                        }
+                        BasicTextField(
+                            value = s.texte,
+                            onValueChange = vm::saisir,
+                            enabled = s.etat != EtatAvis.ENVOI,
+                            textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp, lineHeight = 19.sp),
+                            cursorBrush = SolidColor(AccentBlue),
+                            /*
+                            QUATRE LIGNES, PAS UNE.
 
-                            maxOf(BottomBarSpace, WindowInsets.ime...)
+                            Un champ d'une seule ligne dit « réponds court ».
+                            Celui-ci doit dire le contraire : c'est la phrase
+                            qu'on est venu chercher.
+                            */
+                            maxLines = 4,
+                            /*
+                            ═══════════════════════════════════════════════════
+                            LE CHAMP SE FAIT REMONTER LUI-MÊME
+                            ═══════════════════════════════════════════════════
 
-                        Or l'application n'appelle NI `enableEdgeToEdge` NI
-                        `setDecorFitsSystemWindows(false)`. Avec
-                        `adjustResize`, le système rétrécit donc la fenêtre
-                        lui-même, et `WindowInsets.ime` rend ZÉRO : le
-                        `maxOf` retombe sur `BottomBarSpace`, et la ligne
-                        entière ne fait rien. Elle avait l'air d'un
-                        correctif, elle n'en était pas un.
+                            VU SUR L'APPAREIL, deux fois : le clavier s'ouvre
+                            et recouvre le champ. On tape sans voir ce qu'on
+                            écrit, sur l'écran précisément fait pour recueillir
+                            une phrase.
 
-                        ─── CE QUI MANQUAIT N'ÉTAIT PAS DE LA PLACE ───────
+                            LA PREMIÈRE CORRECTION NE POUVAIT PAS MARCHER, et
+                            c'est mesurable plutôt que supposable. Elle ajoutait
+                            au bas de la liste
 
-                        C'était un DÉFILEMENT. Même avec la place en bas,
-                        rien ne remonte la carte : elle vit dans un
-                        `item` de LazyColumn, loin du haut, et la fenêtre
-                        qui rétrécit la pousse hors champ.
+                                maxOf(BottomBarSpace, WindowInsets.ime...)
 
-                        `bringIntoView` demande au conteneur défilant de
-                        l'amener à l'écran — il traverse la LazyColumn, ce
-                        qu'un `imePadding` ne sait pas faire. Et il ne
-                        dépend d'aucune mesure d'encart, donc il marche que
-                        la fenêtre soit redimensionnée ou non.
+                            Or l'application n'appelle NI `enableEdgeToEdge` NI
+                            `setDecorFitsSystemWindows(false)`. Avec
+                            `adjustResize`, le système rétrécit donc la fenêtre
+                            lui-même, et `WindowInsets.ime` rend ZÉRO : le
+                            `maxOf` retombe sur `BottomBarSpace`, et la ligne
+                            entière ne fait rien. Elle avait l'air d'un
+                            correctif, elle n'en était pas un.
 
-                        L'APPEL EST DANS UNE CORUTINE PARCE QU'IL ATTEND :
-                        `bringIntoView()` suspend jusqu'à la fin du
-                        défilement, qui se joue pendant que le clavier
-                        monte encore.
-                        ═══════════════════════════════════════════════════
-                        */
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bringIntoViewRequester(demandeVisible)
-                            .onFocusEvent { etat ->
-                                if (etat.isFocused) {
-                                    porteeVisible.launch { demandeVisible.bringIntoView() }
+                            ─── CE QUI MANQUAIT N'ÉTAIT PAS DE LA PLACE ───────
+
+                            C'était un DÉFILEMENT. Même avec la place en bas,
+                            rien ne remonte la carte : elle vit dans un
+                            `item` de LazyColumn, loin du haut, et la fenêtre
+                            qui rétrécit la pousse hors champ.
+
+                            `bringIntoView` demande au conteneur défilant de
+                            l'amener à l'écran — il traverse la LazyColumn, ce
+                            qu'un `imePadding` ne sait pas faire. Et il ne
+                            dépend d'aucune mesure d'encart, donc il marche que
+                            la fenêtre soit redimensionnée ou non.
+
+                            L'APPEL EST DANS UNE CORUTINE PARCE QU'IL ATTEND :
+                            `bringIntoView()` suspend jusqu'à la fin du
+                            défilement, qui se joue pendant que le clavier
+                            monte encore.
+                            ═══════════════════════════════════════════════════
+                            */
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bringIntoViewRequester(demandeVisible)
+                                .onFocusEvent { etat ->
+                                    if (etat.isFocused) {
+                                        porteeVisible.launch { demandeVisible.bringIntoView() }
+                                    }
                                 }
-                            }
+                        )
+                    }
+                }
+
+                if (s.etat == EtatAvis.ECHEC) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.avis_echec),
+                        fontSize = 12.sp, color = AccentOrange, lineHeight = 17.sp
                     )
                 }
-            }
 
-            if (s.etat == EtatAvis.ECHEC) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.avis_echec),
-                    fontSize = 12.sp, color = AccentOrange, lineHeight = 17.sp
-                )
-            }
-
-            // ─── La promesse, puis le bouton ─────────────────────────────
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.avis_prive),
-                    fontSize = 11.sp, color = TextMuted, lineHeight = 15.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(10.dp))
-                BoutonEnvoyerAvis(s.peutEnvoyer, s.etat == EtatAvis.ENVOI, fondCreux) {
-                    vm.envoyer(
-                        /*
-                        PRIS À LA SOURCE D'`AdminBot`, et non recopiés
-                        ici : une deuxième copie de la clé « install_at »
-                        finirait par dire autre chose que la première.
-                        */
-                        jours = AdminBot.joursDepuisInstallation(),
-                        modele = AdminBot.modeleAppareil(),
-                        version = BuildConfig.VERSION_NAME,
-                        /*
-                        En minuscules et sans accent : ce texte traverse
-                        un JSON, un Worker et Telegram. Le nom de l'enum
-                        suffit, le relais le met en francais.
-                        */
-                        apres = genre?.name?.lowercase()
+                // ─── La promesse, puis le bouton ─────────────────────────────
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.avis_prive),
+                        fontSize = 11.sp, color = TextMuted, lineHeight = 15.sp,
+                        modifier = Modifier.weight(1f)
                     )
+                    Spacer(Modifier.width(10.dp))
+                    BoutonEnvoyerAvis(s.peutEnvoyer, s.etat == EtatAvis.ENVOI, fondCreux) {
+                        vm.envoyer(
+                            /*
+                            PRIS À LA SOURCE D'`AdminBot`, et non recopiés
+                            ici : une deuxième copie de la clé « install_at »
+                            finirait par dire autre chose que la première.
+                            */
+                            jours = AdminBot.joursDepuisInstallation(),
+                            modele = AdminBot.modeleAppareil(),
+                            version = BuildConfig.VERSION_NAME,
+                            /*
+                            En minuscules et sans accent : ce texte traverse
+                            un JSON, un Worker et Telegram. Le nom de l'enum
+                            suffit, le relais le met en francais.
+                            */
+                            apres = genre?.name?.lowercase()
+                        )
+                    }
                 }
             }
         }

@@ -1248,20 +1248,37 @@ private fun CarteDetailChange(
                 )
             }
 
-            if (!detailOuvert) return@Column
+            /*
+            UN `return@Column` DANS UNE Column INLINE FAIT PLANTER COMPOSE.
 
-            HorizontalDivider(color = BgPrimary)
+            Meme motif que celui qui plantait la carte d avis, et mesure
+            la-bas sur une pile complete : au basculement, la Column
+            cesse d emettre les blocs qu elle emettait juste avant, le
+            composeur depile du vide et `ArrayList.remove(-1)` leve dans
+            `ComposerImpl.endGroup`.
 
-            Ligne(
-                stringResource(R.string.change_prix_marche, state.monnaie),
-                "${fcfa(prix.baseFcfa)} FCFA",
-                icone = Icons.AutoMirrored.Filled.ShowChart
-            )
-            Ligne(
-                stringResource(R.string.change_taux_applique, state.monnaie),
-                "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
-                icone = Icons.Default.Calculate
-            )
+            Celui-ci se declenchait a CHAQUE tap sur la carte — bien plus
+            souvent que celui de l avis, qui ne joue qu une fois par
+            operation. Qu il n ait pas encore plante ne prouve rien : la
+            meme structure, le meme moteur.
+
+            Voir ui/components/Avis.kt pour la pile et l explication.
+            */
+            if (detailOuvert) {
+
+                HorizontalDivider(color = BgPrimary)
+
+                Ligne(
+                    stringResource(R.string.change_prix_marche, state.monnaie),
+                    "${fcfa(prix.baseFcfa)} FCFA",
+                    icone = Icons.AutoMirrored.Filled.ShowChart
+                )
+                Ligne(
+                    stringResource(R.string.change_taux_applique, state.monnaie),
+                    "${fcfa(if (donneFcfa) prix.achatFcfa else prix.venteFcfa)} FCFA",
+                    icone = Icons.Default.Calculate
+                )
+            }
         }
     }
 }
