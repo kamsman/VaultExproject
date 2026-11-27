@@ -516,14 +516,51 @@ fun SwapScreen(navController: NavHostController) {
         distingue « la navigation est ignorée » de « elle a eu lieu, mais pas
         vers l'accueil ».
         */
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        `currentBackStack` EST UNE API RESTREINTE, ET C'EST ASSUMÉ ICI
+        ═══════════════════════════════════════════════════════════════════
+
+        MESURÉ le 27 novembre 2026 : c'était la SEULE erreur du lint sur
+        tout le projet — 1 erreur, 465 avertissements. Et un lint qui
+        échoue toujours n'est jamais lu.
+
+        LE PRIX DE CE SILENCE A ÉTÉ MESURÉ LE MÊME JOUR. `BigInteger.TWO`
+        — introduit à l'API 33, employé avec un minSdk de 26 — a planté
+        tout envoi EVM chez les utilisateurs sous Android 13, depuis la
+        version 615. Le lint attrape exactement ça avec `NewApi`. Il ne le
+        disait à personne parce que personne ne le lançait, et personne ne
+        le lançait parce qu'il échouait de toute façon.
+
+        ─── POURQUOI ON GARDE L'APPEL PLUTÔT QUE LE DIAGNOSTIC ────────────
+
+        Ce chemin ne devrait jamais s'exécuter. Quand il s'exécute, la pile
+        entière est ce qui distingue « la navigation a été ignorée » de
+        « elle a eu lieu, mais ailleurs » — et `currentBackStackEntry`,
+        public, ne donne que le sommet.
+
+        LE RISQUE EST BORNÉ, et c'est ce qui rend la suppression
+        acceptable : si androidx retire cette propriété, la COMPILATION
+        casse. Pas un utilisateur en plein swap — nous, au build suivant.
+        C'est l'inverse exact du défaut que le lint vient de nous épargner.
+
+        La suppression porte sur cette seule ligne, jamais sur le fichier :
+        une suppression large éteindrait aussi les restrictions qu'on n'a
+        pas examinées.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        @Suppress("RestrictedApi")
+        val pileLisible = navController.currentBackStack.value
+            .mapNotNull { it.destination.route }
+            .joinToString(">")
+
         com.vaultex.core.monitoring.reportUnlessCancelled(
             "retour accueil après swap",
             IllegalStateException(
                 "navigation refusée, destination courante = " +
                     (navController.currentBackStackEntry?.destination?.route ?: "inconnue") +
                     ", dernière méthode = " + methode +
-                    ", pile = " + navController.currentBackStack.value
-                        .mapNotNull { it.destination.route }.joinToString(">")
+                    ", pile = " + pileLisible
             )
         )
     }
