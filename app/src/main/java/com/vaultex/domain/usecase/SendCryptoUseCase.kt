@@ -1821,7 +1821,46 @@ class SendCryptoUseCase @Inject constructor(
         // per gas less than block base fee ». On se rabat alors sur eth_gasPrice.
         val effectiveBase = if (baseFee.signum() > 0) baseFee
             else fetchLegacyGasPrice(rpc, 20_000_000_000L, ETH_MAX_FEE_GWEI)   // 20 gwei par défaut
-        val maxFee = effectiveBase.multiply(BigInteger.TWO).add(maxPriority)
+        /*
+        ═══════════════════════════════════════════════════════════════════
+        `BigInteger.TWO` N'EXISTE PAS AVANT ANDROID 13
+        ═══════════════════════════════════════════════════════════════════
+
+        CRASH REEL remonte le 27 novembre 2026, depuis un appareil en
+        circulation :
+
+            NoSuchFieldError : No field TWO of type Ljava/math/BigInteger;
+            Samsung SM-N976B · Android 12 · v1.0.615
+
+        `BigInteger.TWO` est documente « Added in API level 33 » —
+        Android 13. `ONE`, `ZERO` et `TEN` existent depuis l'API 1 ; `TWO`
+        est arrive bien plus tard, et c'est le seul du lot.
+
+        `minSdk = 26`, et le desucrage des bibliotheques n'est PAS active.
+        Le champ se resout donc a l'EXECUTION : le code compile sans un
+        mot, puisque compileSdk 36 le connait, et chaque appareil sous
+        Android 13 leve en arrivant ici.
+
+        ─── CE QUE CA CASSAIT, ET POUR QUI ────────────────────────────────
+
+        Cette ligne calcule le plafond de frais EIP-1559. Elle est sur le
+        chemin de TOUT envoi EVM — ETH, BNB, USDT-ERC20, USDT-BEP20. Sur
+        un parc ou Android 10 et 11 sont courants, c'est la majorite des
+        utilisateurs qui ne pouvaient pas envoyer.
+
+        ─── POURQUOI PERSONNE NE L'A VU ───────────────────────────────────
+
+        Parce que rien ne le dit. Le compilateur accepte, le lint ne
+        tourne pas dans la chaine de construction, et l'appareil de
+        developpement est en Android 15 — ou le champ existe. Il n'y avait
+        qu'un seul endroit ou ce defaut pouvait apparaitre : chez un
+        utilisateur, en plein envoi.
+
+        `valueOf(2)` existe depuis l'API 1 et rend exactement la meme
+        valeur.
+        ═══════════════════════════════════════════════════════════════════
+        */
+        val maxFee = effectiveBase.multiply(BigInteger.valueOf(2)).add(maxPriority)
         // Second garde-fou : un baseFee mensonger gonflerait le plafond total,
         // et c'est ce plafond que le garde-fou de solde met en réserve.
         // Valeur du bloc `coroutineScope`, et non `return` : ce bloc n'est pas
